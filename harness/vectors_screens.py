@@ -62,6 +62,9 @@ CONTEXT_STATES = ("form", "wait", "card", "confirmed")
 CONTEXT_READING = "Keel is reading your four answers."
 CONTEXT_CONTINUE = "Continue to the problem"
 CONTEXT_EDIT = "Edit"
+#: keel-web 117 FR-1 (`SCOPE_CHANGE`, the plan card's word): the end of the card's *I'll ask about* line, which opens the
+#: occasion's one field in the line's place (spec 074).
+OCCASION_CHANGE = "Change"
 #: keel-web 093 FR-2 (`REFUSED_LEAD`): a refused step's lead on Keel's door -- the back-test markdown's anchor.
 REFUSED_LEAD = "Keel couldn't finish this step"
 CONTINUE = "Continue"
@@ -1188,16 +1191,40 @@ class Corridor:
             return {"method": "PUT", "path": None, "status": None, "error": repr(missing)}
 
     def context_occasion(self) -> dict:
-        """keel-web 106 FR-1 (contract 36, keel-cloud 129 FR-11; spec 068 FR-4): the context card's *occasion* field
-        (`[data-testid=context-occasion]`, the input `#context-occasion`, a paragraph once confirmed), pre-filled with the
-        noun Keel found in its read-back (`occasion.noun`); absent on a contract without it."""
-        node = self.page.get_by_test_id("context-occasion")
-        if not node.count():
-            return {"drawn": False, "value": None}
-        field = self.page.locator("input#context-occasion")
-        value = _value(field.first) if field.count() else _first_text(self.page, "#context-occasion")
-        return {"drawn": True, "value": " ".join((value or "").split()) or None,
-                "refused": _first_text(self.page, "#context-occasion-refused") or None}
+        """keel-web 106 FR-1 (contract 36, keel-cloud 129 FR-11; spec 068 FR-4): the context card's *occasion*, pre-filled
+        with the noun Keel found in its read-back (`occasion.noun`); absent on a contract without it.
+
+        Spec 074 (keel-web 117): the occasion lives on the card's *I'll ask about* line, which ends with *Change*
+        (`context-occasion-change`); the block under the card (`.cfield--occasion`) is gone. The walk taps *Change*
+        to read the field it opens in the line's place (`[data-testid=context-occasion]`, the input
+        `#context-occasion`, its hint), then Esc puts the line back with the change dropped -- nothing is edited or
+        saved. Before 117 (no *Change*) the old field under the card is read as it stands."""
+        change = self.page.get_by_test_id("context-occasion-change")
+        blocks = self.page.locator(".cfield--occasion").count()
+        if not change.count():
+            node = self.page.get_by_test_id("context-occasion")
+            if not node.count():
+                return {"drawn": False, "value": None, "change": None, "block": blocks}
+            field = self.page.locator("input#context-occasion")
+            value = _value(field.first) if field.count() else _first_text(self.page, "#context-occasion")
+            return {"drawn": True, "value": " ".join((value or "").split()) or None, "change": None, "block": blocks,
+                    "refused": _first_text(self.page, "#context-occasion-refused") or None}
+        line = _first_text(self.page, "[data-testid=context-ask-about]") or None
+        label = _tc(change)
+        change.first.click()
+        field = self.page.locator("[data-testid=context-occasion] input#context-occasion").first
+        field.wait_for(state="visible", timeout=10_000)
+        value = _value(field)
+        opened = {"value": " ".join((value or "").split()) or None,
+                  "hint": _first_text(self.page, "#context-occasion-hint") or None,
+                  "refused": _first_text(self.page, "#context-occasion-refused") or None,
+                  "focused": bool(field.evaluate("(el) => document.activeElement === el")),
+                  "line_while_open": self.page.get_by_test_id("context-ask-about").count()}
+        field.press("Escape")
+        self.page.get_by_test_id("context-occasion").first.wait_for(state="detached", timeout=10_000)
+        back = _first_text(self.page, "[data-testid=context-ask-about]") or None
+        return {"drawn": True, **opened, "change": label, "line": line, "line_back": back == line and back is not None,
+                "block": blocks, "primary": _tc(self.page.locator(".understands .actions .btn.primary"))}
 
     def needs_input(self, content: str) -> dict | None:
         """keel-web 106 FR-7 (spec 068 FR-4): the needs-input screen -- the one question the interpret asked
@@ -1255,6 +1282,7 @@ class Corridor:
             form.wait_for(state="visible", timeout=10_000)
             count = form.locator("input.cwindow__count")
             unit = form.locator("select.cwindow__unit")
+            # keel-web 117 FR-2: Edit's form draws no occasion block (the occasion is the card's); read for its absence
             occasion = form.locator("input#context-occasion")
             raw = _value(count.first) if count.count() else None
             out["edited"] = {

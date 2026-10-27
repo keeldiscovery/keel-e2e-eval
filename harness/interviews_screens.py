@@ -453,7 +453,9 @@ class Interviews:
                    "TEXT": re.compile(rf"^({TEXT_ONLY}|Text)$")}[fmt]
         radio = dialog.locator("[role=radiogroup] [role=radio]", has=self.page.locator(".fmt__name", has_text=pattern))
         if radio.count() and radio.first.get_attribute("aria-checked") != "true":
-            radio.first.click()
+            # spec 074 (keel-web 119 FR-2): the AI interviewer's row carries *Hear it* inside it, whose press opens the
+            # popup and does not choose the row -- so the row is picked by its name, never its middle
+            radio.first.locator(".fmt__name").first.click()
         dialog.get_by_role("button", name=f"Continue · {FORMAT_NAMES[fmt]}", exact=True).click()
         dialog.get_by_role("radiogroup", name="Who").wait_for(state="visible", timeout=10_000)
         return formats

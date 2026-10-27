@@ -47,10 +47,102 @@ def test_the_eval_serves_keel_web_in_test_mode():
     assert 'mode: process.env.EVAL_WEB_MODE ?? "test"' in config
 
 
-def test_the_init_script_is_keel_webs_fixture_restated():
+def _fixture_115() -> str:
     fixture = _web("tests/fixtures/interviewer/fakeSpeech.ts")
-    for name in ("__keelSpeech", "__say", "__speechError", "__speechEnd", "__recognisers", "Recognition"):
+    if "PADDED_BYTES" not in fixture:
+        pytest.skip("keel-web's fixture predates spec 115 (one recorded path)")
+    return fixture
+
+
+def test_the_init_script_is_keel_webs_fixture_restated():
+    """Spec 074 FR-1 (keel-web 115 FR-5): the fake recorder and the always-granted microphone, restated -- the names a
+    walk drives are the fixture's; the recogniser's fake and its controls are gone from both."""
+    fixture = _fixture_115()
+    for name in ("__keelSpeech", "__say", "__listening", "__level", "__holdStop", "__releaseStop", "__recordStarts",
+                 "__recordStops", "__recordCancels", "__micReleased", "__micAcquired", "recorder", "mic"):
         assert name in fixture and name in ivs.SPEECH_SEAM, name
+    for name in ("__speechError", "__speechEnd", "__recognisers", "Recognition", "__speechStarts"):
+        assert name not in fixture and name not in ivs.SPEECH_SEAM, name
+
+
+def _const(source: str, name: str) -> str:
+    m = re.search(rf"const {name} = ([^;]+);", source)
+    assert m, name
+    return m.group(1).strip()
+
+
+def test_say_is_keel_webs_fixture_restated():
+    """Spec 074 FR-1: `__say(text, final = true)` as keel-web 115 FR-5 wrote it -- a final is said (joined to the
+    window's finals), the level pulses `SAY_TICKS` ticks at `SOUND`, a non-final keeps the words provisional; `stop()`
+    hands back the said words, finals then the words still being said, padded with zeros to `PADDED_BYTES`, as
+    `audio/webm`; `cancel()` and `stop()` forget them; `__listening()` is the recorder running."""
+    fixture = _fixture_115()
+    for name in ("SAY_TICKS", "SOUND", "PADDED_BYTES"):
+        assert _const(fixture, name) == _const(ivs.SPEECH_SEAM, name), name
+    assert _const(fixture, "PADDED_BYTES") == "20 * 1024"
+    squash = lambda t: re.sub(r"\s+", "", t.replace("'", '"'))  # noqa: E731 - the seam is JS in single quotes
+    fx, ours = squash(fixture), squash(ivs.SPEECH_SEAM)
+    for piece in ('if(final){said.push(text);speaking="";pulse=SAY_TICKS;}elsespeaking=text;',
+                  'consttext=[...said,speaking].filter(Boolean).join("");',
+                  'mimeType:"audio/webm"',
+                  'newUint8Array(Math.max(PADDED_BYTES,words.length));',
+                  'if(pulse>0){pulse-=1;level=SOUND;}elseif(speaking)level=SOUND;',
+                  '=()=>recording;'):
+        assert piece in fx, piece
+        assert piece in ours, piece
+    # keel-web's own `decodeSaid` and keel-cloud 136's fake transcriber trim the zero padding; so does the harness's
+    assert "while (end > 0 && bytes[end - 1] === 0) end -= 1;" in fixture
+    assert ivs.decode_said(__import__("base64").b64encode("about four".encode() + bytes(20 * 1024 - 10)).decode()) \
+        == "about four"
+
+
+def test_the_seam_records_what_was_said_in_a_real_page():
+    """Spec 074 FR-1, run: the seam in a page -- a recording started, `__say` twice and a provisional word, the level
+    loud for three ticks a final then quiet, `stop()` 20 KiB of `audio/webm` whose words are the finals joined and then
+    the provisional one (decoded as keel-cloud 136's fake does), the next window empty (zeros alone), `__listening()`
+    true only while it runs; the microphone granted and counted."""
+    from playwright.sync_api import sync_playwright                         # noqa: PLC0415
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page()
+            page.add_init_script(ivs.SPEECH_SEAM)
+            page.goto("about:blank")
+            page.set_content("<p>seam</p>")
+            got = page.evaluate("""async () => {
+                const s = window.__keelSpeech;
+                const levels = [];
+                const granted = await s.mic.acquire();
+                const before = window.__listening();
+                await s.recorder.start((l) => levels.push(l));
+                const during = window.__listening();
+                window.__say('about four', true);
+                window.__say('maybe five', true);
+                window.__say('or six', false);
+                await new Promise((r) => setTimeout(r, 450));
+                const first = await s.recorder.stop();
+                const after = window.__listening();
+                await s.recorder.start(() => {});
+                const second = await s.recorder.stop();
+                s.mic.release();
+                return { granted, before, during, after, levels, first, second,
+                         starts: window.__recordStarts.length, stops: window.__recordStops.length,
+                         released: window.__micReleased, acquired: window.__micAcquired,
+                         sound: typeof window.__soundAt === 'number' };
+            }""")
+        finally:
+            browser.close()
+    import base64                                                             # noqa: PLC0415
+
+    first = base64.b64decode(got["first"]["audio"])
+    assert got["first"]["mimeType"] == "audio/webm" and len(first) == 20 * 1024
+    assert ivs.decode_said(got["first"]["audio"]) == "about four maybe five or six"
+    assert ivs.decode_said(got["second"]["audio"]) == "" and len(base64.b64decode(got["second"]["audio"])) == 20 * 1024
+    assert got["granted"] is True and got["acquired"] == 1 and got["released"] == 1
+    assert (got["before"], got["during"], got["after"]) == (False, True, False)
+    assert got["levels"][:3] == [0.3, 0.3, 0.3] and got["sound"]
+    assert (got["starts"], got["stops"]) == (2, 2)
 
 
 @pytest.mark.parametrize("word", [ivs.PERSONA_RECORDING, ivs.PERSONA_NOT_RECORDED, ivs.TRY_IT_YOURSELF_RECORDING,
@@ -128,19 +220,14 @@ def test_the_answer_paths_templates_are_keel_webs_own():
     assert "`‹ Back to question ${n}`" in translate and ivs.back_to(4) == "‹ Back to question 4"
 
 
-def test_the_seam_ends_an_utterance_on_a_final_and_grants_the_mic():
-    """072 FR-3 / FR-7, restated from keel-web's fixture: a final result is followed by the recogniser's end, and the
-    seam's microphone is always granted. The eval's seam puts no `classify` on it (judgement call 1)."""
-    fixture = _web(  # noqa: F841 - read for its presence
-        "tests/fixtures/interviewer/fakeSpeech.ts")
-    if "mic:" not in fixture:
-        pytest.skip("keel-web's fixture predates spec 072")
-    assert "if (final) setTimeout(" in ivs.SPEECH_SEAM and "onend" in ivs.SPEECH_SEAM
-    assert "mic: { acquire: async () => true" in ivs.SPEECH_SEAM
-    # keel-web 076: the fixture's microphone counts its acquisitions and is granted unless a test refused it
-    # (`installRefusedMic`); before 076 it was granted outright
-    assert "acquire: async () => true" in fixture or "return !w.__micRefused" in fixture
-    assert "classify" not in ivs.SPEECH_SEAM
+def test_the_seam_grants_the_mic_and_leaves_the_reads_real():
+    """072 FR-7 / 115 FR-5, restated from keel-web's fixture: the seam's microphone is always granted with the
+    fixture's steady level (0.12) and counted. The eval's seam puts no `classify` and no `answer` stand-in on it (spec
+    048 judgement call 1): the page calls the real routes."""
+    fixture = _fixture_115()
+    assert "return !w.__micRefused" in fixture and "level: () => 0.12" in fixture
+    assert "mic: mic(() => 0.12, false)" in ivs.SPEECH_SEAM
+    assert "classify" not in ivs.SPEECH_SEAM and "answer:" not in ivs.SPEECH_SEAM
 
 
 def test_the_player_never_presses_thats_my_answer():
@@ -173,7 +260,8 @@ def test_the_quiet_gap_is_keel_webs_own():
     assert "seam.quietFreeMs ?? QUIET_FREE_MS" in source and "seam.quietMs ?? QUIET_OPTION_MS" in source
 
 
-@pytest.mark.parametrize("word", [ivs.HEARING, ivs.ANSWERED, ivs.TAG_HEARING, ivs.TAG_NOT_TAKEN])
+@pytest.mark.parametrize("word", [ivs.HEARING, ivs.ANSWERED, ivs.TAG_HEARING, ivs.TAG_NOT_TAKEN, ivs.RECORDING,
+                                  ivs.HEARING_YOU])
 def test_the_hearing_words_are_keel_webs_own(word):
     assert f'"{word}"' in (_web_073() / "src/lib/translate.ts").read_text(encoding="utf-8"), word
 
@@ -194,12 +282,11 @@ def test_the_save_finish_and_ring_selectors_are_in_keel_web(testid):
 
 
 def test_the_seam_listens_as_keel_webs_fixture_does_and_is_silent():
-    """073 D-04 / FR-8: keel-web's fixture gains `__listening()` (the newest recogniser started and still handed
-    results), which the eval's seam restates; the seam's `earcons: false` is a key keel-web reads."""
-    fixture = _web("tests/fixtures/interviewer/fakeSpeech.ts")
-    if "__listening" not in fixture:
-        pytest.skip("keel-web's fixture predates spec 073")
-    assert "__listening" in ivs.SPEECH_SEAM and "r.onresult" in ivs.SPEECH_SEAM
+    """073 FR-8, 115 FR-5: keel-web's `__listening()` is the recorder running on the current window, which the eval's
+    seam restates; the seam's `earcons: false` is a key keel-web reads."""
+    fixture = _fixture_115()
+    assert "w.__listening = () => recording;" in fixture
+    assert "window.__listening = () => recording;" in ivs.SPEECH_SEAM
     assert "earcons: false" in ivs.SPEECH_SEAM
     seam = (_web_073() / "src/components/interview/ai/useSpeechRecognition.ts").read_text(encoding="utf-8")
     assert "earcons?: boolean" in seam and "s.earcons !== false" in seam
@@ -244,9 +331,10 @@ def test_the_lit_row_carries_data_unsure_and_the_stage_a_beat_phase():
 
 def test_the_seam_keeps_the_pages_beat_and_gap_and_stamps_every_start():
     """Spec 050 judgement call 3: the stack's journeys keep the page's 2 s beat and 4 s gap; the seam stamps every
-    recogniser started (and every recording begun) so the leg can say nothing listened in a beat."""
-    assert "beatMs" not in ivs.SPEECH_SEAM and "quietMs" not in ivs.SPEECH_SEAM
-    assert "__speechStarts" in ivs.SPEECH_SEAM and "__recordStarts" in ivs.SPEECH_SEAM
+    recording begun (spec 074: the one ear) and every release of the microphone (keel-web 116), so the leg can say
+    nothing listened in a beat or after the thanks."""
+    assert "beatMs" not in ivs.SPEECH_SEAM and "quietMs" not in ivs.SPEECH_SEAM and "silenceMs" not in ivs.SPEECH_SEAM
+    assert "stamps('__recordStarts')" in ivs.SPEECH_SEAM and "stamps('__micReleasedAt')" in ivs.SPEECH_SEAM
     assert "__keelBeats" in ivs.FLOW_TIMELINE and "'beat'" in ivs.FLOW_TIMELINE
 
 

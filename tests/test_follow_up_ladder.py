@@ -288,11 +288,12 @@ def test_the_seam_keys_the_walk_sets_are_keel_webs():
     seam = _web("src/components/interview/ai/useSpeechRecognition.ts")
     for key in ("followUpCapMs", "silenceMs", "storyCapMs", "recorder", "mic", "earcons"):
         assert re.search(rf"\b{key}\?:", seam), key
+    # spec 074 (keel-web 115): no recogniser on any seam; the box's microphone refused through `mic(level, true)`
     text = ivs.text_seam(refused=True)
-    assert "Recognition: null" in text and "return !true" in text and "__micAcquired" in text
-    assert "return !false" in ivs.text_seam()
-    assert "followUpCapMs = 9000" in ivs.recorder_seam(follow_up_cap_ms=9000)
-    assert "followUpCapMs" not in ivs.recorder_seam()
+    assert "Recognition" not in text and "mic(() => window.__levelNow, true)" in text and "__micAcquired" in text
+    assert "mic(() => window.__levelNow, false)" in ivs.text_seam()
+    assert "followUpCapMs = 9000" in ivs.follow_up_cap_seam(9000)
+    assert "followUpCapMs" not in ivs.SPEECH_SEAM
     box = _web("src/components/interview/SpeakOrTypeBox.tsx")
     for testid in ("iv-mic", "iv-listening", "iv-mic-clock", "iv-mic-cancel", "iv-mic-done"):
         assert f'data-testid="{testid}"' in box, testid

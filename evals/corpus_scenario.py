@@ -425,6 +425,12 @@ def leg_context(j: Journey) -> None:
                                      "puts": [{"status": s.get("status"), "occasion": s.get("occasion")}
                                               for s in j.corridor.saves]}
         drawn_occasion = (j.changed.get("occasion_field") or {}).get("value")
+        # spec 074 (keel-web 117 J-4): a card with no stem draws the occasion nowhere -- the noun Keel found is held on
+        # the confirmed view instead (`occasion.noun`, keel-cloud 120)
+        if j.strict and (j.changed.get("occasion_field") or {}).get("ask_about") is None:
+            noun = (view.get("occasion") or {}).get("noun")
+            j.changed["context_wire"]["noun"] = noun
+            assert noun == vs.occasion(j.entry), {"GET context occasion.noun": noun, "want": vs.occasion(j.entry)}
         if drawn_occasion and fields.get("occasion") != drawn_occasion:
             if j.strict:
                 raise AssertionError({"GET context fields.occasion": fields.get("occasion"),
@@ -486,7 +492,7 @@ def context_reopened(j: Journey) -> None:
             "continue": vs_screens.CONTEXT_CONTINUE, "edit": vs_screens.CONTEXT_EDIT, "boxes": 0,
             "edited": {"state": "form", "fields": founder.context_fields,
                        "window": founder.window.as_wire() if windowed else None,
-                       "occasion": confirmed.get("occasion"), "save": vs_screens.CONTEXT_SAVE}}
+                       "occasion": None, "save": vs_screens.CONTEXT_SAVE}}
     with _step(j, "the confirmed context re-opened: the sentence, Continue to the problem and Edit; Edit brings the "
                   "form back filled with what was confirmed, and nothing is saved (keel-web 113 FR-1)",
                party="founder") as h:
@@ -497,8 +503,8 @@ def context_reopened(j: Journey) -> None:
         assert edited.get("state") == "form" and edited.get("fields") == founder.context_fields, edited
         assert edited.get("window") == want["edited"]["window"], edited
         assert edited.get("save") == vs_screens.CONTEXT_SAVE, edited
-        if confirmed.get("occasion"):
-            assert edited.get("occasion") == confirmed["occasion"], (edited, confirmed)
+        # keel-web 117 FR-2 (spec 074): the form draws no occasion block any more -- the occasion is the card's line
+        assert edited.get("occasion") is None, (edited, confirmed)
         view = j.get(j.project("/context")) or {}
         assert view.get("state") == "CONFIRMED" and view.get("understands") == want["understands"], view
 
@@ -533,19 +539,56 @@ def _hold_the_other_market(j: Journey) -> None:
         _found(j, f"{j.entry.id}: the Another-country fields (keel-web 106 FR-8)", faults)
 
 
+def occasion_faults(drawn: dict, want: str | None, *, strict: bool = True, line: str | None = "") -> list:
+    """keel-web 106 FR-1 as keel-web 117 moved it (spec 074): the card's *I'll ask about* line ends with *Change*, which
+    opens the one field in the line's place pre-filled with the noun Keel found (`occasion.noun`, the entry's own on a
+    scripted walk) and focused; Esc puts the line back with *Yes, that's it* still the primary; no `.cfield--occasion`
+    block anywhere. A card with no served stem draws no *I'll ask about* line (`line` None; keel-web 117 J-4) -- the
+    scripted executor writes the plain noun, the shape before keel-cloud 120 -- and so no *Change* and no field: the
+    noun is held on the wire instead (`_confirmed_occasion`). `[]` when the card is what it should be."""
+    if line is None:
+        return [] if not (drawn.get("drawn") or drawn.get("change") or drawn.get("block")) else [
+            {"drawn": drawn, "want": "no I'll ask about line, so no Change, no field and no block (keel-web 117 J-4)"}]
+    faults = []
+    if not drawn.get("drawn"):
+        return [{"drawn": False}]
+    if strict and drawn.get("value") != want:
+        faults.append({"value": drawn.get("value"), "want": want})
+    if drawn.get("block"):
+        faults.append({"block": drawn.get("block"), "want": "no .cfield--occasion block (keel-web 117 FR-2)"})
+    if drawn.get("change") is not None:
+        if drawn.get("change") != vs_screens.OCCASION_CHANGE or not drawn.get("line"):
+            faults.append({"change": drawn.get("change"), "line": drawn.get("line"),
+                           "want": f"*I'll ask about* ending with {vs_screens.OCCASION_CHANGE!r}"})
+        if drawn.get("line_while_open") or not drawn.get("line_back") or not drawn.get("focused"):
+            faults.append({"line while open": drawn.get("line_while_open"), "line back": drawn.get("line_back"),
+                           "focused": drawn.get("focused"), "want": "the field in the line's place, focused; Esc "
+                                                                    "puts the line back"})
+        if drawn.get("primary") != vs_screens.CONTEXT_YES:
+            faults.append({"primary": drawn.get("primary"), "want": vs_screens.CONTEXT_YES})
+    return faults
+
+
 def _hold_the_occasion_field(j: Journey) -> None:
-    """keel-web 106 FR-1 (contract 36): under the four fields the card draws one *occasion* field pre-filled with the
-    noun Keel found (`occasion.noun`) -- on a scripted walk the entry's own occasion."""
+    """keel-web 106 FR-1 (contract 36): the card's *occasion*, pre-filled with the noun Keel found (`occasion.noun`) --
+    on a scripted walk the entry's own occasion. Spec 074 (keel-web 117): on the *I'll ask about* line, opened by its
+    *Change* and closed by Esc (nothing edited); the block under the card is gone."""
     drawn = j.changed["occasion_field"] = j.corridor.context_occasion()
     want = vs.occasion(j.entry)
-    with _step(j, "the context card draws the occasion field, pre-filled with the noun Keel found (keel-web 106 FR-1, "
-                  "contract 36)", party="founder", kind="assert" if j.strict else "note") as h:
-        h.record_assert({"drawn": True, "value": want if j.strict else "the noun Keel found"}, drawn)
+    line = (j.screens.get("context_card") or {}).get("ask_about")
+    drawn["ask_about"] = line
+    faults = occasion_faults(drawn, want, strict=j.strict, line=line)
+    with _step(j, "the context card's I'll ask about line carries the occasion and Change, which opens the field "
+                  "pre-filled with the noun Keel found; Esc puts the line back; no block under the card (keel-web 106 "
+                  "FR-1, 117)", party="founder", kind="assert" if j.strict else "note") as h:
+        h.record_assert({"drawn": True, "value": want if j.strict else "the noun Keel found",
+                         "change": vs_screens.OCCASION_CHANGE, "block": 0, "faults": []}, {**drawn, "faults": faults})
         if j.strict:
-            assert drawn.get("drawn") and drawn.get("value") == want, (drawn, want)
-    if not j.strict and not drawn.get("drawn"):
+            assert line is None or (drawn.get("drawn") and drawn.get("value") == want), (drawn, want)
+            assert not faults, faults
+    if not j.strict and line is not None and not drawn.get("drawn"):
         _found(j, f"{j.entry.id}: the context card drew no occasion field (keel-web 106 FR-1)", drawn)
-    elif not j.strict and drawn.get("value") != want:
+    elif not j.strict and line is not None and drawn.get("value") != want:
         _found(j, f"{j.entry.id}: the occasion field reads {drawn.get('value')!r}; the entry's occasion is {want!r} "
                   "(the founder may edit it; the walk keeps Keel's)", drawn)
 

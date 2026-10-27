@@ -351,7 +351,8 @@ class _FieldPage:
 def test_the_occasion_field_is_read_off_the_card():
     corridor = _corridor(_FieldPage("delivery"))
     assert corridor.context_occasion()["drawn"] is True and corridor.context_occasion()["value"] == "delivery"
-    assert _corridor(_FieldPage(None)).context_occasion() == {"drawn": False, "value": None}
+    none = _corridor(_FieldPage(None)).context_occasion()
+    assert none["drawn"] is False and none["value"] is None                    # spec 074: + `change`, `block`
 
 
 def test_the_gates_no_is_the_served_no_label():

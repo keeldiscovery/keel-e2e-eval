@@ -18,12 +18,14 @@ repository (*Selectors (for keel-e2e-eval 044)*) and 072's spec names (`ai-yes`,
                  recogniser then ends, as Chrome's does); the cloud's classifier decides (`classify`); a confident read
                  is **held** two seconds and the interview goes on by itself (`hold`), a word of protest reopens it
                  (`veto`), an unsure one asks "Is that right?" (`yes`), and *Back* reopens the last question (`back`).
-* `SPEECH_SEAM` -- the init script that stands in for the browser's recogniser and microphone through the test build's
+* `SPEECH_SEAM` -- the init script that stands in for the browser's recorder and microphone through the test build's
                  own seam (`window.__keelSpeech`, present only under `vite --mode test`, which the stack serves): keel-web's
                  own `tests/fixtures/interviewer/fakeSpeech.ts`, restated in JavaScript. `__say(text, final)` is the
-                 stranger speaking; a final is followed by the recogniser's end. No microphone is opened. **No `classify`
-                 is put on the seam** (spec 048 judgement call 1): the page calls the real route, and the stack's
-                 keel-cloud answers it with its `FakeClassifier` -- what staging runs for eval founders too.
+                 stranger speaking into the window the page records (spec 074: keel-web 115's one recorded path). No
+                 microphone is opened. **No `classify` or `answer` is put on the seam** (spec 048 judgement call 1): the
+                 page calls the real routes, and the stack's keel-cloud writes the recording down with its
+                 `FakeTranscriber` (keel-cloud 136 FR-2: the recording's bytes are the words said) and reads it with its
+                 `FakeClassifier` -- what staging runs for eval founders too.
 
 Spec 049 (keel-web 073, *hear them out*): nothing lights or fills while they speak, and an utterance is read
 `QUIET_MS` (1.5 s) after the recogniser's end after a final -- the page restarts the recogniser for that gap, so a
@@ -43,8 +45,8 @@ Spec 051 (keel-web 076, contract 19): the one follow-up -- on the AI page the sh
 `ai-where` pill *One last thing*, the story's window, `ai-skip`; on the text page `SpeakOrTypeBox` (`.sot[data-state]`,
 the `iv-mic` pill, the listening card `iv-listening` with `ai-mic-on`, `iv-mic-clock`, `iv-mic-cancel`, `iv-mic-done`)
 driven through `text_seam` (a microphone that counts its acquisitions, refused on request, and a recorder whose level
-the walk sets) -- `SpeakBox` reads and drives it. `RECORDER_SEAM` adds the same recorder to the AI page's seam, so a
-browser that refuses its recogniser (`not-allowed`, Chrome on iPhone) records the window instead.
+the walk sets) -- `SpeakBox` reads and drives it. (Spec 074: the AI page's seam is the recorder itself now; the
+`RECORDER_SEAM` that a refusing recogniser fell back to is gone.)
 
 Spec 058 (keel-web 087, contract 23): **tap to hear** -- a tap on an unpicked card of the carousel picks it and plays
 her hello in a `video` inside the card (`face-hear`, the play glyph on each unpicked card), and the respondent's intro
@@ -58,6 +60,14 @@ band's circle (`video.pface-hello__clip`) while the band carries `data-hearing`;
 `band`, and `Persona.hear_band` taps it and waits for the end. *How it works* is gone from Sent (the page's pill replaced
 it), so `walkthrough_again` retired with it -- `how_it_works()` counts the controls of that name (none). `Persona.sent`
 opens Sent through `interviews_screens.pass_interviews_sheet`, which skips 088's first-open sheet when drawn.
+
+Spec 074 (keel-web 115, keel-cloud 136): **one recorded path**. The browser's recogniser is retired, and so are its
+fake, `ear()` / `wait_ear`, the recogniser's counts and the `not-allowed` leg: every window records (`recorder()`,
+`wait_listening`), `__say` pulses the recorder's level and puts the words in the recording, and each read is a `POST
+.../answer` whose words `Player.classified` keeps (`decode_said`). While a question's window records the status reads
+*Recording your answer. Pause when you're done.* (`RECORDING`) and the heard line *Hearing you…*. The text page's box
+(`text_seam`) drives the same recorder by a level; `follow_up_cap_seam` shortens the AI follow-up's silent window.
+Keel-web 116: the microphone is let go when the thank-you clip ends (`__micReleasedAt`, the timeline's `ended`).
 
 Every write a press makes returns the response keel-web received, so the leg holds the wire the page was handed.
 """
@@ -99,14 +109,17 @@ START_THE_INTERVIEW = "Start the interview"
 MIC_TEST = "Test your mic"
 SAY_HELLO = "Say hello"
 MIC_FALLBACK = "You can tap or type your answers instead"
-INTRO_TRANSCRIBED = ("Where your browser can't listen, Keel's transcription provider writes your answer down and keeps "
-                     "nothing.")
+#: keel-web 115 FR-3 (spec 074 FR-1): the intro's line loses its condition -- the page records wherever it can listen.
+INTRO_TRANSCRIBED = "Keel's transcription provider writes your answer down and keeps nothing."
 GOT_THAT = "Got that…"
 WRITING_DOWN = "Writing it down…"
 HELD = "Got it. Moving on… say no to change"
 #: keel-web 073 FR-3: the status through the quiet gap (`AI_STATUS.heard`), and a tap's or a Save's 500 ms advance
 #: (`AI_STATUS.answered`); the heard line's tags (`AI_TAG_HEARING`, `AI_TAG_NOT_TAKEN`).
 HEARING = "Listening. Pause when you’re done."
+#: keel-web 115 (spec 074 FR-1): the recorded path's status while a question's window records (`AI_STATUS.recording`),
+#: the one path now -- nothing is heard before it is written down, so the heard line says *Hearing you…* meanwhile.
+RECORDING = "Recording your answer. Pause when you’re done."
 ANSWERED = "Got it."
 TAG_HEARING = "hearing"
 TAG_NOT_TAKEN = "not taken"
@@ -180,7 +193,7 @@ def back_to(question: int) -> str:
 
 #: Spec 046 FM5: the stage's timeline, kept by the page itself from before the app runs -- every `data-phase` the stage
 #: takes (`performance.now()`), every `play` of a clip on the stage's `<video>`, and every press of `ai-next` with the
-#: words it carried. `window.__keelFlow()` hands it back. Spec 048 (keel-web 072): every change of the sheet's status
+#: words it carried (spec 074: and every clip's `ended`). `window.__keelFlow()` hands it back. Spec 048 (keel-web 072): every change of the sheet's status
 #: words (`ai-status`) in order, `window.__keelPhases()`; every press of a button on the sheet with its words; and
 #: whether *That's my answer* (`ai-answer`) was ever in the DOM, `window.__keelSawAnswer()`.
 FLOW_TIMELINE = r"""
@@ -238,6 +251,11 @@ FLOW_TIMELINE = r"""
       events.push({ t: performance.now(), kind: 'play', clip: lastClip });
     }
   }, true);
+  // spec 074 (keel-web 116 FR-1): a clip's end too -- the thank-you's end is when the microphone is let go
+  document.addEventListener('ended', (e) => {
+    const v = e.target;
+    if (v && v.tagName === 'VIDEO') events.push({ t: performance.now(), kind: 'ended', clip: v.getAttribute('data-clip') });
+  }, true);
   document.addEventListener('click', (e) => {
     const b = e.target && e.target.closest ? e.target.closest('[data-testid=ai-next]') : null;
     if (b) events.push({ t: performance.now(), kind: 'next', value: (b.textContent || '').trim() });
@@ -278,114 +296,138 @@ def ai_intro_heading(face: str, questions: int) -> str:
     return f"{face} will ask you {questions} question{'' if questions == 1 else 's'}."
 
 
-#: keel-web `tests/fixtures/interviewer/fakeSpeech.ts` `installFakeSpeech`, in JavaScript (an init script runs before
-#: the app does; the app reads the seam only in a test-mode build). Spec 048 (keel-web 072): a final result is followed
-#: by the recogniser's end, so a final said is an utterance ended and the page reads it; `mic` is a microphone that is
-#: always granted with a steady level, so *Test your mic* is driven by `__say("hello", true)`. Unlike keel-web's own
-#: fixture it puts **no `classify`** on the seam: the route is left real (judgement call 1). Spec 049 (keel-web 073):
-#: the page reads the utterance 1.5 s after that end and restarts the recogniser meanwhile, so `__say` within the gap
-#: goes to the gap's own recogniser; `__listening()` is keel-web's (the newest started and still handed results);
-#: `earcons: false` silences the two tones (073 FR-8; the fake mic has no AudioContext, so nothing waits on them).
-#: Spec 050: every `start()` is stamped (`__speechStarts`, `performance.now()`), and so is every `MediaRecorder.start`
-#: (`__recordStarts`), so the leg can say nothing listened in a beat or after the thanks. `quietMs` and `beatMs` are
-#: left at the page's defaults (2.0 s on options, 4.0 s on free text since keel-web 082; 2.0 s).
-SPEECH_SEAM = r"""
-(() => {
-  class FakeRecognition {
-    constructor() {
-      this.continuous = false; this.interimResults = false; this.lang = ""; this.maxAlternatives = 1;
-      this.onstart = null; this.onresult = null; this.onerror = null; this.onend = null;
-      this.results = []; this.started = false; this.stopped = false;
-      (window.__speech = window.__speech || []).push(this);
-    }
-    start() { this.started = true; (window.__speechStarts = window.__speechStarts || []).push(performance.now()); }
-    stop() { this.stopped = true; }
-    abort() {}
-  }
-  window.__keelSpeech = {
-    Recognition: FakeRecognition, recorder: null,
-    mic: { acquire: async () => true, level: () => 0.12, release: () => undefined },
-    earcons: false,
-  };
-  const last = () => (window.__speech || [])[(window.__speech || []).length - 1];
-  window.__say = (text, final) => {
-    const r = last();
-    if (!r) return false;
-    r.results.push({ isFinal: !!final, 0: { transcript: text }, length: 1 });
-    if (r.onresult) r.onresult({ resultIndex: r.results.length - 1, results: r.results });
-    if (final) setTimeout(() => { if (r.onend) r.onend({}); }, 0);
-    return true;
-  };
-  window.__speechError = (error) => { const r = last(); if (r && r.onerror) r.onerror({ error }); };
-  window.__speechEnd = () => { const r = last(); if (r && r.onend) r.onend({}); };
-  window.__recognisers = () => (window.__speech || []).length;
-  window.__listening = () => { const r = last(); return !!(r && r.started && !r.stopped && r.onresult); };
-  // spec 050: every recording started, stamped (the seam's path is the browser's, so none is expected)
-  if (window.MediaRecorder && window.MediaRecorder.prototype && window.MediaRecorder.prototype.start) {
-    const start = window.MediaRecorder.prototype.start;
-    window.MediaRecorder.prototype.start = function (...args) {
-      (window.__recordStarts = window.__recordStarts || []).push(performance.now());
-      return start.apply(this, args);
-    };
-  }
-})();
-"""
-
-
-#: Spec 051 (keel-web 076 FR-6..FR-8; its `installFakeRecorder` / `installRefusedMic`, restated): the recorder the walks
-#: drive and a microphone that counts its acquisitions. `__level(rms)` is what it hears from now on (ten times a second,
-#: as the real one); every start, stop and cancel is stamped (`performance.now()`) on `__recordStarts` /
-#: `__recordStops` / `__recordCancels`, every level set on `__levels`; `__holdStop()` makes the next stop wait for
-#: `__releaseStop()` (so *Writing it down…* can be read). The audio handed back is a few KiB of `audio/webm` -- under
-#: every window's size cap and over nothing the cloud checks, so the stack's fake transcriber writes it down.
+#: Spec 074 FR-1 (keel-web 115 FR-5, one recorded path): keel-web `tests/fixtures/interviewer/fakeSpeech.ts`
+#: `installFakeSpeech`, restated in JavaScript -- **the fake recorder and the always-granted fake microphone**; the
+#: browser's recogniser, its fake (`Recognition`, `__speechError`, `__speechEnd`, `__recognisers`, `__speechStarts`) and
+#: the `not-allowed` leg are gone with it. **`__say(text, final = true)`** is *the person said `text` in this window*: the
+#: recorder's level pulses above the threshold for `SAY_TICKS` ticks (ten a second, as the real one) and falls silent, so
+#: the page stops the window as it would (two seconds after the last sound, four on free text); the next `stop()` hands
+#: back the UTF-8 bytes of what was said **followed by zero bytes up to 20 KiB**, base64, as `audio/webm` -- past the
+#: answer route's silence threshold (keel-cloud 099) -- and keel-cloud 136 FR-2's `FakeTranscriber` trims the padding and
+#: hears the words, so they reach the stack's FakeClassifier through the real `POST .../interview/answer` (or
+#: `transcribe`) as the page sends them. `final = false` keeps the level up and the words provisional. A window in which
+#: nothing was said (a level set through `__level`, the walk's "sound") hands back the zeros alone, which the fake hears
+#: as its `otherwise`, `FAKE_TRANSCRIPT` on this stack. `__listening()` is *the recorder runs on this window*.
+#:
+#: The harness's own additions, as before: **no `classify` or `answer` stand-in** (spec 048 judgement call 1: the page
+#: calls the real routes), `earcons: false` (073 FR-8), the page's own quiet and beat (no `quietMs`, `beatMs`); every
+#: start, stop and cancel stamped (`performance.now()`) on `__recordStarts` / `__recordStops` / `__recordCancels`, every
+#: level set on `__levels`, the last loud tick on `__soundAt`, every release of the microphone counted on
+#: `__micReleased` and stamped on `__micReleasedAt` (keel-web 116: the release follows the thank-you's end) -- so the leg
+#: can say nothing recorded in a beat or after the thanks.
 _RECORDER = r"""
   const stamps = (name) => (window[name] = window[name] || []);
+  const SAY_TICKS = 3;
+  const SOUND = 0.3;
+  const THRESHOLD = 0.02;
+  const PADDED_BYTES = 20 * 1024;
   window.__levelNow = 0;
-  let ticker; let held = false; let waiting = null;
+  let ticker; let held = false; let waiting = null; let recording = false;
+  let said = []; let speaking = ''; let pulse = 0;
+  const forget = () => { said = []; speaking = ''; pulse = 0; };
+  const encode = (text) => {
+    const words = new TextEncoder().encode(text);
+    const bytes = new Uint8Array(Math.max(PADDED_BYTES, words.length));
+    bytes.set(words);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(binary);
+  };
   const recorder = {
     start: async (onLevel) => {
       stamps('__recordStarts').push(performance.now());
       clearInterval(ticker);
-      ticker = setInterval(() => { if (onLevel) onLevel(window.__levelNow); }, 100);
+      recording = true;
+      ticker = setInterval(() => {
+        let level = window.__levelNow;
+        if (pulse > 0) { pulse -= 1; level = SOUND; } else if (speaking) level = SOUND;
+        if (level > THRESHOLD) window.__soundAt = performance.now();
+        if (onLevel) onLevel(level);
+      }, 100);
       return true;
     },
     stop: async () => {
       clearInterval(ticker);
+      recording = false;
       stamps('__recordStops').push(performance.now());
+      const text = [...said, speaking].filter(Boolean).join(' ');
+      forget();
       if (held) await new Promise((resolve) => { waiting = resolve; });
-      return { audio: btoa('a spoken answer '.repeat(256)), mimeType: 'audio/webm' };
+      return { audio: encode(text), mimeType: 'audio/webm' };
     },
-    cancel: () => { clearInterval(ticker); stamps('__recordCancels').push(performance.now()); },
+    cancel: () => {
+      clearInterval(ticker);
+      recording = false;
+      stamps('__recordCancels').push(performance.now());
+      forget();
+    },
   };
+  window.__say = (text, final = true) => {
+    if (final) { said.push(text); speaking = ''; pulse = SAY_TICKS; } else speaking = text;
+    stamps('__said').push([performance.now(), text, !!final]);
+    return true;
+  };
+  window.__listening = () => recording;
   window.__level = (rms) => { window.__levelNow = rms; stamps('__levels').push([performance.now(), rms]); };
   window.__holdStop = () => { held = true; };
   window.__releaseStop = () => { held = false; if (waiting) { const w = waiting; waiting = null; w(); } };
+  window.__micAcquired = 0; window.__micReleased = 0;
+  const mic = (level, refused) => ({
+    acquire: async () => { window.__micAcquired += 1; stamps('__micAcquiredAt').push(performance.now());
+                           return !refused; },
+    level,
+    release: () => { window.__micReleased += 1; stamps('__micReleasedAt').push(performance.now()); },
+  });
+"""
+
+#: The AI page's seam: the recorder above, the microphone always granted with keel-web's steady level (0.12, the
+#: waveform's bucket 2), the earcons off. Nothing else: the page's quiet, beat and caps are its own.
+SPEECH_SEAM = "(() => {" + _RECORDER + """
+  window.__keelSpeech = { recorder, mic: mic(() => 0.12, false), earcons: false };
+})();
 """
 
 
 def text_seam(*, refused: bool = False) -> str:
-    """The text page's seam (keel-web 076: the box reads `Recognition`, `recorder`, `mic`, `quietMs`, `silenceMs` and
-    the caps): no recogniser, so the box records; the microphone counted (`__micAcquired`, 0 until the pill is tapped)
-    and refused when `refused` (T6). The quiet and the caps are left at the page's defaults (4 s free text, 60 s, 120 s)."""
+    """The text page's seam (keel-web 076, 115 FR-4: the box has one ear, the recorder): the same recorder, the
+    microphone counted (`__micAcquired`, 0 until the pill is tapped) and refused when `refused` (T6), its level what the
+    walk sets (`__level`). The quiet and the caps are left at the page's defaults (4 s free text, 60 s, 120 s). The box
+    is driven by a level, not by words, so its recording is the zeros alone: the stack's fake hears `FAKE_TRANSCRIPT`."""
     return ("(() => {" + _RECORDER + """
-  window.__micAcquired = 0; window.__micReleased = 0;
-  window.__keelSpeech = {
-    Recognition: null, recorder,
-    mic: { acquire: async () => { window.__micAcquired += 1; stamps('__micAcquiredAt').push(performance.now());
-                                  return !%s; },
-           level: () => window.__levelNow, release: () => { window.__micReleased += 1; } },
-    earcons: false,
-  };
+  window.__keelSpeech = { recorder, mic: mic(() => window.__levelNow, %s), earcons: false };
 })();
 """ % ("true" if refused else "false"))
 
 
-def recorder_seam(*, follow_up_cap_ms: int | None = None) -> str:
-    """Spec 051 FR-6 / FR-7: the AI page's seam (`SPEECH_SEAM`, installed first) gains the recorder -- the page keeps
-    its recogniser until one refuses (`not-allowed`), then records every window (keel-web `listenFailed`) -- and,
-    when given, the follow-up's cap through the seam (`followUpCapMs`; the wire's `maxSeconds` stays 120)."""
-    cap = f"window.__keelSpeech.followUpCapMs = {int(follow_up_cap_ms)};" if follow_up_cap_ms else ""
-    return "(() => {" + _RECORDER + "  window.__keelSpeech.recorder = recorder;\n  " + cap + "\n})();\n"
+def follow_up_cap_seam(follow_up_cap_ms: int) -> str:
+    """Spec 051 judgement call 2: the AI follow-up's silent window shortened through the seam (`followUpCapMs`; the
+    wire's `maxSeconds` stays 120), installed after `SPEECH_SEAM`. Spec 074: the recorder is the seam's own since
+    keel-web 115, so this adds the cap alone (it was `recorder_seam`, which added the recorder a refusing recogniser
+    fell back to)."""
+    return f"(() => {{ window.__keelSpeech.followUpCapMs = {int(follow_up_cap_ms)}; }})();\n"
+
+
+def _audio_bytes(audio_b64: str | None) -> int:
+    import base64                                                             # noqa: PLC0415
+
+    try:
+        return len(base64.b64decode(audio_b64 or ""))
+    except Exception:  # noqa: BLE001 - not base64
+        return 0
+
+
+def decode_said(audio_b64: str | None) -> str:
+    """What a recording the seam made carried: the said words, the zero padding trimmed -- keel-cloud 136 FR-2's
+    `FakeTranscriber.text` rule and keel-web 115's `decodeSaid` -- or "" for none."""
+    import base64                                                             # noqa: PLC0415
+
+    if not audio_b64:
+        return ""
+    try:
+        raw = base64.b64decode(audio_b64)
+    except Exception:  # noqa: BLE001 - not base64: heard as nothing
+        return ""
+    return raw.rstrip(b"\x00").decode("utf-8", errors="replace")
 
 
 def _json(response) -> dict:
@@ -680,7 +722,10 @@ class Player:
         self.patience = patience
         self._b = _BrowserStep(recorder, page, party)
         self.requests: list[dict] = []
-        #: Spec 049: every `classify` the page sent, its body, in order (the read-aloud step counts its reads here).
+        #: Spec 049: every read the page sent, its body, in order (the read-aloud step counts its reads here). Spec 074
+        #: (keel-web 115): every spoken window is recorded and read by `POST .../answer` (the stranger's `interview/answer`,
+        #: the founder's `interviewer/answer`) -- kept with the words its recording carried (`heard`, the padding
+        #: trimmed, as keel-cloud 136's fake hears them); a `classify` the page no longer sends would still be kept.
         self.classified: list[dict] = []
         #: Spec 049 (keel-web 073 FR-1): what the sheet showed a moment after each final said on a question's or a
         #: confirmation's window, inside the quiet gap -- before the utterance was read.
@@ -690,11 +735,15 @@ class Player:
     def _keep(self, request) -> None:
         if "/v2/" in request.url and request.method != "GET":
             self.requests.append({"method": request.method, "url": request.url})
-            if request.url.split("?")[0].endswith("/classify"):
+            path = request.url.split("?")[0]
+            if path.endswith(("/classify", "/interview/answer", "/interviewer/answer")):
                 try:
                     body = request.post_data_json
                 except Exception:  # noqa: BLE001 - a body that is not JSON
                     body = None
+                if isinstance(body, dict) and "audio" in body:
+                    body = {**{k: v for k, v in body.items() if k != "audio"}, "heard": decode_said(body.get("audio")),
+                            "audio_bytes": _audio_bytes(body.get("audio"))}
                 self.classified.append({"url": request.url, "body": body})
 
     # ---- arriving
@@ -737,11 +786,12 @@ class Player:
         """keel-web 072 FR-7: *Test your mic* -> the seam's microphone (always granted) -> *Say hello* -> `heard` said
         -> *Heard: hello* with its tick, and *Start the interview* enabled. What the intro drew before and after."""
         before = self.intro()
-        made = self.ear()["count"]
+        made = self.recorder()["count"]
         self.page.get_by_test_id("ai-mic-test").click()
         deadline = timeout_s * 1000 * self.patience
-        # the one-shot recogniser is made by the press, after the microphone is granted: speak once it listens
-        self.wait_ear(newer_than=made, timeout_s=timeout_s)
+        # keel-web 115 FR-2: the hello is recorded (a recording begun by the press, after the microphone is granted) and
+        # written down through `transcribe`: speak once it records
+        self.wait_listening(newer_than=made, timeout_s=timeout_s)
         said = self.say(heard, True)
         line = self.page.get_by_test_id("ai-mic-heard")
         line.wait_for(state="visible", timeout=deadline)
@@ -809,10 +859,12 @@ class Player:
                 "banner": _words(sheet.get_by_test_id("ai-banner")) or None}
 
     def say(self, text: str, final: bool = True, *, look: bool = True) -> bool:
-        """The stranger speaks into the newest recogniser. A final ends the utterance (the seam's recogniser then ends,
-        keel-web 072 FR-3), and -- keel-web 073 -- the page reads it after the quiet gap; nothing is pressed after it.
-        On a question's or a confirmation's window (`listening` / `confirming`) a final is looked at inside the gap
-        (`look`): what was ticked, filled and previewed before the words and 250 ms after them, kept on `hearing`."""
+        """The stranger speaks into the window the page records (spec 074, keel-web 115 FR-5: the level pulses, then
+        silence; the recording carries the words). The page stops the window two seconds after the last sound (four on
+        free text) and Keel writes it down and reads it; nothing is pressed after it. On a question's or a
+        confirmation's window (`listening` / `confirming`) a final is looked at inside that quiet (`look`): what was
+        ticked, filled and previewed before the words and 250 ms after them, kept on `hearing` -- `still` when the page
+        is still recording (*Recording your answer.*) and says *Hearing you…*, nothing read yet."""
         phase = self.phase() if final and look else None
         before = self._drawn() if phase in ("listening", "confirming") else None
         said = bool(self.page.evaluate("([t, f]) => window.__say(t, f)", [text, final]))
@@ -820,7 +872,8 @@ class Player:
             self.page.wait_for_timeout(250)
             after = self._drawn()
             self.hearing.append({"said": text, "phase": phase, "before": before, "after": after,
-                                 "still": self.phase() == phase and after["status"] == HEARING})
+                                 "still": self.phase() == phase and after["status"] == RECORDING
+                                 and after["heard"] == HEARING_YOU})
         return said
 
     def _drawn(self) -> dict:
@@ -842,25 +895,24 @@ class Player:
         """The rows ticked on the sheet now (`aria-checked="true"`)."""
         return list(self._drawn()["lit"])
 
-    def ear(self) -> dict:
-        """The seam's recognisers: how many the page has made, and whether the newest is listening -- started, not
-        stopped, and still handed results by the page (keel-web 073 `__listening()`: the gap's restart and a read's
-        stop leave recognisers behind that no longer hear anything)."""
-        return self.page.evaluate("""() => { const s = window.__speech || []; const r = s[s.length - 1];
-            return { count: s.length, live: !!(r && r.started && !r.stopped && r.onresult) }; }""")
+    def recorder(self) -> dict:
+        """Spec 074 (keel-web 115): the seam's recorder -- how many recordings the page has begun (`__recordStarts`),
+        whether one runs on the current window now (`__listening()`), and the microphone's releases so far."""
+        return self.page.evaluate("""() => ({ count: (window.__recordStarts || []).length,
+            live: !!(window.__listening && window.__listening()), released: window.__micReleased || 0 })""")
 
-    def wait_ear(self, *, newer_than: int | None = None, timeout_s: float = 20) -> dict:
-        """A recogniser listening -- one made after `newer_than` recognisers when given (a window opened again after
-        a clip)."""
+    def wait_listening(self, *, newer_than: int | None = None, timeout_s: float = 20) -> dict:
+        """A window recording -- one begun after `newer_than` recordings when given (a window opened again after a
+        clip). It replaces the recogniser's `wait_ear` (keel-web 115 retired the recogniser)."""
         deadline = timeout_s * 1000 * self.patience
         waited = 0.0
         while waited <= deadline:
-            ear = self.ear()
-            if ear["live"] and (newer_than is None or ear["count"] > newer_than):
-                return ear
+            now = self.recorder()
+            if now["live"] and (newer_than is None or now["count"] > newer_than):
+                return now
             self.page.wait_for_timeout(100)
             waited += 100
-        raise AssertionError({"no recogniser listening": self.ear(), "newer than": newer_than,
+        raise AssertionError({"no window recording": self.recorder(), "newer than": newer_than,
                               "phase": self.phase(), "status": self.status()})
 
     def status(self) -> str:
@@ -915,13 +967,14 @@ class Player:
                 "heard": sheet["heard"], "ring": rings > 0, "finish": finish_shown, "next": self.question(),
                 "went_on": self.question() != before or HELD not in self.status()}
 
-    def veto(self, word: str = VETO, *, final: bool = False) -> dict:
-        """A word of protest in the hold (FR-4): the hold ends and the question reopens, the pick still lit. Said as an
-        interim by default -- keel-web 072 hears a veto in an interim or a final, and keeps the same recogniser for the
-        question (its call 5), so what is said next is the new answer, not "no" read on its own."""
+    def veto(self, word: str = VETO, *, final: bool = True) -> dict:
+        """A word of protest in the hold (FR-4): the hold ends and the question reopens, the pick still lit. Spec 074
+        (keel-web 115): the hold records too -- a sound pauses it, and the recording, written down two seconds after the
+        last sound, is read as a veto -- so the word is said as a final (an interim would hold the level up, and the
+        recording, open)."""
         before = self.question()
         self.wait_status(HELD)
-        self.wait_ear()                                 # the hold's window listening
+        self.wait_listening()                           # the hold's own recording
         self.say(word, final)
         waited = 0
         while waited < 5_000 * self.patience and HELD in self.status():
@@ -997,16 +1050,19 @@ class Player:
             return []
 
     def starts(self) -> dict:
-        """Spec 050: when every seam recogniser was started and every recording begun (`performance.now()`)."""
+        """Spec 050: when every recording was begun (`performance.now()`) -- spec 074: the page's one ear since keel-web
+        115 (the recogniser's starts are gone) -- and when the microphone was let go (`released`, keel-web 116)."""
         try:
             return dict(self.page.evaluate(
-                "() => ({ speech: (window.__speechStarts || []).slice(), record: (window.__recordStarts || []).slice() })"))
+                "() => ({ record: (window.__recordStarts || []).slice(), "
+                "released: (window.__micReleasedAt || []).slice() })"))
         except Exception:  # noqa: BLE001
-            return {"speech": [], "record": []}
+            return {"record": [], "released": []}
 
     def mic_off(self, *, timeout_s: float = 10) -> dict:
         """keel-web 075 FR-4: *Microphone off* (`ai-mic-off`, `role=status`) on the done or the ended screen once every
-        holder of the microphone has let go; and the seam's newest recogniser no longer listening."""
+        holder of the microphone has let go; and the seam's recorder no longer running (spec 074: keel-web 115's one
+        ear), with the microphone's releases so far (`released`; keel-web 116: the thanks lets go when its clip ends)."""
         line = self.page.get_by_test_id("ai-mic-off")
         try:
             line.first.wait_for(state="visible", timeout=timeout_s * 1000 * self.patience)
@@ -1016,6 +1072,7 @@ class Player:
         return {"shown": shown, "text": _words(line.first) if shown else None,
                 "role": line.first.get_attribute("role") if shown else None,
                 "listening": bool(self.page.evaluate("() => window.__listening ? window.__listening() : false")),
+                "released": int(self.page.evaluate("() => window.__micReleased || 0")),
                 "at": float(self.page.evaluate("() => performance.now()"))}
 
     def save(self) -> None:

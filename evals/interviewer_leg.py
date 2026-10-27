@@ -54,6 +54,15 @@ recorded path (the recogniser refusing, the seam's recorder) 4 s after the last 
 skipped -- checks Try it yourself's twin route and the recorded link's follow-up on the wire, every role's FOLLOW_UP
 clips and their free backfill (stand-in 5), and the consent line (IM23-IM27).
 
+**Since spec 074 (keel-web 115 + 116, keel-cloud 136: one recorded path)**: the browser's recogniser is retired, so
+every spoken window -- the hello, every question, the hold, the story, the follow-up, the pilot ask -- is recorded and
+written down; the seam's recording carries the words said (`ivs.SPEECH_SEAM`), keel-cloud 136's fake transcriber hears
+them, and each closed answer is read by `interview/answer` (`how` RECORDED; no `classify` is sent). The `not-allowed`
+leg goes: S-005's follow-up says the line into both windows (by the pause, then by *Save and next*, then *End* in that
+hold: the pilot ask after *End* records on the kept stream, keel-web 116 FR-2), S-006's makes a sound and then leaves the
+second window silent to its cap. *Microphone off* is read once the done screen shows it, and the microphone's release
+follows the thank-you's end (116 FR-1).
+
 Every rule is scored by `evals/interviewer_marks.py` over the record this leg builds (`interviewer.json` and
 `interviewer-marks.json` in the run bundle); the leg fails when an owed mark is unmet. No model runs, no vendor is
 called and no money is spent anywhere here.
@@ -81,6 +90,9 @@ SPEC = "044"
 #: What the stack's fake transcriber hears for any recording over the silence floor (`stack/cloud.py`
 #: KEEL_INTERVIEWER_FAKE_TRANSCRIPT; keel-cloud 099 FakeTranscriber's `otherwise`).
 FAKE_TRANSCRIPT = "yes"
+#: Spec 074 (keel-web 115 FR-1): every spoken answer takes the recorded path, so the page sends `how` RECORDED for each
+#: (SPOKEN was the browser recogniser's, retired with it).
+SPOKEN_HOW = "RECORDED"
 #: Spec 058 (keel-cloud 110): the four photo avatars -- the first recording is the last card (Tito's place), the change
 #: goes to LIVIA (where JUDY was), the preselected face, which is therefore a change and not the default.
 FIRST_FACE = "CHUKWU"
@@ -910,12 +922,12 @@ def _dry_run(j, wire: _Wire, record: dict) -> None:
         assert drawn["mic_off"]["shown"] and drawn["mic_off"]["text"] == ivs.MIC_OFF, drawn["mic_off"]
         assert drawn["mic_off"]["listening"] is False, drawn["mic_off"]
         # keel-web 096 FR-3: where the gate serves the segment's chip it is asked first and read by the page itself
-        # (`readWords`: the cloud's reader knows the gate's question, not the chip's) -- so the founder's classify route
-        # is read only where the first ask is an item (05-paidly on the 129 build: *Do you work mostly for agencies?*)
-        chip = ((served.get("gate") or {}).get("condition") or {}).get("question")
-        if not (chip and drawn["first"]["question"] == chip):
-            assert any(r["url"].endswith(f"/v2/projects/{j.project_id}/interviewer/classify")
-                       for r in drawn["reads"]), drawn["reads"]
+        # (`readWords`: the cloud's reader knows the gate's question, not the chip's). Spec 074 (keel-web 115): every
+        # spoken window is recorded, so the founder's answer goes to their own `interviewer/answer` route (written down,
+        # then read; the chip's too, its words read on the page) -- never `classify`
+        assert any(r["url"].split("?")[0].endswith(f"/v2/projects/{j.project_id}/interviewer/answer")
+                   for r in drawn["reads"]), drawn["reads"]
+        assert not any(r["url"].split("?")[0].endswith("/classify") for r in drawn["reads"]), drawn["reads"]
     _dry_run_guard(j, wire, record, served)
 
 
@@ -976,7 +988,7 @@ def _dry_run_on_screen(j) -> dict:
                 player.wait_phase("listening")
                 stage = player.stage()
                 first = player.sheet()
-                player.wait_ear()
+                player.wait_listening()
                 player.say("yes", True)
                 player.wait_status(ivs.HELD)
                 h.add_screenshot(player.screenshot("try-hold"))     # the walkthrough's frame: the hold
@@ -1312,10 +1324,12 @@ class _Walk:
         #: S-006), and what it drew (IM22).
         self.story_by = story_by
         self.story_seen: dict | None = None
-        #: Spec 051 FR-6 / FR-7: the one follow-up -- `{"line", "by": "browser" | "recorded"}` -- and what it drew.
+        #: Spec 051 FR-6 / FR-7: the one follow-up -- `{"line", "by": "said" | "sound"}` (spec 074: both on the recorded
+        #: path, keel-web 115) -- and what it drew.
         self.follow_up_plan = follow_up or {}
         self.follow_up_seen: dict | None = None
-        self.recorded = False
+        #: Spec 074 FR-2 (keel-web 116 FR-2): *End* pressed before the pilot ask (S-005), and what followed.
+        self.ended_before_pilot: dict | None = None
         clips = (interview.get("interviewer") or {}).get("clips") or {}
         self.didnt_catch = (clips.get("didntCatch") or {}).get("clipId")
         self.pilot_clip = (clips.get("pilot") or {}).get("clipId")
@@ -1329,8 +1343,8 @@ class _Walk:
         right?" turn."""
         p = self.player
         start = _now(p)
-        made = p.ear()["count"]
-        p.wait_ear()
+        made = p.recorder()["count"]
+        p.wait_listening()
         question = p.question()
         p.say(said, True)
         now = _status_or_on(p, question)
@@ -1341,7 +1355,7 @@ class _Walk:
         if ivs.IS_THAT_RIGHT in now and item is not None and meant is not None:
             turn = p.confirming()
             turn.update({"said": said, "meant": [meant], "item": item.get("dimension"), "unasked": True})
-            p.wait_ear(newer_than=made)
+            p.wait_listening(newer_than=made)
             index = (labels or []).index(meant) if meant in (labels or []) else None
             answer_with = "yes" if turn["lit"] == [meant] or index is None else f"the {ORDINALS[index]} one"
             again = _now(p)
@@ -1372,8 +1386,8 @@ class _Walk:
         (held on the one meant, or "no" in the hold and the one meant by its place) and False is returned -- the move
         is tried again on a later question."""
         p = self.player
-        made = p.ear()["count"]
-        p.wait_ear()
+        made = p.recorder()["count"]
+        p.wait_listening()
         question = p.question()
         p.say(said, True)
         now = _status_or_on(p, question)
@@ -1383,7 +1397,7 @@ class _Walk:
         turn = p.confirming(timeout_s=1)
         turn.update({"said": said, "meant": [meant], "item": item.get("dimension")})
         # the "Is that right?" clip plays, then the window opens again on the same question
-        p.wait_ear(newer_than=made)
+        p.wait_listening(newer_than=made)
         if answer_with is None:
             p.yes(by="tap")
             turn["answered"] = "tap Yes, that's it"
@@ -1421,7 +1435,7 @@ class _Walk:
             entry["did"].append(f"said {said!r}, held (sure)")
         else:
             p.veto()
-            p.wait_ear()
+            p.wait_listening()
             p.say(f"the {ORDINALS[labels.index(meant)]} one", True)
             _held_or_on(p, question)
             entry["did"].append(f"said {said!r}, held on {lit}: 'no', then its place")
@@ -1456,7 +1470,7 @@ class _Walk:
                 continue
             if self.gate and q == self.gate.get("question"):
                 self.held(entry, "yes" if self.expected.get("recency", True) is not False else "no")
-                self.how[self.gate.get("itemId")] = "SPOKEN"
+                self.how[self.gate.get("itemId")] = SPOKEN_HOW
                 continue
             after_gate = len(self.walked) > 1 and self.walked[-2]["question"] == self.gate.get("question")
             if self.gate and after_gate and q not in self.items and q not in self.by_prompt:
@@ -1482,7 +1496,7 @@ class _Walk:
             _wait_next(p, entry["question"])
             return
         story = self.expected.get("story") or ""
-        p.wait_ear()
+        p.wait_listening()
         try:
             status_before = p.wait_status(ivs.STORY, timeout_s=5)
         except AssertionError:
@@ -1527,16 +1541,11 @@ class _Walk:
         answer -- the ring on Yes, *Finish* on the sheet -- and on by itself to the thanks: nothing pressed."""
         p = self.player
         start = _now(p)
-        if self.recorded:
-            # spec 051: the recogniser refused on the follow-up, so the page records every window since (keel-web
-            # `listenFailed`); the pilot ask's "yes" is written down by the stack's fake transcriber
-            box = ivs.SpeakBox(p.page)
-            _wait_recording_since(p, _played_at(p, self.pilot_clip))
-            box.speak()
-            box.quiet()
-        else:
-            p.wait_ear()
-            p.say("yes", True)
+        # spec 074 (keel-web 115): the pilot ask's window records like every other -- "yes" written down through
+        # `transcribe` against the first question's item and read on the page (073 FR-7(b))
+        _wait_recording_since(p, _played_at(p, self.pilot_clip))
+        p.wait_listening()
+        p.say("yes", True)
         hold = p.hold(timeout_s=30)
         done = p.done(timeout_s=20)
         hold.update({"said": "yes", "presses": _presses_between(p, start, _now(p)), "pilot": True,
@@ -1550,19 +1559,22 @@ class _Walk:
         """Spec 051 FR-6 / FR-7 (keel-web 076 FR-9, keel-cloud 103 design §5.3): after the last item's hold the page
         asks the cloud's route; with a rung it plays the rung's FOLLOW_UP clip, the sheet says *One last thing* and the
         cloud's filled text, and the window is the story's -- never classified. Two windows, by way of *Back* from the
-        first (076: Back from the follow-up lands on the last item; on again, the route is asked again):
+        first (076: Back from the follow-up lands on the last item; on again, the route is asked again). Spec 074
+        (keel-web 115): both windows are recorded and written down (`transcribe`, `maxSeconds` 120) -- the recogniser
+        and its `not-allowed` leg are gone:
 
-        * **browser** (S-005): the first window said and ended by the pause, Back in its hold, the last item tapped
-          again, the second said and ended by *Save and next* -- the response's `followUp` SPOKEN with the words;
-        * **recorded** (S-006): the recogniser refuses on the first window (`not-allowed`, Chrome on iPhone), so the
-          page records it -- a sound, then quiet: it ends 4 s after the last sound and is written down with
-          `maxSeconds` 120; Back in its hold, the last item tapped again, the second window left silent: it runs to the
-          cap (shortened through the seam, judgement call 2) and the question is skipped -- `skipped: true`, no
-          didn't-catch, the pilot ask next."""
+        * **said** (S-005): the line said into the first window, which ends 4 s after the last sound; Back in its hold,
+          the last item tapped again, the line said into the second and ended by *Save and next* -- and *End* pressed
+          in that hold (keel-web 116 FR-2): the pilot ask follows on the kept stream and its window records, nothing
+          let go -- the response's `followUp` RECORDED with the line;
+        * **sound** (S-006): a sound in the first window, then quiet: it ends 4 s after the last sound and is written
+          down as the stack's fake hears a recording of no words (`FAKE_TRANSCRIPT`); Back in its hold, the last item
+          tapped again, the second window left silent: it runs to the cap (shortened through the seam, judgement call 2)
+          and the question is skipped -- `skipped: true`, no didn't-catch, the pilot ask next."""
         p = self.player
         plan = self.follow_up_plan
         line = plan.get("line") or ""
-        by = plan.get("by") or "browser"
+        by = plan.get("by") or "said"
         x = self.follow_up_seen = {"by": by, "windows": [], "line": line}
         last = self.order[-1]
         last_item = next(i for i in self.items.values() if i.get("itemId") == last)
@@ -1572,10 +1584,10 @@ class _Walk:
             {"the last item is answered again by one tap": last_item.get("dimension"), "meant": meant}
         # the first window
         first = self._follow_up_window(entry, "first")
-        if by == "recorded":
+        if by == "sound":
             first.update(self._recorded_take(first))
         else:
-            first.update(self._browser_take(line, "wait"))
+            first.update(self._said_take(line, "quiet"))
         x["windows"].append(first)
         # Back in its hold: the last item again, tapped again -- and the follow-up asked once more
         p.page.get_by_test_id("ai-back").click()
@@ -1588,10 +1600,10 @@ class _Walk:
         while time.monotonic() < deadline and not (_step_of(p) == "followUp" and p.phase() == "listening"):
             p.page.wait_for_timeout(100)
         second = self._follow_up_window(entry, "second")
-        if by == "recorded":
+        if by == "sound":
             second.update(self._silent_window(second))
         else:
-            second.update(self._browser_take(line, "save"))
+            second.update(self._said_take(line, "save", end_in_hold=True))
         x["windows"].append(second)
         entry["did"].append(f"the follow-up: {first.get('ended')}, Back and on, then {second.get('ended')}")
 
@@ -1609,11 +1621,14 @@ class _Walk:
                 "clip": plays[-1].get("clip") if plays else None, "classified_before": len(p.classified),
                 "banner": sheet.get("banner")}
 
-    def _browser_take(self, line: str, by: str) -> dict:
-        """The browser path's window: the line said as one final, then the pause ("wait": nothing pressed, held after
-        the gap) or *Save and next* at once ("save")."""
+    def _said_take(self, line: str, by: str, *, end_in_hold: bool = False) -> dict:
+        """Spec 074 (keel-web 115): a follow-up window the line is said into, recorded -- ended by the pause ("quiet":
+        nothing pressed, the recording stopped 4 s after the last sound, written down, held) or by *Save and next* at
+        once ("save"). `end_in_hold` (keel-web 116 FR-2): *End* pressed in the hold that follows -- the answers go and
+        the pilot ask follows on the kept stream: its window records (`__recordStarts` grows) and nothing is let go
+        (`__micReleased` unmoved) until the thanks."""
         p = self.player
-        p.wait_ear()
+        p.wait_listening()
         said_at = _now(p)
         p.say(line, True, look=False)
         waited = 0
@@ -1628,34 +1643,58 @@ class _Walk:
         status = p.wait_status(ivs.HELD, timeout_s=20)
         held_at = next((e["t"] for e in p.timeline() if e.get("kind") == "phase" and e.get("value") == "held"
                         and (e.get("t") or 0) >= said_at), None)
+        stamps = _record_stamps(p)
+        stops = [t for t in stamps["stops"] if t >= said_at]
+        sound_at = stamps.get("sound_at")
         sheet = p.sheet()
-        out = {"path": "browser", "ended": by, "said": line, "save_after_final": save_after,
+        out = {"path": "recorded", "ended": by, "said": line, "save_after_final": save_after,
                "pressed": pressed_at is not None, "held_status": status, "heard": sheet["heard"],
+               "banner": sheet.get("banner"), "sound_at": sound_at, "stopped_at": stops[0] if stops else None,
+               "quiet_to_stop_ms": round(stops[0] - sound_at) if stops and sound_at is not None else None,
                "final_to_held_ms": round(held_at - said_at) if held_at is not None else None,
                "press_to_held_ms": round(held_at - pressed_at) if held_at is not None and pressed_at else None,
                "presses": _presses_between(p, said_at, _now(p)), "classified": len(p.classified)}
-        if by == "save":
+        if end_in_hold:
+            out["after_end"] = self._end_in_hold()
+            out["next"] = out["after_end"]["where"]
+        elif by == "save":
             hold = p.hold(timeout_s=20)
             out["went_on"] = hold.get("went_on")
             _wait_where(p, ivs.LAST_QUESTION)
             out["next"] = p.stage()["where"]
         return out
 
+    def _end_in_hold(self) -> dict:
+        """keel-web 116 FR-2 (spec 074 FR-2): *End* in the follow-up's hold -- the answers go, the pilot ask follows, its
+        clip on the kept stream, and its window records: a recording begun after the press, the microphone's releases
+        unmoved."""
+        p = self.player
+        before = p.recorder()
+        pressed_at = _now(p)
+        p.end()
+        _wait_where(p, ivs.LAST_QUESTION)
+        p.wait_phase("listening", timeout_s=40)
+        now = p.wait_listening(newer_than=before["count"], timeout_s=20)
+        self.ended_before_pilot = {"pressed_at": pressed_at, "starts_before": before["count"],
+                                   "starts_after": now["count"], "released_before": before["released"],
+                                   "released_after": now["released"], "listening": now["live"],
+                                   "where": p.stage()["where"]}
+        return self.ended_before_pilot
+
     def _recorded_take(self, opened: dict) -> dict:
-        """The recorded path's window (spec 051 FR-7): the recogniser refuses (`not-allowed`), the page records the
-        window; a sound for a moment, then quiet -- the recording stops 4 s after the last sound and is written down
-        (`transcribe`, `maxSeconds` 120); the transcript is held."""
+        """The recorded path's window (spec 051 FR-7; spec 074: every window records since keel-web 115, so the
+        recogniser's `not-allowed` that once opened it is gone): a sound for a moment, then quiet -- the recording stops
+        4 s after the last sound and is written down (`transcribe`, `maxSeconds` 120); the transcript is held."""
         p = self.player
         box = ivs.SpeakBox(p.page)
-        p.wait_ear()
-        before = len(_record_stamps(p)["starts"])
-        p.page.evaluate("() => window.__speechError('not-allowed')")
-        self.recorded = True
-        started = _wait_recording(p, before)
+        started = _wait_recording_since(p, _played_at(p, opened.get("clip")))
+        p.wait_listening()
         sound_at = box.speak()
-        quiet_at = box.quiet()
+        box.quiet()
         status = p.wait_status(ivs.HELD, timeout_s=30)
         stamps = _record_stamps(p)
+        # the last tick the recorder heard the sound (the seam's `__soundAt`), not the walk's own clock
+        quiet_at = stamps.get("sound_at") or sound_at
         stops = [t for t in stamps["stops"] if t >= quiet_at]
         sheet = p.sheet()
         return {"path": "recorded", "ended": "quiet", "recording_started": started, "sound_at": sound_at,
@@ -1682,23 +1721,20 @@ class _Walk:
     def read_aloud(self, entry: dict, item: dict, meant: str, labels: list[str]) -> None:
         """Spec 049 FR-2: the way people answer -- the question's first words read aloud as a final, then within a
         second the option's own words as a final. keel-web 073 lights nothing in the quiet gap after the first and reads
-        the two as one utterance: one `classify` carrying both. The read is then settled where it lands (held on the
+        the two as one utterance -- since keel-web 115 one recording, so one `answer` carrying both. The read is then
+        settled where it lands (held on the
         one meant; held on another -> "no" and its place; "Is that right?" -> "yes" or its place), so the response
         still carries the person's own answer."""
         p = self.player
-        p.wait_ear()
+        p.wait_listening()
         question = p.question()
         first = _question_words(question)
         reads0 = len(p.classified)
-        made = p.ear()["count"]
         start = _now(p)
         p.say(first, True)
         seen = p.hearing[-1] if p.hearing and p.hearing[-1]["said"] == first else None
-        # the gap's own recogniser (the page restarts it after the first final's end): the answer goes to it
-        waited = 0
-        while waited < 1_000 and not (p.ear()["live"] and p.ear()["count"] > made):
-            p.page.wait_for_timeout(50)
-            waited += 50
+        # spec 074 (keel-web 115): the same window goes on recording through the quiet after the first words -- the
+        # answer said within it lands in the same recording (no recogniser restarts to wait for)
         in_gap = [c["body"] for c in p.classified[reads0:] if (c["body"] or {}).get("itemId") == item["itemId"]]
         between = _now(p) - start
         p.say(meant, True, look=False)
@@ -1714,7 +1750,7 @@ class _Walk:
         elif ivs.IS_THAT_RIGHT in now:
             turn = p.confirming()
             turn.update({"said": f"{first} {meant}", "meant": [meant], "item": item.get("dimension"), "aloud": True})
-            p.wait_ear()
+            p.wait_listening()
             answer_with = "yes" if turn["lit"] == [meant] else f"the {ORDINALS[labels.index(meant)]} one"
             p.say(answer_with, True)
             turn["answered"] = answer_with
@@ -1740,7 +1776,7 @@ class _Walk:
         on by itself for 1.5 s, no ring; a second: on; a third row tapped: ignored; Save: *Got it.*, the next question,
         `how` TAPPED."""
         p = self.player
-        p.wait_ear()
+        p.wait_listening()
         question = p.question()
         before = p.save_state()
         p.tap(want[0])
@@ -1798,22 +1834,22 @@ class _Walk:
             return
         if control == "pick_two":
             self.held(entry, " and ".join(options[o] for o in ans.get("optionIds") or []))
-            self.how[item["itemId"]] = "SPOKEN"
+            self.how[item["itemId"]] = SPOKEN_HOW
             _wait_next(p, entry["question"])
             return
         if ans.get("scale") is not None or ans.get("number") is not None:
             value = ans.get("scale") if ans.get("scale") is not None else ans.get("number")
             if not self.used["miss"]:
-                p.wait_ear()
+                p.wait_listening()
                 p.say("31", True)                       # out of every range here: the didn't-catch clip
                 # keel-web 073: read after the quiet gap -- wait for the miss itself, then the window opened again
                 entry["missed"] = p.wait_missed()
-                p.wait_ear(timeout_s=20)
+                p.wait_listening(timeout_s=20)
                 entry["did"].append("said 31 (a miss)")
                 self.used["miss"] = True
             words = NUMBER_WORDS[int(value)] if str(value).isdigit() and int(value) < len(NUMBER_WORDS) else str(value)
             self.held(entry, f"about {words}")
-            self.how[item["itemId"]] = "SPOKEN"
+            self.how[item["itemId"]] = SPOKEN_HOW
             _wait_next(p, entry["question"])
             return
         if ans.get("costTotal"):
@@ -1823,7 +1859,7 @@ class _Walk:
             word = "hours" if cost.get("mode") == "HOURS" else CURRENCY_WORDS.get(currency or "")
             if value.is_integer() and word:
                 self.held(entry, f"{int(value)} {word}")
-                self.how[item["itemId"]] = "SPOKEN"
+                self.how[item["itemId"]] = SPOKEN_HOW
             else:
                 p.unit("HOURS" if cost.get("mode") == "HOURS" else "AMOUNT")
                 p.fill_field(str(cost.get("value")))
@@ -1842,7 +1878,7 @@ class _Walk:
         # keel-web 072 call 7: Back lands on a step's main ask and asks its follow-ups again -- the way back and the
         # veto are tried on a plain one-of question, never on benefit_with_advantages (its advantages follow)
         plain = control != "benefit_with_advantages"
-        self.how[item["itemId"]] = "SPOKEN"
+        self.how[item["itemId"]] = SPOKEN_HOW
         if not self.used["aloud"] and self.aloud_item == item["itemId"]:
             # keel-web 073 / keel-cloud 100: the question's first words read aloud, then the answer (IM19)
             self.used["aloud"] = True
@@ -1871,12 +1907,12 @@ class _Walk:
         if not self.used["veto"] and plain:
             # a word of protest in the hold reopens the question; the option said again is held and goes on
             self.used["veto"] = True
-            p.wait_ear()
+            p.wait_listening()
             p.say(meant, True)
             if ivs.IS_THAT_RIGHT in p.wait_status(ivs.HELD, ivs.IS_THAT_RIGHT):
                 # unsure, not held: no hold to protest in -- named by its place instead, and the veto tried later
                 self.used["veto"] = False
-                p.wait_ear()
+                p.wait_listening()
                 p.say(f"the {ORDINALS[index]} one", True)
                 _held_or_on(p, entry["question"])
                 _wait_next(p, entry["question"])
@@ -1912,9 +1948,12 @@ def _wait_where(player, where: str, *, timeout_s: float = 30) -> None:
 
 
 def _record_stamps(player) -> dict:
-    """The seam recorder's stamps (`harness/interviewer_screens.recorder_seam`)."""
+    """The seam recorder's stamps (`harness/interviewer_screens.SPEECH_SEAM`, spec 074): starts, stops, cancels, the
+    last tick it heard a sound, and the microphone's releases."""
     return player.page.evaluate("""() => ({ starts: (window.__recordStarts || []).slice(),
-        stops: (window.__recordStops || []).slice(), cancels: (window.__recordCancels || []).slice() })""")
+        stops: (window.__recordStops || []).slice(), cancels: (window.__recordCancels || []).slice(),
+        sound_at: window.__soundAt === undefined ? null : window.__soundAt,
+        released: (window.__micReleasedAt || []).slice() })""")
 
 
 def _played_at(player, clip_id: str | None) -> float:
@@ -1934,17 +1973,6 @@ def _wait_recording_since(player, since: float, *, timeout_s: float = 20) -> flo
         time.sleep(0.05)
     raise AssertionError({"no recording began after": since, "stamps": _record_stamps(player),
                           "status": player.status()})
-
-
-def _wait_recording(player, before: int, *, timeout_s: float = 20) -> float:
-    """A recording begun after the `before`-th: when (`performance.now()`)."""
-    deadline = time.monotonic() + timeout_s * player.patience
-    while time.monotonic() < deadline:
-        starts = _record_stamps(player)["starts"]
-        if len(starts) > before:
-            return starts[-1]
-        time.sleep(0.05)
-    raise AssertionError({"no recording began": _record_stamps(player), "status": player.status()})
 
 
 def _held_or_on(player, question: str, *, timeout_s: float = 20) -> dict | None:
@@ -2001,8 +2029,9 @@ def _clip_kinds(interview: dict) -> dict[str, str]:
 
 def _beats_seen(interview: dict, beats: list[dict], starts: dict) -> dict:
     """Spec 050 FR-2 (keel-web 075 FR-1), IM21's record: every beat the stage took, after which clip, how long, what it
-    drew, and how many recognisers or recordings were started inside it; and the passages it is owed after (the served
-    PROBLEM and SOLUTION clips, in the spoken order)."""
+    drew, and how many recordings were begun inside it (spec 074: the page's one ear since keel-web 115 -- the
+    recogniser's starts are gone); and the passages it is owed after (the served PROBLEM and SOLUTION clips, in the
+    spoken order)."""
     kinds = _clip_kinds(interview)
     clips = (interview.get("interviewer") or {}).get("clips") or {}
     out = []
@@ -2017,28 +2046,61 @@ def _beats_seen(interview: dict, beats: list[dict], starts: dict) -> dict:
         at = (lambda ts: [round(t - t0) for t in ts or [] if t0 is not None and t >= t0 and t < end])
         out.append({**b, "after_kind": kinds.get(b.get("after")),
                     "ms": round(t1 - t0) if t0 is not None and t1 is not None else None,
-                    "starts_in": inside(starts.get("speech")), "recordings_in": inside(starts.get("record")),
-                    "starts_at_ms": at(starts.get("speech")), "recordings_at_ms": at(starts.get("record"))})
+                    "recordings_in": inside(starts.get("record")), "recordings_at_ms": at(starts.get("record"))})
     return {"beats": out, "expected": [k.upper() for k in ("problem", "solution") if clips.get(k)],
             "beat_ms": ivs.BEAT_MS}
 
 
+def _norm_words(text: str | None) -> str:
+    return " ".join(re.findall(r"[a-z0-9']+", (text or "").replace("’", "'").lower()))
+
+
 def _mic_off_after_thanks(j, interview: dict, mic_off: dict, starts: dict, events: list[dict], whose: str) -> None:
     """Spec 050 FR-7 (keel-web 075 FR-4), a plain assertion once a link: after the thanks the done screen says
-    *Microphone off* (`ai-mic-off`, `role=status`), the seam's recogniser no longer listens, and no recogniser was
-    started after the thanks clip began."""
+    *Microphone off* (`ai-mic-off`, `role=status`), the seam's recorder no longer runs, and no recording was begun after
+    the thanks clip began. Spec 074 FR-2 (keel-web 116 FR-1): the microphone is let go when the thank-you **ends** --
+    no release stamped while it plays (under the dev build's StrictMode one is stamped at load, keel-web 116 D-03, so
+    the count is read for not moving, never for 0), at least one at or after its end -- and the fact is read once the
+    done screen shows it."""
     thanks = (((interview.get("interviewer") or {}).get("clips") or {}).get("thanks") or {}).get("clipId")
     played = [e.get("t") for e in events if e.get("kind") == "play" and thanks and e.get("clip") == thanks]
     since = played[-1] if played else None
-    after = [t for t in starts.get("speech") or [] if since is not None and t > since]
-    with j.recorder.step(f"interviewer (keel-web 075 FR-4): after {whose} thanks the done screen says Microphone off "
-                         "and nothing listens any more", party="participant", kind="assert") as h:
+    ended = next((e.get("t") for e in events if e.get("kind") == "ended" and thanks and e.get("clip") == thanks
+                  and since is not None and (e.get("t") or 0) >= since), None)
+    after = [t for t in starts.get("record") or [] if since is not None and t > since]
+    released = starts.get("released") or []
+    while_it_played = [t for t in released if since is not None and since <= t < (ended if ended is not None else 1e18)]
+    after_it_ended = [t for t in released if ended is not None and t >= ended]
+    with j.recorder.step(f"interviewer (keel-web 075 FR-4, 116 FR-1): after {whose} thanks the done screen says "
+                         "Microphone off and nothing records any more; the microphone was let go when the thank-you "
+                         "ended, not before", party="participant", kind="assert") as h:
         h.record_assert({"ai-mic-off": ivs.MIC_OFF, "role": "status", "listening": False,
-                         "recognisers started after the thanks": 0},
-                        {**mic_off, "thanks played at": since, "recognisers started after the thanks": len(after)})
+                         "recordings begun after the thanks": 0, "released while the thanks played": 0,
+                         "released after it ended": ">= 1"},
+                        {**mic_off, "thanks played at": since, "thanks ended at": ended,
+                         "recordings begun after the thanks": len(after),
+                         "released while the thanks played": [round(t) for t in while_it_played],
+                         "released after it ended": [round(t) for t in after_it_ended]})
         assert mic_off["shown"] and mic_off["text"] == ivs.MIC_OFF and mic_off["role"] == "status", mic_off
         assert mic_off["listening"] is False, mic_off
-        assert since is not None and not after, {"thanks": since, "started after": after}
+        assert since is not None and not after, {"thanks": since, "begun after": after}
+        assert ended is not None and not while_it_played and after_it_ended, \
+            {"thanks": since, "ended": ended, "released": released}
+
+
+def _pilot_after_end(j, ended: dict, starts: dict) -> None:
+    """Spec 074 FR-2 (keel-web 116 FR-2): *End* with the pilot ask to come keeps the stream -- the pilot clip plays and
+    its window **records** (a recording begun after the press), and nothing is let go until the thanks."""
+    released = [t for t in starts.get("released") or [] if t >= (ended.get("pressed_at") or 0)]
+    with j.recorder.step("interviewer (keel-web 116 FR-2): End before the pilot ask -- the pilot ask follows on the kept "
+                         "stream and its window records; nothing is let go before the thanks", party="participant",
+                         kind="assert") as h:
+        h.record_assert({"where": ivs.LAST_QUESTION, "recording begun after End": True, "released at the pilot": "unmoved",
+                         "listening": True}, ended)
+        assert ended.get("where") == ivs.LAST_QUESTION, ended
+        assert ended.get("starts_after", 0) > ended.get("starts_before", 0) and ended.get("listening") is True, ended
+        assert ended.get("released_after") == ended.get("released_before"), ended
+        assert released, {"no release after End at all": starts.get("released")}
 
 
 def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: dict) -> None:
@@ -2056,17 +2118,18 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
     pilot_before = (j.get(j.project("/standings")) or {}).get("pilot") or {}
     stranger = j.browser.new_context()
     stranger.add_init_script(ivs.SPEECH_SEAM)
-    by = "browser" if record.get("short") else "recorded"
-    if by == "recorded":
-        # spec 051 FR-7: the recorder the page falls back to, and the follow-up's cap shortened (judgement call 2)
-        stranger.add_init_script(ivs.recorder_seam(follow_up_cap_ms=ivs.FOLLOW_UP_SEAM_CAP_MS))
+    # spec 074 (keel-web 115): both follow-ups are recorded -- the line said on the short form, a sound on the full leg
+    by = "said" if record.get("short") else "sound"
+    if by == "sound":
+        # spec 051 judgement call 2: the follow-up's silent window shortened through the seam
+        stranger.add_init_script(ivs.follow_up_cap_seam(ivs.FOLLOW_UP_SEAM_CAP_MS))
     stranger.add_init_script(ivs.FLOW_TIMELINE)
     seen: dict = {}
     replies: list = []
 
     def keep(response) -> None:
         if response.request.method == "POST" and response.url.endswith(("/interview/response", "/interview/pilot",
-                                                                        "/interview/classify")):
+                                                                        "/interview/classify", "/interview/answer")):
             seen.setdefault(response.url.rsplit("/", 1)[-1], []).append(
                 {"status": response.status, "body": response.request.post_data_json})
         if response.request.method == "POST" and response.url.endswith(("/interview/follow-up",
@@ -2123,17 +2186,23 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
     if walk.story_seen:
         record["story"] = walk.story_seen
     _mic_off_after_thanks(j, interview, mic_off, starts, events, "the AI link's")
+    if walk.ended_before_pilot is not None:
+        _pilot_after_end(j, walk.ended_before_pilot, starts)
     record["hold"] = {"holds": walk.holds, "veto": walk.veto, "statuses": statuses, "saw_thats_my_answer": saw,
                       "pilot": walk.pilot_hold, "finish_presses": record["ai_flow"]["finish_presses"]
                       + sum(1 for e in events if e.get("kind") == "press" and e.get("testid") == "ai-finish")}
     with j.recorder.step("interviewer (FR-008 / FR-H; keel-web 072): keel-web sent ONE response -- `format` "
                          "AI_INTERVIEWER, `how` and `heard` on every answer as it was given, exactly the person's own "
-                         "answers (the one changed through Back included) -- the classifier asked for every spoken "
-                         "closed answer, That's my answer never drawn, and after the pilot ask (*Last question*, never "
+                         "answers (the one changed through Back included) -- every spoken closed answer recorded and "
+                         "read by `interview/answer` (keel-web 115), That's my answer never drawn, and after the pilot "
+                         "ask (*Last question*, never "
                          "skipped) one pilot write, counted in the overview's pilot", party="participant",
                          kind="assert") as h:
         responses, pilots = seen.get("response") or [], seen.get("pilot") or []
-        classified = seen.get("classify") or []
+        # spec 074 (keel-web 115): every spoken closed answer is recorded and read by `interview/answer`; the page sends
+        # no `classify` any more (held below)
+        classified = seen.get("answer") or []
+        stray_classify = seen.get("classify") or []
         body = (responses[0] if responses else {}).get("body") or {}
         _, register = wire("GET", "/invitations")
         row = next((r for r in register.get("invitations") or [] if r.get("invitationId") == made["invitationId"]),
@@ -2191,14 +2260,16 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
                            "before": pilot_before.get("optedIn"), "after": pilot_after.get("optedIn"),
                            "status": pilots[0]["status"] if pilots else None,
                            "asked": [w["where"] for w in walked][-1:]}
-        spoken = [k for k, v in walk.how.items() if v == "SPOKEN" and k != (interview.get("gate") or {}).get("itemId")]
+        spoken = [k for k, v in walk.how.items() if v == SPOKEN_HOW and k != (interview.get("gate") or {}).get("itemId")]
         h.record_assert({"responses": 1, "format": "AI_INTERVIEWER", "answers": want, "how": walk.how,
                          "top": {k: expected[k] for k in top}, "pilot": 204, "formatUsed": "AI_INTERVIEWER",
-                         "That's my answer": "never in the DOM", "classify": f">= {len(spoken)} calls, all 200",
+                         "That's my answer": "never in the DOM", "answer": f">= {len(spoken)} calls, all 200",
+                         "classify": 0,
                          "intro": {"intro": "AI_INTERVIEWER", "heading": f"{fake.FACE_NAMES[FIRST_FACE]} will ask you"}},
                         {"responses": len(responses), "format": body.get("format"), "answers": sent, "how": hows,
                          "top": top, "pilots": pilots, "row": row, "intro": intro, "walked": walked,
-                         "saw That's my answer": saw, "classify": [c["status"] for c in classified],
+                         "saw That's my answer": saw, "answer": [c["status"] for c in classified],
+                         "classify": len(stray_classify),
                          "statuses": [s.get("status") for s in statuses]})
         assert intro["intro"] == "AI_INTERVIEWER" and intro["buttons"] == ["start-talking"], intro
         assert intro["heading"].startswith(f"{fake.FACE_NAMES[FIRST_FACE]} will ask you"), intro
@@ -2208,9 +2279,10 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
         assert top == {k: expected[k] for k in top}, (top, expected)
         assert hows == {k: v for k, v in walk.how.items() if k in by_item}, {"sent": hows, "want": walk.how}
         assert all((by_item.get(k) or {}).get("heard") for k, v in walk.how.items()
-                   if v == "SPOKEN" and k in by_item), {k: (by_item.get(k) or {}).get("heard") for k in walk.how}
+                   if v == SPOKEN_HOW and k in by_item), {k: (by_item.get(k) or {}).get("heard") for k in walk.how}
         assert saw is False, "That's my answer (ai-answer) was drawn"
         assert len(classified) >= len(spoken) and all(c["status"] == 200 for c in classified), classified
+        assert not stray_classify, stray_classify
         assert len(pilots) == 1 and pilots[0]["status"] == 204, pilots
         assert row.get("formatUsed") == "AI_INTERVIEWER" and row.get("status") == "ANSWERED", row
         assert all(w["mark"] == ivs.MARK for w in walked), [w["mark"] for w in walked]
@@ -2274,9 +2346,10 @@ def _follow_up_on_the_ai_link(j, record: dict) -> None:
     asked twice (once a pass of the last item) and both times on the harness's rung with the harness's text, the
     rung's FOLLOW_UP clip played into both windows (`clips.followUp[dimension]`, the route's own `clip`), the sheet's
     step `followUp` with *One last thing*, the story's status, *Skip this one*, no *Save and next* before words, nothing
-    classified; the browser path's first window ended by the pause and its second by Save (the response SPOKEN with
-    the words), or the recorded path's first window 4 s after the last sound (`transcribe` `maxSeconds` 120) and its
-    second, silent, at the cap -- skipped, no didn't-catch, the pilot ask next."""
+    classified, no banner (keel-web 115 FR-3); every window recorded (spec 074): the line said, the first window ended
+    4 s after the last sound and the second by Save, each written down (`transcribe` `maxSeconds` 120; the response
+    RECORDED with the line) -- or a sound, the first window 4 s after it, the second, silent, at the cap -- skipped,
+    no didn't-catch, the pilot ask next."""
     x = record["follow_up_ai"]
     owed = x["owed"]
     clips = x.get("clips") or {}
@@ -2292,13 +2365,13 @@ def _follow_up_on_the_ai_link(j, record: dict) -> None:
     windows = (x.get("walk") or {}).get("windows") or []
     with j.recorder.step(f"interviewer (keel-cloud 103, keel-web 076): the AI link's follow-up on {owed['dimension']} "
                          f"-- the {x['by']} path, two windows by way of Back", party="participant", kind="assert") as h:
-        if x["by"] == "browser":
-            want_sent = {"dimension": owed["dimension"], "text": x["line"], "how": "SPOKEN", "skipped": False}
+        if x["by"] == "said":
+            want_sent = {"dimension": owed["dimension"], "text": x["line"], "how": SPOKEN_HOW, "skipped": False}
         else:
             want_sent = {"dimension": owed["dimension"], "skipped": True}
         h.record_assert({"routes": [{"status": 200, "dimension": owed["dimension"], "text": owed["text"]}] * 2,
-                         "clip": want_clip, "windows": ["wait", "save"] if x["by"] == "browser" else ["quiet", "cap"],
-                         "sent": want_sent}, x)
+                         "clip": want_clip, "windows": ["quiet", "save"] if x["by"] == "said" else ["quiet", "cap"],
+                         "banner": None, "sent": want_sent}, x)
         assert len(routes) == 2 and all(r["status"] == 200 for r in routes), routes
         for r in routes:
             assert r["body"].get("dimension") == owed["dimension"] and r["body"].get("spoken") == owed["spoken"], r
@@ -2311,20 +2384,26 @@ def _follow_up_on_the_ai_link(j, record: dict) -> None:
             assert w["status"] == ivs.STORY and w["skip"] == ivs.FOLLOW_UP_SKIP, w
             assert w["save_before"]["shown"] is False and w["clip"] == want_clip, w
             assert w.get("classified", w["classified_before"]) == w["classified_before"], w     # never classified
-        if x["by"] == "browser":
-            first, second = windows
-            assert first["ended"] == "wait" and not first["presses"] and not first["pressed"], first
-            assert second["ended"] == "save" and second["pressed"] and second["went_on"], second
+            assert w.get("banner") is None, w                       # keel-web 115 FR-3: no banner on the one path
+        # spec 074: every window written down is one `transcribe` of the follow-up's own item, in the windows' order
+        transcribed = [a for a in x.get("asked") or [] if a["route"] == "transcribe"
+                       and (a["sent"] or {}).get("itemId") == routes[0]["body"].get("itemId")]
+        first, second = windows
+        assert first["ended"] == "quiet" and not first.get("presses") and not first.get("pressed"), first
+        assert first["quiet_to_stop_ms"] is not None and abs(first["quiet_to_stop_ms"] - ivs.SILENCE_FREE_MS) <= 500, \
+            first
+        if x["by"] == "said":
+            first["transcribed"], second["transcribed"] = transcribed[:1], transcribed[1:2]
+            assert len(transcribed) == 2 and all(t["status"] == 200 for t in transcribed), transcribed
+            assert all(t["sent"].get("maxSeconds") == 120 for t in transcribed), transcribed
+            assert all(_norm_words(t["body"].get("text")) == _norm_words(x["line"]) for t in transcribed), transcribed
+            assert second["ended"] == "save" and second["pressed"], second
             assert second["final_to_held_ms"] is not None and second["final_to_held_ms"] < marks.GAP_FREE_MS, second
+            assert [q.get("testid") for q in second.get("presses") or []] == ["ai-save"], second
         else:
-            first, second = windows
-            transcribed = [a for a in x.get("asked") or [] if a["route"] == "transcribe"
-                           and (a["sent"] or {}).get("itemId") == routes[0]["body"].get("itemId")]
             first["transcribed"] = transcribed
             assert len(transcribed) == 1 and transcribed[0]["status"] == 200, transcribed
             assert transcribed[0]["sent"].get("maxSeconds") == 120, transcribed[0]["sent"]
-            assert first["quiet_to_stop_ms"] is not None and abs(first["quiet_to_stop_ms"] - ivs.SILENCE_FREE_MS) <= 500, \
-                first
             assert FAKE_TRANSCRIPT in (first["heard"] or "").lower(), first
             assert second["ran_ms"] is not None and second["ran_ms"] >= 0.95 * second["cap_ms"], second
             assert second["didnt_catch_played"] == 0 and second["next"] == ivs.LAST_QUESTION, second
