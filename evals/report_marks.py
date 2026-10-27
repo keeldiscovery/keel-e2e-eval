@@ -594,8 +594,12 @@ def expected_person(standings: dict, person: dict) -> dict:
         inside.append(person["story"])
     for answer in person.get("answers") or []:
         inside += [answer.get("name"), answer.get("words")]
-    follow = person.get("followUp")
-    if follow:
+    # spec 075 (keel-cloud 142 FR-3, contract 41; keel-web 124 T012): one *One last thing · {rung}: "…"* line per
+    # follow-up answered, in the order served (the ladder's) -- `followUps`, else (a read before 41) the one `followUp`
+    follows = person.get("followUps")
+    if follows is None:
+        follows = [person["followUp"]] if person.get("followUp") else []
+    for follow in follows:
         inside += [ONE_LAST_THING, names.get(follow.get("dimension"), follow.get("dimension")), follow.get("text")]
     return {"invitation": person.get("invitationId"), "summary": [person.get("name"), person.get("words"), source],
             "email": person.get("email"), "inside": inside}

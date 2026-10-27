@@ -418,13 +418,15 @@ def _answer_priya(monkeypatch, stack):
         def open(self, link):
             pass
 
-        def walk(self, person, interview, by_item, *, follow_up=None, speak=None, follow_up_rung=None):
+        def walk(self, person, interview, by_item, *, follow_up=None, speak=None, follow_up_rung=None, lines=None,
+                 late=()):
             seen["speak"] = speak
             raise _Walked
 
     context = _Context()
     monkeypatch.setattr(cs.vs_screens, "Interview", _Interview)
     monkeypatch.setattr(cs.vs, "follow_up_question", lambda *a, **k: None)
+    monkeypatch.setattr(cs.vs, "follow_up_plan", lambda *a, **k: [])                    # spec 075: nothing asked
     person = SimpleNamespace(person="Priya Natarajan", recency=True, story="It was a Tuesday.", picks=[],
                              link=vs.LINK_PRIMARY, follow_up=None, response=lambda token, recall: {"answers": []})
     assert vs.STORY_SPOKEN["01-countly"][person.person] == "quiet"

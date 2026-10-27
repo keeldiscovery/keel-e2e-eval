@@ -151,6 +151,11 @@ SAY_YES = "yes"
 GO_BACK = "go back"
 #: keel-web 076 `translate.ts` (spec 051): the follow-up and the speak-or-type box, restated where the walks read them.
 FOLLOW_UP_KICKER = "One last thing"
+#: keel-web 124 FR-1 (spec 075, `FOLLOW_UP_SPOT_KICKER`): a follow-up asked on the spot, right after its item -- the
+#: AI sheet's kicker and header where-word, the text link's kicker; *One last thing* stays the end's.
+FOLLOW_UP_SPOT_KICKER = "About that"
+#: keel-web 124 (keel-cloud 142, `MAX_FOLLOW_UPS`): at most two follow-ups an interview, a skipped one counted.
+MAX_FOLLOW_UPS = 2
 FOLLOW_UP_NOTE = "In your own words. A sentence or two is plenty."
 FOLLOW_UP_SKIP = "Skip this one"
 FOLLOW_UP_HINT = "The only extra question."

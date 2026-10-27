@@ -1682,6 +1682,10 @@ FOLLOW_UP_LINES = {
     "commercial.purchase_friction": ("Finance wanted written quotes before anyone signed.",),
     "commercial.commitment": ("A free trial on one small job first.",),
 }
+#: Spec 075 (keel-web 124 FR-1's latency rule, judgement call): whose follow-up route call, made right after the item
+#: their one rung hangs on, the text walk holds past the beat -- the page goes on, the rung stays owed and the end asks
+#: it under *One last thing* (with *The only extra question.*), so a golden journey meets the end's follow-up too.
+LATE_FOLLOW_UPS = {"05-paidly": ("Wen Zhang",)}
 #: Spec 051 FR-4: who presses *Skip this one* instead (one a scenario, on a rung others on it type for).
 FOLLOW_UP_SKIPS = {"01-countly": ("Lena Fischer",), "05-paidly": ("Viktor Fern",), "07-mulchrun": ("Jamal Washington",)}
 #: Spec 051 FR-5: whose story goes through the speak-or-type box, and how -- the take ended by the 4 s quiet ("quiet")
@@ -1808,17 +1812,19 @@ def served_idea_name(interview: dict) -> str | None:
 
 
 def follow_up_question(entry, picks: list, link: str, interview: dict, token: str, first=(), *,
-                       line: int | None = None) -> dict | None:
-    """Spec 051 FR-2 / judgement call 1: the one follow-up the cloud owes these picks on this link -- the stem by the
-    harness's own walk (spec 064 FR-7, keel-cloud 118: the deciding lines `first` taken first, an answer a second stem
-    is asked on owed too) and its text filled the way `FollowUpComposer` fills it, from the served labels (`interview`,
-    the person's own link) and the founder's own words -- or None. The walk holds the route's answer and the screen to
-    it."""
+                       line: int | None = None, asked=(), stem: tuple[str, bool] | None = None) -> dict | None:
+    """Spec 051 FR-2 / judgement call 1: the follow-up the cloud's route returns for these picks on this link -- the
+    stem by the harness's own walk (spec 064 FR-7, keel-cloud 118: the deciding lines `first` taken first, an answer a
+    second stem is asked on owed too; spec 075, keel-cloud 142 FR-1: a rung in `asked` passed over) and its text filled
+    the way `FollowUpComposer` fills it, from the served labels (`interview`, the person's own link) and the founder's
+    own words -- or None. `stem` composes that one stem's question instead (`follow_up_plan`). The walk holds the
+    route's answer and the screen to it."""
     from harness import interviewer_fake as fake                       # noqa: PLC0415
 
     served = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
-    stem = fake.first_stem(picks, founder_side(entry, line=line), link, b2b=is_b2b(entry), served=set(served),
-                           first=first)
+    if stem is None:
+        stem = fake.first_stem(picks, founder_side(entry, line=line), link, b2b=is_b2b(entry), served=set(served),
+                               first=first, asked=asked)
     if stem is None:
         return None
     rung, also = stem
@@ -1919,6 +1925,28 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
 #: keel-cloud 128 (`FollowUpComposer.WHOLE_TEXT`): the values key a follow-up composed whole for the answer is carried
 #: under -- said as it reads.
 WHOLE_TEXT = "{whole_text}"
+
+
+def follow_up_plan(entry, picks: list, link: str, interview: dict, token: str, first=(), *,
+                   line: int | None = None, late=()) -> list[dict]:
+    """Spec 075 (keel-cloud 142, keel-web 124): every follow-up the page asks these picks on this link, in the order
+    asked -- each `follow_up_question`'s `{dimension, text, spoken, also}` and `on`, the served item's dimension it is
+    asked right after (*About that*), or None for the end's (*One last thing*). At most two (`fake.asks`, the page's
+    own walk over the served items' order and the served `followUps[]` rungs); `late` the items whose call the walk
+    holds past the beat (their rung asked at the end instead)."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+
+    order = [i.get("dimension") for part in interview.get("parts") or [] for i in part.get("items") or []]
+    rungs = [f.get("dimension") for f in interview.get("followUps") or []] or None
+    founder = founder_side(entry, line=line)
+    plan = fake.asks(picks, founder, order, link, b2b=is_b2b(entry), served=set(order), first=first, rungs=rungs,
+                     late=late)
+    out = []
+    for asked in plan:
+        question = follow_up_question(entry, picks, link, interview, token, first, line=line,
+                                      stem=(asked["dimension"], asked["also"]))
+        out.append({**question, "on": asked["on"]})
+    return out
 
 
 def the_step(step: str) -> str:

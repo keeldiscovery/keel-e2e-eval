@@ -56,32 +56,52 @@ RA_TEXT = "You said a shorter reconciliation would have made no difference to yo
 RA_CLIP = str(uuid.uuid4())
 
 
-def _text_walk(person: str, rung: str | None, line: str | None) -> dict:
-    """One text walk's follow-up as `evals/corpus_scenario._hold_the_follow_up` records it."""
-    if rung is None:
-        return {"person": person, "asked": True, "owed": None, "route": {"status": 204, "body": {}}, "screen": None,
-                "sent": None, "line": None}
-    text = f"Question on {rung}."
-    sent = {"dimension": rung, "text": line, "how": "TYPED", "skipped": False} if line else \
-        {"dimension": rung, "skipped": True}
-    return {"person": person, "asked": True, "owed": {"dimension": rung, "text": text},
-            "route": {"status": 200, "body": {"dimension": rung, "text": text, "itemId": "f", "spoken": "x"}},
-            "screen": {"kicker": "One last thing", "question": text, "did": "typed" if line else "skipped"},
-            "sent": sent, "line": line}
+IMP = "problem.importance"
+CUR = "problem.current_solution_satisfaction"
+
+
+def _text_walk(person: str, plan: list[tuple[str, str | None]], lines: dict | None = None,
+               *, late: bool = False) -> dict:
+    """One text walk's follow-ups as `evals/corpus_scenario._hold_the_follow_up` records them (spec 075): `plan` the
+    `(rung, on)` pairs in the order asked -- `on` the item it hangs on (*About that*), None the end's (*One last
+    thing*); `lines` what was typed on each (absent: a skip); `late` a held call before the end's (its 200 dropped)."""
+    lines = lines or {}
+    asked: list[dict] = [{"dimension": r, "text": f"Question on {r}.", "on": on} for r, on in plan]
+    routes = [{"status": 204, "body": {}, "sent": {"answers": []}}]
+    if late and plan:
+        routes.append({"status": 200, "body": {"dimension": plan[0][0], "text": f"Question on {plan[0][0]}.",
+                                               "itemId": "f", "spoken": "x"}, "sent": {"answers": []}})
+    for i, a in enumerate(asked):
+        routes.append({"status": 200, "body": {"dimension": a["dimension"], "text": a["text"], "itemId": "f",
+                                               "spoken": "x"},
+                       "sent": {"answers": [], **({"asked": [b["dimension"] for b in asked[:i]]} if i else {})}})
+    screens = [{"rung": a["dimension"], "on": a["on"], "kicker": "About that" if a["on"] else "One last thing",
+                "question": a["text"], "did": "typed" if lines.get(a["dimension"]) else "skipped"} for a in asked]
+    sent = [{"dimension": a["dimension"], "text": lines[a["dimension"]], "how": "TYPED", "skipped": False}
+            for a in asked if lines.get(a["dimension"])] or None
+    return {"person": person, "asked": True, "plan": asked, "routes": routes, "screens": screens, "sent": sent,
+            "lines": {a["dimension"]: lines.get(a["dimension"]) for a in asked}}
 
 
 def _ai_follow_up() -> dict:
-    """S-006's AI link: the recorded path -- 4 s after the last sound, Back, then the silent window to the cap."""
+    """S-006's AI link (spec 075): the one follow-up asked on the spot after Relative advantage -- 4 s after the last
+    sound, Back to the item, asked again, then the silent window to the cap, skipped and not sent, the next item next."""
     route = {"route": "follow-up", "status": 200, "sent": {"answers": []},
              "body": {"dimension": RA, "text": RA_TEXT, "itemId": "fu", "clip": {"clipId": RA_CLIP}}}
+    none = {"route": "follow-up", "status": 204, "sent": {"answers": [], "asked": [RA]}, "body": {}}
     heard = {"route": "transcribe", "status": 200, "sent": {"itemId": "fu", "maxSeconds": 120}, "body": {"text": "yes"}}
     windows = [{"which": "first", "step": "followUp", "question": RA_TEXT, "clip": RA_CLIP, "path": "recorded",
+                "kicker": "About that", "where": "About that", "rung": RA, "on": RA,
                 "ended": "quiet", "quiet_to_stop_ms": 3_960, "transcribed": [heard]},
                {"which": "second", "step": "followUp", "question": RA_TEXT, "clip": RA_CLIP, "path": "recorded",
-                "ended": "cap", "ran_ms": 9_004, "cap_ms": 9_000, "didnt_catch_played": 0, "next": "Last question"}]
-    return {"owed": {"dimension": RA, "text": RA_TEXT}, "by": "sound", "asked": [route, heard, route],
-            "walk": {"windows": windows}, "clips": {RA: {"clipId": RA_CLIP}},
-            "sent": {"dimension": RA, "skipped": True}}
+                "kicker": "About that", "where": "About that", "rung": RA, "on": RA,
+                "ended": "cap", "ran_ms": 9_004, "cap_ms": 9_000, "didnt_catch_played": 0, "next": "Question 6 of 6",
+                "next_step": "item", "want_next": "item"}]
+    met = {"index": 0, "rung": RA, "on": RA, "item": RA, "item_question": "Would it have helped?", "windows": windows,
+           "back": {"to": "Would it have helped?", "step": "item"}}
+    return {"plan": [{"dimension": RA, "text": RA_TEXT, "spoken": RA_TEXT, "on": RA}], "lines": {RA: "x"},
+            "by": "sound", "asked": [route, heard, route, none], "walk": {"windows": windows, "follow_ups": [met]},
+            "clips": {RA: {"clipId": RA_CLIP}}, "want_clips": {RA: RA_CLIP}, "sent": None, "sent_old": None}
 
 
 def _take(person: str, how: str) -> dict:
@@ -298,15 +318,19 @@ def good() -> dict:
                   "held": {"status": HELD, "heard": "It was a Tuesday and the agency was late heard", "went_on": True},
                   "next": "Which fits?", "sent": "It was a Tuesday and the agency was late"},
         # spec 051: the one follow-up (IM23-IM27)
-        "follow_up": {"text": [_text_walk("Tom", "problem.importance", "Those two first."),
-                               _text_walk("Lena", "problem.importance", None),
-                               _text_walk("Marcus", None, None),
-                               {"person": "Oliver", "asked": False, "owed": None, "route": {}, "screen": None,
-                                "sent": None, "line": None}],
+        # spec 075: two on the spot (Tom), a skip (Lena), the end's after a held call (Wen), none owed (Marcus)
+        "follow_up": {"text": [_text_walk("Tom", [(IMP, IMP), (CUR, CUR)], {IMP: "Those two first.", CUR: "A check."}),
+                               _text_walk("Lena", [(IMP, IMP)]),
+                               _text_walk("Marcus", []),
+                               {"person": "Oliver", "asked": False, "plan": [], "routes": [], "screens": [],
+                                "sent": None, "lines": {}},
+                               _text_walk("Wen", [(RA, None)], {RA: "Fewer emails."}, late=True)],
                       "ai": _ai_follow_up(), "try": {"status": 200, "owed": {"dimension": RA},
                                                      "body": {"dimension": RA, "text": RA_TEXT},
-                                                     "clear": {"status": 204}}},
-        "follow_up_windows": {"windows": _ai_follow_up()["walk"]["windows"], "full": True, "page_cap_ms": 120_000},
+                                                     "clear": {"status": 204},
+                                                     "then": {"status": 204, "owed": None}}},
+        "follow_up_windows": {"windows": _ai_follow_up()["walk"]["windows"], "full": True, "page_cap_ms": 120_000,
+                              "rungs": [RA]},
         "speak": {"Priya": _take("Priya", "quiet"), "Nadia": _take("Nadia", "done"), "Hana": _refused("Hana")},
         "follow_up_clips": _follow_up_clips(),
         # spec 058: tap to hear (IM28) and the respondent hears her (IM29)
@@ -328,7 +352,7 @@ def test_a_good_record_meets_every_mark():
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
     assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 9
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 10
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -541,23 +565,35 @@ SEEDED = [
     ("IM22", ["story", "held", "heard"], "It was a Tuesday"),                            # words lost
     ("IM22", ["story", "held_phase_seen"], False),
     ("IM22", ["story", "sent"], ""),                                                     # the story not sent
-    # spec 051: the one follow-up
-    ("IM23", ["follow_up", "text", 0, "route", "body", "dimension"], "problem.frequency"),  # the wrong rung asked
-    ("IM23", ["follow_up", "text", 2, "route"], {"status": 200, "body": {"dimension": RA}}),  # asked of one owed none
-    ("IM23", ["follow_up", "text", 0, "screen"], None),                                  # owed, never shown
-    ("IM23", ["follow_up", "text", 0, "screen", "question"], "Something else?"),         # the screen's own words
-    ("IM23", ["follow_up", "text", 0, "sent"], {"dimension": "commercial.price", "text": "x", "how": "TYPED"}),
-    ("IM23", ["follow_up", "text", 3, "route"], {"status": 204}),                       # asked after a gate No
-    ("IM23", ["follow_up", "ai", "walk", "windows", 1, "clip"], str(uuid.uuid4())),     # another rung's clip played
-    ("IM23", ["follow_up", "ai", "asked", 2, "body", "text"], "You said it."),          # the second ask's text
-    ("IM23", ["follow_up", "ai"], None),                                                 # the AI link never walked
-    ("IM23", ["follow_up", "try", "clear", "status"], 200),                              # the twin asked one owed none
-    ("IM23", ["follow_up", "text"], lambda t: [x for x in t if x.get("owed") is None]),  # nobody owed one
-    ("IM24", ["follow_up", "text", 1, "sent"], {"dimension": "problem.importance", "text": "", "skipped": True}),
-    ("IM24", ["follow_up", "text", 1, "sent"], {"dimension": "problem.importance", "skipped": False}),
-    ("IM24", ["follow_up", "ai", "sent"], {"dimension": RA, "text": "yes", "how": "RECORDED", "skipped": False}),
-    ("IM24", ["follow_up", "ai", "walk", "windows", 1, "didnt_catch_played"], 1),         # a didn't-catch loop
-    ("IM24", ["follow_up", "ai", "walk", "windows", 1, "next"], "Question 9 of 9"),      # asked again, not the pilot
+    # spec 051 / 075: the follow-ups
+    ("IM23", ["follow_up", "text", 0, "routes", 1, "body", "dimension"], "problem.frequency"),  # the wrong rung asked
+    ("IM23", ["follow_up", "text", 2, "routes"], [{"status": 200, "body": {"dimension": RA}}]),  # asked of one owed none
+    ("IM23", ["follow_up", "text", 0, "screens"], []),                                     # owed, never shown
+    ("IM23", ["follow_up", "text", 0, "screens", 0, "question"], "Something else?"),       # the screen's own words
+    ("IM23", ["follow_up", "text", 0, "sent"], [{"dimension": "commercial.price", "text": "x", "how": "TYPED"}]),
+    ("IM23", ["follow_up", "text", 3, "routes"], [{"status": 204}]),                       # asked after a gate No
+    ("IM23", ["follow_up", "text", 0, "screens", 1, "kicker"], "One last thing"),          # on the spot, the end's words
+    ("IM23", ["follow_up", "text", 0, "screens", 1, "on"], None),                          # the second kept for the end
+    ("IM23", ["follow_up", "text", 4, "screens", 0, "kicker"], "About that"),              # the end's, the spot's words
+    ("IM23", ["follow_up", "text", 0, "routes", 2, "sent"], {"answers": []}),              # the first rung not `asked`
+    ("IM23", ["follow_up", "text", 0, "routes"],
+     lambda r: r + [{"status": 204, "sent": {"answers": [], "asked": [IMP, CUR]}}]),      # a call once two were asked
+    ("IM23", ["follow_up", "text", 0],
+     lambda t: _text_walk("Tom", [(IMP, IMP), (CUR, CUR), (RA, RA)], {IMP: "a", CUR: "b", RA: "c"})),  # three asked
+    ("IM23", ["follow_up", "ai", "walk", "windows", 1, "clip"], str(uuid.uuid4())),       # another rung's clip played
+    ("IM23", ["follow_up", "ai", "walk", "follow_ups", 0, "windows", 1, "kicker"], "One last thing"),
+    ("IM23", ["follow_up", "ai", "asked", 2, "body", "text"], "You said it."),            # the second ask's text
+    ("IM23", ["follow_up", "ai", "asked", 2, "sent"], {"answers": [], "asked": [RA]}),     # asked again with it `asked`
+    ("IM23", ["follow_up", "ai"], None),                                                   # the AI link never walked
+    ("IM23", ["follow_up", "try", "clear", "status"], 200),                                # the twin asked one owed none
+    ("IM23", ["follow_up", "try", "then", "status"], 200),                                 # asked again with it `asked`
+    ("IM23", ["follow_up", "text"], lambda t: [x for x in t if not x.get("plan")]),        # nobody owed one
+    ("IM24", ["follow_up", "text", 1, "sent"], [{"dimension": IMP, "text": "", "skipped": True}]),  # a skip sent
+    ("IM24", ["follow_up", "text", 1, "screens", 0, "did"], "typed"),
+    ("IM24", ["follow_up", "ai", "sent"], [{"dimension": RA, "text": "yes", "how": "RECORDED", "skipped": False}]),
+    ("IM24", ["follow_up", "ai", "walk", "windows", 1, "didnt_catch_played"], 1),           # a didn't-catch loop
+    ("IM24", ["follow_up", "ai", "walk", "windows", 1, "next_step"], "pilot"),              # the next item skipped
+    ("IM24", ["follow_up", "ai", "walk", "windows", 1, "next_step"], None),                 # never went on
     ("IM25", ["follow_up_windows", "windows", 0, "quiet_to_stop_ms"], 1_900),            # 074's 2 s, not 4
     ("IM25", ["follow_up_windows", "windows", 0, "transcribed", 0, "sent", "maxSeconds"], 60),  # the story's minute
     ("IM25", ["follow_up_windows", "windows", 1, "ran_ms"], 4_100),                      # stopped long before the cap
@@ -569,6 +605,7 @@ SEEDED = [
                                                                    {"testid": "ai-save"}]}]),  # v9: no browser path
     ("IM25", ["follow_up_windows", "windows"], lambda w: w + [{"path": "recorded", "ended": "save", "pressed": True,
                                                                "final_to_held_ms": 4_300, "presses": []}]),
+    ("IM25", ["follow_up_windows", "windows", 0, "rung"], CUR),                           # a window of no planned rung
     ("IM26", ["speak", "Priya", "before_pill", "acquired"], 1),                          # the mic asked on load
     ("IM26", ["speak", "Priya", "t4", "value"], "yes"),                                  # replaced, not appended
     ("IM26", ["speak", "Priya", "t4", "caret"], 0),                                      # the caret left behind

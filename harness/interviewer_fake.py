@@ -283,6 +283,11 @@ NO_FOLLOW_UP = ("problem.prevalence", "problem.frequency", "commercial.existing_
 #: `PassageComposer.ONE_LAST_THING`: the FOLLOW_UP clip opens on it; the screens' kicker is *One last thing*.
 ONE_LAST_THING = "One last thing."
 FOLLOW_UP_KICKER = "One last thing"
+#: Spec 075 (keel-web 124 FR-1, `FOLLOW_UP_SPOT_KICKER`): the kicker of a follow-up asked on the spot, right after the
+#: item it hangs on; *One last thing* stays the end's.
+FOLLOW_UP_SPOT_KICKER = "About that"
+#: Spec 075 (keel-cloud 142 `MAX_FOLLOW_UPS`, keel-web 124): at most two follow-ups an interview, a skipped one counted.
+MAX_FOLLOW_UPS = 2
 #: Buyer and payer's fixed answers and the one that supports when "Nobody else" is tested (`Compare.BUYER_DECIDED_ALONE`)
 #: -- with a named role tested the registry's `supports` (`had_to_agree`).
 BUYER_ANSWERS = ("had_to_agree", "decided_alone", "someone_else_agreed", "someone_else_decided")
@@ -452,13 +457,16 @@ def closes(dimension: str, pick) -> bool:
 
 
 def owed(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False, served: set[str] | None = None,
-         first=()) -> list[tuple[str, bool]]:
+         first=(), asked=()) -> list[tuple[str, bool]]:
     """`Ladder.owed` (keel-cloud 118): every question these answers are owed, `(dimension, apart)`, in the walk's order
-    -- the deciding lines first, then registry order -- on the rungs the link walks (and, given, the interview serves)."""
+    -- the deciding lines first, then registry order -- on the rungs the link walks (and, given, the interview serves).
+    Spec 075 (keel-cloud 142 FR-1, `FollowUpComposer.ask(..., asked)`): a rung in `asked` is left out."""
     by_dimension = {_value(p)["dimension"]: p for p in picks}
     out = []
     for dimension in ordered(walks(link, b2b), first):
         if served is not None and dimension not in served:
+            continue
+        if dimension in (asked or ()):
             continue
         pick = by_dimension.get(dimension)
         if pick is None or closes(dimension, pick):
@@ -471,18 +479,66 @@ def owed(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False, s
 
 
 def first_stem(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False,
-               served: set[str] | None = None, first=()) -> tuple[str, bool] | None:
-    """`Ladder.stemOf`: the one question asked -- the first owed -- or None."""
-    stems = owed(picks, founder, link, b2b=b2b, served=served, first=first)
+               served: set[str] | None = None, first=(), asked=()) -> tuple[str, bool] | None:
+    """`Ladder.stemOf`: the question the route returns -- the first owed not in `asked` (keel-cloud 142) -- or None."""
+    stems = owed(picks, founder, link, b2b=b2b, served=served, first=first, asked=asked)
     return stems[0] if stems else None
 
 
 def first_rung(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False,
-               served: set[str] | None = None, first=()) -> str | None:
-    """The rung of the one question owed (`first_stem`), or None (nothing owed). Since keel-cloud 118 the deciding lines
-    (`first`) are walked first, and an answer a second stem is asked on is owed too."""
-    stem = first_stem(picks, founder, link, b2b=b2b, served=served, first=first)
+               served: set[str] | None = None, first=(), asked=()) -> str | None:
+    """The rung of the question the route returns (`first_stem`), or None (nothing owed). Since keel-cloud 118 the
+    deciding lines (`first`) are walked first, and an answer a second stem is asked on is owed too; since 142 a rung
+    in `asked` is passed over."""
+    stem = first_stem(picks, founder, link, b2b=b2b, served=served, first=first, asked=asked)
     return stem[0] if stem else None
+
+
+def asks(picks, founder: Founder, order, link: str = "PRIMARY", *, b2b: bool = False, served: set[str] | None = None,
+         first=(), rungs=None, late=()) -> list[dict]:
+    """Spec 075 (keel-cloud 142 FR-1, keel-web 124 FR-1 / FR-2): the follow-ups the page asks these answers, in the order
+    asked -- `[{dimension, also, on}]`, `on` the item's dimension it hangs on (asked on the spot, *About that*) or None
+    (the end's, *One last thing*). The page's own walk, every route answered inside the beat: after each answered item
+    whose dimension is a rung the link walks (`rungs`, the served `followUps[]`; default `walks`), while fewer than two
+    were asked, the route is asked with the answers so far (`order`, the items' dimensions as served, cut at that item)
+    and `asked`; a rung on that very item is asked there and then. After the last item one call more (not raced): a rung
+    on the last item is asked on the spot, then -- fewer than two asked -- once more for the end. A skip counts as
+    asked (124 J-4), so nothing here reads what was said. `late`: the items (dimensions) whose call the walk holds past
+    the beat -- the page goes on, the rung stays owed, and the end asks it (124 FR-1's latency rule)."""
+    by_dimension = {_value(p)["dimension"]: p for p in picks}
+    rungs = set(walks(link, b2b) if rungs is None else rungs)
+    order = [d for d in order]
+    out: list[dict] = []
+
+    def route(upto: int):
+        so_far = [by_dimension[d] for d in order[:upto + 1] if d in by_dimension]
+        return first_stem(so_far, founder, link, b2b=b2b, served=served, first=first,
+                          asked=tuple(a["dimension"] for a in out))
+
+    for i, dimension in enumerate(order):
+        last = i == len(order) - 1
+        answered = dimension in by_dimension
+        if len(out) >= MAX_FOLLOW_UPS:
+            break
+        if not last:
+            if not answered or dimension not in rungs:
+                continue
+            stem = route(i)
+            if stem and stem[0] == dimension and dimension not in (late or ()):
+                out.append({"dimension": stem[0], "also": stem[1], "on": dimension})
+            continue
+        stem = route(i)
+        if stem is None:
+            break
+        if answered and stem[0] == dimension:
+            out.append({"dimension": stem[0], "also": stem[1], "on": dimension})
+            if len(out) >= MAX_FOLLOW_UPS:
+                break
+            stem = route(i)
+            if stem is None:
+                break
+        out.append({"dimension": stem[0], "also": stem[1], "on": None})
+    return out
 
 
 def deciding_lines(standings: dict | None) -> list[str]:

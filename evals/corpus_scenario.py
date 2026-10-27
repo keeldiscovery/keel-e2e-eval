@@ -2528,15 +2528,6 @@ def _deciding_now(j: Journey) -> list[str]:
     return fake.deciding_lines(j.get(j.project("/standings")) or {})
 
 
-def _typing(person, line: str | None):
-    """`person` typing `line` on the follow-up they are asked (`vs.follow_up_line`)."""
-    import dataclasses                                                 # noqa: PLC0415
-    if dataclasses.is_dataclass(person):
-        return dataclasses.replace(person, follow_up=line)
-    person.follow_up = line
-    return person
-
-
 def _served_line(j: Journey) -> int | None:
     """Spec 067 FR-4 (keel-cloud 117 FR-3, 128 FR-16): on a back-test, Current solution's line on the founder's saved
     list as the cloud stores it (`GET calibration/PROBLEM`, `answer.list.line`) -- the bar the ladder counts against
@@ -2583,8 +2574,8 @@ def _moved_line(j: Journey, person, own_rung: str | None, walked: dict, served_r
 
 
 def _typed(walked: dict) -> bool:
-    """Whether the walk typed the person's line on the follow-up screen (`Interview._follow_up`'s `did`)."""
-    return (walked.get("follow_up") or {}).get("did") == "typed"
+    """Whether the walk typed the person's line on a follow-up screen (`Interview._follow_up_screen`'s `did`)."""
+    return any(f.get("did") == "typed" for f in walked.get("follow_ups") or [])
 
 
 def _served_options(j: Journey, person, items: dict):
@@ -2664,63 +2655,57 @@ def _answer_one(j: Journey, person, token: str) -> None:
         if speak:
             stranger.add_init_script(ivs.text_seam(refused=speak == "refused"))
         # spec 064 FR-7 (keel-cloud 118 FR-4): the deciding lines of the standings this person answers into are walked
-        # first -- read off the served standings (`interviewer_fake.deciding_lines`), never recounted here
+        # first -- read off the served standings (`interviewer_fake.deciding_lines`), never recounted here. Spec 075
+        # (keel-cloud 142, keel-web 124): every follow-up the page asks, in the order asked -- each right after the
+        # item it hangs on (*About that*), at most two, the end's (*One last thing*) only for a rung still owed --
+        # and on each the line the person types for that rung (`vs.follow_up_line`), None a skip
         inside = getattr(person, "in_segment", True)
-        deciding = _deciding_now(j) if (person.link == vs.LINK_B2B or (person.recency and inside)) else []
-        owed = vs.follow_up_question(j.entry, person.picks, person.link, interview, token, first=deciding,
-                                     line=_served_line(j)) \
-            if (person.link == vs.LINK_B2B or (person.recency and inside)) else None
-        if owed is not None:
-            owed["deciding"] = deciding
-            person = _typing(person, vs.follow_up_line(j.entry, person, owed))
+        walks_rungs = person.link == vs.LINK_B2B or bool(person.recency and inside)
+        deciding = _deciding_now(j) if walks_rungs else []
+        # spec 075 (judgement call): one person a golden journey has their call after their rung's item held past the
+        # beat, so the end's *One last thing* is met too
+        late = [a["on"] for a in vs.follow_up_plan(j.entry, person.picks, person.link, interview, token,
+                                                   first=deciding, line=_served_line(j))[:1]
+                if a.get("on")] if walks_rungs and j.strict and person.person in vs.LATE_FOLLOW_UPS.get(
+                    j.entry.id, ()) else []
+        plan = vs.follow_up_plan(j.entry, person.picks, person.link, interview, token, first=deciding,
+                                 line=_served_line(j), late=late) if walks_rungs else []
+        for asked in plan:
+            asked["deciding"] = deciding
         # spec 067 FR-3 (keel-cloud 128 FR-14): a line the entry wrote for one rung is typed on that rung alone -- the
         # walk is handed the person's own rung, so the page types it only where the server asks that rung
         own_rung = getattr(person, "follow_up_dimension", None)
-        if own_rung and not j.strict and (person.link == vs.LINK_B2B or (person.recency and inside)):
-            mine = next((p for p in j.entry.people() if p.person == person.person), None)
-            person = _typing(person, getattr(mine, "follow_up", None))
+
+        def line_for(rung: str, _person=person) -> str | None:
+            return vs.follow_up_line(j.entry, _person, {"dimension": rung})
         page = stranger.new_page()
         screens = vs_screens.Interview(page, j.recorder)
         if getattr(j, "camera", None) is not None:
             screens.camera = j.camera.respondent(person, page)
         screens.open(j.links[person.person])
-        walked = screens.walk(person, interview, by_item, follow_up=person.follow_up, speak=speak,
-                              follow_up_rung=(own_rung if own_rung and not j.strict else (owed or {}).get("dimension")))
+        walked = screens.walk(person, interview, by_item, lines=line_for, speak=speak,
+                              follow_up_rung=own_rung if own_rung and not j.strict else None, late=late)
         j.walked[person.person] = walked
-        # keel-cloud 118 FR-4: the server composes the follow-up with this person's own answers already counted, so a
-        # deciding line can move between the read above and the route's reply (16-pairio, Walter Brandt: the SOLUTION
-        # stage was called by his answers and Relative advantage came first). Where the route's rung differs, the owed
-        # rung is read again off the standings as they stand now; it is accepted only where the walk itself owes it.
-        served_rung = ((walked.get("follow_up_route") or {}).get("body") or {}).get("dimension")
-        if owed is not None and served_rung and served_rung != owed.get("dimension"):
-            later = _deciding_now(j)
-            again = vs.follow_up_question(j.entry, person.picks, person.link, interview, token, first=later,
-                                       line=_served_line(j))
-            if again is not None and again.get("dimension") == served_rung:
-                again["deciding"] = later
-                j.findings.append({"what": f"{person.person}: the deciding line moved with their own answers -- the "
-                                           f"follow-up is on {served_rung}, not {owed.get('dimension')} (118 FR-4)",
-                                   "served": {"before": owed.get("deciding"), "after": later}})
-                owed = again
-                person = _typing(person, person.follow_up if _typed(walked) else None)
-            elif not j.strict:
-                # a back-test (19-veles, Connor Walsh): the server's rung is not the harness's ladder's even on the
-                # standings as they stand -- the harness's own ordering (the saved list's item 0 as the founder's own,
-                # the registry order) is the approximation, the server's composer the rule; the walk goes on with the
-                # served rung, the person's own words typed on it, and the disagreement is named for the judge
-                body = (walked.get("follow_up_route") or {}).get("body") or {}
-                j.findings.append({"what": f"{person.person}: the harness owed the follow-up on {owed.get('dimension')} "
-                                           f"and the server asked it on {served_rung} (the harness's rung order, not the "
-                                           "server's); walked on the served rung",
-                                   "served": {"harness": owed, "server": {k: body.get(k) for k in ("dimension", "text", "spoken")}}})
-                owed = {**owed, "dimension": served_rung, "text": body.get("text"), "spoken": body.get("spoken"),
-                        "deciding": later}
-                person = _typing(person, person.follow_up if _typed(walked) else None)
-        if own_rung and not j.strict and (walked.get("follow_up") or {}).get("line_for"):
-            # spec 067 FR-3: the server asked another rung than the one this person's line was written for -- skipped
+        served = [f.get("rung") for f in walked.get("follow_ups") or []]
+        served_rung = served[0] if served else None
+        if served != [a["dimension"] for a in plan] and not j.strict:
+            # a back-test (19-veles, Connor Walsh): the server's rungs are not the harness's ladder's -- the harness's own
+            # ordering (the saved list's item 0 as the founder's own, the registry order) is the approximation, the
+            # server's composer the rule; the walk went on with the served rungs, the person's own words typed where
+            # they were written for, and the disagreement is named for the judge
+            j.findings.append({"what": f"{person.person}: the harness owed follow-ups on "
+                                       f"{[a['dimension'] for a in plan]} and the server asked {served} (the harness's "
+                                       "rung order, not the server's); walked on the served rungs",
+                               "served": {"harness": plan, "server": [
+                                   {k: (f.get("route") or {}).get("body", {}).get(k) for k in ("dimension", "text", "spoken")}
+                                   for f in walked.get("follow_ups") or []]}})
+            plan = [{"dimension": f.get("rung"), "text": ((f.get("route") or {}).get("body") or {}).get("text"),
+                     "spoken": ((f.get("route") or {}).get("body") or {}).get("spoken"), "also": None, "on": f.get("on"),
+                     "deciding": deciding} for f in walked.get("follow_ups") or []]
+        if own_rung and not j.strict and served and own_rung not in served:
+            # spec 067 FR-3: the server asked other rungs than the one this person's line was written for -- skipped
             j.findings.append({"what": f"{person.person}: their follow-up line was written for {own_rung}; the server "
-                                       f"asked {served_rung}, so they skipped it (spec 067 FR-3)"})
-            person = _typing(person, None)
+                                       f"asked {served}, so they skipped it (spec 067 FR-3)"})
         moved = _moved_line(j, person, own_rung, walked, served_rung)
         if moved:
             j.findings.append(moved)
@@ -2729,7 +2714,7 @@ def _answer_one(j: Journey, person, token: str) -> None:
         _hold_the_thanks(j, person, interview, walked)
         if speak:
             expected = _hold_the_box(j, person, interview, walked, expected, speak)
-        _hold_the_follow_up(j, person, interview, walked, owed)
+        _hold_the_follow_up(j, person, interview, walked, plan, line_for, asked=walks_rungs)
         for u in walked.get("unanswered") or []:
             # the walk took the escape on an item the file left unanswered (13-aircaps, Naomi Adler on Ability to pay):
             # the wire carries that escape, so the expected body does too; the gap is already a finding
@@ -2913,83 +2898,107 @@ def _hold_the_box(j: Journey, person, interview: dict, walked: dict, expected: d
     return {**expected, "story": want}
 
 
-def _hold_the_follow_up(j: Journey, person, interview: dict, walked: dict, owed: dict | None) -> None:
-    """Spec 051 FR-4 (keel-cloud 103's route, keel-web 076 FR-1..FR-4): *Send my answers* posted the answers to the
-    follow-up route (never after a gate No); it answers 200 exactly when the harness's own walk (`first_rung`) owes a
-    follow-up, on that rung, its text the harness's own composition (judgement call 1), the spoken wording the
-    registry's, no clip on a text link; the screen draws *One last thing*, that text, the note, the box, *Continue* off
-    while empty and *Skip this one*; the response's `followUp` is the line typed (TYPED, `skipped` false) or the skip
-    (`skipped` true, no text) -- and is absent when nothing is owed."""
-    route = walked.get("follow_up_route") or {}
-    seen = walked.get("follow_up") or {}
-    sent = (walked.get("body") or {}).get("followUp")
-    asked = person.link == vs.LINK_B2B or bool(person.recency)
-    want_rung = (owed or {}).get("dimension")
-    with _step(j, f"{person.person}: the one follow-up -- " + (f"owed on {want_rung}, asked and "
-                                                               + ("typed" if person.follow_up else "skipped")
-                                                               if owed else "nothing owed, nothing asked"),
-               party="participant") as h:
-        body = route.get("body") or {}
-        record = {"person": person.person, "link": person.link, "owed": owed, "route": route, "screen": seen,
-                  "sent": sent, "line": person.follow_up, "asked": asked}
+def _hold_the_follow_up(j: Journey, person, interview: dict, walked: dict, plan: list[dict], line_for,
+                        *, asked: bool) -> None:
+    """Spec 051 FR-4 as spec 075 has it (keel-cloud 142, keel-web 124): *Next* on each item of a rung the link walks,
+    and *Send my answers*, posted the answers so far to the follow-up route with `asked` (never after a gate No, never
+    once two were asked); it answered 200 exactly where the harness's own walk (`vs.follow_up_plan`) asks a follow-up,
+    on that rung, `asked` the rungs asked before it, its text the harness's own composition (judgement call 1), the
+    spoken wording the registry's, no clip on a text link; each screen drew *About that* right after the item it hangs
+    on (the end's *One last thing* only for a rung still owed), that text, the note, the box -- *The only extra
+    question.* only on the end's with none asked before it -- *Continue* off while empty and *Skip this one*; the
+    response's `followUps` are the lines typed (TYPED, `skipped` false) in the order asked, a skip not sent -- and none
+    when nothing is owed."""
+    routes = walked.get("follow_up_routes") or []
+    seen = walked.get("follow_ups") or []
+    body_sent = walked.get("body") or {}
+    sent = body_sent.get("followUps")
+    lines = {a["dimension"]: line_for(a["dimension"]) for a in plan}
+    want = _want_follow_ups(plan, lines)
+    rungs = [a["dimension"] for a in plan]
+    with _step(j, f"{person.person}: the follow-ups -- " + (
+            "; ".join(f"{a['dimension']} {'right after its item' if a.get('on') else 'at the end'}, "
+                      + ("typed" if lines.get(a["dimension"]) else "skipped") for a in plan)
+            if plan else "nothing owed, nothing asked"), party="participant") as h:
+        record = {"person": person.person, "link": person.link, "plan": plan, "routes": routes, "screens": seen,
+                  "sent": sent, "lines": lines, "asked": asked, "late": walked.get("late") or [],
+                  # spec 051's one-follow-up keys, kept for the record's readers: the first asked
+                  "owed": plan[0] if plan else None, "route": next((r for r in routes if r.get("status") == 200), {}),
+                  "screen": seen[0] if seen else None}
         j.follow_ups[person.person] = record
-        h.record_assert({"route": (200 if owed else 204) if asked else "not called", "dimension": want_rung,
-                         "text": (owed or {}).get("text"), "screen": FOLLOW_UP_SCREEN if owed else None,
-                         "followUp": _want_follow_up(owed, person.follow_up)}, record)
+        h.record_assert({"routes": "200 on each planned rung, 204 elsewhere" if asked else "not called",
+                         "plan": [{k: a.get(k) for k in ("dimension", "text", "on")} for a in plan],
+                         "screens": [{"kicker": ivs.FOLLOW_UP_SPOT_KICKER if a.get("on") else ivs.FOLLOW_UP_KICKER,
+                                      **FOLLOW_UP_SCREEN} for a in plan],
+                         "followUps": want}, record)
+        assert "followUp" not in body_sent, {"the deprecated followUp was sent": body_sent.get("followUp")}
         if not asked:
-            assert not route and not seen and sent is None, record
+            assert not routes and not seen and sent is None, record
             return
-        if getattr(j, "camera", None) is not None and bool(owed) != (route.get("status") == 200):
-            # spec 062 follow-up (2026-10-22): on the back-test Keel's own drafted lists are served, so the rung the
-            # product owes a follow-up on can differ from the harness's own walk (`first_rung`, computed on the
-            # file's lists); what the product asked is the finding, and the person's page answered it (typed their
-            # own line, or skipped where none was written for that rung)
-            j.findings.append({"what": f"{person.person}: follow-up {'asked' if route.get('status') == 200 else 'not asked'}"
-                                       f" where the harness owed {'one on ' + str(want_rung) if owed else 'none'}",
-                               "refused": json.dumps({"route": body.get("dimension"), "text": body.get("text"),
-                                                      "sent": sent})[:400]})
+        if getattr(j, "camera", None) is not None and [f.get("rung") for f in seen] != rungs:
+            # spec 062 follow-up (2026-10-22): on the back-test Keel's own drafted lists are served, so the rungs the
+            # product asks can differ from the harness's own walk (computed on the file's lists); what the product
+            # asked is the finding, and the person's page answered it (typed their own line, or skipped)
+            j.findings.append({"what": f"{person.person}: follow-ups asked on {[f.get('rung') for f in seen]} where the "
+                                       f"harness owed {rungs or 'none'}",
+                               "refused": json.dumps({"routes": [(r.get("status"), (r.get("body") or {}).get(
+                                   "dimension")) for r in routes], "sent": sent})[:400]})
             return
-        assert route.get("status") == (200 if owed else 204), route
-        assert sent == _want_follow_up(owed, person.follow_up), {"sent": sent, "want": _want_follow_up(
-            owed, person.follow_up)}
-        if not owed:
-            assert not seen, seen
-            return
-        assert body.get("dimension") == want_rung, body
-        if getattr(j, "camera", None) is not None and body.get("spoken") != owed["spoken"]:
-            # spec 062 FR-4 on the back-test: the product's follow-up wording is the finding, not a stop (2026-10-23:
-            # 128 FR-12's conditional "What would take the time?" and the Compatibility fill "You said that step would
-            # be hard in your setup." stopped three re-runs against the harness's own composition)
-            j.findings.append({"what": f"{person.person}: the {want_rung} follow-up's words are the product's, not the "
-                                       "harness's composition",
-                               "served": {"route": body.get("text"), "spoken": body.get("spoken"),
-                                          "harness": owed["text"]}})
-        else:
-            assert body.get("spoken") == owed["spoken"], body
-        assert body.get("itemId") and "clip" not in body, body                      # a text link plays nothing
-        if j.strict:
-            assert body.get("text") == owed["text"], {"route": body.get("text"), "harness": owed["text"]}
-        assert seen.get("kicker") == ivs.FOLLOW_UP_KICKER and seen.get("question") == body.get("text"), seen
-        assert seen.get("note") == ivs.FOLLOW_UP_NOTE and seen.get("skip") == ivs.FOLLOW_UP_SKIP, seen
-        assert seen.get("continue_enabled_empty") is False, seen
-        assert (seen.get("box") or {}).get("state") in ("idle", "typing-only"), seen.get("box")
-        assert seen.get("did") == ("typed" if person.follow_up else "skipped"), seen
-        if person.follow_up:
-            assert seen.get("continue_enabled_typed") is True, seen
+        ok = [r for r in routes if r.get("status") == 200]
+        # a call held past the beat (`late`) answered 200 too, and the page dropped it: the screen is the later call's
+        last_ok = {(r.get("body") or {}).get("dimension"): r for r in ok}
+        assert all(r.get("status") in (200, 204) for r in routes), routes
+        assert [f.get("rung") for f in seen] == rungs and len(plan) <= ivs.MAX_FOLLOW_UPS \
+            and list(dict.fromkeys((r.get("body") or {}).get("dimension") for r in ok)) == rungs, \
+            {"asked": [f.get("rung") for f in seen], "plan": rungs, "routes": [r.get("status") for r in routes]}
+        # keel-cloud 142 FR-1: each call names the rungs asked so far; none once two were asked
+        for r in routes:
+            before = [a for a in (r.get("sent") or {}).get("asked") or []]
+            assert len(before) < ivs.MAX_FOLLOW_UPS, {"a call after two were asked": r.get("sent")}
+        for r in ok:
+            i = rungs.index((r.get("body") or {}).get("dimension"))
+            assert ((r.get("sent") or {}).get("asked") or []) == rungs[:i], {"asked": (r.get("sent") or {}).get(
+                "asked"), "want": rungs[:i]}
+        for i, (a, f) in enumerate(zip(plan, seen)):
+            r = last_ok[a["dimension"]]
+            body = r.get("body") or {}
+            assert body.get("dimension") == a["dimension"], body
+            if getattr(j, "camera", None) is not None and body.get("spoken") != a["spoken"]:
+                # spec 062 FR-4 on the back-test: the product's follow-up wording is the finding, not a stop
+                j.findings.append({"what": f"{person.person}: the {a['dimension']} follow-up's words are the product's, "
+                                           "not the harness's composition",
+                                   "served": {"route": body.get("text"), "spoken": body.get("spoken"),
+                                              "harness": a["text"]}})
+            else:
+                assert body.get("spoken") == a["spoken"], body
+            assert body.get("itemId") and "clip" not in body, body                  # a text link plays nothing
+            if j.strict:
+                assert body.get("text") == a["text"], {"route": body.get("text"), "harness": a["text"]}
+            spot = a.get("on") is not None
+            assert f.get("on") == a.get("on"), {"asked after": f.get("on"), "want": a.get("on")}
+            assert f.get("kicker") == (ivs.FOLLOW_UP_SPOT_KICKER if spot else ivs.FOLLOW_UP_KICKER), f
+            assert f.get("question") == body.get("text"), f
+            assert f.get("note") == ivs.FOLLOW_UP_NOTE and f.get("skip") == ivs.FOLLOW_UP_SKIP, f
+            # keel-web 124: the box's hint only where it is true -- the end's, with none asked before it
+            assert f.get("only") is (not spot and i == 0), f
+            assert f.get("continue_enabled_empty") is False, f
+            assert (f.get("box") or {}).get("state") in ("idle", "typing-only"), f.get("box")
+            assert f.get("did") == ("typed" if lines.get(a["dimension"]) else "skipped"), f
+            if lines.get(a["dimension"]):
+                assert f.get("continue_enabled_typed") is True, f
+        assert sent == want, {"sent": sent, "want": want}
 
 
 #: What the follow-up screen draws (keel-web 076 FR-3), for the step's record.
-FOLLOW_UP_SCREEN = {"kicker": ivs.FOLLOW_UP_KICKER, "note": ivs.FOLLOW_UP_NOTE, "skip": ivs.FOLLOW_UP_SKIP}
+FOLLOW_UP_SCREEN = {"note": ivs.FOLLOW_UP_NOTE, "skip": ivs.FOLLOW_UP_SKIP}
 
 
-def _want_follow_up(owed: dict | None, line: str | None) -> dict | None:
-    """The response's `followUp` keel-web owes (076 judgement call 10): `{dimension, text, how, skipped: false}` typed,
-    `{dimension, skipped: true}` skipped, none when nothing is owed."""
-    if not owed:
-        return None
-    if line:
-        return {"dimension": owed["dimension"], "text": line, "how": "TYPED", "skipped": False}
-    return {"dimension": owed["dimension"], "skipped": True}
+def _want_follow_ups(plan: list[dict], lines: dict) -> list[dict] | None:
+    """The response's `followUps` keel-web owes (124 FR-3): `{dimension, text, how, skipped: false}` for each follow-up
+    typed, in the order asked; a skipped one is not sent; none (the key absent) when nothing was typed."""
+    out = [{"dimension": a["dimension"], "text": lines[a["dimension"]], "how": "TYPED", "skipped": False}
+           for a in plan if lines.get(a["dimension"])]
+    return out or None
 
 
 def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None:
@@ -3175,7 +3184,7 @@ def _normal_body(body: dict) -> dict:
     """A response body with its order taken out -- answers by item, ids as sets -- and keel-web's
     one deprecated constant (`pilotOptIn: false`) dropped, so two bodies compare on what they say."""
     # spec 051: the follow-up is held on its own (`_hold_the_follow_up`), against the harness's walk
-    out = {k: v for k, v in body.items() if k not in ("answers", "pilotOptIn", "followUp")}
+    out = {k: v for k, v in body.items() if k not in ("answers", "pilotOptIn", "followUp", "followUps")}
     answers = {}
     for answer in body.get("answers") or []:
         a = dict(answer)

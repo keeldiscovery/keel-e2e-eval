@@ -215,7 +215,8 @@ def _check(record, mark):
 
 
 def test_the_version_moves_for_the_re_pins_alone():
-    assert marks.INTERVIEWER_MARKS_VERSION == 9
+    # spec 075 moved it to 10 (IM23-IM25 re-pinned to keel-web 124's order); 074's own re-pins are still read as 9's
+    assert marks.INTERVIEWER_MARKS_VERSION == 10
     assert instruction_marks.MARKS_VERSION == 20 and corpus_mod.REVISION == 16
 
 
@@ -332,7 +333,8 @@ def test_the_pilot_ask_after_end_records_on_the_kept_stream():
 
 def test_only_the_short_form_presses_end_before_the_pilot_ask():
     source = inspect.getsource(leg._Walk.follow_up)
-    assert 'self._said_take(line, "save", end_in_hold=True)' in source
+    # spec 075: End in the hold of the second follow-up asked on the spot (the last item's), on the said walk alone
+    assert 'self._said_take(line, "quiet", end_in_hold=by == "said", step_after=True)' in source
     assert 'self._silent_window(second)' in source
     assert 'by = "said" if record.get("short") else "sound"' in inspect.getsource(leg._answer_ai_on_screen)
 

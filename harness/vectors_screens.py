@@ -2036,6 +2036,11 @@ def _link_of(box) -> str:
 
 # --------------------------------------------------------------------------------------- Interview
 
+#: Spec 075 (keel-web 124 FR-1's latency rule): how long the walk holds a `late` item's follow-up call -- past the
+#: beat the page waits for it (`BEAT_MS`, 2 s), so the page goes on and the rung stays owed for the end.
+LATE_FOLLOW_UP_S = 3.5
+
+
 class Interview:
     """The stranger's `/i/{token}` (keel-web 064): one screen at a time, every word as served. `walk`
     takes the interview as the wire served it (to read the labels of the option ids a pick names) and
@@ -2073,23 +2078,42 @@ class Interview:
             self._shot("intro")
 
     def walk(self, person, interview: dict, wire_answers: dict, *, follow_up: str | None = None,
-             speak: str | None = None, follow_up_rung: str | None = None) -> dict:
+             speak: str | None = None, follow_up_rung: str | None = None,
+             lines: Callable[[str], str | None] | None = None, late=()) -> dict:
         """Begin, the decision-maker's idea screen, the gate, every item and the reveal, *Send my
         answers*; returns the body the page POSTed, the done screen's heading and what every screen drew.
         `wire_answers` is `{itemId: ItemAnswer}` -- what this person answers, already re-expressed as the
         wire takes it.
 
-        Spec 051 (keel-web 076, keel-cloud 103): *Send my answers* first posts the answers to `POST .../interview/
-        follow-up` (never after a gate No); a 200 opens the one follow-up (*One last thing*), where `follow_up` is
-        typed and *Continue* pressed -- `None` presses *Skip this one* -- and then the response goes; a 204 sends it at
-        once. `speak` drives the story's box (`SpeakOrTypeBox`, through `text_seam`): "quiet" or "done" -- the story
+        Spec 051 (keel-web 076, keel-cloud 103), as spec 075 has it (keel-web 124, keel-cloud 142): *Next* on an item
+        whose dimension is a rung the link walks posts the answers so far, with `asked`, to `POST .../interview/
+        follow-up` (never after a gate No; no call once two were asked); a rung on that item opens its follow-up right
+        then (*About that*), any other goes on. *Send my answers* posts once more (not raced): a rung on the last item is
+        asked on the spot, any other at the end (*One last thing*), and after a follow-up on the last item the end is
+        asked once more while fewer than two were. On each follow-up `lines(rung)` is typed and *Continue* pressed --
+        None presses *Skip this one* (not sent, still asked). `follow_up` / `follow_up_rung` are the one-line form: the
+        line typed on its rung (any rung, when none is named). Every route call is kept (`follow_up_routes`, in order)
+        and every follow-up screen (`follow_ups`). `late` (spec 075): the items whose *Next* call is held past the beat
+        (`LATE_FOLLOW_UP_S`) -- the page goes on, and the rung is the end's to ask. `speak` drives the story's box (`SpeakOrTypeBox`, through `text_seam`): "quiet" or "done" -- the story
         typed, then *Speak*, a sound, and the take ended by the 4 s quiet or by *Done* (T1 -> T4); "refused" -- *Speak*
         on a refused microphone (T6), then typed. What the route answered, the screen drew and the box did is kept."""
         page = self.page
         self.route: dict = {}
         self.follow_up_seen: dict | None = None
+        self.follow_ups_seen: list[dict] = []
+        if lines is None:
+            def lines(rung: str, _line=follow_up, _for=follow_up_rung) -> str | None:   # noqa: E306
+                return _line if _line and (_for is None or rung == _for) else None
+        self._lines = lines
+        self._line_for = follow_up_rung
         self.speak_seen: dict | None = None
         self._transcribe_responses: list = []
+        self._route_responses: list = []
+        self._responded = False
+        self._late_items = set(late or ())
+        self._hold_next = False
+        if self._late_items:
+            page.route("**/interview/follow-up", self._held_route)
         page.on("response", self._keep_transcribe)
         with self._b.step(f"{person.person} answers the interview, screen by screen") as h:
             self.consent = {"heading": _first_text(page, "section.iv-consent h2"),
@@ -2108,7 +2132,7 @@ class Interview:
                     self._gate(person, gate, interview.get("occasion"), speak=speak)
                 if gate is None or (person.recency and getattr(person, "in_segment", True)):
                     self._items(interview, wire_answers)
-                    self._follow_up(follow_up, rung=follow_up_rung)
+                    self._end_follow_ups(interview)
             body = answered.value.request.post_data_json
             status = answered.value.status
             page.get_by_role("heading", level=1).first.wait_for(state="visible", timeout=20_000)
@@ -2127,13 +2151,39 @@ class Interview:
                     "done_screen": done_screen,
                     "seen": list(self.seen),
                     "screens": list(self.screens), "unanswered": list(self.unanswered), "closed_price": list(self.closed_price), "retried": list(self.retried), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
+                    "follow_up_routes": self._routes(), "follow_ups": list(self.follow_ups_seen),
+                    "late": sorted(self._late_items),
                     "speak": self.speak_seen, "transcribed": self._transcribed(), "consent": self.consent}
 
     def _keep_transcribe(self, response) -> None:
-        """Every `transcribe` the page sent (the box's recorded take): kept as the response, read after the walk (a
-        body read inside an event handler would wait on the handler itself)."""
-        if response.request.method == "POST" and response.url.split("?")[0].endswith("/interview/transcribe"):
+        """Every `transcribe` the page sent (the box's recorded take), every follow-up route call (spec 075) and the
+        response's own POST: kept as the response, read after (a body read inside an event handler would wait on the
+        handler itself)."""
+        if response.request.method != "POST":
+            return
+        url = response.url.split("?")[0]
+        if url.endswith("/interview/transcribe"):
             self._transcribe_responses.append(response)
+        elif url.endswith("/interview/follow-up"):
+            self._route_responses.append(response)
+        elif url.endswith("/interview/response"):
+            self._responded = True
+
+    def _held_route(self, route) -> None:
+        """Spec 075: the one call after a `late` item, held past keel-web's beat before it goes; every other as it is."""
+        if self._hold_next:
+            self._hold_next = False
+            time.sleep(LATE_FOLLOW_UP_S)
+        route.continue_()
+
+    def _routes(self) -> list[dict]:
+        """Spec 075: every follow-up route call, in order -- what was sent (`answers`, `asked`), the status, the body."""
+        return [self._route(r) for r in self._route_responses]
+
+    @staticmethod
+    def _route(response) -> dict:
+        return {"status": response.status, "body": _json_body(response) if response.status == 200 else {},
+                "sent": response.request.post_data_json}
 
     def _transcribed(self) -> list[dict]:
         out = []
@@ -2145,32 +2195,38 @@ class Interview:
                         "status": response.status, "text": got.get("text")})
         return out
 
-    def _follow_up(self, line: str | None, *, rung: str | None = None) -> None:
-        """Spec 051 FR-4 (keel-web 076 FR-3): the route's answer to the last item's *Send my answers* -- 200 opens *One
-        last thing* (the kicker, the cloud's question as `h1.iv-q`, the note, the box, *Continue* off while empty, *Skip
-        this one*), where `line` is typed and *Continue* pressed, or (no line) *Skip this one*; 204 sends at once."""
+    def _follow_up_screen(self, on: str | None) -> dict:
+        """Spec 075 (keel-web 124 FR-1..FR-3; 076 FR-3): one follow-up screen, as drawn -- the kicker (*About that* on
+        the spot, *One last thing* at the end), the cloud's question as `h1.iv-q`, the note, the box and its hint (*The
+        only extra question.* only on the end's with none asked before it), *Continue* off while empty, *Skip this one*
+        -- then `lines(rung)` typed and *Continue*, or (no line) *Skip this one*. `on` is the item it was asked right
+        after (None at the end); the rung is the last route call's that answered 200."""
         page = self.page
-        route = self.route
-        if route.get("status") != 200:
-            return
         screen = page.get_by_test_id("iv-follow-up")
         screen.wait_for(state="visible", timeout=20_000)
         self._keep()
-        self._shot("follow-up")
+        self._shot(f"follow-up-{len(self.follow_ups_seen) + 1}")
         box = ivs.SpeakBox(page, "[data-testid=iv-follow-up]")
         cont = _button(page, IV_CONTINUE)
-        drawn = {"kicker": _first_text(screen, ".iv-kicker"), "question": _first_text(screen, "h1.iv-q"),
+        asked = next((self._route(r) for r in reversed(self._route_responses) if r.status == 200), {})
+        route = asked.get("body") or {}
+        self.route = asked
+        drawn = {"on": on, "kicker": _first_text(screen, ".iv-kicker"), "question": _first_text(screen, "h1.iv-q"),
                  "note": _first_text(screen, ".iv-note"), "box": box.read(),
                  "continue_enabled_empty": cont.is_enabled(),
                  "skip": _tc(screen.get_by_test_id("iv-follow-up-skip")),
-                 "textarea_label": screen.locator("textarea").first.get_attribute("aria-label")}
-        self.screens.append({"screen": "follow_up", **{k: drawn[k] for k in ("kicker", "question", "note")}})
+                 "textarea_label": screen.locator("textarea").first.get_attribute("aria-label"),
+                 # keel-web 124: *The only extra question.* only on the end's follow-up with none asked before it
+                 "only": ivs.FOLLOW_UP_HINT in _tc(screen),
+                 "rung": route.get("dimension"), "route": asked}
+        self.screens.append({"screen": "follow_up", **{k: drawn[k] for k in ("on", "kicker", "question", "note")}})
+        served_rung = route.get("dimension")
+        line = self._lines(served_rung) if served_rung else None
         # a person's line was written for one rung (the entry's own words on the harness's owed question); when the
         # route asked another rung, the line would answer a question it was not written for -- skipped instead, and
         # the record says so (the judges of 18-careforce found Commitment answers filed under Purchase friction)
-        served_rung = (route.get("body") or {}).get("dimension")
-        if line and rung and served_rung and served_rung != rung:
-            drawn["line_for"] = rung
+        if self._line_for and served_rung and served_rung != self._line_for:
+            drawn["line_for"] = self._line_for
             line = None
         if line:
             screen.locator("textarea").first.fill(line)
@@ -2181,7 +2237,43 @@ class Interview:
         else:
             drawn["did"] = "skipped"
             screen.get_by_test_id("iv-follow-up-skip").click()
+        self.follow_ups_seen.append(drawn)
         self.follow_up_seen = drawn
+        return drawn
+
+    def _after_follow_up(self, drawn: dict, *, timeout_s: float = 20) -> None:
+        """Spec 075: the page off the follow-up screen it just answered -- another screen, another question, or the
+        response sent."""
+        page = self.page
+        end = time.monotonic() + timeout_s
+        while time.monotonic() < end:
+            if self._responded or page.get_by_test_id("iv-follow-up").count() == 0:
+                return
+            if _first_text(page, "[data-testid=iv-follow-up] h1.iv-q") != drawn.get("question") \
+                    or _first_text(page, "[data-testid=iv-follow-up] .iv-kicker") != drawn.get("kicker"):
+                return
+            page.wait_for_timeout(100)
+        raise AssertionError(json.dumps({"stayed on the follow-up": drawn.get("question"), "url": page.url}))
+
+    def _end_follow_ups(self, interview: dict, *, timeout_s: float = 30) -> None:
+        """Spec 075 (keel-web 124 FR-1 / FR-2): after *Send my answers* -- every follow-up the page opens (a rung on the
+        last item on the spot, then the end's), each answered, until the response goes."""
+        page = self.page
+        for _ in range(ivs.MAX_FOLLOW_UPS + 1):
+            end = time.monotonic() + timeout_s
+            while time.monotonic() < end and not self._responded and not page.get_by_test_id("iv-follow-up").count():
+                page.wait_for_timeout(100)
+            if self._responded or not page.get_by_test_id("iv-follow-up").count():
+                return
+            last = self._last_item_dimension(interview)
+            kicker = _first_text(page, "[data-testid=iv-follow-up] .iv-kicker")
+            drawn = self._follow_up_screen(last if kicker == ivs.FOLLOW_UP_SPOT_KICKER else None)
+            self._after_follow_up(drawn)
+
+    @staticmethod
+    def _last_item_dimension(interview: dict) -> str | None:
+        items = [i for part in interview.get("parts") or [] for i in part.get("items") or []]
+        return items[-1].get("dimension") if items else None
 
     def opt_in_to_pilot(self, interview: dict) -> None:
         label = ((interview.get("done") or {}).get("pilot") or {}).get("label")
@@ -2341,18 +2433,26 @@ class Interview:
                 self.screens.append(self._item_screen(item))
                 last = p_index == len(parts) - 1 and i_index == len(items) - 1
                 if last:
-                    # keel-web 076 FR-1: the last *Send my answers* posts the answers to the follow-up route first
-                    with page.expect_response(lambda r: r.request.method == "POST"
-                                              and r.url.split("?")[0].endswith("/interview/follow-up"),
-                                              timeout=30_000) as asked:
+                    # keel-web 076 FR-1, 124 FR-2: the last *Send my answers* posts the answers to the follow-up route
+                    # first -- while fewer than two were asked and the link walks rungs; the follow-ups it opens are
+                    # `_end_follow_ups`' to answer
+                    if (interview.get("followUps") or []) and len(self.follow_ups_seen) < ivs.MAX_FOLLOW_UPS:
+                        with page.expect_response(lambda r: r.request.method == "POST"
+                                                  and r.url.split("?")[0].endswith("/interview/follow-up"),
+                                                  timeout=30_000) as asked:
+                            _button(page, IV_SEND).click()
+                        self.route = {"status": asked.value.status, "body": _json_body(asked.value)
+                                      if asked.value.status == 200 else {},
+                                      "sent": asked.value.request.post_data_json}
+                    else:
                         _button(page, IV_SEND).click()
-                    self.route = {"status": asked.value.status, "body": _json_body(asked.value)
-                                  if asked.value.status == 200 else {},
-                                  "sent": asked.value.request.post_data_json}
                 else:
                     before = _first_text(page, "h1.iv-q") or ""
+                    self._hold_next = item.get("dimension") in self._late_items
                     _button(page, IV_NEXT).click()
-                    if not self._screen_moved(before):
+                    moved = self._screen_moved(before)
+                    self._hold_next = False
+                    if not moved:
                         # the page stayed on the item after Next (13-aircaps, Naomi Adler on Ability to pay: the walk
                         # went one item ahead of the page) -- the answer is put again once, Next pressed again, and the
                         # retry is recorded as a finding; a second stay stops the walk with the page's words
@@ -2366,6 +2466,10 @@ class Interview:
                                 "chips_drawn": [c.strip() for c in self._main().locator(".iv-chips button").all_inner_texts()],
                                 "rows": _safe_all_texts(page, ".iv-control [role=radio], .iv-control [role=checkbox]"),
                                 "url": page.url}))
+                    if page.get_by_test_id("iv-follow-up").count():
+                        # spec 075 (keel-web 124 FR-1): the rung on this item, asked right after it (*About that*)
+                        drawn = self._follow_up_screen(item.get("dimension"))
+                        self._after_follow_up(drawn)
             if interview.get("kind") == "FULL" and reveal and reveal.get("afterPart") == part.get("part") \
                     and p_index < len(parts) - 1:
                 _button(page, IV_CONTINUE).wait_for(state="visible", timeout=20_000)

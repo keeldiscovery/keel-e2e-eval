@@ -161,11 +161,12 @@ def test_a_second_yes_line_is_never_typed_and_the_walk_says_why():
     farida = SimpleNamespace(person="Farida Haque")
     unasked = cs._moved_line(j, farida, "commercial.commitment", {}, None)
     assert "no follow-up was asked" in unasked["what"] and "spec 068 FR-3" in unasked["what"]
-    elsewhere = cs._moved_line(j, farida, "commercial.commitment", {"follow_up": {"did": "skipped", "line_for": "x"}},
-                               "commercial.price")
+    # spec 075: the walk's follow-ups are a list (`follow_ups`), each with its own `did`
+    elsewhere = cs._moved_line(j, farida, "commercial.commitment",
+                               {"follow_ups": [{"did": "skipped", "line_for": "x"}]}, "commercial.price")
     assert "the server asked commercial.price" in elsewhere["what"]
     caleb = SimpleNamespace(person="Caleb Nguyen")
-    typed = cs._moved_line(j, caleb, None, {"follow_up": {"did": "typed"}}, "problem.current_solution_satisfaction")
+    typed = cs._moved_line(j, caleb, None, {"follow_ups": [{"did": "typed"}]}, "problem.current_solution_satisfaction")
     assert "was typed there" in typed["what"]
     assert cs._moved_line(SimpleNamespace(strict=True, entry=issen), farida, "commercial.commitment", {}, None) is None
     assert cs._moved_line(j, SimpleNamespace(person="Megan Ashford"), None, {}, None) is None

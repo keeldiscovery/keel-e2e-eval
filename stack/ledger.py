@@ -146,19 +146,24 @@ def pilot_opt_in(config: StackConfig, project_id: str, invitation_id: str) -> bo
     return rows[0].get("opted") if rows else None
 
 
-def stored_follow_ups(config: StackConfig, project_id: str) -> dict[str, dict | None]:
-    """Spec 051 (keel-cloud 103, document 24): every answered invitation's stored follow-up by the person's name --
-    `{dimension, text, how, skipped}`, or None where the response carries none (a gate No, nothing owed). Read here
-    because no founder route serves a response whole (the stage page's row is `people[].followUp`, 104's side)."""
+def stored_follow_ups(config: StackConfig, project_id: str) -> dict[str, list[dict] | None]:
+    """Spec 051 (keel-cloud 103, document 24), as spec 075 has it (keel-cloud 142, document 32): every answered
+    invitation's stored follow-ups by the person's name and by the invitation's id -- the list `followUps` (`{dimension,
+    text, how, skipped}` each, in the ladder's order: every one sent, and the first owed rung with nothing sent as
+    `skipped`), a document from before 32 its one `followUp` as the one-element list, or None where the response
+    carries none (a gate No, nothing owed). Read here because no founder route serves a response whole (the stage
+    page's row is `people[].followUp`, 104's side)."""
     _require_uuid(project_id)
-    rows = _json(config, "SELECT inv->>'personName' AS person, inv->>'id' AS id, inv->'interview'->'followUp' AS "
-                         "follow_up FROM project_content, jsonb_array_elements(content->'invitations') AS inv "
+    rows = _json(config, "SELECT inv->>'personName' AS person, inv->>'id' AS id, inv->'interview'->'followUps' AS "
+                         "follow_ups, inv->'interview'->'followUp' AS follow_up FROM project_content, "
+                         "jsonb_array_elements(content->'invitations') AS inv "
                          "WHERE project_id = :'project' AND inv->'interview' IS NOT NULL "
                          "AND jsonb_typeof(inv->'interview') = 'object'", project=project_id)
-    out: dict[str, dict | None] = {}
+    out: dict[str, list[dict] | None] = {}
     for row in rows:
-        out[row.get("person")] = row.get("follow_up")
-        out[row.get("id")] = row.get("follow_up")
+        stored = row.get("follow_ups") or ([row["follow_up"]] if row.get("follow_up") else None)
+        out[row.get("person")] = stored
+        out[row.get("id")] = stored
     return out
 
 

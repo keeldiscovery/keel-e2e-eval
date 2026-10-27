@@ -51,7 +51,14 @@ from harness import interviewer_fake as fake
 #: are all recorded: by the pause, by *Save and next* or to the cap; the browser path's two kinds retire). No mark is
 #: dropped; IM5, IM14-IM18, IM20, IM22-IM24 and IM26 read their records as before (the walk drives them through the
 #: recorder now).
-INTERVIEWER_MARKS_VERSION = 9
+#: v10 (spec 075 FR-1, keel-cloud 142 + keel-web 124, contract 41: up to two follow-ups, each asked on the answer it
+#: hangs on): re-pinned -- IM23 (each follow-up asked where the harness's walk asks it: right after the item it hangs on
+#: under *About that*, at most two, the end's *One last thing* only for a rung still owed; every route call carrying
+#: `asked`, none once two were asked; the response's `followUps[]`), IM24 (a skip is not sent -- 124 FR-3 -- and the
+#: walk goes on to the step after it, the next item where the follow-up hung on one before the last) and IM25 (the
+#: windows of every follow-up asked, each belonging to a planned rung). IM27 (the FOLLOW_UP clips) reads its record as
+#: before: keel-cloud 142 reuses every rung's clip as it is. No mark born or dropped.
+INTERVIEWER_MARKS_VERSION = 10
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -83,6 +90,9 @@ GAP_OPTION_MS = 2_000
 
 #: keel-web 076 / keel-cloud 103's words and numbers, restated where the marks read them.
 FOLLOW_UP_KICKER = "One last thing"
+#: keel-web 124 FR-1 (spec 075): a follow-up asked on the spot, right after its item; keel-cloud 142's cap.
+FOLLOW_UP_SPOT_KICKER = "About that"
+MAX_FOLLOW_UPS = 2
 LAST_QUESTION = "Last question"
 #: keel-web 082: the recorded path's silence on a free-text window (`SILENCE_FREE_MS`; options are 2.0 s).
 SILENCE_FREE_MS = 4_000
@@ -555,80 +565,138 @@ def the_storys_save(r: dict) -> tuple[bool, Any]:
         "held": {k: held.get(k) for k in ("status", "heard", "went_on")}}
 
 
+def _kicker(asked: dict) -> str:
+    return FOLLOW_UP_SPOT_KICKER if asked.get("on") is not None else FOLLOW_UP_KICKER
+
+
+def _calls_ok(routes: list[dict], plan: list[dict]) -> bool:
+    """Spec 075 (keel-cloud 142 FR-1): every route call 200 or 204, none once two were asked; the 200s on the plan's
+    rungs in its order (one asked again after Back repeats its rung), each carrying `asked` -- the rungs asked before
+    it -- and the harness's text."""
+    rungs = [a["dimension"] for a in plan]
+    by_rung = {a["dimension"]: a for a in plan}
+    ok = [r for r in routes if r.get("status") == 200]
+    if any(r.get("status") not in (200, 204) for r in routes):
+        return False
+    if any(len(((r.get("sent") or {}).get("asked") or [])) >= MAX_FOLLOW_UPS for r in routes):
+        return False
+    if list(dict.fromkeys((r.get("body") or {}).get("dimension") for r in ok)) != rungs:
+        return False
+    for r in ok:
+        body = r.get("body") or {}
+        a = by_rung[body.get("dimension")]
+        if ((r.get("sent") or {}).get("asked") or []) != rungs[:rungs.index(a["dimension"])] \
+                or body.get("text") != a.get("text"):
+            return False
+    return True
+
+
 def _text_asked_right(t: dict) -> bool:
-    """One text walk's follow-up as IM23 holds it: the route 200 on the harness's rung with its text, the screen
-    showing that text under *One last thing*, the response naming that rung -- or, owed nothing, 204, no screen, no
-    `followUp`; and a walk that never reached the route (a gate No) asked nothing."""
-    owed, route, screen, sent = t.get("owed"), t.get("route") or {}, t.get("screen"), t.get("sent")
+    """One text walk's follow-ups as IM23 holds them (v10, spec 075): the route 200 on each of the harness's planned
+    rungs and on nothing else, `asked` the rungs before it; each screen right after the item it hangs on under *About
+    that* (the end's *One last thing* only for a rung still owed), its text the route's; at most two; the response's
+    `followUps` the rungs typed, in the order asked -- or, owed nothing, no 200, no screen, no `followUps`; and a walk
+    that never reached the route (a gate No) asked nothing."""
+    plan, routes, screens, sent = t.get("plan") or [], t.get("routes") or [], t.get("screens") or [], t.get("sent")
     if not t.get("asked"):
-        return not route and not screen and sent is None
-    if not owed:
-        return route.get("status") == 204 and not screen and sent is None
-    body = route.get("body") or {}
-    return (route.get("status") == 200 and body.get("dimension") == owed.get("dimension")
-            and body.get("text") == owed.get("text") and bool(screen) and screen.get("question") == body.get("text")
-            and screen.get("kicker") == FOLLOW_UP_KICKER and (sent or {}).get("dimension") == owed.get("dimension"))
+        return not routes and not screens and sent is None
+    if not plan:
+        return all(r.get("status") == 204 for r in routes) and not screens and sent is None
+    lines = t.get("lines") or {}
+    typed = [a["dimension"] for a in plan if lines.get(a["dimension"])]
+    return (len(plan) <= MAX_FOLLOW_UPS and _calls_ok(routes, plan)
+            and [s.get("rung") for s in screens] == [a["dimension"] for a in plan]
+            and all(s.get("on") == a.get("on") and s.get("kicker") == _kicker(a) and s.get("question") == a.get("text")
+                    for s, a in zip(screens, plan))
+            and [f.get("dimension") for f in sent or []] == typed)
 
 
 def _ai_asked_right(ai: dict) -> bool:
-    """The AI link's follow-up as IM23 holds it: every ask of the route on the harness's rung with its text and the
-    rung's clip, every window opened on that clip with that text (`followUp` step), the response naming the rung."""
-    owed = ai.get("owed") or {}
-    # keel-cloud 118: the rung's #also clip where the owed stem is one (the leg names it as `want_clip`)
-    want_clip = ai.get("want_clip") or ((ai.get("clips") or {}).get(owed.get("dimension")) or {}).get("clipId")
+    """The AI link's follow-ups as IM23 holds them (v10): every 200 of the route on the harness's planned rungs with
+    their text and each rung's clip, `asked` the rungs before it; the follow-ups met in the plan's order, every window
+    opened on its rung's clip with its text (`followUp` step) under *About that* right after its item (*One last thing*
+    at the end); the said walk meets two, the second on the last item, and its response names both."""
+    plan = ai.get("plan") or []
+    clips = ai.get("want_clips") or {}
     routes = [a for a in ai.get("asked") or [] if a.get("route") == "follow-up"]
-    windows = (ai.get("walk") or {}).get("windows") or []
-    return (bool(owed) and bool(want_clip) and bool(routes) and bool(windows)
-            and all(a.get("status") == 200 and (a.get("body") or {}).get("dimension") == owed.get("dimension")
-                    and (a.get("body") or {}).get("text") == owed.get("text")
-                    and ((a.get("body") or {}).get("clip") or {}).get("clipId") == want_clip for a in routes)
-            and all(w.get("clip") == want_clip and w.get("question") == owed.get("text") and w.get("step") == "followUp"
-                    for w in windows)
-            and (ai.get("sent") or {}).get("dimension") == owed.get("dimension"))
+    met = (ai.get("walk") or {}).get("follow_ups") or []
+    by_rung = {a["dimension"]: a for a in plan}
+    if not plan or len(plan) > MAX_FOLLOW_UPS or not _calls_ok(routes, plan):
+        return False
+    if any(((r.get("body") or {}).get("clip") or {}).get("clipId") != clips.get((r.get("body") or {}).get("dimension"))
+           for r in routes if r.get("status") == 200):
+        return False
+    if [m.get("rung") for m in met] != [a["dimension"] for a in plan] or not any(a.get("on") for a in plan):
+        return False
+    for m in met:
+        a = by_rung[m["rung"]]
+        if not m.get("windows") or not all(
+                w.get("clip") == clips.get(m["rung"]) and w.get("question") == a.get("text")
+                and w.get("step") == "followUp" and w.get("kicker") == _kicker(a) for w in m["windows"]):
+            return False
+    if ai.get("by") == "said":
+        return len(plan) == MAX_FOLLOW_UPS and [f.get("dimension") for f in ai.get("sent") or []] == \
+            [a["dimension"] for a in plan]
+    return True
 
 
 def asked_on_the_first_rung(r: dict) -> tuple[bool, Any]:
-    """IM23 (keel-cloud 103, design §2 / §5): the one follow-up is asked on exactly the first rung against -- the
-    harness's own walk (`first_rung`, the LADDER copy) -- on every text walk (the route, the screen, the response), on
-    the AI link (the route's rung and text, the rung's FOLLOW_UP clip into every window) and on Try it yourself's twin
-    where walked; none where nothing is owed, and none asked after a gate No."""
+    """IM23 (keel-cloud 103, design §2 / §5; v10 spec 075, keel-cloud 142 / keel-web 124): each follow-up is asked
+    where the harness's own walk (the LADDER copy, `vs.follow_up_plan`) asks it -- right after the item it hangs on,
+    under *About that*, at most two, the end's *One last thing* only for a rung still owed -- on every text walk (the
+    route calls with `asked`, the screens, the response's `followUps`), on the AI link (each route reply's rung, text and
+    clip, every window on its rung's clip) and on Try it yourself's twin where walked (with the first rung `asked`, the
+    next owed or 204); none where nothing is owed, and none asked after a gate No."""
     x = r["follow_up"]
     text = x.get("text") or []
     bad = [t.get("person") for t in text if not _text_asked_right(t)]
     ai = x.get("ai")
     tried = x.get("try")
+    then = (tried or {}).get("then")
     try_ok = tried is None or ((tried.get("status") == 200 and (tried.get("body") or {}).get("dimension")
                                 == (tried.get("owed") or {}).get("dimension")
-                                and (tried.get("clear") or {}).get("status") == 204))
-    owed = [t for t in text if t.get("asked") and t.get("owed")]
-    clear = [t for t in text if t.get("asked") and not t.get("owed")]
+                                and (tried.get("clear") or {}).get("status") == 204)
+                               and (then is None or then.get("status") == (200 if then.get("owed") else 204)))
+    owed = [t for t in text if t.get("asked") and t.get("plan")]
+    clear = [t for t in text if t.get("asked") and not t.get("plan")]
     ok = bool(owed) and bool(clear) and not bad and ai is not None and _ai_asked_right(ai) and try_ok
     return ok, {"text walks": len(text), "owed": len(owed), "owed nothing": len(clear), "wrong": bad,
-                "rungs": sorted({t["owed"]["dimension"] for t in owed}),
-                "ai": None if ai is None else {"owed": (ai.get("owed") or {}).get("dimension"),
+                "two": sum(1 for t in owed if len(t.get("plan") or []) == MAX_FOLLOW_UPS),
+                "on the spot": sum(1 for t in owed for a in t.get("plan") or [] if a.get("on")),
+                "at the end": sum(1 for t in owed for a in t.get("plan") or [] if not a.get("on")),
+                "rungs": sorted({a["dimension"] for t in owed for a in t.get("plan") or []}),
+                "ai": None if ai is None else {"plan": [(a.get("dimension"), a.get("on")) for a in ai.get("plan") or []],
                                                "ok": _ai_asked_right(ai), "sent": ai.get("sent")},
-                "try": tried and {"status": tried.get("status"), "clear": (tried.get("clear") or {}).get("status")}}
+                "try": tried and {"status": tried.get("status"), "clear": (tried.get("clear") or {}).get("status"),
+                                  "then": then and then.get("status")}}
 
 
 def skipped_honoured(r: dict) -> tuple[bool, Any]:
-    """IM24 (keel-web 076, keel-cloud 103): a skip -- *Skip this one* pressed on a text link, or the AI interviewer's
-    window left silent to its cap -- posts `{dimension, skipped: true}` with no text, and the pilot ask follows (the AI
-    link: no didn't-catch, *Last question* next)."""
+    """IM24 (keel-web 076, keel-cloud 103; v10 spec 075, keel-web 124 FR-3): a skip -- *Skip this one* pressed on a text
+    link, or the AI interviewer's window left silent to its cap -- sends nothing for that rung (it is not in the
+    response's `followUps`; the cloud stores the first owed rung with nothing sent as never answered), and the walk goes
+    on to the step after it -- on the AI link with no didn't-catch: the next item where the follow-up hung on one before
+    the last, else the pilot ask."""
     x = r["follow_up"]
-    pressed = [t for t in x.get("text") or [] if t.get("asked") and t.get("owed") and not t.get("line")]
-    good = [t for t in pressed if t.get("sent") == {"dimension": t["owed"]["dimension"], "skipped": True}
-            and (t.get("screen") or {}).get("did") == "skipped"]
+    pressed = []
+    for t in x.get("text") or []:
+        lines = t.get("lines") or {}
+        sent = [f.get("dimension") for f in t.get("sent") or []]
+        for a, screen in zip(t.get("plan") or [], t.get("screens") or []):
+            if t.get("asked") and not lines.get(a["dimension"]):
+                pressed.append({"person": t.get("person"), "rung": a["dimension"], "on": a.get("on"),
+                                "ok": screen.get("did") == "skipped" and a["dimension"] not in sent})
     silent = []
     ai = x.get("ai") or {}
+    sent_ai = [f.get("dimension") for f in ai.get("sent") or []]
     for w in (ai.get("walk") or {}).get("windows") or []:
         if w.get("ended") == "cap":
-            silent.append({"ok": ai.get("sent") == {"dimension": (ai.get("owed") or {}).get("dimension"),
-                                                    "skipped": True}
-                           and w.get("didnt_catch_played") == 0 and w.get("next") == LAST_QUESTION, **w})
-    ok = bool(pressed or silent) and len(good) == len(pressed) and all(s["ok"] for s in silent)
-    return ok, {"pressed": [t.get("person") for t in pressed], "pressed and sent skipped": len(good),
-                "silent": [{k: s.get(k) for k in ("ok", "ran_ms", "cap_ms", "didnt_catch_played", "next")}
-                           for s in silent], "ai sent": ai.get("sent")}
+            silent.append({"ok": w.get("rung") not in sent_ai and w.get("didnt_catch_played") == 0
+                           and w.get("next_step") is not None and w.get("next_step") == w.get("want_next"), **w})
+    ok = bool(pressed or silent) and all(p["ok"] for p in pressed) and all(s_["ok"] for s_ in silent)
+    return ok, {"pressed": pressed,
+                "silent": [{k: s_.get(k) for k in ("ok", "rung", "ran_ms", "cap_ms", "didnt_catch_played", "next_step",
+                                                   "want_next")} for s_ in silent], "ai sent": ai.get("sent")}
 
 
 def _written_down(w: dict) -> bool:
@@ -661,17 +729,20 @@ def two_minutes_four_seconds(r: dict) -> tuple[bool, Any]:
     down in its two-minute window (`maxSeconds` 120), or on *Save and next* at once (IM22's measure) and written down
     the same, or -- nothing said -- runs to its cap (shortened through the seam, never past the page's 120 s, which
     keel-web's source holds). v9 (spec 074): every window is the recorded path's; the short form owes the pause and
-    Save, the full leg the pause and the cap."""
+    Save, the full leg the pause and the cap. v10 (spec 075, keel-web 124): the windows of every follow-up asked -- up
+    to two, each on a rung the harness's walk plans."""
     x = r["follow_up_windows"]
     windows = x.get("windows") or []
     kinds = {(w.get("path"), w.get("ended")) for w in windows}
-    off = [w for w in windows if not _window_ok(w)]
+    # v10 (spec 075): the windows of every follow-up asked, each its planned rung's
+    rungs = x.get("rungs")
+    off = [w for w in windows if not _window_ok(w) or (rungs is not None and w.get("rung") not in rungs)]
     full = x.get("full") is True
     owed = {("recorded", "quiet"), ("recorded", "cap")} if full else {("recorded", "quiet"), ("recorded", "save")}
     ok = (bool(windows) and not off and x.get("page_cap_ms") == FOLLOW_UP_CAP_MS and owed <= kinds)
     return ok, {"windows": [{k: w.get(k) for k in ("path", "ended", "quiet_to_stop_ms", "ran_ms", "cap_ms",
                                                    "final_to_held_ms", "pressed")} for w in windows],
-                "off": [w.get("ended") for w in off], "page cap": x.get("page_cap_ms"), "full": full}
+                "off": [w.get("ended") for w in off], "page cap": x.get("page_cap_ms"), "full": full, "rungs": rungs}
 
 
 def _take_ok(v: dict) -> bool:
