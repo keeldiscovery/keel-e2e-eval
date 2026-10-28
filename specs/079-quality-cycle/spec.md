@@ -14,8 +14,14 @@ in this repository, so a session with no memory of today runs it by reading `qua
   costs, what it writes, and what the founder decides at it. `AGENTS.md` points at it under *The quality cycle*. A
   session that is told *kick off the instruction set* reads this file and nothing else; the file says so in its first
   line.
-- **FR-2 Step 1, the kick-off: `make quality-walk ENTRIES=<ids> [BUILD=<cloud7>]` (paid).** Walks each named entry on
-  the local stack with `make backtest ENTRY=` (spec 062, Keel's AI through the key in the shell, or `DOOR=host`), on
+- **FR-2 Step 1, the kick-off: `make quality-walk ENTRIES=<ids> [SCOPES=PROBLEM,SOLUTION,COMMERCIAL] [BUILD=<cloud7>]`
+  (paid).** The founder, 2026-10-28: one corpus entry is three studies -- the same founder reads the problem and the
+  solution and makes a problem project, then a solution project, then a commercial one, each with its own interviews,
+  each judged on its own. So every entry is walked once per scope (`make backtest ENTRY= SCOPE=`, spec 071 FR-4: the
+  walk already takes PROBLEM, SOLUTION, SOLUTION_COMMERCIAL, COMMERCIAL, ALL), three bundles per entry by default,
+  three score files, three rows per dimension in the table (the scope is a column; a dimension weak on the commercial
+  study and fine on the problem study is two findings). Walks each named entry on
+  the local stack with `make backtest ENTRY= SCOPE=` (spec 062, Keel's AI through the key in the shell, or `DOOR=host`), on
   the keel-cloud and keel-web checkouts as they stand (their shas recorded), then runs `make read-screens` over each
   new bundle (spec 078), and ends with `make read-table BASELINE=1`. Refuses without the key, without ENTRIES, or with
   a dirty keel-cloud checkout (a sha must name what was measured). Writes a cycle record
@@ -49,8 +55,8 @@ in this repository, so a session with no memory of today runs it by reading `qua
 - **FR-7 Step 6, the cadence.** `CYCLE.md` says when a cycle is due: a registry or instruction change merged in
   keel-cloud, a routing table or model change, or a week since the last record -- and that none of these runs anything by
   itself: the founder kicks off. The cycle record's header carries *why this cycle* in his words.
-- **FR-8 Everything on disk, nothing in anyone's memory.** The entries to walk by default (`quality/cycle.toml`:
-  `entries = [...]`, the five of the baseline, then every entry 08-27 as they pass), the bar, the reader and adviser
+- **FR-8 Everything on disk, nothing in anyone's memory.** The entries and scopes to walk by default (`quality/cycle.toml`:
+  `entries = [...]`, `scopes = ["PROBLEM", "SOLUTION", "COMMERCIAL"]`, the five of the baseline, then every entry 08-35 as they pass), the bar, the reader and adviser
   models, the rubric version, the gallery's refusal rule: all in files under `quality/`, all committed, all read by
   the commands. A session can answer *what is the current score, what changed, what is proposed, what is on the
   homepage* from `TABLE.md`, the latest cycle record, its advice file and `BASELINE.md`.
@@ -67,6 +73,10 @@ fresh reader (the coordinator) answers the four questions of FR-8 without the re
 078's shape. The first real cycle on the founder's kick-off.
 
 ## Judgement calls, for the founder to overturn
+
+0. The thirteen bundles recorded on 24 October are NOT scored and never enter a baseline or the gallery: they were
+   walked on builds before the commercial link's screener, direction-aware Buyer and payer and "One more thing", on
+   the ALL scope. The first cycle walks fresh, three scopes per entry, on the current build.
 
 1. The adviser proposes and never applies: a wording change in keel-cloud is a spec, with its gate, even when the
    adviser wrote the words.
