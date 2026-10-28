@@ -1684,7 +1684,7 @@ FOLLOW_UP_LINES = {
 }
 #: Spec 075 (keel-web 124 FR-1's latency rule, judgement call): whose follow-up route call, made right after the item
 #: their one rung hangs on, the text walk holds past the beat -- the page goes on, the rung stays owed and the end asks
-#: it under *One last thing* (with *The only extra question.*), so a golden journey meets the end's follow-up too.
+#: it at the end (with *The only extra question.*), so a golden journey meets the end's follow-up too.
 LATE_FOLLOW_UPS = {"05-paidly": ("Wen Zhang",)}
 #: Spec 051 FR-4: who presses *Skip this one* instead (one a scenario, on a rung others on it type for).
 FOLLOW_UP_SKIPS = {"01-countly": ("Lena Fischer",), "05-paidly": ("Viktor Fern",), "07-mulchrun": ("Jamal Washington",)}
@@ -1931,7 +1931,7 @@ def follow_up_plan(entry, picks: list, link: str, interview: dict, token: str, f
                    line: int | None = None, late=()) -> list[dict]:
     """Spec 075 (keel-cloud 142, keel-web 124): every follow-up the page asks these picks on this link, in the order
     asked -- each `follow_up_question`'s `{dimension, text, spoken, also}` and `on`, the served item's dimension it is
-    asked right after (*About that*), or None for the end's (*One last thing*). At most two (`fake.asks`, the page's
+    asked right after, or None for the end's (both under *One more thing* since keel-web 126). At most two (`fake.asks`, the page's
     own walk over the served items' order and the served `followUps[]` rungs); `late` the items whose call the walk
     holds past the beat (their rung asked at the end instead)."""
     from harness import interviewer_fake as fake                       # noqa: PLC0415

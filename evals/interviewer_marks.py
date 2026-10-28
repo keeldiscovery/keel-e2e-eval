@@ -58,7 +58,12 @@ from harness import interviewer_fake as fake
 #: walk goes on to the step after it, the next item where the follow-up hung on one before the last) and IM25 (the
 #: windows of every follow-up asked, each belonging to a planned rung). IM27 (the FOLLOW_UP clips) reads its record as
 #: before: keel-cloud 142 reuses every rung's clip as it is. No mark born or dropped.
-INTERVIEWER_MARKS_VERSION = 10
+#: v11 (spec 075 FR-5, keel-cloud 144 + keel-web 126, contract 42): re-pinned -- IM23 (one kicker, *One more thing*, on
+#: the spot and at the end: the AI sheet's kicker and where-word and the text link's; *About that* / *One last thing*
+#: retire), IM26 (the box is `asking` -- *Allow the microphone…*, *Cancel*, no waveform, no clock, nothing recorded --
+#: before T2 listening; the take ends with nothing let go, and the page lets the microphone go on the done screen) and
+#: IM27 (every FOLLOW_UP clip opens on *One more thing.*). No mark born or dropped.
+INTERVIEWER_MARKS_VERSION = 11
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -88,10 +93,9 @@ BEAT_SHARE = 0.9
 GAP_FREE_MS = 4_000
 GAP_OPTION_MS = 2_000
 
-#: keel-web 076 / keel-cloud 103's words and numbers, restated where the marks read them.
-FOLLOW_UP_KICKER = "One last thing"
-#: keel-web 124 FR-1 (spec 075): a follow-up asked on the spot, right after its item; keel-cloud 142's cap.
-FOLLOW_UP_SPOT_KICKER = "About that"
+#: keel-web 076 / keel-cloud 103's words and numbers, restated where the marks read them. keel-web 126 FR-5 (spec 075
+#: FR-5): the one kicker, on the spot and at the end; keel-cloud 142's cap.
+FOLLOW_UP_KICKER = "One more thing"
 MAX_FOLLOW_UPS = 2
 LAST_QUESTION = "Last question"
 #: keel-web 082: the recorded path's silence on a free-text window (`SILENCE_FREE_MS`; options are 2.0 s).
@@ -104,6 +108,8 @@ ADD_MORE = "Add more"
 HEARD_YOU = "Heard you. Fix anything that’s wrong."
 MIC_OFF_TYPING = "The microphone is off, so it’s typing on this one."
 WRITING_DOWN = "Writing it down…"
+#: keel-web 126 FR-4 (IM26 v11): the box's `asking` card while the microphone is asked for.
+SPEAK_ASKING = "Allow the microphone…"
 
 #: A price word on a screen that must carry none (decision 1: "no price shown").
 PRICE_WORD = re.compile(r"\bcredits?\b|[$£€]\s?\d|\bprice[sd]?\b|\bcosts?\b|\bpaid\b|\bcharge[sd]?\b", re.I)
@@ -566,7 +572,8 @@ def the_storys_save(r: dict) -> tuple[bool, Any]:
 
 
 def _kicker(asked: dict) -> str:
-    return FOLLOW_UP_SPOT_KICKER if asked.get("on") is not None else FOLLOW_UP_KICKER
+    """v11 (keel-web 126 FR-5): one kicker for every follow-up, on the spot (`on` its item) and at the end alike."""
+    return FOLLOW_UP_KICKER
 
 
 def _calls_ok(routes: list[dict], plan: list[dict]) -> bool:
@@ -592,9 +599,9 @@ def _calls_ok(routes: list[dict], plan: list[dict]) -> bool:
 
 
 def _text_asked_right(t: dict) -> bool:
-    """One text walk's follow-ups as IM23 holds them (v10, spec 075): the route 200 on each of the harness's planned
-    rungs and on nothing else, `asked` the rungs before it; each screen right after the item it hangs on under *About
-    that* (the end's *One last thing* only for a rung still owed), its text the route's; at most two; the response's
+    """One text walk's follow-ups as IM23 holds them (v10, spec 075; v11 the one kicker): the route 200 on each of the
+    harness's planned rungs and on nothing else, `asked` the rungs before it; each screen right after the item it hangs
+    on (the end's only for a rung still owed) under *One more thing*, its text the route's; at most two; the response's
     `followUps` the rungs typed, in the order asked -- or, owed nothing, no 200, no screen, no `followUps`; and a walk
     that never reached the route (a gate No) asked nothing."""
     plan, routes, screens, sent = t.get("plan") or [], t.get("routes") or [], t.get("screens") or [], t.get("sent")
@@ -614,8 +621,8 @@ def _text_asked_right(t: dict) -> bool:
 def _ai_asked_right(ai: dict) -> bool:
     """The AI link's follow-ups as IM23 holds them (v10): every 200 of the route on the harness's planned rungs with
     their text and each rung's clip, `asked` the rungs before it; the follow-ups met in the plan's order, every window
-    opened on its rung's clip with its text (`followUp` step) under *About that* right after its item (*One last thing*
-    at the end); the said walk meets two, the second on the last item, and its response names both."""
+    opened on its rung's clip with its text (`followUp` step) right after its item (or at the end), under *One more
+    thing* (v11); the said walk meets two, the second on the last item, and its response names both."""
     plan = ai.get("plan") or []
     clips = ai.get("want_clips") or {}
     routes = [a for a in ai.get("asked") or [] if a.get("route") == "follow-up"]
@@ -643,10 +650,10 @@ def _ai_asked_right(ai: dict) -> bool:
 def asked_on_the_first_rung(r: dict) -> tuple[bool, Any]:
     """IM23 (keel-cloud 103, design §2 / §5; v10 spec 075, keel-cloud 142 / keel-web 124): each follow-up is asked
     where the harness's own walk (the LADDER copy, `vs.follow_up_plan`) asks it -- right after the item it hangs on,
-    under *About that*, at most two, the end's *One last thing* only for a rung still owed -- on every text walk (the
-    route calls with `asked`, the screens, the response's `followUps`), on the AI link (each route reply's rung, text and
-    clip, every window on its rung's clip) and on Try it yourself's twin where walked (with the first rung `asked`, the
-    next owed or 204); none where nothing is owed, and none asked after a gate No."""
+    at most two, the end's only for a rung still owed, every one under *One more thing* (v11, keel-web 126) -- on every
+    text walk (the route calls with `asked`, the screens, the response's `followUps`), on the AI link (each route
+    reply's rung, text and clip, every window on its rung's clip) and on Try it yourself's twin where walked (with the
+    first rung `asked`, the next owed or 204); none where nothing is owed, and none asked after a gate No."""
     x = r["follow_up"]
     text = x.get("text") or []
     bad = [t.get("person") for t in text if not _text_asked_right(t)]
@@ -745,6 +752,24 @@ def two_minutes_four_seconds(r: dict) -> tuple[bool, Any]:
                 "off": [w.get("ended") for w in off], "page cap": x.get("page_cap_ms"), "full": full, "rungs": rungs}
 
 
+def _asking_ok(v: dict) -> bool:
+    """v11 (keel-web 126 FR-4): the tap is `asking` while the permission is asked -- *Allow the microphone…* and
+    *Cancel*, no waveform, no clock, no Done, the microphone asked once and nothing recorded, Continue off."""
+    ta, during = v.get("asking") or {}, v.get("asking_counts") or {}
+    return (ta.get("state") == "asking" and ta.get("asking") == SPEAK_ASKING and ta.get("cancel") is True
+            and not ta.get("wave") and not ta.get("clock") and not ta.get("done") and during.get("acquired") == 1
+            and not during.get("starts") and v.get("continue_enabled_asking") is False)
+
+
+def _kept_ok(v: dict) -> bool:
+    """v11 (keel-web 126 FR-4): the take's end let nothing go -- the microphone's releases at T4 are those before the
+    pill (a dev build's StrictMode may stamp one at load) -- and the page let it go on the done screen."""
+    before, counts = v.get("before_pill") or {}, v.get("counts") or {}
+    at_done = v.get("released_at_done")
+    return (counts.get("released") is not None and counts.get("released") == before.get("released")
+            and at_done is not None and at_done > counts["released"])
+
+
 def _take_ok(v: dict) -> bool:
     t1, t2, t3, t4 = (v.get(k) or {} for k in ("t1", "t2", "t3", "t4"))
     before, after = v.get("before_pill") or {}, v.get("after_pill") or {}
@@ -759,7 +784,8 @@ def _take_ok(v: dict) -> bool:
             and len(heard) == 1 and heard[0].get("maxSeconds") == 60 and heard[0].get("status") == 200
             and bool(v.get("appended")) and t4.get("state") == "heard" and t4.get("value") == v.get("want")
             and t4.get("caret") == len(v.get("want") or "") and t4.get("footer") == HEARD_YOU
-            and t4.get("pill") == ADD_MORE and v.get("sent") == v.get("want") and ended)
+            and t4.get("pill") == ADD_MORE and v.get("sent") == v.get("want") and ended
+            and _asking_ok(v) and _kept_ok(v))
 
 
 def _refused_ok(v: dict) -> bool:
@@ -773,21 +799,24 @@ def speak_or_type(r: dict) -> tuple[bool, Any]:
     nothing asked of the microphone, listening on the tap (the card, the waveform, the clock to 1:00, Continue off),
     *Writing it down…*, then the transcript **appended** to what was typed with the caret at the end, *Heard you.* and
     *Add more* -- `transcribe` with `maxSeconds` 60, the take ended by the 4 s quiet or by Done; the POSTed story is the
-    box's; and T6 once: a refused microphone leaves typing only, said once."""
+    box's; and T6 once: a refused microphone leaves typing only, said once. v11 (spec 075 FR-5, keel-web 126 FR-4):
+    between the tap and T2 the box is `asking` (the seam holds the permission sheet until the walk grants it), and the
+    microphone is kept through the take and let go by the page on the done screen."""
     x = r["speak"]
     takes = [v for v in x.values() if v.get("how") in ("quiet", "done")]
     refused = [v for v in x.values() if v.get("how") == "refused"]
     ok = bool(takes) and bool(refused) and all(_take_ok(v) for v in takes) and all(_refused_ok(v) for v in refused)
     return ok, {"takes": {v.get("person"): {"how": v.get("how"), "ok": _take_ok(v), "appended": v.get("appended"),
-                                             "quiet_to_stop_ms": v.get("quiet_to_stop_ms")} for v in takes},
+                                             "quiet_to_stop_ms": v.get("quiet_to_stop_ms"), "asking": _asking_ok(v),
+                                             "kept": _kept_ok(v)} for v in takes},
                 "refused": {v.get("person"): _refused_ok(v) for v in refused}}
 
 
 def the_follow_up_clips(r: dict) -> tuple[bool, Any]:
     """IM27 (keel-cloud 103 FR-6): every role's recording holds one FOLLOW_UP clip per rung its link walks, each saying
-    *One last thing.* and the registry's spoken wording (the LADDER copy), DONE, served by rung -- never in the spoken
-    order -- and (the full leg) a recording without them gains them on the first read: one DONE clip per rung per
-    role in the same words, `{}` served before, READY throughout, no ledger row."""
+    *One more thing.* (v11, keel-cloud 144 FR-2) and the registry's spoken wording (the LADDER copy), DONE, served by
+    rung -- never in the spoken order -- and (the full leg) a recording without them gains them on the first read: one
+    DONE clip per rung per role in the same words, `{}` served before, READY throughout, no ledger row."""
     x = r["follow_up_clips"]
     roles = x.get("roles") or {}
     bad = {}
@@ -802,7 +831,7 @@ def the_follow_up_clips(r: dict) -> tuple[bool, Any]:
                 and all(fake.rung(c.get("itemId")) and c.get("status") == "DONE"
                         and c.get("script") == fake.follow_up_script(fake.rung(c["itemId"])[3]) for c in clips)
                 and all(c["itemId"].split("#")[0] in want and c.get("status") == "DONE"
-                        and str(c.get("script") or "").startswith(fake.ONE_LAST_THING) for c in also)):
+                        and str(c.get("script") or "").startswith(fake.ONE_MORE_THING) for c in also)):
             bad[link] = role
     back = x.get("backfill")
     back_ok = back is None and not x.get("full") or (

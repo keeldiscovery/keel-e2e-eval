@@ -17,7 +17,8 @@ the one follow-up, in registry order, copied from the registry's `follow_up` blo
 walks and composes (`POST .../interview/follow-up`); this copy is the **independent check** of that walk, not a mirror
 of the page (the page walks nothing). `fill` composes the question's text the way `FollowUpComposer` fills it, from
 the served labels and the founder's own words, so the walk can hold the route's `text` (and the screen's) to it. The
-FOLLOW_UP clip kind (one a rung a role's link walks: *One last thing.* and the rung's spoken wording) is unspoken --
+FOLLOW_UP clip kind (one a rung a role's link walks: *One more thing.* -- keel-cloud 144 -- and the rung's spoken
+wording) is unspoken --
 it plays only when the walk finds its rung.
 
 This module is machinery: it asserts nothing. `evals/interviewer_leg.py` and `evals/interviewer_marks.py` judge with it.
@@ -280,12 +281,14 @@ ALSO: dict[str, tuple[tuple[str, ...], str, str, str]] = {
 }
 #: Design §2's rungs with no question since keel-cloud 118 (a gate No ends the interview; a number has no why; derived).
 NO_FOLLOW_UP = ("problem.prevalence", "problem.frequency", "commercial.existing_sacrifice", "commercial.ability_to_pay")
-#: `PassageComposer.ONE_LAST_THING`: the FOLLOW_UP clip opens on it; the screens' kicker is *One last thing*.
-ONE_LAST_THING = "One last thing."
-FOLLOW_UP_KICKER = "One last thing"
-#: Spec 075 (keel-web 124 FR-1, `FOLLOW_UP_SPOT_KICKER`): the kicker of a follow-up asked on the spot, right after the
-#: item it hangs on; *One last thing* stays the end's.
-FOLLOW_UP_SPOT_KICKER = "About that"
+#: `PassageComposer.ONE_MORE_THING` (keel-cloud 144 FR-2, spec 075 FR-5): every FOLLOW_UP clip opens on it, first or
+#: second, on the spot or at the end (the ALSO stems too); the screens' one kicker is *One more thing* (keel-web 126
+#: FR-5: *About that* and *One last thing* are gone).
+ONE_MORE_THING = "One more thing."
+FOLLOW_UP_KICKER = "One more thing"
+#: The lead-in before keel-cloud 144 (`ONE_LAST_THING`): a READY recording whose FOLLOW_UP clips still say it is
+#: re-rendered once each, at no charge (144 FR-2); no clip composed since says it.
+RETIRED_LEAD_IN = "One last thing."
 #: Spec 075 (keel-cloud 142 `MAX_FOLLOW_UPS`, keel-web 124): at most two follow-ups an interview, a skipped one counted.
 MAX_FOLLOW_UPS = 2
 #: Buyer and payer's fixed answers and the one that supports when "Nobody else" is tested (`Compare.BUYER_DECIDED_ALONE`)
@@ -321,8 +324,9 @@ def price_said_back(question: str | None, band: str | None) -> str:
 
 
 def follow_up_script(spoken_words: str) -> str:
-    """`PassageComposer.followUp`: a rung's FOLLOW_UP clip says *One last thing.* and its one spoken wording."""
-    return f"{ONE_LAST_THING} {spoken_words.strip()}"
+    """`PassageComposer.followUp`: a rung's FOLLOW_UP clip says *One more thing.* (keel-cloud 144) and its one spoken
+    wording."""
+    return f"{ONE_MORE_THING} {spoken_words.strip()}"
 
 
 def rung(dimension: str) -> tuple | None:
@@ -497,8 +501,8 @@ def first_rung(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = Fa
 def asks(picks, founder: Founder, order, link: str = "PRIMARY", *, b2b: bool = False, served: set[str] | None = None,
          first=(), rungs=None, late=()) -> list[dict]:
     """Spec 075 (keel-cloud 142 FR-1, keel-web 124 FR-1 / FR-2): the follow-ups the page asks these answers, in the order
-    asked -- `[{dimension, also, on}]`, `on` the item's dimension it hangs on (asked on the spot, *About that*) or None
-    (the end's, *One last thing*). The page's own walk, every route answered inside the beat: after each answered item
+    asked -- `[{dimension, also, on}]`, `on` the item's dimension it hangs on (asked on the spot) or None (the end's);
+    since keel-web 126 both under the one kicker *One more thing*. The page's own walk, every route answered inside the beat: after each answered item
     whose dimension is a rung the link walks (`rungs`, the served `followUps[]`; default `walks`), while fewer than two
     were asked, the route is asked with the answers so far (`order`, the items' dimensions as served, cut at that item)
     and `asked`; a rung on that very item is asked there and then. After the last item one call more (not raced): a rung

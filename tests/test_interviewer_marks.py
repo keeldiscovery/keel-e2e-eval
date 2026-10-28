@@ -63,8 +63,8 @@ CUR = "problem.current_solution_satisfaction"
 def _text_walk(person: str, plan: list[tuple[str, str | None]], lines: dict | None = None,
                *, late: bool = False) -> dict:
     """One text walk's follow-ups as `evals/corpus_scenario._hold_the_follow_up` records them (spec 075): `plan` the
-    `(rung, on)` pairs in the order asked -- `on` the item it hangs on (*About that*), None the end's (*One last
-    thing*); `lines` what was typed on each (absent: a skip); `late` a held call before the end's (its 200 dropped)."""
+    `(rung, on)` pairs in the order asked -- `on` the item it hangs on, None the end's (both under *One more thing*,
+    keel-web 126); `lines` what was typed on each (absent: a skip); `late` a held call before the end's (its 200 dropped)."""
     lines = lines or {}
     asked: list[dict] = [{"dimension": r, "text": f"Question on {r}.", "on": on} for r, on in plan]
     routes = [{"status": 204, "body": {}, "sent": {"answers": []}}]
@@ -75,7 +75,7 @@ def _text_walk(person: str, plan: list[tuple[str, str | None]], lines: dict | No
         routes.append({"status": 200, "body": {"dimension": a["dimension"], "text": a["text"], "itemId": "f",
                                                "spoken": "x"},
                        "sent": {"answers": [], **({"asked": [b["dimension"] for b in asked[:i]]} if i else {})}})
-    screens = [{"rung": a["dimension"], "on": a["on"], "kicker": "About that" if a["on"] else "One last thing",
+    screens = [{"rung": a["dimension"], "on": a["on"], "kicker": "One more thing",
                 "question": a["text"], "did": "typed" if lines.get(a["dimension"]) else "skipped"} for a in asked]
     sent = [{"dimension": a["dimension"], "text": lines[a["dimension"]], "how": "TYPED", "skipped": False}
             for a in asked if lines.get(a["dimension"])] or None
@@ -91,10 +91,10 @@ def _ai_follow_up() -> dict:
     none = {"route": "follow-up", "status": 204, "sent": {"answers": [], "asked": [RA]}, "body": {}}
     heard = {"route": "transcribe", "status": 200, "sent": {"itemId": "fu", "maxSeconds": 120}, "body": {"text": "yes"}}
     windows = [{"which": "first", "step": "followUp", "question": RA_TEXT, "clip": RA_CLIP, "path": "recorded",
-                "kicker": "About that", "where": "About that", "rung": RA, "on": RA,
+                "kicker": "One more thing", "where": "One more thing", "rung": RA, "on": RA,
                 "ended": "quiet", "quiet_to_stop_ms": 3_960, "transcribed": [heard]},
                {"which": "second", "step": "followUp", "question": RA_TEXT, "clip": RA_CLIP, "path": "recorded",
-                "kicker": "About that", "where": "About that", "rung": RA, "on": RA,
+                "kicker": "One more thing", "where": "One more thing", "rung": RA, "on": RA,
                 "ended": "cap", "ran_ms": 9_004, "cap_ms": 9_000, "didnt_catch_played": 0, "next": "Question 6 of 6",
                 "next_step": "item", "want_next": "item"}]
     met = {"index": 0, "rung": RA, "on": RA, "item": RA, "item_question": "Would it have helped?", "windows": windows,
@@ -107,7 +107,12 @@ def _ai_follow_up() -> dict:
 def _take(person: str, how: str) -> dict:
     want = "It was Tuesday. yes"
     return {"person": person, "how": how, "t1": {"state": "idle", "pill": "Speak"},
-            "before_pill": {"acquired": 0, "starts": []}, "after_pill": {"acquired": 1, "starts": [10.0]},
+            "before_pill": {"acquired": 0, "starts": [], "released": 1}, "after_pill": {"acquired": 1, "starts": [10.0]},
+            # spec 075 FR-5 (keel-web 126 FR-4): asking before listening, the microphone kept, then let go on done
+            "asking": {"state": "asking", "asking": "Allow the microphone…", "cancel": True, "wave": False,
+                       "clock": None, "done": False},
+            "asking_counts": {"acquired": 1, "starts": []}, "continue_enabled_asking": False,
+            "counts": {"released": 1}, "released_at_done": 2,
             "t2": {"state": "listening", "card": True, "wave": True, "clock": "0:00 · up to 1:00"},
             "continue_enabled_listening": False, "t3": {"state": "writing", "writing": "Writing it down…"},
             "t4": {"state": "heard", "value": want, "caret": len(want), "footer": "Heard you. Fix anything that’s wrong.",
@@ -352,7 +357,7 @@ def test_a_good_record_meets_every_mark():
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
     assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 10
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 11
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -572,9 +577,9 @@ SEEDED = [
     ("IM23", ["follow_up", "text", 0, "screens", 0, "question"], "Something else?"),       # the screen's own words
     ("IM23", ["follow_up", "text", 0, "sent"], [{"dimension": "commercial.price", "text": "x", "how": "TYPED"}]),
     ("IM23", ["follow_up", "text", 3, "routes"], [{"status": 204}]),                       # asked after a gate No
-    ("IM23", ["follow_up", "text", 0, "screens", 1, "kicker"], "One last thing"),          # on the spot, the end's words
+    ("IM23", ["follow_up", "text", 0, "screens", 1, "kicker"], "One last thing"),          # v11: the retired end's words
     ("IM23", ["follow_up", "text", 0, "screens", 1, "on"], None),                          # the second kept for the end
-    ("IM23", ["follow_up", "text", 4, "screens", 0, "kicker"], "About that"),              # the end's, the spot's words
+    ("IM23", ["follow_up", "text", 4, "screens", 0, "kicker"], "About that"),              # v11: the retired spot's words
     ("IM23", ["follow_up", "text", 0, "routes", 2, "sent"], {"answers": []}),              # the first rung not `asked`
     ("IM23", ["follow_up", "text", 0, "routes"],
      lambda r: r + [{"status": 204, "sent": {"answers": [], "asked": [IMP, CUR]}}]),      # a call once two were asked
@@ -614,10 +619,22 @@ SEEDED = [
     ("IM26", ["speak", "Priya", "quiet_to_stop_ms"], 2_000),
     ("IM26", ["speak", "Nadia", "continue_enabled_listening"], True),                    # Continue on while listening
     ("IM26", ["speak", "Hana", "t6", "footer"], ""),                                     # T6 said nothing
+    # v11 (spec 075 FR-5, keel-web 126 FR-4): asking skipped, recording while asking, released by the take, kept on done
+    ("IM26", ["speak", "Priya", "asking", "state"], "listening"),
+    ("IM26", ["speak", "Priya", "asking", "asking"], None),
+    ("IM26", ["speak", "Priya", "asking", "wave"], True),
+    ("IM26", ["speak", "Priya", "asking_counts", "starts"], [9.0]),
+    ("IM26", ["speak", "Nadia", "continue_enabled_asking"], True),
+    ("IM26", ["speak", "Priya", "counts", "released"], 2),
+    ("IM26", ["speak", "Nadia", "released_at_done"], 1),
+    ("IM26", ["speak", "Nadia", "released_at_done"], None),
     ("IM26", ["speak", "Hana", "after_pill", "starts"], [12.0]),                         # recorded on a refused mic
     ("IM26", ["speak"], lambda v: {k: x for k, x in v.items() if x["how"] != "refused"}),  # T6 never walked
     ("IM27", ["follow_up_clips", "roles", "PRIMARY", "clips"], lambda c: c[:-1]),        # a rung's clip missing
     ("IM27", ["follow_up_clips", "roles", "COMMERCIAL_B2B", "clips", 0, "script"], "One last thing."),
+    # v11 (keel-cloud 144 FR-2): a clip still in the retired lead-in
+    ("IM27", ["follow_up_clips", "roles", "PRIMARY", "clips", 0, "script"],
+     lambda c: c.replace("One more thing.", "One last thing.", 1)),
     ("IM27", ["follow_up_clips", "roles", "PRIMARY", "clips", 0, "status"], "FAILED"),
     ("IM27", ["follow_up_clips", "backfill", "ledger_rows_added"], 1),                   # the backfill charged
     ("IM27", ["follow_up_clips", "backfill", "statuses"], ["READY", "RECORDING"]),

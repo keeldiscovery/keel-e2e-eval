@@ -2136,8 +2136,8 @@ class Interview:
         Spec 051 (keel-web 076, keel-cloud 103), as spec 075 has it (keel-web 124, keel-cloud 142): *Next* on an item
         whose dimension is a rung the link walks posts the answers so far, with `asked`, to `POST .../interview/
         follow-up` (never after a gate No; no call once two were asked); a rung on that item opens its follow-up right
-        then (*About that*), any other goes on. *Send my answers* posts once more (not raced): a rung on the last item is
-        asked on the spot, any other at the end (*One last thing*), and after a follow-up on the last item the end is
+        then, any other goes on. *Send my answers* posts once more (not raced): a rung on the last item is
+        asked on the spot, any other at the end -- every one under *One more thing* (keel-web 126) -- and after a follow-up on the last item the end is
         asked once more while fewer than two were. On each follow-up `lines(rung)` is typed and *Continue* pressed --
         None presses *Skip this one* (not sent, still asked). `follow_up` / `follow_up_rung` are the one-line form: the
         line typed on its rung (any rung, when none is named). Every route call is kept (`follow_up_routes`, in order)
@@ -2194,6 +2194,9 @@ class Interview:
             done_screen = page.locator("main.iv-body .iv-done").count() > 0 and heading.strip() != INTERVIEW_DONE_TITLE
             h.add_screenshot(self._b.screenshot(f"interview-done-{person.person.split()[0]}"))
             self._shot("done")
+            if self.speak_seen and self.speak_seen.get("how") in ("quiet", "done"):
+                # spec 075 FR-5 (keel-web 126 FR-4): the boxes kept the microphone; the page lets it go on done
+                self.speak_seen["released_at_done"] = self._released_on_done()
             page.remove_listener("response", self._keep_transcribe)
             return {"body": body, "status": status, "done": heading, "pilot_box": pilot_box, "word_drawn": word_drawn,
                     "done_screen": done_screen,
@@ -2202,6 +2205,18 @@ class Interview:
                     "follow_up_routes": self._routes(), "follow_ups": list(self.follow_ups_seen),
                     "late": sorted(self._late_items),
                     "speak": self.speak_seen, "transcribed": self._transcribed(), "consent": self.consent}
+
+    def _released_on_done(self, *, timeout_s: float = 5) -> int:
+        """The seam's count of the microphone's releases once the done screen shows (the page's effect runs after the
+        render): waited for to move past the take's, or read as it stands at the timeout."""
+        box = ivs.SpeakBox(self.page, "main")
+        before = ((self.speak_seen or {}).get("counts") or {}).get("released") or 0
+        end = time.monotonic() + timeout_s
+        released = box.counts().get("released") or 0
+        while released <= before and time.monotonic() < end:
+            self.page.wait_for_timeout(100)
+            released = box.counts().get("released") or 0
+        return released
 
     def _keep_transcribe(self, response) -> None:
         """Every `transcribe` the page sent (the box's recorded take), every follow-up route call (spec 075) and the
@@ -2244,8 +2259,8 @@ class Interview:
         return out
 
     def _follow_up_screen(self, on: str | None) -> dict:
-        """Spec 075 (keel-web 124 FR-1..FR-3; 076 FR-3): one follow-up screen, as drawn -- the kicker (*About that* on
-        the spot, *One last thing* at the end), the cloud's question as `h1.iv-q`, the note, the box and its hint (*The
+        """Spec 075 (keel-web 124 FR-1..FR-3; 076 FR-3): one follow-up screen, as drawn -- the kicker (*One more thing*
+        on the spot and at the end, keel-web 126 FR-5), the cloud's question as `h1.iv-q`, the note, the box and its hint (*The
         only extra question.* only on the end's with none asked before it), *Continue* off while empty, *Skip this one*
         -- then `lines(rung)` typed and *Continue*, or (no line) *Skip this one*. `on` is the item it was asked right
         after (None at the end); the rung is the last route call's that answered 200."""
@@ -2314,8 +2329,11 @@ class Interview:
             if self._responded or not page.get_by_test_id("iv-follow-up").count():
                 return
             last = self._last_item_dimension(interview)
-            kicker = _first_text(page, "[data-testid=iv-follow-up] .iv-kicker")
-            drawn = self._follow_up_screen(last if kicker == ivs.FOLLOW_UP_SPOT_KICKER else None)
+            # spec 075 FR-5 (keel-web 126 FR-5): one kicker now, so the screen asked on the spot is told from the end's
+            # by its rung -- the last item's own (a rung is asked once, so the end's is another)
+            asked = next((self._route(r) for r in reversed(self._route_responses) if r.status == 200), {})
+            rung = (asked.get("body") or {}).get("dimension")
+            drawn = self._follow_up_screen(last if rung is not None and rung == last else None)
             self._after_follow_up(drawn)
 
     @staticmethod
@@ -2403,7 +2421,9 @@ class Interview:
         listening card (the waveform, the clock, Cancel, Done; Continue off), a sound, then the take ended by the 4 s
         quiet (`how` "quiet") or by *Done* ("done"); *Writing it down…* (the recorder's stop held so it can be read), and
         the transcript appended with the caret at the end, *Heard you.*, the pill *Add more*. "refused": *Speak* on a
-        refused microphone -- typing only (T6) -- then the story typed."""
+        refused microphone -- typing only (T6) -- then the story typed. Spec 075 FR-5 (keel-web 126 FR-4): between the
+        tap and T2 the box is *asking* (the seam holds the permission sheet until `grant`); the page's releases are
+        read again on the done screen (`released_at_done`, the walk's end)."""
         page = self.page
         box = ivs.SpeakBox(page, "main")
         out: dict = {"how": how}
@@ -2423,6 +2443,13 @@ class Interview:
         page.locator("main .sot textarea").first.fill(story)
         out["typed"] = story
         box.tap()
+        # spec 075 FR-5 (keel-web 126 FR-4): the tap is *asking* while the permission sheet is up -- the seam holds it
+        # (`text_seam(held=True)`) -- its line and Cancel, no waveform, no clock, nothing recorded, Continue off; then
+        # granted, and *listening* once the recorder runs
+        out["asking"] = box.wait_state("asking")
+        out["asking_counts"] = box.counts()
+        out["continue_enabled_asking"] = cont.is_enabled()
+        box.grant()
         out["t2"] = box.wait_state("listening")
         page.locator("main [data-testid=iv-listening] [data-testid=ai-mic-on]").first.wait_for(
             state="attached", timeout=10_000)
@@ -2515,7 +2542,7 @@ class Interview:
                                 "rows": _safe_all_texts(page, ".iv-control [role=radio], .iv-control [role=checkbox]"),
                                 "url": page.url}))
                     if page.get_by_test_id("iv-follow-up").count():
-                        # spec 075 (keel-web 124 FR-1): the rung on this item, asked right after it (*About that*)
+                        # spec 075 (keel-web 124 FR-1): the rung on this item, asked right after it
                         drawn = self._follow_up_screen(item.get("dimension"))
                         self._after_follow_up(drawn)
             if interview.get("kind") == "FULL" and reveal and reveal.get("afterPart") == part.get("part") \
@@ -2918,7 +2945,7 @@ class Answers:
         """One stage page: every row's name, belief, status and amber; and, `open_row` named, that row
         opened and its per-person list read (keel-web `DimensionStagePage`'s `ul.dimpeople`: each person's
         name and how the answer was read). Spec 052 FR-8: each of `follow_up_rows` (the rungs whose people answered
-        the follow-up) opened too, and every person's *One last thing · {rung}: "…"* line read off its list
+        the follow-up) opened too, and every person's *One more thing · {rung}: "…"* line read off its list
         (`follow_ups`: `{dimension: [{name, line}]}`). Spec 075 (keel-cloud 141): each of `said_rows` opened and its said
         line under the belief read (`said`: `{dimension: text}`, `.dimrow__said`, the served `founderSaid`)."""
         with self._b.step(f"founder opens the {vector.lower()} page") as h:

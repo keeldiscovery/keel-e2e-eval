@@ -279,7 +279,7 @@ def test_the_follow_up_clips_may_carry_an_also_clip_beside_the_rung():
     clip = {"itemId": "solution.adoption_friction", "status": "DONE",
             "script": fake.follow_up_script(fake.rung("solution.adoption_friction")[3])}
     also = {"itemId": "solution.adoption_friction#also", "status": "DONE",
-            "script": "One last thing. What would make it clearly worth it to you?"}
+            "script": "One more thing. What would make it clearly worth it to you?"}   # keel-cloud 144
     record = {"follow_up_clips": {"full": False, "roles": {"PRIMARY": {"want": want, "clips": [clip, also],
                                                                       "served": want}}}}
     ok, detail = im.the_follow_up_clips(record)

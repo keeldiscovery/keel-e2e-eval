@@ -70,14 +70,16 @@ def test_each_texts_placeholders_are_the_registrys_and_fill_knows_them():
             assert not re.search(r"[{}]", block["spoken"]), e["key"]
 
 
-def test_the_composers_defaults_and_its_one_last_thing():
+def test_the_composers_defaults_and_its_one_more_thing():
     composer = _cloud("src/main/java/com/keeldiscovery/cloud/application/FollowUpComposer.java")
     defaults = re.search(r"DEFAULTS = Map\.of\((.*?)\);", composer, re.S)
     pairs = dict(re.findall(r'"(\{[a-z_]+\})",\s*"([^"]*)"', defaults.group(1) if defaults else ""))
     assert pairs == fake.FILL_DEFAULTS
     assert f'WOULD_NOT_PAY_BAND = "{fake.WOULD_NOT_PAY_BAND}"' in composer
     passages = _cloud("src/main/java/com/keeldiscovery/cloud/application/interviewer/PassageComposer.java")
-    assert f'ONE_LAST_THING = "{fake.ONE_LAST_THING} "' in passages
+    # keel-cloud 144 FR-2 (spec 075 FR-5): the lead-in is *One more thing.*; *One last thing.* is the retired one
+    assert f'ONE_MORE_THING = "{fake.ONE_MORE_THING} "' in passages
+    assert "ONE_LAST_THING =" not in passages and fake.RETIRED_LEAD_IN == "One last thing."
     price = _cloud("src/main/java/com/keeldiscovery/cloud/domain/vectors/PriceLadder.java")
     points = re.search(r"POINTS = List\.of\(([^)]*)\)", price, re.S)
     assert points and tuple(int(x.replace("_", "")) for x in re.findall(r"[\d_]+", points.group(1))) == \
@@ -248,7 +250,7 @@ def test_fill_and_its_words():
 def test_the_fakes_follow_up_lines():
     assert fake.KINDS[-1] == "FOLLOW_UP" and "FOLLOW_UP" in fake.UNSPOKEN
     assert fake.follow_up_script(fake.rung("problem.importance")[3]) == (
-        "One last thing. You put other difficulties ahead of this one. What makes those more pressing?")
+        "One more thing. You put other difficulties ahead of this one. What makes those more pressing?")
     assert fake.walks("COMMERCIAL_B2B", True) == ("commercial.price", "commercial.buyer_payer_alignment",
                                                   "commercial.purchase_friction", "commercial.commitment")
     assert len(fake.walks("PRIMARY", True)) == 5 and len(fake.walks("PRIMARY", False)) == 9
@@ -260,7 +262,8 @@ def test_the_fakes_follow_up_lines():
 @pytest.mark.parametrize("name", ["FOLLOW_UP_KICKER", "FOLLOW_UP_NOTE", "FOLLOW_UP_SKIP", "FOLLOW_UP_HINT",
                                   "SPEAK_HINT_STORY", "SPEAK_OR_TYPE_PLACEHOLDER", "SPEAK_TYPE_PLACEHOLDER",
                                   "SPEAK_LABEL", "SPEAK_ADD_MORE", "SPEAK_LISTENING", "SPEAK_LISTENING_NOTE",
-                                  "SPEAK_MIC_OFF", "HEARING_YOU"])
+                                  "SPEAK_MIC_OFF", "HEARING_YOU", "SPEAK_ASKING", "AI_REASON_DIDNT_CATCH",
+                                  "AI_SECOND_MISS_FREE", "AI_REASON_NO_MATCH"])
 def test_the_follow_up_and_box_words_are_keel_webs(name):
     text = _web("src/lib/translate.ts")
     m = re.search(rf"export const {name} = \"([^\"]*)\";", text)

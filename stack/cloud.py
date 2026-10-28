@@ -90,7 +90,9 @@ def build_env(config: StackConfig) -> dict[str, str]:
         # Spec 051 (keel-cloud 103, contract 19): `transcribe` opens to every link kind for the story and the follow-up
         # (`maxSeconds` 60 / 120); 103's fake keys its lines by the window's item word (`story`, `follow_up`) through a
         # test-only seam (`FakeTranscriber.answer`) no environment variable reaches, so on this stack every window --
-        # the text link's spoken story and follow-up too -- is heard as this one word.
+        # the text link's spoken story and follow-up too -- is heard as this one word. Spec 075 FR-5 (keel-cloud 144,
+        # contract 42): Try it yourself's own `interviewer/transcribe` calls the same transcriber, so the dry run's
+        # hello, story and follow-up are served by this fake as a link's are -- nothing to set here.
         "KEEL_INTERVIEWER_TRANSCRIBER": "fake",
         "KEEL_OPENAI_API_KEY": "",
         "KEEL_INTERVIEWER_FAKE_TRANSCRIPT": "yes",

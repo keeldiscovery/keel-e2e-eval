@@ -42,7 +42,7 @@ each beat as it was drawn and the seam stamps every recogniser started, so the l
 *Microphone off* (`ai-mic-off`) on the end screens once everything is released.
 
 Spec 051 (keel-web 076, contract 19): the one follow-up -- on the AI page the sheet's `data-step="followUp"`, the
-`ai-where` pill *One last thing*, the story's window, `ai-skip`; on the text page `SpeakOrTypeBox` (`.sot[data-state]`,
+`ai-where` pill (*One more thing* since keel-web 126), the story's window, `ai-skip`; on the text page `SpeakOrTypeBox` (`.sot[data-state]`,
 the `iv-mic` pill, the listening card `iv-listening` with `ai-mic-on`, `iv-mic-clock`, `iv-mic-cancel`, `iv-mic-done`)
 driven through `text_seam` (a microphone that counts its acquisitions, refused on request, and a recorder whose level
 the walk sets) -- `SpeakBox` reads and drives it. (Spec 074: the AI page's seam is the recorder itself now; the
@@ -150,10 +150,9 @@ VETO = "no"
 SAY_YES = "yes"
 GO_BACK = "go back"
 #: keel-web 076 `translate.ts` (spec 051): the follow-up and the speak-or-type box, restated where the walks read them.
-FOLLOW_UP_KICKER = "One last thing"
-#: keel-web 124 FR-1 (spec 075, `FOLLOW_UP_SPOT_KICKER`): a follow-up asked on the spot, right after its item -- the
-#: AI sheet's kicker and header where-word, the text link's kicker; *One last thing* stays the end's.
-FOLLOW_UP_SPOT_KICKER = "About that"
+#: keel-web 126 FR-5 (spec 075 FR-5): the one kicker, on the spot and at the end -- the AI sheet's kicker and header
+#: where-word, the text link's kicker (124's *About that* and 076's *One last thing* are gone).
+FOLLOW_UP_KICKER = "One more thing"
 #: keel-web 124 (keel-cloud 142, `MAX_FOLLOW_UPS`): at most two follow-ups an interview, a skipped one counted.
 MAX_FOLLOW_UPS = 2
 FOLLOW_UP_NOTE = "In your own words. A sentence or two is plenty."
@@ -171,6 +170,17 @@ SPEAK_HEARD = "Heard you. Fix anything that’s wrong."
 #: (`ai-heard`) and the box's listening card (`iv-mic-say`); *Nothing heard yet* only while nothing has.
 HEARING_YOU = "Hearing you…"
 SPEAK_MIC_OFF = "The microphone is off, so it’s typing on this one."
+#: keel-web 126 FR-4 (spec 075 FR-5): the box's `asking` state while the microphone is asked for (`SPEAK_ASKING`, the
+#: card `iv-mic-asking`: the line and *Cancel*, no waveform, no clock), before *listening*.
+SPEAK_ASKING = "Allow the microphone…"
+#: keel-web 126 FR-3: a free window's (the story's, the follow-up's) empty transcript -- the red line
+#: (`AI_REASON_DIDNT_CATCH`) and the second miss's status (`AI_SECOND_MISS_FREE`). Read by no walk; the dry run's
+#: story is held to be none of them.
+AI_REASON_DIDNT_CATCH = "I didn't catch that. Say it again, or type instead."
+AI_SECOND_MISS_FREE = "Say it again, or type it."
+#: keel-web 072's closed-question miss (`AI_REASON_NO_MATCH`): what the dry run's story read before keel-web 126 FR-2
+#: (an empty transcript taken for a miss, though a story has no options).
+AI_REASON_NO_MATCH = "That didn't match an option. Say it again, or tap one."
 #: keel-web 076: the box's two caps as the clock says them (`clockOf(capMs)`): the story's minute, the follow-up's two.
 STORY_CAP = "1:00"
 FOLLOW_UP_CAP = "2:00"
@@ -379,6 +389,9 @@ _RECORDER = r"""
   window.__micAcquired = 0; window.__micReleased = 0;
   const mic = (level, refused) => ({
     acquire: async () => { window.__micAcquired += 1; stamps('__micAcquiredAt').push(performance.now());
+                           // keel-web 126 FR-4 (`installHeldMic`): the permission sheet still up -- the box stays
+                           // *asking* until `__grantMic()`
+                           if (window.__micHeld) await new Promise((resolve) => (window.__grantMic = resolve));
                            return !refused; },
     level,
     release: () => { window.__micReleased += 1; stamps('__micReleasedAt').push(performance.now()); },
@@ -393,12 +406,14 @@ SPEECH_SEAM = "(() => {" + _RECORDER + """
 """
 
 
-def text_seam(*, refused: bool = False) -> str:
+def text_seam(*, refused: bool = False, held: bool = False) -> str:
     """The text page's seam (keel-web 076, 115 FR-4: the box has one ear, the recorder): the same recorder, the
     microphone counted (`__micAcquired`, 0 until the pill is tapped) and refused when `refused` (T6), its level what the
     walk sets (`__level`). The quiet and the caps are left at the page's defaults (4 s free text, 60 s, 120 s). The box
-    is driven by a level, not by words, so its recording is the zeros alone: the stack's fake hears `FAKE_TRANSCRIPT`."""
-    return ("(() => {" + _RECORDER + """
+    is driven by a level, not by words, so its recording is the zeros alone: the stack's fake hears `FAKE_TRANSCRIPT`.
+    `held` (spec 075 FR-5, keel-web 126 FR-4's `installHeldMic`): the first acquire waits on the permission sheet until
+    the walk calls `__grantMic()` (`SpeakBox.grant`), so the box's *asking* state can be read."""
+    return ("(() => {" + (" window.__micHeld = true;" if held else "") + _RECORDER + """
   window.__keelSpeech = { recorder, mic: mic(() => window.__levelNow, %s), earcons: false };
 })();
 """ % ("true" if refused else "false"))
@@ -1158,8 +1173,10 @@ class SpeakBox:
     """keel-web 076's `SpeakOrTypeBox` on a text page (the story's, or the follow-up's): `.sot[data-state]` around the
     textarea and its footer (`.sot__bar`: the hint / the heard line / the mic-off line, and the `iv-mic` pill), the
     listening card (`iv-listening`: `ai-mic-on`, `iv-mic-clock`, `iv-mic-cancel`, `iv-mic-done`) and the writing card
-    drawn over it. Driven through `text_seam`: `speak` sets the recorder's level to a sound, `quiet` back to nothing;
-    what the seam counted is `counts()`. Reads and acts; judges nothing."""
+    drawn over it -- and since keel-web 126 FR-4 the `asking` card (`iv-mic-asking`: *Allow the microphone…*, *Cancel*)
+    between the tap and the recorder running. Driven through `text_seam`: `speak` sets the recorder's level to a sound,
+    `quiet` back to nothing, `grant` answers a held permission sheet; what the seam counted is `counts()`. Reads and
+    acts; judges nothing."""
 
     def __init__(self, page: Page, scope: str = "main"):
         self.page = page
@@ -1182,6 +1199,7 @@ class SpeakBox:
             const bar = sot.querySelector('.sot__bar');
             const pill = sot.querySelector('[data-testid=iv-mic]');
             const writing = sot.querySelector('.sot__writing');
+            const asking = sot.querySelector('[data-testid=iv-mic-asking]');
             return { state: sot.getAttribute('data-state'), placeholder: text ? text.getAttribute('placeholder') : null,
                      value: text ? text.value : null, caret: text ? text.selectionStart : null,
                      caretEnd: text ? text.selectionEnd : null, focused: !!text && document.activeElement === text,
@@ -1190,7 +1208,8 @@ class SpeakBox:
                      clock: words(sot.querySelector('[data-testid=iv-mic-clock]')),
                      cancel: !!sot.querySelector('[data-testid=iv-mic-cancel]'),
                      done: !!sot.querySelector('[data-testid=iv-mic-done]'),
-                     writing: words(writing), note: words(sot.querySelector('.sot__note')) };
+                     writing: words(writing), note: words(sot.querySelector('.sot__note')),
+                     asking: asking ? words(asking.querySelector('[data-testid=iv-mic-say]')) : null };
         }""", self.scope)
 
     def counts(self) -> dict:
@@ -1210,6 +1229,10 @@ class SpeakBox:
 
     def done(self) -> None:
         self._sot().get_by_test_id("iv-mic-done").click()
+
+    def grant(self) -> None:
+        """Spec 075 FR-5 (keel-web 126 FR-4): the held permission sheet answered -- the acquire resolves."""
+        self.page.evaluate("() => { window.__micHeld = false; if (window.__grantMic) window.__grantMic(); }")
 
     def speak(self, ms: int = SPEAK_MS) -> float:
         """The person talks for `ms`: the recorder hears a sound; returns when the sound began."""

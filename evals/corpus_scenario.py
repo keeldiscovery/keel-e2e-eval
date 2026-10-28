@@ -39,7 +39,7 @@ one leg and leave the others alone:
                       idea's current name (keel-cloud 090); the founder reads after each person.
 10. `leg_standings` -- `GET standings` against the entry's `expected.standings` and `expected.vector_verdicts`
                       (codes mapped onto the wire's), then the report's Overview (keel-web 077) and the three
-                      stage pages, one row's per-person list and every rung's *One last thing* line among them.
+                      stage pages, one row's per-person list and every rung's *One more thing* line among them.
 11. `leg_report`   -- the report on the wire (keel-cloud 104, spec 052): a card per dimension equal to the
                       eval's own reading of the entry (`instructions/brief_facts.py`, which the DRY compare
                       holds equal to keel-cloud's), what broke, the pilot and the price median; then keel-web
@@ -2751,17 +2751,18 @@ def _answer_one(j: Journey, person, token: str) -> None:
         # refused microphone; everyone else's page runs with no seam at all -- and on the remote profile no page does
         speak = _speak_for(j, person)
         if speak:
-            stranger.add_init_script(ivs.text_seam(refused=speak == "refused"))
+            # spec 075 FR-5 (keel-web 126 FR-4): a take's permission sheet held until the walk grants it (*asking*)
+            stranger.add_init_script(ivs.text_seam(refused=speak == "refused", held=speak in ("quiet", "done")))
         # spec 064 FR-7 (keel-cloud 118 FR-4): the deciding lines of the standings this person answers into are walked
         # first -- read off the served standings (`interviewer_fake.deciding_lines`), never recounted here. Spec 075
         # (keel-cloud 142, keel-web 124): every follow-up the page asks, in the order asked -- each right after the
-        # item it hangs on (*About that*), at most two, the end's (*One last thing*) only for a rung still owed --
+        # item it hangs on, at most two, the end's only for a rung still owed, every one under *One more thing* --
         # and on each the line the person types for that rung (`vs.follow_up_line`), None a skip
         inside = getattr(person, "in_segment", True)
         walks_rungs = person.link == vs.LINK_B2B or bool(person.recency and inside)
         deciding = _deciding_now(j) if walks_rungs else []
         # spec 075 (judgement call): one person a golden journey has their call after their rung's item held past the
-        # beat, so the end's *One last thing* is met too
+        # beat, so the end's follow-up is met too
         late = [a["on"] for a in vs.follow_up_plan(j.entry, person.picks, person.link, interview, token,
                                                    first=deciding, line=_served_line(j))[:1]
                 if a.get("on")] if walks_rungs and j.strict and person.person in vs.LATE_FOLLOW_UPS.get(
@@ -2934,8 +2935,10 @@ def _hold_the_box(j: Journey, person, interview: dict, walked: dict, expected: d
     waveform, the clock *m:ss · up to 1:00*, Cancel and Done, Continue off; T3 *Writing it down…* with *Microphone off*;
     T4 heard -- the fake transcriber's words **appended** to what was typed, the caret at the end, *Heard you.*, the pill
     *Add more*; `transcribe` with `maxSeconds` 60 against the gate's item; the take ended by the 4 s quiet or by Done.
-    T6 (refused): the tap asks once, the pill goes, the footer says so, the story is typed. Returns the body the page
-    owes: the story as the box holds it."""
+    T6 (refused): the tap asks once, the pill goes, the footer says so, the story is typed. Spec 075 FR-5 (keel-web 126
+    FR-4): between the tap and T2 the box is *asking* (the permission sheet held by the seam), and the microphone is
+    kept through the take and let go on the done screen. Returns the body the page owes: the story as the box holds
+    it."""
     x = walked.get("speak") or {}
     gate_item = (interview.get("gate") or {}).get("itemId")
     with _step(j, f"{person.person}: the story's box -- speak or type (keel-web 076, T1 -> T4" +
@@ -2966,13 +2969,31 @@ def _hold_the_box(j: Journey, person, interview: dict, walked: dict, expected: d
             ended_ms = round((counts.get("stops") or [0])[-1] - x["quiet_at"]) if counts.get("stops") else None
         record.update({"t2": t2, "t3": t3, "t4": t4, "transcribed": heard, "appended": words, "want": want,
                        "continue_enabled_listening": x.get("continue_enabled_listening"), "counts": counts,
-                       "quiet_to_stop_ms": ended_ms, "sent": (walked.get("body") or {}).get("story")})
+                       "quiet_to_stop_ms": ended_ms, "sent": (walked.get("body") or {}).get("story"),
+                       # spec 075 FR-5 (keel-web 126 FR-4): the asking state, and the microphone kept, then let go
+                       "asking": x.get("asking"), "asking_counts": x.get("asking_counts"),
+                       "continue_enabled_asking": x.get("continue_enabled_asking"),
+                       "released_at_done": x.get("released_at_done")})
         h.record_assert({"t2": {"state": "listening", "card": True, "wave": True, "clock": f"m:ss · up to "
                                                                                        f"{ivs.STORY_CAP}"},
                          "t3": {"state": "writing", "writing": ivs.WRITING_DOWN, "footer": ivs.MIC_OFF},
                          "t4": {"state": "heard", "value": want, "caret": len(want), "footer": ivs.SPEAK_HEARD,
                                 "pill": ivs.SPEAK_ADD_MORE},
                          "transcribe": {"itemId": gate_item, "maxSeconds": 60, "status": 200}}, record)
+        # keel-web 126 FR-4: *asking* between the tap and the recorder running -- the line and Cancel, no waveform, no
+        # clock, no Done, the microphone asked once and nothing recorded, Continue off
+        asking, during = x.get("asking") or {}, x.get("asking_counts") or {}
+        h.record_assert({"asking": {"state": "asking", "line": ivs.SPEAK_ASKING, "cancel": True, "wave": False,
+                                    "clock": None, "acquired": 1, "recordings": 0, "continue": False},
+                         "released": {"at T4": "as before the pill", "on the done screen": "more"}},
+                        {"asking": asking, "during": during, "continue": x.get("continue_enabled_asking"),
+                         "released": {"before the pill": before.get("released"), "at T4": counts.get("released"),
+                                      "on the done screen": x.get("released_at_done")}})
+        assert asking.get("state") == "asking" and asking.get("asking") == ivs.SPEAK_ASKING, asking
+        assert asking.get("cancel") and not asking.get("wave") and not asking.get("clock") and not asking.get("done"), \
+            asking
+        assert during.get("acquired") == 1 and not during.get("starts"), during
+        assert x.get("continue_enabled_asking") is False, x.get("continue_enabled_asking")
         assert t2.get("state") == "listening" and t2.get("card") and t2.get("wave"), t2
         assert t2.get("cancel") and t2.get("done"), t2
         assert (t2.get("clock") or "").endswith(f"· up to {ivs.STORY_CAP}"), t2
@@ -2992,6 +3013,11 @@ def _hold_the_box(j: Journey, person, interview: dict, walked: dict, expected: d
             assert ended_ms is not None and ivs.SILENCE_FREE_MS - 500 <= ended_ms <= ivs.SILENCE_FREE_MS + 500, ended_ms
         else:
             assert x.get("done_at") is not None and (counts.get("stops") or [0])[-1] >= x["done_at"], x
+        # keel-web 126 FR-4: the take's end stopped the recorder and let nothing go (a dev build's StrictMode may stamp
+        # one release at load, before the pill); the page let the microphone go on the done screen
+        assert counts.get("released") == before.get("released"), {"before": before, "at T4": counts}
+        assert (x.get("released_at_done") or 0) > (counts.get("released") or 0), \
+            {"at T4": counts.get("released"), "on done": x.get("released_at_done")}
         j.speak[person.person] = record
     return {**expected, "story": want}
 
@@ -3002,8 +3028,8 @@ def _hold_the_follow_up(j: Journey, person, interview: dict, walked: dict, plan:
     and *Send my answers*, posted the answers so far to the follow-up route with `asked` (never after a gate No, never
     once two were asked); it answered 200 exactly where the harness's own walk (`vs.follow_up_plan`) asks a follow-up,
     on that rung, `asked` the rungs asked before it, its text the harness's own composition (judgement call 1), the
-    spoken wording the registry's, no clip on a text link; each screen drew *About that* right after the item it hangs
-    on (the end's *One last thing* only for a rung still owed), that text, the note, the box -- *The only extra
+    spoken wording the registry's, no clip on a text link; each screen drew *One more thing* (keel-web 126 FR-5) right
+    after the item it hangs on (the end's only for a rung still owed), that text, the note, the box -- *The only extra
     question.* only on the end's with none asked before it -- *Continue* off while empty and *Skip this one*; the
     response's `followUps` are the lines typed (TYPED, `skipped` false) in the order asked, a skip not sent -- and none
     when nothing is owed."""
@@ -3026,8 +3052,7 @@ def _hold_the_follow_up(j: Journey, person, interview: dict, walked: dict, plan:
         j.follow_ups[person.person] = record
         h.record_assert({"routes": "200 on each planned rung, 204 elsewhere" if asked else "not called",
                          "plan": [{k: a.get(k) for k in ("dimension", "text", "on")} for a in plan],
-                         "screens": [{"kicker": ivs.FOLLOW_UP_SPOT_KICKER if a.get("on") else ivs.FOLLOW_UP_KICKER,
-                                      **FOLLOW_UP_SCREEN} for a in plan],
+                         "screens": [{"kicker": ivs.FOLLOW_UP_KICKER, **FOLLOW_UP_SCREEN} for a in plan],
                          "followUps": want}, record)
         assert "followUp" not in body_sent, {"the deprecated followUp was sent": body_sent.get("followUp")}
         if not asked:
@@ -3074,7 +3099,8 @@ def _hold_the_follow_up(j: Journey, person, interview: dict, walked: dict, plan:
                 assert body.get("text") == a["text"], {"route": body.get("text"), "harness": a["text"]}
             spot = a.get("on") is not None
             assert f.get("on") == a.get("on"), {"asked after": f.get("on"), "want": a.get("on")}
-            assert f.get("kicker") == (ivs.FOLLOW_UP_SPOT_KICKER if spot else ivs.FOLLOW_UP_KICKER), f
+            # keel-web 126 FR-5 (spec 075 FR-5): one kicker, on the spot and at the end
+            assert f.get("kicker") == ivs.FOLLOW_UP_KICKER, f
             assert f.get("question") == body.get("text"), f
             assert f.get("note") == ivs.FOLLOW_UP_NOTE and f.get("skip") == ivs.FOLLOW_UP_SKIP, f
             # keel-web 124: the box's hint only where it is true -- the end's, with none asked before it
@@ -3625,7 +3651,8 @@ def _vector_page(j: Journey, vector: str) -> None:
         _hold_the_ability_line(j, next(d for d in rows if d.get("dimension") == ABILITY), page)
     if rungs:
         with _step(j, f"the {vector.lower()} page: every person who answered the follow-up shows it under their name, "
-                      "One last thing · {rung}: \"...\" (design §5.4, spec 052 FR-8)", party="founder") as h:
+                      "One more thing · {rung}: \"...\" (design §5.4, spec 052 FR-8; keel-web 126 FR-5)",
+                 party="founder") as h:
             want = {d.get("dimension"): [{"name": p.get("personName"), "line": follow_up_line(d.get("name"),
                                                                                               p.get("followUp"))}
                                          for p in d.get("people") or [] if p.get("followUp")]
@@ -3663,8 +3690,9 @@ def _hold_the_ability_line(j: Journey, row: dict, page: dict) -> None:
 
 
 def follow_up_line(rung: str, text: str) -> str:
-    """keel-web's per-person follow-up line on a stage page (design §5.4): *One last thing · {rung}: "{text}"*."""
-    return f"{report_marks.ONE_LAST_THING} · {rung}: \u201c{text}\u201d"
+    """keel-web's per-person follow-up line on a stage page (design §5.4): *One more thing · {rung}: "{text}"*
+    (`followUpLine`, keel-web 126 FR-5; *One last thing* before)."""
+    return f"{report_marks.ONE_MORE_THING} · {rung}: \u201c{text}\u201d"
 
 
 # -------------------------------------------------------------------------------- leg 8: the report

@@ -1,5 +1,6 @@
 """Spec 075: the harness follows keel-cloud 139-142 and keel-web 122-124 -- up to two follow-ups, each asked right
-after the answer it hangs on (*About that*), the end's (*One last thing*) only for a rung still owed; `asked[]` on the
+after the answer it hangs on, the end's only for a rung still owed (every one under *One more thing* since keel-web
+126; *About that* and *One last thing* before); `asked[]` on the
 route, `followUps[]` on the response and on `PilotPerson`; the money-only study's one kind; the cost step's *Per* and
 *of* and its rate row; the Price step's cost box in hours; Ability to pay said as Keel's reading.
 
@@ -126,15 +127,21 @@ def test_the_plan_composes_each_question_and_where_it_hangs():
 
 # ------------------------------------------------------------------------------ FR-1: the words, keel-web 124
 
-def test_the_spot_kicker_and_the_cap_are_keel_webs():
+def test_the_one_kicker_and_the_cap_are_keel_webs():
+    """Spec 075 FR-5 (keel-web 126 FR-5): one kicker, *One more thing*, on the spot and at the end -- the spot's
+    `FOLLOW_UP_SPOT_KICKER` is gone from keel-web, and from the harness's three copies."""
     text = _web("src/lib/translate.ts")
-    assert re.search(r'export const FOLLOW_UP_SPOT_KICKER = "([^"]*)";', text).group(1) == ivs.FOLLOW_UP_SPOT_KICKER \
-        == fake.FOLLOW_UP_SPOT_KICKER == marks.FOLLOW_UP_SPOT_KICKER == "About that"
+    assert re.search(r'export const FOLLOW_UP_KICKER = "([^"]*)";', text).group(1) == ivs.FOLLOW_UP_KICKER \
+        == fake.FOLLOW_UP_KICKER == marks.FOLLOW_UP_KICKER == "One more thing"
+    assert "FOLLOW_UP_SPOT_KICKER" not in text
+    assert not any(hasattr(m, "FOLLOW_UP_SPOT_KICKER") for m in (ivs, fake, marks))
     flow = _web("src/lib/aiInterviewFlow.ts")
     assert re.search(r"export const MAX_FOLLOW_UPS = (\d+);", flow).group(1) == str(ivs.MAX_FOLLOW_UPS)
     page = _web("src/routes/participant/RespondentInterview.tsx")
-    assert "kicker={spot ? FOLLOW_UP_SPOT_KICKER : FOLLOW_UP_KICKER}" in page
-    assert "only={!spot && followUps.length === 1}" in page
+    assert "FOLLOW_UP_SPOT_KICKER" not in page and "only={!spot && followUps.length === 1}" in page
+    screen = _web("src/components/interview/FollowUpScreen.tsx")
+    assert "kicker = FOLLOW_UP_KICKER," in screen
+    assert "followUpLine = (rung: string, text: string): string => `${FOLLOW_UP_KICKER} · ${rung}:" in text
 
 
 def test_the_response_and_the_pilot_person_carry_the_list():
@@ -148,10 +155,11 @@ def test_the_response_and_the_pilot_person_carry_the_list():
               "followUps": [{"dimension": IMP, "text": "a"}, {"dimension": CUR, "text": "b"}],
               "followUp": {"dimension": IMP, "text": "a"}}
     inside = report_marks.expected_person(standings, person)["inside"]
-    assert inside[-6:] == ["One last thing", "Importance", "a", "One last thing", "Current solution", "b"]
+    assert inside[-6:] == ["One more thing", "Importance", "a", "One more thing", "Current solution", "b"]
     # a read before contract 41: the one `followUp`
     old = dict(person, followUps=None)
-    assert report_marks.expected_person(standings, old)["inside"][-3:] == ["One last thing", "Importance", "a"]
+    assert report_marks.expected_person(standings, old)["inside"][-3:] == ["One more thing", "Importance", "a"]
+    assert cs.follow_up_line("Importance", "a") == "One more thing · Importance: \u201ca\u201d"
 
 
 def test_the_stored_follow_ups_read_the_list_of_document_32():
@@ -194,15 +202,15 @@ SCREEN = """
 """
 
 
-def _screen_walk(page, kicker: str, question: str, rung: str, lines, *, hint: str = "", line_for=None):
-    page.set_content(SCREEN.format(kicker=kicker, question=question, hint=hint))
+def _screen_walk(page, on: str | None, question: str, rung: str, lines, *, hint: str = "", line_for=None):
+    page.set_content(SCREEN.format(kicker=ivs.FOLLOW_UP_KICKER, question=question, hint=hint))
     walk = vs_screens.Interview(page, _Recorder())
     walk._lines, walk._line_for, walk.follow_ups_seen, walk.follow_up_seen = lines, line_for, [], None
     walk._route_responses = [_Reply(204, {}, {"answers": []}),
                              _Reply(200, {"dimension": rung, "text": question, "itemId": "f"},
                                     {"answers": [], "asked": [IMP]})]
     walk._responded = False
-    drawn = walk._follow_up_screen(RA if kicker == ivs.FOLLOW_UP_SPOT_KICKER else None)
+    drawn = walk._follow_up_screen(on)
     walk._after_follow_up(drawn)
     return drawn, page.evaluate("window.__typed || null")
 
@@ -221,17 +229,42 @@ def test_the_text_links_follow_up_screen_is_read_and_answered_by_its_rung():
         try:
             page = browser.new_page()
             q = "You said it would not have made much difference. What would have?"
-            drawn, typed = _screen_walk(page, ivs.FOLLOW_UP_SPOT_KICKER, q, RA, lambda r: {RA: "Fewer emails."}.get(r))
-            assert (drawn["on"], drawn["kicker"], drawn["question"], drawn["rung"]) == (RA, "About that", q, RA)
+            drawn, typed = _screen_walk(page, RA, q, RA, lambda r: {RA: "Fewer emails."}.get(r))
+            assert (drawn["on"], drawn["kicker"], drawn["question"], drawn["rung"]) == (RA, "One more thing", q, RA)
             assert drawn["did"] == "typed" and typed == "Fewer emails." and drawn["only"] is False
             assert drawn["continue_enabled_empty"] is False and drawn["continue_enabled_typed"] is True
             assert drawn["route"]["sent"]["asked"] == [IMP]
             # the end's, with its hint: no line for the rung -> Skip this one
-            drawn, typed = _screen_walk(page, ivs.FOLLOW_UP_KICKER, q, RA, lambda r: None, hint=ivs.FOLLOW_UP_HINT)
+            drawn, typed = _screen_walk(page, None, q, RA, lambda r: None, hint=ivs.FOLLOW_UP_HINT)
             assert (drawn["on"], drawn["did"], drawn["only"], typed) == (None, "skipped", True, None)
             # a line written for another rung is never typed on this one (spec 067 FR-3)
-            drawn, typed = _screen_walk(page, ivs.FOLLOW_UP_SPOT_KICKER, q, RA, lambda r: "Mine.", line_for=COMMIT)
+            drawn, typed = _screen_walk(page, RA, q, RA, lambda r: "Mine.", line_for=COMMIT)
             assert drawn["did"] == "skipped" and drawn["line_for"] == COMMIT and typed is None
+        finally:
+            browser.close()
+
+
+def test_after_send_the_spot_is_told_from_the_end_by_its_rung():
+    """Spec 075 FR-5 (keel-web 126 FR-5): with one kicker, the follow-ups *Send my answers* opens are told apart by the
+    rung the route answered -- the last item's own is asked on the spot (`on` that item), any other is the end's."""
+    from playwright.sync_api import sync_playwright                         # noqa: PLC0415
+
+    interview = {"parts": [{"items": [{"dimension": IMP}, {"dimension": RA}]}]}
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page()
+            for rung, want in ((RA, RA), (COMMIT, None)):
+                q = f"About {rung}?"
+                page.set_content(SCREEN.format(kicker=ivs.FOLLOW_UP_KICKER, question=q, hint=""))
+                walk = vs_screens.Interview(page, _Recorder())
+                walk._lines, walk._line_for, walk.follow_ups_seen, walk.follow_up_seen = (lambda r: None), None, [], None
+                walk._route_responses = [_Reply(200, {"dimension": rung, "text": q, "itemId": "f"},
+                                                {"answers": [], "asked": []})]
+                walk._responded = False
+                walk._end_follow_ups(interview, timeout_s=0.5)
+                assert [(d["on"], d["rung"], d["kicker"]) for d in walk.follow_ups_seen] == \
+                    [(want, rung, "One more thing")]
         finally:
             browser.close()
 
@@ -328,5 +361,6 @@ def test_the_versions_move_as_the_spec_says():
     from instructions import corpus as corpus_mod                       # noqa: PLC0415
     from instructions import marks as instruction_marks                 # noqa: PLC0415
 
-    assert marks.INTERVIEWER_MARKS_VERSION == 10
+    # spec 075 FR-1 moved it to 10; FR-5 (keel-cloud 144, keel-web 126) to 11 -- IM23, IM26, IM27 re-pinned
+    assert marks.INTERVIEWER_MARKS_VERSION == 11
     assert instruction_marks.MARKS_VERSION == 20 and corpus_mod.REVISION == 16

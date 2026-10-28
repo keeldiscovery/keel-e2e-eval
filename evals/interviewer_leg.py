@@ -105,6 +105,12 @@ HEAR_WAIT_REMOTE_S = 90
 #: The balance the change is refused at (stand-in 2): under one change (400), over nothing else the leg needs.
 LOW_BALANCE = 100
 AI_PERSON = "Someone the founder knows, by voice"
+#: Spec 075 FR-5 (keel-cloud 144 FR-1, keel-web 126 FR-2): the founder's story on Try it yourself -- said into the
+#: story's window, written down through `POST /v2/projects/{id}/interviewer/transcribe` on the gate's id (the stack's
+#: fake hears the words the recording carries) and taken as the story, never a miss.
+DRY_RUN_STORY = "Last spring we waited six weeks for one approved invoice to be paid."
+#: The words a dry run's story read as a miss before keel-web 126 (an empty transcript), and 126's free-window words.
+DRY_RUN_MISS_WORDS = (ivs.AI_REASON_NO_MATCH, ivs.AI_REASON_DIDNT_CATCH, ivs.AI_SECOND_MISS_FREE)
 CHOICE_PERSON = "Someone the founder knows, who picks"
 #: Spec 048 (keel-cloud 099 FR-4 / FR-7): an AI link answered from the recorded path, on the wire.
 RECORDED_PERSON = "Someone the founder knows, whose browser records"
@@ -713,7 +719,7 @@ def _the_recording(j, wire: _Wire, record: dict) -> None:
 def _follow_up_clips(j, record: dict, tries: dict) -> None:
     """Spec 051 (keel-cloud 103 FR-6), IM27's record and a plain assertion: every role's set holds one FOLLOW_UP clip
     per rung its link walks (the served `followUps[]`: five on a B2B practitioner's link, three on the decision-maker's,
-    every rung a B2C link serves), each saying *One last thing.* and the registry's spoken wording, DONE -- and the
+    every rung a B2C link serves), each saying *One more thing.* (keel-cloud 144 FR-2) and the registry's spoken wording, DONE -- and the
     served `clips.followUp` names exactly those rungs."""
     sets = fake.role_sets(record["recording"])
     roles = {}
@@ -726,9 +732,10 @@ def _follow_up_clips(j, record: dict, tries: dict) -> None:
                        "served": sorted(((served.get("interviewer") or {}).get("clips") or {}).get("followUp") or {})}
     record["follow_up_clips"] = {"roles": roles, "full": not record.get("short")}
     with j.recorder.step("interviewer (keel-cloud 103 FR-6): every role holds one FOLLOW_UP clip per rung its link "
-                         "walks -- One last thing. and the rung's spoken wording, DONE -- and serves them by rung",
+                         "walks -- One more thing. (keel-cloud 144) and the rung's spoken wording, DONE -- and serves "
+                         "them by rung",
                          party="stack", kind="assert") as h:
-        h.record_assert({link: {"rungs": r["want"], "script": "One last thing. {spoken}"} for link, r in roles.items()},
+        h.record_assert({link: {"rungs": r["want"], "script": f"{fake.ONE_MORE_THING} {{spoken}}"} for link, r in roles.items()},
                         roles)
         for link, r in roles.items():
             # keel-cloud 118: a rung may carry a second *#also* clip (its deciding line's other half); it rides beside
@@ -739,7 +746,7 @@ def _follow_up_clips(j, record: dict, tries: dict) -> None:
             assert all(c["script"] == fake.follow_up_script(fake.rung(c["itemId"])[3]) and c["status"] == "DONE"
                        for c in rung_clips), (link, r["clips"])
             assert all(c["itemId"].split("#")[0] in r["want"] and c["status"] == "DONE"
-                       and c["script"].startswith("One last thing.") for c in also), (link, also)
+                       and c["script"].startswith(fake.ONE_MORE_THING) for c in also), (link, also)
             assert all(r["spoken"][d] == fake.rung(d)[3] for d in r["want"]), (link, r["spoken"])
             assert r["served"] == sorted(r["want"]), (link, r["served"])
 
@@ -800,7 +807,7 @@ def _backfill(j, wire: _Wire, record: dict) -> None:
     Spec 051 FR-8 (keel-cloud 103 FR-6), on the same read: the recording is also made one from before 103 -- STAND-IN 5,
     its FOLLOW_UP clips taken out (`stack.ledger.stand_in_no_follow_ups`) -- so the first read serves `clips.followUp`
     `{}` and queues one line per rung per role at no charge; then each rung's clip is stored again, DONE, in the same
-    words (*One last thing.* and the registry's spoken wording), and served."""
+    words (*One more thing.* -- keel-cloud 144 -- and the registry's spoken wording), and served."""
     rec = record["recording"]
     today = {c["id"]: c for c in rec.get("clips") or [] if c.get("kind") in ("OPENING", "PROBLEM", "SOLUTION")}
     old = {cid: fake.before_101(c["kind"], c["script"]) for cid, c in today.items()}
@@ -900,7 +907,7 @@ def _dry_run(j, wire: _Wire, record: dict) -> None:
         player = served.get("interviewer") or {}
         opening = (player.get("clips") or {}).get("opening") or {}
         founder_clip = wire.clip(opening.get("url") or "", "bytes=0-99")
-        drawn = _dry_run_on_screen(j)
+        drawn = _dry_run_on_screen(j, served)
         after = _counts(j, wire, record)
         clips = len(_all_clips(player.get("clips") or {})) + sum(
             1 + (1 if v.get("more") else 0) for v in (player.get("items") or {}).values())
@@ -930,6 +937,14 @@ def _dry_run(j, wire: _Wire, record: dict) -> None:
         assert any(r["url"].split("?")[0].endswith(f"/v2/projects/{j.project_id}/interviewer/answer")
                    for r in drawn["reads"]), drawn["reads"]
         assert not any(r["url"].split("?")[0].endswith("/classify") for r in drawn["reads"]), drawn["reads"]
+        # spec 075 FR-5 (keel-cloud 144 FR-1, keel-web 126 FR-2): the dry run writes down as a link does -- the hello
+        # and the story through the founder's own `interviewer/transcribe`, the story taken (never a miss)
+        faults = dry_run_written_down(drawn, (served.get("gate") or {}).get("itemId"), DRY_RUN_STORY)
+        h.record_assert({"hello": {"route": "interviewer/transcribe", "status": 200, "text": "hello"},
+                         "story": {"route": "interviewer/transcribe", "itemId": (served.get("gate") or {}).get("itemId"),
+                                   "status": 200, "text": DRY_RUN_STORY, "held": True, "miss words": []}},
+                        {"transcribed": drawn.get("transcribed"), "story": drawn.get("story"), "faults": faults})
+        assert not faults, faults
     _dry_run_guard(j, wire, record, served)
 
 
@@ -964,12 +979,78 @@ def _dry_run_guard(j, wire: _Wire, record: dict, served: dict) -> None:
         assert before == after, (before, after)
 
 
-def _dry_run_on_screen(j) -> dict:
+def dry_run_written_down(drawn: dict, gate_item: str | None, story: str) -> list[str]:
+    """Spec 075 FR-5 (keel-cloud 144 FR-1, keel-web 126 FR-2), judged off what the dry run's screen did: the hello
+    written down through the founder's `interviewer/transcribe` (200, *hello*) and never read through `interviewer/
+    answer` (126 retired that workaround); the story said into its window written down through the same route on the
+    gate's id (200, the words said) and taken -- held, no miss words on its window (*That didn't match an option*,
+    126's didn't-catch lines), never tagged *not taken*. The faults, by name; none is right."""
+    faults = []
+    said = drawn.get("transcribed") or []
+    hello = [t for t in said if (t.get("text") or "").strip().lower() == "hello"]
+    if not hello or any(t.get("status") != 200 for t in hello):
+        faults.append("the hello was not written down through interviewer/transcribe")
+    answered = [r for r in drawn.get("answered") or [] if (r.get("heard") or "").strip().lower() == "hello"]
+    if answered:
+        faults.append("the hello was read through interviewer/answer (the workaround keel-web 126 retired)")
+    x = drawn.get("story") or {}
+    if not x.get("reached"):
+        faults.append("the dry run never reached the story's window")
+        return faults
+    on_gate = [t for t in said if t.get("itemId") == gate_item]
+    if len(on_gate) != 1 or on_gate[0].get("status") != 200:
+        faults.append(f"the story was not written down once on the gate's id: {on_gate}")
+    elif " ".join((on_gate[0].get("text") or "").split()) != " ".join(story.split()):
+        faults.append(f"the story was written down as {on_gate[0].get('text')!r}")
+    if on_gate and on_gate[0].get("maxSeconds") not in (None, 60):
+        faults.append(f"the story's window sent maxSeconds {on_gate[0].get('maxSeconds')}")
+    if ivs.HELD not in ((x.get("hold") or {}).get("status") or ""):
+        faults.append(f"the story was not held: {(x.get('hold') or {}).get('status')!r}")
+    seen = " ".join([x.get("sheet_text") or ""] + [str(v.get("status")) for v in x.get("statuses") or []])
+    missed = [w for w in DRY_RUN_MISS_WORDS if w in seen]
+    if missed or ivs.TAG_NOT_TAKEN in ((x.get("hold") or {}).get("heard") or ""):
+        faults.append(f"the story read as a miss: {missed or ivs.TAG_NOT_TAKEN}")
+    return faults
+
+
+def _dry_run_story(player, served: dict) -> dict:
+    """Spec 075 FR-5: after the first answer, on to the story -- a segment chip or the gate answered "yes" and held on
+    the way -- then the story said into its window (ended by the pause) and its hold read. What it drew."""
+    gate = served.get("gate") or {}
+    condition = gate.get("condition") or {}
+    on_the_way = []
+    for _ in range(3):
+        player.wait_phase("listening", timeout_s=40)
+        q = player.question()
+        if q and q in (gate.get("question"), condition.get("question")):
+            player.wait_listening()
+            player.say("yes", True)
+            on_the_way.append({"question": q, "hold": player.hold(timeout_s=30)})
+            continue
+        try:
+            status_before = player.wait_status(ivs.STORY, timeout_s=10)
+        except AssertionError:
+            return {"reached": False, "question": q, "status": player.status(), "on_the_way": on_the_way}
+        player.wait_listening()
+        said_at = _now(player)
+        player.say(DRY_RUN_STORY, True)
+        hold = player.hold(timeout_s=30)
+        statuses = [v for v in player.statuses() if v.get("question") == q]
+        return {"reached": True, "question": q, "status_before": status_before, "said": DRY_RUN_STORY,
+                "said_at": said_at, "hold": hold, "statuses": statuses, "on_the_way": on_the_way,
+                "sheet_text": " ".join((player.page.get_by_test_id("ai-sheet").first.text_content() or "").split())
+                if player.page.get_by_test_id("ai-sheet").count() else ""}
+    return {"reached": False, "on_the_way": on_the_way}
+
+
+def _dry_run_on_screen(j, served: dict | None = None) -> dict:
     """keel-web 069 FR-007 and 072 on the founder's own page: *Try it yourself* on the specialists' card, *Test your
     mic* ("hello"), *Start the interview* (the opening plays on the one `<video>`), the first question answered aloud
     through the seam and **held** -- the walkthrough's frame of the hold photographed -- then End: *Nothing was
     stored.*, and the page posted nothing but the answer path's reads (the founder's own `interviewer/classify`, which
-    store nothing; keel-cloud 099 T011)."""
+    store nothing; keel-cloud 099 T011). Spec 075 FR-5 (keel-cloud 144, keel-web 126 FR-2): before End the walk goes on
+    to the story (through the gate, held) and says it; every `interviewer/transcribe` the page sent is kept
+    (`transcribed`: the item, `maxSeconds`, the status, the words written down) -- the hello's and the story's."""
     j.context.add_init_script(ivs.SPEECH_SEAM)
     j.context.add_init_script(ivs.FLOW_TIMELINE)
     persona = _persona(j)
@@ -979,9 +1060,16 @@ def _dry_run_on_screen(j) -> dict:
     # route is loaded once more (same URL) before anything is said
     j.page.reload(wait_until="load")
     player = ivs.Player(j.page, j.recorder, party="founder", patience=j.patience)
+    transcribes: list = []
+
+    def keep(response) -> None:
+        if response.request.method == "POST" and response.url.split("?")[0].endswith("/interviewer/transcribe"):
+            transcribes.append(response)
+
+    j.page.on("response", keep)
     try:
         with player.step("founder tries the interview: Test your mic, Start the interview, one answer aloud and held, "
-                         "End") as h:
+                         "on to the story, said and written down (keel-web 126), End") as h:
             try:
                 j.page.get_by_test_id("ai-intro").wait_for(state="visible", timeout=30_000)
                 player.requests.clear()
@@ -996,6 +1084,9 @@ def _dry_run_on_screen(j) -> dict:
                 h.add_screenshot(player.screenshot("try-hold"))     # the walkthrough's frame: the hold
                 hold = player.hold()
                 where = player.stage()["where"]
+                story = _dry_run_story(player, served or {})   # spec 075 FR-5: the story written down
+                if story.get("reached"):
+                    h.add_screenshot(player.screenshot("try-story"))
                 player.end()                                   # the dry run stops at End (069 FR-007)
                 done = player.done()
                 mic_off = player.mic_off()                     # keel-web 075 FR-4: the dry run's done screen too
@@ -1007,9 +1098,24 @@ def _dry_run_on_screen(j) -> dict:
             posts = [r for r in player.requests if r["method"] != "GET"]
             return {"mark": stage["mark"], "first": first, "pilot_where": where, "done": done, "writes": posts,
                     "videos": stage["videos"], "mic": mic, "hold": hold, "mic_off": mic_off,
-                    "reads": [r for r in posts if marks.READS.search(r["url"].split("?")[0])]}
+                    "reads": [r for r in posts if marks.READS.search(r["url"].split("?")[0])],
+                    "story": story, "transcribed": [_transcribed(r) for r in transcribes],
+                    "answered": [{"url": c["url"], "heard": (c.get("body") or {}).get("heard")}
+                                 for c in player.classified if c["url"].split("?")[0].endswith("/interviewer/answer")]}
     finally:
         j.page.remove_listener("request", player._keep)
+        j.page.remove_listener("response", keep)
+
+
+def _transcribed(response) -> dict:
+    """One `transcribe` the page sent, read after the walk: the item, `maxSeconds`, the status, the words."""
+    body = response.request.post_data_json or {}
+    try:
+        got = response.json() if response.status == 200 else {}
+    except Exception:  # noqa: BLE001 - a body that is not JSON
+        got = {}
+    return {"itemId": body.get("itemId"), "maxSeconds": body.get("maxSeconds"), "status": response.status,
+            "text": got.get("text"), "url": response.url.split("?")[0]}
 
 
 def _send_link(j, fmt: str, person: str) -> dict:
@@ -1082,6 +1188,7 @@ def _ai_link(j, wire: _Wire, record: dict, *, answer: bool) -> None:
     _classifier_guard(j, wire, record, made, interview)
     if not record.get("short"):
         _dry_run_follow_up(j, wire, record, interview, made["token"])
+        _dry_run_transcribe(j, wire, record, interview)
     if answer:
         _answer_ai_on_screen(j, wire, record, made, interview)
 
@@ -1156,6 +1263,64 @@ def _dry_run_follow_up(j, wire: _Wire, record: dict, interview: dict, token: str
             f"/v2/projects/{j.project_id}/interviewer/clips/"), (clip, want_clip)
         assert fetched.get("status") == 206, fetched
         assert none == 204, (none, nothing)
+        assert before == after, (before, after)
+
+
+def _said_audio(words: str) -> str:
+    """What the page's recorder hands back for `words` (keel-web 115's fake, `ivs.SPEECH_SEAM`): their UTF-8 bytes
+    zero-padded to 20 KiB, base64 -- keel-cloud 136's `FakeTranscriber` trims the padding and hears the words."""
+    import base64                                                             # noqa: PLC0415
+
+    raw = words.encode("utf-8")
+    return base64.b64encode(raw + b"\x00" * max(0, 20 * 1024 - len(raw))).decode("ascii")
+
+
+def _dry_run_transcribe(j, wire: _Wire, record: dict, interview: dict) -> None:
+    """Spec 075 FR-5 (keel-cloud 144 FR-1, contract 42) on the wire: `POST /v2/projects/{id}/interviewer/transcribe`
+    on Try it yourself's own ids, as the link's `transcribe` is -- the dry run's gate id is the story (written down,
+    the cap absent or 60), the follow-up twin's `itemId` the follow-up (120), any other served item the mic test; an id
+    no role serves and a link's own gate id refused 422 ITEM_NOT_ON_FORM, `maxSeconds` 90 422 SHAPE_MISMATCH, all
+    before the transcriber; nothing stored (no invitation, response, pilot or ledger row). The stack's fake transcriber
+    serves the route as it serves the link's: it hears the words the recording carries."""
+    _, tried = wire("GET", f"/interviewer/try/{_role_ids(j)[vs.LINK_PRIMARY]}")
+    gate_id = (tried.get("gate") or {}).get("itemId")
+    follow_id = ((((record.get("dry_run") or {}).get("follow_up") or {}).get("body")) or {}).get("itemId")
+    item_id = next((i.get("itemId") for part in tried.get("parts") or [] for i in part.get("items") or []), None)
+    link_gate = (interview.get("gate") or {}).get("itemId")
+    language = j.entry.market["language"]
+    story, line = DRY_RUN_STORY, "Mostly the chasing, every week."
+
+    def post(item: str | None, words: str, seconds: int | None = None) -> dict:
+        body = {"itemId": item, "audio": _said_audio(words), "mimeType": "audio/webm", "language": language}
+        if seconds is not None:
+            body["maxSeconds"] = seconds
+        status, got = j.call("POST", j.project("/interviewer/transcribe"), body, ok=(200, 409, 422))
+        return {"itemId": item, "maxSeconds": seconds, "status": status, **(got if isinstance(got, dict) else {})}
+
+    with j.recorder.step("interviewer (keel-cloud 144 FR-1, contract 42): Try it yourself writes down through its own "
+                         "transcribe route -- the story on the dry run's gate id, the follow-up on the twin's id (120), "
+                         "an item as the mic test; an id no role serves and a link's gate 422 ITEM_NOT_ON_FORM, 90 s "
+                         "422 SHAPE_MISMATCH; nothing stored", party="founder", kind="assert") as h:
+        before = _counts(j, wire, record)
+        out = {"story": post(gate_id, story), "story_60": post(gate_id, story, 60),
+               "follow_up": post(follow_id, line, 120), "item": post(item_id, "hello"),
+               "unknown": post(str(uuid.uuid4()), story), "link_gate": post(link_gate, story),
+               "over": post(gate_id, story, 90)}
+        after = _counts(j, wire, record)
+        out.update({"before": before, "after": after, "ids": {"gate": gate_id, "follow_up": follow_id,
+                                                               "item": item_id, "link_gate": link_gate}})
+        record["dry_run"] = {**record.get("dry_run", {}), "transcribe": out}
+        h.record_assert({"story": {"status": 200, "text": story}, "story_60": {"status": 200, "text": story},
+                         "follow_up": {"status": 200, "text": line}, "item": {"status": 200, "text": "hello"},
+                         "unknown": {"status": 422, "code": "ITEM_NOT_ON_FORM"},
+                         "link_gate": {"status": 422, "code": "ITEM_NOT_ON_FORM"},
+                         "over": {"status": 422, "code": "SHAPE_MISMATCH"}, "before == after": True}, out)
+        assert gate_id and follow_id and item_id and link_gate and link_gate != gate_id, out["ids"]
+        for key, words in (("story", story), ("story_60", story), ("follow_up", line), ("item", "hello")):
+            assert out[key]["status"] == 200 and _norm_words(out[key].get("text")) == _norm_words(words), (key, out[key])
+        for key, code in (("unknown", "ITEM_NOT_ON_FORM"), ("link_gate", "ITEM_NOT_ON_FORM"),
+                          ("over", "SHAPE_MISMATCH")):
+            assert out[key]["status"] == 422 and out[key].get("code") == code, (key, out[key])
         assert before == after, (before, after)
 
 
@@ -1479,7 +1644,7 @@ class _Walk:
             if stage["where"] == ivs.LAST_QUESTION:
                 self.pilot(entry)
                 return self.walked
-            if _step_of(p) == "followUp" or stage["where"] in (ivs.FOLLOW_UP_KICKER, ivs.FOLLOW_UP_SPOT_KICKER):
+            if _step_of(p) == "followUp" or stage["where"] == ivs.FOLLOW_UP_KICKER:
                 self.follow_up(entry)
                 continue
             condition = (self.gate or {}).get("condition") or {}
@@ -1580,8 +1745,8 @@ class _Walk:
     def follow_up(self, entry: dict) -> None:
         """Spec 051 FR-6 / FR-7 as spec 075 has it (keel-web 124, keel-cloud 142): an item's hold ended and the page
         asked the cloud's route with the answers so far and `asked`; a rung on that item plays the rung's FOLLOW_UP
-        clip, the sheet says *About that* and the cloud's filled text, and the window is the story's -- never
-        classified (the end's, after the last item, says *One last thing*, only for a rung still owed). Every window is
+        clip, the sheet says *One more thing* (keel-web 126 FR-5) and the cloud's filled text, and the window is the
+        story's -- never classified (the end's, after the last item, says the same, only for a rung still owed). Every window is
         recorded and written down (`transcribe`, `maxSeconds` 120; spec 074, keel-web 115). The first follow-up met is
         walked through two windows by way of *Back* (124 FR-4: Back from a follow-up asked on the spot lands on its
         item; answered again, the follow-up is dropped and asked again):
@@ -2455,8 +2620,8 @@ def _follow_up_on_the_ai_link(j, record: dict) -> None:
     -- the route asked after each item of a rung the link walks (and once more after the last item) with the answers so
     far and `asked`, answering 200 exactly on the harness's planned rungs (`vs.follow_up_plan`), each with the
     harness's text and the rung's FOLLOW_UP clip (the route's own `clip`), `asked` the rungs asked before it, and no
-    call once two were asked; every window opened on that clip with that text, the sheet's step `followUp` under *About
-    that* right after its item (*One last thing* only for the end's), the story's status, *Skip this one*, no *Save
+    call once two were asked; every window opened on that clip with that text, the sheet's step `followUp` under *One
+    more thing* right after its item and at the end alike (keel-web 126), the story's status, *Skip this one*, no *Save
     and next* before words, nothing classified, no banner (keel-web 115 FR-3); every window recorded (spec 074): on the
     said walk the first follow-up's line in its first window ended 4 s after the last sound and in its second by Save,
     the second follow-up's in one window by the pause, each written down (`transcribe` `maxSeconds` 120) -- the
@@ -2475,7 +2640,7 @@ def _follow_up_on_the_ai_link(j, record: dict) -> None:
     met = walk.get("follow_ups") or []
     order = x.get("order") or []
     with j.recorder.step(f"interviewer (keel-cloud 142, keel-web 124): the AI link's follow-ups on {rungs} -- each "
-                         f"right after its item under About that, the {x['by']} path, the first in two windows by way "
+                         f"right after its item under One more thing, the {x['by']} path, the first in two windows by way "
                          "of Back", party="participant", kind="assert") as h:
         if x["by"] == "said":
             want_sent = [{"dimension": a["dimension"], "text": x["lines"][a["dimension"]], "how": SPOKEN_HOW,
@@ -2508,7 +2673,7 @@ def _follow_up_on_the_ai_link(j, record: dict) -> None:
             spot = a.get("on") is not None
             assert m.get("on") == a.get("on") and (not spot or m.get("item") == a.get("on")), m
             for w in m.get("windows") or []:
-                kicker = ivs.FOLLOW_UP_SPOT_KICKER if spot else ivs.FOLLOW_UP_KICKER
+                kicker = ivs.FOLLOW_UP_KICKER                  # keel-web 126 FR-5: one kicker, spot or end
                 assert w["step"] == "followUp" and w["where"] == kicker and w["kicker"] == kicker, w
                 assert w["question"] == a["text"] and w["clip"] == want_clips.get(m["rung"]), w
                 assert w["status"] == ivs.STORY and w["skip"] == ivs.FOLLOW_UP_SKIP, w

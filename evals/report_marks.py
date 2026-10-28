@@ -68,7 +68,8 @@ DM_ONLY = "Decision-makers answer the money part only."
 KEEL_NEVER_EMAILS = "Keel never emails on your behalf. You write to them from your own mailbox."
 NOBODY_SIGNED_UP = "Nobody has signed up yet."
 SOURCE_WORDS = {"KNOWN": "You know them", "DATASET": "Contacts dataset", "KEEL_MANAGED": "Keel-managed"}
-ONE_LAST_THING = "One last thing"
+#: keel-web 126 FR-5 (spec 075 FR-5): `followUpLine`'s lead -- *One more thing · {rung}: "…"* (*One last thing* before).
+ONE_MORE_THING = "One more thing"
 
 # ------------------------------------------------------------------------------ the binding's words (as 077)
 
@@ -594,13 +595,14 @@ def expected_person(standings: dict, person: dict) -> dict:
         inside.append(person["story"])
     for answer in person.get("answers") or []:
         inside += [answer.get("name"), answer.get("words")]
-    # spec 075 (keel-cloud 142 FR-3, contract 41; keel-web 124 T012): one *One last thing · {rung}: "…"* line per
-    # follow-up answered, in the order served (the ladder's) -- `followUps`, else (a read before 41) the one `followUp`
+    # spec 075 (keel-cloud 142 FR-3, contract 41; keel-web 124 T012): one *One more thing · {rung}: "…"* line per
+    # follow-up answered (keel-web 126 FR-5's lead), in the order served (the ladder's) -- `followUps`, else (a read
+    # before 41) the one `followUp`
     follows = person.get("followUps")
     if follows is None:
         follows = [person["followUp"]] if person.get("followUp") else []
     for follow in follows:
-        inside += [ONE_LAST_THING, names.get(follow.get("dimension"), follow.get("dimension")), follow.get("text")]
+        inside += [ONE_MORE_THING, names.get(follow.get("dimension"), follow.get("dimension")), follow.get("text")]
     return {"invitation": person.get("invitationId"), "summary": [person.get("name"), person.get("words"), source],
             "email": person.get("email"), "inside": inside}
 
