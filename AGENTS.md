@@ -441,6 +441,21 @@ moved. `MARKS_VERSION` 20, corpus REVISION 16 and every other ruler unchanged. *
 fails mid-way leaves the scripted runtime it started connected, its script moved on: `make down` and `make up` before
 the next run (spec 075 D-02).
 
+**The quality cycle** (spec `079-quality-cycle`, 2026-10-28; built on 078's readers and 063's gallery). **A session told
+*"kick off the instruction set"* reads `quality/CYCLE.md` and nothing else**: the runbook of the six steps -- the
+kick-off (`make quality-walk ENTRIES=<ids|default> [SCOPES=] [DOOR=keel|host] WHY="<the founder's words>"`, paid: per
+entry and per scope `make backtest`, then `make read-screens` on the new bundle, then `make read-table BASELINE=1
+CYCLE=`; the record `quality/cycles/<yyyymmdd>-<cloud7>.md`), the comparison (`quality/TABLE.md`'s head: this cycle, the
+baseline, the bar), the adviser (`make quality-advise CYCLE=`, paid, one call per weak row, `quality/readers/adviser.md`,
+proposals in `<record>-advice.md`, **never applied** -- a taken one is a keel-cloud spec), the rerun, the acceptance
+(`make quality-accept CYCLE=`, free, on his word only: a new `quality/BASELINE.md`, the old one under
+`quality/baselines/`, and `make gallery SCORES=quality/scores` from that cycle's bundles -- a bundle the readers did not
+pass refused by name -- with the keel-web refresh sentence printed) and the cadence (`make quality-due`, free). Its
+settings are `quality/cycle.toml` (entries, scopes, door, the bar, the weak rule, reader and adviser), held equal to
+`quality/rubric.py` and `quality/readers.toml`. The adviser is the readers' door again (the judge's argv, a pinned
+model, no key), so the LLM places stay four. No target of it is a dependency of anything; none runs from `make eval`,
+`make unit`, the matrix, a checker or a schedule. The thirteen bundles of 2026-10-24 are never scored.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
