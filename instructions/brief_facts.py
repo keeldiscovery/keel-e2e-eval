@@ -30,6 +30,7 @@ from __future__ import annotations
 import re
 from decimal import ROUND_HALF_UP, Decimal
 
+from . import chain as chain_mod
 from . import corpus as corpus_mod
 from .registry import (ABILITY_KEY, ADOPTION_KEY, BUYER_KEY, COMMITMENT_KEY, COMPATIBILITY_KEY,
                        CURRENT_SOLUTION_KEY, FREQUENCY_KEY, GATE_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY,
@@ -301,8 +302,11 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
                    line="already lose your price or more" if entry.b2b() else DERIVED_ABILITY_LINE)
     elif key == BUYER_KEY:
         tested = entry.tested(key) or {}
+        # keel-cloud 145 FR-2 (spec 076 FR-2, `BriefFacts`): a named role's supports are *had to agree* and *decided
+        # alone* both -- "the HR director had to agree, or they decided alone" (the role with its *the*)
         line = "decided on their own" if tested.get("code") == "nobody_else" \
-            else f"{lower(tested.get('label'))} had to agree"
+            else (f"{chain_mod.the_role(tested.get('label'))} had to agree, or they decided alone"
+                  if tested.get("label") else "someone else had to agree, or they decided alone")
         out.update(number=_count(standing), line=line)
     elif key == PURCHASE_FRICTION_KEY:
         # keel-cloud 118 FR-3: the fear's supporters -- needed, and it took a long time

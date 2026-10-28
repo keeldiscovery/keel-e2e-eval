@@ -105,6 +105,36 @@ def the(role: str) -> str:
     return "the " + role
 
 
+#: keel-cloud 145 FR-2 (`BeliefSentence.ACRONYM`): an all-caps token of two to four letters (CEO, CFO, HR, IT) is an
+#: acronym, which takes *the* -- never a person's name.
+ACRONYM = re.compile(r"^[A-Z]{2,4}s?$")
+_ROLE_LEADS = ("the ", "a ", "an ", "their ", "your ", "my ")
+
+
+def _lower_first(label: str) -> str:
+    """`BeliefSentence.lower`: the first letter lowered unless the second is a capital (an acronym)."""
+    return label if len(label) > 1 and label[1].isupper() else label[:1].lower() + label[1:]
+
+
+def _a_name(role: str) -> bool:
+    """`BeliefSentence.name` (keel-cloud 145 FR-2): capitalised, its first word no acronym, its second letter lower."""
+    first = role.split()[0] if role.split() else ""
+    return len(role) > 1 and role[0].isupper() and not ACRONYM.match(first) and not role[1].isupper()
+
+
+def the_role(role: str) -> str:
+    """keel-cloud 145 FR-2 (`BeliefSentence.theRole`): the role with its *the* -- *the CEO*, *the HR director*, *the
+    restaurant owner* -- an article of its own lower-cased (*The CFO* -> *the CFO*), a person's name (every word
+    capitalised: *Priya*) kept bare. What the four buyer frames, the labels, the belief and the brief's line use."""
+    stripped = str(role or "").strip()
+    if stripped.lower().startswith(_ROLE_LEADS):
+        return _lower_first(stripped)
+    if _a_name(stripped) and all(w[:1].isupper() for w in stripped.split()):
+        return stripped
+    lowered = _lower_first(stripped)
+    return _lower_first(lowered if _a_name(lowered) else "the " + lowered)
+
+
 def is_money(cost: dict) -> bool:
     return cost.get("mode") in ("MONEY", "AMOUNT")
 

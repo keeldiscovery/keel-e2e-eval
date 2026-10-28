@@ -78,7 +78,8 @@ def test_the_answers_line_reads_one_more_thing():
 
 def test_contract_42_names_the_dry_runs_transcribe():
     spec = _cloud("canon/openapi-v2.yaml")
-    assert re.search(r"x-keel-contract: (\d+)", spec).group(1) == "42"
+    # spec 076: contract 43 (keel-cloud 145) keeps the route as 42 wrote it -- held at 42 or later
+    assert int(re.search(r"x-keel-contract: (\d+)", spec).group(1)) >= 42
     block = spec.split("  /v2/projects/{projectId}/interviewer/transcribe:")[1].split("\n  /v2/")[0]
     assert "operationId: transcribeTryAnswer" in block and "TranscribeRequest" in block and "Transcript" in block
     web = _web("src/api/interview.ts")

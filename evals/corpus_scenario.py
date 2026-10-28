@@ -3615,6 +3615,8 @@ def _vector_page(j: Journey, vector: str) -> None:
     rungs = [d.get("dimension") for d in rows if any(p.get("followUp") for p in d.get("people") or [])]
     # spec 075 FR-2 (keel-cloud 141): Ability to pay's said line read where the row says one
     said_rows = [d.get("dimension") for d in rows if d.get("dimension") == ABILITY and d.get("founderSaid")]
+    # spec 076 FR-2 (keel-cloud 145 FR-2): Buyer and payer's said line is the belief's clause after *You said*
+    said_rows += [d.get("dimension") for d in rows if d.get("dimension") == BUYER and d.get("founderSaid")]
     page = j.screens[vector] = j.answers.vector_page(j.project_id, vector,
                                                      open_row=(opened or {}).get("dimension"),
                                                      follow_up_rows=rungs, said_rows=said_rows)
@@ -3648,8 +3650,10 @@ def _vector_page(j: Journey, vector: str) -> None:
             words = {str(j.founder.decider.get(k) or "").lower() for k in ("title", "role")} - {""}
             assert any(w in page["decider_banner"].lower() for w in words), (page["decider_banner"], words)
     stage_band(j, vector)
-    if said_rows:
+    if ABILITY in said_rows:
         _hold_the_ability_line(j, next(d for d in rows if d.get("dimension") == ABILITY), page)
+    if BUYER in said_rows:
+        _hold_the_buyer_line(j, next(d for d in rows if d.get("dimension") == BUYER), page)
     if rungs:
         with _step(j, f"the {vector.lower()} page: every person who answered the follow-up shows it under their name, "
                       "One more thing · {rung}: \"...\" (design §5.4, spec 052 FR-8; keel-web 126 FR-5)",
@@ -3688,6 +3692,31 @@ def _hold_the_ability_line(j: Journey, row: dict, page: dict) -> None:
         assert not any(said.startswith("You said " + r) for r in KEEL_READINGS), said
         if said.startswith(budget):
             assert said == budget + " " + vs_screens.COUNTS_SENTENCE[vs.is_b2b(j.entry)], said
+
+
+BUYER = "commercial.buyer_payer_alignment"
+
+
+def buyer_said(entry) -> str:
+    """keel-cloud 145 FR-2 (`StandingsAssembler.said`): Buyer and payer's said line -- the belief's clause after *You
+    said*, never the picked label alone: *You said the CEO has to agree.*; with *Nobody else* tested *You said nobody
+    else has to agree.*"""
+    tested = entry.tested(BUYER) or {}
+    who = "nobody else" if tested.get("code") == vs.NOBODY_ELSE[0] else chain_mod.the_role(tested.get("label") or "")
+    return f"You said {who} has to agree."
+
+
+def _hold_the_buyer_line(j: Journey, row: dict, page: dict) -> None:
+    """Spec 076 FR-2 (keel-cloud 145 FR-2): Buyer and payer's said line on the money page is the served `founderSaid`,
+    drawn as served -- the belief's clause after *You said* with the role taking its *the* (*You said the CEO has to
+    agree.*), never the picked label alone."""
+    said = row.get("founderSaid") or ""
+    drawn = (page.get("said") or {}).get(BUYER)
+    with _step(j, "the money page: Buyer and payer's said line is the belief after You said (keel-cloud 145 FR-2)",
+               party="founder") as h:
+        h.record_assert({"drawn": buyer_said(j.entry)}, {"drawn": drawn, "founderSaid": said})
+        assert report_marks.ov.norm(drawn) == report_marks.ov.norm(said), {"drawn": drawn, "served": said}
+        assert said == buyer_said(j.entry), {"served": said, "want": buyer_said(j.entry)}
 
 
 def follow_up_line(rung: str, text: str) -> str:

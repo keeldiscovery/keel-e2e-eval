@@ -176,5 +176,13 @@ def test_keel_clouds_engine_agrees_with_corpus_r10_on_all_108_checks(tmp_path):
     scores = [compare_mod.compare_entry(keel_cloud, e, e.registry, tmp_path) for e in corpus.entries]
     assert all(s.measured for s in scores), [s.reason for s in scores if not s.measured][:1]
     assert [s.checks for s in scores] == [15, 15, 15, 15, 16, 16, 16]
-    assert sum(s.agreed for s in scores) == sum(s.checks for s in scores) == 108, \
-        [m for s in scores for m in s.mismatches]
+    # spec 076 FR-2 (keel-cloud 145 FR-2, Buyer and payer direction-aware): the engine reads 02-compliancelog's Buyer
+    # and payer as holding (7 of 9) where revision 16 records people disagree (5 of 9) -- the one row keel-cloud 145
+    # proposes for revision 17. REVISION stays 16 until the founder commissions 17, so the row is the one disagreement,
+    # named here, never read as the corpus's: 107 of 108 against revision 16
+    mismatches = [(s.entry_id, m["key"], m["expected"], m["produced"]) for s in scores for m in s.mismatches]
+    assert sum(s.checks for s in scores) == 108
+    assert mismatches == [("02-compliancelog", "commercial.buyer_payer_alignment",
+                           {"status": "PEOPLE_DISAGREE", "drift": "both"}, {"status": "HOLDING_UP", "drift": "none"})], \
+        mismatches
+    assert sum(s.agreed for s in scores) == 107

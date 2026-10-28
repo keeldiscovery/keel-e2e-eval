@@ -131,8 +131,11 @@ def buyer_answers(role: str | None) -> list:
     """keel-cloud 128 FR-5 / FR-18 / FR-19 (`ItemFrames.buyerPayerLabel`, `buyerPayerAtPriceLabel`): Buyer and payer's
     labels beside the registry's -- the consumer link's past answers and the decision-maker's for this purchase at the
     founder's price -- with the role the founder named (`None`: *Nobody else* tested)."""
-    past_who = None if role is None else re.sub(r"^their ", "my ", _lower(role.strip()))
-    who = None if role is None else _lower(role.strip())
+    # keel-cloud 145 FR-2 (spec 076 FR-2): the role with its *the* (`BeliefSentence.theRole`) -- an acronym takes it,
+    # *Yes, the CEO had to agree*, never *Yes, CEO had to agree*
+    from instructions.chain import the_role                           # noqa: PLC0415
+    past_who = None if role is None else re.sub(r"^their ", "my ", the_role(role))
+    who = None if role is None else the_role(role)
     return ["Yes, someone else had to agree" if past_who is None else f"Yes, {past_who} had to agree",
             "Yes, several people had to agree",
             "No, someone else would have to agree" if who is None else f"No, {who} would have to agree",

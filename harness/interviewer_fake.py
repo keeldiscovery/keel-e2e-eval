@@ -292,10 +292,11 @@ RETIRED_LEAD_IN = "One last thing."
 #: Spec 075 (keel-cloud 142 `MAX_FOLLOW_UPS`, keel-web 124): at most two follow-ups an interview, a skipped one counted.
 MAX_FOLLOW_UPS = 2
 #: Buyer and payer's fixed answers and the one that supports when "Nobody else" is tested (`Compare.BUYER_DECIDED_ALONE`)
-#: -- with a named role tested the registry's `supports` (`had_to_agree`).
+#: -- with a named role tested the registry's `supports`: since keel-cloud 145 FR-2 (spec 076 FR-2) direction-aware,
+#: `had_to_agree` and `decided_alone` both (the two *someone else* answers count against).
 BUYER_ANSWERS = ("had_to_agree", "decided_alone", "someone_else_agreed", "someone_else_decided")
 BUYER_ALONE = "decided_alone"
-BUYER_SUPPORTS = ("had_to_agree",)
+BUYER_SUPPORTS = ("had_to_agree", "decided_alone")
 #: `PriceLadder.POINTS` and its escape below every band.
 PRICE_POINTS = (1, 2, 5, 10, 20, 50, 100, 250, 500, 1_000, 2_500, 5_000, 10_000)
 WOULD_NOT_PAY = "would_not_pay"
