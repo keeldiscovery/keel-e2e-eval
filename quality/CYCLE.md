@@ -48,12 +48,18 @@ make quality-walk DRY=1 ENTRIES=21-codyco SCOPES=PROBLEM WHY="dry"   # the plan 
   `quality/TABLE.md`; and the **cycle record** `quality/cycles/<yyyymmdd>-<cloud7>.md` -- the why, the shas, the studies,
   the bundles, the score files, the head, the comparison with the baseline and with the previous cycle, the cost and the
   time. **Commit** the score files, `TABLE.md` and the record together (the command prints the `git add` line).
+- **What it pins** (spec 082 FR-3): the keel-cloud and keel-web shas at kick-off (the record's name and header). A
+  study walked on another sha (a merge landed mid-cycle) is recorded with its own sha, and the head says *keel-cloud
+  moved mid-cycle: <a> -> <b> from <study>* -- named, never refused: a refusal mid-cycle would waste the paid walks
+  before it.
 - **The founder decides**: nothing yet -- he reads step 2.
 
 ## Step 2 -- the comparison (`quality/TABLE.md`, free)
 
 - **What to read**: `TABLE.md`'s first three lines -- **this cycle** (score_pct, flagged_pct), **the baseline** (the
-  same), **the bar** (90%) -- then the weak rows with their fix location (the design's §1: registry row, shared file,
+  same), **the bar** (90%) -- and under *this cycle* the walks (spec 082 FR-3: *N of M walks reached their end; K
+  stopped early (study -- the step, each); their scores are of the screens served before the stop*, and a sha that
+  moved mid-cycle): a cycle whose walks stopped is scored on fewer screens than a whole one -- then the weak rows with their fix location (the design's §1: registry row, shared file,
   code transform, no model) and *instead* lines, and *Moved since the baseline* (each row that moved, turned weak or
   mended, with its *instead* lines). The record's *Against the previous cycle* gives the per-study delta.
 - **Command**: none (`make read-table BASELINE=1 CYCLE=<record>` rebuilds it, free, if needed).

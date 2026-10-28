@@ -3,6 +3,8 @@
 Built by `make read-table` from `quality/scores/` (spec 078 FR-5) at RUBRIC_VERSION 2. Regenerated and committed with every score file; never edited by hand.
 
 - **This cycle** (`quality/cycles/20261028-88bfce8.md`, cloud 88bfce8, 15 studies): score_pct **86.8%**, flagged 0.6%
+  - 2 of 15 walks reached their end; 13 stopped early (08-fresco · PROBLEM -- the context is confirmed on the wire; 08-fresco · SOLUTION -- no step named (stopped outside a step); 08-fresco · COMMERCIAL -- the context is confirmed on the wire; 10-palus · PROBLEM -- the context is confirmed on the wire; 10-palus · SOLUTION -- the context is confirmed on the wire; 10-palus · COMMERCIAL -- the context is confirmed on the wire; 13-aircaps · COMMERCIAL -- the cost step; 17-expanse · PROBLEM -- no step named (stopped outside a step); 17-expanse · SOLUTION -- the context is confirmed on the wire; 17-expanse · COMMERCIAL -- the cost step; 21-codyco · PROBLEM -- no step named (stopped outside a step); 21-codyco · SOLUTION -- no step named (stopped outside a step); 21-codyco · COMMERCIAL -- the context is confirmed on the wire); their scores are of the screens served before the stop
+  - keel-cloud moved mid-cycle: 88bfce8 -> f7b0e05 from 10-palus · COMMERCIAL
 - **The baseline**: none cut yet (`make quality-accept` cuts it, on the founder's word)
 - **The bar**: 90% -- this cycle is BELOW it
 

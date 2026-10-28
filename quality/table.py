@@ -268,6 +268,25 @@ def _fix_text(fix: dict) -> str:
 MOVED_MEAN = 0.25
 
 
+def walks_lines(walks: dict | None) -> list[str]:
+    """Spec 082 FR-3: under the score, how many walks reached their end and which stopped (study -- the step), and a
+    sha that moved mid-cycle -- so a truncated cycle never reads as a whole one."""
+    if not walks:
+        return []
+    stopped = walks.get("stopped") or []
+    line = f"  - {walks['ended']} of {walks['walks']} walks reached their end; {len(stopped)} stopped early"
+    if stopped:
+        line += (" (" + "; ".join(f"{s['study']} -- {s['step']}" for s in stopped) + "); their scores are of the "
+                 "screens served before the stop")
+    lines = [line]
+    for repo in ("keel-cloud", "keel-web"):
+        moves = [m for m in walks.get("moved") or [] if m["repo"] == repo]
+        if moves:
+            lines.append(f"  - {repo} moved mid-cycle: "
+                         + ", then ".join(f"{m['from']} -> {m['to']} from {m['study']}" for m in moves))
+    return lines
+
+
 def cycle_head(cycle: dict) -> list[str]:
     """Spec 079 FR-3: the three lines the founder reads after a walk -- this cycle, the baseline, the bar."""
     this, base, bar = cycle.get("this") or {}, cycle.get("baseline"), float(cycle.get("bar_pct") or rubric.BAR_PCT)
@@ -275,6 +294,7 @@ def cycle_head(cycle: dict) -> list[str]:
     meets = pct is not None and pct >= bar
     lines = [f"- **This cycle** (`{cycle.get('record')}`, cloud {cycle.get('cloud_sha') or '?'}, "
              f"{cycle.get('studies', 0)} studies): score_pct **{_num(pct, 1)}%**, flagged {_num(this.get('flagged_pct'), 1)}%",
+             *walks_lines(cycle.get("walks")),
              (f"- **The baseline** (cut {base.get('cut')}): score_pct {_num(base.get('score_pct'), 1)}%, flagged "
               f"{_num(base.get('flagged_pct'), 1)}%" if base else "- **The baseline**: none cut yet (`make quality-accept` "
                                                                   "cuts it, on the founder's word)"),

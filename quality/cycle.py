@@ -188,6 +188,9 @@ class Study:
     read_usd: float | None = None
     read_s: float | None = None
     error: str | None = None
+    # spec 082 FR-3: the shas this study was walked on (the bundle's `stack`), beside the pins of the kick-off
+    cloud_sha: str | None = None
+    web_sha: str | None = None
 
     @property
     def key(self) -> str:
@@ -318,6 +321,8 @@ def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=sub
     study.bundle, study.bundle_path = Path(run_dir).name, str(Path(run_dir).resolve())
     study.passed, study.failed_step = bool(record.get("passed")), record.get("failed_step")
     study.walk_usd = _usd(record)
+    stack = record.get("stack") or {}
+    study.cloud_sha, study.web_sha = _sha7(stack.get("keel-cloud")), _sha7(stack.get("keel-web"))
     walked_scope = record.get("scope") or "ALL"
     if walked_scope != scope:
         study.error = f"the bundle says scope {walked_scope}, the walk asked {scope}"
@@ -340,6 +345,10 @@ def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=sub
     overall = obj["summary"]["overall"]
     study.score_pct, study.flagged_pct = overall.get("score_pct"), overall.get("flagged_pct")
     return study
+
+
+def _sha7(sha) -> str | None:
+    return (str(sha).strip()[:7] or None) if sha else None
 
 
 def _rel(path: Path | str) -> str:
@@ -408,6 +417,54 @@ def _head_of(files: list[dict]) -> dict | None:
             "meets_bar": top["meets_bar"]}
 
 
+_SCORE_SHA = re.compile(r"-r\d+-([0-9a-f]{7,})-v")
+
+
+def study_shas(study: dict, root: Path | None = None) -> dict:
+    """Spec 082 FR-3: the keel-cloud and keel-web shas one study was walked on -- its own (recorded since 082), else its
+    score file's header (the bundle's `stack`, as the reader copied it), else the cloud sha in the score file's name."""
+    cloud, web = _sha7(study.get("cloud_sha")), _sha7(study.get("web_sha"))
+    rel = study.get("score_file")
+    if rel and (cloud is None or web is None):
+        try:
+            header = json.loads(_abs(rel, root).read_text(encoding="utf-8"))
+            cloud, web = cloud or _sha7(header.get("cloud_sha")), web or _sha7(header.get("web_sha"))
+        except (OSError, ValueError):
+            pass
+        named = _SCORE_SHA.search(Path(rel).name)
+        cloud = cloud or (named.group(1)[:7] if named else None)
+    return {"keel-cloud": cloud, "keel-web": web}
+
+
+def _stop_step(study: dict) -> str:
+    """The step a walk stopped at, by its name (the step's words before its first colon); a stop outside any step
+    (an error the journey raised between steps) and a walk that wrote no bundle said as such."""
+    if not study.get("bundle"):
+        return study.get("error") or "no bundle written"
+    step = study.get("failed_step")
+    if not step:
+        return "no step named (stopped outside a step)"
+    return step.split(":", 1)[0].strip()
+
+
+def walks_of(record: dict, root: Path | None = None) -> dict:
+    """Spec 082 FR-3: how many walks reached their end and which stopped (study -- the step), and every move of the
+    keel-cloud or keel-web sha from the kick-off's pin, in the order the studies were walked -- named, never refused."""
+    studies = record.get("studies") or []
+    stopped = [{"study": f"{s['entry']} · {s['scope']}", "step": _stop_step(s)} for s in studies if not s.get("passed")]
+    pins = {"keel-cloud": _sha7(record.get("cloud_sha")), "keel-web": _sha7(record.get("web_sha"))}
+    moved = []
+    for repo, pin in pins.items():
+        at = pin
+        for s in studies:
+            sha = study_shas(s, root)[repo]
+            if sha and at and sha != at:
+                moved.append({"repo": repo, "from": at, "to": sha, "study": f"{s['entry']} · {s['scope']}"})
+            at = sha or at
+    return {"walks": len(studies), "ended": len(studies) - len(stopped), "stopped": stopped, "pins": pins,
+            "moved": moved}
+
+
 def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: str, web_sha: str, started: str,
             ended: str, seconds: float, cfg: dict, baseline_path: Path, cycles_dir: Path, root: Path | None = None,
             cloud_branch: str | None = None, web_dirty: bool = False, scores_dir: str = SCORES_REL,
@@ -467,10 +524,11 @@ def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: 
         "reader": {k: cfg["reader"].get(k) for k in ("model", "effort")},
         "adviser": {k: cfg["adviser"].get(k) for k in ("model", "effort")},
         "bar_pct": cfg["bar_pct"], "weak_rule": cfg["weak"], "scores_dir": scores_dir,
-        "studies": [asdict(s) for s in studies], "head": head, "weak_rows": weak,
+        "studies": [asdict(s) for s in studies], "walks": None, "head": head, "weak_rows": weak,
         "baseline": baseline, "against_baseline": against_baseline, "previous": previous,
         "cost": {"walk_usd": walk_usd, "read_usd": read_usd, "total_usd": round(walk_usd + read_usd, 4)},
     }
+    data["walks"] = walks_of(data, root)
     return render_record(data), data
 
 
@@ -496,6 +554,7 @@ def render_record(d: dict) -> str:
              f"{head.get('screens', 0)} screens (founder {_pct((head.get('founder') or {}).get('score_pct'))}, respondent "
              f"{_pct((head.get('respondent') or {}).get('score_pct'))}"
              + "".join(f"; {k} {_pct(v['score_pct'])}" for k, v in (head.get("by_scope") or {}).items()) + ")",
+             *table.walks_lines(d.get("walks")),
              (f"- **The baseline** (cut {base['cut']}): score_pct {_pct(base.get('score_pct'))}, flagged "
               f"{_pct(base.get('flagged_pct'))}" if base else "- **The baseline**: none cut yet"),
              f"- **The bar**: {bar:.0f}% -- this cycle "
@@ -591,6 +650,8 @@ def table_head(record: dict, *, baseline_path: Path | None = None) -> dict:
     head = record.get("head") or {}
     return {"record": f"quality/cycles/{record['record']}.md", "cloud_sha": record.get("cloud_sha"),
             "studies": sum(1 for s in record.get("studies") or [] if s.get("score_file")),
+            # spec 082 FR-3: a record from before 082 carries no `walks`; its studies and score files say the same
+            "walks": record.get("walks") or walks_of(record),
             "this": {"score_pct": head.get("score_pct"), "flagged_pct": head.get("flagged_pct")},
             "baseline": base, "bar_pct": record.get("bar_pct") or rubric.BAR_PCT}
 
@@ -650,6 +711,14 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
     for (entry, scope), three in by_study.items():
         print(f"  {entry} · {scope}: walking")
         study = walk_one(entry, scope, three, door=door, runner=runner)
+        if study.cloud_sha is None or study.web_sha is None:      # spec 082 FR-3: no bundle stack -- the checkouts now
+            try:
+                study.cloud_sha, study.web_sha = study.cloud_sha or git_sha(cloud), study.web_sha or git_sha(web)
+            except Refused:
+                pass
+        for repo, pin, sha in (("keel-cloud", cloud7, study.cloud_sha), ("keel-web", web7, study.web_sha)):
+            if sha and sha != pin:
+                print(f"  {entry} · {scope}: walked on {repo} {sha}, not the kick-off's {pin} -- recorded, not refused")
         print(f"  {entry} · {scope}: " + (f"score_pct {study.score_pct}, flagged {study.flagged_pct}% "
                                          f"({study.score_file})" if study.score_file else f"NOT SCORED -- {study.error}"))
         studies.append(study)

@@ -242,3 +242,124 @@ def test_the_step_and_the_docstring_say_when_the_box_is_read():
                 'vs_screens.CHAIN_BASE_HELP', 'assert filled.get("rate_note") == vs_screens.HOURLY_RATE_DEFAULTED',
                 'assert at <= base, {"the rate sits under what the time goes on"'):
         assert pin in source, pin
+
+
+# ------------------------------------------------------------------- FR-3: the record names the walks that stopped
+
+from quality import cycle, table                                       # noqa: E402
+from tests import test_quality_cycle_079 as c079                       # noqa: E402
+
+CYCLE_1 = REPO / "quality" / "cycles" / "20261028-88bfce8.md"
+STOP = ("the context is confirmed on the wire: the four fields, the sentence -- the card's, word for word (keel-cloud "
+        "146 FR-2)")
+
+
+def _two_stopped_and_a_moved_sha() -> list[cycle.Study]:
+    """The 079 fixture cycle's four studies, two of them stopped early (one at a named step, one outside any step, as
+    cycle 1's KeyError walks), and the third walked on keel-cloud bcdef12 though the kick-off pinned abcdef1."""
+    first, second, third, fourth = c079.studies_of_the_fixture()
+    first = dataclasses.replace(first, passed=False, failed_step=STOP)
+    second = dataclasses.replace(second, passed=False, failed_step=None)
+    third = dataclasses.replace(third, cloud_sha="bcdef12", web_sha="1234567")
+    return [first, second, third, fourth]
+
+
+def _compose(tmp_path, studies):
+    return cycle.compose(studies, name="20261101-abcdef1", why="spec 082's fixture", door="host", cloud_sha="abcdef1",
+                         web_sha="1234567", started="2026-11-01T10:00:00+00:00", ended="2026-11-01T11:00:00+00:00",
+                         seconds=3600.0, cfg=cycle.load_config(), baseline_path=c079.BASELINE, cycles_dir=tmp_path,
+                         cloud_branch="master", scores_dir=c079.SCORES_REL)
+
+
+WALKS_LINE = ("  - 2 of 4 walks reached their end; 2 stopped early (08-fresco · PROBLEM -- the context is confirmed on "
+              "the wire; 08-fresco · SOLUTION -- no step named (stopped outside a step)); their scores are of the "
+              "screens served before the stop")
+MOVED_LINE = "  - keel-cloud moved mid-cycle: abcdef1 -> bcdef12 from 09-karsa · COMMERCIAL"
+
+
+def test_the_record_head_names_the_walks_that_stopped_and_the_sha_that_moved(tmp_path):
+    """FR-3: one line under the score -- N of M walks reached their end, K stopped (study -- the step, each), their
+    scores of the screens served before the stop -- and the sha that moved mid-cycle, named, never refused."""
+    text, data = _compose(tmp_path, _two_stopped_and_a_moved_sha())
+    head = text.split("## The head\n\n", 1)[1].split("\n\n", 1)[0].splitlines()
+    assert head[0].startswith("- **This cycle**: score_pct **95.6%**")
+    assert head[1] == WALKS_LINE and head[2] == MOVED_LINE
+    assert head[3].startswith("- **The baseline**") and head[4].startswith("- **The bar**")
+    walks = data["walks"]
+    assert walks["walks"] == 4 and walks["ended"] == 2 and walks["pins"] == {"keel-cloud": "abcdef1",
+                                                                             "keel-web": "1234567"}
+    assert walks["moved"] == [{"repo": "keel-cloud", "from": "abcdef1", "to": "bcdef12",
+                               "study": "09-karsa · COMMERCIAL"}]
+    assert [s["cloud_sha"] for s in data["studies"]] == [None, None, "bcdef12", None], "each study's own sha kept"
+    assert data["studies"][0]["failed_step"] == STOP, "the data block keeps the whole step"
+    assert data["head"]["score_pct"] == 95.6, "the scores are the screens served, as before"
+
+
+def test_the_table_head_carries_the_same_lines(tmp_path):
+    text, _ = _compose(tmp_path, _two_stopped_and_a_moved_sha())
+    record = tmp_path / "20261101-abcdef1.md"
+    record.write_text(text, encoding="utf-8")
+    out = tmp_path / "TABLE.md"
+    assert table.main(["--scores-dir", str(c079.SCORES), "--out", str(out), "--cycle", str(record),
+                       "--baseline-file", str(c079.BASELINE)]) == 0
+    lines = out.read_text(encoding="utf-8").splitlines()
+    at = next(i for i, line in enumerate(lines) if line.startswith("- **This cycle**"))
+    assert lines[at + 1] == WALKS_LINE and lines[at + 2] == MOVED_LINE
+    assert lines[at + 3].startswith("- **The baseline**")
+
+
+def test_a_whole_cycle_says_so_and_names_no_move(tmp_path):
+    text, data = _compose(tmp_path, c079.studies_of_the_fixture())
+    assert "  - 4 of 4 walks reached their end; 0 stopped early\n" in text
+    assert data["walks"]["moved"] == [] and "moved mid-cycle" not in text
+
+
+def test_cycle_1_is_read_from_its_studies_and_score_files_and_never_rewritten():
+    """FR-3: the record of cycle 1 is not rewritten (it carries no `walks`); TABLE.md's head reads the same facts from
+    its studies and its score files' headers -- 2 of 15 walks, 13 stopped, keel-cloud 88bfce8 -> f7b0e05 at 10-palus
+    COMMERCIAL."""
+    record = cycle.load_record(CYCLE_1)
+    assert "walks" not in record and "moved mid-cycle" not in CYCLE_1.read_text(encoding="utf-8")
+    walks = cycle.table_head(record)["walks"]
+    assert (walks["walks"], walks["ended"], len(walks["stopped"])) == (15, 2, 13)
+    assert walks["moved"] == [{"repo": "keel-cloud", "from": "88bfce8", "to": "f7b0e05",
+                               "study": "10-palus · COMMERCIAL"}]
+    steps = {s["study"]: s["step"] for s in walks["stopped"]}
+    assert steps["13-aircaps · COMMERCIAL"] == steps["17-expanse · COMMERCIAL"] == "the cost step"
+    assert steps["21-codyco · PROBLEM"] == "no step named (stopped outside a step)"
+    committed = (REPO / "quality" / "TABLE.md").read_text(encoding="utf-8")
+    assert "  - 2 of 15 walks reached their end; 13 stopped early (08-fresco · PROBLEM -- " in committed
+    assert "  - keel-cloud moved mid-cycle: 88bfce8 -> f7b0e05 from 10-palus · COMMERCIAL" in committed
+    assert "respondent: score_pct 84.6%, spoken_pct 75.0%, insights_pct 93.8%, flagged 0.0% of 12 screens" in committed
+
+
+def test_the_walk_records_each_studys_sha_and_names_a_move_without_refusing(tmp_path, capsys):
+    """FR-3: `make quality-walk` pins the shas at kick-off; a study whose bundle says another sha is recorded with it,
+    and the walk goes on."""
+    import json                                                        # noqa: PLC0415
+    from types import SimpleNamespace                                  # noqa: PLC0415
+
+    from evals import backtest as bt                                   # noqa: PLC0415
+    runs = tmp_path / "runs"
+    score = REPO / c079._score("08-fresco", "20261101", "SOLUTION")
+
+    def fake(argv, stdout=None, stderr=None):
+        if argv[4] == "backtest":
+            run = runs / "20261101T110000Z-backtest-08-fresco"
+            run.mkdir(parents=True)
+            (run / bt.RECORD).write_text(json.dumps({"run": run.name, "passed": True, "scope": "SOLUTION",
+                                                     "founder_screens": [{}], "stack": {"keel-cloud": "bcdef129",
+                                                                                         "keel-web": "1234567"}}))
+            stdout.write(f"run bundle: {run}\n")
+        if argv[4] == "read-screens":
+            out = Path(argv[6].split("=", 1)[1])
+            out.mkdir(parents=True)
+            (out / "score-path.txt").write_text(f"{score}\n")
+        return SimpleNamespace(returncode=0)
+
+    steps = [s for s in cycle.plan_steps(["08-fresco"], ["SOLUTION"], "host", tmp_path / "work") if s["study"]]
+    study = cycle.walk_one("08-fresco", "SOLUTION", steps, door="host", runner=fake, runs_dir=runs)
+    assert (study.cloud_sha, study.web_sha) == ("bcdef12", "1234567") and study.score_file
+    import inspect                                                     # noqa: PLC0415
+    source = inspect.getsource(cycle.walk)
+    assert "recorded, not refused" in source and "cloud7, web7 = git_sha(cloud), git_sha(web)" in source
