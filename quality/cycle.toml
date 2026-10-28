@@ -1,0 +1,63 @@
+# The quality cycle's settings (spec 079 FR-8): everything `make quality-walk`, `make quality-advise` and
+# `make quality-accept` read, committed, so a session with no memory of any earlier one runs the cycle from
+# quality/CYCLE.md and this file alone. A change here is a commit with its why; every cycle record names the values it
+# was held to (the bar, the weak rule, the reader, the adviser).
+#
+# Two of these values have a second home and are HELD EQUAL to it -- the cycle commands refuse, naming both files, when
+# they are not: the bar and the weak rule are `quality/rubric.py`'s (BAR_PCT, WEAK_ZERO_ENTRIES, WEAK_MEAN; a change to
+# the weak rule is a RUBRIC_VERSION bump, RUBRIC.md's *Versions*), and the reader is `quality/readers.toml`'s.
+
+[cycle]
+# The studies a kick-off walks when ENTRIES=default (spec 079 FR-2 / FR-8): the five of the baseline, then every entry
+# 08-35 as they pass. PROPOSED by the builder (2026-10-28) -- spec 078 FR-6 leaves the five to the founder; he names
+# them by a commit to this line.
+entries = ["08-fresco", "10-palus", "13-aircaps", "17-expanse", "21-codyco"]
+# One corpus entry is three studies (the founder, 2026-10-28): each walked, scored and tabled on its own.
+scopes = ["PROBLEM", "SOLUTION", "COMMERCIAL"]
+# Spec 062 / 066: `keel` (Keel's AI, the key in the shell) or `host` (the founder's own Claude Code, no key).
+door = "keel"
+
+[bar]
+# The founder's bar (2026-10-28): the overall score_pct over the latest score file of every study.
+bar_pct = 90.0
+
+[weak]
+# A row is weak on a criterion with a 0 in this many entries, or a mean under `mean_under` (RUBRIC.md).
+zero_entries = 2
+mean_under = 1.5
+
+[reader]
+# Held equal to quality/readers.toml [reader] (the readers' own pin, spec 078 FR-2).
+model = "claude-opus-5-5"
+effort = "medium"
+
+[adviser]
+# Spec 079 FR-4: one bounded call per weak row through the claude CLI, the judge's argv plus these two flags -- no key.
+# The prompt is quality/readers/adviser.md. It proposes; it never applies.
+model = "claude-opus-5-5"
+effort = "medium"
+timeout_s = 300
+# The current text quoted to the adviser is cut at this many characters (an instruction file is under 15 KB today).
+max_quote_chars = 16000
+
+[adviser.sections]
+# A weak row whose fix lives in a shared instruction file is quoted the file's named section, by screen kind, when
+# one is named here; else the whole file. The headings are the files' own `### ...` lines.
+screener = "The condition"
+gate = "The gate"
+
+[gallery]
+# Spec 079 FR-6 (spec 063 amended): `make gallery --scores` refuses a bundle, by name, whose latest score file at the
+# current rubric version has a flagged screen (`refuse_flagged`) or a score_pct under the bar (`refuse_under_bar`), or
+# that has no score file at all; the gallery is built from the rest.
+refuse_flagged = true
+refuse_under_bar = true
+# The gallery has one example per entry (its slug); a cycle walks three studies per entry. Of an entry's passing
+# bundles the homepage shows the first scope in this order (the builder's call, for the founder to overturn: the
+# solution study reads the problem and the idea, the nearest to the whole-study examples of today).
+scope_order = ["SOLUTION", "PROBLEM", "COMMERCIAL", "SOLUTION_COMMERCIAL", "ALL"]
+
+[cadence]
+# Spec 079 FR-7: a cycle is DUE after a registry or instruction change merged in keel-cloud, a routing table or model
+# change, or this many days since the last record. Nothing here runs anything: the founder kicks off.
+days = 7
