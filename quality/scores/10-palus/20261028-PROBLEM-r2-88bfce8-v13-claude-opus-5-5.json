@@ -1,0 +1,246 @@
+{
+  "entry": "10-palus",
+  "scope": "PROBLEM",
+  "bundle": "20261028T142529Z-backtest-10-palus",
+  "cloud_sha": "88bfce8d",
+  "web_sha": "a803da5",
+  "routing_version": "13",
+  "rubric_version": 2,
+  "persona": {
+    "founder": "Your own public material (you are the founder it describes):\n\n# 10-palus: sources\n\nBack-test entry `10-palus.yaml`: Palus Finance, more yield on a startup's idle cash (YC Winter 2026). Written 2026-10-22 from public material only. Quotes are verbatim. **[author]** marks a choice the public material does not make, kept as small as it could be.\n\nSources, with the short names used below:\n- **HN**: Launch HN, 2026-03-06, https://news.ycombinator.com/item?id=47278980 (the founders' post and 89 comments). A comment is cited as HN/NNN, meaning https://news.ycombinator.com/item?id=NNN.\n- **YCL**: Launch YC post, https://www.ycombinator.com/launches/PfC-palus-finance-better-yields-on-idle-cash-for-startups-and-smbs\n- **YCC**: YC company page, https://www.ycombinator.com/companies/palus-finance\n- **SITE**: https://palus.finance and https://www.palus.finance/treasury (read 2026-10-22)\n\nStatus today: same customer, a wider offer. The YC page says \"Palus is your startup's financial advisor\". The homepage now says \"The world's most advanced fractional CFO firm\" (SITE). The treasury product is still on /treasury.\n\n## The eight founder-emulation items\n\n**1. Who (actor, segment, roles).** The founder was his own customer:\n- \"we realized we needed the product for our own startup’s cash reserves, and other startups in the batch started telling us they wanted this too\" (HN).\n- The co-founder named who it is for: \"this product is for startups and SMBs that don't have the time or resources to host a fractional CFO or a full-time finance team\" (HN/47283812).\n- A sceptic named the two people whose time it costs: \"the founder, or an ops person's time\" (HN/47297953).\n- *Roles.* Keel's B2B shape needs one role that lives the problem and another that decides to buy. At a funded startup the person who moves the cash every month is the one who runs finance day to day (a finance or ops lead, or a fractional CFO). The person who signs where the reserve sits is the founder-CEO. The founders aim their product and copy at founders: \"We optimized our UX for founders\" (HN/47290652). So `finance_lead` is the practitioner (12 people, Parts 1 and 2) and `founder` is the decision-maker (8 people, Part 3). The same company pays.\n- **[author]** The split is mine. At the smallest startups the two roles are one person. That is why one practitioner (Grace Mbeki) passes the job to a fractional CFO, and why the commercial vector is read from founders.\n- *Segment*: \"Startups and SMBs\" banking with \"Brex, Mercury, etc.\" (HN). **[author]** I narrowed it to US venture-backed startups within two years of a raise, to match the occasion the founder describes.\n\n**2. What (the job).** The job is to earn more on the cash without risking it and without switching banks:\n- \"earn higher yields with a high-yield bond portfolio\" (HN).\n- \"a way to earn more yield on fundraise proceeds without switching banks\" (YCC, as summarised from the page).\n- Context job **[author]**, worded from these: \"keep the money from a raise safe and earning until the company spends it\".\n\n**3. When / where (circumstance, occasion, window).**\n- \"The typical startup cashflow pattern is a large infusion from a raise covering 18–24 months of burn, drawn down gradually\" (HN).\n- \"you’re giving up yield to get same-day liquidity on cash you won’t touch for six months or more\" (HN).\n- The repeated moment is the monthly transfer: \"easy to set up rules like (\"if my bank balance falls below $X then transfer $Y from treasury\")\" (HN/47280293).\n- **[author]** The occasion \"cash decision\", the window {3, MONTHS}, Frequency 2 to 3 months out of 3, and Prevalence \"Most\" (p_60_80) are mine. They follow from \"drawn down gradually\" (a monthly move), and they match 05-paidly's three-month window.\n\n**4. Which people (comparable group).**\n- \"Say you (like many startups) use Mercury Treasury, Rho Treasury, Brex Treasury, etc.\" (HN/47280293).\n- \"founders who've thought about idle cash management\" (HN).\n- **[author]** The Importance rivals come from what the thread itself raises:\n  - runway: \"an extra month or two of runway\", HN/47282750\n  - safety above the insured limit: the SVB-style worry in HN/47279304 and HN/47279349\n  - getting cash back fast: \"1-2 business days\", HN\n  - moving money without mistakes: \"no manual reconciliation between accounts\", HN/47283812\n\n**5. Who pays.**\n- The company pays a fee on its own balance: \"We will charge a flat 0.25% annual fee on AUM\" (HN).\n- The founder decides. The pitch is to the founder's time: \"It's a one-time setup that takes five minutes. We optimized our UX for founders\" (HN/47290652).\n- Buyer and payer:\n  - **[author]** The founder's tested item is \"Nobody else\", which fits the five-minute pitch.\n  - \"The board\" is the one other role on the founder's list. The thread itself puts it there: \"I am not sure I would suggest my portfolio companies to risk their treasuries\" (HN/47279377). SITE also says the design follows \"NVCA startup treasury guidelines\".\n- Purchase friction:\n  - \"Diligence on a new provider\" comes from \"it definitely takes weeks to diligence your company and the offering\" (HN/47401784).\n  - \"A tax adviser's sign-off\" comes from \"they should talk to their tax advisor\" (HN/47282781).\n  - \"Board approval of the cash policy\" **[author]**.\n\n**6. Mechanism.**\n- \"we built Palus to connect to your existing bank account via Plaid\" (HN).\n- \"Our bond portfolio holds short-duration floating-rate\" government-backed mortgage-backed securities, \"managed by Regan Capital, which runs MBSF\" (HN).\n- \"Liquidity is typically available in 1-2 business days\" (HN).\n- \"All assets are held with an SEC-licensed custodian\" (HN).\n- \"two buttons and a giant number that goes up\" (HN).\n- Compatibility conditions, Adoption friction efforts and the Commitment step:\n  - The tested condition, \"They could wait two days for their cash\", is the founder's own claim: \"most startups can afford to take on a bit more liquidity risk on their long-term cash (on the order of a couple of days)\" (HN/47282907).\n  - The commitment step comes from \"I'd encourage you to start small, try us out, and grow your position over time\" (HN/47280532).\n  - The tested effort, \"Move the long-term reserve out of the bank's treasury\", **[author]**, worded from \"The problem is the treasury product bundled with them, not the bank\" (HN).\n\n**7. Price.**\n- \"We will charge a flat 0.25% annual fee on AUM, compared to the 0.15–0.60%, depending on balance, charged by other treasury providers\" (HN).\n- \"Rho charges a variable rate that peaks at 0.6% for any deposit of $2M or less\" (HN/47280707).\n- Yields: \"we target 4.5–5% returns vs. roughly 3.5% from most money market funds\" (HN). SITE now says \"targeted SOFR + 1% spread\".\n- **[author]** Keel's price is a money range over a period, and its ladder stops below $10,000. So I state the fee per month on the reserve the founder's own example uses, $4M to $6M: 0.25% of that is $10,000 to $15,000 a year, so $800 to $1,200 a month.\n- **[author]** The cost estimate, $4,000 to $6,000 a month, is the yield given up. The founder says \"on $5M, it's an extra $50k-75k per year\" (HN/47280107), which is about $4,200 to $6,250 a month, rounded to the range. It counts yield given up, which the registry's meaning allows (\"foregone alternatives\"). It does not count the 0.15% to 0.60% fee the bank's product already takes.\n- **[author]** The hourly rate, $75, is mine: a startup finance lead's salary of about $150k a year, over a working year.\n- Ability to pay is derived by code: 13% to 30%, small_share.\n\n**8. Occasions (real accounts).**\n- No named customer quote is public. HN is the record: batchmates \"started telling us they wanted this too\" (HN), one sign-up, \"I’ve wanted this produce for years. Signed up.\" (HN/47283895), and many sceptics. Each respondent below is traced to one of them.\n\n## Respondents\n\nPractitioners (primary link, `finance_lead`):\n- Dana Whitfield: HN/47279411 (\"we wouldn't want to switch even for a higher yield… the operational burden is more important to us than yield\", \"about 3.2%\"). The $300k transfer is **[author]**.\n- Marcus Oyelaran: HN/47279219 (self-directed brokerage, \"more paperwork and back and forth\", then \"click that button now!\"). The $3M and August are **[author]**.\n- Lena Hofstra: HN/47279349 (\"nowhere near juicy enough for me to literally bet the company on\") and HN/47279304 (bank-run worry). The Treasuries-only policy and the two banks are **[author]**, after the 2023 bank failures the thread refers to.\n- Tomás Reyes: HN/47283895 (\"I’ve wanted this produce for years\"), with the launch post's \"large infusion from a raise\". Cash sitting in plain checking is **[author]**.\n- Aisha Karimi: HN/47279292 (\"business savings accounts not much below this (2.85%) while keeping things safe (FDIC insured)\").\n- Ben Okafor: HN/47280707 (the fee \"peaks at 0.6% for any deposit of $2M or less\"). The $1.5M is **[author]**.\n- Rachel Lindqvist: HN/47282512 and HN/47283590 (PHC and QSBS: \"a bunch of startups are raising $20m on $0 revenue … interest … can easily be the only income\").\n- Hiro Tanabe (gate No): HN/47279242 (\"Startups otherwise are lean and won't hold enough cash to get a meaningful return\").\n- Grace Mbeki: HN/47283265 (\"they might be better suited to deal with a fractional CFO service\"). The Slack approval is **[author]**; the YC page (YCC) says the firm is reachable around the clock on Slack (paraphrased).\n- Owen Castellano (chip): author's invention, filling a gap: no commenter refuses to say. A chipped story is needed so the reading counts one GUESSED person. It loosely echoes HN/47279377 (an investor steering portfolio companies).\n- Nadia Seferović: HN/47286820 (\"ask your bank manager for rates on a 30 day deposit account … it appeared in my online banking the next day\").\n- Kevin Duarte: the launch post (\"a mutual fund where your principal is at considerable risk – it had a 9% loss in 2022\") and HN/47280944 (the short-term bond fund in \"one of the leading startup treasury products\"). Moving the loss to August 2026 is **[author]**.\n\nDecision-makers (`link: COMMERCIAL_B2B`, `founder`, Part 3 only, no story on screen):\n- Sofia Marchetti: author's invention, filling a gap: the thread has almost no willing buyer. She stands for the founders' own case (\"putting $5M into Palus yields them an extra $50k-75k per year\", HN/47290584) and the batchmates who \"wanted this too\" (HN). Her $2,000 a month is the bank's treasury fee.\n- Jamal Booker: HN/47297953 (\"That 50-75k is more like $5k/month out of what is typically a ~200-400k monthly burn\") and HN/47401784 (\"it definitely takes weeks to diligence\").\n- Eleanor Vance: HN/47279349 (\"bet the company\"); the board having to agree is **[author]**.\n- Ravi Menon: HN/47279377 (\"I am not sure I would suggest my portfolio companies to risk their treasuries\"). The investor who had to agree is his.\n- Maya Feldman: HN/47283895 (signed up) and HN/47283356 (liked \"a number that goes up\").\n- Daniel Osei: HN/47283590 (\"The probability is Low but the impact for us is massive\"). The tax adviser's long sign-off is his.\n- Irene Kowal: HN/47279831 (\"This should be a hard pass for literally everyone … SGOV\") and HN/47279261 (\"just put the money in a Bond ETF\").\n- Felix Brandt: HN/47282750 (\"I am willing to take a little bit more risk for a higher return … an extra month or two of runway\").\n\nNo respondent carries a commenter's handle or a real customer's name (SITE names client companies; none is used).\n\n## Open\n\n- **Relative advantage code.** The registry fixes five advantage codes (fewer_attempts, shorter_time, less_worry, less_help_needed, easier_recovery). None means \"more money\". I used `less_help_needed` with the founder's label \"Higher yield without hiring for treasury\". It is the closest code, and it carries the founder's claim of \"no need to hire for treasury operations\" (HN/47283812). A yield code would fit better.\n- **Price period.** Palus prices a share of the balance, not an amount per period. The $800 to $1,200 a month depends on the $4M to $6M reserve I chose. Keel has no \"percent of balance\" price.\n- **Cost estimate kind.** The founder's cost is yield given up, not money spent. Decision-makers asked \"what it cost the team last month\" will report fees and hours, so Existing sacrifice is likely to read far below the founder's estimate. That is a real finding about this idea, but it is also partly an artefact of the question's wording.\n- **Window.** The {3, MONTHS} window and the \"cash decision\" occasion are mine. Public material has no single trigger moment, only \"drawn down gradually\".\n- **Not checked against the engine.** The file passes keel-e2e-eval's `instructions/corpus.py` loader (bound to the registry) and every rule of `sim/check_corpus_r12.py` but S/C/V. Those three need the `expected` block, which a back-test omits by design.\n\nThe study you typed into Keel, as its context fields say it (your trade's words are plain to you; judge from inside your trade, your place and your time):\n  actor: finance lead\n  actor_plural: finance leads at startups holding cash from a raise\n  job: keep the money from a raise safe and earning until the company spends it\n  circumstance: the company decides where cash from a raise sits until it is needed\n  segment: venture-backed startups in the US within two years of a raise, banking with Mercury, Brex or similar\n  window: the last 3 months\n  where: US",
+    "respondent": {
+      "PRIMARY": "Your name is Dana Whitfield.\nAbout you: Dana Whitfield: HN/47279411 (\"we wouldn't want to switch even for a higher yield… the operational burden is more important to us than yield\", \"about 3.2%\"). The $300k transfer is **[author]**.\nYour role: Startup finance leads -- the person who runs a funded startup's bank accounts and cash day to day.\nThe project's what, where and when, in the founder's own words for your situation (given so you know your trade, your place and your time; they are not words you would necessarily use):\n  actor: finance lead\n  actor_plural: finance leads at startups holding cash from a raise\n  job: keep the money from a raise safe and earning until the company spends it\n  circumstance: the company decides where cash from a raise sits until it is needed\n  segment: venture-backed startups in the US within two years of a raise, banking with Mercury, Brex or similar\n  window: the last 3 months\n  where: US",
+      "COMMERCIAL_B2B": "Your name is Sofia Marchetti.\nAbout you: Sofia Marchetti: author's invention, filling a gap: the thread has almost no willing buyer. She stands for the founders' own case (\"putting $5M into Palus yields them an extra $50k-75k per year\", HN/47290584) and the batchmates who \"wanted this too\" (HN). Her $2,000 a month is the bank's treasury fee.\nYour role: Startup founders -- the founder-CEO who signs off where the company's cash is held.\nYour title: Startup founder. You decide on, and pay for, tools like the one in this study.\nThe project's what, where and when, in the founder's own words for your situation (given so you know your trade, your place and your time; they are not words you would necessarily use):\n  actor: finance lead\n  actor_plural: finance leads at startups holding cash from a raise\n  job: keep the money from a raise safe and earning until the company spends it\n  circumstance: the company decides where cash from a raise sits until it is needed\n  segment: venture-backed startups in the US within two years of a raise, banking with Mercury, Brex or similar\n  window: the last 3 months\n  where: US"
+    }
+  },
+  "spoken_guidelines": {
+    "source": "keel-cloud 88bfce8d (the bundle's)",
+    "sections": [
+      "2",
+      "3",
+      "5"
+    ],
+    "sha256": "485aefbf36d5ab1dbd86166bf3d39773a9963ae9f5b848ddb4b3a985c8693def"
+  },
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 0.3715,
+  "probe_cost_usd": 0.0037,
+  "seconds": 35.2,
+  "scored_at": "2026-10-28T14:30:45+00:00",
+  "calls": 6,
+  "partial": false,
+  "selection": null,
+  "entry_yaml": {
+    "sha256": "81ea581a7b90d7380e5807ba9a08ac736ee21fd755743feb971e26be5afe2210",
+    "matches_bundle": true
+  },
+  "read_fraction": 1.0,
+  "unread": [],
+  "summary": {
+    "founder": {
+      "screens": 4,
+      "means": {
+        "r1": 2.0,
+        "r2": 1.5,
+        "r3": 2.0,
+        "r4": 2.0,
+        "r5": 1.5,
+        "r6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": 0.0,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "score_pct": 89.5
+    },
+    "respondent": {
+      "screens": 0,
+      "means": {
+        "r1": null,
+        "r2": null,
+        "r3": null,
+        "r4": null,
+        "r5": null,
+        "r6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": null,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "insight_lines": 0,
+      "insight_means": {
+        "g1": null,
+        "g2": null
+      },
+      "insight_zeros": {
+        "g1": 0,
+        "g2": 0
+      },
+      "insights_pct": null,
+      "score_pct": null
+    },
+    "overall": {
+      "screens": 4,
+      "means": {
+        "r1": 2.0,
+        "r2": 1.5,
+        "r3": 2.0,
+        "r4": 2.0,
+        "r5": 1.5,
+        "r6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": 0.0,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "insight_lines": 0,
+      "insight_means": {
+        "g1": null,
+        "g2": null
+      },
+      "insight_zeros": {
+        "g1": 0,
+        "g2": 0
+      },
+      "insights_pct": null,
+      "score_pct": 89.5
+    }
+  },
+  "insights": [],
+  "insights_note": "no grouping to read (no follow-up line with two answers)",
+  "flow": {
+    "founder": {
+      "order": 1,
+      "order_why": "Naming the project and picking where I sell come before the context and read fine, but the two context screens follow with nothing to tell them apart, so the second feels like a repeat rather than a next step.",
+      "asked_twice": "Screens 3 and 4 carry the same kicker and question ('Before we test anything, let's define exactly where this idea applies.')",
+      "missing": "Nothing asks who signs off on where the cash sits as distinct from who moves it each month (the founder-CEO, sometimes the board, versus the finance lead), and nothing asks how I price: a percentage of the balance (0.25% a year on AUM) rather than an amount per period."
+    },
+    "respondent": {}
+  },
+  "screens": [
+    {
+      "n": 1,
+      "screen": "name",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "name",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": null,
+      "r5": 2,
+      "r6": null,
+      "why1": "Naming the project is the obvious first step of setting up a study, before anything about customers or the job.",
+      "why2": "\"What should we call this project?\" is plain to any founder on first reading.",
+      "why3": "I know my own company's name and pitch, so I can answer it without guessing.",
+      "why4": "A free-text box with no options, rows or chips to judge.",
+      "why5": "The name and tagline I typed, \"Palus Finance — better yield on a startup's idle cash\", are kept exactly as I wrote them.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 2,
+      "screen": "market",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "market",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": 2,
+      "r5": 2,
+      "r6": null,
+      "why1": "Right after naming the project, asking where I sell first is the obvious next step and nothing earlier asked it.",
+      "why2": "\"Where will you sell this first?\" is plain to any founder on first read.",
+      "why3": "I know exactly where I'm launching, US startups banking with Mercury and Brex, so it's answerable from my own plan.",
+      "why4": "A country picker with an optional region fits; US was picked and region was left empty, which is right for a nationwide online treasury product.",
+      "why5": "The kicker keeps my idea's words (better yield on a startup's idle cash) and the answer is my US market, unchanged.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 3,
+      "screen": "context",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "context",
+      "r1": 2,
+      "r2": 1,
+      "r3": 2,
+      "r4": 2,
+      "r5": 1,
+      "r6": null,
+      "why1": "Pinning down who, when and what job before testing anything is the obvious next step after naming the project and picking the US market.",
+      "why2": "The summary reads as a run-on splice ('...until it is needed, keep the money...') with no 'want to' or 'trying to' before the job, so I had to read it twice to see it as one sentence about finance leads.",
+      "why3": "It is my own idea, my customer and my occasion, so I can check every part of it from what I know.",
+      "why4": "The fields are my own typed answers and the recall window is a plain count-and-unit box set to 3 months, which fits the monthly drawdown I described.",
+      "why5": "The segment lost 'within two years of a raise' and 'banking with Mercury, Brex or similar', which carry the occasion and the bank-treasury rival I am selling against.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Finance leads at US venture-backed startups within two years of a raise, banking with Mercury, Brex or similar, trying to keep the money from a raise safe and earning until the company spends it, when the company decides where that cash sits until it is needed, counting the last 3 months."
+    },
+    {
+      "n": 4,
+      "screen": "context-card",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "context-card",
+      "r1": 2,
+      "r2": 1,
+      "r3": 2,
+      "r4": 2,
+      "r5": 1,
+      "r6": null,
+      "why1": "After naming the project and the market, a card that reads back who, when and what before any test is exactly where I'd expect to confirm the context.",
+      "why2": "The words are mine, but the sentence is stitched from my fields with commas, so 'when the company decides where cash from a raise sits..., keep the money...' reads as a broken run-on and needs a second pass to see that the job belongs to the finance leads.",
+      "why3": "It is my own customer, my own occasion and my own job read back to me, so I can confirm it from what I know.",
+      "why4": "Confirming or changing is the whole choice here, and 'Yes, that's it' is the plain way I'd say the read-back is right.",
+      "why5": "The meaning holds, but it drops two things I typed: 'within two years of a raise' and 'banking with Mercury, Brex or similar', which is the bank's-treasury situation my whole pitch is built on.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Finance leads at US venture-backed startups within two years of a raise, banking with Mercury, Brex or similar, who need to keep the money from the raise safe and earning until the company spends it, looking at the last 3 months. Is that it? [Yes, that's it] [Change something]"
+    }
+  ]
+}

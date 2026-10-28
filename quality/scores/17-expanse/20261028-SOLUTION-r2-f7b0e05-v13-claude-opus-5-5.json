@@ -1,0 +1,246 @@
+{
+  "entry": "17-expanse",
+  "scope": "SOLUTION",
+  "bundle": "20261028T151712Z-backtest-17-expanse",
+  "cloud_sha": "f7b0e051",
+  "web_sha": "a803da5",
+  "routing_version": "13",
+  "rubric_version": 2,
+  "persona": {
+    "founder": "Your own public material (you are the founder it describes):\n\n# 17-expanse — sources\n\nBack-test entry `17-expanse.yaml`: Expanse, job sizes predicted at submit time on shared GPU clusters (YC Spring 2026,\nP26). Written 2026-10-22 from public material only, read that day. Quotes are verbatim from the page named. \"Author's\nchoice\" marks the smallest plausible choice made where the public material is silent. The launch era is the Launch YC\npost of 2026-05-04 and the Launch HN of 2026-06-01 (the founder's gap-11 rule: every figure pinned to the launch era\nwhere one exists; anything later is marked as later and sits under *Status today*).\n\nMain sources (short names used below):\n- [LYC] Launch YC: \"Expanse - Unlock wasted GPU capacity\", 2026-05-04 (created_at in the page data) — https://www.ycombinator.com/launches/QCF-expanse-unlock-wasted-gpu-capacity\n- [HN] Launch HN: \"Launch HN: Expanse (YC P26) – Unlock Wasted GPU Capacity\", 2026-06-01, the founders' post and the thread (27 comments), read whole through the HN Algolia API — https://news.ycombinator.com/item?id=48356312 (https://hn.algolia.com/api/v1/items/48356312)\n- [WB] expanse.sh as archived 2026-06-01, the day of the Launch HN — https://web.archive.org/web/20260601142950/https://expanse.sh/\n- [YCP] YC company page, read 2026-10-22 — https://www.ycombinator.com/companies/expanse\n- [SITE] expanse.sh, read 2026-10-22 — https://expanse.sh\n\n## Every figure, with its source and date\n\n| Figure in the entry | Where it is used | Source, date | Launch era? |\n|---|---|---|---|\n| \"30% of cloud spend is lost to over-allocation\" | the cost's low end (30%) | [LYC] 2026-05-04 (the founders cite a Grafana blog) | yes |\n| \"from 122k jobs, 59% of the compute was wasted\" | `statements.problem`; the cost's high end (59%) | [HN] 2026-06-01 | yes |\n| \"roughly 30% to 40% effective utilisation\" | `statements.problem` | [HN] 2026-06-01 | yes |\n| \"over-requests by two to three times\" | `statements.problem` | [HN] 2026-06-01 | yes |\n| \"roughly $8.5M of compute wasted in one month on one cluster\" | the price arithmetic only | [HN] 2026-06-01 | yes |\n| a free two-week measurement, then a paid pilot \"at a fixed monthly fee\", \"per-cluster\" | `statements.commercial`; Commitment | [HN] 2026-06-01; [WB] 2026-06-01 | yes |\n| clusters of 100+ GPUs | `context.segment` | [HN] 2026-06-01 | yes |\n| $10,000 to $20,000 per cluster a month | `commercial.price` | **none**: the operator's (author's) reading, see item 7 | — |\n| $60 an hour | `hourly_rate` | the author's round stand-in; the RATE cost never reads it | — |\n| \"$8M Monthly wastage uncovered\" | *Status today* only | [SITE] 2026-10-22 | no |\n\n## The eight founder-emulation items\n\n1. **Who.** Researchers and ML engineers who submit jobs to a shared SLURM or Kubernetes GPU cluster.\n   [LYC] \"Running compute on a cluster means guessing memory, time, and GPUs before you submit.\"\n   [HN] \"We also flag failures we think are about to happen and surface line-level optimisations the researcher can apply\n   themselves.\" → `roles[researcher]`, `context.actor`, `actor_plural`.\n\n2. **What (the job).** Get each job to run to the end without wasting the cluster.\n   [LYC] \"Get it wrong and your job fails mid-run. Over-guess and you pay for compute you never use.\"\n   [HN] \"under-requesting kills your job mid-run and you lose days of work. So everyone over-requests by two to three\n   times.\" → `statements.problem`, `context.job`, `interpretations.problem`.\n\n3. **When / where.** At every job submission. [HN] \"We scan any workloads about to be submitted through SLURM/K8s\n   (plugging into the life cycles of the job so you don't have to change how you submit things)\". → `context.circumstance`,\n   `occasion: job submission`. Author's choice: the window {5, WORKING_DAYS} (several submissions a working day) and\n   Frequency 3 to 5 working days out of 5; Prevalence `p_80_100` (\"everyone over-requests\").\n\n4. **Which people.** Researchers on SLURM or Kubernetes clusters of 100 or more GPUs, at national HPC centres, AI labs,\n   quant funds and drug discovery.\n   [HN] \"If you run a HPC/GPU cluster (SLURM or K8s, 100+ GPUs), we'd love to have a talk.\" [LYC] \"Know anyone in AI\n   infrastructure (managing cloud and/or on-premise data centres), quant finance, drug discovery, or AI research labs?\"\n   → `context.segment`, `market: US`. Author's choice: US (rule U); the founders are in Edinburgh and the cluster they\n   measured is a national-scale HPC site, and their ask names no country.\n\n5. **Who pays.** The cluster's operator, per cluster; a department runs the paid pilot.\n   [HN] \"We offer a two-week measurement window where we install, ingest, and report recoverable capacity to datacenter\n   operators, followed by a paid pilot deployment in one department at a fixed monthly fee, renewing at the same rate\n   unless the scope expands.\" → `persona.decision_maker: {role: operator}`; Buyer and payer tests \"The department head\"\n   (the author's reading of \"in one department\"), \"The security team\" listed. Purchase friction's tested item, \"A security\n   review of an agent on every node\", from [HN] \"Expanse installs on every node\" and the thread's security objection\n   (\"Any competent enterprise risk team is going to give a hard no to a SaaS application being in the critical path for\n   on-prem business critical workloads.\") with the founder's reply (\"Deployments are air-gapped and run in the customer's\n   VPC, on their own hardware.\"); \"Letting it read job scripts and source code\" from [HN] \"We read the source code, job\n   submission script, and the hardware\"; the budget line for the department's pilot is the author's. Commitment's step,\n   \"run a two-week waste measurement on the cluster\": [WB] \"Two weeks on your cluster. A real wastage number. No\n   commitment. If the numbers don't justify a pilot, you walk away with the report.\" (The same post also offers \"a\n   section of your cluster for a week\"; the two weeks of the pricing paragraph and the site are used.)\n\n6. **Mechanism.** An agent on every node, hooked into the scheduler; a cluster-specific model predicts what each job needs\n   at submit time.\n   [HN] \"Expanse installs on every node and hooks into SLURM (or the K8s scheduler). It ingests live hardware telemetry\n   (DCGM, CUPTI, Cgroups, Network/IO monitoring)\". [HN] \"We predict the GPU VRAM, Utilisation, memory, CPUs and walltime\n   the job actually needs, with a confidence interval.\" [HN] \"If a workload fails, we take all the data we collected and\n   perform correlations on the stack profiling and the hardware telemetry\". [LYC] \"All analysis runs on your network.\"\n   → `statements.solution`, `solution_mechanism`. Compatibility: the source code on the cluster beside the script\n   (tested; the model reads it), the usual scheduler, Python ([HN] \"currently only supported in python - other languages\n   coming soon\", of the profiler) — the conditions are the author's from these lines. Adoption friction: using the\n   suggested sizes instead of padding (tested; [HN] \"Our models are trained to over-provision rather than\n   under-provision\"), applying the code fixes. Relative advantage: [LYC] \"Debug failures in seconds, not days\"\n   (fewer_attempts, the job runs first time) and a shorter queue wait for smaller requests (shorter_time, the author's\n   reading of a smaller request fitting sooner); the wording is the author's.\n\n7. **Price and cost.** Per cluster a month, no figure; the cost is the share of the cluster's GPU hours reserved and\n   never used.\n   [HN] \"We're currently onboarding customers as paid pilots. Pricing is determined per-cluster.\" No figure exists in\n   [LYC], [HN], [WB] or [SITE] (no pricing page). The founder's price, AMOUNT_PERIOD **$10,000 to $20,000 per cluster a\n   month**, is the operator's reading: for the smallest cluster the founders address (100 GPUs, about 73,000 GPU hours a\n   month), [LYC]'s 30% reserved and unused is about 22,000 GPU hours, which at an assumed $2 to $3 a GPU hour (the\n   author's assumption; [HN] prices its $8.5M \"At on-demand cloud rates for the same hardware\" without naming a rate) is\n   about $44,000 to $66,000 a month; a fee of a fifth to a third of the waste on the smallest cluster is the author's\n   choice. Existing sacrifice: RATE, about 30% to 59% of the cluster's GPU hours per cluster a month, the low from [LYC],\n   the high from [HN]'s measured cluster. Ability to pay is read `budget` by the engine (a percent never compares with\n   dollars), so the operators answer the registry's budget question.\n\n8. **Occasions.** The stories are scripted from the thread; no respondent is a real person.\n   [HN] (a genomics user) \"I do genomics work and my jobs tend to be bursty. They may use a lot of CPU initially, but the\n   second half of the job is writing results. This takes only one core, but still the max amount of memory.\" [HN] (an\n   HPC user) \"I know from snooping on sumbit scripts and node utilization on the HPC that I use at my institution that\n   most submissions leave some compute on the table (and many of them are egregiously bad).\" [HN] (a student) \"It's not\n   trivial to estimate a priori the amount of time required for my simulation to complete, so I overestimate.\"\n\n## Respondents → the public account each is based on\n\nResearchers (PRIMARY link, Parts 1 and 2):\n- Priyanka Raghunathan → [HN] \"under-requesting kills your job mid-run and you lose days of work\"; the fine-tuning run is the author's.\n- Tobias Brandt → [HN] the genomics comment (bursty pipeline, \"about 8 different steps\", \"We need to reserve the $MAX requirements for each\").\n- Ana Lucía Ferreira → [HN] the student's \"so I overestimate\" on simulation time; the queue wait for a big request is the author's.\n- Kwabena Owusu → author's invention, filling a gap: an ML engineer whose sizes come from past runs on a dashboard, so the problem is not a chorus (against on Importance and Current solution).\n- Mei-Ling Zhou → author's invention: a chipped (rather_not_say) story at a quant fund, GUESSED by code.\n- Rafael Moreno → author's invention: a vague, habitual story (GUESSED), echoing [HN] \"everyone over-requests by two to three times\".\n- Ingrid Haugen → author's invention: a gate No (writing up, no jobs that week).\n- Samuel Adeyemi → author's invention: a gate No (away at a conference).\n- Yusuf Demir → [HN] \"snooping on sumbit scripts ... many of them are egregiously bad\": a copied script holding eight GPUs.\n- Claire Dubois-Martin → author's invention, filling a gap: a licensed binary with no source code, so the tested condition fails ('no').\n- Hiroshi Takeda → [HN] \"at least for everyone else, I'd would prefer tuning my own usage myself\": he profiles a test run (Current solution mostly works; Adoption friction no).\n- Fatima Al-Sayed → [HN] \"you lose days of work\"; the walltime limit and the group allocation are the author's.\n- Diego Castañeda → [HN] the student's PDE simulation (\"If I'm running a PDE simulation, and I allocate n machines I want to use all of them\"); he keeps his margin (Adoption friction probably not).\n\nCluster operators (COMMERCIAL_B2B link, Part 3 only; no story by rule). Their picks are the author's, shaped by:\n- Gregory Lindqvist, Nadia Kowalski, Marco Bianchi → [HN] the measured national cluster and \"Datacenters run at roughly 30% to 40% effective utilisation\": operators who see the waste and would pay at the founder's band.\n- Arjun Mehta → [HN] \"large scale compute industries as well, such as quant funds\": a quant-fund platform lead who owns the compute budget, sees more waste than the founder's high and decides alone (against the tested department head).\n- Beatrix Okoro → [HN] \"What you are really left with is the 'small and medium business' clusters that are purpose specific\": a small cluster, less waste, a lower rung.\n- Thomas Reinholt → [HN] the security objection (\"a hard no\"); would not pay.\n- Leilani Kahale → [HN] \"In many places the cost of the HPC hardware isn't passed onto them\": a grant-funded university cluster that does not measure the waste (dont_know) and has no line for a monthly fee.\n\nThe split (4 of 7 operators at the founder's rung or above; 5 of 6 who give a number at 30% waste or more) is the\nauthor's reading of a thread that agreed on the waste and argued about security and the business. No respondent\ncarries the name of a commenter, customer or founder.\n\n## Status today\n\nSame idea, five months after launch. [SITE] \"Expanse delivers compute certainty. We predict exactly what every job\nneeds before it runs\", still sales-led (\"Book a discovery call\"), now citing \"$8M Monthly wastage uncovered\" (a later\nfigure, not used). [YCP] lists the company as Spring 2026 with the Launch YC text. No public price today ([SITE] has no\npricing page, read 2026-10-22).\n\n## Could not be sourced\n\n- **A price figure.** None at launch or today; the founder's $10,000 to $20,000 per cluster a month is the operator's\n  (author's) reading, and the GPU-hour rate behind its arithmetic is an assumption.\n- **The waste per cluster as an operator would read it.** The founders' 30% is an industry figure they cite and their\n  59% is one national cluster; the operators' value boxes (20% to 60%) are the author's.\n- **A buyer title and who has to agree.** [HN] names \"datacenter operators\" and \"one department\"; the decider role, the\n  department head as the tested role and the security team are the author's reading.\n- **A US market.** The founders are in Edinburgh; the US is the author's choice under rule U.\n- **A researcher's hour.** No source; `hourly_rate` 60 is a round stand-in, unread by the RATE cost.\n- The Compatibility and Adoption friction conditions, the Purchase friction items but the security review, and every\n  pick are the author's.\n\nThe study you typed into Keel, as its context fields say it (your trade's words are plain to you; judge from inside your trade, your place and your time):\n  actor: researcher\n  actor_plural: researchers who run jobs on shared GPU clusters\n  job: get each job to run to the end without wasting the cluster\n  circumstance: a job is ready to submit and its memory, GPUs and run time have to be guessed first\n  segment: researchers and ML engineers on SLURM or Kubernetes clusters of 100 or more GPUs\n  window: the last 5 working_days\n  where: US",
+    "respondent": {
+      "PRIMARY": "Your name is Priyanka Raghunathan.\nAbout you: ...Researchers (PRIMARY link, Parts 1 and 2): - Priyanka Raghunathan → [HN] \"under-requesting kills your job mid-run and you lose days of work\"; the fine-tuning run is the author's. - Tobias Brandt → [HN] the genomics comment (bursty pipeline, \"about 8 different steps\", \"We need to reserve the $MAX requirements for each\"). - Ana Lucía Ferreira → ...\nYour role: Cluster researchers -- a researcher or ML engineer who submits jobs to a shared SLURM or Kubernetes GPU cluster.\nThe project's what, where and when, in the founder's own words for your situation (given so you know your trade, your place and your time; they are not words you would necessarily use):\n  actor: researcher\n  actor_plural: researchers who run jobs on shared GPU clusters\n  job: get each job to run to the end without wasting the cluster\n  circumstance: a job is ready to submit and its memory, GPUs and run time have to be guessed first\n  segment: researchers and ML engineers on SLURM or Kubernetes clusters of 100 or more GPUs\n  window: the last 5 working_days\n  where: US",
+      "COMMERCIAL_B2B": "Your name is Gregory Lindqvist.\nAbout you: Gregory Lindqvist, Nadia Kowalski, Marco Bianchi → [HN] the measured national cluster and \"Datacenters run at roughly 30% to 40% effective utilisation\": operators who see the waste and would pay at the founder's band.\nYour role: Cluster operators -- the person who runs a shared HPC or GPU cluster and chooses the software that runs on it.\nYour title: Cluster operator. You decide on, and pay for, tools like the one in this study.\nThe project's what, where and when, in the founder's own words for your situation (given so you know your trade, your place and your time; they are not words you would necessarily use):\n  actor: researcher\n  actor_plural: researchers who run jobs on shared GPU clusters\n  job: get each job to run to the end without wasting the cluster\n  circumstance: a job is ready to submit and its memory, GPUs and run time have to be guessed first\n  segment: researchers and ML engineers on SLURM or Kubernetes clusters of 100 or more GPUs\n  window: the last 5 working_days\n  where: US"
+    }
+  },
+  "spoken_guidelines": {
+    "source": "keel-cloud f7b0e051 (the bundle's)",
+    "sections": [
+      "2",
+      "3",
+      "5"
+    ],
+    "sha256": "485aefbf36d5ab1dbd86166bf3d39773a9963ae9f5b848ddb4b3a985c8693def"
+  },
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 0.4117,
+  "probe_cost_usd": 0.0151,
+  "seconds": 42.6,
+  "scored_at": "2026-10-28T15:20:10+00:00",
+  "calls": 6,
+  "partial": false,
+  "selection": null,
+  "entry_yaml": {
+    "sha256": "912320518286bbb01990130dc37ee754b0fc48b2f97b25d76c6b1c3b1e7c9163",
+    "matches_bundle": true
+  },
+  "read_fraction": 1.0,
+  "unread": [],
+  "summary": {
+    "founder": {
+      "screens": 4,
+      "means": {
+        "r1": 2.0,
+        "r2": 1.5,
+        "r3": 2.0,
+        "r4": 2.0,
+        "r5": 1.5,
+        "r6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": 0.0,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "score_pct": 89.5
+    },
+    "respondent": {
+      "screens": 0,
+      "means": {
+        "r1": null,
+        "r2": null,
+        "r3": null,
+        "r4": null,
+        "r5": null,
+        "r6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": null,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "insight_lines": 0,
+      "insight_means": {
+        "g1": null,
+        "g2": null
+      },
+      "insight_zeros": {
+        "g1": 0,
+        "g2": 0
+      },
+      "insights_pct": null,
+      "score_pct": null
+    },
+    "overall": {
+      "screens": 4,
+      "means": {
+        "r1": 2.0,
+        "r2": 1.5,
+        "r3": 2.0,
+        "r4": 2.0,
+        "r5": 1.5,
+        "r6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": 0.0,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "insight_lines": 0,
+      "insight_means": {
+        "g1": null,
+        "g2": null
+      },
+      "insight_zeros": {
+        "g1": 0,
+        "g2": 0
+      },
+      "insights_pct": null,
+      "score_pct": 89.5
+    }
+  },
+  "insights": [],
+  "insights_note": "no grouping to read (no follow-up line with two answers)",
+  "flow": {
+    "founder": {
+      "order": 2,
+      "order_why": "Naming the project, then picking the market, then defining the context is a natural run from the general to the specific, and nothing comes before what it depends on.",
+      "asked_twice": "Screens 3 and 4: both carry the same kicker and the same question ('Before we test anything, let's define exactly where this idea applies.'), so as shown they read as the same screen twice unless each collects different context fields.",
+      "missing": "Nothing after the context: no screen for the problem (over-requesting by two to three times, jobs killed mid-run), the solution (an agent on every node predicting VRAM, GPUs, memory and walltime at submit time), or the separate buyer. The cluster operator pays per cluster a month after a free two-week measurement, so a second link to operators and a price question are missing, along with the security review that gates an agent on every node."
+    },
+    "respondent": {}
+  },
+  "screens": [
+    {
+      "n": 1,
+      "screen": "name",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "name",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": null,
+      "r5": 2,
+      "r6": null,
+      "why1": "Naming the project is the obvious first step before Keel writes anything, and I expect to be asked it here.",
+      "why2": "\"What should we call this project?\" is plain on first read; there is no word I would stumble on.",
+      "why3": "It is my own company and idea, so I know exactly what to call it.",
+      "why4": "It is a free-text box with no options, rows, chips or value box.",
+      "why5": "The name I typed, \"Expanse — job sizes predicted at submit time on shared GPU clusters\", is held exactly as I wrote it.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 2,
+      "screen": "market",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "market",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": 2,
+      "r5": 2,
+      "r6": null,
+      "why1": "Right after naming the project, asking where I sell first is the obvious next thing, since it sets whose clusters and which researchers the study reaches.",
+      "why2": "\"Where will you sell this first?\" is plain to a founder running a sales-led, per-cluster pilot; nothing in it needs a second read.",
+      "why3": "I know where my first pilots will run because I pick which HPC centres, labs and quant funds I call, so this is answerable from my own work.",
+      "why4": "A country picker with an optional region covers it; leaving the region empty fits, because a per-cluster B2B sale is not bounded by a state.",
+      "why5": "The screen holds exactly what was typed, US with no region, and nothing has drifted.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 3,
+      "screen": "context",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "context",
+      "r1": 2,
+      "r2": 1,
+      "r3": 2,
+      "r4": 2,
+      "r5": 1,
+      "r6": null,
+      "why1": "Pinning down who, at what moment and over which window comes right after naming the project and the market, and before anything is tested, which is where I'd expect it.",
+      "why2": "The summary is one long run-on sentence that stacks the segment, the moment, the job and the window, so I have to read it twice to check it says what I typed.",
+      "why3": "It restates my own customers and the moment they submit a job, which I know cold.",
+      "why4": "The recall window of 5 working days fits how researchers submit jobs on a cluster, and nothing in the fields is missing or overlapping.",
+      "why5": "\"Who have 100 or more GPUs\" says the researchers own the GPUs, but I meant they run jobs on a shared SLURM or Kubernetes cluster of 100+ GPUs, and the scheduler, which is the whole hook, has dropped out.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Researchers and ML engineers who run jobs on a shared SLURM or Kubernetes cluster of 100 or more GPUs: each time a job is ready to submit and they have to guess its memory, GPUs and run time first, they want it to run to the end without wasting the cluster. We'll ask about the last 5 working days."
+    },
+    {
+      "n": 4,
+      "screen": "context-card",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "context-card",
+      "r1": 2,
+      "r2": 1,
+      "r3": 2,
+      "r4": 2,
+      "r5": 1,
+      "r6": null,
+      "why1": "Pinning down who, when and which job before testing anything is the obvious first step, and it comes right after naming the project and the market.",
+      "why2": "It reads as one long stitched sentence. 'who have 100 or more GPUs' makes me stop, because no researcher has 100 GPUs; they share a cluster of that size.",
+      "why3": "It describes my own customers and the moment they submit a job, which is exactly what I typed.",
+      "why4": "A confirm chip ('Yes, that's it') with a way to correct it is complete and fits a summary card.",
+      "why5": "Keel dropped 'on SLURM or Kubernetes clusters' and moved the 100 GPUs from the shared cluster onto the people, so the segment has drifted a little from what I typed.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Researchers and ML engineers on shared SLURM or Kubernetes clusters of 100+ GPUs, in the US: over the last 5 working days, each time a job was ready to submit and they had to guess its memory, GPUs and walltime, so it runs to the end without wasting the cluster. [Yes, that's it] [Not quite]"
+    }
+  ]
+}

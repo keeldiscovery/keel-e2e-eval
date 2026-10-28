@@ -1,0 +1,246 @@
+{
+  "entry": "08-fresco",
+  "scope": "COMMERCIAL",
+  "bundle": "20261028T142202Z-backtest-08-fresco",
+  "cloud_sha": "88bfce8d",
+  "web_sha": "a803da5",
+  "routing_version": "13",
+  "rubric_version": 2,
+  "persona": {
+    "founder": "Your own public material (you are the founder it describes):\n\n# 08-fresco — sources\n\nBack-test entry `08-fresco.yaml`: Fresco, the AI scribe for construction superintendents (YC Fall 2024).\nWritten 2026-10-22 from public material only. Quotes are verbatim from the page named; \"Author's choice\" marks the\nsmallest plausible choice made where the public material is silent.\n\nMain sources:\n- [HN] Launch HN: Fresco (YC F24), 2024-11-21 — https://news.ycombinator.com/item?id=42204939\n- [LYC] Launch YC: Fresco, the scribe for construction, 2024-10-23 — https://www.ycombinator.com/launches/M73-fresco-the-scribe-for-construction\n- [YCP] YC company page — https://www.ycombinator.com/companies/fresco (now \"AI-powered takeoff and estimating for Division 8 construction\")\n- [KOE] A contractor's daily-log expectations on Procore's support site — https://support.procore.com/tc/Koester/Site_Map/Koester_Expectations_-_Daily_Logs\n- [SWI] Swiftask, Procore daily reports page (vendor) — https://swiftask.ai/ai-integration/procore/intelligent-daily-reports\n- [BLS] BLS Occupational Outlook, construction managers — https://www.bls.gov/ooh/management/construction-managers.htm\n- [OPU] Launch HN: Opusense (field reports for site inspectors), 2025-05-20 — https://news.ycombinator.com/item?id=44042791\n\n## The eight founder-emulation items\n\n1. **Who.** Construction superintendents on commercial jobs.\n   [HN] \"Superintendents are the busiest and most expensive people on construction sites.\"\n   [LYC] \"That’s the reality for 210k+ construction superintendents (or supervisors, foremen, PMs, etc.) across the USA.\"\n   → `roles[superintendent]`, `context.actor`, `actor_plural`. Author's choice: \"on commercial jobs\" (the founders ask\n   for introductions to commercial general contractors in [LYC]).\n\n2. **What (the job).** Keep the record of the day's work, for liability and disputes.\n   [HN] \"30-200 photos per day to document site progress (mostly for liability reasons, or in case of a dispute with the\n   owner over delays and deliverables)\"; photos used to create \"daily logs\", \"structured documents that account for the\n   work done on site on any given day\". [KOE] the log is \"a critical piece of documentation in the arbitration of a\n   dispute\". → `statements.problem`, `context.job`, `interpretations.problem`.\n\n3. **When / where.** At the end of the day, after the site walks, in the trailer.\n   [HN] \"At the end of the day, they'll spend a few hours uploading those photos into OneDrive, or project management\n   software like Procore or ACC.\" [YCP] \"We were curious what superintendents were doing for hours in their trailers at\n   the end of the day.\" [LYC] \"supes are spending up to 3 hours a day creating documents\". → `context.circumstance`, `occasion: daily log`.\n   Author's choice: the recall window {5, WORKING_DAYS} and Frequency 4 to 5 working days out of 5 (the posts say \"per\n   day\"; a five-day site week is assumed). Prevalence `p_80_100` (\"Nearly all\") follows from the same \"per day\".\n\n4. **Which people (the comparable group).** Superintendents at US general contractors whose jobs run on Procore or ACC.\n   [LYC] \"210k+ construction superintendents ... across the USA\"; \"Project management tools like Procore and ACC have\n   dramatically increased documentation requirements\". [YCP] \"driving to Napa, South Bay, and around SF\". → `context.segment`,\n   `market: US`.\n\n5. **Who pays.** The general contractor, per site.\n   [HN] \"we charge per site per month, which includes unlimited users on any given construction project\".\n   → `persona.decision_maker: {role: contractor}`, the BUYER role. Author's choice: the decider is the contractor's\n   \"operations lead\" and the role to test is \"The CFO\" (a second role, \"The project executive\", listed); Purchase\n   friction's three steps (\"A trial on one live job\" tested, a Procore check, a security review) and Commitment's step\n   \"start a paid pilot on one site\" are the author's. Public material names no buyer title; [LYC] asks for\n   introductions to general contractors by firm, not by role.\n\n6. **Mechanism.** Narrated short videos turned into notes, texted to the crew, pushed to Procore/ACC.\n   [HN] \"Supers simply take short videos with voiceover, or upload photos, and Fresco does the rest, creating notes with\n   transcription, photos, assignees, and due dates. Supers can easily text their crew action items, and receive texts\n   back\". \"We also route this to whatever project management software they're using with a single click.\"\n   [LYC] the narrated example \"The beam in the southwest corner of room 134 is corroded and needs replacement by Alex.\";\n   \"Supes who use Fresco complete their notes, on average, 90% faster.\"\n   → `statements.solution`, `solution_mechanism`, Compatibility and Adoption friction items. Relative advantage's two\n   benefits are from [HN] (\"during their site walks, not after\") and [LYC] (\"90% faster\"); their wording is the author's.\n\n7. **Price.** About $1k per site per month, less with multi-site or multi-month terms.\n   [HN] \"The typical price is $1k/month, but we offer discounts for multi-month or multi-site commitments.\"\n   → `commercial.price` {800, 1000, month}. Author's choice: the low end of $800 stands for the stated discounts.\n   Existing sacrifice: 30 to 60 hours a month per site at an hourly rate of 55 — from [LYC] \"up to 3 hours a day\" and\n   [HN] \"a few hours uploading\", taken as 1.5 to 3 hours on about twenty working days (author's arithmetic). The rate is\n   [BLS] \"$55.28 per hour\" (median, construction managers, May 2025), the author's stand-in: no superintendent wage is\n   in the public material. Ability to pay is derived by code (24% to 61%).\n\n8. **Occasions.** The narrated beam; a school refit report; the uploads and logs at the end of the day.\n   [LYC] on a school refit walkthrough: \"Normally, creating the final report takes 2+ hours.\"\n   [HN] \"few supers have time to do this thoroughly, so these photos aren't very searchable.\" No named customer quote\n   exists in public; the occasions below are scripted from these and from practitioner comments.\n\n## Respondents → the public account each story is based on\n\nSuperintendents (PRIMARY link, Parts 1 and 2):\n- Marcus Delgado → [HN] post: photos taken through the day, \"a few hours uploading\" to Procore, logs for \"a dispute with the owner over delays\" — https://news.ycombinator.com/item?id=42204939\n- Tomasz Wierzbicki → [LYC] the school refit: \"Normally, creating the final report takes 2+ hours.\"; punch lists in [HN] — https://www.ycombinator.com/launches/M73-fresco-the-scribe-for-construction\n- Denise Okafor → the log's contents from [KOE] (\"all activities that occur on a jobsite each day\": manpower, progress, weather, delays, safety, deliveries); that she fills it in as she goes and is done by the end of the day is the author's invention, filling a gap: a superintendent whose way works, so the problem is not a chorus.\n- Ray Villanueva → [OPU] a former site inspector: \"try to remember everything you wanted to write. Sometimes you'd fill in gaps from memory\" — https://news.ycombinator.com/item?id=44042791 ; delays and weather in the log from [KOE]\n- Hank Sorensen → author's invention, filling a gap: a chipped (rather_not_say) story, so the reader sees one GUESSED-by-code person.\n- Luis Arreola → author's invention, filling a gap: a vague, habitual story with no one occasion (GUESSED), echoing [YCP] \"for hours in their trailers\".\n- Jolene Pruitt → author's invention, filling a gap: a gate No (between jobs in the window).\n- Curtis Baines → author's invention, filling a gap: a gate No (a job in closeout, no site walks that week).\n- Kwame Asante → [HN] \"these photos aren't very searchable\" and the practitioner comment that reports get filled with filler: \"fill up some reports with random bullshit just so the project moves forward\" — https://news.ycombinator.com/item?id=42208610 ; OneDrive and \"hundreds of photos\" — https://news.ycombinator.com/item?id=42207501\n- Gary Lindqvist → the thread's hallucination sceptics, transposed to a superintendent who signs his own log — https://news.ycombinator.com/item?id=42207216 and https://news.ycombinator.com/item?id=42209501\n- Priya Raman → [LYC] \"Fresco saves supes hours they’d otherwise spend double-entering notes.\"; texting the crew from [HN]; the owner-side PM walk from the general-contractor comment on change orders and tracking — https://news.ycombinator.com/item?id=42207501\n- Dwayne Hollis → [LYC] the group is \"superintendents (or supervisors, foremen, PMs, etc.)\": an assistant super writes the log (the Current-solution escape). Author's invention beyond that.\n\nContractor operations leads (COMMERCIAL_B2B link, Part 3 only; no story by rule). Their picks are the author's, shaped by:\n- Renee Castillo → [HN] the price as offered and \"unlimited users\"; author's invention for the picks.\n- Bill Ostrowski → the price-sceptic comment: \"$1k is like way way way out of the reasonable range\", \"a fraction (e.g. 10%)\" — https://news.ycombinator.com/item?id=42215232\n- Faith Nakamura → author's invention, filling a gap: supers do the logs on their own time, so the firm counts no cost.\n- Gordon Achebe → [LYC] \"up to 3 hours a day\" on a large job; author's invention for the picks.\n- Sandra Whitfield → the same price-sceptic comment (\"cheaper to get them to do it than buy software at $12k p.a.\") — https://news.ycombinator.com/item?id=42215232\n- Omar Haddadin → author's invention, filling a gap: a buyer who cannot recall the cost or the budget source (both escapes).\n- Lena Brandt → the AEC engineer's comment that integration with existing products drives buying — https://news.ycombinator.com/item?id=44043729 ; author's invention for the picks.\n- Trevor McAllister → author's invention, filling a gap: a firm paying a part-time document controller (an amount, not hours).\n\nNo respondent carries the name of a commenter, customer or founder.\n\n## Open\n- The verdict was scripted to be plausible and not obviously \"build\": the problem holds on how often but people\n  disagree on whether the log is one of their two worst difficulties; the solution splits on the benefit and on\n  talking over videos on site; the price fails (two of eight at the founder's band or above) while the cost it would\n  replace is above the price. This is the author's reading of the thread's sceptics, not a measured result.\n- No public account names a buyer title at a general contractor; the decider, the tested role \"The CFO\", the purchase\n  steps and the Commitment step are the author's.\n- hourly_rate 55 is a proxy (construction managers, not superintendents).\n- Existing sacrifice picks use `period: quarter` (the corpus's convention), although the registry's recall period for a\n  monthly cost reads \"last month\"; the values are the monthly figures times three.\n- The window {5, WORKING_DAYS} is the author's; the public posts say \"per day\".\n\nThe study you typed into Keel, as its context fields say it (your trade's words are plain to you; judge from inside your trade, your place and your time):\n  actor: construction superintendent\n  actor_plural: construction superintendents on commercial jobs\n  job: keep an accurate record of the day's work on site\n  circumstance: the day's site walks are done and the photos and notes still have to go into the daily log\n  segment: superintendents at US general contractors whose jobs run on Procore or ACC\n  window: the last 5 working_days\n  where: US",
+    "respondent": {
+      "PRIMARY": "Your name is Marcus Delgado.\nAbout you: ...Superintendents (PRIMARY link, Parts 1 and 2): - Marcus Delgado → [HN] post: photos taken through the day, \"a few hours uploading\" to Procore, logs for \"a dispute with the owner over delays\" — https://news.ycombinator.com/item?id=42204939 - Tomasz Wierzbicki → [LYC] the school refit: \"Normally, creating the final report takes 2+ hours.\"; punch lis...\nYour role: Construction superintendents -- a superintendent who runs a commercial job site for a general contractor.\nThe project's what, where and when, in the founder's own words for your situation (given so you know your trade, your place and your time; they are not words you would necessarily use):\n  actor: construction superintendent\n  actor_plural: construction superintendents on commercial jobs\n  job: keep an accurate record of the day's work on site\n  circumstance: the day's site walks are done and the photos and notes still have to go into the daily log\n  segment: superintendents at US general contractors whose jobs run on Procore or ACC\n  window: the last 5 working_days\n  where: US",
+      "COMMERCIAL_B2B": "Your name is Renee Castillo.\nAbout you: ...Contractor operations leads (COMMERCIAL_B2B link, Part 3 only; no story by rule). Their picks are the author's, shaped by: - Renee Castillo → [HN] the price as offered and \"unlimited users\"; author's invention for the picks. - Bill Ostrowski → the price-sceptic comment: \"$1k is like way way way out of the reasonable range\", \"a fraction (e.g. 10%)\" — https://news.ycombinator.com/item?id=42215232 - Faith Nakamura → author's...\nYour role: Contractor operations leads -- the person at a general contractor who chooses and pays for the software its job sites use.\nYour title: Contractor operations lead. You decide on, and pay for, tools like the one in this study.\nThe project's what, where and when, in the founder's own words for your situation (given so you know your trade, your place and your time; they are not words you would necessarily use):\n  actor: construction superintendent\n  actor_plural: construction superintendents on commercial jobs\n  job: keep an accurate record of the day's work on site\n  circumstance: the day's site walks are done and the photos and notes still have to go into the daily log\n  segment: superintendents at US general contractors whose jobs run on Procore or ACC\n  window: the last 5 working_days\n  where: US"
+    }
+  },
+  "spoken_guidelines": {
+    "source": "keel-cloud 88bfce8d (the bundle's)",
+    "sections": [
+      "2",
+      "3",
+      "5"
+    ],
+    "sha256": "485aefbf36d5ab1dbd86166bf3d39773a9963ae9f5b848ddb4b3a985c8693def"
+  },
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 0.3423,
+  "probe_cost_usd": 0.0037,
+  "seconds": 36.0,
+  "scored_at": "2026-10-28T14:24:39+00:00",
+  "calls": 6,
+  "partial": false,
+  "selection": null,
+  "entry_yaml": {
+    "sha256": "f878d093abb6c544f324b8f891a6e113382ffbe7a89c1d4986181ed5dbc65305",
+    "matches_bundle": true
+  },
+  "read_fraction": 1.0,
+  "unread": [],
+  "summary": {
+    "founder": {
+      "screens": 4,
+      "means": {
+        "r1": 2.0,
+        "r2": 1.5,
+        "r3": 2.0,
+        "r4": 2.0,
+        "r5": 1.5,
+        "r6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": 0.0,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "score_pct": 89.5
+    },
+    "respondent": {
+      "screens": 0,
+      "means": {
+        "r1": null,
+        "r2": null,
+        "r3": null,
+        "r4": null,
+        "r5": null,
+        "r6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": null,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "insight_lines": 0,
+      "insight_means": {
+        "g1": null,
+        "g2": null
+      },
+      "insight_zeros": {
+        "g1": 0,
+        "g2": 0
+      },
+      "insights_pct": null,
+      "score_pct": null
+    },
+    "overall": {
+      "screens": 4,
+      "means": {
+        "r1": 2.0,
+        "r2": 1.5,
+        "r3": 2.0,
+        "r4": 2.0,
+        "r5": 1.5,
+        "r6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": 0.0,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "insight_lines": 0,
+      "insight_means": {
+        "g1": null,
+        "g2": null
+      },
+      "insight_zeros": {
+        "g1": 0,
+        "g2": 0
+      },
+      "insights_pct": null,
+      "score_pct": 89.5
+    }
+  },
+  "insights": [],
+  "insights_note": "no grouping to read (no follow-up line with two answers)",
+  "flow": {
+    "founder": {
+      "order": 2,
+      "order_why": "Naming the project, then the market (US), then the context before any test is the natural order for me as the founder.",
+      "asked_twice": "Screens 3 and 4 have the same kicker and question ('Before we test anything, let's define exactly where this idea applies.'), so it reads as the same screen twice.",
+      "missing": "The flow stops at the context. It never asks about the daily-log problem itself, what Fresco does (narrated videos turned into notes, texted to the crew, pushed to Procore/ACC), who pays (the general contractor, per site, with unlimited users) or the price (about $1k per site per month, less for multi-site or multi-month terms)."
+    },
+    "respondent": {}
+  },
+  "screens": [
+    {
+      "n": 1,
+      "screen": "name",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "name",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": null,
+      "r5": 2,
+      "r6": null,
+      "why1": "Naming the project is the obvious first step when I set up a study in a tool, before anything about customers or the problem.",
+      "why2": "\"What should we call this project?\" is plain to any founder on first read.",
+      "why3": "It's my own company and pitch line, so I know the answer without guessing.",
+      "why4": "A free-text box with no options, rows or chips, so there is nothing to judge.",
+      "why5": "My typed name and tagline, \"Fresco — the scribe for construction superintendents\", are kept word for word.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 2,
+      "screen": "market",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "market",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": 2,
+      "r5": 2,
+      "r6": null,
+      "why1": "Right after naming the project, asking where I sell first is the natural next setup step, and it fixes the market (US) the whole study hangs on.",
+      "why2": "\"Where will you sell this first?\" is plain to any founder, with no jargon to trip over.",
+      "why3": "I know exactly where I sell: US general contractors, starting with Bay Area jobs we drive to.",
+      "why4": "A country pick with an optional region covers my answer (US, region left blank) cleanly, with nothing odd or overlapping.",
+      "why5": "US with no region is exactly what my material says, since we sell to superintendents across the USA.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 3,
+      "screen": "context",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "context",
+      "r1": 2,
+      "r2": 1,
+      "r3": 2,
+      "r4": 2,
+      "r5": 1,
+      "r6": null,
+      "why1": "Right after naming the project and picking the US market, pinning down who, what job and when is the obvious next step before testing anything.",
+      "why2": "Every word is mine (super, site walks, daily log, Procore, ACC), but the summary is one long run-on that I had to read twice, and the subject only reaches its verb at the very end.",
+      "why3": "It is exactly my day: the walks are done, the photos are on my phone and the log still has to go into Procore before I leave the trailer.",
+      "why4": "The fields cover who, the job, the moment, the comparable group and a five-working-day window, which fits a site week, and none of them overlap.",
+      "why5": "It drifted a little: I typed that the jobs run on Procore or ACC, but the restatement says the superintendents 'run on' them; it also drops 'on commercial jobs' and leaves out the 5-working-day window I set.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Keel understands: Superintendents on commercial jobs at US general contractors, where the jobs run on Procore or ACC. At the end of the day, once the site walks are done and the photos and notes still have to go into the daily log, they need to keep an accurate record of the day's work. We'll ask about the last 5 working days."
+    },
+    {
+      "n": 4,
+      "screen": "context-card",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "context-card",
+      "r1": 2,
+      "r2": 1,
+      "r3": 2,
+      "r4": 2,
+      "r5": 1,
+      "r6": null,
+      "why1": "Confirming who, when and what before any test is the obvious first step, and it follows straight from the context step's opening.",
+      "why2": "It is one long sentence with the job pushed to the very end, and 'who run on Procore or ACC' reads as if the supers themselves run on Procore, so I'd read it twice.",
+      "why3": "It's my own customer and my own end-of-day trailer routine, so I can confirm it at a glance.",
+      "why4": "A yes or fix-it confirmation covers it, and 'Yes, that's it' is the true answer.",
+      "why5": "My 'whose jobs run on Procore or ACC' became 'who run on Procore or ACC', which shifts the software from the job to the person; otherwise it's my wording.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Superintendents at US general contractors whose jobs run on Procore or ACC keep an accurate record of the day's work on site, once the day's site walks are done and the photos and notes still have to go into the daily log. Is that it? (Yes, that's it / Change something)"
+    }
+  ]
+}
