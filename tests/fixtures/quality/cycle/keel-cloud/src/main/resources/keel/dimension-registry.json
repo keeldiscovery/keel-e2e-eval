@@ -1,0 +1,42 @@
+{
+ "version": 4,
+ "common": {},
+ "checks": {},
+ "dimensions": [
+  {
+   "key": "problem.prevalence",
+   "vector": "PROBLEM",
+   "order": 1,
+   "name": "Prevalence",
+   "founder": {
+    "control": "single_choice",
+    "guidance": "Out of 10 people in the segment, how many had this at least once in {window}."
+   },
+   "respondent": {
+    "part": 1,
+    "control": "gate_yes_no",
+    "guidance": "This item IS the gate: \"In {window}, did you [the founder's Prevalence clause]?\" Yes / No."
+   }
+  },
+  {
+   "key": "problem.importance",
+   "vector": "PROBLEM",
+   "order": 3,
+   "name": "Importance",
+   "founder": {
+    "control": "single_choice",
+    "guidance": "Where this problem sits among the things the {actor} has to get done in {window}."
+   },
+   "respondent": {
+    "part": 1,
+    "control": "single_choice",
+    "guidance": "FIXTURE-RESPONDENT-GUIDANCE: On that day, where did [the problem] sit among the other things you had to get done? Options: it came first / one of a few / it could wait / it did not matter.",
+    "option_rule": "Four options, code writes them."
+   },
+   "follow_up": {
+    "text": "You said {their_answer}. What came first?",
+    "heading": "Why other things come first"
+   }
+  }
+ ]
+}
