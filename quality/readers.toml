@@ -1,0 +1,17 @@
+# The two readers' model, pinned (spec 078 FR-2; the coordinator's decision 1, 2026-10-28).
+#
+# The readers run through the `claude` CLI exactly as instructions/judge.py does -- `claude -p --tools ""
+# --strict-mcp-config --setting-sources "" --no-session-persistence --max-turns 1 --output-format json` -- with the two
+# flags below added. No API key is read, named or passed: `make read-screens` refuses on a missing `claude` binary or a
+# failed one-word probe. The environment's effort knobs are stripped as the judge strips them (judge_env), so the effort
+# here is the only one that reaches the CLI.
+#
+# Every score file records this block. A change here is a new reader: its score files carry the model in their name,
+# and `make read-table BASELINE=1` compares them against the baseline like any other run (FR-6).
+[reader]
+model = "claude-opus-5-5"
+effort = "medium"
+vendor = "anthropic"
+door = "claude CLI"
+# One screen per call; a call that does not answer in this many seconds is recorded as an error and the screen unread.
+timeout_s = 240

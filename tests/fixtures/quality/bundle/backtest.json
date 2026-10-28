@@ -1,0 +1,281 @@
+{
+ "spec": "062+066",
+ "run": "20261028T000000Z-backtest-99-fixture",
+ "passed": true,
+ "entry": {
+  "id": "99-fixture",
+  "title": "Fixture",
+  "path": "/nonexistent/99-fixture.yaml",
+  "sha256": "6476d2663d49c9bda072c6e8b757682ac439c80ca3c1fb630ecb7153b14d0db8",
+  "idea_name": "Fixly",
+  "b2b": true
+ },
+ "stack": {
+  "keel-cloud": "abcdef12",
+  "keel-web": "1234567"
+ },
+ "scope": "PROBLEM",
+ "founder_screens": [
+  {
+   "n": 1,
+   "screen": "name",
+   "kicker": "NAME IT",
+   "question": "What should we call this project?",
+   "hint": "",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "answer": "Fixly",
+   "keel read back": null
+  },
+  {
+   "n": 2,
+   "screen": "problem-card",
+   "kicker": "STEP 2 OF 5 · THE PROBLEM",
+   "question": "",
+   "hint": "",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "answer": "Yes, that's the problem",
+   "keel read back": {
+    "statement": "Night porters at small hotels are alone at the desk when guests arrive after midnight."
+   }
+  },
+  {
+   "n": 3,
+   "screen": "q-problem.prevalence",
+   "kicker": "STEP 2 OF 5 · THE PROBLEM · WHAT DO YOU BELIEVE IS TRUE?",
+   "question": "In the last 7 days, how many out of 10 night porters had a guest arrive after midnight?",
+   "hint": "",
+   "options": [
+    "Fewer than 2 in 10",
+    "2 or 3 in 10",
+    "4 or 5 in 10",
+    "6 or 7 in 10",
+    "8 or more in 10"
+   ],
+   "rows": [],
+   "chips": [],
+   "answer": {
+    "codes": [
+     "p_80_100"
+    ]
+   },
+   "keel read back": {
+    "belief": "Nearly all of them."
+   }
+  }
+ ],
+ "respondents": {
+  "PRIMARY": {
+   "person": "Ada Lindqvist",
+   "screens": [],
+   "served": {
+    "kind": "FULL",
+    "gate": {
+     "dimension": "problem.prevalence",
+     "question": "In the last 7 days, did a guest arrive after midnight on your shift?",
+     "storyPrompt": "Think of the most recent time. Tell us what happened.",
+     "storyHint": "When it was, how it ended.",
+     "spoken": {
+      "anchor": null,
+      "stem": "In the last 7 days, did a guest arrive after midnight on your shift?",
+      "countLine": null,
+      "optionsLine": "Yes or no.",
+      "escapeLine": null
+     }
+    },
+    "parts": [
+     {
+      "part": 1,
+      "items": [
+       {
+        "dimension": "problem.importance",
+        "question": "Think of your last night shift. Which two of these would you most like made easier?",
+        "options": [
+         "Late check-ins",
+         "Noise complaints",
+         "Night audit"
+        ],
+        "escape": "None of these"
+       }
+      ]
+     }
+    ]
+   },
+   "drawn": [
+    {
+     "screen": "gate",
+     "kicker": "Part 1 of 2 · A recent time · 1 of 2",
+     "question": "In the last 7 days, did a guest arrive after midnight on your shift?",
+     "chips": [
+      "I can't recall one",
+      "I'd rather not say"
+     ],
+     "chip": {
+      "question": "Do you work nights at a small hotel in Portugal?",
+      "answered": "YES",
+      "options": [
+       "Yes",
+       "No"
+      ]
+     },
+     "options": [
+      "Yes",
+      "No"
+     ]
+    },
+    {
+     "screen": "item",
+     "dimension": "problem.importance",
+     "control": "pick_two",
+     "kicker": "Part 1 of 2 · A recent time · 2 of 2",
+     "question": "Think of your last night shift. Which two of these would you most like made easier?",
+     "idea_card": "",
+     "hint": "Pick two.",
+     "rows": [
+      "Late check-ins",
+      "Noise complaints",
+      "Night audit"
+     ],
+     "chips": [
+      "None of these"
+     ]
+    },
+    {
+     "screen": "reveal",
+     "kicker": "Part 2 of 2 · An idea to consider",
+     "card": "Imagine Fixly.\n\nA tablet checks late guests in."
+    }
+   ]
+  },
+  "COMMERCIAL_B2B": {
+   "person": "Clara Mendes",
+   "screens": [],
+   "served": {
+    "kind": "COMMERCIAL_LINK",
+    "gate": null,
+    "parts": [
+     {
+      "part": 3,
+      "items": [
+       {
+        "dimension": "commercial.price",
+        "question": "What would Fixly be worth to you up front, per hotel?",
+        "options": [
+         "Under €500, once",
+         "€500 or more, once"
+        ],
+        "escape": "I can't say"
+       }
+      ]
+     }
+    ]
+   },
+   "drawn": [
+    {
+     "screen": "idea",
+     "kicker": "The buying decision · An idea to consider",
+     "card": "Imagine Fixly.",
+     "question": ""
+    },
+    {
+     "screen": "item",
+     "dimension": "commercial.price",
+     "control": "price_ladder",
+     "kicker": "The buying decision · 1 of 1",
+     "question": "And after that, what would it be worth to you a month?",
+     "idea_card": "Imagine Fixly.",
+     "hint": "",
+     "rows": [
+      "Under €50 a month",
+      "€50 or more a month"
+     ],
+     "chips": [
+      "I can't say"
+     ],
+     "plan": {
+      "question": "And after that, what would it be worth to you a month?",
+      "rows": [
+       "Under €50 a month",
+       "€50 or more a month"
+      ]
+     }
+    },
+    {
+     "screen": "follow_up",
+     "kicker": "One last thing",
+     "question": "What would take the time?",
+     "note": "In your own words."
+    }
+   ]
+  }
+ },
+ "themes_settled": {
+  "themes": 2,
+  "open": [],
+  "grouping": [],
+  "notAsked": []
+ },
+ "brief": {
+  "insights": [
+   {
+    "dimension": "problem.importance",
+    "name": "Importance",
+    "rungHeading": "Why other things come first",
+    "themes": [
+     {
+      "label": "Noise at night",
+      "count": 2,
+      "evidence": [
+       {
+        "name": "Ada Lindqvist",
+        "text": "Noise complaints eat my night."
+       },
+       {
+        "name": "Ben Okoro",
+        "text": "Drunk guests in the corridor."
+       }
+      ]
+     }
+    ],
+    "rawQuotes": [],
+    "quotes": [
+     {
+      "name": "Ada Lindqvist",
+      "text": "Noise complaints eat my night."
+     },
+     {
+      "name": "Ben Okoro",
+      "text": "Drunk guests in the corridor."
+     }
+    ]
+   },
+   {
+    "dimension": "commercial.price",
+    "name": "Price",
+    "rungHeading": "What would make it worth more",
+    "themes": [
+     {
+      "label": "ON_THEIR_OWN",
+      "count": 1,
+      "evidence": [
+       {
+        "name": "Clara Mendes",
+        "text": "A free month first."
+       }
+      ]
+     }
+    ],
+    "rawQuotes": [],
+    "quotes": [
+     {
+      "name": "Clara Mendes",
+      "text": "A free month first."
+     }
+    ]
+   }
+  ]
+ }
+}

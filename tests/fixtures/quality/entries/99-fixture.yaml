@@ -1,0 +1,21 @@
+id: 99-fixture
+title: Fixture -- a hand-sized entry for the readers' unit tests
+idea_name: Fixly
+sources: 99-fixture.sources.md
+roles:
+- {id: porter, label: Night porters, roleType: PRACTITIONER, about: a porter on the night desk of a small hotel}
+- {id: manager, label: Hotel managers, roleType: BUYER, about: the manager who chooses and pays for the hotel's tools}
+context:
+  actor: night porter
+  actor_plural: night porters at small hotels
+  job: keep the night desk running
+  circumstance: guests arrive after midnight and the desk is alone
+  segment: night porters at small hotels in Portugal
+  recall_window: {count: 7, unit: DAYS}
+persona:
+  decision_maker: {role: manager, title: Hotel manager}
+answers:
+- person: Ada Lindqvist
+- person: Ben Okoro
+- person: Clara Mendes
+  link: COMMERCIAL_B2B

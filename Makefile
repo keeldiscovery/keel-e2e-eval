@@ -4,7 +4,7 @@ PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
-        matrix-check keels-ai sample backtest gallery noise-check
+        matrix-check keels-ai sample backtest gallery noise-check read-screens read-table
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -129,6 +129,34 @@ noise-check:
 	@if [ -z "$$KEEL_OPENAI_API_KEY" ] || [ -z "$$KEEL_ANTHROPIC_API_KEY" ]; then echo "make noise-check refuses: KEEL_OPENAI_API_KEY and KEEL_ANTHROPIC_API_KEY must both be set in this shell -- the check calls gpt-transcribe and Haiku as the product does (spec 074 FR-3, about \$$2); they are never logged, echoed or written"; exit 2; fi
 	@$(MAKE) --no-print-directory venv
 	PYTHONPATH=. $(PY) -m evals.noise.pipeline $(if $(ONLY),--only "$(ONLY)",) $(if $(SNRS),--snrs "$(SNRS)",) $(if $(LIMIT),--limit $(LIMIT),) $(if $(RESUME),--resume "$(RESUME)",)
+
+# make read-screens (spec 078) is THE QUESTION-QUALITY READERS: one back-test bundle's backtest.json (spec 062 FR-4)
+# read as text, every founder screen by the founder-reader (the entry's .sources.md whole) and every served respondent
+# screen of each link by the respondent-reader (the person the walk took on that link), one call a screen against
+# quality/RUBRIC.md, then the three whole-flow questions once per audience. The readers run through the `claude` CLI
+# exactly as instructions/judge.py does, with --model and --effort from quality/readers.toml (Opus 5.5, medium): it
+# refuses on a missing binary or a failed one-word probe, and reads no key. Every prompt and answer is recorded under
+# runs/<stamp>-read-<entry>/calls/; the score file is written to quality/scores/<entry>/ and committed (FR-4).
+# DRY=1 prints every prompt and writes no score; LIMIT=n (the first n screens per audience) and ONLY=<text> (screens
+# whose name or dimension carries it) make a partial run, whose score.json stays in the run folder.
+# PAID (the founder's plan): never in `make eval`, `make unit`, the matrix or a schedule; run on the founder's word.
+#
+#   make read-screens RUN=runs/<stamp>-backtest-21-codyco DRY=1
+#   make read-screens RUN=runs/<stamp>-backtest-21-codyco LIMIT=1 ONLY=problem.prevalence    the two-call smoke
+#   make read-screens RUN=runs/<stamp>-backtest-21-codyco                                     one bundle, of record
+read-screens: venv
+	@if [ -z "$(RUN)" ]; then echo "make read-screens refuses: no RUN -- name a back-test bundle, \`make read-screens RUN=runs/<stamp>-backtest-<entry>\` (spec 078 FR-4)"; exit 2; fi
+	PYTHONPATH=. $(PY) -m quality.readers --run "$(RUN)" $(if $(DRY),--dry-run,) $(if $(LIMIT),--limit $(LIMIT),) $(if $(ONLY),--only "$(ONLY)",) $(if $(OUT),--out "$(OUT)",)
+
+# make read-table (spec 078 FR-5 / FR-6) builds quality/TABLE.md from every committed score file: the overall score_pct
+# against the founder's bar of 90%, one row per (dimension, audience, screen kind) with the five means, the 0s, the
+# instead lines and the fix location, weak rows marked, and the trend per entry. BASELINE=1 adds the comparison with
+# quality/BASELINE.md and its verdict (better / same / worse). Free: no model, no stack.
+#
+#   make read-table
+#   make read-table BASELINE=1
+read-table: venv
+	PYTHONPATH=. $(PY) -m quality.table $(if $(BASELINE),--baseline,)
 
 # make eval-live runs the scenarios marked `live` -- a real `claude`, real money (spec 008-stranger-
 # who-gives-orders). Opt-in only; never part of `make eval`/`make eval-all`. Needs a logged-in
