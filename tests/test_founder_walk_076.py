@@ -344,3 +344,30 @@ def test_the_insights_box_counts_the_junk_apart():
                                     strict=True)
     # a box recorded before contract 43 reads as 0 and draws no line
     assert rm.not_about_this_faults({"vectors": []}, key, {"state": "GROUPED"}, {"key": key}, strict=False) == []
+
+
+def test_a_lone_answer_not_about_this_is_its_own_group_until_a_second_arrives():
+    """keel-cloud 119 / `ThemesOnReturn`: one follow-up answer on a line starts no THEMES job -- ON_THEIR_OWN, quoted,
+    `notAboutThis` 0 (S-005 after four answers; runs/DRIFT.md #98)."""
+    from evals import report_marks as rm                               # noqa: PLC0415
+    key = "problem.current_solution_satisfaction"
+    people = [{"invitationId": "a", "personName": "Priya", "followUp": "Meow, you are a fool."}]
+    standings = {"vectors": [{"vector": "PROBLEM", "dimensions": [{"dimension": key, "people": people}]}]}
+    insight = {"dimension": key, "state": "GROUPED", "notAboutThis": 0,
+               "quotes": [{"invitationId": "a", "text": "Meow, you are a fool."}],
+               "themes": [{"label": fake.ON_THEIR_OWN, "quotes": [{"invitationId": "a", "text": "Meow, you are a fool."}]}]}
+    assert rm.not_about_this_faults(standings, key, insight, {"key": key, "not_about": None}, strict=True) == []
+
+
+def test_the_dry_runs_hello_on_the_gates_id_is_not_the_story():
+    """Spec 076 (075 FR-5 first walked on S-006): keel-web's mic test transcribes on the first item, the gate's id, so
+    the hello there is not a second story take."""
+    from evals import interviewer_leg as leg                           # noqa: PLC0415
+    gate = "g-1"
+    drawn = {"transcribed": [{"itemId": gate, "maxSeconds": None, "status": 200, "text": "hello"},
+                             {"itemId": gate, "maxSeconds": None, "status": 200, "text": leg.DRY_RUN_STORY}],
+             "answered": [], "story": {"reached": True, "hold": {"status": leg.ivs.HELD, "heard": leg.DRY_RUN_STORY},
+                                       "sheet_text": "", "statuses": []}}
+    assert leg.dry_run_written_down(drawn, gate, leg.DRY_RUN_STORY) == []
+    flow = _web("src/lib/aiInterviewFlow.ts")
+    assert 'return first?.kind === "gate" ? first.gate.itemId' in flow

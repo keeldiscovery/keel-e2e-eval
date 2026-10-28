@@ -5609,3 +5609,39 @@ order, so without them every money job would take the wrong entry); `evals/scope
 the wire (one CALIBRATION_QUESTIONS job per scripted entry, all APPLIED) and names the out-of-scope ones. When keel-cloud
 stops chaining them, the money slice is handed the problem's entry and the journey fails at C1 -- drop the two entries then.
 For keel-cloud: chain a vector's calibration only where `project.scope().vectors()` holds it.
+
+## 98. Observation (keel-cloud, with keel-web beside it): a lone answer not about the question is quoted on its Insights box as *On their own* until a second answer arrives on that line
+
+Found by spec `076-founder-walk-round-two` on S-005 (keel-cloud-docs `3b252640`, keel-web `b50eb04`; first sighting
+`runs/20261028T044641Z-s005-countly`, step *the report after 4 answers*). Priya Natarajan, 01-countly's first person,
+types *Meow, you are a fool.* on her one follow-up (Current solution) -- the answer keel-cloud 145 FR-6 keeps off the
+Insights box as NOT_ABOUT_THIS. After the fourth answer nobody else has answered on that line, so
+`ThemesOnReturn` starts no THEMES job (*a dimension with fewer than two follow-up answers ... starts nothing (one
+answer is its own group)*, keel-cloud 119 judgement call 4) and the box is served GROUPED with the one quote
+ON_THEIR_OWN and `notAboutThis: 0`: the founder reads *On their own -- "Meow, you are a fool."* under Current solution
+until a second person answers there, when the job runs and the line becomes *1 answer was not about this.*
+
+No spec asked for this: 145 FR-6 says junk stays out of Insights, and 119's one-answer rule was written before there was
+a group an answer could be kept out by. The cost is small (one quote, early in a study) but it is exactly the abuse the
+founder saw on 2026-10-27, shown on the first answer. **What the harness does.** `report_marks.not_about_this_faults`
+reads a line with fewer than two follow-up answers as not yet judged (quoted, counted 0) and holds the rule only from the
+second answer on. **For keel-cloud:** run THEMES on a single answer too where it might be junk (or hold a lone answer
+RAW until grouped), if the founder wants the box clean from the first answer.
+
+## 99. Observation (keel-cloud, the words of one question): the decision-maker's screener says the qualifier twice when `actor_plural` already carries it
+
+Found by spec `076-founder-walk-round-two` on S-006 (keel-cloud-docs `3b252640`, keel-web `b50eb04`; held in
+`runs/20261028T050224Z-s006-paidly`, step *S-006: each decision-maker's link serves the screener*). 05-paidly's context
+names the people *freelance translators working for agencies* (`actor_plural`) and the condition *work mostly for
+agencies*; keel-cloud 145 FR-4b's code chip (`RespondentQuestionsRules.deciderChip`: *Do the {actor_plural} you decide
+for {clause}?*) serves every agency decision-maker **"Do the freelance translators working for agencies you decide for
+work mostly for agencies?"** -- 14 words, inside the spoken cap, one yes-or-no question, but the qualifier is said twice
+and the answer is given away by the question's own subject (a person *working for agencies* works for agencies). 145's
+examples (*Do the payroll practitioners you decide for run payroll for at least 50 employees?*) have an `actor_plural`
+without the qualifier; nothing in 145 says what to do when the plural already holds it, and the founder's spoken-form
+rule (*spoken as a person would*) is not met by the doubled phrase.
+
+**What the harness does.** `harness/vectors_script.decider_chip` mirrors code's rule and S-006 holds the served question
+to it, so a change to the composer moves that one expectation. **For keel-cloud:** compose from the segment's core (or a
+`actor_plural` with the condition's words taken out) where the plural already says the qualifier -- *Do the translators
+you decide for work mostly for agencies?* -- or say so in the spec.

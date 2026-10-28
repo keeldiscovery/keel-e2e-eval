@@ -1000,7 +1000,9 @@ def dry_run_written_down(drawn: dict, gate_item: str | None, story: str) -> list
     if not x.get("reached"):
         faults.append("the dry run never reached the story's window")
         return faults
-    on_gate = [t for t in said if t.get("itemId") == gate_item]
+    # spec 076 (S-006's first light-gate walk of 075 FR-5): keel-web's *Test your mic* writes its hello down on the
+    # link's first item -- the gate's id (`AiInterviewFlow.firstItemId`) -- so the story is the gate id's other take
+    on_gate = [t for t in said if t.get("itemId") == gate_item and t not in hello]
     if len(on_gate) != 1 or on_gate[0].get("status") != 200:
         faults.append(f"the story was not written down once on the gate's id: {on_gate}")
     elif " ".join((on_gate[0].get("text") or "").split()) != " ".join(story.split()):

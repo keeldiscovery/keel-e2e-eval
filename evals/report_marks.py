@@ -553,12 +553,16 @@ def not_about_this_faults(standings: dict, key: str, insight: dict, box: dict, *
     n = int(insight.get("notAboutThis") or 0)
     if any(t.get("label") == fake.NOT_ABOUT_THIS for t in insight.get("themes") or []):
         faults.append({key: "a NOT_ABOUT_THIS theme served in the box", "themes": insight.get("themes")})
-    junk = [a for a in follow_up_answers(standings, key) if a["text"] in fake.NOT_ABOUT_THIS_TEXTS]
+    answers = follow_up_answers(standings, key)
+    junk = [a for a in answers if a["text"] in fake.NOT_ABOUT_THIS_TEXTS]
     served = [q.get("text") for q in list(insight.get("quotes") or []) + [q for t in insight.get("themes") or []
                                                                          for q in t.get("quotes") or []]]
-    if any(t in fake.NOT_ABOUT_THIS_TEXTS for t in served):
+    # keel-cloud 119 / `ThemesOnReturn`: a line with one follow-up answer starts no THEMES job -- that answer is its own
+    # group, ON_THEIR_OWN, so nothing has judged it yet: quoted, and counted 0 (runs/DRIFT.md #98)
+    alone = len(answers) < 2
+    if not alone and any(t in fake.NOT_ABOUT_THIS_TEXTS for t in served):
         faults.append({key: "an answer not about this is quoted in the box", "quotes": served})
-    if strict and insight.get("state") == "GROUPED" and n != len(junk):
+    if strict and insight.get("state") == "GROUPED" and n != (0 if alone else len(junk)):
         faults.append({key: "notAboutThis is not the answers the script grouped NOT_ABOUT_THIS", "served": n,
                        "want": len(junk), "under the people": [a["text"] for a in junk]})
     want_line = fake.not_about_this_line(n) if n > 0 else None
