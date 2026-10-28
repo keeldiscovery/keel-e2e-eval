@@ -1,11 +1,26 @@
 {
- "entry": "aa-alpha",
+ "entry": "bb-beta",
  "scope": "PROBLEM",
- "bundle": "20261029T000000Z-backtest-aa-alpha",
- "cloud_sha": "bcdef12",
+ "bundle": "20261028T000000Z-backtest-bb-beta",
+ "cloud_sha": "abcdef1",
  "web_sha": "1234567",
  "routing_version": "13",
- "rubric_version": 1,
+ "rubric_version": 2,
+ "persona": {
+  "founder": "(fixture) bb-beta's sources and context",
+  "respondent": {
+   "PRIMARY": "(fixture) bb-beta's person on PRIMARY"
+  }
+ },
+ "spoken_guidelines": {
+  "source": "(fixture) keel-cloud abcdef1 (the bundle's)",
+  "sections": [
+   "2",
+   "3",
+   "5"
+  ],
+  "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+ },
  "reader": {
   "model": "claude-opus-5-5",
   "effort": "medium",
@@ -15,7 +30,7 @@
  "cost_usd": 0.5,
  "probe_cost_usd": 0.01,
  "seconds": 60.0,
- "scored_at": "2026-10-29T12:00:00+00:00",
+ "scored_at": "2026-10-28T12:00:00+00:00",
  "calls": 5,
  "partial": false,
  "selection": null,
@@ -31,22 +46,25 @@
    "means": {
     "r1": 2.0,
     "r2": 2.0,
-    "r3": 1.0,
+    "r3": 2.0,
     "r4": 2.0,
-    "r5": 2.0
+    "r5": 2.0,
+    "r6": null
    },
    "zeros": {
     "r1": 0,
     "r2": 0,
     "r3": 0,
     "r4": 0,
-    "r5": 0
+    "r5": 0,
+    "r6": 0
    },
    "flagged": 0,
    "flagged_pct": 0.0,
    "out_of_place": 0,
    "looks_stupid": 0,
-   "score_pct": 90.0
+   "spoken_pct": null,
+   "score_pct": 100.0
   },
   "respondent": {
    "screens": 2,
@@ -55,78 +73,72 @@
     "r2": 2.0,
     "r3": 2.0,
     "r4": 0.0,
-    "r5": 2.0
+    "r5": 2.0,
+    "r6": 2.0
    },
    "zeros": {
     "r1": 0,
     "r2": 0,
     "r3": 0,
     "r4": 1,
-    "r5": 0
+    "r5": 0,
+    "r6": 0
    },
    "flagged": 1,
    "flagged_pct": 50.0,
    "out_of_place": 0,
    "looks_stupid": 1,
-   "insight_lines": 1,
+   "spoken_pct": 100.0,
+   "insight_lines": 0,
    "insight_means": {
-    "g1": 1.0,
-    "g2": 2.0
+    "g1": null,
+    "g2": null
    },
    "insight_zeros": {
     "g1": 0,
     "g2": 0
    },
-   "insights_pct": 75.0,
-   "score_pct": 86.4
+   "insights_pct": null,
+   "score_pct": 90.9
   },
   "overall": {
    "screens": 3,
    "means": {
     "r1": 2.0,
     "r2": 2.0,
-    "r3": 1.667,
+    "r3": 2.0,
     "r4": 1.0,
-    "r5": 2.0
+    "r5": 2.0,
+    "r6": 2.0
    },
    "zeros": {
     "r1": 0,
     "r2": 0,
     "r3": 0,
     "r4": 1,
-    "r5": 0
+    "r5": 0,
+    "r6": 0
    },
    "flagged": 1,
    "flagged_pct": 33.3,
    "out_of_place": 0,
    "looks_stupid": 1,
-   "insight_lines": 1,
+   "spoken_pct": 100.0,
+   "insight_lines": 0,
    "insight_means": {
-    "g1": 1.0,
-    "g2": 2.0
+    "g1": null,
+    "g2": null
    },
    "insight_zeros": {
     "g1": 0,
     "g2": 0
    },
-   "insights_pct": 75.0,
-   "score_pct": 87.5
+   "insights_pct": null,
+   "score_pct": 93.8
   }
  },
- "insights": [
-  {
-   "line": "Why other things come first",
-   "dimension": "problem.importance",
-   "link": "PRIMARY",
-   "g1": 1,
-   "g2": 2,
-   "whys": {
-    "g1": "w",
-    "g2": "w"
-   }
-  }
- ],
- "insights_note": null,
+ "insights": [],
+ "insights_note": "no grouping to read (no follow-up line with two answers)",
  "flow": {
   "founder": {
    "order": 2,
@@ -146,14 +158,16 @@
    "kind": "q",
    "r1": 2,
    "r2": 2,
-   "r3": 1,
+   "r3": 2,
    "r4": 2,
    "r5": 2,
+   "r6": null,
    "why1": "why 1",
    "why2": "why 2",
    "why3": "why 3",
    "why4": "why 4",
    "why5": "why 5",
+   "why6": "",
    "out_of_place": false,
    "looks_stupid": false,
    "instead": ""
@@ -170,11 +184,13 @@
    "r3": 2,
    "r4": 0,
    "r5": 2,
+   "r6": 2,
    "why1": "why 1",
    "why2": "why 2",
    "why3": "why 3",
    "why4": "why 4",
    "why5": "why 5",
+   "why6": "item-problem.importance: why 6",
    "out_of_place": false,
    "looks_stupid": true,
    "instead": "Which of these kept you busiest last night?"
@@ -191,11 +207,13 @@
    "r3": 2,
    "r4": null,
    "r5": 2,
+   "r6": 2,
    "why1": "why 1",
    "why2": "why 2",
    "why3": "why 3",
    "why4": "why 4",
    "why5": "why 5",
+   "why6": "reveal: why 6",
    "out_of_place": false,
    "looks_stupid": false,
    "instead": ""

@@ -28,7 +28,7 @@ added to this line rather than quietly written — which is exactly how the thir
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
   **`MARKS_VERSION` 21** (spec `078-question-quality-readers`, 2026-10-28) is the gate as written, and **there is no
   run of record until `WHY=marks:21` is spent -- the certificate is the founder's word only; never run or propose it**.
-  It adds the `read` mark kind beside `no_leak` (calls 121-123): the question-quality readers' five means, flagged
+  It adds the `read` mark kind beside `no_leak` (calls 121-123): the question-quality readers' means, flagged
   count and `score_pct`, read from the latest committed score file under `quality/scores/` at `RUBRIC_VERSION`,
   reported in every scorecard and *not measured* without one -- never a `judge()` row, never gating; no `[marks]`
   number moved and `rescore.py` still re-scores a v20 bundle. What follows is v20's account, history since 2026-10-28.

@@ -4,7 +4,9 @@ baseline, the refusals and the `read` mark kind -- with no model, no stack and n
 Every reader call here goes to a fake runner standing where `subprocess.run` would be; the fixtures are a hand-sized
 bundle and entry (`tests/fixtures/quality/bundle`, `entries/99-fixture.*`) and four score files over two entries and
 two rubric versions (`tests/fixtures/quality/scores/`): `aa-alpha` has two files (the trend), `bb-beta` one at rubric
-version 1 and one at version 2 -- set aside by the table, and refused when anything asks to average it with the rest.
+version 2 and one at version 3 -- set aside by the table, and refused when anything asks to average it with the rest.
+Spec 081 moved every fixture to rubric version 2 (R6 2 on every respondent screen, the persona and guidelines header);
+the runner reads the guidelines from `tests/fixtures/quality/keel-cloud/` here, never the sibling checkout.
 """
 
 from __future__ import annotations
@@ -30,6 +32,11 @@ DESIGN = REPO.parent / "keel-cloud-docs" / "canon" / "designs" / "question-quali
 
 SCREEN_ANSWER = {"r1": 2, "why1": "fits", "r2": 1, "why2": "a second read", "r3": 2, "why3": "my life",
                  "r4": 2, "why4": "all four", "r5": 2, "why5": "kept", "instead": ""}
+#: Spec 081 FR-4: the respondent-reader's answer carries R6 on every screen.
+SPOKEN_ANSWER = {**SCREEN_ANSWER, "r6": 2, "why6": "says well"}
+#: Spec 081 FR-4: the guidelines the runner pastes, from a fixture checkout (§2, §3, §5 of six sections).
+FIXTURE_CLOUD = FX / "keel-cloud"
+GUIDE = readers.spoken_guidelines({"stack": {}}, FIXTURE_CLOUD)
 
 
 # ------------------------------------------------------------------------------------------------ fakes
@@ -50,7 +57,10 @@ class FakeCli:
         elif "## The whole" in input:
             result = json.dumps({"order": 2, "order_why": "fine", "asked_twice": "", "missing": ""})
         else:
-            result = self.screen if isinstance(self.screen, str) else json.dumps(self.screen)
+            answer = self.screen
+            if isinstance(answer, dict) and "## R6, said aloud" in input and "r6" not in answer:
+                answer = {**answer, "r6": 2, "why6": "says well"}           # the respondent-reader's R6
+            result = answer if isinstance(answer, str) else json.dumps(answer)
         body = {"type": "result", "is_error": self.error, "result": result, "total_cost_usd": 0.01,
                 "modelUsage": {"claude-opus-5-5": {}}}
         return SimpleNamespace(stdout=json.dumps(body) + "\n", stderr="", returncode=0)
@@ -68,6 +78,7 @@ def wired(monkeypatch, tmp_path):
         original(self, config, run_dir, runner=cli)
     monkeypatch.setattr(readers.Reader, "__init__", init)
     monkeypatch.setattr(readers, "routing_version", lambda run_dir: "13")
+    monkeypatch.setattr(readers, "spoken_guidelines", lambda bundle, cloud=None: GUIDE)
     return SimpleNamespace(cli=cli, scores=tmp_path / "scores", out=tmp_path / "run")
 
 
@@ -78,14 +89,22 @@ def _run(w, *extra):
 # --------------------------------------------------------------------------------------- FR-1 the rubric
 
 def test_the_rubric_file_says_its_version_and_the_constant_agrees():
-    assert rubric.RUBRIC_VERSION == 1 == rubric.file_version()
+    assert rubric.RUBRIC_VERSION == 2 == rubric.file_version()
+    assert rubric.RETIRED == {1: rubric.RETIRED[1]} and "R6" in rubric.RETIRED[1]
 
 
-def test_the_rubric_parses_into_five_criteria_with_their_anchors_as_the_design_has_them():
+def test_the_rubric_parses_into_six_criteria_with_their_anchors_as_the_design_has_them():
+    """Spec 081: R1-R5 off the shared table, R6 off its own part; every anchor word for word in the design of record
+    as amended 2026-10-28 (R2 plain to this person, R6 said aloud)."""
     rows = rubric.criteria()
-    assert [r["id"] for r in rows] == ["r1", "r2", "r3", "r4", "r5"]
-    assert [r["name"] for r in rows] == ["Fits here", "Plain", "About their life", "The options",
-                                         "The founder's words, kept"]
+    assert [r["id"] for r in rows] == ["r1", "r2", "r3", "r4", "r5", "r6"]
+    assert [r["name"] for r in rows] == ["Fits here", "Plain to this person", "About their life", "The options",
+                                         "The founder's words, kept", "Said aloud"]
+    assert (rows[1]["2"], rows[1]["1"], rows[1]["0"]) == (
+        "yes, in their own words", "needs a second read, or one word they would not use",
+        "confusing, double-barrelled, or words of another trade")
+    assert rows[5]["0"] == ("cannot be said: a parenthesis, a slash, an abbreviation only the eye reads, two questions "
+                            "in one breath")
     assert rows[0]["0"] == "out of place, or asks what was already answered"
     assert rows[3]["0"] == "an option is nonsense, two mean the same, or the true answer is missing"
     assert rows[4]["0"] == "wrong, or leaks"
@@ -104,9 +123,12 @@ def test_section_g_parses_into_two_criteria():
 
 
 def test_the_prompt_part_carries_the_criteria_and_the_instead_line_but_not_the_weak_rule():
-    part = rubric.prompt_rubric()
+    part, spoken = rubric.prompt_rubric(), rubric.prompt_spoken()
     assert all(f"| R{i} |" in part for i in range(1, 6)) and "instead" in part
-    assert "weak" not in part.lower() and "score_pct" not in part, "the reader scores; code judges weak"
+    assert "| R6 |" not in part and "| R6 |" in spoken, "R6 is the respondent-reader's part alone"
+    assert "never the general public" in part, "spec 081 FR-2: the yardstick is this person, both readers"
+    for text in (part, spoken):
+        assert "weak" not in text.lower() and "score_pct" not in text, "the reader scores; code judges weak"
 
 
 def test_a_rubric_without_its_markers_is_refused():
@@ -121,21 +143,24 @@ def test_the_two_booleans_are_codes_never_the_readers():
     score = rubric.screen_score(meta, {**SCREEN_ANSWER, "r2": 0})
     assert not score["out_of_place"] and score["looks_stupid"]
     assert list(score) == list(rubric.SCORE_KEYS)
+    said = rubric.screen_score({**meta, "audience": "respondent"}, {**SPOKEN_ANSWER, "r6": 0})
+    assert said["looks_stupid"] and not said["out_of_place"], "spec 081 FR-4: R6 = 0 looks stupid"
 
 
 def test_an_answer_is_read_from_a_fence_and_held_to_zero_one_two():
     fenced = "Here it is:\n```json\n" + json.dumps(SCREEN_ANSWER) + "\n```"
-    assert rubric.parse_answer(fenced, has_options=True)["r2"] == 1
+    assert rubric.parse_answer(fenced, has_options=True, audience="founder")["r2"] == 1
     with pytest.raises(rubric.RubricError):
-        rubric.parse_answer(json.dumps({**SCREEN_ANSWER, "r3": 3}), has_options=True)
+        rubric.parse_answer(json.dumps({**SCREEN_ANSWER, "r3": 3}), has_options=True, audience="founder")
     with pytest.raises(rubric.RubricError):
-        rubric.parse_answer("no object at all", has_options=True)
+        rubric.parse_answer("no object at all", has_options=True, audience="founder")
 
 
 def test_r4_is_null_only_where_nothing_is_offered():
-    assert rubric.parse_answer(json.dumps({**SCREEN_ANSWER, "r4": None}), has_options=False)["r4"] is None
+    assert rubric.parse_answer(json.dumps({**SCREEN_ANSWER, "r4": None}), has_options=False,
+                               audience="founder")["r4"] is None
     with pytest.raises(rubric.RubricError):
-        rubric.parse_answer(json.dumps({**SCREEN_ANSWER, "r4": None}), has_options=True)
+        rubric.parse_answer(json.dumps({**SCREEN_ANSWER, "r4": None}), has_options=True, audience="founder")
 
 
 def test_score_pct_is_the_sum_over_two_times_the_count_and_insights_fold_in():
@@ -151,7 +176,7 @@ def test_score_pct_is_the_sum_over_two_times_the_count_and_insights_fold_in():
 
 def test_two_rubric_versions_are_never_averaged():
     files = [rubric.load_file(p) for p in sorted(SCORES.glob("bb-beta/*.json"))]
-    assert {f["rubric_version"] for f in files} == {1, 2}
+    assert {f["rubric_version"] for f in files} == {2, 3}
     with pytest.raises(rubric.RubricMismatch):
         rubric.aggregate(files)
     with pytest.raises(rubric.RubricMismatch):
@@ -169,7 +194,7 @@ def test_the_argv_is_the_judges_plus_the_pinned_model_and_effort():
 def test_every_prompt_carries_the_rubric_from_the_file_and_no_placeholder():
     _, bundle = readers.load_bundle(BUNDLE)
     entry = readers.load_entry(bundle, ENTRIES)
-    work = readers.plan(bundle, entry)
+    work = readers.plan(bundle, entry, guidelines=GUIDE)
     part, part_g = rubric.prompt_rubric(), rubric.prompt_insights()
     assert work["screens"] and all(part in p for _, p in work["screens"])
     assert work["insights"] and all(part_g in p for _, p in work["insights"])
@@ -180,7 +205,7 @@ def test_every_prompt_carries_the_rubric_from_the_file_and_no_placeholder():
 def test_the_founder_reader_is_handed_the_sources_whole_and_the_earlier_screens_compact():
     _, bundle = readers.load_bundle(BUNDLE)
     entry = readers.load_entry(bundle, ENTRIES)
-    founder = [(s, p) for s, p in readers.plan(bundle, entry)["screens"] if s.audience == "founder"]
+    founder = [(s, p) for s, p in readers.plan(bundle, entry, guidelines=GUIDE)["screens"] if s.audience == "founder"]
     screen, prompt = founder[2]
     assert screen.screen == "q-problem.prevalence" and screen.kind == "q" and screen.dimension == "problem.prevalence"
     assert entry["sources"].strip() in prompt
@@ -204,7 +229,7 @@ def test_the_screener_is_its_own_screen_and_the_price_carries_its_plan():
     _, bundle = readers.load_bundle(BUNDLE)
     links = readers.respondent_screens(bundle)
     assert [s.kind for s in links["PRIMARY"]] == ["screener", "gate", "item", "reveal"]
-    assert "Said aloud on the AI interviewer link" in links["PRIMARY"][1].full
+    assert "Said aloud by the AI interviewer (the served spoken form)" in links["PRIMARY"][1].full
     price = next(s for s in links["COMMERCIAL_B2B"] if s.dimension == "commercial.price")
     assert "up front, per hotel?" in price.full and "Then, on the next screen" in price.full
 
@@ -227,9 +252,9 @@ def test_a_run_writes_one_score_file_named_by_scope_and_it_round_trips(wired, ca
     files = list(wired.scores.glob("99-fixture/*.json"))
     assert len(files) == 1
     name = files[0].name
-    assert re.fullmatch(r"\d{8}-PROBLEM-r1-abcdef1-v13-claude-opus-5-5\.json", name), name
+    assert re.fullmatch(r"\d{8}-PROBLEM-r2-abcdef1-v13-claude-opus-5-5\.json", name), name
     obj = rubric.load_file(files[0])
-    assert obj["entry"] == "99-fixture" and obj["scope"] == "PROBLEM" and obj["rubric_version"] == 1
+    assert obj["entry"] == "99-fixture" and obj["scope"] == "PROBLEM" and obj["rubric_version"] == 2
     assert obj["cloud_sha"] == "abcdef12" and obj["web_sha"] == "1234567" and obj["routing_version"] == "13"
     assert obj["reader"] == {"model": "claude-opus-5-5", "effort": "medium", "vendor": "anthropic",
                              "door": "claude CLI"}
@@ -328,7 +353,7 @@ def test_the_dry_run_prints_every_prompt_calls_nothing_and_writes_no_score(wired
     out = capsys.readouterr().out
     assert wired.cli.seen == [] and not wired.scores.exists()
     prompts = sorted((wired.out / "prompts").glob("*.prompt.txt"))
-    assert len(prompts) == 10 + 3 + 1 and out.count("=" * 100) == 2 * len(prompts)
+    assert len(prompts) == 10 + 3 + 1 and out.count("=" * 100) == 2 * len(prompts) + 4, "+ the two heads (081)"
     assert "no call made, no score written" in out
 
 
@@ -342,7 +367,7 @@ def test_the_runner_reads_no_key():
 def test_the_table_reads_the_latest_file_per_study_and_sets_the_other_version_aside():
     files = table.load_scores(SCORES)
     current, aside = table.split_by_version(files)
-    assert [Path(f["_path"]).name for f in aside] == ["20261030-PROBLEM-r2-abcdef1-v13-claude-opus-5-5.json"]
+    assert [Path(f["_path"]).name for f in aside] == ["20261030-PROBLEM-r3-abcdef1-v13-claude-opus-5-5.json"]
     latest = table.latest_per_entry(current)
     assert list(latest) == ["aa-alpha · PROBLEM", "bb-beta · PROBLEM"]
     assert latest["aa-alpha · PROBLEM"]["cloud_sha"] == "bcdef12", "the newer of aa-alpha's two"
@@ -364,13 +389,14 @@ def test_the_rows_carry_the_scope_the_means_and_the_weak_rule():
 def test_the_table_head_gives_score_pct_per_audience_and_scope_against_the_bar(tmp_path):
     files = table.load_scores(SCORES)
     text = table.render(files)
-    assert "**Overall score_pct 90.0%**" in text and "meets the bar of **90%**" in text
-    assert "- scope PROBLEM: score_pct 90.0%" in text
+    assert "**Overall score_pct 91.2%**" in text and "meets the bar of **90%**" in text
+    assert "- scope PROBLEM: score_pct 91.2%" in text
+    assert "- respondent: score_pct 89.6%, spoken_pct 100.0%, insights_pct 75.0%" in text, "spec 081 FR-5"
     assert "Set aside (another rubric version, never averaged)" in text
     assert "| **WEAK** | PROBLEM | respondent | problem.importance | item |" in text
     assert "## Insights" in text and "| **WEAK** | PROBLEM | problem.importance | insights |" in text
     trend = text.split("## The trend", 1)[1]
-    assert "87.5 ↓" in trend and "2.00 =" in trend and "2.00 ↑" in trend
+    assert "88.9 ↓" in trend and "2.00 =" in trend and "2.00 ↑" in trend
     assert table.main(["--scores-dir", str(SCORES), "--out", str(tmp_path / "TABLE.md")]) == 0
     assert (tmp_path / "TABLE.md").read_text(encoding="utf-8") == text
 
@@ -407,7 +433,7 @@ def test_a_baseline_cut_compares_same_with_itself_and_worse_when_a_row_turns_wea
     table.cut_baseline(table.load_scores(root), None, path=base, archive_dir=tmp_path / "baselines",
                        today="2026-10-28")
     data = table.read_baseline(base)
-    assert data["studies"] == ["aa-alpha · PROBLEM", "bb-beta · PROBLEM"] and data["rubric_version"] == 1
+    assert data["studies"] == ["aa-alpha · PROBLEM", "bb-beta · PROBLEM"] and data["rubric_version"] == 2
     current, _ = table.split_by_version(table.load_scores(root))
     assert table.compare(data, table.latest_per_entry(current))["verdict"] == "same"
     # a later file for bb-beta where the founder's prevalence screen falls to 0 twice over: worse
@@ -416,7 +442,7 @@ def test_a_baseline_cut_compares_same_with_itself_and_worse_when_a_row_turns_wea
         if s["audience"] == "founder":
             s.update(r2=0, r3=0)
     newer["scored_at"] = "2026-10-31T12:00:00+00:00"
-    (root / "bb-beta" / "20261031-PROBLEM-r1-abcdef1-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
+    (root / "bb-beta" / "20261031-PROBLEM-r2-abcdef1-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
     current, _ = table.split_by_version(table.load_scores(root))
     result = table.compare(data, table.latest_per_entry(current))
     assert result["verdict"] == "worse" and "PROBLEM · founder · problem.prevalence · q" in result["why"]
@@ -433,7 +459,7 @@ def test_a_baseline_compares_like_with_like_and_better_when_a_weak_row_mends(tmp
         s.update({c: 2 for c in rubric.CRITERIA if s[c] is not None})
     newer["insights"][0].update(g1=2)
     newer["scored_at"] = "2026-10-31T12:00:00+00:00"
-    (root / "aa-alpha" / "20261031-PROBLEM-r1-bcdef12-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
+    (root / "aa-alpha" / "20261031-PROBLEM-r2-bcdef12-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
     current, _ = table.split_by_version(table.load_scores(root))
     result = table.compare(data, table.latest_per_entry(current))
     assert result["verdict"] == "better"
@@ -452,7 +478,7 @@ def test_a_new_cut_keeps_the_old_baseline(tmp_path):
 def test_a_baseline_at_another_rubric_version_is_refused(tmp_path):
     base = tmp_path / "BASELINE.md"
     table.cut_baseline(table.load_scores(SCORES), None, path=base, today="2026-10-28")
-    base.write_text(base.read_text().replace('"rubric_version": 1', '"rubric_version": 2'))
+    base.write_text(base.read_text().replace('"rubric_version": 2', '"rubric_version": 3'))
     with pytest.raises(table.TableRefused, match="never compared"):
         table.read_baseline(base)
 
@@ -464,15 +490,15 @@ def test_read_is_reported_from_the_latest_score_file_and_not_measured_otherwise(
     assert got["aa-alpha"]["measured"] and got["aa-alpha"]["file"].startswith("20261029-PROBLEM")
     assert got["aa-alpha"]["flagged"] == 1 and got["aa-alpha"]["means"]["r4"] == 1.0
     assert got["aa-alpha"]["insights_pct"] == 75.0 and got["aa-alpha"]["scope"] == "PROBLEM"
-    assert got["bb-beta"]["measured"] and got["bb-beta"]["file"].startswith("20261028-PROBLEM-r1")
+    assert got["bb-beta"]["measured"] and got["bb-beta"]["file"].startswith("20261028-PROBLEM-r2")
     assert got["01-countly"] == {"measured": False, "why": "not measured: no score file for this entry"}
 
 
 def test_read_names_a_score_file_at_another_rubric_version_as_not_measured(tmp_path):
     (tmp_path / "cc-gamma").mkdir()
-    shutil.copy(next(SCORES.glob("bb-beta/*-r2-*.json")), tmp_path / "cc-gamma" / "x.json")
+    shutil.copy(next(SCORES.glob("bb-beta/*-r3-*.json")), tmp_path / "cc-gamma" / "x.json")
     assert marks_mod.read_rows(["cc-gamma"], tmp_path)["cc-gamma"] == {
-        "measured": False, "why": "not measured: rubric version [2], not 1"}
+        "measured": False, "why": "not measured: rubric version [3], not 2"}
 
 
 # ---------------------------------------------------------------------------------- FR-8 nothing else moves

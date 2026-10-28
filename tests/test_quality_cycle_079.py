@@ -5,7 +5,8 @@ The fixtures (`tests/fixtures/quality/cycle/`):
 
 - `scores/` -- four score files over two entries: 08-fresco PROBLEM of 25 October (every screen 2: the earlier cycle and
   the baseline), and of 1 November 08-fresco PROBLEM (the stranger's Importance item turns weak on R2 -- a flagged
-  screen, 86.7% under the bar), 08-fresco SOLUTION and 09-karsa COMMERCIAL (100%);
+  screen, 88.2% under the bar; 86.7% before spec 081 gave every respondent screen an R6 of 2), 08-fresco SOLUTION and
+  09-karsa COMMERCIAL (100%); all at rubric version 2;
 - `BASELINE.md` -- cut from the 25 October file; `cycles/20261025-0000aaa.md` and `cycles/20261101-abcdef1.md` -- two
   records `compose` wrote, the second naming a fourth study (08-fresco COMMERCIAL) walked and never read;
 - `keel-cloud/` -- a registry with two rows, `respondent-questions.md` with named sections, three entry ids.
@@ -42,13 +43,13 @@ WEAK_ROW = "PROBLEM · respondent · problem.importance · item"
 
 
 def _score(entry: str, day: str, scope: str, sha: str = "abcdef1") -> str:
-    return f"{SCORES_REL}/{entry}/{day}-{scope}-r1-{sha}-v13-claude-opus-5-5.json"
+    return f"{SCORES_REL}/{entry}/{day}-{scope}-r2-{sha}-v13-claude-opus-5-5.json"
 
 
 def studies_of_the_fixture() -> list[cycle.Study]:
     S = cycle.Study
     return [S("08-fresco", "PROBLEM", "20261101T100000Z-backtest-08-fresco", None, True, None,
-              _score("08-fresco", "20261101", "PROBLEM"), 86.7, 33.3, 0.55, 410.0, 0.4, 120.0),
+              _score("08-fresco", "20261101", "PROBLEM"), 88.2, 33.3, 0.55, 410.0, 0.4, 120.0),
             S("08-fresco", "SOLUTION", "20261101T110000Z-backtest-08-fresco", None, True, None,
               _score("08-fresco", "20261101", "SOLUTION"), 100.0, 0.0, 0.61, 430.0, 0.4, 120.0),
             S("09-karsa", "COMMERCIAL", "20261101T120000Z-backtest-09-karsa", None, True, None,
@@ -293,7 +294,7 @@ def test_a_walk_runs_every_study_then_the_table_and_writes_the_record(monkeypatc
     record = cycle.load_record(next((tmp_path / "cycles").glob("*.md")))
     assert record["why"] == "a week since the last cycle" and record["door"] == "host"
     assert [s["scope"] for s in record["studies"]] == ["PROBLEM", "SOLUTION"]
-    assert record["head"]["score_pct"] == 93.3 and record["against_baseline"]["verdict"] == "worse"
+    assert record["head"]["score_pct"] == 94.1 and record["against_baseline"]["verdict"] == "worse"
     assert record["cost"]["walk_usd"] == 1.0 and "cycle record: quality/cycles/" not in capsys.readouterr().err
 
 
@@ -304,13 +305,13 @@ def test_the_record_is_composed_from_the_score_files_the_baseline_and_the_previo
     assert text == RECORD.read_text(encoding="utf-8"), "the committed fixture record is what compose writes"
     assert text.startswith("# Quality cycle 20261101-abcdef1\n\n**Why this cycle** (the founder's words): the "
                            "registry's Importance row moved (keel-cloud 150)")
-    assert data["head"]["score_pct"] == 95.0 and data["head"]["flagged_pct"] == 12.5
-    assert data["head"]["by_scope"]["PROBLEM"]["score_pct"] == 86.7
+    assert data["head"]["score_pct"] == 95.6 and data["head"]["flagged_pct"] == 12.5
+    assert data["head"]["by_scope"]["PROBLEM"]["score_pct"] == 88.2
     assert data["baseline"]["cut"] == "2026-10-25" and data["baseline"]["score_pct"] == 100.0
     assert data["against_baseline"]["verdict"] == "worse" and data["against_baseline"]["moved"] == [WEAK_ROW]
     assert data["previous"]["record"] == "20261025-0000aaa" and data["previous"]["verdict"] == "worse"
-    assert data["previous"]["studies"] == {"08-fresco · PROBLEM": {"then": 100.0, "now": 86.7, "delta": -13.3}}
-    assert data["weak_rows"] == [WEAK_ROW] and data["bar_pct"] == 90.0 and data["rubric_version"] == 1
+    assert data["previous"]["studies"] == {"08-fresco · PROBLEM": {"then": 100.0, "now": 88.2, "delta": -11.8}}
+    assert data["weak_rows"] == [WEAK_ROW] and data["bar_pct"] == 90.0 and data["rubric_version"] == 2
     assert data["cost"] == {"walk_usd": 1.84, "read_usd": 1.1, "total_usd": 2.94}
     assert "make read-screens exited 2" in text and "make quality-advise CYCLE=quality/cycles/20261101-abcdef1.md" in text
     assert "make quality-accept CYCLE=quality/cycles/20261101-abcdef1.md" in text
@@ -355,7 +356,7 @@ def test_the_table_head_is_this_cycle_the_baseline_and_the_bar_then_the_rows_tha
     text = out.read_text(encoding="utf-8")
     head = [line for line in text.splitlines() if line.startswith("- **")][:3]
     assert head[0].startswith("- **This cycle** (`quality/cycles/20261101-abcdef1.md`, cloud abcdef1, 3 studies): "
-                              "score_pct **95.0%**, flagged 12.5%")
+                              "score_pct **95.6%**, flagged 12.5%")
     assert head[1] == "- **The baseline** (cut 2026-10-25): score_pct 100.0%, flagged 0.0%"
     assert head[2] == "- **The bar**: 90% -- this cycle meets it"
     assert text.index("**This cycle**") < text.index("## The rows")
@@ -384,7 +385,9 @@ def test_the_adviser_prompt_quotes_the_weak_row_its_screens_and_the_current_regi
     prompt = cycle.adviser_prompt(rows[0], files, cloud=CLOUD, cfg=cycle.load_config(), sha="abcdef1")
     assert "{{" not in prompt and "propose ONE edit" in prompt
     assert f"{WEAK_ROW} -- 1 screen(s) over 08-fresco" in prompt and "weak on R2, R3, R4" in prompt
-    assert "- R2 **Plain.**" in prompt and "0: confusing, double-barrelled, jargon. Weak by mean 0.0 under 1.5" in prompt
+    assert "- R2 **Plain to this person.**" in prompt
+    assert "0: confusing, double-barrelled, or words of another trade. Weak by mean 0.0 under 1.5" in prompt
+    assert "R2 -- the registry row, or the instruction gains the trade's words" in prompt, "spec 081 FR-5"
     assert "08-fresco · `item-problem.importance` (link PRIMARY): R2 0 -- item-problem.importance: why 2" in prompt
     assert "Instead: When the crew is short on site, which of these comes first for you?" in prompt
     assert "registry row: problem.importance's respondent wording" in prompt
@@ -392,6 +395,7 @@ def test_the_adviser_prompt_quotes_the_weak_row_its_screens_and_the_current_regi
             "block (keel-cloud at `abcdef1`)") in prompt
     assert "FIXTURE-RESPONDENT-GUIDANCE" in prompt and "What came first?" not in prompt, "the respondent block only"
     assert "| words | fix the words" in prompt and '"rung": "words" | "effort" | "split"' in prompt
+    assert "## The fix is persona awareness, never a special case" in prompt and '"persona_aware": true | false' in prompt
 
 
 def test_the_current_text_follows_the_fix_location():
@@ -451,7 +455,7 @@ def test_the_dry_adviser_prints_the_prompt_and_calls_nothing(monkeypatch, tmp_pa
 
 def test_the_adviser_writes_its_proposals_and_applies_nothing(monkeypatch, tmp_path):
     answer = json.dumps({"new_text": "On that day, which two of these would you most like made easier?",
-                         "why": "One. Two. Three.", "rung": "words"})
+                         "why": "One. Two. Three.", "rung": "words", "persona_aware": True})
     before = (CLOUD / cycle.REGISTRY_REL).read_bytes()
     code, out, fake = _advise(monkeypatch, tmp_path, answer)
     assert code == 0 and len(fake.seen) == 2, "the probe, then one call for the one weak row"
@@ -514,10 +518,10 @@ def test_accept_cuts_the_baseline_refuses_the_failing_bundles_by_name_and_builds
     assert (quality_out / "baselines" / "2026-10-25.md").read_text() == BASELINE.read_text()
     # the readers' gate: refused by name, with the reason
     assert ("gallery: refused 20261101T100000Z-backtest-08-fresco (08-fresco · PROBLEM): "
-            "20261101-PROBLEM-r1-abcdef1-v13-claude-opus-5-5.json has 1 flagged screen(s) and score_pct 86.7% under "
+            "20261101-PROBLEM-r2-abcdef1-v13-claude-opus-5-5.json has 1 flagged screen(s) and score_pct 88.2% under "
             "the bar of 90%") in said
     assert ("gallery: refused 20261101T130000Z-backtest-08-fresco (08-fresco · COMMERCIAL): no score file at rubric "
-            "version 1") in said
+            "version 2") in said
     # built from the rest: one example per entry, the solution study for fresco
     index = json.loads((out / gallery.INDEX).read_text(encoding="utf-8"))
     assert sorted((r["slug"], r["scope"]) for r in index["examples"]) == [("fresco", "SOLUTION"), ("karsa", "COMMERCIAL")]
@@ -556,10 +560,10 @@ def test_the_gallery_gate_by_itself(tmp_path):
     other = tmp_path / "scores" / "09-karsa"
     other.mkdir(parents=True)
     obj = json.loads((REPO / _score("09-karsa", "20261101", "COMMERCIAL")).read_text())
-    obj["rubric_version"] = 2
-    (other / "x-r2.json").write_text(json.dumps(obj))
+    obj["rubric_version"] = 3
+    (other / "x-r3.json").write_text(json.dumps(obj))
     _, refused = gallery.score_gate([runs / "20261101T120000Z-backtest-09-karsa"], tmp_path / "scores")
-    assert "set aside at another rubric version: x-r2.json" in refused[0]
+    assert "set aside at another rubric version: x-r3.json" in refused[0]
 
 
 def test_make_gallery_with_scores_and_a_scope_order(tmp_path, capsys):

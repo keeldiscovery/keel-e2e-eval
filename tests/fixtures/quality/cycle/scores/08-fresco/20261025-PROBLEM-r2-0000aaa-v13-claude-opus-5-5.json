@@ -1,11 +1,26 @@
 {
   "entry": "08-fresco",
   "scope": "PROBLEM",
-  "bundle": "20261101T100000Z-backtest-08-fresco",
-  "cloud_sha": "abcdef1",
+  "bundle": "20261025T100000Z-backtest-08-fresco",
+  "cloud_sha": "0000aaa",
   "web_sha": "1234567",
   "routing_version": "13",
-  "rubric_version": 1,
+  "rubric_version": 2,
+  "persona": {
+    "founder": "(fixture) 08-fresco's sources and context",
+    "respondent": {
+      "PRIMARY": "(fixture) 08-fresco's person on PRIMARY"
+    }
+  },
+  "spoken_guidelines": {
+    "source": "(fixture) keel-cloud abcdef1 (the bundle's)",
+    "sections": [
+      "2",
+      "3",
+      "5"
+    ],
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
   "reader": {
     "model": "claude-opus-5-5",
     "effort": "medium",
@@ -15,7 +30,7 @@
   "cost_usd": 0.4,
   "probe_cost_usd": 0.01,
   "seconds": 120.0,
-  "scored_at": "2026-11-01T12:00:00+00:00",
+  "scored_at": "2026-10-25T12:00:00+00:00",
   "calls": 5,
   "partial": false,
   "selection": null,
@@ -33,41 +48,47 @@
         "r2": 2.0,
         "r3": 2.0,
         "r4": 2.0,
-        "r5": 2.0
+        "r5": 2.0,
+        "r6": null
       },
       "zeros": {
         "r1": 0,
         "r2": 0,
         "r3": 0,
         "r4": 0,
-        "r5": 0
+        "r5": 0,
+        "r6": 0
       },
       "flagged": 0,
       "flagged_pct": 0.0,
       "out_of_place": 0,
       "looks_stupid": 0,
+      "spoken_pct": null,
       "score_pct": 100.0
     },
     "respondent": {
       "screens": 2,
       "means": {
         "r1": 2.0,
-        "r2": 1.0,
-        "r3": 1.5,
-        "r4": 1.5,
-        "r5": 2.0
+        "r2": 2.0,
+        "r3": 2.0,
+        "r4": 2.0,
+        "r5": 2.0,
+        "r6": 2.0
       },
       "zeros": {
         "r1": 0,
-        "r2": 1,
+        "r2": 0,
         "r3": 0,
         "r4": 0,
-        "r5": 0
+        "r5": 0,
+        "r6": 0
       },
-      "flagged": 1,
-      "flagged_pct": 50.0,
+      "flagged": 0,
+      "flagged_pct": 0.0,
       "out_of_place": 0,
-      "looks_stupid": 1,
+      "looks_stupid": 0,
+      "spoken_pct": 100.0,
       "insight_lines": 0,
       "insight_means": {
         "g1": null,
@@ -78,28 +99,31 @@
         "g2": 0
       },
       "insights_pct": null,
-      "score_pct": 80.0
+      "score_pct": 100.0
     },
     "overall": {
       "screens": 3,
       "means": {
         "r1": 2.0,
-        "r2": 1.333,
-        "r3": 1.667,
-        "r4": 1.667,
-        "r5": 2.0
+        "r2": 2.0,
+        "r3": 2.0,
+        "r4": 2.0,
+        "r5": 2.0,
+        "r6": 2.0
       },
       "zeros": {
         "r1": 0,
-        "r2": 1,
+        "r2": 0,
         "r3": 0,
         "r4": 0,
-        "r5": 0
+        "r5": 0,
+        "r6": 0
       },
-      "flagged": 1,
-      "flagged_pct": 33.3,
+      "flagged": 0,
+      "flagged_pct": 0.0,
       "out_of_place": 0,
-      "looks_stupid": 1,
+      "looks_stupid": 0,
+      "spoken_pct": 100.0,
       "insight_lines": 0,
       "insight_means": {
         "g1": null,
@@ -110,7 +134,7 @@
         "g2": 0
       },
       "insights_pct": null,
-      "score_pct": 86.7
+      "score_pct": 100.0
     }
   },
   "insights": [],
@@ -137,11 +161,13 @@
       "r3": 2,
       "r4": 2,
       "r5": 2,
+      "r6": null,
       "why1": "q-problem.importance: why 1",
       "why2": "q-problem.importance: why 2",
       "why3": "q-problem.importance: why 3",
       "why4": "q-problem.importance: why 4",
       "why5": "q-problem.importance: why 5",
+      "why6": "",
       "out_of_place": false,
       "looks_stupid": false,
       "instead": ""
@@ -158,11 +184,13 @@
       "r3": 2,
       "r4": 2,
       "r5": 2,
+      "r6": 2,
       "why1": "gate: why 1",
       "why2": "gate: why 2",
       "why3": "gate: why 3",
       "why4": "gate: why 4",
       "why5": "gate: why 5",
+      "why6": "gate: why 6",
       "out_of_place": false,
       "looks_stupid": false,
       "instead": ""
@@ -175,18 +203,20 @@
       "dimension": "problem.importance",
       "kind": "item",
       "r1": 2,
-      "r2": 0,
-      "r3": 1,
-      "r4": 1,
+      "r2": 2,
+      "r3": 2,
+      "r4": 2,
       "r5": 2,
+      "r6": 2,
       "why1": "item-problem.importance: why 1",
       "why2": "item-problem.importance: why 2",
       "why3": "item-problem.importance: why 3",
       "why4": "item-problem.importance: why 4",
       "why5": "item-problem.importance: why 5",
+      "why6": "item-problem.importance: why 6",
       "out_of_place": false,
-      "looks_stupid": true,
-      "instead": "When the crew is short on site, which of these comes first for you?"
+      "looks_stupid": false,
+      "instead": ""
     }
   ]
 }

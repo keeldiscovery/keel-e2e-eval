@@ -1,11 +1,26 @@
 {
   "entry": "08-fresco",
-  "scope": "PROBLEM",
-  "bundle": "20261025T100000Z-backtest-08-fresco",
-  "cloud_sha": "0000aaa",
+  "scope": "SOLUTION",
+  "bundle": "20261101T110000Z-backtest-08-fresco",
+  "cloud_sha": "abcdef1",
   "web_sha": "1234567",
   "routing_version": "13",
-  "rubric_version": 1,
+  "rubric_version": 2,
+  "persona": {
+    "founder": "(fixture) 08-fresco's sources and context",
+    "respondent": {
+      "PRIMARY": "(fixture) 08-fresco's person on PRIMARY"
+    }
+  },
+  "spoken_guidelines": {
+    "source": "(fixture) keel-cloud abcdef1 (the bundle's)",
+    "sections": [
+      "2",
+      "3",
+      "5"
+    ],
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
   "reader": {
     "model": "claude-opus-5-5",
     "effort": "medium",
@@ -15,7 +30,7 @@
   "cost_usd": 0.4,
   "probe_cost_usd": 0.01,
   "seconds": 120.0,
-  "scored_at": "2026-10-25T12:00:00+00:00",
+  "scored_at": "2026-11-01T12:30:00+00:00",
   "calls": 5,
   "partial": false,
   "selection": null,
@@ -33,19 +48,22 @@
         "r2": 2.0,
         "r3": 2.0,
         "r4": 2.0,
-        "r5": 2.0
+        "r5": 2.0,
+        "r6": null
       },
       "zeros": {
         "r1": 0,
         "r2": 0,
         "r3": 0,
         "r4": 0,
-        "r5": 0
+        "r5": 0,
+        "r6": 0
       },
       "flagged": 0,
       "flagged_pct": 0.0,
       "out_of_place": 0,
       "looks_stupid": 0,
+      "spoken_pct": null,
       "score_pct": 100.0
     },
     "respondent": {
@@ -55,19 +73,22 @@
         "r2": 2.0,
         "r3": 2.0,
         "r4": 2.0,
-        "r5": 2.0
+        "r5": 2.0,
+        "r6": 2.0
       },
       "zeros": {
         "r1": 0,
         "r2": 0,
         "r3": 0,
         "r4": 0,
-        "r5": 0
+        "r5": 0,
+        "r6": 0
       },
       "flagged": 0,
       "flagged_pct": 0.0,
       "out_of_place": 0,
       "looks_stupid": 0,
+      "spoken_pct": 100.0,
       "insight_lines": 0,
       "insight_means": {
         "g1": null,
@@ -87,19 +108,22 @@
         "r2": 2.0,
         "r3": 2.0,
         "r4": 2.0,
-        "r5": 2.0
+        "r5": 2.0,
+        "r6": 2.0
       },
       "zeros": {
         "r1": 0,
         "r2": 0,
         "r3": 0,
         "r4": 0,
-        "r5": 0
+        "r5": 0,
+        "r6": 0
       },
       "flagged": 0,
       "flagged_pct": 0.0,
       "out_of_place": 0,
       "looks_stupid": 0,
+      "spoken_pct": 100.0,
       "insight_lines": 0,
       "insight_means": {
         "g1": null,
@@ -137,11 +161,13 @@
       "r3": 2,
       "r4": 2,
       "r5": 2,
+      "r6": null,
       "why1": "q-problem.importance: why 1",
       "why2": "q-problem.importance: why 2",
       "why3": "q-problem.importance: why 3",
       "why4": "q-problem.importance: why 4",
       "why5": "q-problem.importance: why 5",
+      "why6": "",
       "out_of_place": false,
       "looks_stupid": false,
       "instead": ""
@@ -158,32 +184,36 @@
       "r3": 2,
       "r4": 2,
       "r5": 2,
+      "r6": 2,
       "why1": "gate: why 1",
       "why2": "gate: why 2",
       "why3": "gate: why 3",
       "why4": "gate: why 4",
       "why5": "gate: why 5",
+      "why6": "gate: why 6",
       "out_of_place": false,
       "looks_stupid": false,
       "instead": ""
     },
     {
       "n": 2,
-      "screen": "item-problem.importance",
+      "screen": "item-solution.relative_advantage",
       "audience": "respondent",
       "link": "PRIMARY",
-      "dimension": "problem.importance",
+      "dimension": "solution.relative_advantage",
       "kind": "item",
       "r1": 2,
       "r2": 2,
       "r3": 2,
       "r4": 2,
       "r5": 2,
-      "why1": "item-problem.importance: why 1",
-      "why2": "item-problem.importance: why 2",
-      "why3": "item-problem.importance: why 3",
-      "why4": "item-problem.importance: why 4",
-      "why5": "item-problem.importance: why 5",
+      "r6": 2,
+      "why1": "item-solution.relative_advantage: why 1",
+      "why2": "item-solution.relative_advantage: why 2",
+      "why3": "item-solution.relative_advantage: why 3",
+      "why4": "item-solution.relative_advantage: why 4",
+      "why5": "item-solution.relative_advantage: why 5",
+      "why6": "item-solution.relative_advantage: why 6",
       "out_of_place": false,
       "looks_stupid": false,
       "instead": ""
