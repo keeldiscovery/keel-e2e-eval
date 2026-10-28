@@ -4,8 +4,14 @@ A back-test bundle's `backtest.json` (spec 062 FR-4) is read as text -- every fo
 served respondent screen of each link -- and each screen is scored by one reader in **one call**: the founder-reader
 (handed the entry's `.sources.md` whole) reads the founder screens, the respondent-reader (handed the person the walk
 took on that link, their line from the sources, their role and the study's context fields) reads each link's screens.
-The earlier screens of the same walk go in as one compact list, kicker and question only (the coordinator's decision
-3); the screen being scored goes in full. After every screen, each reader answers the three whole-flow questions once
+**Spec 081 (rubric version 2)**: both prompts open with the persona block, before any screen -- the founder-reader's
+the sources and the project's what / where / when (`founder_persona`), the respondent-reader's the person on the link
+and the same context (`persona`) -- recorded once in the score file's header (`persona`); every respondent screen
+carries how the AI interviewer says it (`said_aloud`: the served spoken form, else the guidelines' §3 template filled
+from the screen) and is scored on R6 against keel-cloud's `spoken-questions-guidelines.md` §2, §3 and §5, pasted by the
+runner (`spoken_guidelines`: at the bundle's cloud sha where that commit has it, else the checkout's; the header's
+`spoken_guidelines` names which). The earlier screens of the same walk go in as one compact list, kicker and question
+only (the coordinator's decision 3); the screen being scored goes in full. After every screen, each reader answers the three whole-flow questions once
 (the founder once, the respondent once per link). The readers never drive the UI and never see a screenshot.
 
 **The door is the `claude` CLI, exactly as `instructions/judge.py` calls it** (`_ARGV`, `judge_env`), plus `--model`
@@ -20,7 +26,8 @@ A full run writes
 scope is the bundle's, spec 071 FR-4: one corpus entry is three studies) and prints its path; **that file is
 committed**. A partial run (`LIMIT=` / `ONLY=`, the smoke) writes its
 `score.json` into the run folder alone -- a part of a walk is not a score of record and never reaches the table.
-`DRY=1` prints every prompt, writes them into the run folder, calls nothing and writes no score.
+`DRY=1` prints the persona blocks and the guidelines once, then every prompt with them named in place (the prompt
+files it writes into the run folder carry them whole), calls nothing and writes no score.
 
 Never in `make eval`, `make unit`, the matrix, a checker or a schedule; paid (the founder's plan), run on his word.
 """
@@ -53,6 +60,10 @@ SCORES_DIR = QUALITY / "scores"
 RUNS_DIR = REPO / "runs"
 
 PROBE_PROMPT = "Reply with the one word: ready"
+
+#: Spec 081 FR-4: the spoken-question guidelines R6 is read against, in keel-cloud (one source), and the sections pasted.
+GUIDELINES_REL = "canon/designs/spoken-questions-guidelines.md"
+GUIDELINE_SECTIONS = ("2", "3", "5")
 
 _FOUNDER_KIND = re.compile(r"^(q|answer|check|choose)-(.+)$")
 _PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
@@ -185,6 +196,7 @@ class Screen:
     has_options: bool
     full: str
     compact: str
+    said: str = ""
 
     def meta(self) -> dict:
         return {"n": self.n, "screen": self.screen, "audience": self.audience, "link": self.link,
@@ -247,10 +259,43 @@ def _served_items(served: dict) -> dict:
 
 
 def _spoken(spoken: dict | None) -> str | None:
+    """The served spoken form (keel-cloud's `spoken` block), as one line, or None where the bundle records none."""
     if not spoken or not spoken.get("stem"):
         return None
     words = [spoken.get(k) for k in ("anchor", "stem", "countLine", "optionsLine", "escapeLine")]
-    return "Said aloud on the AI interviewer link: " + " ".join(w for w in words if w)
+    return " ".join(str(w).strip() for w in words if w)
+
+
+def _escape_label(escape) -> str | None:
+    if not escape:
+        return None
+    if isinstance(escape, dict):
+        return escape.get("label") or None
+    return str(escape).strip() or None
+
+
+def spoken_template(stem: str | None, options: list | None = None, escape: str | None = None, *,
+                    pick_two: bool = False) -> str:
+    """The guidelines' §3 template filled from a screen: the stem; *I'll read N options[; pick two].*; the options
+    *a; b; or c.*; *Or say {escape}.* -- what the AI interviewer reads when the bundle records no spoken form."""
+    words = [str(stem or "").strip()]
+    options = [str(o).strip() for o in options or [] if str(o).strip()]
+    if options:
+        words.append(f"I'll read {len(options)} options{'; pick two' if pick_two else ''}.")
+        words.append("; ".join(options[:-1]) + f"; or {options[-1]}." if len(options) > 1 else f"{options[0]}.")
+    if escape:
+        words.append(f"Or say {escape}.")
+    return " ".join(w for w in words if w)
+
+
+def said_line(served_spoken: dict | None, composed: str) -> tuple[str, str]:
+    """(the words, the body line) of how the AI interviewer says a screen (spec 081 FR-4): the served spoken form
+    where the bundle records one, else the §3 template the runner filled."""
+    served = _spoken(served_spoken)
+    if served:
+        return served, f"Said aloud by the AI interviewer (the served spoken form): {served}"
+    return composed, ("Said aloud by the AI interviewer (the guidelines' §3 template filled from this screen; the "
+                      f"bundle records no spoken form for it): {composed}")
 
 
 def respondent_screens(bundle: dict) -> dict[str, list[Screen]]:
@@ -264,29 +309,31 @@ def respondent_screens(bundle: dict) -> dict[str, list[Screen]]:
         gate = served.get("gate") or {}
         out: list[Screen] = []
 
-        def add(screen, kind, dimension, has_options, body, kicker, question):
+        def add(screen, kind, dimension, has_options, body, kicker, question, said):
             n = len(out) + 1
             out.append(Screen(n=n, screen=screen, audience="respondent", link=link, dimension=dimension, kind=kind,
                               has_options=has_options,
                               full=f"Screen {n} on this link ({screen}).\n" + "\n".join(body),
-                              compact=_compact(n, kicker, question, screen)))
+                              compact=_compact(n, kicker, question, screen), said=said))
 
         for d in record.get("drawn") or []:
             what = d.get("screen")
             if what == "gate":
                 chip = d.get("chip") or {}
                 if chip.get("question"):
+                    said, line = said_line(None, spoken_template(chip["question"], chip.get("options")))
                     add("screener", "screener", None, True,
                         [f"Kicker: {d.get('kicker') or ''}", f"Question: {chip['question']}",
-                         *_lines("Options", chip.get("options"))], d.get("kicker"), chip["question"])
+                         *_lines("Options", chip.get("options")), line], d.get("kicker"), chip["question"], said)
                 body = [f"Kicker: {d.get('kicker') or ''}", f"Question: {d.get('question') or ''}",
                         *_lines("Options", d.get("options")), *_lines("Chips (the escape)", d.get("chips"))]
                 if gate.get("storyPrompt"):
                     body.append(f"On a yes, the next screen asks for the story: {gate['storyPrompt']}"
                                 + (f" ({gate['storyHint']})" if gate.get("storyHint") else ""))
-                if _spoken(gate.get("spoken")):
-                    body.append(_spoken(gate.get("spoken")))
-                add("gate", "gate", gate.get("dimension"), True, body, d.get("kicker"), d.get("question"))
+                said, line = said_line(gate.get("spoken"), spoken_template(
+                    d.get("question"), d.get("options"), (d.get("chips") or [None])[0]))
+                body.append(line)
+                add("gate", "gate", gate.get("dimension"), True, body, d.get("kicker"), d.get("question"), said)
             elif what == "item":
                 dim = d.get("dimension")
                 item = items.get(dim) or {}
@@ -308,24 +355,40 @@ def respondent_screens(bundle: dict) -> dict[str, list[Screen]]:
                 if d.get("what_you_get"):
                     body.append(f"What you get: {d['what_you_get']}")
                 body += _lines("Chips (the escape)", d.get("chips"))
-                if _spoken(item.get("spoken")):
-                    body.append(_spoken(item.get("spoken")))
+                escape = _escape_label(item.get("escape")) or (d.get("chips") or [None])[0]
+                if plan and item.get("question") and item["question"] != plan.get("question"):
+                    composed = (spoken_template(item["question"], item.get("options") and
+                                                [o.get("label") if isinstance(o, dict) else o for o in item["options"]]
+                                                or d.get("rows"), escape)
+                                + " Then: " + spoken_template(plan.get("question"), plan.get("rows")))
+                else:
+                    composed = spoken_template(question, d.get("rows"), escape, pick_two=d.get("control") == "pick_two")
+                said, line = said_line(item.get("spoken"), composed)
+                body.append(line)
                 add(f"item-{dim}", "item", dim,
                     bool(d.get("rows") or d.get("chips") or d.get("value_box_label") or plan),
-                    body, d.get("kicker"), question)
+                    body, d.get("kicker"), question, said)
             elif what in ("reveal", "idea"):
                 body = [f"Kicker: {d.get('kicker') or ''}", f"A card to read:\n{d.get('card') or ''}"]
                 if d.get("question"):
                     body.append(f"Question: {d['question']}")
-                add(what, what, None, False, body, d.get("kicker"), d.get("question") or "(the idea card)")
+                said, line = said_line(None, " ".join(" ".join(str(x or "").split())
+                                                      for x in (d.get("card"), d.get("question")) if x))
+                body.append(line)
+                add(what, what, None, False, body, d.get("kicker"), d.get("question") or "(the idea card)", said)
             elif what == "follow_up":
                 body = [f"Kicker: {d.get('kicker') or ''}", f"Question: {d.get('question') or ''}",
                         f"Note under it: {d.get('note') or ''}", "A box to type in."]
-                add("follow_up", "follow_up", None, False, body, d.get("kicker"), d.get("question"))
+                said, line = said_line(None, spoken_template(d.get("question")))
+                body.append(line)
+                add("follow_up", "follow_up", None, False, body, d.get("kicker"), d.get("question"), said)
             else:
                 body = [f"{k}: {_said(v)}" for k, v in d.items() if k not in ("order",) and v not in (None, "", [])]
+                said, line = said_line(d.get("spoken") if isinstance(d.get("spoken"), dict) else None,
+                                       spoken_template(d.get("question"), d.get("rows"), (d.get("chips") or [None])[0]))
+                body.append(line)
                 add(what or "screen", what or "screen", d.get("dimension"), bool(d.get("rows") or d.get("chips")),
-                    body, d.get("kicker"), d.get("question"))
+                    body, d.get("kicker"), d.get("question"), said)
         links[link] = out
     return links
 
@@ -371,15 +434,39 @@ def sources_line(sources: str, person: str | None) -> str:
     return ""
 
 
+def context_lines(data: dict) -> list[str]:
+    """Spec 081 FR-3: the project's what / where / when as the entry's context fields say it -- actor, actor_plural,
+    job, circumstance, segment, the window, and the market's country (and region where the entry names one)."""
+    ctx = data.get("context") or {}
+    window = ctx.get("recall_window") or {}
+    market = data.get("market") or {}
+    lines = []
+    for key in ("actor", "actor_plural", "job", "circumstance", "segment"):
+        if ctx.get(key):
+            lines.append(f"  {key}: {ctx[key]}")
+    if window:
+        lines.append(f"  window: the last {window.get('count')} {str(window.get('unit', '')).lower()}")
+    if market.get("country"):
+        lines.append(f"  where: {market['country']}" + (f", {market['region']}" if market.get("region") else ""))
+    return lines
+
+
+def founder_persona(entry: dict) -> str:
+    """Spec 081 FR-3: the founder-reader's persona block -- the entry's sources whole (the YC material) and the
+    project's what / where / when as the context fields say it."""
+    return "\n".join(["Your own public material (you are the founder it describes):", "", entry["sources"].strip(), "",
+                      "The study you typed into Keel, as its context fields say it (your trade's words are plain to "
+                      "you; judge from inside your trade, your place and your time):", *context_lines(entry["yaml"])])
+
+
 def persona(entry: dict, bundle: dict, link: str) -> str:
-    """The respondent-reader's hand-off for one link (FR-2): the person the walk took on that link (the first the
-    entry names for it), their line from the sources, their role, and the study's context fields."""
+    """The respondent-reader's persona block for one link (FR-2; spec 081 FR-3): the person the walk took on that link
+    (the first the entry names for it), their line from the sources, their role, and the project's what / where /
+    when as the context fields say it."""
     data = entry["yaml"]
     record = (bundle.get("respondents") or {}).get(link) or {}
     person = record.get("person") or _first_person(data, link) or "a person in this role"
     role = _role(data.get("roles") or [], link)
-    ctx = data.get("context") or {}
-    window = ctx.get("recall_window") or {}
     lines = [f"Your name is {person}."]
     line = sources_line(entry["sources"], person)
     if line:
@@ -390,14 +477,54 @@ def persona(entry: dict, bundle: dict, link: str) -> str:
         title = ((data.get("persona") or {}).get("decision_maker") or {}).get("title")
         if title:
             lines.append(f"Your title: {title}. You decide on, and pay for, tools like the one in this study.")
-    lines.append("The founder's own words for the situation this study is about (given so you know your situation; "
-                 "they are not words you would necessarily use):")
-    for key in ("actor", "actor_plural", "job", "circumstance", "segment"):
-        if ctx.get(key):
-            lines.append(f"  {key}: {ctx[key]}")
-    if window:
-        lines.append(f"  window: the last {window.get('count')} {str(window.get('unit', '')).lower()}")
+    lines.append("The project's what, where and when, in the founder's own words for your situation (given so you know "
+                 "your trade, your place and your time; they are not words you would necessarily use):")
+    lines += context_lines(data)
     return "\n".join(lines)
+
+
+# ------------------------------------------------------------------------------------- the spoken guidelines
+
+def guideline_sections(text: str, numbers=GUIDELINE_SECTIONS) -> str:
+    """The guidelines' numbered `## n.` sections, each whole to the next `## ` heading, in order -- or `Refused`."""
+    out = []
+    for number in numbers:
+        match = re.search(rf"^## {re.escape(number)}\.[^\n]*$", text, re.M)
+        if not match:
+            raise Refused(f"the spoken-question guidelines carry no section {number} ({GUIDELINES_REL})")
+        rest = text[match.end():]
+        stop = re.search(r"^## ", rest, re.M)
+        out.append((match.group(0) + rest[:stop.start() if stop else len(rest)]).strip())
+    return "\n\n".join(out)
+
+
+def spoken_guidelines(bundle: dict, cloud: Path | None = None) -> dict:
+    """Spec 081 FR-4: §2, §3 and §5 of keel-cloud's spoken-question guidelines, one source -- read with `git show` at
+    the bundle's cloud sha where that commit carries the file, else from the checkout. `{text, source, sha256}`."""
+    if cloud is None:
+        try:
+            from stack.config import load_config
+            cloud = Path(load_config(validate=False).keel_cloud)
+        except Exception:                                # noqa: BLE001 - no sibling: refused below
+            cloud = None
+    if cloud is None:
+        raise Refused(f"make read-screens refuses: no keel-cloud checkout to read {GUIDELINES_REL} from (R6, spec 081)")
+    sha = str((bundle.get("stack") or {}).get("keel-cloud") or "").strip()
+    text, source = None, None
+    if sha:
+        done = subprocess.run(["git", "-C", str(cloud), "show", f"{sha}:{GUIDELINES_REL}"], capture_output=True,
+                              text=True, timeout=30)
+        if done.returncode == 0 and done.stdout.strip():
+            text, source = done.stdout, f"keel-cloud {sha} (the bundle's)"
+    if text is None:
+        path = Path(cloud) / GUIDELINES_REL
+        if not path.is_file():
+            raise Refused(f"make read-screens refuses: no {GUIDELINES_REL} in {cloud} (R6, spec 081)")
+        text = path.read_text(encoding="utf-8")
+        source = f"the keel-cloud checkout ({cloud}; the bundle's sha {sha or 'unnamed'} does not carry it)"
+    part = guideline_sections(text)
+    return {"text": part, "source": source, "sections": list(GUIDELINE_SECTIONS),
+            "sha256": hashlib.sha256(part.encode("utf-8")).hexdigest()}
 
 
 # --------------------------------------------------------------------------------------------- the calls
@@ -514,42 +641,63 @@ def render_line(line: dict) -> str:
 
 
 def plan(bundle: dict, entry: dict, *, only: str | None = None, limit: int | None = None,
-         readers_dir: Path | None = None) -> dict:
+         readers_dir: Path | None = None, guidelines: dict | None = None) -> dict:
     """Every prompt of a run, built before any call: `{screens: [(Screen, prompt)], flows: [(audience, link, prompt)],
-    insights: [(line, prompt)]}`. A partial run (`only` / `limit`) asks no whole-flow question and reads no grouping:
-    a part of a walk is not a flow."""
-    rubric_part = rubric.prompt_rubric()
+    insights: [(line, prompt)], persona: {founder, respondent: {link: block}}, spoken_guidelines: {...}}`. A partial
+    run (`only` / `limit`) asks no whole-flow question and reads no grouping: a part of a walk is not a flow.
+    `guidelines` is `spoken_guidelines(bundle)`'s answer (read here when not given)."""
+    rubric_part, rubric_r6 = rubric.prompt_rubric(), rubric.prompt_spoken()
+    guidelines = guidelines if guidelines is not None else spoken_guidelines(bundle)
     founder_t, respondent_t = template("founder", "screen", readers_dir), template("respondent", "screen", readers_dir)
     jobs, flows = [], []
     founder = founder_screens(bundle)
+    founder_block = founder_persona(entry)
+    links = respondent_screens(bundle)
+    blocks = {link: persona(entry, bundle, link) for link in links}
     for screen in _select(founder, only, limit):
         earlier = "\n".join(s.compact for s in founder if s.n < screen.n) or "(none: this is the first screen)"
-        jobs.append((screen, fill(founder_t, {"sources": entry["sources"].strip(), "rubric": rubric_part,
+        jobs.append((screen, fill(founder_t, {"persona": founder_block, "rubric": rubric_part,
                                               "earlier": earlier, "screen": screen.full})))
-    links = respondent_screens(bundle)
     chosen = [(link, s) for link, screens in links.items() for s in _select(screens, only, None)]
     chosen = chosen[:limit] if limit else chosen
     for link, screen in chosen:
         screens = links[link]
         earlier = "\n".join(s.compact for s in screens if s.n < screen.n) or "(none: this is the first screen)"
-        jobs.append((screen, fill(respondent_t, {"persona": persona(entry, bundle, link), "rubric": rubric_part,
+        jobs.append((screen, fill(respondent_t, {"persona": blocks[link], "rubric": rubric_part,
+                                                 "rubric_r6": rubric_r6, "spoken_rules": guidelines["text"],
                                                  "earlier": earlier, "screen": screen.full})))
     if not (only or limit):
         flows.append(("founder", None, fill(template("founder", "flow", readers_dir),
-                                            {"sources": entry["sources"].strip(),
+                                            {"persona": founder_block,
                                              "earlier": "\n".join(s.compact for s in founder)})))
         for link, screens in links.items():
             if screens:
                 flows.append(("respondent", link, fill(template("respondent", "flow", readers_dir),
-                                                       {"persona": persona(entry, bundle, link),
+                                                       {"persona": blocks[link],
                                                         "earlier": "\n".join(s.compact for s in screens)})))
     insights = []
     if not (only or limit):
         insights_t, rubric_g = template("respondent", "insights", readers_dir), rubric.prompt_insights()
         for line in insight_lines(bundle):
-            insights.append((line, fill(insights_t, {"persona": persona(entry, bundle, line["link"]),
-                                                     "line": render_line(line), "rubric_g": rubric_g})))
-    return {"screens": jobs, "flows": flows, "insights": insights}
+            block = blocks.get(line["link"]) or persona(entry, bundle, line["link"])
+            insights.append((line, fill(insights_t, {"persona": block, "line": render_line(line),
+                                                     "rubric_g": rubric_g})))
+    return {"screens": jobs, "flows": flows, "insights": insights,
+            "persona": {"founder": founder_block, "respondent": blocks},
+            "spoken_guidelines": {k: guidelines[k] for k in ("source", "sections", "sha256")},
+            "_guidelines_text": guidelines["text"]}
+
+
+def named_in_place(prompt: str, work: dict) -> str:
+    """A prompt as the dry run prints it (spec 081 acceptance): the persona blocks and the guidelines, printed once
+    above, named in place -- the prompt files keep them whole."""
+    blocks = [("the founder's persona block, printed above", work["persona"]["founder"])]
+    blocks += [(f"the {link} persona block, printed above", b) for link, b in work["persona"]["respondent"].items()]
+    blocks.append(("the spoken-question guidelines §2, §3 and §5, printed above", work.get("_guidelines_text") or ""))
+    for name, text in sorted(blocks, key=lambda nb: -len(nb[1])):
+        if text:
+            prompt = prompt.replace(text, f"[{name}]")
+    return prompt
 
 
 #: Spec 071 FR-4: a bundle walked before scopes, or with none named, is the whole study.
@@ -581,7 +729,7 @@ def run(argv=None) -> int:
         run_dir, bundle = load_bundle(args.run)
         entry = load_entry(bundle, entries_dir())
         reader_cfg = load_reader_config()
-        work = plan(bundle, entry, only=args.only, limit=args.limit)
+        work = plan(bundle, entry, only=args.only, limit=args.limit, guidelines=spoken_guidelines(bundle))
     except (Refused, rubric.RubricError) as reason:
         print(str(reason), file=sys.stderr)
         return 2
@@ -597,11 +745,25 @@ def run(argv=None) -> int:
         jobs = [(s.label(), p) for s, p in work["screens"]] + \
                [(f"flow-{a}-{link or 'founder'}", p) for a, link, p in work["flows"]] + \
                [(f"insights-{line['link']}-{line['dimension']}", p) for line, p in work["insights"]]
+        print("=" * 100)
+        print("THE PERSONA BLOCKS (spec 081 FR-3: each opens every prompt of its reader; the score file's header "
+              "records them once)")
+        print("=" * 100)
+        print("--- founder-reader ---")
+        print(work["persona"]["founder"])
+        for link, block in work["persona"]["respondent"].items():
+            print(f"--- respondent-reader, link {link} ---")
+            print(block)
+        print("=" * 100)
+        print(f"THE SPOKEN-QUESTION GUIDELINES R6 is read against (§2, §3, §5; {work['spoken_guidelines']['source']}; "
+              "pasted whole into every respondent prompt)")
+        print("=" * 100)
+        print(work["_guidelines_text"])
         for i, (label, prompt) in enumerate(jobs, 1):
             print("=" * 100)
             print(f"[{i}/{len(jobs)}] {label}")
             print("=" * 100)
-            print(prompt)
+            print(named_in_place(prompt, work))
             (prompts / f"{i:03d}-{label}.prompt.txt").write_text(prompt, encoding="utf-8")
         print(f"dry run: {len(jobs)} prompts for {entry['id']}, scope {bundle_scope(bundle)} "
               f"({len(work['screens'])} screens, "
@@ -621,7 +783,7 @@ def run(argv=None) -> int:
         try:
             if said["error"]:
                 raise rubric.RubricError(said["error"])
-            answer = rubric.parse_answer(said["answer"], has_options=screen.has_options)
+            answer = rubric.parse_answer(said["answer"], has_options=screen.has_options, audience=screen.audience)
             scores.append(rubric.screen_score(screen.meta(), answer))
             print(f"  {screen.label():<64} scored")
         except rubric.RubricError as reason:
@@ -659,6 +821,8 @@ def run(argv=None) -> int:
         "web_sha": (bundle.get("stack") or {}).get("keel-web"),
         "routing_version": routing_version(run_dir),
         "rubric_version": rubric.RUBRIC_VERSION,
+        "persona": work["persona"],
+        "spoken_guidelines": work["spoken_guidelines"],
         "reader": {k: reader_cfg[k] for k in ("model", "effort", "vendor", "door")},
         "cost_usd": round(sum(c["cost_usd"] for c in reader.calls if not c["cached"]), 4),
         "probe_cost_usd": round(probe_cost, 4),
@@ -692,6 +856,7 @@ def run(argv=None) -> int:
     (out / "score-path.txt").write_text(str(path) + "\n", encoding="utf-8")
     overall = record["summary"]["overall"]
     print(f"{entry['id']} ({bundle_scope(bundle)}): {len(scores)} screens scored, {len(unread)} unread, score_pct {overall['score_pct']}, "
+          f"spoken_pct {overall.get('spoken_pct')}, "
           f"flagged {overall['flagged']}, ${record['cost_usd']} in {record['seconds']} s"
           + (" (partial: not a score of record)" if partial else ""))
     print(f"score file: {path}")
