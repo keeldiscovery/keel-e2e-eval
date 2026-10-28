@@ -147,7 +147,7 @@ def _items(raw, key):
 
 def _revision(n, words):
     return (lambda r: r.__setitem__("revision", n),
-            f"revision is {n}; this eval reads revision 16 only -- revision {n} is {words}")
+            f"revision is {n}; this eval reads revision 17 only -- revision {n} is {words}")
 
 
 #: The registry-free refusals: the file alone is refused.
@@ -172,6 +172,9 @@ MUTATIONS = {
     # spec 068 FR-1: revision 15 refused by name, before keel-cloud 129's 112 moved Commitment picks
     "revision 15": _revision(15, "MARKS_VERSION 20's corpus before keel-cloud 129 (112 back-test Commitment picks "
                                  "`yes_after_trying` where the founder's list is the step alone"),
+    # spec 080 FR-1: revision 16 refused by name, before keel-cloud 147's one Buyer and payer row
+    "revision 16": _revision(16, "MARKS_VERSION 21's corpus before keel-cloud 147 (02-compliancelog's Buyer and "
+                                 "payer recorded PEOPLE_DISAGREE / both / 5 of 9"),
     # r11's two rules in L (keel-cloud 091 FR-G, DRIFT #77): K3 on a face, S10 on Commitment's step
     "a face with no you": (lambda r: _items(r, "solution.compatibility")[0].__setitem__(
         "asked", "was the phone to hand"), "is said to the stranger and carries no 'you' or 'your' (rule L, K3)"),
