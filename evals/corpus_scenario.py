@@ -2023,13 +2023,19 @@ def _hold_the_chain_screen(j: Journey, key: str, seen: dict) -> None:
 def _hold_the_cost_fill(j: Journey, cost: dict, filled: dict) -> None:
     """Spec 075 FR-2 (keel-web 123 FR-1, FR-2): the chain cost step's boxes arrive filled -- *Per* with the role word,
     *of* (on a way with the box) with the occasion -- each with its muted helper line; on *Time it takes* at a study the
-    view prices hours for (`hourlyRate`), the rate drawn under the hours row with Keel's figure and its default note."""
+    view prices hours for (`hourlyRate`), the rate drawn under the hours row with Keel's figure and its default note.
+
+    Spec 082 FR-2: `filled` is read as keel-web draws it (`Corridor._chain_cost`) -- *Per* and its helper before
+    anything is typed; *of*, its helper and on hours the rate and its note after the period pill, once the equation is
+    on the page (keel-web 123 FR-1 draws the *of* box inside the equation: a mode, a unit and a period). The pins are
+    unchanged."""
     view = j.get(j.project("/calibration/COMMERCIAL")) or {}
     want = chain_fill(j.get(j.project("/persona")) or {}, j.get(j.project("/context")) or {}, vs.is_b2b(j.entry))
     mode = str(cost.get("mode") or "").upper()
     rate = (view.get("hourlyRate") or {}).get("amount")
-    with _step(j, "the cost step: Per and of arrive filled from the project with a helper line under each, and on "
-                  "hours the rate under the hours row with its default note (keel-web 123)", party="founder") as h:
+    with _step(j, "the cost step: Per arrives filled from the project with its helper line before anything is typed; "
+                  "of with its helper line, and on hours the rate under the hours row with its default note, once the "
+                  "period is picked and the equation is drawn (keel-web 123)", party="founder") as h:
         owed = {"unit": want["unit"], "unit_help": vs_screens.CHAIN_UNIT_HELP}
         if mode in ("HOURS", "RATE"):
             owed["base"] = want["base"] or ""

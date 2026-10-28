@@ -1553,17 +1553,23 @@ class Corridor:
         *A rate they lose*), the unit box, the period pill, then on the equation a rate's measure (% or a count word)
         and its "of what they lose" box, the two numbers, the hourly rate on time at a B2B study; the equation line
         read back (`equation`, its words after the boxes `per`). A base on money or time is drawn read-only only where
-        a stored answer carries one (094 judgement call 4): none is typed."""
+        a stored answer carries one (094 judgement call 4): none is typed.
+
+        Spec 082 FR-2: what arrives filled is read when keel-web draws it -- *Per* (`chain-unit`) and its helper before
+        anything is typed; *of* (`chain-base`, `#chain-base-help`) and on hours the rate and its note only after the
+        period pill, once `chain-equation` is visible: keel-web 123 FR-1 draws the box inside the equation
+        (`FounderControl`'s `ready`: a mode, a unit and a period), so on a fresh draft it is not on the page before."""
         page = self.page
         # spec 075 (keel-web 123 FR-1): *Per* arrives filled (the role word) with its helper line, before anything is
-        # typed; *of* arrives filled (the occasion) once a way with the box is picked
+        # typed
         filled = {"unit": _input_value(page, "chain-unit"), "unit_help": _first_text(page, "#chain-unit-help") or None}
         page.get_by_test_id(f"chain-mode-{'MONEY' if cost['mode'] == 'AMOUNT' else cost['mode']}").click()
-        filled["base"] = _input_value(page, "chain-base")
-        filled["base_help"] = _first_text(page, "#chain-base-help") or None
         page.get_by_test_id("chain-unit").fill(str(cost.get("unit") or ""))
         page.get_by_test_id(f"chain-period-{cost['period']}").click()
         page.get_by_test_id("chain-equation").wait_for(state="visible", timeout=10_000)
+        # spec 082 FR-2: *of* arrives filled (the occasion) on a way with the box -- drawn with the equation, read now
+        filled["base"] = _input_value(page, "chain-base")
+        filled["base_help"] = _first_text(page, "#chain-base-help") or None
         if cost["mode"] == "HOURS":
             # keel-web 123 FR-2: the rate (and, while it is Keel's figure, its note) drawn whenever the view carries
             # `hourlyRate`, directly under the hours row
