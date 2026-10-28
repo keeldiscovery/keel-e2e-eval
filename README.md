@@ -89,7 +89,23 @@ runtime the failed journey started stays connected, and the scripted executor co
 every reading shifted, a guessed story counted and an anchored one not -- and its standings fail as golden readings the
 build moved, which they are not. `make down` disconnects it (and says so); `make up` resets the runtime home.
 
-### `MARKS_VERSION` 20 — the gate as written, **no run of record yet** (spec `052-report`, 2026-10-17)
+### `MARKS_VERSION` 21 — the gate as written, **no run of record yet** (spec `078-question-quality-readers`, 2026-10-28)
+
+The question-quality readers (keel-cloud-docs `canon/designs/question-quality-rubric-2026-10-28.md`): two readers score
+every screen a founder and a stranger are served in a back-test bundle -- the founder-reader (the entry's `.sources.md`)
+and the respondent-reader (the person the walk took on each link), one call a screen through the `claude` CLI as
+`instructions/judge.py` calls it, Opus 5.5 at medium (`quality/readers.toml`) -- against `quality/RUBRIC.md`
+(`RUBRIC_VERSION` 1: R1 fits here, R2 plain, R3 about their life, R4 the options, R5 the founder's words kept; §G, the
+Insights grouping of each follow-up line). `make read-screens RUN=<bundle> [DRY=1] [LIMIT=n] [ONLY=text]` (paid) writes
+the committed score file `quality/scores/<entry>/<yyyymmdd>-<scope>-r1-<cloud7>-v<routing>-<reader>.json`;
+`make read-table [BASELINE=1]` (free) writes `quality/TABLE.md` -- the overall `score_pct` against the founder's bar of
+**90%**, weak rows with their fix location, the trend -- and the comparison with `quality/BASELINE.md`. `read` joins the
+marks as a kind beside `no_leak` (calls 121-123): reported in every scorecard from the latest committed score file at
+the current `RUBRIC_VERSION`, *not measured* otherwise, never gating. No `[marks]` number and no `judge()` row moved;
+`rescore.py` still re-scores a v20 bundle. **There is no v21 run of record until `WHY=marks:21` is spent, on the
+founder's word only.**
+
+### `MARKS_VERSION` 20 — history since v21, never run (spec `052-report`, 2026-10-17)
 
 The report replaces the brief (keel-cloud 104 at keel-cloud-docs `9a033fe`, contract 19's standings side; keel-web 077).
 The BRIEF screen is gone, so `brief_answers` and its seven reading marks **retire** (`instructions/brief.py` deleted, call

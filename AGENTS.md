@@ -26,8 +26,23 @@ added to this line rather than quietly written — which is exactly how the thir
   reads *green at the current `MARKS_VERSION`*, so a rubric that moved has no run of record at all
   until one is spent, and a screen is one entry and cannot be one. The policy widened by one named
   event, in the open, which is the amendment shape this document asks for — it did not loosen.
-  **`MARKS_VERSION` 20** (spec `052-report`, 2026-10-17) is the gate as written, and **there is no run of record
-  until `WHY=marks:20` is spent -- the certificate is the founder's word only; never run or propose it**. keel-cloud
+  **`MARKS_VERSION` 21** (spec `078-question-quality-readers`, 2026-10-28) is the gate as written, and **there is no
+  run of record until `WHY=marks:21` is spent -- the certificate is the founder's word only; never run or propose it**.
+  It adds the `read` mark kind beside `no_leak` (calls 121-123): the question-quality readers' five means, flagged
+  count and `score_pct`, read from the latest committed score file under `quality/scores/` at `RUBRIC_VERSION`,
+  reported in every scorecard and *not measured* without one -- never a `judge()` row, never gating; no `[marks]`
+  number moved and `rescore.py` still re-scores a v20 bundle. What follows is v20's account, history since 2026-10-28.
+  **The question-quality readers** (`quality/`, spec 078) widen this place rather than add a fifth: they are the
+  judge's own door (`instructions/judge.py`'s argv, `judge_env`) with `--model claude-opus-5-5 --effort medium`
+  (`quality/readers.toml`), a ruler and never a subject, and their scores are this rubric's `read` kind. `make
+  read-screens RUN=<bundle>` reads one back-test bundle's served screens as text (the founder-reader handed the
+  entry's `.sources.md`, the respondent-reader the person the walk took on each link), one bounded call a screen, every
+  prompt and answer recorded under `runs/`, the score file written to `quality/scores/` and committed; it refuses on a
+  missing `claude` binary or a failed one-word probe and reads no key. **Paid (the founder's plan), run on his word
+  only** -- never in `make eval` / `make unit`, the matrix, a checker or a schedule (`quality/` has no `test_*.py`;
+  `make read-table` is free and calls nothing).
+  **`MARKS_VERSION` 20** (spec `052-report`, 2026-10-17) was the gate as written, and **there was no run of record
+  until `WHY=marks:20` was spent -- never run**. keel-cloud
   104 (keel-cloud-docs `9a033fe`, contract 19's standings side) deleted the BRIEF screen, so `brief_answers` and its
   seven reading marks retire (call 116); `brief_facts` gains the price median and 103's two card lines (call 119);
   `report_overview` is born at zero spend (the Overview keel-cloud's facts draw against the corpus's, call 117); four
