@@ -5628,7 +5628,17 @@ reads a line with fewer than two follow-up answers as not yet judged (quoted, co
 second answer on. **For keel-cloud:** run THEMES on a single answer too where it might be junk (or hold a lone answer
 RAW until grouped), if the founder wants the box clean from the first answer.
 
-## 99. Observation (keel-cloud, the words of one question): the decision-maker's screener says the qualifier twice when `actor_plural` already carries it
+## 99. RESOLVED (keel-cloud-docs `427d8701`, spec 146 FR-3) -- was an observation (keel-cloud, the words of one question): the decision-maker's screener says the qualifier twice when `actor_plural` already carries it
+
+**Resolved by keel-cloud 146 FR-3** (`RespondentQuestionsRules.deciderPeople`, `Qualifiers.head` / `says`): the
+third-person chip names the people once -- `actor_plural`'s head where its qualifier can be cut (*Are the landscaping
+crew leads you decide for based in the Dallas-Fort Worth suburbs?*), the plural whole where it carries none, and *the
+people* where the clause says what the plural says. 05-paidly's decision-makers are served **"Do the people you decide
+for work mostly for agencies?"** (10 words). Spec 077 mirrors it (`harness/vectors_script.decider_people`,
+`harness/qualifiers.py`); S-006's step holds every decision-maker to the mirror, as before (the question still opens *Do
+the* and carries *you decide for*), and S-007 now walks the cut shape on its owners' links. What follows is the
+observation as filed.
+
 
 Found by spec `076-founder-walk-round-two` on S-006 (keel-cloud-docs `3b252640`, keel-web `b50eb04`; held in
 `runs/20261028T050224Z-s006-paidly`, step *S-006: each decision-maker's link serves the screener*). 05-paidly's context
