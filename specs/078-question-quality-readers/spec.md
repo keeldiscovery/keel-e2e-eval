@@ -77,3 +77,20 @@ are committed on eval master, never pushed without his word.
 3. One respondent persona per link (the first role the sources name); a second persona is a flag, not the default.
 4. The score file name carries the cloud sha, the routing version and the reader model, so a diff of two files says
    which of the three moved.
+
+## Amended at build (the coordinator, 2026-10-28) -- three decisions added to the rules above
+
+1. **The reader runs through the `claude` CLI exactly as `instructions/judge.py` does**, with
+   `--model claude-opus-5-5` -- `claude -p --tools "" --strict-mcp-config --setting-sources "" --no-session-persistence
+   --max-turns 1 --output-format json`, plus `--model` and `--effort` -- **not an API key**. FR-4's refusal is read so:
+   `make read-screens` refuses when the `claude` binary is missing or `claude -p` cannot answer a one-word probe, never on
+   a key, and no key is read, named or passed. `quality/readers.toml` pins `model = "claude-opus-5-5"`,
+   `effort = "medium"` (passed as `--effort medium`, which the CLI accepts), `vendor = "anthropic"`, `door = "claude
+   CLI"`; the effort knobs of the environment are stripped as the judge strips them (`judge_env`).
+2. **The score as one number.** Beside the five means, every score file and `TABLE.md` carry `score_pct` = (the sum of
+   every r1..r5 given over the file's screens) / (2 x the count of those scores) x 100, per audience and overall, and
+   `flagged_pct` = the screens with any 0 / the screens x 100. `TABLE.md`'s head says the overall `score_pct` over the
+   latest file of every entry, and the bar the founder named: **90% is the bar** before the remaining entries are
+   walked. The weak rule stays as FR-1 has it.
+3. **The reader's context is bounded.** The earlier screens of the same walk go in as one compact list (kicker and
+   question only), never their options, so a call stays small; the screen being scored goes in full.
