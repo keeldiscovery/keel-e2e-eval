@@ -94,6 +94,23 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Corpus revision 17 (2026-10-28, keel-cloud 147; eval 080, the harness half)**: one standings row moves --
+02-compliancelog's Buyer and payer reads HOLDING_UP / none / 7 of 9 inside (was PEOPLE_DISAGREE / both / 5 of 9) under
+keel-cloud 145 FR-2's direction-aware rule (a role named, *had to agree* and *decided alone* both support) -- and every
+other entry, golden and back-test, moves by its revision line alone; no verdict moved (COMMERCIAL stays NOT_HOLDING_UP on
+Price). The reader reads **revision 17** and refuses a revision-16 file by name. **v21 stands**: the ruler did not move,
+the record did, so v21's *the corpus stays revision 16* above is history; 076's one named disagreement (the engine and
+the facts already reading 7 of 9 against revision 16's 5 of 9) is now agreed -- `compare_correctness` 108 of 108,
+`brief_facts` 101 of 101, `report_overview` 49 of 49. The seven revision-17 files, by sha256 (keel-cloud canon's own
+bytes at keel-cloud-docs `88bfce8d`, equal to `src/test/resources/keel/corpus-r17/`): `01-countly.yaml`
+`6f1226f87876511e9fb615fd489ffc7b93d69a43dd2a8675852753ab2daf0778`; `02-compliancelog.yaml`
+`76b2cb578a0cceb6a4ad74aec19b208ad4549b82b51e45d4fcbfd2e0690c5dc1`; `03-lullaby.yaml`
+`bf7816847d0eb97aa3b6961bafafcde9738a3ec3fe195fcac332509461666a47`; `04-linerly.yaml`
+`8034335c64d0b29025d3569418ef8e337a86d9b0c96e3104297b0bcd3506f9ef`; `05-paidly.yaml`
+`34ba180bdf49305622e2e78196289982a39193fced4e0953503f159c7e8eac1f`; `06-repeatline.yaml`
+`b025587be123137a5071a7ca769e54df40f94024df7c27a9362fb13b8980cc04`; `07-mulchrun.yaml`
+`6e10d4f3518587be88db54d0c6085bfda351dfa2bf83439ddc2aa67d1c3ac79e`.
+
 **Corpus revision 16 (2026-10-23, keel-cloud 129; eval 068, the harness half)**: the golden seven move by their revision
 line alone (129 FR-12); every back-test founder's Commitment list is the step alone, so the 112 `yes_after_trying`
 picks across the 28 back-test entries become `yes_start` (Keel adds no smaller step the founder did not give, 129 FR-9).

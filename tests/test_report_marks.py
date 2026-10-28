@@ -374,6 +374,15 @@ def test_keel_clouds_facts_draw_the_corpus_overview_on_all_seven_entries():
     scores = [ov.compare(e, registry, cloud.facts.get(e.id)) for e in corpus.entries]
     assert sum(s.checks for s in scores) == 49
     assert sum(s.agreed for s in scores) == 49, [m for s in scores for m in s.mismatches]
+    # spec 080 FR-3 (keel-cloud 147, corpus revision 17): 02-compliancelog's COMMERCIAL panel draws Buyer and payer as
+    # the engine reads it since keel-cloud 145 -- 7 of 9, holding -- where revision 16 recorded 5 of 9, people disagree
+    # (master's one red, 48 of 49, before this spec); the pill stays the engine's Price verdict
+    entry = corpus.by_id("02-compliancelog")
+    panel = ov.overview(bf.facts_for(entry, registry), n_of=ov.n_of_entry(entry))["panels"]["COMMERCIAL"]
+    assert panel["pill"] == "Not holding up"
+    row = next(r for r in panel["rows"] if r["key"] == "commercial.buyer_payer_alignment")
+    assert row["parts"] == ["Buyer and payer", "Holding up", "7 of 9 the HR director had to agree, or they decided alone"]
+    assert not any(line.startswith("Buyer and payer") for line in panel["lead"])
 
 
 # ----------------------------------------------------------------------------- report_insights

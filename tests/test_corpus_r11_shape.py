@@ -52,10 +52,10 @@ def corpus():
     return corpus_mod.load(keel_cloud, registry=fx.registry())
 
 
-def test_the_seven_entries_are_all_at_revision_sixteen_and_none_states_the_chain(corpus):
+def test_the_seven_entries_are_all_at_revision_seventeen_and_none_states_the_chain(corpus):
     assert [e.id for e in corpus.entries] == list(ENTRIES)
     for entry in corpus.entries:
-        assert entry.revision == 16, entry.id
+        assert entry.revision == 17, entry.id
         assert not entry.chain() and entry.reading() is None, entry.id      # read as r12 (keel-cloud 124 T001)
     assert Path(corpus.directory) == fx.canon_dir()
 
@@ -125,13 +125,15 @@ def test_the_vector_verdicts_are_the_ones_golden_corpus_test_pins(corpus):
     assert len(MOVED) == 11 and len(set(MOVED)) == 11
 
 
-#: keel-cloud 087's *Standings (21 moved)*: (status, drift) at revision 10.
+#: keel-cloud 087's *Standings (21 moved)*: (status, drift) at revision 10 -- 02-compliancelog's Buyer and payer as
+#: revision 17 records it (keel-cloud 147).
 MOVED_STANDINGS = {
     ("01-countly", "problem.importance"): ("HOLDING_UP", "stronger"),
     ("01-countly", "problem.current_solution_satisfaction"): ("PEOPLE_DISAGREE", "both"),
     ("01-countly", "solution.compatibility"): ("HOLDING_UP", "none"),
     ("02-compliancelog", "problem.importance"): ("HOLDING_UP", "none"),
-    ("02-compliancelog", "commercial.buyer_payer_alignment"): ("PEOPLE_DISAGREE", "both"),
+    # moved again by keel-cloud 147 (corpus revision 17, spec 080): 145 FR-2's direction-aware Buyer and payer
+    ("02-compliancelog", "commercial.buyer_payer_alignment"): ("HOLDING_UP", "none"),
     ("02-compliancelog", "commercial.commitment"): ("HOLDING_UP", "none"),
     ("03-lullaby", "problem.importance"): ("PEOPLE_DISAGREE", "both"),
     ("03-lullaby", "solution.compatibility"): ("HOLDING_UP", "none"),
@@ -166,7 +168,8 @@ def test_the_status_totals_across_the_seven(corpus):
             assert row["status"] in corpus_mod.STATUSES
             assert row.get("drift") in corpus_mod.DRIFTS + (None,)
             totals[row["status"]] = totals.get(row["status"], 0) + 1
-    assert totals == {"HOLDING_UP": 58, "NOT_HOLDING_UP": 7, "PEOPLE_DISAGREE": 18,
+    # revision 17 (keel-cloud 147): 02-compliancelog's Buyer and payer PEOPLE_DISAGREE -> HOLDING_UP (was 58 / 18)
+    assert totals == {"HOLDING_UP": 59, "NOT_HOLDING_UP": 7, "PEOPLE_DISAGREE": 17,
                       "TOO_FEW_TO_CALL": 2, "LEFT_OUT": 2}
     assert sum(totals.values()) == 4 * 12 + 3 * 13
 
@@ -427,7 +430,7 @@ def test_the_corpus_reads_the_same_through_the_exported_registry(corpus):
     exported = registry_mod.load(path)
     for entry in corpus.entries:
         corpus_mod.load_file(entry.path, registry=exported)
-    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 16
+    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 17
 
 
 #: 105 FR-1's market lines: every entry the US, two with a state.

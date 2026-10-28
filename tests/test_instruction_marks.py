@@ -354,10 +354,10 @@ def test_the_refusal_mark_is_a_rate_over_the_answers_judged():
     assert marks_mod.judge(totals, marks_mod.load())["refusals"]["met"] is False
 
 
-def test_the_header_names_the_seven_r16_digests_and_keeps_v13s_counted_denominators():
-    """Spec 064 FR-10 (spec 053's before it): the Spec 064 paragraph names the seven revision-13 files by their canon
-    bytes (skipped by name when the configured keel-cloud is not at revision 13), Spec 053's keeps r12's and v19's
-    r11's as history; v13's dated paragraph and its counted denominators stay below it as history."""
+def test_the_header_names_the_seven_r17_digests_and_keeps_v13s_counted_denominators():
+    """Spec 080 FR-3 (spec 068's, 064's and 053's before it): the revision-17 paragraph names the seven golden files by
+    their canon bytes at keel-cloud-docs `88bfce8d` with v21 standing, the revision-16 to -11 paragraphs stay as
+    history; v13's dated paragraph and its counted denominators stay below it as history."""
     import hashlib                                                          # noqa: PLC0415
     from tests import v9_fixtures as fx                                     # noqa: PLC0415
     doc = marks_mod.__doc__
@@ -372,6 +372,8 @@ def test_the_header_names_the_seven_r16_digests_and_keeps_v13s_counted_denominat
     assert "The seven revision-14 files, by sha256" in header and "**v20\nstands**: this cut bumps nothing" in header
     assert "The seven\nrevision-15 files, by sha256" in header and "**v20 stands**: this revision bumps nothing" in header
     assert "The seven revision-16 files, by sha256" in header and "keel-cloud-docs\n`efdd37bf`" in header
+    assert "The seven revision-17 files, by sha256" in header and "keel-cloud-docs `88bfce8d`" in header
+    assert "**v21 stands**: the ruler did not move,\nthe record did" in header
     assert "65 reads at N=1" in header
     assert "135 model cases at N=1" in header and "**108**" in header and "**80**" in header
     assert "The corpus v13 judges, recorded 2026-10-10" in header

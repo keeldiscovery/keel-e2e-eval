@@ -269,14 +269,14 @@ def cloud_facts_at_104():
 
 #: Spec 076 FR-2 (keel-cloud 145 FR-2): the named role's card line since 145.
 DECIDED_ALONE_TAIL = "had to agree, or they decided alone"
-#: The one card keel-cloud 145 reads as its proposed revision 17 (`GoldenCorpusTest.PROPOSED_REVISION_17`): its number
-#: and status move with the row (7 of 9, holding), so against revision 16 it is the one disagreement, named.
-PROPOSED_R17_CARD = ("02-compliancelog", "commercial.buyer_payer_alignment")
+#: The one card keel-cloud 145 moved and keel-cloud 147 records at corpus revision 17 (spec 080 FR-3): *Buyer and payer
+#: · 7 of 9 the HR director had to agree, or they decided alone*, HOLDING_UP -- the card `_at_145` reads.
+R17_CARD = ("02-compliancelog", "commercial.buyer_payer_alignment")
 
 
 def _at_145(cloud) -> bool:
-    cards = ((cloud.facts.get(PROPOSED_R17_CARD[0]) or {}).get("cards") or [])
-    card = next((c for c in cards if c.get("key") == PROPOSED_R17_CARD[1]), None)
+    cards = ((cloud.facts.get(R17_CARD[0]) or {}).get("cards") or [])
+    card = next((c for c in cards if c.get("key") == R17_CARD[1]), None)
     return card is not None and str(card.get("line") or "").endswith(DECIDED_ALONE_TAIL)
 
 
@@ -287,9 +287,9 @@ def test_keel_clouds_facts_agree_on_every_card_pilot_and_price_median_of_corpus_
     registry, corpus, cloud = cloud_facts_at_104()
     scores = [bf.compare(e, registry, cloud.facts.get(e.id)) for e in corpus.entries]
     assert sum(s.checks for s in scores) == 101
-    # spec 076 FR-2: keel-cloud 145 reads 02-compliancelog's Buyer and payer card as its proposed revision 17 (7 of 9,
-    # holding) where revision 16 records 5 of 9, people disagree -- the one card that disagrees, named; REVISION 16
+    # spec 080 FR-3: corpus revision 17 records 02-compliancelog's Buyer and payer as keel-cloud 145 reads it (7 of 9,
+    # holding), so 076's one named disagreement is agreed -- 101 of 101 again
     off = [(s.entry_id, m.get("key")) for s in scores for m in s.mismatches]
-    assert off == [PROPOSED_R17_CARD], [m for s in scores for m in s.mismatches]
-    assert sum(s.agreed for s in scores) == 100
+    assert off == [], [m for s in scores for m in s.mismatches]
+    assert sum(s.agreed for s in scores) == 101
     assert {d["field"] for s in scores for d in s.reported_diffs} <= {"statusWords (insight)"}

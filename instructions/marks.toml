@@ -9,7 +9,8 @@
 # MARKS_VERSION 21 (judgement calls 121-123, 2026-10-28; spec 078-question-quality-readers). The question-quality
 # readers' `read` joins as a mark kind beside no_leak, scored from a committed score file (quality/scores/<entry>/, at
 # quality/rubric.py's RUBRIC_VERSION), never from a run: REPORTED, never gating -- no key of [marks] below moved, and
-# `read` is the [read] table at the foot, which `load()` does not read. Corpus revision 16.
+# `read` is the [read] table at the foot, which `load()` does not read. Corpus revision 16;
+# revision 17 since spec 080 (keel-cloud 147: one golden row recorded as the engine reads it; no key here moved).
 # **Scores before and after this bump are comparable row for row** (no row moved), and a v20 bundle re-scores at v21.
 # **Run of record: none yet** -- there is none until `WHY=marks:21` is spent, on the founder's word only.
 #

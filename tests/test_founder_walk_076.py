@@ -99,13 +99,17 @@ def test_the_brief_line_and_the_said_line_on_a_named_role(corpus):
 def test_every_six_journey_entry_tests_nobody_else_so_no_golden_reading_moves(corpus):
     """Spec 076 FR-2: the six journeys walk 01-countly and 05-paidly (and 07-mulchrun), each testing *Nobody else* --
     the direction-aware rule moves none of their rows; 02-compliancelog's (the HR director) is the one row keel-cloud
-    145 proposes for revision 17, and REVISION stays 16."""
+    145 proposed for revision 17 -- recorded since keel-cloud 147 (spec 080): REVISION is 17, the proposed map gone,
+    the row's two readings `SPEC_147_ROW_FROM` / `_TO`."""
     for entry_id in ("01-countly", "05-paidly", "07-mulchrun"):
         assert (_entry(corpus, entry_id).tested("commercial.buyer_payer_alignment") or {}).get("code") == "nobody_else"
-    assert corpus_mod.REVISION == 16
+    assert corpus_mod.REVISION == 17
+    row = _entry(corpus, "02-compliancelog").expected["standings"]["commercial.buyer_payer_alignment"]
+    assert (row["status"], row["drift"], row["inside"], row["n"]) == ("HOLDING_UP", "none", 7, 9)
     golden = _cloud("src/test/java/com/keeldiscovery/cloud/corpus/GoldenCorpusTest.java")
-    assert '"02-compliancelog commercial.buyer_payer_alignment", "HOLDING_UP/NONE/7"' in golden
-    assert '"02-compliancelog commercial.buyer_payer_alignment", "PEOPLE_DISAGREE/BOTH/5"' in golden
+    assert "PROPOSED_REVISION_17" not in golden and "PROPOSED_FROM" not in golden
+    assert "status: PEOPLE_DISAGREE, drift: both, n: 9, " in golden and "inside: 5, outside: 4," in golden
+    assert "status: HOLDING_UP, drift: none, n: 9, inside: 7, outside: 2," in golden
 
 
 # ----------------------------------------------------------------- FR-1 Ability to pay's bars
@@ -286,7 +290,7 @@ def test_the_interviewer_marks_moved_to_12():
     from evals import report_marks as rm                               # noqa: PLC0415
     from instructions import marks as instruction_marks                 # noqa: PLC0415
     assert marks.INTERVIEWER_MARKS_VERSION == 12 and rm.REPORT_MARKS_VERSION == 3
-    assert instruction_marks.MARKS_VERSION == 21 and corpus_mod.REVISION == 16
+    assert instruction_marks.MARKS_VERSION == 21 and corpus_mod.REVISION == 17      # spec 080: r17, v21 stands
     ok, _ = marks.chip_ended_it({"chip": "I can't recall one particular delivery",
                                  "want_chip": "I can't recall one particular delivery",
                                  "responses": [{"status": 201, "body": {**marks.CHIP_ONLY, "pilotOptIn": False}}],
