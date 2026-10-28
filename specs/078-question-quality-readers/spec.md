@@ -94,3 +94,13 @@ are committed on eval master, never pushed without his word.
    walked. The weak rule stays as FR-1 has it.
 3. **The reader's context is bounded.** The earlier screens of the same walk go in as one compact list (kicker and
    question only), never their options, so a call stays small; the screen being scored goes in full.
+4. **The scope is carried** (the founder, 2026-10-28, through the coordinator): one corpus entry is three studies, so a
+   bundle's scope matters. `backtest.json` records `scope` (spec 071 FR-4: PROBLEM, SOLUTION, SOLUTION_COMMERCIAL,
+   COMMERCIAL, or ALL when absent). **FR-4 amended:** every score file's header carries `scope`, and its name carries it
+   after the date -- `quality/scores/<entry>/<yyyymmdd>-<scope>-r<RUBRIC_VERSION>-<cloud-sha7>-v<routing>-<reader-model>.json`.
+   **FR-5 amended:** `TABLE.md` has a scope column -- one row per (scope, dimension, audience, screen kind) over the
+   latest score file of each (entry, scope) -- and its head gives the overall `score_pct` per scope beside the
+   overall; the trend is per (entry, scope). **FR-6 amended:** the baseline names its studies as (entry, scope), and
+   `BASELINE=1` compares like with like -- the same entry AND scope, nothing else. **The thirteen bundles of
+   2026-10-24 are not to be scored** (walked before the screener, at scope ALL); the smoke's two calls on 21-codyco are
+   a smoke only, and its partial `score.json` never reaches `quality/scores/`.
