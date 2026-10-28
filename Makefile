@@ -4,7 +4,8 @@ PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
-        matrix-check keels-ai sample backtest gallery noise-check read-screens read-table
+        matrix-check keels-ai sample backtest gallery noise-check read-screens read-table \
+        quality-walk quality-advise quality-accept quality-due
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -65,11 +66,17 @@ sample: venv
 #   make gallery                                                  newest runs, into keel-web/public/sample/
 #   make gallery RUNS=runs/<a>,runs/<b> OUT=/tmp/sample           those runs, anywhere else
 #   make gallery RUNS_DIR=/path/to/keel-e2e-eval/runs OUT=...      the newest runs of another checkout
+# Spec 079 FR-6: SCORES=quality/scores puts the readers' gate in front: a run whose latest score file at the current
+# rubric version has a flagged screen or a score_pct under the bar (or that has no score file) is refused by name, and
+# the gallery is built from the rest; SCOPE_ORDER=SOLUTION,PROBLEM,... keeps one run per entry. `make quality-accept`
+# runs it so, from one cycle's bundles.
+#   make gallery RUNS=runs/<a>,runs/<b> SCORES=quality/scores SCOPE_ORDER=SOLUTION,PROBLEM,COMMERCIAL OUT=/tmp/sample
 gallery: venv
 	PYTHONPATH=. $(PY) -m evals.gallery \
 	  --out "$(if $(OUT),$(OUT),$$($(PY) -c 'from stack.config import load_config; print(load_config(validate=False).keel_web / "public" / "sample")'))" \
 	  $(if $(RUNS),--runs "$(RUNS)",) $(if $(RUNS_DIR),--runs-dir "$(RUNS_DIR)",) \
-	  $(if $(PROVENANCE_DIR),--provenance-dir "$(PROVENANCE_DIR)",)
+	  $(if $(PROVENANCE_DIR),--provenance-dir "$(PROVENANCE_DIR)",) \
+	  $(if $(SCORES),--scores "$(SCORES)",) $(if $(SCOPE_ORDER),--scope-order "$(SCOPE_ORDER)",)
 
 # make backtest (spec 062) walks ONE BACK-TEST ENTRY -- a real founder's idea, written from public material in the
 # corpus schema with no golden expectations, in keel-cloud's `canon/designs/measured-beliefs/backtest/<ENTRY>.yaml` --
@@ -155,8 +162,55 @@ read-screens: venv
 #
 #   make read-table
 #   make read-table BASELINE=1
+# Spec 079 FR-3: CYCLE=<record> puts the cycle's three-line head on top (this cycle, the baseline, the bar).
 read-table: venv
-	PYTHONPATH=. $(PY) -m quality.table $(if $(BASELINE),--baseline,)
+	PYTHONPATH=. $(PY) -m quality.table $(if $(BASELINE),--baseline,) $(if $(CYCLE),--cycle "$(CYCLE)",)
+
+# THE QUALITY CYCLE (spec 079): quality/CYCLE.md is the runbook -- a session told "kick off the instruction set" reads
+# that file and nothing else. quality/cycle.toml holds the entries, the scopes, the bar, the weak rule, the reader and
+# the adviser. None of these four targets is a dependency of anything; none runs from `make eval`, `make unit`, the
+# matrix or a checker (FR-9).
+#
+# make quality-walk (PAID: Keel's AI or the founder's plan for the walks, the founder's plan for the readers) is the
+# kick-off: per entry and per scope `make backtest ENTRY= SCOPE= DOOR=`, then `make read-screens` on the new bundle,
+# then `make read-table BASELINE=1 CYCLE=<record>`; it writes quality/cycles/<yyyymmdd>-<cloud7>.md. ENTRIES=default
+# walks cycle.toml's entries; SCOPES= defaults to cycle.toml's three. It refuses without ENTRIES, without WHY (the
+# founder's words, carried in the record), with a dirty keel-cloud checkout, on DOOR=keel without the key in the shell,
+# without the `claude` CLI, on an unknown entry or scope, and when BUILD= is not the checkout's sha. DRY=1 prints the plan
+# and runs nothing.
+#   make quality-walk DRY=1 ENTRIES=21-codyco SCOPES=PROBLEM WHY="dry"
+#   KEEL_ANTHROPIC_API_KEY="$$(...)" make quality-walk ENTRIES=default WHY="the registry's Frequency row moved"
+#   make quality-walk ENTRIES=default DOOR=host WHY="a week since the last cycle"
+quality-walk: venv
+	PYTHONPATH=. $(PY) -m quality.cycle walk --entries "$(ENTRIES)" $(if $(SCOPES),--scopes "$(SCOPES)",) \
+	  $(if $(DOOR),--door "$(DOOR)",) $(if $(BUILD),--build "$(BUILD)",) $(if $(DRY),--dry-run,) \
+	  $(if $(WHY),--why "$(WHY)",)
+
+# make quality-advise (PAID, one call per weak row, the founder's plan) hands each weak row of a cycle to the adviser
+# (quality/readers/adviser.md, Opus 5.5 through the claude CLI) with the current text at its fix location read from
+# the keel-cloud checkout; the proposals go to quality/cycles/<record>-advice.md, NEVER APPLIED. DRY=1 prints the
+# prompts and calls nothing.
+#   make quality-advise CYCLE=quality/cycles/<record>.md DRY=1
+quality-advise: venv
+	@if [ -z "$(CYCLE)" ]; then echo "make quality-advise refuses: no CYCLE -- name a cycle record, \`CYCLE=quality/cycles/<yyyymmdd>-<cloud7>.md\` (spec 079 FR-4)"; exit 2; fi
+	PYTHONPATH=. $(PY) -m quality.cycle advise --cycle "$(CYCLE)" $(if $(DRY),--dry-run,)
+
+# make quality-accept (FREE, on the founder's word only) cuts quality/BASELINE.md from the cycle's score files (the old
+# one kept under quality/baselines/<date>.md), builds the gallery from the cycle's bundles behind the readers' gate
+# (`make gallery SCORES=quality/scores`) into keel-web's public/sample (OUT= elsewhere), prints what changed in the
+# snapshot and the sentence the keel-web refresh spec starts from. It commits nothing anywhere. RUNS_DIR= says where
+# the bundles are by name; QUALITY_OUT= writes the baseline elsewhere (a dry rehearsal).
+#   make quality-accept CYCLE=quality/cycles/<record>.md
+quality-accept: venv
+	@if [ -z "$(CYCLE)" ]; then echo "make quality-accept refuses: no CYCLE -- name a cycle record, \`CYCLE=quality/cycles/<yyyymmdd>-<cloud7>.md\` (spec 079 FR-6)"; exit 2; fi
+	PYTHONPATH=. $(PY) -m quality.cycle accept --cycle "$(CYCLE)" $(if $(OUT),--out "$(OUT)",) \
+	  $(if $(RUNS_DIR),--runs-dir "$(RUNS_DIR)",) $(if $(QUALITY_OUT),--quality-out "$(QUALITY_OUT)",) \
+	  $(if $(PROVENANCE_DIR),--provenance-dir "$(PROVENANCE_DIR)",)
+
+# make quality-due (FREE) says whether a cycle is due (spec 079 FR-7): a registry, instruction or routing change in
+# keel-cloud since the last record's build, or a week since it. It runs nothing else: the founder kicks off.
+quality-due: venv
+	PYTHONPATH=. $(PY) -m quality.cycle due
 
 # make eval-live runs the scenarios marked `live` -- a real `claude`, real money (spec 008-stranger-
 # who-gives-orders). Opt-in only; never part of `make eval`/`make eval-all`. Needs a logged-in

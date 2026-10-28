@@ -19,6 +19,12 @@ the baseline names are compared: each row's deltas and one verdict line, **bette
 same / worse** (the rule in RUBRIC.md); refused when no baseline is cut or the baseline is at another rubric version.
 `--cut-baseline` writes `BASELINE.md` from the latest files (the old one kept under `quality/baselines/<date>.md`) --
 only on the founder's word, and so it is no make target.
+
+**Spec 079 FR-3** (the quality cycle): `--cycle <record>` (`make read-table CYCLE=`) tops the table with the three lines
+the founder reads after a walk -- *this cycle* (score_pct, flagged_pct), *the baseline* (the same), *the bar* -- and,
+with `--baseline`, a section of the rows that moved since the baseline (a mean by `MOVED_MEAN` or more, or turned weak,
+or mended) with their *instead* lines. The baseline also records its `flagged_pct` now. `make quality-accept` cuts the
+baseline from one cycle's score files through `cut_baseline`, on the founder's word.
 """
 
 from __future__ import annotations
@@ -228,12 +234,44 @@ def _cell(text: str) -> str:
     return str(text).replace("|", "\\|").replace("\n", " ")
 
 
-def render(files: list[dict], *, comparison: dict | None = None) -> str:
+#: Spec 079 FR-3: a row *moved* since the baseline when a mean moved by this much, or it turned weak or mended.
+MOVED_MEAN = 0.25
+
+
+def cycle_head(cycle: dict) -> list[str]:
+    """Spec 079 FR-3: the three lines the founder reads after a walk -- this cycle, the baseline, the bar."""
+    this, base, bar = cycle.get("this") or {}, cycle.get("baseline"), float(cycle.get("bar_pct") or rubric.BAR_PCT)
+    pct = this.get("score_pct")
+    meets = pct is not None and pct >= bar
+    lines = [f"- **This cycle** (`{cycle.get('record')}`, cloud {cycle.get('cloud_sha') or '?'}, "
+             f"{cycle.get('studies', 0)} studies): score_pct **{_num(pct, 1)}%**, flagged {_num(this.get('flagged_pct'), 1)}%",
+             (f"- **The baseline** (cut {base.get('cut')}): score_pct {_num(base.get('score_pct'), 1)}%, flagged "
+              f"{_num(base.get('flagged_pct'), 1)}%" if base else "- **The baseline**: none cut yet (`make quality-accept` "
+                                                                  "cuts it, on the founder's word)"),
+             f"- **The bar**: {bar:.0f}% -- this cycle {'meets it' if meets else 'is BELOW it'}"]
+    return lines
+
+
+def moved_rows(comparison: dict, table: list[dict]) -> list[dict]:
+    """The rows that moved since the baseline (a mean by MOVED_MEAN or more, or turned weak, or mended), with the
+    *instead* lines of the row as it reads now."""
+    now = {row_key(r): r for r in table}
+    out = []
+    for d in comparison.get("rows") or []:
+        deltas = [v for v in d["delta"].values() if v is not None]
+        if d["weak_then"] != d["weak_now"] or any(abs(v) >= MOVED_MEAN for v in deltas):
+            out.append({**d, "instead": (now.get(d["row"]) or {}).get("instead") or []})
+    return out
+
+
+def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | None = None) -> str:
     current, aside = split_by_version(files)
     latest = latest_per_entry(current)
     lines = ["# The question-quality table", "",
              f"Built by `make read-table` from `quality/scores/` (spec 078 FR-5) at RUBRIC_VERSION "
              f"{rubric.RUBRIC_VERSION}. Regenerated and committed with every score file; never edited by hand.", ""]
+    if cycle:
+        lines += [*cycle_head(cycle), ""]
     if not latest:
         lines += ["**No score file yet at this rubric version.** The bar is **90%** (the overall score_pct over the "
                   "latest file of every entry) before the remaining entries are walked.", ""]
@@ -318,6 +356,17 @@ def render(files: list[dict], *, comparison: dict | None = None) -> str:
             deltas = list(d["delta"].values()) + [None] * (5 - len(d["delta"]))
             lines.append("| " + " | ".join([_cell(d["row"]), *[_num(v) for v in deltas],
                                              "yes" if d["weak_then"] else "", "yes" if d["weak_now"] else ""]) + " |")
+        moved = moved_rows(comparison, table)
+        lines += ["", "## Moved since the baseline, with their *instead* lines", "",
+                  f"A row moved when a mean moved by {MOVED_MEAN} or more, or it turned weak, or it mended "
+                  f"(spec 079 FR-3). {len(moved)} row(s) moved.", ""]
+        for d in moved:
+            change = ("turned WEAK" if d["weak_now"] and not d["weak_then"] else
+                      "mended" if d["weak_then"] and not d["weak_now"] else "moved")
+            shifts = ", ".join(f"{c.upper()} {v:+.2f}" for c, v in d["delta"].items() if v)
+            lines.append(f"### {d['row']} -- {change}{(' (' + shifts + ')') if shifts else ''}")
+            lines += [f"- {_cell(line)}" for line in d["instead"]] or ["- (no instead line)"]
+            lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -326,6 +375,7 @@ def render(files: list[dict], *, comparison: dict | None = None) -> str:
 def baseline_data(latest: dict, *, cut: str) -> dict:
     top = head(latest)
     return {"cut": cut, "rubric_version": rubric.RUBRIC_VERSION, "score_pct": top["score_pct"],
+            "flagged_pct": top["summary"]["overall"]["flagged_pct"],
             "files": [Path(f["_path"]).name for f in latest.values()],
             "studies": list(latest), "cloud_shas": sorted({str(f.get("cloud_sha")) for f in latest.values()}),
             "routing_versions": sorted({str(f.get("routing_version")) for f in latest.values()}),
@@ -338,7 +388,8 @@ def render_baseline(data: dict) -> str:
              f"Cut {data['cut']} on the founder's word (spec 078 FR-6). Every later run is compared with it by "
              "`make read-table BASELINE=1`; a new baseline is cut only on his word, and this file is then kept under "
              "`quality/baselines/<date>.md`.", "",
-             f"- RUBRIC_VERSION {data['rubric_version']}; overall score_pct {data['score_pct']}%",
+             f"- RUBRIC_VERSION {data['rubric_version']}; overall score_pct {data['score_pct']}%"
+             + (f", flagged {data['flagged_pct']}%" if data.get("flagged_pct") is not None else ""),
              f"- studies (entry · scope): {', '.join(data['studies'])}",
              f"- score files: {', '.join(data['files'])}",
              f"- cloud sha(s): {', '.join(data['cloud_shas'])}; routing version(s): {', '.join(data['routing_versions'])}",
@@ -444,6 +495,10 @@ def main(argv=None) -> int:
                              "on the founder's word only")
     parser.add_argument("--scores-dir", default=str(SCORES_DIR))
     parser.add_argument("--out", default=str(TABLE_PATH))
+    parser.add_argument("--cycle", default=None, metavar="RECORD",
+                        help="spec 079 FR-3: a cycle record (quality/cycles/<yyyymmdd>-<cloud7>.md) -- its three-line "
+                             "head (this cycle, the baseline, the bar) tops the table")
+    parser.add_argument("--baseline-file", default=str(BASELINE_PATH), help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     try:
         files = load_scores(Path(args.scores_dir))
@@ -453,9 +508,14 @@ def main(argv=None) -> int:
         comparison = None
         if args.baseline:
             current, _ = split_by_version(files)
-            comparison = compare(read_baseline(), latest_per_entry(current))
-        Path(args.out).write_text(render(files, comparison=comparison), encoding="utf-8")
-    except (TableRefused, rubric.RubricError) as reason:
+            comparison = compare(read_baseline(Path(args.baseline_file)), latest_per_entry(current))
+        head_of_cycle = None
+        if args.cycle:
+            from quality import cycle as cycle_mod                     # noqa: PLC0415 - the cycle reads this module
+            head_of_cycle = cycle_mod.table_head(cycle_mod.load_record(args.cycle),
+                                                 baseline_path=Path(args.baseline_file))
+        Path(args.out).write_text(render(files, comparison=comparison, cycle=head_of_cycle), encoding="utf-8")
+    except (TableRefused, rubric.RubricError, RuntimeError) as reason:
         print(str(reason), file=sys.stderr)
         return 2
     current, _ = split_by_version(files)
