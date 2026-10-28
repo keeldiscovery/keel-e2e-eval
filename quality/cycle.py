@@ -779,7 +779,8 @@ def adviser_prompt(row: dict, files: list[dict], *, cloud: Path, cfg: dict, sha:
                 f"weak on {', '.join(c.upper() for c in row['weak_on'])}"),
         "criteria": _criteria_lines(row),
         "screens": "\n".join(failing_screens(row, files)),
-        "location": f"{row['fix']['category']}: {row['fix']['place']}",
+        "location": f"{row['fix']['category']}: {row['fix']['place']}" + "".join(
+            f"\n{also}" for also in row["fix"].get("also") or []),
         "current": f"{current['where']}:\n\n{current['text']}",
         "ladder": LADDER,
     }
@@ -794,7 +795,34 @@ def parse_advice(raw: str) -> dict:
     why = str(body.get("why") or "").strip()
     if not why:
         raise rubric.RubricError("no why")
-    return {"new_text": str(body.get("new_text") or "").strip(), "why": why, "rung": rung}
+    aware = body.get("persona_aware")
+    if not isinstance(aware, bool):
+        raise rubric.RubricError(f"persona_aware must be true or false (spec 081 FR-6); got {aware!r}")
+    return {"new_text": str(body.get("new_text") or "").strip(), "why": why, "rung": rung, "persona_aware": aware}
+
+
+#: Spec 081 FR-6 (design §5a): a proposal that adds a condition on an industry, a role, a country or a product -- *if
+#: the people are mariners, say nautical miles* -- is a special case, refused whatever the adviser's own flag says.
+#: The words a condition opens with, then who or what it is on.
+_SUBJECT = (r"(?:\{\w*(?:actor|segment|market|country|role|industry|trade|product)\w*\}"
+            r"|\b(?:\w*(?:actor|segment|market|country|role|industry|trade|product)\w*|people|person|respondents?|"
+            r"strangers?|founders?|users?|customers?|buyers?|workers?|sector)\b)")
+_CONDITION = re.compile(
+    r"\b(?:if|when|whenever|where|unless|in\s+case)\s+(?:the\s+|a\s+|an\s+|your\s+|their\s+)?" + _SUBJECT +
+    r"\s+(?:is|are|work|works|sells?|makes?|runs?|names?|says?|includes?|mentions?|equals?|==?|in|from|at)\b",
+    re.I)
+
+
+def special_case(proposal: dict) -> str | None:
+    """Why a proposal is refused as a special case (spec 081 FR-6), or None: the adviser marked it not persona-aware,
+    or its text adds a condition on who the people are, their trade, their country or the product."""
+    if proposal.get("persona_aware") is not True:
+        return "the adviser marked it persona_aware false: a special case, not the persona handed to the writer"
+    found = _CONDITION.search(proposal.get("new_text") or "")
+    if found:
+        return (f"its text adds a condition on who the people are ({found.group(0)!r}): a special case -- the fix is "
+                "the writer handed the persona, for every trade at once (design §5a)")
+    return None
 
 
 def cycle_files(record: dict, root: Path | None = None) -> list[dict]:
@@ -830,8 +858,15 @@ def render_advice(record: dict, proposals: list[dict], *, adviser: dict, quoted_
     for i, p in enumerate(proposals, 1):
         lines += [f"## {i}. {p['row']} -- weak on {', '.join(c.upper() for c in p['weak_on'])}", "",
                   f"Fix location: **{p['fix']['category']}** -- {p['fix']['place']}. Quoted: {p['where']}.", ""]
+        for also in p["fix"].get("also") or []:
+            lines += [f"Fix for {also}.", ""]
         if p.get("error"):
             lines += [f"**No proposal**: {p['error']}", ""]
+        elif p.get("refused"):
+            lines += [f"**Refused -- not a proposal** (spec 081 FR-6): {p['refused']}. The model's first idea was a "
+                      "special case and it was not taken; the row stays open for a persona-aware proposal.", "",
+                      "<details><summary>The refused text</summary>", "", "```text",
+                      p.get("new_text") or "(empty)", "```", "", f"Its why: {p.get('why', '')}", "", "</details>", ""]
         else:
             lines += [f"Rung: **{p['rung']}**", "", f"Why: {p['why']}", "", "The proposed text:", "", "```text",
                       p["new_text"] or "(no change of words: see the rung)", "```", ""]
@@ -900,18 +935,24 @@ def advise(argv=None, *, runner=subprocess.run) -> int:
             if said["error"]:
                 raise rubric.RubricError(said["error"])
             entry.update(parse_advice(said["answer"]))
+            refused = special_case(entry)
+            if refused:
+                entry["refused"] = refused
         except rubric.RubricError as reason:
             entry["error"] = f"the answer could not be read ({reason})"
         proposals.append(entry)
-        print(f"  {entry['row']:<72} {entry.get('rung') or 'unread'}")
+        said_of = "REFUSED: a special case" if entry.get("refused") else entry.get("rung") or "unread"
+        print(f"  {entry['row']:<72} {said_of}")
     out = Path(a.out) if a.out else Path(record["_path"]).with_name(f"{stem}-advice.md")
     cost = round(sum(c["cost_usd"] for c in reader.calls if not c["cached"]), 4)
     out.write_text(render_advice(record, proposals, adviser={k: cfg["adviser"][k] for k in ("model", "effort")},
                                  quoted_at=sha or "?", cost=cost, calls=len(reader.calls),
                                  seconds=round(time.monotonic() - started, 1), calls_dir=_rel(run_dir / "calls")),
                    encoding="utf-8")
-    print(f"advice: {_rel(out)} ({len(proposals)} proposal(s), ${cost}); nothing applied -- commit it, and the founder "
-          "says which to take")
+    refused = sum(1 for p in proposals if p.get("refused"))
+    print(f"advice: {_rel(out)} ({len(proposals)} proposal(s), ${cost}"
+          + (f"; {refused} refused as a special case, recorded by row" if refused else "")
+          + "); nothing applied -- commit it, and the founder says which to take")
     return 0
 
 

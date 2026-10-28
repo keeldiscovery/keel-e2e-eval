@@ -1,4 +1,4 @@
-# The adviser (spec 079 FR-4)
+# The adviser (spec 079 FR-4; spec 081 FR-6)
 
 The prompt the adviser is sent, once per weak row of a cycle (`make quality-advise CYCLE=<record>`). `quality/cycle.py`
 fills every `{{name}}`: `{{row}}` the row (scope, audience, dimension, screen kind), `{{criteria}}` the criteria the row
@@ -9,6 +9,13 @@ read from the keel-cloud checkout stack.toml names: the registry row's `founder`
 `follow_up`), or the named section of the instruction file, or a line saying no model writes these words. `{{ladder}}`
 is the design's §5 ladder. Nothing above the first marker is sent. A change to these words is a change to the adviser:
 say why in the commit.
+
+**The adviser never proposes a special case** (spec 081 FR-6; keel-cloud-docs
+`canon/designs/question-quality-rubric-2026-10-28.md` §5a, the founder 2026-10-28: *"the fix should not be 'let me add
+this if-else in the instruction set'; the main fix should be: is it persona aware?"*). Its answer carries
+`persona_aware`; `quality/cycle.py` refuses to write a proposal marked false, or whose text adds a condition on who the
+people are, their trade, their country or the product (`special_case`), and records the refusal in the advice file by
+row -- the founder sees that a special case was the model's first idea and was not taken.
 
 The adviser **proposes and never applies** (spec 079 judgement call 1): its answer is written to
 `quality/cycles/<record>-advice.md`, the founder says which proposals to take, and a taken one becomes a keel-cloud
@@ -56,9 +63,21 @@ those screens, so that the row stops being weak.
   do for every dimension at once), say so by choosing the `effort` or `split` rung, and put in `new_text` the smallest
   change of words that still helps, or leave it empty.
 
+## The fix is persona awareness, never a special case
+
+A wording that fails for one trade is never repaired by a clause for that trade: no *if the people are mariners, say
+nautical miles*, no *for developers, say PR*, no condition on an industry, a role, a country or a product. The repair is
+that the writer -- the registry row, the instruction, the code transform -- is handed the persona (who the people are,
+their trade, their place, their time of life, the project's what, where and when, through placeholders such as
+`{actor_plural}`, `{job}`, `{circumstance}`) and writes in that person's words wherever it writes, for every trade at
+once. The registry's wording stays one wording; what varies is the persona it is written for, handed in, not branched
+on. Say whether your edit is persona-aware in `persona_aware`: `true` when it hands the writer the persona or uses words
+that hold for every trade, `false` when it adds a condition on who the people are. A proposal with `false`, or with such
+a condition in its text, is refused and recorded as refused, not taken.
+
 ## Your answer
 
 Reply with ONE JSON object and nothing else -- no prose before or after it, no code fence:
 
-{"new_text": "the whole new text for the location", "why": "three sentences: what fails, what the edit changes, why it will hold on the other entries", "rung": "words" | "effort" | "split"}
+{"new_text": "the whole new text for the location", "why": "three sentences: what fails, what the edit changes, why it will hold on the other entries", "rung": "words" | "effort" | "split", "persona_aware": true | false}
 <!-- advise:end -->
