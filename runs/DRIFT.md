@@ -5655,3 +5655,29 @@ rule (*spoken as a person would*) is not met by the doubled phrase.
 to it, so a change to the composer moves that one expectation. **For keel-cloud:** compose from the segment's core (or a
 `actor_plural` with the condition's words taken out) where the plural already says the qualifier -- *Do the translators
 you decide for work mostly for agencies?* -- or say so in the spec.
+
+## 100. Observation (keel-cloud, the words of one question): code's chips paste a condition opening with *whose* / *that* / *which* straight after *Do you* / *you decide for* -- "Do you whose work is documented in digital systems?"
+
+Found by keel-cloud spec `148-settled-condition` (keel-cloud-docs `f48f256e`, `specs/148-settled-condition/tasks.md`,
+*The chip on a pronoun-opening condition*), on 08-fresco's context as cycle 1 of the quality cycle served it
+(`quality/cycles/20261028-88bfce8.md`; WHICH PEOPLE *superintendents at US general contractors whose jobs run on Procore
+or ACC*). That build was confined to the keel-cloud worktree, so the line is filed here by spec `082-backtest-under-a-scope`.
+keel-cloud's `chipFrom` (the part-1 chip) and `deciderChip` (the decision-maker's) paste the stored condition after *Do
+you* / *Do the {people} you decide for* with its pronoun kept: *whose work is documented in digital systems* is served
+**"Do you whose work is documented in digital systems?"** and **"Do the construction superintendents you decide for whose
+work is documented in digital systems?"**; *which build for owners* the same shape. `StrangerGrammar.fault` passes the
+*whose* and *which* forms; the *that* form (*Do you that run their jobs on Procore?*) is caught only by accident, as Y1
+(*you* and *they*), because of *their*. Not one yes-or-no question a person would say aloud (the founder's spoken-form
+rule, 2026-10-23).
+
+How often it can reach a link: X6 (`CONDITION_NOT_A_VERB` holds *whose*, *that*, *which*) breaches such a condition at the
+confirm, so it is stored only past X6's repair turn (noted), and since keel-cloud 148 FR-1 only where WHICH PEOPLE carries
+no qualifier (else code's verb-opening drawn condition replaces it). The part-1 chip is the model's own where
+RESPONDENT_QUESTIONS writes one and code's `chipFrom` only where it writes none (E7); the decision-maker's is code's at
+the lock. **What the harness does.** Nothing pins it yet: no journey serves a pronoun-opening condition, and the
+back-test reads the chip as served. **For keel-cloud:** the chip composer should turn a relative clause into a question
+(*Is your work documented in digital systems?*) or refuse it to the repair turn.
+
+Seen, not fixed (keel-cloud 145's drawing, open): 08-fresco's drawn condition *run on Procore or ACC* comes from
+`conditionFrom` reading *whose jobs run on Procore or ACC* as a clause on the people, so the chip asks **"Do you run on
+Procore or ACC?"** -- it is the jobs that run on it, not the superintendent.
