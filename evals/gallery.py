@@ -32,6 +32,12 @@ founder's belief sentences the run tested, as the standings served them), `simul
 `scope`, the run's own (`backtest.json`'s, spec 071 FR-4), ALL for every run recorded before a back-test could be walked
 under one -- the fourteen; the attribution check accepts the five contract-38 values and refuses anything else.
 
+**Spec 079 FR-6** (the quality cycle's acceptance; the design's §8, *the homepage examples follow the baseline*):
+`--scores quality/scores` puts the readers' gate in front of the export -- a run is an example only when its latest
+score file (spec 078, matched by the file's `bundle` header, at the current `RUBRIC_VERSION`) has no flagged screen and
+a score_pct at or over the bar; a run refused is named with its reason and the gallery is built from the rest.
+`--scope-order` keeps one run per entry (a cycle walks three studies of each). Without `--scores` nothing changes.
+
 Provenance stays private (FR-3, amended 2026-10-22): no entry id, run name or source path is written under OUT -- the
 check greps every byte under OUT for them -- and the slug -> entry / run link goes once to
 `runs/gallery/provenance-<exportedAt>.json` (`[{slug, entry, run, cloud, web, renamed: {from, to}}]`), outside OUT.
@@ -718,6 +724,101 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
     return {"index": index, "slugs": manifests, "dir": str(out_dir), "provenance": str(provenance)}
 
 
+# ------------------------------------------------------------------------- spec 079 FR-6: the readers' gate
+
+#: Spec 079 FR-6 (spec 063 amended): with `--scores`, a run is an example only when the readers passed it.
+SCORE_GATE = ("a bundle whose latest score file at the current rubric version has a flagged screen, or a score_pct "
+              "under the bar, or that has no score file, is refused by name; the gallery is built from the rest")
+
+
+def _record_of(run_dir: Path) -> dict:
+    try:
+        return _json(Path(run_dir) / bt.RECORD)
+    except (OSError, ValueError):
+        return {}
+
+
+def latest_score_file(run_dir: Path, scores_dir: Path) -> tuple[dict | None, list[str]]:
+    """The latest score file (spec 078 FR-4) of this very bundle at the current `RUBRIC_VERSION` under
+    `<scores_dir>/<entry>/`, matched by the file's `bundle` header to the run's name; partial files never count. Returns
+    `(file, the names of files set aside at another rubric version)`."""
+    from quality import rubric                                       # noqa: PLC0415 - the gate is opt-in
+
+    run_dir = Path(run_dir)
+    record = _record_of(run_dir)
+    entry = (record.get("entry") or {}).get("id") or ""
+    names = {run_dir.name, str(record.get("run") or run_dir.name)}
+    found, aside = [], []
+    for path in sorted((Path(scores_dir) / entry).glob("*.json")) if entry else []:
+        try:
+            obj = rubric.load_file(path)
+        except (rubric.RubricError, ValueError, OSError):
+            continue
+        if obj.get("partial") or str(obj.get("bundle")) not in names:
+            continue
+        if obj["rubric_version"] != rubric.RUBRIC_VERSION:
+            aside.append(path.name)
+            continue
+        obj["_path"] = str(path)
+        found.append(obj)
+    found.sort(key=lambda f: (f.get("scored_at") or "", Path(f["_path"]).name))
+    return (found[-1] if found else None), aside
+
+
+def score_gate(run_dirs: list[Path], scores_dir: Path, *, bar_pct: float | None = None, refuse_flagged: bool = True,
+               refuse_under_bar: bool = True) -> tuple[list[Path], list[str]]:
+    """Spec 079 FR-6: `(the runs the readers passed, one reason per refused run, naming it)`. A run is refused when it
+    has no score file at the current rubric version, when that file's latest has a flagged screen (`refuse_flagged`),
+    or when its overall score_pct is under the bar (`refuse_under_bar`)."""
+    from quality import rubric                                       # noqa: PLC0415
+
+    bar = rubric.BAR_PCT if bar_pct is None else float(bar_pct)
+    passing, refused = [], []
+    for run_dir in run_dirs:
+        run_dir = Path(run_dir)
+        record = _record_of(run_dir)
+        study = f"{(record.get('entry') or {}).get('id') or '?'} · {record.get('scope') or 'ALL'}"
+        latest, aside = latest_score_file(run_dir, scores_dir)
+        if latest is None:
+            extra = f" (set aside at another rubric version: {', '.join(aside)})" if aside else ""
+            refused.append(f"{run_dir.name} ({study}): no score file at rubric version {rubric.RUBRIC_VERSION} under "
+                           f"{scores_dir}{extra} -- a bundle the readers have not passed is not an example")
+            continue
+        overall = (latest.get("summary") or {}).get("overall") or {}
+        flagged, pct = int(overall.get("flagged") or 0), overall.get("score_pct")
+        why = []
+        if refuse_flagged and flagged:
+            why.append(f"{flagged} flagged screen(s)")
+        if refuse_under_bar and (pct is None or pct < bar):
+            why.append(f"score_pct {pct}% under the bar of {bar:.0f}%")
+        if why:
+            refused.append(f"{run_dir.name} ({study}): {Path(latest['_path']).name} has {' and '.join(why)}")
+        else:
+            passing.append(run_dir)
+    return passing, refused
+
+
+def one_per_entry(run_dirs: list[Path], scope_order: list[str]) -> tuple[list[Path], list[str]]:
+    """The gallery has one example per entry (its slug); a quality cycle walks several studies of one entry. Of an
+    entry's runs, the first in `scope_order` (then the newest) is the example; the others are named, never dropped
+    silently."""
+    rank = {s: i for i, s in enumerate(scope_order)}
+    by_entry: dict[str, list[tuple[Path, str]]] = {}
+    for run_dir in run_dirs:
+        record = _record_of(run_dir)
+        by_entry.setdefault((record.get("entry") or {}).get("id") or Path(run_dir).name, []).append(
+            (Path(run_dir), str(record.get("scope") or "ALL")))
+    picked, notes = [], []
+    for entry, runs in by_entry.items():
+        runs.sort(key=lambda r: r[0].name, reverse=True)                     # the newest first (the stamp) ...
+        runs.sort(key=lambda r: rank.get(r[1], len(rank)))                   # ... within the scope order (stable)
+        picked.append(runs[0][0])
+        if len(runs) > 1:
+            notes.append(f"{entry}: the {runs[0][1]} study ({runs[0][0].name}) is the example; also passing: "
+                         + ", ".join(f"{s} ({d.name})" for d, s in runs[1:]))
+    return picked, notes
+
+
 # ------------------------------------------------------------------------------------------------ make gallery
 
 def main(argv: list[str] | None = None) -> int:
@@ -727,10 +828,28 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--runs-dir", default=str(RUNS_DIR), help="where the default (and bare-named) runs are found")
     p.add_argument("--provenance-dir", default=str(PROVENANCE_DIR),
                    help="where provenance-<exportedAt>.json goes (never under --out)")
+    p.add_argument("--scores", default="", help="spec 079 FR-6: quality/scores -- " + SCORE_GATE)
+    p.add_argument("--bar", type=float, default=None, help="with --scores: the bar (default quality.rubric.BAR_PCT)")
+    p.add_argument("--keep-flagged", action="store_true", help="with --scores: a flagged screen does not refuse")
+    p.add_argument("--keep-under-bar", action="store_true", help="with --scores: a score_pct under the bar does not "
+                                                                 "refuse")
+    p.add_argument("--scope-order", default="", help="one example per entry: of an entry's runs, the first scope in "
+                                                      "this comma-separated order (else an entry given twice refuses)")
     a = p.parse_args(argv)
     try:
         names = load_names()
         run_dirs = resolve_runs(a.runs, Path(a.runs_dir)) if a.runs.strip() else newest_runs(names, Path(a.runs_dir))
+        if a.scores:
+            run_dirs, refused = score_gate(run_dirs, Path(a.scores), bar_pct=a.bar, refuse_flagged=not a.keep_flagged,
+                                           refuse_under_bar=not a.keep_under_bar)
+            for reason in refused:
+                print(f"gallery: refused {reason}")
+            if not run_dirs:
+                raise GalleryRefused(["every run was refused by the readers' gate (--scores): nothing to build"])
+        if a.scope_order.strip():
+            run_dirs, notes = one_per_entry(run_dirs, [s.strip() for s in a.scope_order.split(",") if s.strip()])
+            for note in notes:
+                print(f"gallery: {note}")
         result = export(run_dirs, Path(a.out), names=names, provenance_dir=Path(a.provenance_dir))
     except GalleryRefused as refusal:
         print(str(refusal), file=sys.stderr)
