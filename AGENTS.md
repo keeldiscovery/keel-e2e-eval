@@ -399,6 +399,33 @@ draws no line (117 J-4) and the noun is held on the confirmed view; Edit's form 
 Send more's row is picked by its name (the AI row carries *Hear it*). `make noise-check` (above): the certificate.
 `MARKS_VERSION` 20 and corpus REVISION 16 unchanged (keel-cloud's corpus is at revision 16).
 
+**Follow-ups at once, the morning's fixes, and One more thing** (spec `075-follow-ups-at-once-and-the-morning-fixes`;
+keel-cloud 139 -- 142 and 144, keel-web 122 -- 124 and 126, contracts 41 and 42): up to two follow-ups, each asked right
+after the item it hangs on, the end's only for a rung still owed (`interviewer_fake.asks`, `vs.follow_up_plan`); every
+route call carries `asked`, the response `followUps[]`, the stored and the stage rows read the list. The text walk
+answers every follow-up screen it meets (after an item's *Next* and after *Send my answers*), and since keel-web 126
+tells the one asked on the spot after Send from the end's by its rung (the last item's) -- every screen, the AI sheet's
+kicker and its where-word say one kicker, *One more thing*, and every FOLLOW_UP clip opens on *One more thing.*
+(`fake.ONE_MORE_THING`; *One last thing.* is `RETIRED_LEAD_IN`, re-rendered once by keel-cloud 144 on a recording that
+still says it); the answers line under a person is *One more thing · {rung}: "…"*. The money-only walk holds one kind
+(139); every Price step reads its cost box in 140's words; the chain cost step reads *Per* / *of* pre-filled and the
+rate row (123); Ability to pay's said line is Keel's reading with the counting sentence (141). Contract 42 (keel-cloud
+144): S-006's Try it yourself walks on to the story and holds the hello and the story written down through the
+founder's own `interviewer/transcribe` (`dry_run_written_down`: on the gate's id, taken, no miss words), and the wire
+checks the route beside the follow-up twin (`_dry_run_transcribe`: the story, the follow-up at 120 and the mic test
+written down; an unknown id and a link's gate 422 `ITEM_NOT_ON_FORM`, 90 s 422 `SHAPE_MISMATCH`; nothing stored) -- the
+stack's fake transcriber serves it unchanged. Keel-web 126 FR-4: the story's speaker holds the permission sheet through
+the seam (`text_seam(held=True)`, keel-web's `installHeldMic` restated; `SpeakBox.grant`), reads the box `asking`
+(*Allow the microphone…*, *Cancel*, no waveform, no clock, nothing recorded, Continue off) before T2, and holds the
+microphone kept through the take and let go on the done screen. Re-pinned (`INTERVIEWER_MARKS_VERSION` 10, then 11):
+IM23 (the order, `asked`, `followUps[]`; one kicker), IM24 (a skip not sent, the step after it), IM25 (every follow-up's
+windows), IM26 (asking, the microphone kept) and IM27 (*One more thing.*). Keel-web 122's public pages: no check here
+reads Plans' numbers or the legal pages' sentences, and the matrix smokes neither `/terms` nor `/privacy`, so nothing
+moved. `MARKS_VERSION` 20, corpus REVISION 16 and every other ruler unchanged. **The light gate** (the founder's word,
+2026-10-27): `make unit` and S-005 on the local stack; the other five journeys are the thorough pass's. A journey that
+fails mid-way leaves the scripted runtime it started connected, its script moved on: `make down` and `make up` before
+the next run (spec 075 D-02).
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;

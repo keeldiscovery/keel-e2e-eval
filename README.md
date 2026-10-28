@@ -83,6 +83,12 @@ four ports, or boots one and tears it down at the end of the session — the fas
 from `make up && make eval` and the from-cold path are the same command. Either way, the runtime
 home (`runs/.stack/keel-home/`) is only ever reset by `make up`/`boot` itself, never mid-session.
 
+**After a journey fails mid-way, `make down` then `make up` before the next one** (spec 075 D-02). The scripted
+runtime the failed journey started stays connected, and the scripted executor consumes its screens' entries in order
+(`INTERPRET` one a readable person, in corpus order): the next journey on the same stack is read one person behind --
+every reading shifted, a guessed story counted and an anchored one not -- and its standings fail as golden readings the
+build moved, which they are not. `make down` disconnects it (and says so); `make up` resets the runtime home.
+
 ### `MARKS_VERSION` 20 — the gate as written, **no run of record yet** (spec `052-report`, 2026-10-17)
 
 The report replaces the brief (keel-cloud 104 at keel-cloud-docs `9a033fe`, contract 19's standings side; keel-web 077).
