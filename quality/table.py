@@ -6,10 +6,15 @@ From every committed score file under `quality/scores/`, `quality/TABLE.md`:
   audience, and the founder's bar -- **90%** before the remaining entries are walked (the coordinator's decision 2);
 - **the Insights grouping (§G)**: one row per (scope, dimension) under the *insights* kind, G1 and G2's means;
 - **one row per (scope, dimension, audience, screen kind)** over the latest file of each (entry, scope) -- one corpus
-  entry is three studies (spec 071 FR-4), so a row never mixes scopes: the five means, the count of 0s, the
-  entries that gave them, the *instead* lines, and the fix location by the design's §1 (registry row / shared file /
-  code transform / no model); weak rows marked by the weak rule (`quality/RUBRIC.md`);
-- **the trend per study (entry · scope)**: its last three score files, `score_pct` and the five means with ↑ ↓ = beside each.
+  entry is three studies (spec 071 FR-4), so a row never mixes scopes: the six means (R6 on respondent rows alone,
+  spec 081), the count of 0s, the entries that gave them, the *instead* lines, and the fix location by the design's §1
+  (registry row / shared file / code transform / no model), with, for a row weak on R6 or R2, where that criterion is
+  fixed (`CRITERION_FIX`); weak rows marked by the weak rule (`quality/RUBRIC.md`);
+- **the trend per study (entry · scope)**: its last three score files, `score_pct`, `spoken_pct` and the six means
+  with ↑ ↓ = beside each.
+
+**Spec 081 (rubric version 2)**: the head's respondent line carries `spoken_pct` (R6 alone) beside `insights_pct`; a
+score file at a retired rubric version (`rubric.RETIRED`: 1) is refused by name, never set aside.
 
 A score file at another rubric version is **set aside by name**, never averaged (FR-1); a partial file (a smoke's
 `LIMIT=` / `ONLY=`) is refused by name -- it never belongs under `quality/scores/`.
@@ -57,10 +62,14 @@ class TableRefused(RuntimeError):
 # ------------------------------------------------------------------------------------------- the files
 
 def load_scores(scores_dir: Path | None = None) -> list[dict]:
-    """Every score file under `scores_dir`, validated, each with its `_path`. A partial file is refused by name."""
+    """Every score file under `scores_dir`, validated, each with its `_path`. A partial file is refused by name, and
+    so is a file at a retired rubric version (spec 081 FR-1)."""
     files = []
     for path in sorted(Path(scores_dir or SCORES_DIR).glob("*/*.json")):
-        obj = rubric.load_file(path)
+        try:
+            obj = rubric.load_file(path)
+        except rubric.RubricError as reason:
+            raise TableRefused(f"make read-table refuses {path}: {reason}") from None
         if obj.get("partial"):
             raise TableRefused(f"{path} is a partial run (LIMIT / ONLY): a part of a walk is not a score of record "
                                "and never belongs under quality/scores/")
@@ -140,6 +149,19 @@ def fix_location(audience: str, kind: str, dimension: str | None) -> tuple[str, 
     return ("code transform", "the respondent page's code")
 
 
+#: Spec 081 FR-5 (design §1 and the generating-side note): where a row weak on R6 or R2 is fixed -- beside the row's
+#: own location. Never a clause for one trade (design §5a): the persona is handed in, not branched on.
+CRITERION_FIX = {
+    "r6": "R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering)",
+    "r2": ("R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona "
+           "(*in the words of {actor_plural}*), never a condition on one trade"),
+}
+
+
+def criterion_fixes(weak_on: list[str]) -> list[str]:
+    return [CRITERION_FIX[c] for c in ("r6", "r2") if c in weak_on]
+
+
 # ------------------------------------------------------------------------------------------------ rows
 
 def rows(latest: dict) -> list[dict]:
@@ -162,10 +184,14 @@ def rows(latest: dict) -> list[dict]:
                    if len(zero_entries[c]) >= rubric.WEAK_ZERO_ENTRIES
                    or (stats["means"][c] is not None and stats["means"][c] < rubric.WEAK_MEAN)]
         category, place = fix_location(audience, kind, None if dimension == "-" else dimension)
+        fix = {"category": category, "place": place}
+        if criterion_fixes(weak_on):
+            fix["also"] = criterion_fixes(weak_on)
         out.append({"scope": scope, "dimension": dimension, "audience": audience, "kind": kind, "screens": len(scores),
                     "entries": sorted({e for e, _ in pairs}), "means": stats["means"], "zeros": stats["zeros"],
-                    "zero_entries": zero_entries, "score_pct": stats["score_pct"], "weak": bool(weak_on),
-                    "weak_on": weak_on, "fix": {"category": category, "place": place},
+                    "zero_entries": zero_entries, "score_pct": stats["score_pct"],
+                    "spoken_pct": stats.get("spoken_pct"), "weak": bool(weak_on),
+                    "weak_on": weak_on, "fix": fix,
                     "instead": [f"{e}: {s['instead']}" for e, s in pairs if s.get("instead")]})
     out += insight_rows(files)
     return out
@@ -234,6 +260,10 @@ def _cell(text: str) -> str:
     return str(text).replace("|", "\\|").replace("\n", " ")
 
 
+def _fix_text(fix: dict) -> str:
+    return f"{fix['category']}: {fix['place']}" + "".join(f"; {also}" for also in fix.get("also") or [])
+
+
 #: Spec 079 FR-3: a row *moved* since the baseline when a mean moved by this much, or it turned weak or mended.
 MOVED_MEAN = 0.25
 
@@ -284,7 +314,9 @@ def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | N
                   "remaining entries are walked.", "",
                   f"- founder: score_pct {_num(by['founder']['score_pct'], 1)}%, flagged "
                   f"{_num(by['founder']['flagged_pct'], 1)}% of {by['founder']['screens']} screens",
-                  f"- respondent: score_pct {_num(by['respondent']['score_pct'], 1)}%, flagged "
+                  f"- respondent: score_pct {_num(by['respondent']['score_pct'], 1)}%, spoken_pct "
+                  f"{_num(by['respondent'].get('spoken_pct'), 1)}%, insights_pct "
+                  f"{_num(by['respondent'].get('insights_pct'), 1)}%, flagged "
                   f"{_num(by['respondent']['flagged_pct'], 1)}% of {by['respondent']['screens']} screens",
                   *[f"- scope {scope}: score_pct {_num(sc['score_pct'], 1)}%, flagged {_num(sc['flagged_pct'], 1)}% "
                     f"of {sc['screens']} screens" for scope, sc in top["by_scope"].items()],
@@ -297,15 +329,16 @@ def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | N
     lines += ["## The rows", "",
               "Weak = a 0 on one criterion in two or more entries, or a mean under 1.5 (RUBRIC.md). "
               f"{len(weak)} of {len(table)} rows are weak.", "",
-              "| | scope | audience | dimension | kind | n | R1 | R2 | R3 | R4 | R5 | 0s | entries with a 0 | fix |",
-              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+              "R6 (said aloud) is the respondent-reader's alone: a founder row shows –.", "",
+              "| | scope | audience | dimension | kind | n | R1 | R2 | R3 | R4 | R5 | R6 | 0s | entries with a 0 | fix |",
+              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in [r for r in table if r["kind"] != "insights"]:
         zeros = sum(r["zeros"].values())
         with_zero = sorted({e for c in rubric.CRITERIA for e in r["zero_entries"][c]})
         lines.append("| " + " | ".join([
             "**WEAK**" if r["weak"] else "", r["scope"], r["audience"], _cell(r["dimension"]), r["kind"], str(r["screens"]),
             *[_num(r["means"][c]) for c in rubric.CRITERIA], str(zeros), ", ".join(with_zero),
-            _cell(f"{r['fix']['category']}: {r['fix']['place']}")]) + " |")
+            _cell(_fix_text(r["fix"]))]) + " |")
     grouped = [r for r in table if r["kind"] == "insights"]
     lines += ["", "## Insights -- the grouping of the follow-up lines (§G)", ""]
     if not grouped:
@@ -326,20 +359,22 @@ def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | N
         for r in weak:
             lines.append(f"### {row_key(r)} -- weak on {', '.join(c.upper() for c in r['weak_on'])}")
             lines.append(f"Fix: **{r['fix']['category']}** -- {r['fix']['place']}.")
+            lines += [f"Fix for {also}." for also in r["fix"].get("also") or []]
             lines += [f"- {_cell(line)}" for line in r["instead"]] or ["- (no instead line)"]
             lines.append("")
     lines += ["", "## The trend per study (entry · scope; the last three score files)", "",
-              "| study | file | scored | cloud | founder % | respondent % | overall % | flagged % | R1 | R2 | R3 | R4 "
-              "| R5 |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+              "| study | file | scored | cloud | founder % | respondent % | overall % | spoken % | flagged % | R1 | R2 "
+              "| R3 | R4 | R5 | R6 |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for entry, runs in history_per_entry(current).items():
         before = None
         for f in runs:
             s = f["summary"]
             now = {"founder": s["founder"]["score_pct"], "respondent": s["respondent"]["score_pct"],
-                   "overall": s["overall"]["score_pct"], "flagged": s["overall"]["flagged_pct"],
-                   **{c: s["overall"]["means"][c] for c in rubric.CRITERIA}}
+                   "overall": s["overall"]["score_pct"], "spoken": s["overall"].get("spoken_pct"),
+                   "flagged": s["overall"]["flagged_pct"],
+                   **{c: s["overall"]["means"].get(c) for c in rubric.CRITERIA}}
             cells = [entry, Path(f["_path"]).name, (f.get("scored_at") or "")[:10], str(f.get("cloud_sha") or "")[:7]]
-            for key, digits in (("founder", 1), ("respondent", 1), ("overall", 1), ("flagged", 1),
+            for key, digits in (("founder", 1), ("respondent", 1), ("overall", 1), ("spoken", 1), ("flagged", 1),
                                 *((c, 2) for c in rubric.CRITERIA)):
                 arrow = _arrow(now[key], before[key]) if before else ""     # flagged: ↓ is the good direction
                 cells.append(_num(now[key], digits) + arrow)
@@ -350,10 +385,10 @@ def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | N
                   f"{comparison['why']}", "",
                   f"Baseline: {comparison['baseline']['cut']} ({comparison['baseline']['score_pct']}%), now "
                   f"{comparison['score_pct']}%.", "",
-                  "| row | ΔR1 / ΔG1 | ΔR2 / ΔG2 | ΔR3 | ΔR4 | ΔR5 | weak then | weak now |",
-                  "|---|---|---|---|---|---|---|---|"]
+                  "| row | ΔR1 / ΔG1 | ΔR2 / ΔG2 | ΔR3 | ΔR4 | ΔR5 | ΔR6 | weak then | weak now |",
+                  "|---|---|---|---|---|---|---|---|---|"]
         for d in comparison["rows"]:
-            deltas = list(d["delta"].values()) + [None] * (5 - len(d["delta"]))
+            deltas = list(d["delta"].values()) + [None] * (len(rubric.CRITERIA) - len(d["delta"]))
             lines.append("| " + " | ".join([_cell(d["row"]), *[_num(v) for v in deltas],
                                              "yes" if d["weak_then"] else "", "yes" if d["weak_now"] else ""]) + " |")
         moved = moved_rows(comparison, table)
@@ -394,9 +429,9 @@ def render_baseline(data: dict) -> str:
              f"- score files: {', '.join(data['files'])}",
              f"- cloud sha(s): {', '.join(data['cloud_shas'])}; routing version(s): {', '.join(data['routing_versions'])}",
              f"- reader(s): {', '.join(data['readers'])}", "",
-             "| row | R1 / G1 | R2 / G2 | R3 | R4 | R5 | weak |", "|---|---|---|---|---|---|---|"]
+             "| row | R1 / G1 | R2 / G2 | R3 | R4 | R5 | R6 | weak |", "|---|---|---|---|---|---|---|---|"]
     for key, row in data["rows"].items():
-        means = list(row["means"].values()) + [None] * (5 - len(row["means"]))
+        means = list(row["means"].values()) + [None] * (len(rubric.CRITERIA) - len(row["means"]))
         lines.append("| " + " | ".join([_cell(key), *[_num(v) for v in means],
                                          "yes" if row["weak"] else ""]) + " |")
     lines += ["", _DATA_BEGIN, "```json", json.dumps(data, indent=1, ensure_ascii=False), "```", ""]
