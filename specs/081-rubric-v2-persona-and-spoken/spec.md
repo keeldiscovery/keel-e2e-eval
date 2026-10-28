@@ -33,7 +33,14 @@ after 079 (merged) -- the first cycle must run at RUBRIC_VERSION 2.
 - **FR-5 The table.** One more mean column (R6) on respondent rows, `spoken_pct` in the head beside `insights_pct`; the
   weak rule unchanged; the fix location for an R6 zero is *the registry row's wording or the spoken transform* (design
   §1), and for an R2 zero *the registry row, or the instruction gains the trade's words* (the generating-side note).
-- **FR-6 Nothing else moves.** R1, R3, R4, R5, G1, G2, the whole-flow questions, the readers' model and door, the
+- **FR-6 The adviser never proposes a special case.** (The founder, 2026-10-28: *"the fix should not be 'let me add
+  this if-else in the instruction set'; the main fix should be: is it persona aware?"*) `quality/readers/adviser.md`
+  carries the rule (design §5a): a proposal that adds a condition on an industry, a role, a country or a product is
+  wrong; the proposal is that the writer is handed the persona and writes in that person's words for every trade at
+  once. The adviser's JSON gains `persona_aware: true|false` and the runner refuses to write a proposal with it false
+  (it records the refusal in the advice file by row, so the founder sees that a special case was the model's first
+  idea and was not taken). A unit test holds a fixture proposal with an *if the people are ...* clause refused.
+- **FR-7 Nothing else moves.** R1, R3, R4, R5, G1, G2, the whole-flow questions, the readers' model and door, the
   cycle's commands, `MARKS_VERSION` 21 (the `read` mark reads whatever version the score file says).
 
 ## Acceptance
