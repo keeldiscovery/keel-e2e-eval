@@ -361,6 +361,7 @@ def test_the_versions_move_as_the_spec_says():
     from instructions import corpus as corpus_mod                       # noqa: PLC0415
     from instructions import marks as instruction_marks                 # noqa: PLC0415
 
-    # spec 075 FR-1 moved it to 10; FR-5 (keel-cloud 144, keel-web 126) to 11 -- IM23, IM26, IM27 re-pinned
-    assert marks.INTERVIEWER_MARKS_VERSION == 11
+    # spec 075 FR-1 moved it to 10; FR-5 (keel-cloud 144, keel-web 126) to 11 -- IM23, IM26, IM27 re-pinned; spec 076
+    # FR-5 (keel-cloud 145, keel-web 127) to 12 -- IM22, IM23 (held in test_founder_walk_076.py)
+    assert marks.INTERVIEWER_MARKS_VERSION >= 11
     assert instruction_marks.MARKS_VERSION == 20 and corpus_mod.REVISION == 16

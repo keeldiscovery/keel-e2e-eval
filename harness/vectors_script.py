@@ -353,6 +353,42 @@ def chip_of(entry) -> dict | None:
     return {"question": question, "inside": inside}
 
 
+def decider_chip(condition: str | None, actor_plural: str | None) -> str | None:
+    """keel-cloud 145 FR-4b (`RespondentQuestionsRules.deciderChip`, mirrored): the decision-maker's screener -- the
+    condition in the third person about the people they decide for (*Do the payroll practitioners you decide for run
+    payroll for at least 50 employees?*, *Are the ... you decide for past the beginner stage?*); a condition about the
+    organisation itself asked as it is (*work at a company with at least 50 employees* -> *Does your company have at
+    least 50 employees?*; any other *work at / for ...* as part 1's chip, *Do you work at ...?*); held to the spoken cap
+    (20 words), None where it does not fit. Part 3 is code's at the lock, so this is what the link serves."""
+    if not condition or not condition.strip():
+        return None
+    text = " ".join(condition.split())
+    while text.endswith("."):
+        text = text[:-1].strip()
+    if len(text) > 1 and text[0].isupper() and not text[1].isupper():
+        text = text[0].lower() + text[1:]
+    org = re.match(r"(?i)^works?\s+at\s+(?:an?\s+)?(.+?)\s+with\s+(.+)$", text)
+    be = re.match(r"(?i)^(?:are|is|am)\s+(.+)$", text)
+    if org:
+        asked = f"Does your {org.group(1).strip()} have {org.group(2).strip()}?"
+    elif re.match(r"(?i)^works?\s+(?:at|for)\b", text):
+        asked = f"Are you {be.group(1)}?" if be else f"Do you {text}?"
+    else:
+        people = (actor_plural or "").strip() or "people"
+        asked = f"Are the {people} you decide for {be.group(1)}?" if be else f"Do the {people} you decide for {text}?"
+    return asked if _words(asked) <= STEM_MAX_WORDS else None
+
+
+def decider_condition(entry) -> dict | None:
+    """Spec 076 FR-4 (keel-cloud 145 FR-4b, contract 43 `Interview.condition`): what the decision-maker's link serves
+    on a SOMEONE_ELSE study whose context carries a condition -- `{question, inCodes}`, before the idea; None on a
+    study with no condition (or no decision-maker's link)."""
+    if not is_b2b(entry):
+        return None
+    question = decider_chip(segment_of(entry)["condition"], _ctx(entry).get("actor_plural"))
+    return {"question": question, "inCodes": ["YES"]} if question else None
+
+
 _RELATIVE = re.compile(r"(?i)\bwho\b")
 
 
@@ -1323,7 +1359,38 @@ def walked_follow_ups(entry, people) -> list[tuple[str, str]]:
     118 the rung a person is asked on is the walk's at answer time, so the script cannot know who lands where, only that
     whoever does types that rung's line."""
     from harness import interviewer_fake as fake                       # noqa: PLC0415
-    return [(rung, FOLLOW_UP_LINES[rung][0]) for rung in fake.RUNGS]
+    # spec 076 FR-6: and the one answer not about this, on the rung its person is asked (`JUNK_FOLLOW_UPS`)
+    return [(rung, FOLLOW_UP_LINES[rung][0]) for rung in fake.RUNGS] + junk_follow_ups(entry, people)
+
+
+#: Spec 076 FR-6 (keel-cloud 145 FR-6, keel-web 127 FR-4): the one person a golden journey has type an answer that is
+#: not about the question on their follow-up -- 01-countly's Priya Natarajan (S-005), owed one rung alone (Current
+#: solution), so the rung her words land on is known before the run and the THEMES script can place them. The fake's
+#: grouping (`interviewer_fake.themes_with_junk`) puts them in NOT_ABOUT_THIS.
+JUNK_FOLLOW_UPS = {"01-countly": {"Priya Natarajan": "Meow, you are a fool."}}
+
+
+def junk_rung(entry, person) -> str | None:
+    """Spec 076 FR-6: the one rung a `JUNK_FOLLOW_UPS` person's words land on -- on the whole study (S-005; the scope
+    journeys reuse 01-countly and are left as they were) and only where they are owed exactly one follow-up, so the
+    script knows the rung before the run; None otherwise (they type the pooled line, as everyone else)."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    if person is None or scope_of(entry) != "ALL" or person.person not in (JUNK_FOLLOW_UPS.get(entry.id) or {}):
+        return None
+    owed = fake.owed(person.picks, founder_side(entry), person.link, b2b=is_b2b(entry))
+    return owed[0][0] if len(owed) == 1 else None
+
+
+def junk_follow_ups(entry, people) -> list[tuple[str, str]]:
+    """`[(rung, text)]`: each `JUNK_FOLLOW_UPS` person's words on the one rung they are owed (`junk_rung`). The person
+    answers first on 01-countly and keel-cloud starts no THEMES job on fewer than two answers (`ThemesOnReturn`), so
+    every job over that rung carries the words and the pooled line both -- the scripted theme resolves."""
+    out = []
+    for name, text in (JUNK_FOLLOW_UPS.get(entry.id) or {}).items():
+        rung = junk_rung(entry, next((p for p in people if p.person == name), None))
+        if rung is not None:
+            out.append((rung, text))
+    return out
 
 
 def themes_entries(entry, follow_ups) -> list[dict]:
@@ -1341,7 +1408,8 @@ def themes_entries(entry, follow_ups) -> list[dict]:
         texts = by_rung.get(key)
         if not texts:
             continue
-        grouped = fake.themes([{"id": str(i), "text": t} for i, t in enumerate(texts)], NAMES[key])["themes"]
+        # spec 076 FR-6 (keel-cloud 145 FR-6): an answer not about this in its own NOT_ABOUT_THIS group, last
+        grouped = fake.themes_with_junk([{"id": str(i), "text": t} for i, t in enumerate(texts)], NAMES[key])["themes"]
         themes = []
         for pile in grouped:
             said: list[str] = []
@@ -1523,18 +1591,27 @@ class PersonInputs:
         """The one `POST /v2/i/{token}/interview/response` body; a cost total re-expressed over
         `recall_period`, the period the interview asks it over."""
         answers = [p.asked_over(recall_period).as_wire(token) for p in self.picks]
+        if not self.in_segment:
+            # spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): the decision-maker's screener answered outside
+            # sends `outsideSegment` alone too, as part 1's chip does
+            return {"outsideSegment": True, "answers": []}
         if self.link == LINK_B2B:
             return {"answers": answers}
-        if not self.in_segment:
-            return {"outsideSegment": True, "answers": []}
         if not self.recency:
             return {"recency": False, "answers": []}
-        body: dict = {"recency": True, "answers": answers}
         if self.anchor_chip:
-            body["anchorChip"] = self.anchor_chip
-        elif self.story:
+            # spec 076 FR-5 (keel-cloud 145 FR-5, keel-web 127 FR-3, contract 43): a story chip ends the interview --
+            # the gate's Yes and the chip, no story, no answers (a chip is never sent with answers any more)
+            return {"recency": True, "anchorChip": self.anchor_chip, "answers": []}
+        body: dict = {"recency": True, "answers": answers}
+        if self.story:
             body["story"] = self.story
         return body
+
+    @property
+    def ends_on_chip(self) -> bool:
+        """Spec 076 FR-5: the gate's Yes with a story chip -- the interview ends at the gate (keel-web 127 FR-3)."""
+        return bool(self.recency and self.in_segment and self.anchor_chip and self.link != LINK_B2B)
 
 
 #: keel-cloud `Period`'s days, the one table a cost total is normalised by.
@@ -1704,10 +1781,14 @@ def follow_up_lines(entry, people: list) -> dict[str, str | None]:
     founder = founder_side(entry)
     out: dict[str, str | None] = {}
     for person in people:
-        if person.link != LINK_B2B and not person.recency:
+        if person.link != LINK_B2B and (not person.recency or getattr(person, "ends_on_chip", False)):
+            # a gate No, or (spec 076 FR-5) a story chip: the interview ended at the gate, nothing is asked
             continue
         rung = fake.first_rung(person.picks, founder, person.link, b2b=is_b2b(entry))
         if rung is None:
+            continue
+        if rung == junk_rung(entry, person):
+            out[person.person] = JUNK_FOLLOW_UPS[entry.id][person.person]
             continue
         own = getattr(person, "follow_up", None)
         out[person.person] = None if person.person in FOLLOW_UP_SKIPS.get(entry.id, ()) \
@@ -1720,6 +1801,9 @@ def follow_up_line(entry, person, owed: dict | None) -> str | None:
     skipper or where nothing is owed; a back-test person's own words where the file has them; else that rung's line."""
     if not owed or person.person in FOLLOW_UP_SKIPS.get(entry.id, ()):
         return None
+    if owed.get("dimension") is not None and owed.get("dimension") == junk_rung(entry, person):
+        # spec 076 FR-6: this person's words are not about the question (*Meow, you are a fool.*)
+        return JUNK_FOLLOW_UPS[entry.id][person.person]
     mine = next((p for p in entry.people() if p.person == person.person), None)
     own = getattr(mine, "follow_up", None)
     if own and getattr(mine, "follow_up_dimension", None) and mine.follow_up_dimension != owed.get("dimension") \

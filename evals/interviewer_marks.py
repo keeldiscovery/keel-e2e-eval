@@ -63,7 +63,14 @@ from harness import interviewer_fake as fake
 #: retire), IM26 (the box is `asking` -- *Allow the microphone…*, *Cancel*, no waveform, no clock, nothing recorded --
 #: before T2 listening; the take ends with nothing let go, and the page lets the microphone go on the done screen) and
 #: IM27 (every FOLLOW_UP clip opens on *One more thing.*). No mark born or dropped.
-INTERVIEWER_MARKS_VERSION = 11
+#: v12 (spec 076 FR-5, keel-cloud 145 FR-5 + keel-web 127 FR-3, contract 43: a story chip ends the interview): re-pinned
+#: -- IM22 (the story's window on the AI link, as before, AND the story's chip on a second AI link ends it: one chip-only
+#: response -- `recency: true`, `anchorChip`, no story, `answers: []`, `format` AI_INTERVIEWER, no follow-ups -- no
+#: follow-up route call, no pilot write, the done screen and the microphone off, the person's part-1 rows *Couldn't
+#: recall one particular {occasion}* and no solution or money line listing them) and IM23 (a text walk whose person taps
+#: the chip -- 05-paidly's Xavier Dubois, *I'd rather not say* -- reaches no item and no follow-up route: `asked` false,
+#: nothing owed, no screen, no `followUps`). No mark born or dropped.
+INTERVIEWER_MARKS_VERSION = 12
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -552,7 +559,15 @@ def the_storys_save(r: dict) -> tuple[bool, Any]:
     """IM22 (keel-web 074 FR-2): the story's window says *Take your time. Pause for a few seconds when you're done, or
     tap Save.*; *Save and next* is absent until a final is heard, then drawn and enabled; the story ends by the pause
     with nothing pressed (S-005) or by Save, read at once -- held inside the gap (S-006); held either way with the
-    words heard, never classified, then on; and the response carries the story."""
+    words heard, never classified, then on; and the response carries the story. v12 (spec 076 FR-5, keel-web 127
+    FR-3): and the story's chip, tapped on a second AI link, ends the interview (`chip_ended_it`) -- owed wherever the
+    story is walked."""
+    ok, why = _the_storys_save(r)
+    chip_ok, chip_why = chip_ended_it(r.get("story_chip") or {}) if r.get("story_chip") is not None else (False, None)
+    return ok and chip_ok, {**why, "chip ends it": chip_ok, "chip": chip_why}
+
+
+def _the_storys_save(r: dict) -> tuple[bool, Any]:
     x = r["story"]
     before, after, held = x.get("save_before") or {}, x.get("save_after_final") or {}, x.get("held") or {}
     by = x.get("by")
@@ -569,6 +584,28 @@ def the_storys_save(r: dict) -> tuple[bool, Any]:
     return ok, {k: x.get(k) for k in ("by", "status_before", "save_before", "save_after_final", "pressed",
                                       "final_to_held_ms", "press_to_held_ms", "presses", "classified", "sent")} | {
         "held": {k: held.get(k) for k in ("status", "heard", "went_on")}}
+
+
+#: keel-cloud 145 FR-5 / keel-web 127 FR-3 (IM22 v12): the AI link's chip-only body, its format beside it.
+CHIP_ONLY = {"recency": True, "anchorChip": "CANT_RECALL", "answers": [], "format": "AI_INTERVIEWER"}
+
+
+def chip_ended_it(x: dict) -> tuple[bool, Any]:
+    """IM22 v12's second half (spec 076 FR-5): the story's chip tapped on the AI link ends the interview -- the chip
+    drawn as *I can't recall one particular {occasion}*; ONE `POST response`, 201, its body the chip-only submission
+    (`pilotOptIn: false` the page's deprecated constant, nothing else); no follow-up route call and no pilot write; the
+    done screen and *Microphone off*; and on the people rows the person read with the chip's words on part 1, on no
+    solution or money line (`row_faults` empty)."""
+    responses = x.get("responses") or []
+    body = dict((responses[0] if responses else {}).get("body") or {})
+    pilot_flag = body.pop("pilotOptIn", False)
+    mic = x.get("mic_off") or {}
+    ok = (x.get("chip") == x.get("want_chip") and len(responses) == 1 and responses[0].get("status") in (200, 201)
+          and body == CHIP_ONLY and pilot_flag is False and not x.get("follow_up_calls") and x.get("pilot_writes") == 0
+          and bool((x.get("done") or {}).get("text")) and mic.get("shown") is True and not x.get("row_faults"))
+    return ok, {"chip": x.get("chip"), "want_chip": x.get("want_chip"), "responses": responses,
+                "follow_up_calls": x.get("follow_up_calls"), "pilot_writes": x.get("pilot_writes"),
+                "done": x.get("done"), "mic_off": mic.get("shown"), "row_faults": x.get("row_faults")}
 
 
 def _kicker(asked: dict) -> str:

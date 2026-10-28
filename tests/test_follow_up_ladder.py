@@ -314,7 +314,8 @@ def test_the_follow_up_lines(entry_id):
     names = {w.lower() for p in people for w in p.person.split()}
     rungs: dict[str, list] = {}
     for p in people:
-        asked = p.link == vs.LINK_B2B or p.recency
+        # spec 076 FR-5 (keel-web 127 FR-3): a story chip ends the interview at the gate -- nothing is asked of them
+        asked = p.link == vs.LINK_B2B or (p.recency and not p.ends_on_chip)
         rung = fake.first_rung(p.picks, founder, p.link, b2b=vs.is_b2b(entry)) if asked else None
         if rung:
             rungs.setdefault(rung, []).append(p)

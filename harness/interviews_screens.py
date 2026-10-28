@@ -103,6 +103,9 @@ WHO_OWN = "Someone I know"
 WHO_DATASET = "People from a dataset"
 SEND_NAME = "Their name"
 SEND_MAKE_ONE = "Make their link"
+#: keel-web 026's second box on *Someone I know*, removed by keel-web 127 FR-1 (spec 076 FR-3): read only to say none is
+#: drawn.
+SEND_ABOUT_LABEL = "A short line the top of their page will show"
 SEND_DONE = "Done"
 SEND_LINKS_TITLE = "One link each. Send them yourself."
 SEND_LINKS_DOWNLOAD = "Download the links (.csv)"
@@ -460,11 +463,11 @@ class Interviews:
         dialog.get_by_role("radiogroup", name="Who").wait_for(state="visible", timeout=10_000)
         return formats
 
-    def send_someone(self, project_id: str, kind_label: str, person: str, about: str | None = None,
-                     fmt: str = "TEXT") -> dict:
-        """*Send more* (or *Send the questions*) on a kind's row, for someone the founder knows: Text, their name
-        (and the line when given), *Make their link*; returns the link drawn, the batch keel-web received and step
-        1's formats."""
+    def send_someone(self, project_id: str, kind_label: str, person: str, fmt: str = "TEXT") -> dict:
+        """*Send more* (or *Send the questions*) on a kind's row, for someone the founder knows: Text, their name, *Make
+        their link*; returns the link drawn, the batch keel-web received, what it sent (`sent`) and step 1's formats.
+        Spec 076 FR-3 (keel-web 127 FR-1): the step is the name alone -- the second box (*A short line the top of their
+        page will show*, `#send-about`) is gone and the harness types no line; `about_boxes` counts any drawn."""
         with self._b.step(f"founder sends the questions to {person} from Sent") as h:
             if not self.page.url.split("?")[0].endswith(f"/p/{project_id}/interviews/sent"):
                 self.land(project_id)
@@ -475,8 +478,7 @@ class Interviews:
             self._shot("send-who")
             dialog.get_by_role("radio", name=re.compile(rf"^{WHO_OWN}")).click()
             dialog.locator("#send-name").fill(person)
-            if about is not None and dialog.locator("#send-about").count():
-                dialog.locator("#send-about").fill(about)
+            about_boxes = dialog.locator("#send-about").count() + dialog.get_by_label(SEND_ABOUT_LABEL).count()
             batches: list = []
             keep = lambda r: batches.append(r) if (r.request.method == "POST"  # noqa: E731
                                                    and r.url.endswith("/invitations/batch")) else None
@@ -504,7 +506,8 @@ class Interviews:
                 h.add_screenshot(self._b.screenshot(f"link-refused-{person.split()[0]}"))
                 drawn = " ".join((dialog.text_content() or "").split())
                 return {"url": None, "batch": batch, "status": made_value.status, "formats": formats,
-                        "drawn": drawn, "sent": made_value.request.post_data_json, "retried": retried}
+                        "drawn": drawn, "sent": made_value.request.post_data_json, "retried": retried,
+                        "about_boxes": about_boxes}
             box = dialog.locator(".linkbox").first
             box.wait_for(state="visible", timeout=20_000)
             url = (box.text_content() or "").strip()
@@ -513,7 +516,7 @@ class Interviews:
             dialog.get_by_role("button", name=SEND_DONE, exact=True).click()
             dialog.wait_for(state="hidden", timeout=10_000)
             return {"url": url, "batch": batch, "status": made_value.status, "formats": formats, "retried": retried,
-                    "drawn": drawn}
+                    "drawn": drawn, "sent": made_value.request.post_data_json, "about_boxes": about_boxes}
 
     def send_from_dataset(self, people: list[str], *, downloads) -> dict:
         """The popup C3's *Go to Sent -> Send more* opened (`?send=<kind>&dataset=<id>`): step 1's formats, step 2 with

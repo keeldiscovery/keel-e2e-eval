@@ -697,6 +697,33 @@ def themes(answers, name: str = "") -> dict:
     return {"themes": out}
 
 
+#: keel-cloud 145 FR-6 (`Insight.NOT_ABOUT_THIS`, themes.md): the fixed group for an answer that is junk, abuse or has
+#: nothing to do with the question -- kept off the Insights box (not a theme, not ON_THEIR_OWN, not in `answered` or
+#: `quotes`), counted in `notAboutThis`; still stored and served under the person.
+NOT_ABOUT_THIS = "NOT_ABOUT_THIS"
+#: Spec 076 FR-6: the answers the eval's THEMES script places in NOT_ABOUT_THIS -- the founder's walk of 2026-10-27
+#: met one; `FakeThemes` (test scope in the cloud) has no such group, so this is the script's rule, not the export's.
+NOT_ABOUT_THIS_TEXTS = ("Meow, you are a fool.",)
+
+
+def themes_with_junk(answers, name: str = "") -> dict:
+    """Spec 076 FR-6: the script's grouping -- every answer whose text is one of `NOT_ABOUT_THIS_TEXTS` in one last
+    NOT_ABOUT_THIS group (keel-cloud's `ThemesReading` sorts it last, at most once), every other answer grouped by
+    `themes` (the cloud's `FakeThemes`, untouched); every answer in exactly one group."""
+    junk = [a for a in answers or [] if a.get("text") in NOT_ABOUT_THIS_TEXTS]
+    rest = [a for a in answers or [] if a.get("text") not in NOT_ABOUT_THIS_TEXTS]
+    out = themes(rest, name)["themes"] if rest else []
+    if junk:
+        out.append({"label": NOT_ABOUT_THIS, "answerIds": [a.get("id") for a in junk]})
+    return {"themes": out}
+
+
+def not_about_this_line(n: int) -> str:
+    """keel-web 127 FR-4 (`notAboutThisLine`): the Insights box's muted line -- *1 answer was not about this.* / *{n}
+    answers were not about this.*"""
+    return "1 answer was not about this." if n == 1 else f"{n} answers were not about this."
+
+
 #: keel-cloud 104 capped a theme at three quotes; keel-cloud 119 serves every quote (uncapped), shortest first.
 QUOTES_MAX = None
 

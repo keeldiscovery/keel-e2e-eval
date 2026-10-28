@@ -137,11 +137,17 @@ CHAIN_HOURS_BASE_HELP = "What the time goes on."
 CHAIN_BASE_HELP = "What they lose a share of."
 HOURLY_RATE_DEFAULTED = "Keel's default for this market. Change it if yours differs."
 #: keel-cloud 141 (`CommercialChain.KEEL_READS`, `countsSentence`): Keel's own reading of Ability to pay, and which of the
-#: budget question's answers count, by kind of study.
+#: budget question's answers count, by kind of study. Since keel-cloud 145 FR-1 (spec 076 FR-1) the said line of a row
+#: read off the budget question is the counts sentence alone (the row's subtitle carries Keel's reading).
 KEEL_READS = "Keel reads "
 COUNTS_SENTENCE = {True: "Counts for you: a budget line they already had, or other spending. Counts against: a new "
                          "budget line, or none.",
                    False: "Counts for you: money they already spend. Counts against: new money, or couldn't pay it."}
+#: keel-cloud 145 FR-1 (`CommercialChain.BUDGET_SUPPORTS`): the budget question's answers that count for the founder --
+#: the bars drawn on (green) on a row read off the budget question, every other bar muted.
+BUDGET_SUPPORTS = ("from_spend", "existing_line", "taken_from_other_spend")
+#: keel-cloud's sub-line for a named set's other bars -- never on a fixed set (145 FR-1: the budget bars).
+DIDNT_NAME = "which you didn't name"
 #: keel-web `priceCostBox`: the Price step's cost box around the served `costEstimate.said`.
 PRICE_COST_BOX = "You estimate the problem costs them {said}."
 IV_BEGIN = "Begin"
@@ -2173,12 +2179,19 @@ class Interview:
                                       and r.url.endswith("/interview/response"),
                                       timeout=120_000) as answered:
                 _button(page, IV_BEGIN).click()
-                if interview.get("kind") == "COMMERCIAL_LINK" and interview.get("idea"):
+                inside = True
+                if interview.get("kind") == "COMMERCIAL_LINK" and interview.get("condition"):
+                    # spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): the decision-maker's screener, its own
+                    # screen before the idea; outside, Continue sends `outsideSegment` alone and lands on the exit
+                    inside = self._condition(person, interview["condition"])
+                if inside and interview.get("kind") == "COMMERCIAL_LINK" and interview.get("idea"):
                     self._idea()
                 gate = interview.get("gate")
                 if gate:
                     self._gate(person, gate, interview.get("occasion"), speak=speak)
-                if gate is None or (person.recency and getattr(person, "in_segment", True)):
+                # spec 076 FR-5 (keel-web 127 FR-3): a story chip ends the interview at the gate, as a No does
+                if inside and (gate is None or (person.recency and getattr(person, "in_segment", True)
+                                                and not getattr(person, "anchor_chip", None))):
                     self._items(interview, wire_answers)
                     self._end_follow_ups(interview)
             body = answered.value.request.post_data_json
@@ -2366,6 +2379,33 @@ class Interview:
                              "question": _first_text(page, "h1.iv-q"),
                              "problem": _tc(problem) if problem.count() else None})
         _button(page, IV_CONTINUE).click()
+
+    def _condition(self, person, condition: dict) -> bool:
+        """Spec 076 FR-4 (keel-web 127 FR-2, keel-cloud 145 FR-4b): the decision-maker's screener, the link's first
+        screen after Begin (`[data-testid=condition-screen]`): the served question as the screen's `h1.iv-q`, Yes / No as
+        a radiogroup named by it, *Continue* off until one is picked, no kicker (none is served) -- answered inside for a
+        person in the people the founder described, else the other answer; then *Continue*. True when inside (the walk
+        goes on to the idea); what the screen drew is kept."""
+        page = self.page
+        screen = page.get_by_test_id("condition-screen").first
+        screen.wait_for(state="visible", timeout=20_000)
+        self._keep()
+        self._shot("condition")
+        inside_codes = list(condition.get("inCodes") or [])
+        in_segment = getattr(person, "in_segment", True)
+        code = inside_codes[0] if in_segment else next(c for c in ("YES", "NO") if c not in inside_codes)
+        cont = _button(page, IV_CONTINUE)
+        drawn = {"screen": "condition", "question": _first_text(screen, "h1.iv-q"),
+                 "kicker": _first_text(screen, ".iv-kicker") or None,
+                 "options": _safe_all_texts(screen, "[role=radio]"), "continue_before": cont.is_enabled(),
+                 "back": page.get_by_role("button", name="Back", exact=True).count(), "answered": code,
+                 "outside": not in_segment}
+        page.get_by_role("radiogroup", name=condition.get("question"), exact=True).get_by_role(
+            "radio", name=IV_CHIP_WORD[code], exact=True).click()
+        drawn["continue_after"] = cont.is_enabled()
+        self.screens.append(drawn)
+        cont.click()
+        return in_segment
 
     def _gate(self, person, gate: dict, occasion: str | None, *, speak: str | None = None) -> None:
         """The gate (keel-web 064; spec 064 FR-4 / 4c, keel-web 096 / 099): the segment chip first where the gate serves
@@ -2891,12 +2931,15 @@ class Answers:
                 concern = _tc(box.locator(".rp-concern"))
                 frame = _tc(box.locator(".rp-frame"))
                 took = _tc(box.locator(".rp-tookby"))
-                own_lines += [x for x in (concern, frame, took) if x]
+                # spec 076 FR-6 (keel-web 127 FR-4): the muted line under the groups, *{n} answer(s) were not about this*
+                not_about = _tc(box.get_by_test_id("insights-not-about-this")) or None
+                own_lines += [x for x in (concern, frame, took, not_about) if x]
                 grouping = box.get_by_test_id("insights-grouping")
                 boxes.append({
                     "key": box.get_attribute("data-dim"), "status": box.get_attribute("data-status"),
                     "state": box.get_attribute("data-state"), "dissent": box.get_attribute("data-dissent") == "true",
                     "head": _tc(box.locator(".rp-ihead")), "concern": concern, "frame": frame or None,
+                    "not_about": not_about,
                     "themes": themes, "text": text,
                     "split": fake.SPLIT_NOTE if fake.SPLIT_NOTE in text else None,
                     "took_by": took or None,
@@ -2989,7 +3032,7 @@ class Answers:
                 follow_ups[key] = [{"name": _safe_text(lambda li=li: li.locator("span").nth(0).inner_text()).strip(),
                                     "line": _tc(li.locator(".dimpeople__follow")) or None}
                                    for li in row.locator("ul.dimpeople li").all()]
-            said = {}
+            said, bars, row_text = {}, {}, {}
             for key in said_rows or ():
                 row = self.page.locator(f".dimrow[id='{key}']").first
                 head = row.locator("button.dimrow__head")
@@ -2998,11 +3041,17 @@ class Answers:
                     head.first.click()
                     body.first.wait_for(state="visible", timeout=10_000)
                 said[key] = _first_text(row, ".dimrow__said") or None
+                # spec 076 FR-1 (keel-cloud 145 FR-1, keel-web 127 FR-5): the row's bars as drawn -- each label and
+                # whether it is muted (`li.dimbar--muted`: not the founder's), and the row's whole words
+                bars[key] = [{"label": _first_text(li, "span"), "muted": "dimbar--muted" in (li.get_attribute("class")
+                                                                                            or "")}
+                             for li in row.locator("ul.dimbars li.dimbar").all()]
+                row_text[key] = _words(row)
             text = _text(self.page)
             h.capture_text("stage_screen", text)
             h.add_screenshot(self._b.screenshot(f"vector-{vector.lower()}"))
             return {"rows": rows, "text": text, "people": people, "open_row": open_row, "follow_ups": follow_ups,
-                    "said": said,
+                    "said": said, "bars": bars, "row_text": row_text,
                     "keel_bars": self.page.locator(".dimrow__said--keel").count(),
                     "headline": _first_text(self.page, "p.answers__headline"),
                     "decider_banner": _first_text(self.page, "p.decider-banner")}

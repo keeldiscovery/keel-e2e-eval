@@ -2506,15 +2506,17 @@ def leg_invite(j: Journey) -> None:
         assert me_after.get("walkthroughSeenAt"), me_after
     for person in j.people:
         kind = vs.LINK_B2B if person.link == vs.LINK_B2B else vs.LINK_PRIMARY
-        about = None if kind == vs.LINK_B2B else f"{primary.get('label')}, asked about one real time."
-        made = sent.send_someone(j.project_id, labels[kind], person.person, about)
+        made = sent.send_someone(j.project_id, labels[kind], person.person)
         link = ((made["batch"] or {}).get("links") or [{}])[0]
-        with _step(j, f"{person.person}: one link on the {kind} kind, handed back once and drawn as it came",
-                   party="founder") as h:
-            h.record_assert({"status": 201, "format": "TEXT", "drawn": link.get("url"), "personName": person.person},
+        with _step(j, f"{person.person}: one link on the {kind} kind, handed back once and drawn as it came -- Someone I "
+                      "know is the name alone, no about sent (keel-web 127 FR-1)", party="founder") as h:
+            h.record_assert({"status": 201, "format": "TEXT", "drawn": link.get("url"), "personName": person.person,
+                             "about boxes": 0, "people sent": [{"personName": person.person}]},
                             {"status": made["status"], "format": (made["batch"] or {}).get("format"),
-                             "drawn": made["url"], "link": link, "formats": made["formats"]})
+                             "drawn": made["url"], "link": link, "formats": made["formats"],
+                             "about boxes": made.get("about_boxes"), "sent": made.get("sent")})
             assert made["status"] == 201 and (made["batch"] or {}).get("format") == "TEXT", made
+            assert name_alone_faults(made, person.person) == [], name_alone_faults(made, person.person)
             assert made["url"] == link.get("url") and link.get("personName") == person.person, made
             # keel-web 069: *Text only*; on their own AI the other two greyed *needs Keel's credits*
             assert made["formats"].get(iv_screens.TEXT_ONLY, {}).get("checked") is True, made["formats"]
@@ -2759,7 +2761,9 @@ def _answer_one(j: Journey, person, token: str) -> None:
         # item it hangs on, at most two, the end's only for a rung still owed, every one under *One more thing* --
         # and on each the line the person types for that rung (`vs.follow_up_line`), None a skip
         inside = getattr(person, "in_segment", True)
-        walks_rungs = person.link == vs.LINK_B2B or bool(person.recency and inside)
+        # spec 076 FR-5 (keel-web 127 FR-3): a story chip ends the interview at the gate -- no item, no follow-up route
+        walks_rungs = person.link == vs.LINK_B2B or bool(person.recency and inside
+                                                              and not getattr(person, "ends_on_chip", False))
         deciding = _deciding_now(j) if walks_rungs else []
         # spec 075 (judgement call): one person a golden journey has their call after their rung's item held past the
         # beat, so the end's follow-up is met too
@@ -3126,6 +3130,143 @@ def _want_follow_ups(plan: list[dict], lines: dict) -> list[dict] | None:
     return out or None
 
 
+def condition_screen_faults(interview: dict, screens: list, *, inside: bool = True) -> list:
+    """Spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): on a decision-maker's link that serves `condition`, the
+    first screen is the screener -- the served question as its heading, Yes / No, no kicker, no Back, *Continue* off
+    until answered and on after -- and the idea comes right after it (inside), or nothing does (outside: the exit). A
+    link with no `condition` opens on the idea, as before."""
+    condition = interview.get("condition")
+    first = screens[0] if screens else {}
+    if not condition:
+        return [{"a screener drawn on a link that serves none": first}] if first.get("screen") == "condition" else []
+    faults = []
+    want = {"screen": "condition", "question": condition.get("question"), "kicker": None,
+            "options": [vs_screens.IV_CHIP_WORD["YES"], vs_screens.IV_CHIP_WORD["NO"]], "continue_before": False,
+            "continue_after": True, "back": 0}
+    have = {k: ([o.strip() for o in first.get(k) or []] if k == "options" else first.get(k)) for k in want}
+    if have != want:
+        faults.append({"screener": have, "want": want})
+    after = [x.get("screen") for x in screens[1:2]]
+    if after != (["idea"] if inside and interview.get("idea") else []):
+        faults.append({"after the screener": after, "want": "idea" if inside else "nothing (the exit)"})
+    return faults
+
+
+#: keel-web `ExitScreen`'s heading (`INTERVIEW_DONE_TITLE`): the gate's No, outside, and since 127 a story chip.
+EXIT_TITLE = "That's it."
+#: Spec 076 FR-4: the decision-maker who answers the screener outside -- no corpus person (the twenty are inside), walked
+#: after the golden numbers are held, so no standing above moves but `outsideSegment`.
+OUTSIDE_DECIDER = "Odile Marchetti"
+
+
+def leg_outside_decider(j: Journey) -> dict:
+    """Spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): one more decision-maker's link, made on Sent (the name
+    alone), whose screener is answered outside the people the founder described: the screener is the link's first screen
+    (`condition_screen_faults`), *Continue* sends `{outsideSegment: true, answers: []}` alone (201) and lands on the
+    exit, with no idea, no item and no pilot box; the standings count them apart (`outsideSegment` + 1) and no
+    commercial line's `n` moves."""
+    from harness import interviews_screens as ivs_mod                  # noqa: PLC0415
+    before = j.get(j.project("/standings")) or {}
+    commercial = lambda st: {d.get("dimension"): d.get("n") for v in st.get("vectors") or []  # noqa: E731
+                             for d in v.get("dimensions") or [] if (d.get("dimension") or "").startswith("commercial.")}
+    labels = {k.get("respondentType"): k.get("label") for k in (j.get(j.project("/invitations")) or {}).get("kinds") or []}
+    sent = ivs_mod.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
+    made = sent.send_someone(j.project_id, labels[vs.LINK_B2B], OUTSIDE_DECIDER)
+    token = (made.get("url") or "").rstrip("/").rsplit("/", 1)[-1]
+    person = vs.PersonInputs(person=OUTSIDE_DECIDER, link=vs.LINK_B2B, recency=None, story=None, anchor_chip=None,
+                             picks=[], pilot_opt_in=False, anchoring=None, in_segment=False)
+    stranger = j.browser.new_context()
+    try:
+        interview = stranger.request.get(f"{j.cloud_base}/v2/i/{token}/interview", timeout=20_000).json()
+        page = stranger.new_page()
+        screens = vs_screens.Interview(page, j.recorder)
+        screens.open(made["url"])
+        walked = screens.walk(person, interview, {})
+    finally:
+        stranger.close()
+    after = j.get(j.project("/standings")) or {}
+    want_condition = vs.decider_condition(j.entry)
+    record = {"made": {k: made.get(k) for k in ("url", "status", "sent", "about_boxes")}, "condition": interview.get(
+        "condition"), "want": want_condition, "body": walked.get("body"), "status": walked.get("status"),
+        "screens": walked.get("screens"), "done": walked.get("done"), "done_screen": walked.get("done_screen"),
+        "pilot_box": walked.get("pilot_box"), "outsideSegment": [before.get("outsideSegment"),
+                                                                 after.get("outsideSegment")],
+        "commercial n": [commercial(before), commercial(after)]}
+    with _step(j, f"{OUTSIDE_DECIDER}: the decision-maker's screener answered outside -- outsideSegment alone, the exit, "
+                  "counted apart, no commercial line moved (keel-cloud 145 FR-4b, keel-web 127 FR-2)",
+               party="participant") as h:
+        h.record_assert({"condition": want_condition, "body": {"outsideSegment": True, "answers": []}, "status": 201,
+                         "screens": ["condition"], "outsideSegment": "+1", "commercial n": "unchanged"}, record)
+        assert name_alone_faults(made, OUTSIDE_DECIDER) == [], name_alone_faults(made, OUTSIDE_DECIDER)
+        assert interview.get("kind") == "COMMERCIAL_LINK" and interview.get("condition"), interview.get("condition")
+        if j.strict:
+            assert interview["condition"] == want_condition, (interview["condition"], want_condition)
+        assert condition_screen_faults(interview, walked.get("screens") or [], inside=False) == [], \
+            condition_screen_faults(interview, walked.get("screens") or [], inside=False)
+        assert [x.get("screen") for x in walked.get("screens") or []] == ["condition"], walked.get("screens")
+        assert walked.get("status") == 201, walked.get("status")
+        assert _normal_body(walked.get("body") or {}) == _normal_body({"outsideSegment": True, "answers": []}), \
+            walked.get("body")
+        # the exit (`ExitScreen`, *That's it.*), as a gate No's -- never the thank-you
+        assert (walked.get("done") or "").strip() == EXIT_TITLE and walked.get("done_screen") is False \
+            and not walked.get("pilot_box"), record
+        assert int(after.get("outsideSegment") or 0) == int(before.get("outsideSegment") or 0) + 1, record
+        assert commercial(after) == commercial(before), record
+    j.standings = after
+    return record
+
+
+def hold_not_about_this(j: Journey) -> dict:
+    """Spec 076 FR-6 (keel-cloud 145 FR-6, keel-web 127 FR-4): the answer the script groups NOT_ABOUT_THIS (S-005: Priya
+    Natarajan's *Meow, you are a fool.* on Current solution) is off its Insights box -- `notAboutThis` 1, the page's
+    *1 answer was not about this.* under the groups, the words in no theme and no quote -- and still served and drawn
+    under the person: the stage page's row and the Pilot list."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    junk = dict(vs.junk_follow_ups(j.entry, j.people))
+    standings = j.get(j.project("/standings")) or j.standings
+    insights = {i.get("dimension"): i for i in standings.get("insights") or []}
+    boxes = {b.get("key"): b for b in (j.screens.get("insights") or {}).get("boxes") or []}
+    who = next(iter(vs.JUNK_FOLLOW_UPS.get(j.entry.id) or {}), None)
+    pilot = next((p for p in (j.screens.get("pilot") or {}).get("people") or [] if who and who in (p.get("summary")
+                                                                                                    or "")), {})
+    record = {}
+    with _step(j, f"{who}: an answer not about the question is off the Insights box -- counted, the muted line drawn -- "
+                  "and still under the person (keel-cloud 145 FR-6, keel-web 127 FR-4)", party="founder") as h:
+        for rung, text in junk.items():
+            insight = insights.get(rung) or {}
+            row = next((d for v in standings.get("vectors") or [] for d in v.get("dimensions") or []
+                        if d.get("dimension") == rung), {})
+            mine = next((p for p in row.get("people") or [] if p.get("personName") == who), {})
+            box = boxes.get(rung) or {}
+            record[rung] = {"notAboutThis": insight.get("notAboutThis"), "state": insight.get("state"),
+                            "line": box.get("not_about"), "quotes": [q.get("text") for q in insight.get("quotes") or []],
+                            "themes": [t.get("label") for t in insight.get("themes") or []],
+                            "under the person": mine.get("followUp"), "pilot": pilot.get("inside")}
+        h.record_assert({rung: {"notAboutThis": 1, "line": fake.not_about_this_line(1), "under the person": text}
+                         for rung, text in junk.items()}, record)
+        assert junk, "no answer not about this was scripted on this journey"
+        for rung, text in junk.items():
+            x = record[rung]
+            assert x["state"] == "GROUPED" and x["notAboutThis"] == 1, x
+            assert report_marks.ov.norm(x["line"]) == fake.not_about_this_line(1), x
+            assert text not in x["quotes"] and fake.NOT_ABOUT_THIS not in x["themes"], x
+            assert x["under the person"] == text, x
+            assert text in report_marks.ov.norm(x["pilot"]), x
+    return record
+
+
+def name_alone_faults(made: dict, person: str) -> list:
+    """Spec 076 FR-3 (keel-web 127 FR-1): *Send more > Someone I know* is the name alone -- no second box drawn, and the
+    batch sent `people: [{personName}]`, no `about`."""
+    faults = []
+    if made.get("about_boxes"):
+        faults.append({"about boxes drawn": made.get("about_boxes")})
+    people = (made.get("sent") or {}).get("people")
+    if people != [{"personName": person}]:
+        faults.append({"people sent": people, "want": [{"personName": person}]})
+    return faults
+
+
 def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None:
     """keel-web 064, held to the wire on every journey: the decision-maker's link opens with the idea's
     three lines under the served kicker (D9); the gate's story chip is *I can't recall one particular
@@ -3144,8 +3285,11 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
         faults = []
         screens = walked["screens"]
         idea = interview.get("idea")
-        if interview.get("kind") == "COMMERCIAL_LINK" and idea:
-            first = screens[0] if screens else {}
+        if interview.get("kind") == "COMMERCIAL_LINK":
+            # spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): the screener first where served, before the idea
+            faults += condition_screen_faults(interview, screens, inside=getattr(person, "in_segment", True))
+        if interview.get("kind") == "COMMERCIAL_LINK" and idea and getattr(person, "in_segment", True):
+            first = next((s for s in screens if s.get("screen") == "idea"), {})
             if first.get("screen") != "idea" or first.get("kicker") != idea.get("kicker") \
                     or (idea.get("what") or "") not in (first.get("card") or ""):
                 faults.append({"idea screen": first, "served": idea})
@@ -3440,9 +3584,57 @@ def leg_standings(j: Journey) -> None:
             _vector_page(j, vector)
         return
     hold_standings(j)
+    hold_the_chip_people(j)
     _board(j)
     for vector in VECTORS:
         _vector_page(j, vector)
+
+
+#: keel-cloud 145 FR-5 (`VectorEvidence.endedOn`): the people rows' words where a story chip ended the interview.
+ENDED_ON = {"CANT_RECALL": "Couldn't recall one particular {occasion}", "RATHER_NOT_SAY": "Would rather not say"}
+
+
+def ended_on(chip: str, occasion: str | None) -> str:
+    return ENDED_ON[chip].format(occasion=(occasion or "").strip())
+
+
+def chip_people_faults(standings: dict, people: list, interviews: dict) -> tuple[list, dict]:
+    """Spec 076 FR-5 (keel-cloud 145 FR-5): a person whose story chip ended the interview is a Yes on Prevalence, asked
+    with no reading on part 1's other lines -- their row there reads *Couldn't recall one particular {occasion}* / *Would
+    rather not say*, never for or against -- and never on a solution or money line. Returns (faults, what was read)."""
+    faults, seen = [], {}
+    rows = [(v.get("vector"), d) for v in standings.get("vectors") or [] for d in v.get("dimensions") or []]
+    for person in people:
+        if not getattr(person, "ends_on_chip", False):
+            continue
+        words = ended_on(person.anchor_chip, (interviews.get(person.person) or {}).get("occasion"))
+        mine = {d.get("dimension"): next((p for p in d.get("people") or [] if p.get("personName") == person.person),
+                                         None) for _, d in rows}
+        seen[person.person] = {"words": words, "rows": {k: (v or {}).get("readAs") for k, v in mine.items() if v}}
+        problem = [d.get("dimension") for vector, d in rows if vector == "PROBLEM"
+                   and d.get("dimension") != "problem.prevalence" and d.get("status") != "LEFT_OUT"]
+        for key in problem:
+            if mine.get(key) is None or mine[key].get("readAs") != words:
+                faults.append({person.person: key, "read": (mine.get(key) or {}).get("readAs"), "want": words})
+        for vector, d in rows:
+            if vector != "PROBLEM" and mine.get(d.get("dimension")) is not None:
+                faults.append({person.person: d.get("dimension"), "listed past part 1": mine[d.get("dimension")]})
+    return faults, seen
+
+
+def hold_the_chip_people(j: Journey) -> None:
+    """Spec 076 FR-5: every person whose story chip ended their interview, on the wire's people rows."""
+    if not any(getattr(p, "ends_on_chip", False) for p in j.people):
+        return
+    faults, seen = chip_people_faults(j.standings, j.people, j.interviews)
+    with _step(j, "a story chip ended the interview: the person's part-1 rows read Couldn't recall one particular "
+                  "{occasion} / Would rather not say, and no solution or money line lists them (keel-cloud 145 FR-5)",
+               party="stack", kind="assert" if j.strict else "note") as h:
+        h.record_assert({"faults": []}, {"faults": faults, "read": seen})
+        if j.strict:
+            assert not faults, faults
+    if faults and not j.strict:
+        _found(j, "a story chip ended the interview (keel-cloud 145 FR-5)", faults)
 
 
 def _await_standings(j: Journey) -> None:
@@ -3677,21 +3869,50 @@ KEEL_READINGS = ("your price as paid out of the gain", "your price against what 
                  "your price as paid only from what comes back", "your price against where the money would come from")
 
 
+def budget_bars_faults(row: dict, drawn_bars: list, row_text: str, b2b: bool) -> list:
+    """Spec 076 FR-1 (keel-cloud 145 FR-1, keel-web 127 FR-5): on Ability to pay read off the budget question -- its said
+    line the counts sentence alone -- the served `choice.founderCodes` are the budget supports among the options and
+    each of those options `founderNamed`; the page draws exactly those bars on and the rest muted; no *which you didn't
+    name* on the row. [] where the row is read another way (nothing to hold here)."""
+    if (row.get("founderSaid") or "") != vs_screens.COUNTS_SENTENCE[b2b]:
+        return []
+    choice = row.get("choice") or {}
+    options = choice.get("optionCounts") or []
+    supports = [o.get("code") for o in options if o.get("code") in vs_screens.BUDGET_SUPPORTS]
+    faults = []
+    if sorted(choice.get("founderCodes") or []) != sorted(supports):
+        faults.append({"founderCodes": choice.get("founderCodes"), "want": supports})
+    named = [o.get("code") for o in options if o.get("founderNamed")]
+    if sorted(named) != sorted(supports):
+        faults.append({"founderNamed": named, "want": supports})
+    want_drawn = [{"label": o.get("label"), "muted": o.get("code") not in vs_screens.BUDGET_SUPPORTS} for o in options]
+    if [{"label": b.get("label"), "muted": b.get("muted")} for b in drawn_bars or []] != want_drawn:
+        faults.append({"bars drawn": drawn_bars, "want": want_drawn})
+    if vs_screens.DIDNT_NAME in (row_text or ""):
+        faults.append({"sub-line": vs_screens.DIDNT_NAME})
+    return faults
+
+
 def _hold_the_ability_line(j: Journey, row: dict, page: dict) -> None:
     """Spec 075 FR-2 (keel-cloud 141 FR-1, FR-2): Ability to pay's said line on the money page is the served
     `founderSaid`, and a reading Keel derived is said as Keel's -- *Keel reads your price ...* -- never *You said your
-    price ...*; read off the budget question, its second sentence says which answers count (B2B or consumer)."""
+    price ...*. Spec 076 FR-1 (keel-cloud 145 FR-1): read off the budget question, the said line is the counts sentence
+    alone (B2B or consumer), and its bars say which answers count (`budget_bars_faults`)."""
     said = row.get("founderSaid") or ""
     drawn = (page.get("said") or {}).get(ABILITY)
-    budget = "Keel reads your price against where the money would come from."
+    counts = vs_screens.COUNTS_SENTENCE[vs.is_b2b(j.entry)]
     with _step(j, "the money page: Ability to pay's said line is Keel's reading, never You said -- and off the budget "
-                  "question, which answers count (keel-cloud 141)", party="founder") as h:
-        h.record_assert({"drawn": said, "counts": vs_screens.COUNTS_SENTENCE[vs.is_b2b(j.entry)]
-                         if said.startswith(budget) else None}, {"drawn": drawn, "founderSaid": said})
+                  "question the counts sentence alone, its supports drawn on (keel-cloud 141, 145 FR-1)",
+               party="founder") as h:
+        faults = budget_bars_faults(row, (page.get("bars") or {}).get(ABILITY), (page.get("row_text") or {}).get(
+            ABILITY), vs.is_b2b(j.entry))
+        h.record_assert({"drawn": said, "budget": said == counts, "faults": []},
+                        {"drawn": drawn, "founderSaid": said, "choice": row.get("choice"),
+                         "bars": (page.get("bars") or {}).get(ABILITY), "faults": faults})
         assert report_marks.ov.norm(drawn) == report_marks.ov.norm(said), {"drawn": drawn, "served": said}
         assert not any(said.startswith("You said " + r) for r in KEEL_READINGS), said
-        if said.startswith(budget):
-            assert said == budget + " " + vs_screens.COUNTS_SENTENCE[vs.is_b2b(j.entry)], said
+        assert not said.startswith("Keel reads your price against where the money would come from."), said
+        assert not faults, faults
 
 
 BUYER = "commercial.buyer_payer_alignment"

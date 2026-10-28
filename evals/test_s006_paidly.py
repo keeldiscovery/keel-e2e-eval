@@ -58,10 +58,29 @@ def _paidly_extras(j, sample: sample_export.Pending | None = None) -> None:
             assert kinds[p.person] == "COMMERCIAL_LINK" and parts[p.person] == [3], p.person
             assert not j.interviews[p.person].get("gate"), p.person
 
-    with j.recorder.step("S-006: each decision-maker's link opens with the idea's three lines (D9) and asks "
-                         "Ability to pay and Purchase friction; each translator's kicker counts two parts",
+    # spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): 05-paidly's people carry a condition (*who work mostly
+    # for agencies*) and its persona is SOMEONE_ELSE, so every decision-maker's link serves the screener, in the third
+    # person about the people they decide for, and asks it first -- before the idea; the translators' part-1 chip as before
+    with j.recorder.step("S-006: each decision-maker's link serves the screener -- the condition about the translators "
+                         "they decide for -- and asks it before the idea; each answered inside (keel-cloud 145 FR-4b)",
                          party="participant", kind="assert") as h:
-        firsts = {p.person: (j.walked[p.person]["screens"] or [{}])[0] for p in deciders}
+        want = vs.decider_condition(j.entry)
+        served = {p.person: j.interviews[p.person].get("condition") for p in deciders}
+        drawn = {p.person: [s_.get("screen") for s_ in j.walked[p.person]["screens"][:2]] for p in deciders}
+        h.record_assert({"condition": want, "screens": ["condition", "idea"]}, {"served": served, "drawn": drawn,
+                                                                               "primary chip": vs.chip_of(j.entry)})
+        assert want and want["question"].startswith("Do the ") and " you decide for " in want["question"], want
+        for p in deciders:
+            assert served[p.person] == want, (p.person, served[p.person])
+            assert drawn[p.person] == ["condition", "idea"], (p.person, drawn[p.person])
+        for p in primary:
+            assert not j.interviews[p.person].get("condition"), p.person
+
+    with j.recorder.step("S-006: each decision-maker's link shows the idea's three lines (D9) right after the screener "
+                         "and asks Ability to pay and Purchase friction; each translator's kicker counts two parts",
+                         party="participant", kind="assert") as h:
+        firsts = {p.person: next((s_ for s_ in j.walked[p.person]["screens"] if s_.get("screen") == "idea"), {})
+                  for p in deciders}
         kickers = {p.person: [s.get("kicker") for s in j.walked[p.person]["screens"] if s.get("screen") == "item"]
                    for p in primary if j.walked[p.person]["screens"][1:]}
         b2b_asked = {p.person: [i.get("dimension") for q in j.interviews[p.person].get("parts") or []
@@ -152,6 +171,9 @@ def _paidly_extras(j, sample: sample_export.Pending | None = None) -> None:
     # Spec 043 (keel-cloud 093, contract 15): the decision-makers found through Contacts, on the wire, last -- its one
     # answer moves no standing this module holds above.
     contacts_leg.leg_contacts(j)
+    # Spec 076 FR-4: one more decision-maker answers the screener outside -- after the contacts leg (which counts the
+    # decision-makers' kind), before the AI interviewer's links; it moves `outsideSegment` alone
+    corpus_scenario.leg_outside_decider(j)
     # Spec 044 (keel-cloud 094, contract 16; keel-web 069): the AI interviewer, recorded on Keel's door after the
     # contacts leg -- its two answered links come last too, and move no standing held above.
     interviewer_leg.leg_interviewer(j)

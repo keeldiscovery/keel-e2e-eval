@@ -69,6 +69,9 @@ def _countly_extras(j) -> None:
         assert frequency.get("status") == "HOLDING_UP" and frequency.get("n") == 8, frequency
         assert "4 weeks" in j.framing["problem.frequency"][0]["question"], j.framing["problem.frequency"]
 
+    # Spec 076 FR-6 (keel-cloud 145 FR-6, keel-web 127 FR-4): Priya Natarajan's follow-up is not about the question --
+    # the script groups it NOT_ABOUT_THIS, so the Insights box counts it apart and still shows it under her
+    corpus_scenario.hold_not_about_this(j)
     # Spec 043 (keel-cloud 093 D10): Contacts are B2B only; a consumer study is refused NOT_B2B, before the door.
     contacts_leg.leg_contacts_not_b2b(j)
     # Spec 044: the AI interviewer's short form on a consumer study -- the recording's charge, READY, one AI link.

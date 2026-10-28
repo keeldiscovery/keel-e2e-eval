@@ -547,7 +547,7 @@ def test_report_binding_fails_on_each_seeded_fault(fault, why):
 def test_v2_the_full_overview_draws_no_lead_and_page_one_keeps_it():
     """Spec 073 FR-3 (keel-web 113 FR-4): a lead line on the full Overview is report_overview's fault; on page one the
     lead lines are the sheet's own words (113 J-13), so none of them is a word no view shows."""
-    assert rm.REPORT_MARKS_VERSION == 2
+    assert rm.REPORT_MARKS_VERSION >= 2  # v3: spec 076 FR-6 (notAboutThis), held in test_founder_walk_076.py
     r = record()
     assert _card(r)["report_overview"].ok and _card(r)["report_binding"].ok
     one = r["binding"]["pages"][0]
@@ -797,13 +797,20 @@ def test_every_rung_scripts_its_one_line_and_any_partial_context_resolves(name):
     entries = vs.generate(entry).screens[vs.THEMES_SCREEN]
     assert [e.get("dimension") for e in entries] == list(fake.RUNGS) + [None]
     executor = runtime.ScriptedExecutor({"THEMES": entries})
+    # spec 076 FR-6: 01-countly's Priya Natarajan types an answer not about this on her one rung (Current solution);
+    # she answers first and keel-cloud starts no job on fewer than two answers, so every job there carries her words
+    junk = dict(vs.junk_follow_ups(entry, vs.person_inputs(entry)))
     for rung in fake.RUNGS:
         line = vs.FOLLOW_UP_LINES[rung][0]
         for n in (2, 3, 5):
             answers = [{"id": f"i{k}", "text": line} for k in range(n)]
+            if rung in junk:
+                answers = [{"id": "junk", "text": junk[rung]}] + answers[1:]
             got = executor.execute(_job(executor_mod, rung, vs.NAMES[rung], answers))
-            assert got["result"] == fake.themes(answers, vs.NAMES[rung]), (rung, n)
+            assert got["result"] == fake.themes_with_junk(answers, vs.NAMES[rung]), (rung, n)
             assert got["result"]["themes"][-1]["label"] != fake.ON_THEIR_OWN, (rung, n)
+            if rung in junk:
+                assert got["result"]["themes"][-1] == {"label": fake.NOT_ABOUT_THIS, "answerIds": ["junk"]}
 
 
 def test_the_healthy_project_scripts_the_catch_all_alone():

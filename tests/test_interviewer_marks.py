@@ -190,6 +190,20 @@ def _hear_band() -> dict:
             "after": {"still": True, "video": False, "videos": 1, "waited_ms": 0, "hearing": None}}
 
 
+
+def _story_chip() -> dict:
+    """Spec 076 FR-5: the AI link's chip walk as `_chip_ends_it` records it -- one chip-only response, nothing else."""
+    return {"walked": [{"question": "Do you run one or two sites?", "chip": None, "did": ["said 'yes'"]},
+                       {"question": "In the last 4 weeks, did a delivery not match its invoice?", "chip": None,
+                        "did": ["said 'yes'"]},
+                       {"question": "Tell me about the last one.", "chip": "I can't recall one particular delivery",
+                        "did": ["tap the story's chip"]}],
+            "chip": "I can't recall one particular delivery", "want_chip": "I can't recall one particular delivery",
+            "responses": [{"status": 201, "body": {"recency": True, "anchorChip": "CANT_RECALL", "answers": [],
+                                                   "pilotOptIn": False, "format": "AI_INTERVIEWER"}}],
+            "pilot_writes": 0, "follow_up_calls": [], "done": {"text": "Thank you", "tryRun": False},
+            "mic_off": {"shown": True}, "rows": {}, "row_faults": []}
+
 def good() -> dict:
     """A record as S-006's leg writes one: Chukwu at the first recording, Livia after the change, one fail-once
     retried (spec 058: Tito and Judy before)."""
@@ -322,6 +336,8 @@ def good() -> dict:
                   "presses": [{"kind": "press", "testid": "ai-save"}], "classified": 0, "held_phase_seen": True,
                   "held": {"status": HELD, "heard": "It was a Tuesday and the agency was late heard", "went_on": True},
                   "next": "Which fits?", "sent": "It was a Tuesday and the agency was late"},
+        # spec 076 FR-5 (IM22 v12): the story's chip on a second AI link ends it
+        "story_chip": _story_chip(),
         # spec 051: the one follow-up (IM23-IM27)
         # spec 075: two on the spot (Tom), a skip (Lena), the end's after a held call (Wen), none owed (Marcus)
         "follow_up": {"text": [_text_walk("Tom", [(IMP, IMP), (CUR, CUR)], {IMP: "Those two first.", CUR: "A check."}),
@@ -357,7 +373,7 @@ def test_a_good_record_meets_every_mark():
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
     assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 11
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 12
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -569,6 +585,16 @@ SEEDED = [
     ("IM22", ["story", "classified"], 1),                                                # the story classified
     ("IM22", ["story", "held", "heard"], "It was a Tuesday"),                            # words lost
     ("IM22", ["story", "held_phase_seen"], False),
+    # spec 076 FR-5 (IM22 v12): the story's chip on the AI link ends it -- answers sent with it, a follow-up asked, the
+    # pilot written, a second response, the chip's words wrong, the person on a money line
+    ("IM22", ["story_chip", "responses", 0, "body", "answers"], [{"itemId": "a", "optionIds": ["o"]}]),
+    ("IM22", ["story_chip", "responses", 0, "body", "story"], "It was a Tuesday"),
+    ("IM22", ["story_chip", "follow_up_calls"], [200]),
+    ("IM22", ["story_chip", "pilot_writes"], 1),
+    ("IM22", ["story_chip", "responses"], lambda r: r + [{"status": 201, "body": {}}]),
+    ("IM22", ["story_chip", "chip"], "I'd rather not say"),
+    ("IM22", ["story_chip", "row_faults"], [{"Someone": "commercial.price", "listed past part 1": {}}]),
+    ("IM22", ["story_chip", "mic_off", "shown"], False),
     ("IM22", ["story", "sent"], ""),                                                     # the story not sent
     # spec 051 / 075: the follow-ups
     ("IM23", ["follow_up", "text", 0, "routes", 1, "body", "dimension"], "problem.frequency"),  # the wrong rung asked

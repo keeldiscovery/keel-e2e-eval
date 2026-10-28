@@ -112,6 +112,8 @@ DRY_RUN_STORY = "Last spring we waited six weeks for one approved invoice to be 
 #: The words a dry run's story read as a miss before keel-web 126 (an empty transcript), and 126's free-window words.
 DRY_RUN_MISS_WORDS = (ivs.AI_REASON_NO_MATCH, ivs.AI_REASON_DIDNT_CATCH, ivs.AI_SECOND_MISS_FREE)
 CHOICE_PERSON = "Someone the founder knows, who picks"
+#: Spec 076 FR-5 (keel-cloud 145 FR-5, keel-web 127 FR-3): the AI link's person who taps the story's chip, which ends it.
+CHIP_PERSON = "Someone the founder knows, who can't recall one"
 #: Spec 048 (keel-cloud 099 FR-4 / FR-7): an AI link answered from the recorded path, on the wire.
 RECORDED_PERSON = "Someone the founder knows, whose browser records"
 #: keel-cloud 099 judgement call 1: under 12 KiB of audio/webm is silence -- never transcribed, never classified. One
@@ -283,6 +285,7 @@ def _leg(j, *, short: bool) -> dict:
             _backfill(j, wire, record)
             _dry_run(j, wire, record)
         _ai_link(j, wire, record, answer=True)
+        _chip_ends_it(j, wire, record)
         if not short:
             _choice_link(j, wire, record)
             _recorded_link(j, wire, record)
@@ -1122,12 +1125,12 @@ def _send_link(j, fmt: str, person: str) -> dict:
     """A link made on Sent's *Send more* (keel-web 069 S3): the format picked, *Someone I know*, the name, *Make their
     link* -- the batch keel-web received and the link it drew."""
     persona = _persona(j)
-    primary = next(t for t in (j.get(j.project("/persona")) or {}).get("respondentTypes") or []
-                   if not t.get("commercialLink"))
     sent = iv.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
-    about = f"{primary.get('label')}, asked about one real time."
     persona.sent(j.project_id)
-    made = sent.send_someone(j.project_id, _labels(j)[vs.LINK_PRIMARY], person, about, fmt=fmt)
+    # spec 076 FR-3 (keel-web 127 FR-1): Someone I know is the name alone -- no about typed or sent
+    made = sent.send_someone(j.project_id, _labels(j)[vs.LINK_PRIMARY], person, fmt=fmt)
+    from evals.corpus_scenario import name_alone_faults                 # noqa: PLC0415 - corpus_scenario imports this
+    assert name_alone_faults(made, person) == [], name_alone_faults(made, person)
     if made.get("retried"):
         # runs/DRIFT.md #88, RESOLVED by keel-web 070: a link refused 409 concurrency (an answer read on arrival moved the
         # project behind Sent) is read again and sent once more, silently -- the popup never shows the server's words.
@@ -1191,6 +1194,96 @@ def _ai_link(j, wire: _Wire, record: dict, *, answer: bool) -> None:
         _dry_run_transcribe(j, wire, record, interview)
     if answer:
         _answer_ai_on_screen(j, wire, record, made, interview)
+
+
+def _chip_ends_it(j, wire: _Wire, record: dict) -> None:
+    """Spec 076 FR-5 (keel-cloud 145 FR-5, keel-web 127 FR-3, contract 43): a second AI-interviewer link, made on Sent
+    (the name alone), answered on the stranger's own screen: the intro, *Test your mic*, *Start the interview*, the
+    segment's chip (where served) and the gate held "yes", then on the story the chip *I can't recall one particular
+    {occasion}* tapped -- which ends it: the windows closed, ONE `POST response` with the chip-only body (`recency: true`,
+    `anchorChip: CANT_RECALL`, no story, `answers: []`, `format: AI_INTERVIEWER`, no follow-ups), no follow-up route
+    call, no pilot ask and no pilot write, the thanks and the done screen, the microphone off. Then the people rows: a
+    Yes on Prevalence and *Couldn't recall one particular {occasion}* on part 1's other lines, never on a solution or
+    money line. Kept as `record["story_chip"]` (IM22, v12)."""
+    from evals import corpus_scenario as cs                            # noqa: PLC0415 - corpus_scenario imports this
+    made = _send_link(j, "AI_INTERVIEWER", CHIP_PERSON)
+    interview = _json_of(_participant(j, "GET", made["token"], "/interview"))
+    gate = interview.get("gate") or {}
+    condition = gate.get("condition") or {}
+    seen: dict = {}
+    routes: list = []
+
+    def keep(response) -> None:
+        if response.request.method != "POST":
+            return
+        name = response.url.split("?")[0].rsplit("/", 1)[-1]
+        if name in ("response", "pilot"):
+            seen.setdefault(name, []).append({"status": response.status, "body": response.request.post_data_json})
+        elif name == "follow-up":
+            routes.append(response.status)
+    stranger = j.browser.new_context()
+    stranger.add_init_script(ivs.SPEECH_SEAM)
+    stranger.add_init_script(ivs.FLOW_TIMELINE)
+    walked: list[dict] = []
+    try:
+        page = stranger.new_page()
+        page.on("response", keep)
+        player = ivs.Player(page, j.recorder, patience=j.patience)
+        with player.step("the stranger on a second AI link taps the story's chip, which ends the interview "
+                         "(keel-web 127 FR-3)") as h:
+            try:
+                player.open(made["url"])
+                player.mic_test("hello")
+                player.start()
+                walk = _Walk(player, interview, {"recency": True, "anchorChip": "CANT_RECALL", "answers": []})
+                chip = None
+                for _ in range(6):
+                    player.wait_phase("listening", "held", "confirming", timeout_s=40)
+                    player.wait_phase("listening", timeout_s=40)
+                    sheet = player.sheet()
+                    entry = {"question": sheet["question"], "chip": sheet.get("chip"), "did": []}
+                    walked.append(entry)
+                    if condition and sheet["question"] == condition.get("question"):
+                        walk.held(entry, "yes" if (condition.get("inCodes") or ["YES"])[0] == "YES" else "no")
+                        continue
+                    if sheet["question"] == gate.get("question"):
+                        walk.held(entry, "yes")
+                        continue
+                    chip = sheet.get("chip")
+                    player.tap_chip()
+                    entry["did"].append("tap the story's chip")
+                    break
+                done = player.done(timeout_s=40)
+                mic_off = player.mic_off()
+                h.add_screenshot(player.screenshot("ai-chip-done"))
+            except Exception:
+                h.add_screenshot(player.screenshot("ai-chip-stuck"))
+                h.record_wire({"stuck": True}, player.where_it_stood())
+                raise
+    finally:
+        stranger.close()
+    standings = j.get(j.project("/standings")) or {}
+    person = vs.PersonInputs(person=CHIP_PERSON, link=vs.LINK_PRIMARY, recency=True, story=None,
+                             anchor_chip="CANT_RECALL", picks=[], pilot_opt_in=False, anchoring=None)
+    rows, read = cs.chip_people_faults(standings, [person], {CHIP_PERSON: interview})
+    responses = seen.get("response") or []
+    x = record["story_chip"] = {
+        "walked": walked, "chip": chip, "want_chip": vs_screens_gate_chip(interview.get("occasion")),
+        "responses": responses, "pilot_writes": len(seen.get("pilot") or []), "follow_up_calls": routes,
+        "done": done, "mic_off": mic_off, "rows": read, "row_faults": rows}
+    with j.recorder.step("interviewer (keel-cloud 145 FR-5, keel-web 127 FR-3): the story's chip ends the AI "
+                         "interview -- one chip-only response, no follow-up, no pilot ask, the thanks and the "
+                         "microphone off; the person a Yes on Prevalence and Couldn't recall one particular {occasion} "
+                         "on part 1's other lines", party="participant", kind="assert") as h:
+        ok, why = marks.chip_ended_it(x)
+        h.record_assert({"ok": True}, {"ok": ok, **why})
+        assert ok, why
+
+
+def vs_screens_gate_chip(occasion: str | None) -> str:
+    """keel-web `gateChipWord`: *I can't recall one particular {occasion}*."""
+    from harness import vectors_screens                                 # noqa: PLC0415
+    return vectors_screens.gate_chip_word(occasion)
 
 
 def _on_the_try(answers: list[dict], link: dict, tried: dict) -> list[dict]:

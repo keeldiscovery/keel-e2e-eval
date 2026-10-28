@@ -56,8 +56,11 @@ from instructions.brief_facts import BAR_LINES, BROKE_ON, DID_NOT_HOLD, _plain, 
 #: Bumped whenever a mark is born, retired, or reads its record differently.
 #: v1 (spec 052): the five born. v2 (spec 073 FR-3, keel-web 113 FR-4): the panel lead line leaves the full Overview --
 #: `report_overview` holds it absent there (the rows carry the state as before) and `report_binding` holds it on page one,
-#: counted as the sheet's own words (113 J-13).
-REPORT_MARKS_VERSION = 2
+#: counted as the sheet's own words (113 J-13). v3 (spec 076 FR-6, keel-cloud 145 FR-6 + keel-web 127 FR-4, contract 43):
+#: `report_insights` reads `InsightView.notAboutThis` -- an answer grouped NOT_ABOUT_THIS is off the box (no such theme,
+#: none of its words quoted, not in `answered`), counted there (on the scripted stack, the follow-ups the script groups
+#: so), and the page's *{n} answer(s) were not about this.* drawn under the groups exactly when n > 0.
+REPORT_MARKS_VERSION = 3
 
 # ------------------------------------------------------------------------- the Pilot view's words (as 077)
 
@@ -438,6 +441,8 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
             faults.append({key: "asked + tookBy != against", "insight": insight})
         themes = insight.get("themes") or []
         state = insight.get("state")
+        faults += not_about_this_faults(standings, key, insight, next((b for b in boxes if b.get("key") == key), {}),
+                                        strict=strict)
         if state not in ("GROUPING", "GROUPED", "RAW"):
             faults.append({key: "state", "served": state})
         if themes and state != "GROUPED":
@@ -534,6 +539,31 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
             faults.append({"empty state": page.get("empty"), "want": want_empty, "boxes": len(boxes)})
     elif page.get("empty"):
         faults.append({"empty state drawn beside boxes": page.get("empty")})
+    return faults
+
+
+def not_about_this_faults(standings: dict, key: str, insight: dict, box: dict, *, strict: bool) -> list:
+    """Spec 076 FR-6 (keel-cloud 145 FR-6, keel-web 127 FR-4): an answer grouped NOT_ABOUT_THIS is off the box -- no
+    theme of that label, none of its words among the box's quotes or themes, not in `answered` -- and counted in
+    `notAboutThis`; the page draws *{n} answer(s) were not about this.* under the groups when n > 0, nothing at 0. On
+    the scripted stack the count is the people's follow-ups on the line the script groups so (`NOT_ABOUT_THIS_TEXTS`),
+    and each is still served under its person."""
+    faults = []
+    # a box recorded before contract 43 carries no count: read as 0, as keel-web reads it
+    n = int(insight.get("notAboutThis") or 0)
+    if any(t.get("label") == fake.NOT_ABOUT_THIS for t in insight.get("themes") or []):
+        faults.append({key: "a NOT_ABOUT_THIS theme served in the box", "themes": insight.get("themes")})
+    junk = [a for a in follow_up_answers(standings, key) if a["text"] in fake.NOT_ABOUT_THIS_TEXTS]
+    served = [q.get("text") for q in list(insight.get("quotes") or []) + [q for t in insight.get("themes") or []
+                                                                         for q in t.get("quotes") or []]]
+    if any(t in fake.NOT_ABOUT_THIS_TEXTS for t in served):
+        faults.append({key: "an answer not about this is quoted in the box", "quotes": served})
+    if strict and insight.get("state") == "GROUPED" and n != len(junk):
+        faults.append({key: "notAboutThis is not the answers the script grouped NOT_ABOUT_THIS", "served": n,
+                       "want": len(junk), "under the people": [a["text"] for a in junk]})
+    want_line = fake.not_about_this_line(n) if n > 0 else None
+    if box and ov.norm(box.get("not_about")) != ov.norm(want_line):
+        faults.append({key: "the not-about-this line", "drawn": box.get("not_about"), "want": want_line})
     return faults
 
 
