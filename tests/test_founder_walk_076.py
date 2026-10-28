@@ -194,13 +194,15 @@ def test_the_decision_makers_screener_is_codes_third_person_question():
 
 
 def test_which_journey_entries_serve_the_screener(corpus):
-    """Spec 076 FR-4: of the journey entries only 05-paidly is SOMEONE_ELSE with a condition (S-006, and S-014's
-    healthy copy); 06-repeatline and 07-mulchrun carry none, 01-04 are SAME_PERSON."""
+    """Spec 076 FR-4: of the journey entries 05-paidly is SOMEONE_ELSE with a condition (S-006, and S-014's healthy
+    copy); 01-04 are SAME_PERSON. Spec 077 (keel-cloud 146): 05-paidly's screener names *the people* once (DRIFT #99
+    closed), and 07-mulchrun now serves one too -- its place condition drawn by code on the confirm (146 FR-1); the
+    entries are held in `tests/test_drawn_screener_seams_077.py`."""
     from harness import vectors_script as vs                           # noqa: PLC0415
     served = {e.id: vs.decider_condition(e) for e in corpus.entries}
-    assert [k for k, v in served.items() if v] == ["05-paidly"]
-    assert served["05-paidly"] == {"question": "Do the freelance translators working for agencies you decide for work "
-                                               "mostly for agencies?", "inCodes": ["YES"]}
+    assert [k for k, v in served.items() if v] == ["05-paidly", "07-mulchrun"]
+    assert served["05-paidly"] == {"question": "Do the people you decide for work mostly for agencies?",
+                                   "inCodes": ["YES"]}
 
 
 def _person(**over):
@@ -220,8 +222,7 @@ def test_an_outside_decision_maker_sends_outside_segment_alone():
 
 
 def test_the_screener_screen_is_first_and_the_idea_after_it():
-    condition = {"question": "Do the freelance translators working for agencies you decide for work mostly for "
-                             "agencies?", "inCodes": ["YES"]}
+    condition = {"question": "Do the people you decide for work mostly for agencies?", "inCodes": ["YES"]}
     drawn = {"screen": "condition", "question": condition["question"], "kicker": None, "options": ["Yes", "No"],
              "continue_before": False, "continue_after": True, "back": 0}
     interview = {"kind": "COMMERCIAL_LINK", "condition": condition, "idea": {"kicker": "k"}}

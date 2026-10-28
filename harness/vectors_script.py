@@ -57,6 +57,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
+from harness import qualifiers
 from instructions import chain as chain_mod
 from instructions import corpus as corpus_reader
 from instructions.registry import COMMITMENT_KEY
@@ -327,22 +328,47 @@ SEGMENTS = {
                    "Do you ride thirty miles a week or more?", "YES"),
     "05-paidly": ("freelance translators in the US", "work mostly for agencies", "Do you work mostly for agencies?",
                   "YES"),
+    # spec 077 FR-1 (keel-cloud 146 FR-1): the condition keel-cloud draws on the confirm from the founder's WHICH PEOPLE
+    # (*in the Dallas-Fort Worth suburbs*, a place that is not the market's country) -- the fake writes none (`DRAWN`)
+    "07-mulchrun": ("landscaping crew leads in the Dallas-Fort Worth suburbs, spring season",
+                    "are based in the Dallas-Fort Worth suburbs", "Are you based in the Dallas-Fort Worth suburbs?",
+                    "YES"),
 }
+
+#: Spec 077 FR-1 (keel-cloud 145 FR-4a, 146 FR-1): the `SEGMENTS` rows whose condition is **code's**, drawn on the
+#: confirm from the founder's WHICH PEOPLE -- the scripted CONTEXT_INTERPRET writes the core alone (`scripted_segment`),
+#: the confirmed context carries the condition (`segment_of`), and the part-1 job, handed it, writes the chip.
+DRAWN = frozenset({"07-mulchrun"})
 
 
 def segment_of(entry) -> dict:
-    """`{core, condition}` as the scripted CONTEXT_INTERPRET writes it (keel-cloud 120 FR-2): the entry's own segment as
-    the core with no condition where `SEGMENTS` names none."""
+    """`{core, condition}` as the confirmed context stores it (keel-cloud 120 FR-2): the entry's own segment as the core
+    with no condition where `SEGMENTS` names none. Since spec 077 the condition of a `DRAWN` row is code's, drawn on the
+    confirm (keel-cloud 146 FR-1); every other row's is the model's, kept (145 judgement call 5)."""
     if entry.id in SEGMENTS:
         core, condition, _, _ = SEGMENTS[entry.id]
         return {"core": core, "condition": condition}
     return {"core": _ctx(entry)["segment"], "condition": None}
 
 
-def segment_line(entry) -> str:
-    """`ContextSlots.segmentLine()`: the core, then *, who {condition}* -- what the brief's header and every job read."""
+def scripted_segment(entry) -> dict:
+    """`{core, condition}` as the scripted CONTEXT_INTERPRET writes it: `segment_of`, but the core alone on a `DRAWN`
+    row (spec 077 FR-1: 07-mulchrun's condition is code's, never the fake's)."""
     seg = segment_of(entry)
-    return seg["core"] if not seg["condition"] else f"{seg['core'].strip()}, who {seg['condition']}"
+    return {"core": seg["core"], "condition": None} if entry.id in DRAWN else seg
+
+
+def card_condition(entry) -> str | None:
+    """The condition the context card draws before the confirm (*Only people who: ...*, keel-web 096): the result's,
+    so none on a `DRAWN` row."""
+    return scripted_segment(entry)["condition"]
+
+
+def segment_line(entry) -> str:
+    """`ContextSlots.segmentLine()` (keel-cloud 120, 146 FR-2): the core, then *, who {condition}* unless the core
+    already says the condition -- what the brief's header and every job read."""
+    seg = segment_of(entry)
+    return qualifiers.segment_line(seg["core"], seg["condition"])
 
 
 def chip_of(entry) -> dict | None:
@@ -354,8 +380,9 @@ def chip_of(entry) -> dict | None:
 
 
 def decider_chip(condition: str | None, actor_plural: str | None) -> str | None:
-    """keel-cloud 145 FR-4b (`RespondentQuestionsRules.deciderChip`, mirrored): the decision-maker's screener -- the
-    condition in the third person about the people they decide for (*Do the payroll practitioners you decide for run
+    """keel-cloud 145 FR-4b / 146 FR-3 (`RespondentQuestionsRules.deciderChip`, mirrored): the decision-maker's screener
+    -- the condition in the third person about the people they decide for, named once (`decider_people`): (*Do the
+    payroll practitioners you decide for run
     payroll for at least 50 employees?*, *Are the ... you decide for past the beginner stage?*); a condition about the
     organisation itself asked as it is (*work at a company with at least 50 employees* -> *Does your company have at
     least 50 employees?*; any other *work at / for ...* as part 1's chip, *Do you work at ...?*); held to the spoken cap
@@ -374,9 +401,23 @@ def decider_chip(condition: str | None, actor_plural: str | None) -> str | None:
     elif re.match(r"(?i)^works?\s+(?:at|for)\b", text):
         asked = f"Are you {be.group(1)}?" if be else f"Do you {text}?"
     else:
-        people = (actor_plural or "").strip() or "people"
+        people = decider_people(text, actor_plural)
         asked = f"Are the {people} you decide for {be.group(1)}?" if be else f"Do the {people} you decide for {text}?"
     return asked if _words(asked) <= STEM_MAX_WORDS else None
+
+
+def decider_people(clause: str, actor_plural: str | None) -> str:
+    """keel-cloud 146 FR-3 (`RespondentQuestionsRules.deciderPeople`, DRIFT #99 closed), mirrored: the people named
+    once before *you decide for* -- `actor_plural`'s head where its qualifier can be cut (*payroll practitioners who run
+    payroll ...* -> *payroll practitioners*; *landscaping crew leads in the Dallas suburbs* -> *landscaping crew
+    leads*), `actor_plural` whole where it carries none, *people* where the clause says what it says (*freelance
+    translators working for agencies* + *work mostly for agencies*) or none is handed."""
+    if actor_plural is None or not actor_plural.strip():
+        return "people"
+    cut = qualifiers.head(actor_plural)
+    if cut is not None:
+        return cut
+    return "people" if qualifiers.says(actor_plural, clause) else actor_plural.strip()
 
 
 def decider_condition(entry) -> dict | None:
@@ -389,39 +430,37 @@ def decider_condition(entry) -> dict | None:
     return {"question": question, "inCodes": ["YES"]} if question else None
 
 
-_RELATIVE = re.compile(r"(?i)\bwho\b")
-
-
 def _phrase(text) -> str:
-    out = " ".join(str(text or "").split())
-    while out and out[-1] in ".,;:":
-        out = out[:-1].strip()
-    return out
+    return qualifiers.phrase(text)
 
 
-def read_back(entry, *, window=True) -> str | None:
-    """keel-cloud 122 `ReadBack.sentence` over the scripted slots: *"<Segment>, when <when>, <what>, counting the last
-    <window>."* -- the core capitalised, the condition after *, who* (or * and* where the core has its own *who*), the
-    circumstance, the job, the window's words. What the context card serves since 122; never the model's line."""
-    seg = segment_of(entry)
-    segment, when, what = _phrase(seg["core"]), _phrase(_ctx(entry).get("circumstance")), _phrase(_ctx(entry).get("job"))
-    if when.lower().startswith("when "):
-        when = when[5:].strip()
+def sentence(segment_core, condition, circumstance, job, window: "Window | None") -> str | None:
+    """keel-cloud `ReadBack.sentence(core, condition, circumstance, job, window)`: *"<Segment>, when <when>, <what>,
+    counting the last <window>."* -- the segment as `ReadBack.segment` says it (the condition after *, who*, or *and*
+    where the core has its own *who*, and since keel-cloud 146 FR-2 not at all where the core already says it), the
+    circumstance after *when* said once (146 FR-4, `qualifiers.with_when`), the job, the window's words; None where the
+    segment, the circumstance or the job is missing."""
+    segment, when, what = _phrase(segment_core), _phrase(circumstance), _phrase(job)
     if not (segment and when and what):
         return None
-    who = _phrase(seg["condition"])
-    if who.lower().startswith("who "):
-        who = who[4:].strip()
-    out = segment[:1].upper() + segment[1:]
-    if who:
-        out += (" and " if _RELATIVE.search(segment) else ", who ") + who
-    out += f", when {when}, {what}"
+    said = qualifiers.segment(segment, condition)
+    out = f"{said[:1].upper()}{said[1:]}, {qualifiers.with_when(when)}, {what}"
+    return out + (f", counting the last {window_words(window)}." if window else ".")
+
+
+def read_back(entry, *, window=True, confirmed: bool = False) -> str | None:
+    """keel-cloud 122 `ReadBack.sentence` over the scripted slots -- what the context card serves since 122; never the
+    model's line. The card's is read off the result (`scripted_segment`); `confirmed` reads the stored context's
+    (`segment_of`: on a `DRAWN` row the condition code drew) -- since keel-cloud 146 FR-2 the two are the same sentence
+    wherever the core already says the drawn qualifier (07-mulchrun)."""
+    seg = segment_of(entry) if confirmed else scripted_segment(entry)
     # keel-cloud `ReadBack`: the window's clause is left out with its comma where the founder set none (spec 071: money
     # alone asks no window, keel-web 109 FR-3) -- and, since keel-cloud 135, wherever the scope serves no gate, whatever
     # window is stored (spec 072 FR-2, DRIFT #96 closed)
     if window is True:
         window = window_of(entry)
-    return out + (f", counting the last {window_words(window)}." if window else ".")
+    return sentence(seg["core"], seg["condition"], _ctx(entry).get("circumstance"), _ctx(entry).get("job"),
+                    window or None)
 
 
 def context_result(entry) -> dict:
@@ -429,7 +468,7 @@ def context_result(entry) -> dict:
     120), the plain occasion noun, `window.proposed` null; no `understands` -- the sentence is code's since 122."""
     ctx = _ctx(entry)
     return {"actor": ctx["actor"], "actor_plural": ctx["actor_plural"], "job": ctx["job"],
-            "circumstance": ctx["circumstance"], "segment": segment_of(entry), "occasion": occasion(entry),
+            "circumstance": ctx["circumstance"], "segment": scripted_segment(entry), "occasion": occasion(entry),
             "window": {"proposed": None}}
 
 

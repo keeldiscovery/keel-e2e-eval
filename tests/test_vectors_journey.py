@@ -106,7 +106,8 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     context = screens[vs.CONTEXT_SCREEN][0]["result"]
     # spec 064 FR-8c (keel-cloud 122): no `understands` -- the read-back is code's; FR-4 (120): the segment an object
     assert "understands" not in context and context["window"] == {"proposed": None}
-    assert context["segment"] == vs.segment_of(entry) and context["occasion"] == entry.context["occasion"]
+    # spec 077 FR-1: the fake writes the core alone where the condition is code's (07-mulchrun, keel-cloud 146 FR-1)
+    assert context["segment"] == vs.scripted_segment(entry) and context["occasion"] == entry.context["occasion"]
     part1 = screens[vs.RESPONDENT_SCREEN][0]["result"]
     assert part1.get("condition") == vs.chip_of(entry)
     assert screens[vs.PROBLEM_SCREEN][0]["result"]["statement"] == entry.interpretations["problem"]
@@ -611,11 +612,12 @@ def test_the_founder_clause_names_the_problem_and_the_gate_frames_it_within_twen
 
 def test_the_read_back_is_keel_clouds_assembled_sentence():
     """FR-8c (keel-cloud 122 `ReadBack.sentence`): with no condition scripted the golden read-backs are 122's table word
-    for word (06, 07); with the condition (FR-4) it follows the core after *, who*."""
+    for word (06, 07); with the condition (FR-4) it follows the core after *, who*. Spec 077 (keel-cloud 146 FR-2): 07's
+    condition, drawn by code on the confirm, is said in the core already, so the confirmed sentence is the card's."""
     assert vs.read_back(_entry("07-mulchrun")) == (
         "Landscaping crew leads in the Dallas-Fort Worth suburbs, spring season, when a job needs mulch and the crew has "
         "to fetch it from the supply yard, get the mulch onto the beds and the crew onto the next job, counting the last "
-        "2 weeks.")
+        "2 weeks.") == vs.read_back(_entry("07-mulchrun"), confirmed=True)
     assert vs.read_back(_entry("01-countly")) == (
         "Independent restaurant managers in the US, who run one or two sites, when a delivery does not match its "
         "invoice, keep the stock records matching what is on the shelves, counting the last 4 weeks.")
