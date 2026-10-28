@@ -479,7 +479,7 @@ from instructions import marks as marks_mod                                   # 
 
 
 def test_marks_and_revision_do_not_move():
-    assert marks_mod.MARKS_VERSION == 20 and corpus_mod.REVISION == 16
+    assert marks_mod.MARKS_VERSION == 21 and corpus_mod.REVISION == 16    # spec 078 (the `read` mark kind) moved it
 
 
 def test_the_decision_maker_s_idea_passage_opens_with_the_problem_sentence():
