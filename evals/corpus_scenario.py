@@ -2973,6 +2973,7 @@ def _hold_the_box(j: Journey, person, interview: dict, walked: dict, expected: d
                        # spec 075 FR-5 (keel-web 126 FR-4): the asking state, and the microphone kept, then let go
                        "asking": x.get("asking"), "asking_counts": x.get("asking_counts"),
                        "continue_enabled_asking": x.get("continue_enabled_asking"),
+                       "continue_while_asking": x.get("continue_while_asking"),
                        "released_at_done": x.get("released_at_done")})
         h.record_assert({"t2": {"state": "listening", "card": True, "wave": True, "clock": f"m:ss · up to "
                                                                                        f"{ivs.STORY_CAP}"},
@@ -2993,7 +2994,7 @@ def _hold_the_box(j: Journey, person, interview: dict, walked: dict, expected: d
         assert asking.get("cancel") and not asking.get("wave") and not asking.get("clock") and not asking.get("done"), \
             asking
         assert during.get("acquired") == 1 and not during.get("starts"), during
-        assert x.get("continue_enabled_asking") is False, x.get("continue_enabled_asking")
+        assert x.get("continue_enabled_asking") is False, x.get("continue_while_asking")
         assert t2.get("state") == "listening" and t2.get("card") and t2.get("wave"), t2
         assert t2.get("cancel") and t2.get("done"), t2
         assert (t2.get("clock") or "").endswith(f"· up to {ivs.STORY_CAP}"), t2

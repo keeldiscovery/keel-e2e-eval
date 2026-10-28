@@ -2447,8 +2447,15 @@ class Interview:
         # (`text_seam(held=True)`) -- its line and Cancel, no waveform, no clock, nothing recorded, Continue off; then
         # granted, and *listening* once the recorder runs
         out["asking"] = box.wait_state("asking")
+        # read three times across 600 ms, as while listening: Continue goes off through the box's state a render after
+        # the card is drawn (`onBoxState`, D-02 of spec 051)
+        out["continue_while_asking"] = []
+        for _ in range(3):
+            out["continue_while_asking"].append({"enabled": cont.is_enabled(), "at": box.now()})
+            page.wait_for_timeout(200)
+        out["continue_enabled_asking"] = out["continue_while_asking"][-1]["enabled"]
+        out["asking"] = box.read()
         out["asking_counts"] = box.counts()
-        out["continue_enabled_asking"] = cont.is_enabled()
         box.grant()
         out["t2"] = box.wait_state("listening")
         page.locator("main [data-testid=iv-listening] [data-testid=ai-mic-on]").first.wait_for(
