@@ -456,6 +456,17 @@ settings are `quality/cycle.toml` (entries, scopes, door, the bar, the weak rule
 model, no key), so the LLM places stay four. No target of it is a dependency of anything; none runs from `make eval`,
 `make unit`, the matrix, a checker or a schedule. The thirteen bundles of 2026-10-24 are never scored.
 
+**The back-test under a scope** (spec `082-backtest-under-a-scope`, 2026-10-28; after cycle 1 stopped 13 of its 15
+walks). A walk under `SCOPE=PROBLEM` or `SOLUTION` sends the entry's PRIMARY people alone (`vectors_script.study_people`:
+the B2B people are the money study's, keel-cloud 133, and those projects have no `COMMERCIAL_B2B` kind -- cycle 1's
+KeyError); COMMERCIAL and ALL send everyone, and the follow-up lines, the themes screen and `inputs.json` read the list
+that comes back. The chain cost step reads *of* (`chain-base`, its helper, the rate on hours) after the period pill, once
+`chain-equation` is drawn (keel-web 123 FR-1). The cycle record's head and `TABLE.md`'s say under the score how many
+walks reached their end and which stopped (study -- the step), and a keel-cloud or keel-web sha that moved mid-cycle
+(each study's own sha recorded; named, never refused). Cycle 1's record is not rewritten; `make read-table
+CYCLE=quality/cycles/20261028-88bfce8.md` reads the same facts from its studies and score files. Readers, rubric,
+weak rule, adviser, journeys, `MARKS_VERSION` 21 and `REVISION` 17 unchanged.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
