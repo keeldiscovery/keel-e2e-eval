@@ -104,3 +104,18 @@ are committed on eval master, never pushed without his word.
    `BASELINE=1` compares like with like -- the same entry AND scope, nothing else. **The thirteen bundles of
    2026-10-24 are not to be scored** (walked before the screener, at scope ALL); the smoke's two calls on 21-codyco are
    a smoke only, and its partial `score.json` never reaches `quality/scores/`.
+5. **The respondent-reader also reads the Insights grouping** (the founder, 2026-10-28, through the coordinator).
+   **FR-1 amended:** `RUBRIC.md` gains §G -- G1 *every answer sits in a group a person in this job would recognise, and
+   the group names are plain* (2 all, 1 one odd placement or a vague name, 0 an answer in a group it does not belong to
+   or two groups that mean the same) and G2 *junk, explicit or off-topic answers are kept out of the groups* (2 none
+   in, 1 a borderline one in, 0 a junk answer grouped as if it were about this; 2 by default when the line has no junk
+   answer, and the why says so). **FR-2 / FR-3 amended:** after a link's screens the respondent-reader is handed that
+   link's follow-up groupings -- one call per follow-up line with two answers or more, the line's question and every
+   answer on it, the groups with their names and answers, the answers left on their own. The groups are read from the
+   bundle's report (`backtest.json` `brief.insights[].themes`, with `quotes` / `rawQuotes`), settled per
+   `themes_settled` (a line still `grouping` is not read); `themes_settled` itself carries only counts. **FR-4
+   amended:** the score file records `insights: [{line, dimension, link, g1, g2, whys}]`, folded into the respondent's
+   and the overall `score_pct` by the same 2 x count arithmetic, with `insights_pct` beside; a bundle with no line of
+   two answers records `insights_note` *no grouping to read* and is not penalised. **FR-5 amended:** `TABLE.md` gives
+   them one row per (scope, dimension) under the *insights* kind, held to the same weak rule. Still `RUBRIC_VERSION` 1:
+   no score file existed before §G.
