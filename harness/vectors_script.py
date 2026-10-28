@@ -2552,9 +2552,26 @@ def _served_commitment(entry, picks: list) -> tuple[list, tuple]:
     return out, tuple(remapped)
 
 
+#: Spec 082 FR-1 (keel-cloud 133): the scopes whose project has no COMMERCIAL_B2B kind -- the B2B link is the money
+#: study's, so a walk under one of these sends the PRIMARY people alone.
+PRIMARY_ONLY_SCOPES = ("PROBLEM", "SOLUTION")
+
+
+def study_people(entry) -> list:
+    """Spec 082 FR-1: the entry's people the study under `entry.scope` sends a link to -- under PROBLEM or SOLUTION the
+    PRIMARY people alone (the B2B people are the money study's, keel-cloud 133, and the project has no kind to send them
+    on); under COMMERCIAL, SOLUTION_COMMERCIAL and ALL every person, as before."""
+    people = list(entry.people())
+    if scope_of(entry) in PRIMARY_ONLY_SCOPES:
+        return [p for p in people if p.link != LINK_B2B]
+    return people
+
+
 def person_inputs(entry) -> list[PersonInputs]:
+    """Every person the study sends a link to (`study_people`: spec 082 FR-1), with their inputs; the follow-up lines are
+    worked out over that list, so nothing downstream (the themes screen, `inputs.json`) names a person never sent."""
     people = []
-    for person in entry.people():
+    for person in study_people(entry):
         asked = set(plan_keys(entry, 1, person.link) + plan_keys(entry, 2, person.link)
                     + plan_keys(entry, 3, person.link)) if person.link == LINK_PRIMARY else \
             set(plan_keys(entry, 3, LINK_B2B))
