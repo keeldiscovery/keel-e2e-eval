@@ -1,4 +1,5 @@
-"""The rubric's own constants at `MARKS_VERSION` 20 (spec 029 FR-001 to FR-003, SC-001; T008; spec 030
+"""The rubric's own constants at `MARKS_VERSION` 21 (spec 078, calls 121-123: the `read` mark kind, reported, never
+gating; spec 029 FR-001 to FR-003, SC-001; T008; spec 030
 FR-003, T010: judgement calls 46-49; spec 031 FR-005, T010: judgement calls 50-58; spec 032 FR-005,
 T007: judgement calls 59-66; spec 033, calls 67-70; ...; spec 040, calls 77-90; spec 042, calls 110-115; spec 052,
 calls 116-120 --
@@ -40,16 +41,16 @@ def judgement_calls() -> list:
     return [int(n) for n in re.findall(r"^(\d+)\.\s", marks_mod.__doc__, re.M)]
 
 
-def test_marks_version_is_twenty():
-    assert marks_mod.MARKS_VERSION == 20
+def test_marks_version_is_twenty_one():
+    assert marks_mod.MARKS_VERSION == 21
 
 
-def test_the_judgement_calls_are_one_to_ninety_and_110_to_120_with_none_missing_and_none_twice():
+def test_the_judgement_calls_are_one_to_ninety_and_110_to_123_with_none_missing_and_none_twice():
     """91-109 are spec 041's journey calls (they read no mark; `specs/041-vectors-journey-r10/spec.md`), so the
-    rubric's list resumes at 110 (spec 042); 116-120 are spec 052's."""
+    rubric's list resumes at 110 (spec 042); 116-120 are spec 052's, 121-123 spec 078's."""
     numbers = judgement_calls()
-    assert sorted(numbers) == list(range(1, 91)) + list(range(110, 121)), \
-        "append-only: 1-90 and 110-120, none struck or renumbered"
+    assert sorted(numbers) == list(range(1, 91)) + list(range(110, 124)), \
+        "append-only: 1-90 and 110-123, none struck or renumbered"
     assert len(numbers) == len(set(numbers)), "no judgement call is written twice"
     assert "Calls 91-109 are spec 041's" in marks_mod.__doc__
 
@@ -178,9 +179,31 @@ def test_the_five_v20_calls_are_marked_and_say_what_they_are():
         match = re.search(rf"^{number}\. \*\*v20\*\*(.*?)(?=^\d+\. |^Calls |\Z)", body, re.M | re.S)
         assert match, f"{number} is not marked v20"
         assert phrase in " ".join(match.group(1).split()), f"{number} does not carry {phrase!r}"
-    said = " ".join(re.search(r"^120\. .*?(?=^Calls |\Z)", body, re.M | re.S).group(0).split())
+    said = " ".join(re.search(r"^120\. .*?(?=^121\. |^Calls |\Z)", body, re.M | re.S).group(0).split())
     for mark in ("`report_insights`", "`report_no_repeat`", "`report_pilot`", "`report_binding`", "**tokens**"):
         assert mark in said, mark
+
+
+def test_the_three_v21_calls_are_marked_and_say_what_they_are():
+    """Spec 078 FR-7: `read` is a mark kind, reported from committed score files and never gating."""
+    body = marks_mod.__doc__
+    phrases = {121: "`read` is a mark kind, reported and never gating", 122: "the readers' ruler is versioned apart",
+               123: "`rescore.py` still re-scores a v20 bundle"}
+    for number, phrase in phrases.items():
+        match = re.search(rf"^{number}\. \*\*v21\*\*(.*?)(?=^\d+\. |^Calls |\Z)", body, re.M | re.S)
+        assert match, f"{number} is not marked v21"
+        assert phrase in " ".join(match.group(1).split()), f"{number} does not carry {phrase!r}"
+    assert "read" not in marks_mod.ROWS and "read" not in marks_mod.DEFAULTS, "reported, never a row of judge()"
+
+
+def test_the_marks_file_carries_the_v21_header_and_the_read_table():
+    import tomllib
+    text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
+    assert text.index("MARKS_VERSION 21") < text.index("MARKS_VERSION 20") < text.index("MARKS_VERSION 19")
+    assert "WHY=marks:21" in text
+    raw = tomllib.loads(text)
+    assert raw["read"] == {"kind": "read", "source": "quality/scores", "gating": False, "bar_pct": 90}
+    assert "read" not in marks_mod.load(), "load() reads [marks] alone: a verdict carries no value for `read`"
 
 
 def test_the_v17_call_is_marked_and_says_what_it_is():

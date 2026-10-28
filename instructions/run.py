@@ -371,6 +371,8 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
         "report_overview": [_overview_json(s) for s in overview_scores],
         "totals": totals, "spread": {}, "prompts": [],
         "denominators": denominators(cases),
+        # MARKS_VERSION 21 (call 121): the readers' scores, reported from committed score files, never gating.
+        "read": marks_mod.read_rows(e.id for e in corpus.entries),
     }
     report_mod.write_scorecard(run_dir, scorecard)
     judged = marks_mod.judge(totals, marks)
@@ -577,6 +579,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         "redraws": state.redraws,
         "spread": _spreads(state),
         "prompts": state.prompts,
+        # MARKS_VERSION 21 (call 121): the readers' scores, reported from committed score files, never gating.
+        "read": marks_mod.read_rows(e.id for e in corpus.entries),
     }
     report_mod.write_scorecard(run_dir, scorecard)
 

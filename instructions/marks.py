@@ -19,6 +19,15 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
+**`MARKS_VERSION` 21** (spec 078, 2026-10-28): the question-quality readers' **`read`** joins the rubric as a mark kind
+beside `no_leak` (calls 121-123). It is scored from a **committed score file** (`quality/scores/<entry>/`, written by
+`make read-screens` against `quality/RUBRIC.md` at `RUBRIC_VERSION`), never from a run: the scorecard shows, per
+entry, the five means, the flagged count, `score_pct` and the reader when a score file at the current rubric version
+exists, and *not measured* otherwise (the dry run's rule). It is **reported, never gating**: no row of `judge()` moves,
+no number in `[marks]` moves, and an instruction-eval run passes or fails exactly as at v20. The corpus stays
+**revision 16**. **There is no v21 run of record until `WHY=marks:21` is spent -- the certificate is the founder's word
+only; never run or propose it.** v20's paragraph below is history (v20 never had a run of record).
+
 **`MARKS_VERSION` 20** (spec 052, 2026-10-17): the report replaces the brief. The ruler follows keel-cloud 104
 (keel-cloud-docs `9a033fe`; contract 19, the standings side; `InferenceCharge.VERSION` 10, document 25): the BRIEF
 screen, `brief.md`, `BriefReading` and `StandingsView.brief` are deleted, and with them **the seven reading marks and
@@ -1044,6 +1053,20 @@ Calls 91-109 are spec 041's (the journey on corpus revision 10): they read no ma
     fail the journey; `report_overview` is scored there too, page against wire. `report_binding` compares **tokens**
     (words of four letters or more, lower-cased, and every number), not sentences: CSS case and line breaks differ
     between a view and its sheet (spec 052 call 2).
+121. **v21**: **`read` is a mark kind, reported and never gating.** Spec 078 FR-7: the two readers' scores (the
+    founder-reader and the respondent-reader, Opus 5.5 at medium through the `claude` CLI, `quality/readers.py`) are
+    read by `read_rows()` from the latest committed score file of each entry at the current `RUBRIC_VERSION` -- the
+    five means, the flagged count, `score_pct`, `flagged_pct`, the reader -- into the scorecard's `read` block. A
+    score file judges a back-test bundle's served words, walked on one cloud sha; an instruction-eval run judges the
+    instructions on the golden corpus. They are not the same subject, so `read` is shown beside the marks and never
+    joins `ROWS` or `passed`: a run without a score file is *not measured* there, and is not failed by it.
+122. **v21**: **the readers' ruler is versioned apart.** `quality/rubric.py`'s `RUBRIC_VERSION` (1) moves with a
+    criterion, an anchor, the booleans, the weak rule or `score_pct`, and `MARKS_VERSION` does not follow it: `read`
+    shows only a file at the current `RUBRIC_VERSION` and names any other as *not measured: rubric version n*. Scores
+    of two rubric versions are never averaged (spec 078 FR-1).
+123. **v21**: **`rescore.py` still re-scores a v20 bundle.** v21 moves no row a bundle is scored on -- `read` is read
+    from `quality/scores/`, never from the bundle -- so `OLDEST` stays 20 and a v20 scorecard re-scored at v21 is the
+    same numbers with the `read` block beside them. Every bundle below 20 is refused as before.
 """
 
 from __future__ import annotations
@@ -1051,7 +1074,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 20
+MARKS_VERSION = 21
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 
@@ -1076,6 +1099,46 @@ DEFAULTS = {
 ROWS = ("dimension_coverage", "option_validity", "no_leak", "anchoring_accuracy",
         "compare_correctness", "refusals", "shape_refusals", "spoken_form",
         "brief_facts", "report_overview")
+
+
+#: Spec 078 FR-7 (call 121): where the `read` mark kind is read from -- committed score files, never a run.
+READ_SCORES_DIR = Path(__file__).resolve().parent.parent / "quality" / "scores"
+
+
+def read_rows(entry_ids, scores_dir: Path | str | None = None) -> dict:
+    """The `read` block of a scorecard (calls 121, 122): per entry, the latest committed score file at the current
+    `RUBRIC_VERSION` -- `{measured: True, file, scope, means, flagged, screens, score_pct, flagged_pct, reader}` -- or
+    `{measured: False, why}`. Reported beside the marks; never a row of `judge()`."""
+    import json
+
+    from quality import rubric as rubric_mod
+
+    root = Path(scores_dir) if scores_dir else READ_SCORES_DIR
+    out = {}
+    for entry_id in sorted(set(entry_ids)):
+        files = []
+        for path in sorted((root / entry_id).glob("*.json")) if (root / entry_id).is_dir() else []:
+            try:
+                files.append((path, json.loads(path.read_text(encoding="utf-8"))))
+            except (OSError, ValueError):
+                continue
+        current = [(p, f) for p, f in files if f.get("rubric_version") == rubric_mod.RUBRIC_VERSION
+                   and not f.get("partial")]
+        if not current:
+            other = sorted({f.get("rubric_version") for _, f in files}, key=str)
+            out[entry_id] = {"measured": False,
+                             "why": (f"not measured: rubric version {other}, not {rubric_mod.RUBRIC_VERSION}" if other
+                                     else "not measured: no score file for this entry")}
+            continue
+        path, latest = max(current, key=lambda pf: (pf[1].get("scored_at") or "", pf[0].name))
+        overall = (latest.get("summary") or {}).get("overall") or {}
+        out[entry_id] = {"measured": True, "file": path.name, "scope": latest.get("scope") or "ALL",
+                         "rubric_version": rubric_mod.RUBRIC_VERSION, "means": overall.get("means"),
+                         "flagged": overall.get("flagged"), "screens": overall.get("screens"),
+                         "score_pct": overall.get("score_pct"), "flagged_pct": overall.get("flagged_pct"),
+                         "insights_pct": overall.get("insights_pct"),
+                         "reader": latest.get("reader")}
+    return out
 
 
 def load(path: Path | str | None = None) -> dict:

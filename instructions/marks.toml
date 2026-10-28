@@ -6,6 +6,13 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
+# MARKS_VERSION 21 (judgement calls 121-123, 2026-10-28; spec 078-question-quality-readers). The question-quality
+# readers' `read` joins as a mark kind beside no_leak, scored from a committed score file (quality/scores/<entry>/, at
+# quality/rubric.py's RUBRIC_VERSION), never from a run: REPORTED, never gating -- no key of [marks] below moved, and
+# `read` is the [read] table at the foot, which `load()` does not read. Corpus revision 16.
+# **Scores before and after this bump are comparable row for row** (no row moved), and a v20 bundle re-scores at v21.
+# **Run of record: none yet** -- there is none until `WHY=marks:21` is spent, on the founder's word only.
+#
 # MARKS_VERSION 20 (judgement calls 116-120, 2026-10-17; spec 052-report, the sibling of keel-cloud 104 /
 # keel-web 077, keel-cloud-docs 9a033fe; contract 19, the standings side). The report replaces the brief: the BRIEF
 # screen is gone, so brief_answers and its seven reading marks RETIRE; brief_facts gains the price median and 103's
@@ -280,3 +287,13 @@ report_overview = 1.00
 # `wording` (call 56, v11) is reported on every run and marked on none: per screen, the questions with
 # model text, their words, and how many run over W1's 20 (25 with a scene), carry W2's "do you think",
 # W6's "you" on the founder's side, miss S1's scene-then-question, and how many options run over W5's 8.
+
+# MARKS_VERSION 21 (calls 121-123): the `read` mark kind. Not a key of [marks] (a verdict carries no value for it):
+# the scorecard's `read` block shows, per entry, the latest committed score file's five means, flagged count,
+# score_pct and reader at the current RUBRIC_VERSION, or *not measured*. The bar is the founder's (2026-10-28), shown,
+# never gating an instruction-eval run.
+[read]
+kind = "read"
+source = "quality/scores"
+gating = false
+bar_pct = 90
