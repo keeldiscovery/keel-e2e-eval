@@ -20,6 +20,7 @@ revision-9 question offers a physical unit, spec 039 D-6); what survives is the 
 from __future__ import annotations
 
 from evals import corpus_scenario
+from harness import vectors_script as vs
 
 ENTRY_ID = "07-mulchrun"
 
@@ -27,6 +28,35 @@ ENTRY_ID = "07-mulchrun"
 def _mulchrun_extras(j) -> None:
     standings = {d["dimension"]: d for v in j.standings.get("vectors") or []
                  for d in v.get("dimensions") or []}
+
+    # spec 077 FR-1 (keel-cloud 145 FR-4a, 146 FR-1 / FR-3): the founder's *in the Dallas-Fort Worth suburbs* is a place
+    # that is not the market's country, so code draws the condition on the confirm although the scripted context job
+    # writes none -- every crew lead's FULL link asks the chip before the gate, every owner's commercial link asks the
+    # screener in the third person (the people's head, the place said once) before the idea; all answered inside
+    with j.recorder.step("S-007: the drawn screener -- every FULL link serves *Are you based in the Dallas-Fort Worth "
+                         "suburbs?* before the gate, every decision-maker's link the third person before the idea; all "
+                         "inside, none counted apart (keel-cloud 146 FR-1, FR-3)", party="participant", kind="assert") as h:
+        chip = vs.chip_of(j.entry)
+        want_chip = {"question": chip["question"], "inCodes": [chip["inside"]]}
+        want_decider = vs.decider_condition(j.entry)
+        primary = [p for p in j.people if p.link == vs.LINK_PRIMARY]
+        deciders = [p for p in j.people if p.link == vs.LINK_B2B]
+        chips = {p.person: (j.interviews[p.person].get("gate") or {}).get("condition") for p in primary}
+        screeners = {p.person: j.interviews[p.person].get("condition") for p in deciders}
+        drawn = {p.person: [s_.get("screen") for s_ in j.walked[p.person]["screens"][:2]] for p in deciders}
+        outside = j.standings.get("outsideSegment")
+        h.record_assert({"chip": want_chip, "screener": want_decider, "screens": ["condition", "idea"],
+                         "outsideSegment": 0},
+                        {"chips": chips, "screeners": screeners, "drawn": drawn, "outsideSegment": outside})
+        assert primary and deciders, (len(primary), len(deciders))
+        assert want_decider == {"question": "Are the landscaping crew leads you decide for based in the Dallas-Fort "
+                                            "Worth suburbs?", "inCodes": ["YES"]}, want_decider
+        for person, served in chips.items():
+            assert {k: (served or {}).get(k) for k in want_chip} == want_chip, (person, served)
+        for person, served in screeners.items():
+            assert served == want_decider, (person, served)
+            assert drawn[person] == ["condition", "idea"], (person, drawn[person])
+        assert int(outside or 0) == 0, outside
 
     with j.recorder.step("S-007: the market persisted as United States, Texas, in en-US",
                          party="stack", kind="assert") as h:

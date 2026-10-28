@@ -382,7 +382,9 @@ def leg_context(j: Journey) -> None:
         want = vs.read_back(j.entry, window=windowed) if j.strict else "a sentence"
         window_line = j.corridor.context_window_line()
         lines = j.corridor.context_lines()
-        condition = vs.segment_of(j.entry)["condition"]
+        # spec 077 FR-1: the card draws the result's condition -- none on 07-mulchrun, whose condition code draws on the
+        # confirm (keel-cloud 146 FR-1)
+        condition = vs.card_condition(j.entry)
         want_lines = {"only_people_who": f"Only people who: {condition}." if condition else None}
         h.record_assert({"understands": want, "window": vs.window_words(founder.window) if windowed else None,
                          "window drawn": windowed, **want_lines},
@@ -402,14 +404,20 @@ def leg_context(j: Journey) -> None:
     _hold_the_context_states(j, drawn)
     _hold_the_occasion_field(j)
     j.corridor.confirm_context()
-    with _step(j, "the context is confirmed on the wire: the four fields, the sentence, the window "
-                  "of at least two (D13)") as h:
+    with _step(j, "the context is confirmed on the wire: the four fields, the sentence -- the card's, word for word, "
+                  "a qualifier said once (keel-cloud 146 FR-2) --, the condition stored (drawn by code where the result "
+                  "wrote none, 146 FR-1), the window of at least two (D13)") as h:
         view = j.get(j.project("/context")) or {}
         fields = view.get("fields") or {}
+        stored = vs.segment_of(j.entry)
         h.record_assert({**founder.context_fields, "recallWindow": founder.window.as_wire() if windowed else None,
-                         "understands": drawn}, view)
+                         "understands": drawn, **({"segment.condition": stored["condition"]} if j.strict else {})},
+                        view)
         assert view.get("state") == "CONFIRMED", view
         assert view.get("understands") == drawn, (view.get("understands"), drawn)
+        if j.strict:
+            assert drawn == vs.read_back(j.entry, window=windowed, confirmed=True), drawn
+            assert confirmed_segment_faults(view, stored) == [], confirmed_segment_faults(view, stored)
         if windowed:
             assert fields.get("recallWindow") == founder.window.as_wire(), fields
             assert int((fields.get("recallWindow") or {}).get("count") or 0) >= 2, fields
@@ -438,6 +446,16 @@ def leg_context(j: Journey) -> None:
             j.findings.append({"what": "the confirmed context's occasion is not the one the card's field drew "
                                        "(contract 36, spec 068 FR-5)",
                                "served": {"fields.occasion": fields.get("occasion"), "field": drawn_occasion}})
+
+
+def confirmed_segment_faults(view: dict, want: dict) -> list:
+    """Spec 077 FR-1 (keel-cloud 145 FR-4a, 146 FR-1): the confirmed context's `segment.condition` (contract 30's
+    `ContextSegment`) is the one the harness predicts -- the model's kept on 01-05, the one code drew from the founder's
+    WHICH PEOPLE on 07-mulchrun (*are based in the Dallas-Fort Worth suburbs*, the place whole) -- and none where none
+    is drawn. `[]` when it is."""
+    served = (view.get("segment") or {}).get("condition") or None
+    return [] if served == (want.get("condition") or None) else [{"segment.condition": served,
+                                                                   "want": want.get("condition")}]
 
 
 def context_states_faults(states: list[dict], drawn: str) -> list:

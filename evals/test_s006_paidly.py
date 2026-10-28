@@ -60,7 +60,9 @@ def _paidly_extras(j, sample: sample_export.Pending | None = None) -> None:
 
     # spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): 05-paidly's people carry a condition (*who work mostly
     # for agencies*) and its persona is SOMEONE_ELSE, so every decision-maker's link serves the screener, in the third
-    # person about the people they decide for, and asks it first -- before the idea; the translators' part-1 chip as before
+    # person about the people they decide for, and asks it first -- before the idea; the translators' part-1 chip as before.
+    # Spec 077 (keel-cloud 146 FR-3, DRIFT #99 closed): the people named once -- *Do the people you decide for work
+    # mostly for agencies?* (`vs.decider_people`: the plural *freelance translators working for agencies* already says it)
     with j.recorder.step("S-006: each decision-maker's link serves the screener -- the condition about the translators "
                          "they decide for -- and asks it before the idea; each answered inside (keel-cloud 145 FR-4b)",
                          party="participant", kind="assert") as h:
