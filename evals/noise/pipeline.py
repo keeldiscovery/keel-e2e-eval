@@ -239,7 +239,7 @@ def norm_out(item: dict, out, *, partial_pick: bool = True) -> dict:
       136 FR-1, `partial_pick`; off restates the read before 136): the picks are read as below.
     - `escape` clears the picks and the value on an item that has an escape; on one with none (the gate) it is dropped.
     - gate, single, multi: none left is unclear; a single (or the gate) with two keeps the first; a pick-N with more
-      than N keeps the first N; fewer is the partial read (the interviewer asks *And which one more?*).
+      than N keeps the first N; fewer is the partial read (the interviewer asks *And one more?*, keel-cloud 158).
     - number: no value is unclear; out of range is unclear.
     `_err` marks a reply that was not the JSON asked for (the product: *unclear*, reason *vendor*)."""
     if not isinstance(out, dict):

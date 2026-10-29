@@ -28,8 +28,9 @@ Per composed item (§2, §3, §4, §5):
   Commitment (129 FR-9's escape is open) -- and the spoken block's last line *Or say {escape}.* with the escape the item
   is **served** with (spec 065 FR-1: the registry's, read by the side it is served by -- keel-cloud
   `CommercialChain.side`);
-- `S7` the count line is §3's *I'll read {N} options[; pick two].*, N the served options said (four on Price's first
-  step), *pick two* exactly on Importance; none on a number;
+- `S7` the count line is §3's *I'll read {N} options.*, N the served options said (four on Price's first step); none on
+  a number. *; pick two* is never said since keel-cloud 158 (spec 089 FR-3): Importance asks *which one of these*, then
+  *And one more?* (the transform stays `one_then_one_more`), so a count line that adds it is a fault;
 - `S8` the options line is §3's *a; b; ...; or z.* -- the options in the screen's order, said to the person
   (first person turned, keel-cloud 088 judgement call 5); Price's first step is *Under {low}; {the middle band};
   over {high}; or {the last}* (§4);
@@ -361,10 +362,10 @@ def item_faults(item, registry, entry=None) -> list:
         n = len(spoken)
         count = _COUNT_LINE.match(item.count_line or "")
         if not count or count.group(1) != (_NUMBER_WORDS[n] if n < len(_NUMBER_WORDS) else str(n)) \
-                or bool(count.group(2)) != (key == IMPORTANCE_KEY):
+                or bool(count.group(2)):
             faults.append(f"S7: the count line is {item.count_line!r}; §3 says 'I'll read "
-                          f"{_NUMBER_WORDS[n] if n < len(_NUMBER_WORDS) else n} options"
-                          f"{'; pick two' if key == IMPORTANCE_KEY else ''}.'")
+                          f"{_NUMBER_WORDS[n] if n < len(_NUMBER_WORDS) else n} options.' (no '; pick two' since "
+                          "keel-cloud 158)")
         line = item.options_line or ""
         pieces = line[:-1].split("; ") if line.endswith(".") else []
         if pieces and len(pieces) > 1 and pieces[-1].startswith("or "):

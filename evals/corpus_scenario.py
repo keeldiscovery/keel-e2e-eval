@@ -121,7 +121,8 @@ TERMINAL_BAD = {"RESULT_INVALID", "DOMAIN_REFUSED", "STATE_CONFLICT", "JOB_FAILE
 INTERVAL_KEYS = ("inside", "below", "above")
 
 #: The controls whose served options the item screen draws as rows (keel-web 064 FR-003).
-ROW_CONTROLS = {"single_choice", "single_choice_5", "price_ladder", "fixed_four", "fixed_three", "pick_two"}
+ROW_CONTROLS = {"single_choice", "single_choice_5", "price_ladder", "fixed_four", "fixed_three", "pick_two",
+                "pick_one_then_one", "scale_four"}
 
 
 # ------------------------------------------------------------------------------------ the journey
@@ -3374,6 +3375,16 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
                 want["rows"] = [o.get("label") for o in (plan.get("options") if on_plan else item.get("options")) or []]
             if item.get("control") == "pick_two":
                 want["hint"] = vs_screens.IV_PICK_TWO
+            second = item.get("secondAsk") or {}
+            if item.get("control") == vs_screens.PICK_ONE_THEN_ONE and drawn.get("second_ask") is not None:
+                # spec 089 FR-3 (keel-cloud 158 T010, keel-web 135 FR-2): after the first tap the second ask is written
+                # as served (*And one more?*) and *Nothing else* stands where *None of these* stood
+                asked = drawn["second_ask"]
+                got = {"prompt": asked.get("prompt"), "chips": asked.get("chips")}
+                wanted = {"prompt": second.get("question"),
+                          "chips": [(second.get("escape") or {}).get("label")]}
+                if got != wanted:
+                    faults.append({"dimension": drawn["dimension"], "second ask": got, "wire": wanted})
             if not item.get("priceAnchor"):
                 want["question"] = plan.get("question") if on_plan else item.get("question")
             have = {k: drawn.get(k) for k in want}
@@ -3437,8 +3448,10 @@ def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> No
 
 
 #: keel-web `interviewAnswers.ts`: how many options a control's answer carries (pick_two exactly two; any other one or
-#: more).
-PICKS_NEEDED = {"pick_two": 2}
+#: more). Spec 089 FR-3 (keel-cloud 158 T011): `pick_one_then_one` takes two, or one with *Nothing else*
+#: (`chip: NOTHING_ELSE` beside the one id) -- one pick and NOTHING_ELSE is a whole answer (`NOTHING_ELSE_CARRIES`).
+PICKS_NEEDED = {"pick_two": 2, "pick_one_then_one": 2}
+NOTHING_ELSE_CARRIES = {"pick_one_then_one"}
 
 
 def _without_the_unoffered(j: Journey, person, body: dict, items: dict, token: str) -> dict:
@@ -3471,10 +3484,14 @@ def _without_the_unoffered(j: Journey, person, body: dict, items: dict, token: s
                  if vs.option_id(token, dimension, c) in lost or c in lost]
         short = len(kept.get("optionIds") or []) < PICKS_NEEDED.get(item.get("control"), 1) \
             if "optionIds" in answer else not kept.get("advantageIds")
+        if short and item.get("control") in NOTHING_ELSE_CARRIES and len(kept.get("optionIds") or []) == 1:
+            # one of the two kept: the first pick and *Nothing else* carry it (keel-cloud 158: stored as the one code)
+            kept["chip"], short = vs.NOTHING_ELSE_CHIP, False
         j.findings.append({"what": f"{person.person}: {dimension} -- the entry's pick {', '.join(map(str, codes)) or lost} "
                                    "is not offered on the page; sent as written without it, never swapped "
                                    + ("(the item is left to its escape: the control cannot carry what remains)"
-                                      if short else "(the other picks kept)"),
+                                      if short else "(the first pick kept, then Nothing else)"
+                                      if kept.get("chip") == vs.NOTHING_ELSE_CHIP else "(the other picks kept)"),
                            "served": [labels.get(o.get("optionId")) for o in item.get("options") or []]})
         if not short:
             answers.append(kept)

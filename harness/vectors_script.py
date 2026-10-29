@@ -61,7 +61,8 @@ from harness import interview_charge
 from harness import qualifiers
 from instructions import chain as chain_mod
 from instructions import corpus as corpus_reader
-from instructions.registry import COMMITMENT_KEY, FREQUENCY_MIN
+from instructions.registry import (COMMITMENT_KEY, FREQUENCY_MIN, IMPORTANCE_CONTROL, NOTHING_ELSE_CHIP,
+                                   NOTHING_ELSE_LABEL, ONE_MORE)
 
 VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 

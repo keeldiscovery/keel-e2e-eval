@@ -194,7 +194,9 @@ def before_101(kind: str, script: str) -> str:
 OPENING = opening(None)
 DIDNT_CATCH = "I didn't catch that, could you say it again?"
 PILOT_ASK = "Would you like to take part in the pilot?"
-MORE = "And which one more?"
+#: keel-cloud 158 T013 (`ItemFrames.ONE_MORE`, `PassageComposer.ONE_MORE`): the ITEM_MORE clip and the written second
+#: ask of Importance's one-then-one-more -- *And one more?* (it said *And which one more?*, spec 094 / 136).
+MORE = "And one more?"
 #: keel-cloud 099 FR-6 (contract 18): the generic "Is that right?" line, one a role, asked when the classifier is unsure.
 IS_THAT_RIGHT = "Is that right?"
 

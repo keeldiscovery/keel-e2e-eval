@@ -307,16 +307,14 @@ def good() -> dict:
                                  {"said": "yes", "phase": "confirming",
                                   "before": {"lit": ["Agency C"], "field": None, "preview": ""},
                                   "after": {"lit": ["Agency C"], "field": None, "preview": ""}, "still": True}]},
-        # spec 049 (keel-web 073 FR-6): a pick-two by taps waits for Save and next
-        "taps": {"question": "Which two?", "item": "p", "want": ["Agency A", "Agency C"],
-                 "one": {"shown": True, "enabled": False, "words": "Save and next", "ring": False, "phase": "listening",
-                         "checked": ["Agency A"], "question_same": True},
-                 "two": {"shown": True, "enabled": True, "words": "Save and next", "ring": False, "phase": "listening",
-                         "checked": ["Agency A", "Agency C"]},
-                 "third": {"tapped": "Agency B", "shown": True, "enabled": True, "ring": False, "phase": "listening",
-                           "checked": ["Agency A", "Agency C"]},
-                 "statuses_after_save": ["Got it."], "next": "Which fits?", "sent": ["Agency C", "Agency A"],
-                 "sent_how": "TAPPED"},
+        # spec 049 (keel-web 073 FR-6); spec 089 FR-3 (keel-web 135 FR-2): one pick, *And one more?*, then the second
+        "taps": {"question": "Which one?", "item": "p", "want": ["Agency A", "Agency C"],
+                 "one": {"shown": False, "enabled": None, "words": None, "ring": False, "phase": "listening",
+                         "checked": ["Agency A"], "question_same": True, "more_played": True, "more_clip": "m1"},
+                 "two": {"shown": False, "enabled": None, "ring": False, "phase": "listening",
+                         "checked": ["Agency A", "Agency C"], "tapped": "Agency C"},
+                 "save_pressed": False, "statuses_after": ["Got it."], "next": "Which fits?",
+                 "sent": ["Agency C", "Agency A"], "sent_how": "TAPPED"},
         "confirm": {"turns": [{"question": "Which one?", "status": IS_THAT_RIGHT, "lit": ["Agency A"],
                                "yes": "Yes, that’s it", "went_on": True, "meant": ["Agency C"], "sent": ["Agency C"],
                                "said": "the first one, wait, actually the third", "answered": "yes",
@@ -381,7 +379,7 @@ def test_a_good_record_meets_every_mark():
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
     assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 13      # spec 086 FR-5: IM27 on the filled clip
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 14      # spec 086 FR-5: IM27; 089 FR-3: IM20
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -566,11 +564,11 @@ SEEDED = [
     ("IM19", ["hear_out", "between_ms"], 2_400),                                         # not within a second
     ("IM19", ["hear_out", "hearing", 0, "after", "field"], "3"),                         # filled while speaking
     ("IM19", ["hear_out", "sent"], ["It would have made things better"]),
-    ("IM20", ["taps", "one", "enabled"], True),                                          # Save on at one tick
-    ("IM20", ["taps", "one", "question_same"], False),                                   # went on at one tick
-    ("IM20", ["taps", "one", "ring"], True),                                             # a tick held
-    ("IM20", ["taps", "two", "enabled"], False),
-    ("IM20", ["taps", "third", "checked"], ["Agency A", "Agency B", "Agency C"]),          # a third ticked
+    ("IM20", ["taps", "one", "question_same"], False),                                   # went on at one tap
+    ("IM20", ["taps", "one", "ring"], True),                                             # a tap held
+    ("IM20", ["taps", "one", "more_played"], False),                                     # no And one more?
+    ("IM20", ["taps", "one", "checked"], ["Agency A", "Agency C"]),                        # two marked at one tap
+    ("IM20", ["taps", "next"], "Which one?"),                                            # never went on
     ("IM20", ["taps", "sent_how"], "SPOKEN"),
     # spec 050: the held yes (IM15), the beat (IM21), the story's Save (IM22)
     ("IM15", ["confirm", "turns", 0, "held"], None),                                     # straight on, not held
@@ -913,7 +911,12 @@ def _composer() -> str:
                                   "IS_THAT_RIGHT", "ONE_MORE"])
 def test_the_framing_lines_are_the_composers_own(name):
     import re                                                             # noqa: PLC0415
-    m = re.search(rf"\b{name} =\s*\"([^\"]*)\";", _composer())
+    text = _composer()
+    if name == "ONE_MORE" and re.search(r"\bONE_MORE =\s*com\.keeldiscovery\.cloud\.domain\.vectors\.ItemFrames\.ONE_MORE;",
+                                        text):
+        # keel-cloud 158 T013: the clip's words are `ItemFrames.ONE_MORE`, the screen's and the voice's one constant
+        text = _cloud_text("src/main/java/com/keeldiscovery/cloud/domain/vectors/ItemFrames.java")
+    m = re.search(rf"\b{name} =\s*\"([^\"]*)\";", text)
     mine = fake.MORE if name == "ONE_MORE" else getattr(fake, name)
     assert m and m.group(1) == mine, (name, m and m.group(1), mine)
 

@@ -153,15 +153,17 @@ class Served:
     high: int | None = None
     unit: str | None = None
     currency: str | None = None
-    ask: str | None = None          # "advantages" for benefit_with_advantages' follow-up
+    ask: str | None = None          # "second" for Importance's second ask (keel-cloud 158 T014)
 
     @property
     def shape(self) -> str:
-        return f"{self.dimension}{'/advantages' if self.ask else ''} ({self.kind}, {len(self.options)} options)"
+        return f"{self.dimension}{'/' + self.ask if self.ask else ''} ({self.kind}, {len(self.options)} options)"
 
 
 _FROM_TO = re.compile(r"from\s+(\d+)\s+to\s+(\d+)", re.I)
 _OUT_OF = re.compile(r"out of\s+(\d+)", re.I)
+#: Importance's controls: keel-cloud 158's `pick_one_then_one` (contract 46) and `pick_two` as served before it.
+PICK_CONTROLS = ("pick_one_then_one", "pick_two")
 #: Frequency's controls: keel-cloud 158's `segmented_1_to_n` (contract 46: a count from 1) and the number box, and
 #: `segmented_0_to_7`, which a run recorded before 46 served.
 FREQUENCY_CONTROLS = ("segmented_1_to_n", "segmented_0_to_7", "number_with_unit")
@@ -197,8 +199,14 @@ def served_items(interview: dict, market_currency: str | None = None) -> list[Se
             options = tuple(o.get("label") for o in item.get("options") or [])
             escape = (item.get("escape") or {}).get("label")
             base = dict(item_id=item.get("itemId"), dimension=item.get("dimension") or "")
-            if control == "pick_two":
+            if control in PICK_CONTROLS:
                 out.append(Served(**base, kind="multi", options=options, escape=escape, pick=2))
+                second = item.get("secondAsk")
+                if control == "pick_one_then_one" and second:
+                    # keel-cloud 158 T014 (`ask: second`): the second ask reads one pick over the same labels, with
+                    # its own escape *Nothing else* -- never *None of these*
+                    out.append(Served(**base, kind="single", options=options,
+                                      escape=(second.get("escape") or {}).get("label"), ask="second"))
             elif control in FREQUENCY_CONTROLS:
                 low, high = _range(item)
                 out.append(Served(**base, kind="number", escape=escape, low=low, high=high,

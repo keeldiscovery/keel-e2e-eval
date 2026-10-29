@@ -123,17 +123,20 @@ def test_every_stem_is_held_to_twenty_words_the_two_frames_too():
     assert not hasattr(spoken_mod, "LONG_FRAMES")
 
 
-def test_importance_picks_two_and_is_read_one_then_one_more():
+def test_importance_asks_one_then_one_more_and_never_says_pick_two():
+    """Spec 089 FR-3 (keel-cloud 158 T013, 160 FR-3): the question asks for one (*Think of your last {occasion}. Which
+    one of these ...?*), the count line adds nothing, and *And one more?* is the item's ITEM_MORE clip -- a count line
+    that still says *; pick two* is an S7 fault; the transform stays `one_then_one_more`."""
     labels = ("Getting through the morning traffic", "Finding the keys on the way out", "Riding in wet weather",
               "Fixing a flat tyre on the way", "Finding somewhere safe to park")
-    stem = "Thinking about that last morning, which two of these would you most like made easier?"
+    stem = "Think of your last morning. Which one of these would you most like made easier?"
     importance = _item(key="problem.importance", part=1, question=stem, stem=stem, options=labels,
-                       escape="None of these", count_line="I'll read five options; pick two.",
+                       escape="None of these", count_line="I'll read five options.",
                        options_line="Getting through the morning traffic; finding the keys on the way out; riding "
                                     "in wet weather; fixing a flat tyre on the way; or finding somewhere safe to park.",
                        escape_line="Or say none of these.", transform="one_then_one_more")
     assert _faults(importance) == []
-    assert _rules(dataclasses.replace(importance, count_line="I'll read five options.")) == ["S7"]
+    assert _rules(dataclasses.replace(importance, count_line="I'll read five options; pick two.")) == ["S7"]
     assert _rules(dataclasses.replace(importance, transform="none")) == ["S9"]
     short = labels[:4] + ("Parking",)
     assert "S4" in _rules(dataclasses.replace(
@@ -431,6 +434,13 @@ def real():
         pytest.skip("keel-cloud's SpokenGuidelinesCorpusTest has not written build/spoken-corpus.txt -- run "
                     "`./gradlew test --tests '*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout")
     fx.canon_entry("01-countly.yaml")                                 # skips by name off revision 13
+    record = (keel_cloud / cloud_mod.SPOKEN_FILE).read_text(encoding="utf-8")
+    if "; pick two." in record or "yes_no_per_benefit" in record:
+        # spec 089: a Gradle output is a run's, not the checkout's -- one written before keel-cloud 158 / 159 says
+        # Importance's *; pick two* and Relative advantage's per-benefit transform, which the rules now refuse
+        pytest.skip("keel-cloud's build/spoken-corpus.txt predates keel-cloud 158 / 159 (a count line says '; pick two', "
+                    "an item transforms 'yes_no_per_benefit') -- rerun `./gradlew test --tests "
+                    "'*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout to compare")
     if not (keel_cloud / cloud_mod.REGISTRY_FILE).is_file():
         pytest.skip(f"no registry of record at {keel_cloud / cloud_mod.REGISTRY_FILE}")
     registry = cloud_mod.registry_of_record(keel_cloud)               # spec 065 FR-1: the registry of record

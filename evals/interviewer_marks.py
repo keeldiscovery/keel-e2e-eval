@@ -78,7 +78,10 @@ from harness import interviewer_fake as fake
 #: each rung's clip against the words the leg records for it (`said`, `vs.follow_up_clip`: the registry's spoken line
 #: filled with the project's job, idea name, founder's item, effort and step), not the registry's bare line; the served
 #: `followUps[].spoken` is that filled line. No mark born or dropped.
-INTERVIEWER_MARKS_VERSION = 13
+#: v14 (spec 089 FR-3, keel-cloud 158 + keel-web 135, contract 46: Importance asks one, then one more): re-pinned --
+#: IM20 reads the one-then-one-more walk (the first tap holds the item while the ITEM_MORE clip *And one more?* plays,
+#: the second tap or *Nothing else* completes it) where it read two ticks and *Save and next*. No mark born or dropped.
+INTERVIEWER_MARKS_VERSION = 14
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -524,20 +527,20 @@ def hears_them_out(r: dict) -> tuple[bool, Any]:
 
 
 def taps_wait_for_save(r: dict) -> tuple[bool, Any]:
-    """IM20 (keel-web 073 FR-6): on a pick-two a tap only ticks -- one tick draws *Save and next* disabled and nothing
-    goes on by itself for 1.5 s (the same question, `listening`, no ring); two ticks enable it; a third row tapped is
-    ignored; Save shows *Got it.* and goes on; the response carries both picks, `how` TAPPED."""
+    """IM20 (keel-web 073 FR-6; v14, spec 089 FR-3: keel-cloud 158 and keel-web 135 FR-2): on Importance a tap is one
+    pick, then one more -- the first tap marks one pick and nothing goes on by itself for 1.5 s (the same question,
+    `listening`, no ring) while the second ask's *And one more?* clip plays (the item's ITEM_MORE, served `more`); the
+    second tap (or *Nothing else*) completes the item and it goes on; the response carries the picks wanted, `how`
+    TAPPED. (Before v14 two ticks enabled *Save and next* and a third was ignored.)"""
     x = r["taps"]
-    one, two, three = x.get("one") or {}, x.get("two") or {}, x.get("third") or {}
+    one, two = x.get("one") or {}, x.get("two") or {}
     want = sorted(x.get("want") or [])
-    ok = (one.get("shown") is True and one.get("enabled") is False and one.get("question_same") is True
-          and one.get("phase") == "listening" and one.get("ring") is False and len(one.get("checked") or []) == 1
-          and two.get("shown") is True and two.get("enabled") is True and sorted(two.get("checked") or []) == want
+    ok = (one.get("question_same") is True and one.get("phase") == "listening" and one.get("ring") is False
+          and len(one.get("checked") or []) == 1 and one.get("more_played") is True
           and two.get("ring") is False
-          and (not three.get("tapped") or sorted(three.get("checked") or []) == want)
-          and ANSWERED in (x.get("statuses_after_save") or []) and x.get("next") != x.get("question")
-          and sorted(x.get("sent") or []) == want and x.get("sent_how") == "TAPPED")
-    return ok, {k: x.get(k) for k in ("question", "want", "one", "two", "third", "statuses_after_save", "sent",
+          and x.get("next") != x.get("question")
+          and sorted(x.get("sent") or []) == want[:2] and x.get("sent_how") == "TAPPED")
+    return ok, {k: x.get(k) for k in ("question", "want", "one", "two", "save_pressed", "statuses_after", "sent",
                                       "sent_how")}
 
 

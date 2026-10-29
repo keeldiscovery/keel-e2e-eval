@@ -159,6 +159,11 @@ IV_NO = "No"
 IV_COST_MODE_GROUP = "Measured as"
 IV_COST_MODE_WORD = {"AMOUNT": "Amount", "HOURS": "Hours"}
 IV_PICK_TWO = "Pick two."
+#: Spec 089 FR-3 (keel-cloud 158, keel-web 135 FR-2): Importance's control since contract 46, and its second ask's
+#: prompt and escape as the item serves them (`secondAsk`), read from the item where served.
+PICK_ONE_THEN_ONE = "pick_one_then_one"
+IV_ONE_MORE = "And one more?"
+IV_NOTHING_ELSE = "Nothing else"
 #: keel-web 099 FR-6 (`GATE_RATHER_NOT_SAY`): the gate story's second chip, after the occasion's.
 GATE_RATHER_NOT_SAY = "I'd rather not say"
 #: keel-web 096: the segment chip's answers are the gate's own Yes / No.
@@ -2548,6 +2553,7 @@ class Interview:
                     # times out on a chip or radio the screen never drew
                     raise AssertionError(json.dumps({"walk_item": item.get("dimension"), "walk_stem": item.get("text"),
                                                      "page_stem": stem, "url": page.url}))
+                first_ask = self._item_screen(item) if item.get("control") == PICK_ONE_THEN_ONE else None
                 if answer is not None:
                     self._answer(item, answer)
                 elif item.get("escape"):
@@ -2558,7 +2564,13 @@ class Interview:
                     self.unanswered.append({"dimension": item.get("dimension"), "took": (item.get("escape") or {}).get("label"),
                                             "code": str((item.get("escape") or {}).get("code") or "").upper(),
                                             "itemId": item.get("itemId")})
-                self.screens.append(self._item_screen(item))
+                if first_ask is not None:
+                    # spec 089 FR-3: the screen as the first ask drew it (the question, the list, *None of these*),
+                    # and what the second ask drew after the first tap
+                    first_ask["second_ask"], self._second_ask_seen = self._second_ask_seen, None
+                    self.screens.append(first_ask)
+                else:
+                    self.screens.append(self._item_screen(item))
                 last = p_index == len(parts) - 1 and i_index == len(items) - 1
                 if last:
                     # keel-web 076 FR-1, 124 FR-2: the last *Send my answers* posts the answers to the follow-up route
@@ -2654,9 +2666,48 @@ class Interview:
     #: Items the person's file left unanswered and the walk escaped (a back-test finding), `[{dimension, took}]`.
     unanswered: list
 
+    def _one_then_one(self, item: dict, answer: dict, options: dict) -> None:
+        """Spec 089 FR-3 (keel-cloud 158 T010-T011, keel-web 135 FR-2): Importance, one pick then one more. The first
+        option is tapped and marked, the list stays, and the item's second ask is written (`secondAsk.question`, *And
+        one more?*) with *Nothing else* in *None of these*' place; then the second option is tapped -- or, for a person
+        with one pick, *Nothing else* (the answer's `chip: NOTHING_ELSE` beside the one id). What the second ask drew is
+        kept (`_second_ask_seen`) for the screen's record."""
+        main = self._main()
+        ids = list(answer.get("optionIds") or [])
+        second = item.get("secondAsk") or {}
+        prompt = second.get("question") or IV_ONE_MORE
+        nothing = (second.get("escape") or {}).get("label") or IV_NOTHING_ELSE
+
+        def option(label: str):
+            control = main.locator(".iv-control")
+            return control.get_by_role("checkbox", name=label, exact=True).or_(
+                control.get_by_role("radio", name=label, exact=True)).first
+
+        option(options[ids[0]]).click()
+        seen = True
+        try:
+            main.get_by_text(prompt, exact=True).first.wait_for(state="visible", timeout=10_000)
+        except Exception:                                                  # noqa: BLE001 - recorded, held by the scenario
+            seen = False
+        self._second_ask_seen = {"prompt": prompt if seen else None, "asked": _first_text(self.page, "h1.iv-q"),
+                                 "chips": [c.strip() for c in _safe_all_texts(self.page, ".iv-chips button")],
+                                 "first": options[ids[0]]}
+        if len(ids) > 1:
+            option(options[ids[1]]).click()
+            self._second_ask_seen["second"] = options[ids[1]]
+        else:
+            main.locator(".iv-chips").get_by_role("button", name=nothing, exact=True).first.click()
+            self._second_ask_seen["second"] = nothing
+
+    #: Spec 089 FR-3: what Importance's second ask drew (`_one_then_one`), taken by `_item_screen` once.
+    _second_ask_seen: dict | None = None
+
     def _answer(self, item: dict, answer: dict) -> None:
         main = self._main()
         options = {o.get("optionId"): o.get("label") for o in item.get("options") or []}
+        if item.get("control") == PICK_ONE_THEN_ONE and answer.get("optionIds"):
+            self._one_then_one(item, answer, options)
+            return
         plan = item.get("plan") or {}
         options.update({o.get("optionId"): o.get("label") for o in plan.get("options") or []})
         advantages = {a.get("id"): a.get("label") for a in item.get("advantages") or []}

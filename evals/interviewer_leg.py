@@ -1490,6 +1490,8 @@ def _person_for_the_link(j):
     return [p for p in j.people if p.person in names][-1]
 
 
+#: Importance's control: keel-cloud 158's `pick_one_then_one` (contract 46), and `pick_two` as a link served before 46.
+PICK_CONTROLS = ("pick_one_then_one", "pick_two")
 ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth"]
 NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
 #: A cost total said aloud is said in the served currency's word (keel-cloud's FakeClassifier reads these).
@@ -1579,7 +1581,7 @@ def _read_aloud_item(interview: dict, expected: dict) -> str | None:
 
     def one_of(i: dict) -> bool:
         a = answers.get(i.get("itemId")) or {}
-        return (i.get("control") not in ("pick_two", "pick_one_then_one", "cost_total", "segmented_1_to_n",
+        return (i.get("control") not in PICK_CONTROLS + ("cost_total", "segmented_1_to_n",
                                          "segmented_0_to_7", "number_with_unit")
                 and len(a.get("optionIds") or []) == 1 and not a.get("chip"))
 
@@ -1619,6 +1621,8 @@ class _Walk:
         self.aloud_item = _read_aloud_item(interview, expected)
         self.hear_out: dict | None = None
         self.taps: dict | None = None
+        #: Spec 089 FR-3: each item's clips as served (`interviewer.items[itemId]`: `clip`, and Importance's `more`).
+        self.item_clips = (interview.get("interviewer") or {}).get("items") or {}
         self.pilot_hold: dict | None = None
         #: Spec 050 FR-3 (keel-web 074 FR-2): the story ended by the pause (`wait`, S-005) or by its Save (`save`,
         #: S-006), and what it drew (IM22).
@@ -1909,7 +1913,7 @@ class _Walk:
         options = {o["optionId"]: o["label"] for o in item.get("options") or []}
         answered = self.by_id.get(item.get("itemId")) or {}
         meant = [options[o] for o in answered.get("optionIds") or []]
-        assert len(meant) == 1 and item.get("control") != "pick_two" and not answered.get("advantageIds"), \
+        assert len(meant) == 1 and item.get("control") not in PICK_CONTROLS and not answered.get("advantageIds"), \
             {"the follow-up's item is answered again by one tap": item.get("dimension"), "meant": meant}
         # the first window
         first = self._follow_up_window(entry, "first", met)
@@ -2109,34 +2113,53 @@ class _Walk:
             return
         _wait_next(p, question)
 
-    def tap_pick_two(self, entry: dict, item: dict, want: list[str], labels: list[str]) -> None:
-        """Spec 049 FR-5 (keel-web 073 FR-6): a pick-two by taps. One tick: *Save and next* drawn and off, nothing goes
-        on by itself for 1.5 s, no ring; a second: on; a third row tapped: ignored; Save: *Got it.*, the next question,
-        `how` TAPPED."""
+    def tap_one_then_one(self, entry: dict, item: dict, want: list[str], labels: list[str]) -> None:
+        """Spec 089 FR-3 (keel-cloud 158 T010 / T013, keel-web 135 FR-2): Importance by taps, one pick then one more.
+        The first tap marks the pick and the item stays -- the same question, nothing goes on by itself for 1.5 s, no
+        ring -- while the second ask *And one more?* is put: its ITEM_MORE clip (the item's `more`, recorded at the
+        lock) plays and the sheet says it. The second tap -- the other pick, or *Nothing else* where the person has one
+        -- completes the item (where the page still draws *Save and next* for it, that is pressed and recorded); the
+        next question, `how` TAPPED, the same two codes (or the one) sent."""
         p = self.player
         p.wait_listening()
         question = p.question()
         before = p.save_state()
+        more_clip = ((self.item_clips.get(item["itemId"]) or {}).get("more") or {}).get("clipId")
+        tapped_at = _now(p)
         p.tap(want[0])
         p.page.wait_for_timeout(ivs.TAP_WAIT_MS)
-        one = {**p.save_state(), "question_same": p.question() == question}
-        p.tap(want[1])
+        one = {**p.save_state(), "question_same": p.question() == question, "sheet": p.question(),
+               "more_played": bool(more_clip) and _played_at(p, more_clip) >= tapped_at, "more_clip": more_clip,
+               "more_said": vs.ONE_MORE in " ".join([p.question() or "", p.status() or ""])}
+        deadline = time.monotonic() + 15 * p.patience
+        while time.monotonic() < deadline and more_clip and _played_at(p, more_clip) < tapped_at:
+            time.sleep(0.05)                    # the page waits for the clip as for any clip (keel-web 135 FR-2)
+        one["more_played"] = bool(more_clip) and _played_at(p, more_clip) >= tapped_at
+        second = want[1] if len(want) > 1 else None
+        if second is not None:
+            p.tap(second)
+        else:
+            p.tap_chip_named(vs.NOTHING_ELSE_LABEL)
         two = p.save_state()
-        third = next((label for label in labels if label not in want), None)
-        if third is not None:
-            p.tap(third)
-            p.page.wait_for_timeout(300)
-        three = p.save_state()
-        start = _now(p)
-        p.page.get_by_test_id("ai-save").click()
+        pressed, start = False, None
+        end = time.monotonic() + 3 * p.patience
+        while time.monotonic() < end and p.question() in (question, vs.ONE_MORE) \
+                and not p.page.get_by_test_id("ai-done").count():
+            if two.get("shown") and p.save_state().get("enabled"):
+                start = _now(p)
+                p.page.get_by_test_id("ai-save").click()
+                pressed = True
+                break
+            time.sleep(0.05)
+        start = start if start is not None else _now(p)
         _wait_next(p, question)
         after = [st for st in p.statuses() if (st.get("t") or 0) >= start and st.get("question") == question]
         self.taps = {"question": question, "item": item["itemId"], "want": want, "before": before, "one": one,
-                     "two": two, "third": {"tapped": third, **three}, "statuses_after_save": [st.get("status")
-                                                                                         for st in after],
-                     "next": p.question()}
+                     "two": {**two, "tapped": second or vs.NOTHING_ELSE_LABEL}, "save_pressed": pressed,
+                     "statuses_after": [st.get("status") for st in after], "next": p.question()}
         self.how[item["itemId"]] = "TAPPED"
-        entry["did"].append(f"tapped {want[0]!r} (Save off), {want[1]!r} (Save on), Save and next")
+        entry["did"].append(f"tapped {want[0]!r} (the item stayed, And one more?), then "
+                            f"{(second or vs.NOTHING_ELSE_LABEL)!r}" + (", Save and next" if pressed else ""))
 
     def go_back(self, entry: dict) -> None:
         """FR-6: from the next question, *Back* -- the previous question reopens with the (wrong) answer said there lit;
@@ -2165,12 +2188,14 @@ class _Walk:
             self.how[item["itemId"]] = "TAPPED"
             _wait_next(p, entry["question"])
             return
-        if control == "pick_two" and not self.used["taps"] and len(ans.get("optionIds") or []) == 2:
-            # keel-web 073 FR-6: the first pick-two by taps -- a tick only ticks; *Save and next* finishes it (IM20)
+        if control in PICK_CONTROLS and not self.used["taps"] and ans.get("optionIds"):
+            # spec 089 FR-3 (keel-web 135 FR-2): the first Importance by taps -- one pick, *And one more?*, the second
+            # (or *Nothing else*) completes it (IM20)
             self.used["taps"] = True
-            self.tap_pick_two(entry, item, [options[o] for o in ans["optionIds"]], labels_shown)
+            self.tap_one_then_one(entry, item, [options[o] for o in ans["optionIds"]], labels_shown)
             return
-        if control == "pick_two":
+        if control in PICK_CONTROLS:
+            # keel-cloud 158 T014: the first ask reads a multi of two -- the person names both at once
             self.held(entry, " and ".join(options[o] for o in ans.get("optionIds") or []))
             self.how[item["itemId"]] = SPOKEN_HOW
             _wait_next(p, entry["question"])

@@ -1125,6 +1125,12 @@ class Player:
     def tap_chip(self) -> None:
         self.page.get_by_test_id("ai-sheet").locator(".iv-chips .chip").first.click()
 
+    def tap_chip_named(self, label: str) -> None:
+        """A chip by its words -- Importance's second ask draws *Nothing else* in *None of these*' place (keel-cloud 158
+        T010, keel-web 135 FR-2)."""
+        self.page.get_by_test_id("ai-sheet").locator(".iv-chips .chip", has_text=re.compile(
+            rf"^\s*{re.escape(label)}\s*$")).first.click()
+
     def type_instead(self, text: str) -> None:
         """*Type instead*, the words typed; *Save and next* (`save`) sends them on."""
         self.page.get_by_test_id("ai-type").click()
