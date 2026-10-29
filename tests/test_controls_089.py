@@ -320,3 +320,21 @@ def test_the_registrys_lullaby_examples_are_the_frames_the_harness_composes():
     assert vs.frequency_served(vs.Window(7, "NIGHTS"), "have to work out why your baby was crying") in text
     assert "Think of your last night. Which one of these would you most like made easier?" in text
     assert "How did your way of working out what the baby needed go?" in text
+
+
+# ---------------------------------------------------------------------------------------- FR-6: decided before
+
+def test_the_five_zeros_are_held_for_the_founder_and_158_159_are_marked_merged():
+    """FR-6: D-2026-10-29-13 / -14 carry 158's merge (`e3d34831`), -15 159's (`1cf2ebc3`); the five 0s are a `held`
+    entry, D-2026-10-30-01, `spec-merged` with no spec (087's validator takes it: a spec is required on `taken` only),
+    still active, on the Frequency item, and naming each of the five; its fix names no location the cycle writes, so it
+    snoozes no weak row."""
+    from quality import decisions as dec                                    # noqa: PLC0415
+    found = {d["id"]: d for d in dec.load(dec.DECISIONS_PATH)}
+    assert (found["D-2026-10-29-13"]["merged"], found["D-2026-10-29-14"]["merged"],
+            found["D-2026-10-29-15"]["merged"]) == ("e3d34831", "e3d34831", "1cf2ebc3")
+    held = found[vs.ZERO_DECISION]
+    assert (held["decision"], held["until"], "spec" in held, "merged" in held) == ("held", "spec-merged", False, False)
+    assert dec.active(held, "20261028-f48f256") and held["_row"]["dimension"] == {"problem.frequency"}
+    assert all(name in held["why"] for _, name in vs.ZERO_AS_CANT_RECALL)
+    assert not dec.fix_matches(held, {"category": "registry row", "place": "dimension-registry.json problem.frequency"})

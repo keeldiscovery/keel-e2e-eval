@@ -70,7 +70,9 @@ def dry(capsys, decisions_path: Path, record: Path = RECORD) -> tuple[int, str]:
 
 def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens():
     found = dec.load(dec.DECISIONS_PATH)
-    assert len(found) == 20 and [d["id"] for d in found] == [f"D-2026-10-29-{i:02d}" for i in range(1, 21)]
+    # spec 089 FR-6: the five recorded 0s, held for the founder (D-2026-10-30-01, spec-merged with no spec yet)
+    assert len(found) == 21 and [d["id"] for d in found] == [f"D-2026-10-29-{i:02d}" for i in range(1, 21)] + [
+        "D-2026-10-30-01"]
     records = {p.stem for p in cycle.record_files(REPO / "quality" / "cycles")}
     for d in found:
         assert d["cycle"] in records, f"{d['id']} names a committed cycle record"

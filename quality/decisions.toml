@@ -229,3 +229,13 @@ fix = "the gate's escape chips"
 decision = "declined"
 until = "never"
 why = "A misread: the chips sit with the story box after a Yes, not beside Yes and No (keel-web GateScreen hides them on No). They stay; a Yes without a story has an honest way through. The founder, 2026-10-29: put the chips back."
+
+[[decision]]
+id = "D-2026-10-30-01"
+cycle = "20261028-f48f256"
+proposals = [35]
+row = { scope = "PROBLEM", audience = "respondent", dimension = "problem.frequency", screen = "item" }
+fix = "the five recorded 0s"
+decision = "held"
+until = "spec-merged"
+why = "Corpus revision 19 records five people who answered 0 after a yes (04-linerly: Bruno Costa, Dmitri Volkov, Gwen Price, window 12 MONTHS; 05-paidly: Petra Novak, Talia Ben-David, window 3 MONTHS); since keel-cloud 158 the wire refuses a 0 (a count from 1). The corpus is untouched and the engine reads them as recorded. For the founder: drop them in a corpus revision, or replay them as I can't recall. Until he decides, the harness replays the five as CANT_RECALL, each named in the scripted person's notes (spec 089 FR-2). Held with no spec yet: it snoozes nothing (its fix names no location the cycle writes) and ends when the spec his decision becomes is merged."
