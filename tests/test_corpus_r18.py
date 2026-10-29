@@ -1,15 +1,18 @@
-"""Spec 080 FR-2: corpus revision 17 (keel-cloud 147, keel-cloud-docs `88bfce8d`), stackless; and what specs 067 and 068
-built on revisions 15 and 16, held at 17.
+"""Spec 086 FR-2: corpus revision 18 (keel-cloud 152, keel-cloud-docs `21395ab0`), stackless; and what specs 067, 068
+and 080 built on revisions 15, 16 and 17, held at 18.
 
-**Rule D17**, the eval's own diff: every entry read beside its revision-16 record (keel-cloud's test mirrors
-`corpus-r16/` and `backtest-r16/`), every leaf difference one of 147's edits -- the revision line everywhere, and on
-02-compliancelog alone the one standings row, `expected.standings.commercial.buyer_payer_alignment`'s status, drift,
-inside and outside (PEOPLE_DISAGREE / both / 5 / 4 -> HOLDING_UP / none / 7 / 2, keel-cloud 145 FR-2's direction-aware
-reading) -- and the edit made. **D16 stays as the record**: revision 16's 112 Commitment picks read mirror against
-mirror (`corpus-r15/` and `backtest-r15/` beside `corpus-r16/` and `backtest-r16/`). And **the cloud's own checker**
-`check_corpus_r17.py` prints OK on all 35. **Rule Q** (`check_corpus_r15.py`'s, mirrored by the reader) still holds: a
-person's `condition` is YES or NO, on the primary link only, where the context records a condition. The mirrors and the
-checker are keel-cloud's; where its checkout lacks them the tests skip by name (judgement call 4 of 067's tasks.md).
+**Rule D18**, the eval's own diff: every entry read beside its revision-17 record (keel-cloud's test mirrors
+`corpus-r17/` and `backtest-r17/`), every leaf difference one of 152's edits -- the revision line everywhere (the
+header is a comment, so the parsed tree holds no other trace of it); on the golden seven the belief sentences of the
+six moved rows (Prevalence, Importance, Current solution, Compatibility, Relative advantage, Commitment) and the belief
+phrases of Prevalence and Relative advantage, eight fields an entry; on the eleven back-test entries whose cost is a
+rate, that cost's belief sentence (*The problem already costs the payer about ...: {loss}.*) -- and never a standing,
+drift, inside, n or verdict (`expected` reads as revision 17's, whole). **D17 and D16 stay as the record**, mirror
+against mirror: 147's one Buyer and payer row (`corpus-r16/` + `backtest-r16/` beside `corpus-r17/` + `backtest-r17/`)
+and 129's 112 Commitment picks (`-r15/` beside `-r16/`). And **the cloud's own checker** `check_corpus_r18.py` prints
+OK on all 35. **Rule Q** (`check_corpus_r15.py`'s, mirrored by the reader) still holds: a person's `condition` is YES or
+NO, on the primary link only, where the context records a condition. The mirrors and the checker are keel-cloud's;
+where its checkout lacks them the tests skip by name (judgement call 4 of 067's tasks.md).
 """
 
 from __future__ import annotations
@@ -28,9 +31,21 @@ from tests import v9_fixtures as fx
 
 KEEL_CLOUD = Path(load_config(validate=False).keel_cloud)
 MIRROR = KEEL_CLOUD / "src" / "test" / "resources" / "keel"
-SIM = KEEL_CLOUD / "canon" / "designs" / "measured-beliefs" / "sim" / "check_corpus_r17.py"
+SIM = KEEL_CLOUD / "canon" / "designs" / "measured-beliefs" / "sim" / "check_corpus_r18.py"
 
-#: keel-cloud 147 T001 (`check_corpus_r17.py`'s `R17_ROW`): the one row revision 17 moves, field by field.
+#: keel-cloud 152 T005 / T008 (`check_corpus_r18.py`'s `R18_GOLDEN`): the eight fields the seven templates move on a
+#: golden entry, `founder_calibration.<row>.<field>`.
+R18_GOLDEN = {("problem.prevalence", "belief_phrase"), ("problem.prevalence", "belief_sentence"),
+              ("problem.importance", "belief_sentence"), ("problem.current_solution_satisfaction", "belief_sentence"),
+              ("solution.compatibility", "belief_sentence"), ("solution.relative_advantage", "belief_sentence"),
+              ("solution.relative_advantage", "belief_phrase"), ("commercial.commitment", "belief_sentence")}
+#: 152 T009 (`R18_BACKTEST`): the rate cost's belief, on the eleven back-test entries whose cost is a RATE.
+R18_BACKTEST = {("commercial.existing_sacrifice", "belief_sentence")}
+R18_RATE_ENTRIES = {"09-karsa", "10-palus", "12-transload", "13-aircaps", "17-expanse", "18-careforce", "19-veles",
+                    "20-lemma", "21-codyco", "23-taiga", "26-cubic"}
+#: 152 T005: Prevalence's five phrases, the bin's share (recorded capitalised, 152's judgement call 8).
+R18_PREVALENCE = ("Under 2 in 10", "2 to 3 in 10", "4 to 5 in 10", "6 to 7 in 10", "At least 8 in 10")
+#: keel-cloud 147 T001 (`check_corpus_r17.py`'s `R17_ROW`): the one row revision 17 moved, field by field.
 R17_ENTRY = "02-compliancelog"
 R17_ROW = ("expected", "standings", "commercial.buyer_payer_alignment")
 R17_FIELDS = {"status": ("PEOPLE_DISAGREE", "HOLDING_UP"), "drift": ("both", "none"), "inside": (5, 7),
@@ -54,7 +69,7 @@ _ABSENT = object()
 
 
 def _walk(before, after, path, out):
-    """`check_corpus_r17.py`'s `_walk`: every leaf that differs, a key or index absent on one side named `_ABSENT`."""
+    """`check_corpus_r18.py`'s `_walk`: every leaf that differs, a key or index absent on one side named `_ABSENT`."""
     if isinstance(before, dict) and isinstance(after, dict):
         for k in list(before) + [k for k in after if k not in before]:
             _walk(before.get(k, _ABSENT), after.get(k, _ABSENT), path + (k,), out)
@@ -72,7 +87,7 @@ def _step_alone(doc: dict) -> bool:
     return len(items) == 1
 
 
-def _pairs(before: str = "r16"):
+def _pairs(before: str = "r17"):
     """Each canon entry beside its record mirror (`corpus-<before>/`, `backtest-<before>/`)."""
     out = []
     for directory, mirror, backtest in ((corpus_mod.corpus_dir(KEEL_CLOUD), MIRROR / f"corpus-{before}", False),
@@ -82,8 +97,14 @@ def _pairs(before: str = "r16"):
     return out
 
 
+def _record_pairs(before: str, after: str):
+    """Mirror against mirror: each entry's `<kind>-<after>/` record beside its `<kind>-<before>/` record."""
+    return [(MIRROR / f"{'backtest' if backtest else 'corpus'}-{after}" / path.name, before_path, backtest)
+            for path, before_path, backtest in _pairs(before)]
+
+
 def _need_mirrors(*revisions: str):
-    for rev in revisions or ("r16",):
+    for rev in revisions or ("r17",):
         if not (MIRROR / f"corpus-{rev}").is_dir() or not (MIRROR / f"backtest-{rev}").is_dir():
             pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no revision-{rev[1:]} mirrors (corpus-{rev}/, "
                         f"backtest-{rev}/)")
@@ -93,17 +114,83 @@ def _load(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-# ------------------------------------------------------------------------------------------------ rule D17
+# ------------------------------------------------------------------------------------------------ rule D18
 
-def test_every_entry_moves_by_exactly_147s_edits():
-    """D17, the eval's own: 35 entries, each beside its revision-16 record; every difference the revision line (16 ->
-    17) or, on 02-compliancelog alone, one of the Buyer and payer row's four fields as 147 moves it; the row moved."""
-    _need_mirrors("r16")
-    pairs = _pairs("r16")
+def test_every_entry_moves_by_exactly_152s_edits():
+    """D18, the eval's own: 35 entries, each beside its revision-17 record; every difference the revision line (17 ->
+    18), on a golden entry one of the eight belief fields 152's templates move (all eight moved, strings both sides),
+    on a back-test entry the rate cost's belief sentence (on exactly the eleven rate entries); nothing else."""
+    _need_mirrors("r17")
+    pairs = _pairs("r17")
     assert len(pairs) == 35, [p.name for p, _, _ in pairs]
-    counts, strays, row = {}, [], {}
+    counts, strays, moved = {}, [], {}
     for path, before_path, backtest in pairs:
         after, before = _load(path), _load(before_path)
+        out: list = []
+        _walk(before, after, (), out)
+        counts[after["id"]] = len(out)
+        fields = R18_BACKTEST if backtest else R18_GOLDEN
+        for p, old, new in out:
+            if p == ("revision",):
+                assert (old, new) == (17, 18), (after["id"], old, new)
+            elif (len(p) == 3 and p[0] == "founder_calibration" and (p[1], p[2]) in fields
+                  and isinstance(old, str) and isinstance(new, str)):
+                moved.setdefault(after["id"], set()).add((p[1], p[2]))
+            else:
+                strays.append((after["id"], p, old, new))
+    assert not strays, strays
+    golden = {path.stem for path, _, backtest in pairs if not backtest}
+    assert len(golden) == 7
+    assert {e: f for e, f in moved.items() if e in golden} == {e: R18_GOLDEN for e in golden}
+    assert {e for e in moved if e not in golden} == R18_RATE_ENTRIES
+    assert counts == {e: 1 + (len(R18_GOLDEN) if e in golden else len(R18_BACKTEST) if e in R18_RATE_ENTRIES else 0)
+                      for e in counts}
+    assert sum(counts.values()) == 35 + 56 + 11
+
+
+def test_revision_18_moves_no_standing_and_writes_the_new_words():
+    """152 T008: no standing, drift, inside, n, median or verdict moved -- every entry's `expected` is revision 17's,
+    whole -- and the moved words are the templates': Prevalence's phrase one of the five shares and the sentence opening
+    on it, Relative advantage's phrase *given them* + the benefit, Commitment *Most ... would ... now.*, Current solution
+    *For most ..., ... still falls short.*, Compatibility *For most, ...*, Importance *Of these ...*; and the eleven rate
+    costs *The problem already costs the payer about ...: ...*."""
+    _need_mirrors("r17")
+    for path, before_path, backtest in _pairs("r17"):
+        after, before = _load(path), _load(before_path)
+        assert after.get("expected") == before.get("expected"), after["id"]
+        cal = after.get("founder_calibration") or {}
+        if backtest:
+            if after["id"] in R18_RATE_ENTRIES:
+                said = cal["commercial.existing_sacrifice"]["belief_sentence"]
+                assert said.startswith("The problem already costs the payer about ") and ": " in said, said
+            continue
+        phrase = cal["problem.prevalence"]["belief_phrase"]
+        assert phrase in R18_PREVALENCE, (after["id"], phrase)
+        assert cal["problem.prevalence"]["belief_sentence"].startswith(phrase + " of these "), after["id"]
+        assert cal["solution.relative_advantage"]["belief_phrase"].startswith("given them "), after["id"]
+        ra = cal["solution.relative_advantage"]["belief_sentence"]
+        assert ra.startswith("For most, it would have given them ") and " on their last " in ra, ra
+        assert cal["commercial.commitment"]["belief_sentence"].startswith("Most ") and \
+            cal["commercial.commitment"]["belief_sentence"].endswith(" now."), after["id"]
+        assert cal["problem.current_solution_satisfaction"]["belief_sentence"].endswith(" still falls short."), \
+            after["id"]
+        assert cal["solution.compatibility"]["belief_sentence"].startswith("For most, "), after["id"]
+        assert cal["problem.importance"]["belief_sentence"].startswith("Of these "), after["id"]
+
+
+# ------------------------------------------------------------------------------ rule D17, the record (spec 080)
+
+def test_revision_17_moved_exactly_147s_edits_on_the_record():
+    """D17 kept as the record (spec 080 FR-2), mirror against mirror: `corpus-r17/` and `backtest-r17/` beside
+    `corpus-r16/` and `backtest-r16/` -- every difference the revision line (16 -> 17) or, on 02-compliancelog alone,
+    one of the Buyer and payer row's four fields as 147 moved it; the row's n and option counts and every entry's
+    `expected` other than its standings revision 16's."""
+    _need_mirrors("r16", "r17")
+    pairs = _record_pairs("r16", "r17")
+    assert len(pairs) == 35
+    counts, strays, row = {}, [], {}
+    for r17_path, before_path, backtest in pairs:
+        after, before = _load(r17_path), _load(before_path)
         out: list = []
         _walk(before, after, (), out)
         counts[after["id"]] = len(out)
@@ -115,25 +202,14 @@ def test_every_entry_moves_by_exactly_147s_edits():
                 row[p[3]] = (old, new)
             else:
                 strays.append((after["id"], p, old, new))
+        assert {k: v for k, v in (after.get("expected") or {}).items() if k != "standings"} == \
+            {k: v for k, v in (before.get("expected") or {}).items() if k != "standings"}, after["id"]
     assert not strays, strays
     assert row == R17_FIELDS
     assert counts == {entry: 1 + (len(R17_FIELDS) if entry == R17_ENTRY else 0) for entry in counts}
-
-
-def test_revision_17_moves_no_verdict_and_holds_compliancelogs_row_as_the_engine_reads_it():
-    """147 T001: the row reads HOLDING_UP / none / 7 of 9 with n and the option counts revision 16's; COMMERCIAL stays
-    NOT_HOLDING_UP (on Price) and no entry's decision or vector verdict moved."""
-    _need_mirrors("r16")
-    after = _load(corpus_mod.corpus_dir(KEEL_CLOUD) / f"{R17_ENTRY}.yaml")
-    before = _load(MIRROR / "corpus-r16" / f"{R17_ENTRY}.yaml")
-    got = after["expected"]["standings"]["commercial.buyer_payer_alignment"]
-    was = before["expected"]["standings"]["commercial.buyer_payer_alignment"]
-    assert {k: got[k] for k in R17_FIELDS} == {k: new for k, (_, new) in R17_FIELDS.items()}
+    got = _load(MIRROR / "corpus-r17" / f"{R17_ENTRY}.yaml")["expected"]["standings"]["commercial.buyer_payer_alignment"]
+    was = _load(MIRROR / "corpus-r16" / f"{R17_ENTRY}.yaml")["expected"]["standings"]["commercial.buyer_payer_alignment"]
     assert (got["n"], got["optionCounts"]) == (was["n"], was["optionCounts"]) and got["n"] == 9
-    for path, before_path, _ in _pairs("r16"):
-        a, b = _load(path), _load(before_path)
-        assert {k: v for k, v in (a.get("expected") or {}).items() if k != "standings"} == \
-            {k: v for k, v in (b.get("expected") or {}).items() if k != "standings"}, a["id"]
 
 
 # ----------------------------------------------------------------------------- rule D16, the record (spec 068)
@@ -146,8 +222,7 @@ def test_revision_16_moved_exactly_129s_edits_on_the_record():
     _need_mirrors("r15", "r16")
     assert sum(MOVED_PICKS.values()) == 112 and len(MOVED_PICKS) == 28
     counts, moved, strays = {}, {}, []
-    pairs = [(MIRROR / f"{kind}-r16" / path.name, before_path, backtest)
-             for path, before_path, backtest in _pairs("r15") for kind in (("backtest" if backtest else "corpus"),)]
+    pairs = _record_pairs("r15", "r16")
     assert len(pairs) == 35
     for r16_path, before_path, backtest in pairs:
         after, before = _load(r16_path), _load(before_path)
@@ -175,7 +250,7 @@ def test_revision_16_moved_exactly_129s_edits_on_the_record():
 
 def test_no_golden_entry_answers_yes_after_trying_without_the_smaller_step():
     """129 FR-12 / r14 rule T: the golden seven's second yes sits only where the founder's list carries the smaller
-    step (02, 03, 06) -- at revision 17 as at 16."""
+    step (02, 03, 06) -- at revision 18 as at 16 and 17."""
     for path in sorted(corpus_mod.corpus_dir(KEEL_CLOUD).glob("*.yaml")):
         doc = _load(path)
         trying = [a["person"] for a in doc.get("answers") or []
@@ -184,12 +259,13 @@ def test_no_golden_entry_answers_yes_after_trying_without_the_smaller_step():
 
 
 def test_the_cloud_checker_prints_ok_on_every_entry():
-    """`check_corpus_r17.py` itself (the cloud's D17, RC both ways and Q, with every older rule) over the 35 entries."""
-    _need_mirrors("r16")
+    """`check_corpus_r18.py` itself (the cloud's D18, B and P18 on the new words, C's rate belief, RC both ways and Q,
+    with every older rule) over the 35 entries."""
+    _need_mirrors("r17")
     if not SIM.is_file():
         pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no {SIM.name}")
     failed = {}
-    pairs = _pairs("r16")
+    pairs = _pairs("r17")
     assert len(pairs) == 35
     for path, _, _ in pairs:
         run = subprocess.run([sys.executable, "-I", str(SIM), str(path)], cwd=SIM.parent, capture_output=True,
@@ -200,16 +276,16 @@ def test_the_cloud_checker_prints_ok_on_every_entry():
     assert not failed, failed
 
 
-def test_every_revision_17_entry_loads_in_its_mode_and_a_revision_16_file_is_refused_by_name(tmp_path):
-    """Every one of the 35 loads at 17 (the 28 in back-test mode); r16's 02-compliancelog is refused by name."""
-    _need_mirrors("r16")
-    for path, _, backtest in _pairs("r16"):
+def test_every_revision_18_entry_loads_in_its_mode_and_a_revision_17_file_is_refused_by_name(tmp_path):
+    """Every one of the 35 loads at 18 (the 28 in back-test mode); r17's 03-lullaby is refused by name."""
+    _need_mirrors("r17")
+    for path, _, backtest in _pairs("r17"):
         entry = corpus_mod.load_file(path, registry=fx.registry(), backtest=backtest)
-        assert entry.revision == 17, entry.id
-    raw = _load(MIRROR / "corpus-r16" / f"{R17_ENTRY}.yaml")
-    with pytest.raises(corpus_mod.CorpusError, match="revision is 16; this eval reads revision 17 only -- revision 16 "
-                                                     "is MARKS_VERSION 21's corpus before keel-cloud 147"):
-        corpus_mod.load_file(fx.write_entry(tmp_path, raw, name=f"{R17_ENTRY}.yaml"), registry=fx.registry())
+        assert entry.revision == 18, entry.id
+    raw = _load(MIRROR / "corpus-r17" / "03-lullaby.yaml")
+    with pytest.raises(corpus_mod.CorpusError, match="revision is 17; this eval reads revision 18 only -- revision 17 "
+                                                     "is MARKS_VERSION 21's corpus before keel-cloud 152"):
+        corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="03-lullaby.yaml"), registry=fx.registry())
 
 
 # ------------------------------------------------------------------------------------------------- rule Q
@@ -285,7 +361,7 @@ def test_a_person_outside_is_walked_inside_where_the_page_serves_no_chip():
 # ------------------------------------------------------------------------------- FR-1: the Answer box at load
 
 def test_every_entry_fits_the_answer_box_and_revision_14s_transload_stops_at_load(tmp_path):
-    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): all 35 revision-17 entries name every Importance item inside the
+    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): all 35 revision-18 entries name every Importance item inside the
     25-word Answer; revision 14's 12-transload (*Running the shift with too few workers*) did not, and the harness
     then lost *Finding freight sitting at the wrong door* -- read at revision 15, it stops at load naming the label."""
     _need_mirrors()
@@ -295,6 +371,11 @@ def test_every_entry_fits_the_answer_box_and_revision_14s_transload_stops_at_loa
         pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no revision-14 back-test mirror")
     raw = yaml.safe_load((MIRROR / "backtest-r14" / "12-transload.yaml").read_text(encoding="utf-8"))
     raw["revision"] = corpus_mod.REVISION
+    # spec 086: revision 18's rate cost belief (keel-cloud 152, rule C) -- the record's own words, so the read reaches
+    # the Answer box rather than stopping on revision 14's *Most dock supervisors ... lose about ...*
+    now = _load(corpus_mod.backtest_dir(KEEL_CLOUD) / "12-transload.yaml")
+    raw["founder_calibration"]["commercial.existing_sacrifice"]["belief_sentence"] = \
+        now["founder_calibration"]["commercial.existing_sacrifice"]["belief_sentence"]
     entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="12-transload.yaml"), registry=fx.registry(),
                                  backtest=True)
     with pytest.raises(vs.VectorsScriptError) as stopped:

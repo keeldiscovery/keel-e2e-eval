@@ -195,12 +195,18 @@ def cost_said(cost: dict, occasion, role_word) -> str:
 
 
 def cost_belief(cost: dict, actor_plural, occasion, role_word) -> str:
-    """CommercialChain.costBelief."""
+    """CommercialChain.costBelief. RATE since keel-cloud 152 (corpus revision 18, spec 086): *The problem already costs
+    the payer about {figure} of {base} {per}: {loss}.* -- the payer named, the founder's loss phrase kept (its trailing
+    full stops trimmed, its first letter lowered as `BeliefSentence.lower` does); it read *Most {actor plural} lose
+    about ...*, so `actor_plural` is no longer read."""
     unit, lo, hi = unit_of(cost, role_word), dec(cost["low"]), dec(cost["high"])
     if cost["mode"] == "RATE":
         of = base_of(cost, occasion)
-        return ("Most " + (actor_plural.strip() if actor_plural else "people") + " lose about " + figure(cost, lo, hi)
-                + ("" if of is None else " of " + of) + " " + per(unit, cost["period"]) + ".")
+        loss = (cost.get("lossPhrase") or "").strip()
+        while loss.endswith("."):
+            loss = loss[:-1].strip()
+        return ("The problem already costs the payer about " + figure(cost, lo, hi) + ("" if of is None else " of " + of)
+                + " " + per(unit, cost["period"]) + (": " + _lower_first(loss) if loss else "") + ".")
     if cost["mode"] == "HOURS":
         rate = dec(cost.get("rate"))
         money = None if rate is None else _range(cmoney(lo * rate, cost.get("currency")),
