@@ -435,17 +435,26 @@ def _phrase(text) -> str:
     return qualifiers.phrase(text)
 
 
+def _upper_first(text: str) -> str:
+    return text[:1].upper() + text[1:]
+
+
 def sentence(segment_core, condition, circumstance, job, window: "Window | None") -> str | None:
-    """keel-cloud `ReadBack.sentence(core, condition, circumstance, job, window)`: *"<Segment>, when <when>, <what>,
-    counting the last <window>."* -- the segment as `ReadBack.segment` says it (the condition after *, who*, or *and*
-    where the core has its own *who*, and since keel-cloud 146 FR-2 not at all where the core already says it), the
-    circumstance after *when* said once (146 FR-4, `qualifiers.with_when`), the job, the window's words; None where the
+    """keel-cloud `ReadBack.sentence(core, condition, circumstance, job, window)`, since keel-cloud 149 FR-2 two
+    sentences, so the job has a verb before it and the founder reads it once: *"<Segment>. When <when>, they want to
+    <what>, counting the last <window>."* -- the segment whole as `qualifiers.segment` says it (the condition after *,
+    who*, or *and* where the core has its own *who*, a condition's own *whose* / *that* / *which* kept (148 FR-2), and
+    since 146 FR-2 not at all where the core already says it), a capital and a full stop; then the circumstance after
+    *when* said once (146 FR-4, `qualifiers.with_when`), its first letter raised (*While running payroll, ...*), a comma
+    and the job on the people's verb (`qualifiers.they`: *they want to {job}*, *they {job}* where it opens with *want
+    to*, *need to*, *try to*, *have to* or *must*, *they are trying to ...* on *trying to*); then *, counting the last
+    {window}.*, or *.* where the window is None (spec 135's scope rule, as `read_back` hands it); None where the
     segment, the circumstance or the job is missing."""
     segment, when, what = _phrase(segment_core), _phrase(circumstance), _phrase(job)
     if not (segment and when and what):
         return None
     said = qualifiers.segment(segment, condition)
-    out = f"{said[:1].upper()}{said[1:]}, {qualifiers.with_when(when)}, {what}"
+    out = f"{_upper_first(said)}. {_upper_first(qualifiers.with_when(when))}, {qualifiers.they(what)}"
     return out + (f", counting the last {window_words(window)}." if window else ".")
 
 

@@ -219,24 +219,69 @@ def phrase(text) -> str:
     return out
 
 
+#: keel-cloud `ReadBack.OWN_PRONOUN` (148 FR-2): a condition that opens with a relative pronoun of its own other than
+#: *who* keeps it, after a comma, never after the sentence's *who*.
+_OWN_PRONOUN = re.compile(r"(?i)^(?:whose|that|which)\s", re.ASCII)
+
+
 def segment(core: str | None, condition: str | None) -> str:
-    """`ReadBack.segment` (120, 146 FR-2): the core, and the condition after *, who* (after *and* where the core has a
-    *who* clause of its own) unless the core already says it (`in_core`) -- a qualifier is said once."""
+    """`ReadBack.segment` (120, 146 FR-2, 148 FR-2): the core, and the condition after *, who* (after *and* where the
+    core has a *who* clause of its own) unless the core already says it (`in_core`) -- a qualifier is said once; a
+    condition that opens with *whose*, *that* or *which* keeps its own pronoun after a comma (*and whose ...* after a
+    core's own *who* clause), never *who whose*."""
     seg = phrase(core)
     who = phrase(condition)
     if who.lower().startswith("who "):
         who = who[4:].strip()
     if not who or not seg or in_core(seg, who):
         return seg
-    return seg + (" and " if _RELATIVE.search(seg) else ", who ") + who
+    if _RELATIVE.search(seg):
+        return seg + " and " + who
+    return seg + (", " if _OWN_PRONOUN.match(who) else ", who ") + who
 
 
 def segment_line(core: str | None, condition: str | None) -> str | None:
-    """`ContextSlots.segmentLine` (120, 146 FR-2): the core where there is no condition or the core already says it,
-    else *{core}, who {condition}* -- its own join, as before (146 judgement call 3)."""
+    """`ContextSlots.segmentLine` (120, 146 FR-2, 148 FR-2; 149 does not move it): the core where there is no condition
+    or the core already says it, else the segment whole as `segment` composes it (*{core}, who {condition}*, *and* after
+    the core's own *who* clause, a condition's own *whose* / *that* / *which* kept) -- no capital, no full stop."""
     if condition is None or not condition.strip() or core is None or in_core(core, condition):
         return core
-    return f"{core.strip()}, who {condition.strip()}"
+    return segment(core, condition)
+
+
+# keel-cloud 149 FR-2 (`ReadBack.they`): the job on a verb of the people's own -- *they want to {job}*, or *they {job}*
+# where the job already says its want.
+
+#: `ReadBack.OWN_WANT`: a job that opens with a want of its own (*need to keep the money ...*, *must file*).
+_OWN_WANT = re.compile(r"(?i)^(?:(?:want|need|try|have)\s+to|must)\s.*", re.ASCII)
+#: `ReadBack.THIRD_PERSON_WANT`: the same said of one (*needs to*, *tries to*, *has to*).
+_THIRD_PERSON_WANT = re.compile(r"(?i)^(wants|needs|tries|has)\s+to\s+(.*)$", re.ASCII)
+#: `ReadBack.TRYING`: a job that opens on *trying to* or *are trying to*.
+_TRYING = re.compile(r"(?i)^(?:are\s+)?trying\s+to\s+(.*)$", re.ASCII)
+
+
+def they(job: str) -> str:
+    """`ReadBack.they` (149 FR-2): a job that already says its own want -- *want to*, *need to*, *try to*, *have to*,
+    *must*, and (149's judgement call 1) the third-person *wants to* / *needs to* / *tries to* / *has to*, said of the
+    people as theirs -- takes *they* alone; *trying to* or *are trying to* takes *they are trying to*; a job that
+    already opens with *they* is kept; a bare *to ...* takes *they want*; every other job *they want to {job}*. *must*
+    opens a want only as a word (*mustard* does not)."""
+    lower = job.lower()
+    if lower.startswith("they "):
+        return job
+    trying = _TRYING.fullmatch(job)
+    if trying:
+        return "they are trying to " + trying.group(1)
+    third = _THIRD_PERSON_WANT.fullmatch(job)
+    if third:
+        verb = third.group(1).lower()
+        said = {"tries": "try", "has": "have"}.get(verb, verb[:-1])
+        return f"they {said} to {third.group(2)}"
+    if _OWN_WANT.fullmatch(job):
+        return "they " + job
+    if lower.startswith("to "):
+        return "they want " + job
+    return "they want to " + job
 
 
 def interview_topic(first: str, actor_plural: str, circumstance: str) -> str:
