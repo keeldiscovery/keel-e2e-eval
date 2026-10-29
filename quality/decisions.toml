@@ -19,6 +19,7 @@ fix = "context-interpret.md"
 decision = "taken"
 spec = ["keel-cloud 149"]
 until = "spec-merged"
+merged = "73426a67"
 why = "The read-back reads once: short phrases, a verb before the job, a condition that keeps its subject. An organisation's qualifier stays in the core (20/21/39 over 1/38). Spec 135's window rule stays: a money-only sentence has no window clause."
 
 [[decision]]
@@ -30,6 +31,7 @@ fix = "solution-mechanism.md"
 decision = "taken"
 spec = ["keel-cloud 150", "keel-web 129"]
 until = "spec-merged"
+merged = "1b33643f"
 why = "Every fact at the seed's grain, nothing added, the two stranger lines heard once. NOT taken: 3/40's code change showing the model's short_name to strangers in place of the founder's typed name -- D14 stands, the founder names the idea; a hint beside the name box instead (web 129), nothing typed is refused."
 
 [[decision]]
@@ -41,6 +43,7 @@ fix = "problem-interpret.md"
 decision = "taken"
 spec = ["keel-cloud 151"]
 until = "spec-merged"
+merged = "0eb15f8f"
 why = "Nothing added, every specific and today's tools by name, a removed number's size kept in words, the people named once."
 
 [[decision]]
@@ -62,6 +65,7 @@ fix = "dimension-registry.json"
 decision = "taken"
 spec = ["keel-cloud 152"]
 until = "spec-merged"
+merged = "21395ab0"
 why = "Twenty registry rows in the founder's words, with corpus revision 18 for the seven belief templates. 52's template not taken (51's is: the occasion stays a noun everywhere). 54's template reshaped. The code and product asks inside them were decided one by one: see D-2026-10-29-08 to -18."
 
 [[decision]]
@@ -145,6 +149,7 @@ fix = "the frequency control"
 decision = "taken"
 spec = ["keel-cloud 158", "keel-web 135"]
 until = "spec-merged"
+merged = "e3d34831"
 why = "Start at 1 after the yes. HELD: spoken ranges for a long window (frequency over a quarter is its own design question)."
 
 [[decision]]
@@ -156,6 +161,7 @@ fix = "the importance control"
 decision = "taken"
 spec = ["keel-cloud 158", "keel-web 135"]
 until = "spec-merged"
+merged = "e3d34831"
 why = "Pick one, then one more, on the same list; 'None of these' at the first ask only. HELD: the stretch-of-work occasion (the occasion stays one noun everywhere)."
 
 [[decision]]
@@ -167,6 +173,7 @@ fix = "the relative advantage control"
 decision = "taken"
 spec = ["keel-cloud 159", "keel-web 135"]
 until = "spec-merged"
+merged = "1cf2ebc3"
 why = "One four-step scale, the founder's benefits off the options; a lot better and a little better for, no difference and worse against, I can't tell apart; corpus revision 19."
 
 [[decision]]
@@ -210,6 +217,7 @@ fix = ["respondent-questions.md", "asked.md", "themes.md", "the follow-up ladder
 decision = "taken"
 spec = ["keel-cloud 153", "keel-cloud 154", "keel-cloud 155"]
 until = "spec-merged"
+merged = "078fe157"
 why = "The screener keeps the condition's subject; the gate's question is Yes or No; compatibility items written for the person; a theme's label true of every answer; every follow-up names the thing again; adoption friction's conditional yes carries the person's own 'only if'. CORRECTION 2026-10-29 (the founder: 'put the chips back'): proposals 37 and 58 misread the screen -- the two chips (I can't recall one particular ..., I'd rather not say) are drawn only with the story box after a Yes, never beside Yes and No; they stay. Not to be proposed again."
 
 [[decision]]
