@@ -215,8 +215,8 @@ a lost race retried), merged at keel-cloud-docs `a0b3759`, on keel-web `d23895f`
 renderer and transcriber -- **no vendor, no key, no money** -- keeps the clips under `runs/.stack/clips-<profile>`
 (`KEEL_CLIPS_DIR`), and serves keel-web with `vite --mode test` so the stranger can speak through the test build's one
 seam (`window.__keelSpeech`; `EVAL_WEB_MODE` overrides). S-006 ends with the interviewer leg (`evals/interviewer_leg.py`):
-the founder, stood on Keel's door after the lock, records Chukwu from Sent, watches RECORDING turn READY, tries the
-interview, sends an AI link a stranger answers aloud on the stage, a Let-them-choose link, changes to Livia for 400 and is
+the founder, stood on Keel's door after the lock, records Saskia from Sent, watches RECORDING turn READY, tries the
+interview, sends an AI link a stranger answers aloud on the stage, a Let-them-choose link, changes to Daphne for 400 and is
 refused at 100; S-005 walks the short form. Scored by `evals/interviewer_marks.py` (IM1-IM13) into `interviewer-marks.json`
 beside the transcript; `MARKS_VERSION` stays 19. The scripts are read from the stored recording (`stack/ledger.recording`).
 DRIFT #85-#89 are what the screens and the wire did that the specs do not say.

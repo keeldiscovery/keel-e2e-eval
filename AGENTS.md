@@ -467,6 +467,17 @@ walks reached their end and which stopped (study -- the step), and a keel-cloud 
 CYCLE=quality/cycles/20261028-88bfce8.md` reads the same facts from its studies and score files. Readers, rubric,
 weak rule, adviser, journeys, `MARKS_VERSION` 21 and `REVISION` 17 unchanged.
 
+**The two studio faces in the harness** (spec `083-two-studio-faces-in-the-harness`, 2026-10-28; keel-cloud 143,
+contract 44, + keel-web 125). `harness/interviewer_fake` mirrors 143: `FACES` DAPHNE, SASKIA (the enum's constants whose
+offered flag is true, in order), `PRESELECTED` DAPHNE; `RETIRED` = `RETIRED_110` (094's JUDY, JIN, ANNA, TITO: no
+constant, no hello on keel-web) + `RETIRED_143` (LIVIA, JIA, MARIEKE, CHUKWU: still constants, keel-web keeps their
+files), a pick of any 422 FACE_UNKNOWN; `served_hello` is null for a retired face, as 143 FR-4 serves a recording of
+one. The interviewer leg's first recording is the face that is not the preselected one (SASKIA) and the change goes to
+the preselected one (DAPHNE), every face word read from the fake; `test_the_faces_are_keel_clouds_own` reads keel-cloud's
+enum on the offered flag. The marks only read the data: `INTERVIEWER_MARKS_VERSION` holds at 12. The interviewer's
+hellos are heard unmuted: on a machine whose audio output stalls, headless Chromium fires `playing` and never advances
+(any face; muted or `--disable-audio-output` plays to the end), so IM28 / IM30 fail for the machine, not the product.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
@@ -538,10 +549,10 @@ keel-cloud 094 + 095 (keel-cloud-docs `a0b3759`: contract 16, `InferenceCharge` 
 document 22, read on arrival) on keel-web `d23895f` (069: the AI interviewer), served `vite --mode test` for the speech
 seam.** Step 5 is three screens (L1 *Who asks the questions*; on the own door one line and *Lock and approve*). S-006 ends
 with **the interviewer leg** (`evals/interviewer_leg.py`) after the contacts leg: the own-AI refusals, the founder stood
-on Keel's door (spec 043's stand-in, keyed `e2e-eval:044:`), Chukwu (Tito before spec 058) recorded from Sent's persona line (NOT_RECORDED ->
+on Keel's door (spec 043's stand-in, keyed `e2e-eval:044:`), Saskia (Chukwu before spec 083, Tito before 058) recorded from Sent's persona line (NOT_RECORDED ->
 RECORDING -> READY on keel-cloud's fake renderer), S1 / S2 / S3, W1 replayed, Try it yourself writing nothing, an AI link
 answered on the stranger's own stage through `window.__keelSpeech` (`harness/interviewer_screens.py`), a Let-them-choose
-link, Livia for 400 (Judy before 058), the refusal at 100, the readings on arrival and nothing left unread; S-005 the short form with its AI
+link, Daphne for 400 (Livia before 083, Judy before 058), the refusal at 100, the readings on arrival and nothing left unread; S-005 the short form with its AI
 link answered. Scored by `evals/interviewer_marks.py` (IM1-IM13, `INTERVIEWER_MARKS_VERSION` 1; IM12 unmeasured, DRIFT
 #86). The journeys' readings: on Keel's door nothing is pressed (095); on the own door with the agent connected first the
 founder's session asks, as before. `stack/ledger.py` also reads the stored recording (the scripts are on no route). DRIFT
