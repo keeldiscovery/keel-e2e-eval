@@ -1579,7 +1579,8 @@ def _read_aloud_item(interview: dict, expected: dict) -> str | None:
 
     def one_of(i: dict) -> bool:
         a = answers.get(i.get("itemId")) or {}
-        return (i.get("control") not in ("pick_two", "cost_total", "segmented_0_to_7", "number_with_unit")
+        return (i.get("control") not in ("pick_two", "pick_one_then_one", "cost_total", "segmented_1_to_n",
+                                         "segmented_0_to_7", "number_with_unit")
                 and len(a.get("optionIds") or []) == 1 and not a.get("chip"))
 
     labels = lambda i: [o["label"] for o in i.get("options") or []]  # noqa: E731

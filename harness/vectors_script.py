@@ -61,7 +61,7 @@ from harness import interview_charge
 from harness import qualifiers
 from instructions import chain as chain_mod
 from instructions import corpus as corpus_reader
-from instructions.registry import COMMITMENT_KEY
+from instructions.registry import COMMITMENT_KEY, FREQUENCY_MIN
 
 VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
@@ -188,8 +188,10 @@ def window_of(entry) -> Window:
 def frequency_fits(entry) -> bool:
     """Whether the corpus's Frequency can be stated on the entry's **own** recall window.
 
-    keel-cloud counts Frequency in the window's own unit, on an axis from 0 to the window's count
-    (the respondent's `segmented_0_to_7` runs 0..count). The corpus keeps Frequency on the founder's
+    keel-cloud counts Frequency in the window's own unit, on an axis from 1 to the window's count (spec 089 FR-2,
+    keel-cloud 158: the respondent's `segmented_1_to_n` runs 1..count, a number box from 1; a 0 after the yes is
+    SHAPE_MISMATCH, and the five recorded 0s are replayed as *I can't recall*, `ZERO_AS_CANT_RECALL`). The corpus keeps
+    Frequency on the founder's
     own "out of N", so where the founder's range or any pick lies past the window's count the founder
     cannot state it and no respondent can answer it, and the journey leaves Frequency **out** (`unsure`)
     rather than inventing a number (spec 039 D-1, spec 041 D-1, spec 042 D-1). Countly's {4, WEEKS}
@@ -1645,6 +1647,9 @@ class PersonInputs:
     #: Spec 064 FR-7: a corpus pick the served options cannot carry, re-expressed (`(dimension, corpus, sent)`) -- a
     #: finding, never a silent drop (Commitment's *yes, after trying it first* where no smaller step is served).
     remapped: tuple = ()
+    #: Spec 089 FR-2: the scripted person's notes -- what the walk sends other than the file records, each named in
+    #: words (a recorded Frequency 0 after a yes replayed as *I can't recall*, `ZERO_AS_CANT_RECALL`).
+    notes: tuple = ()
 
     def scripted_posts(self, token: str, recall_period: str | None = None, **extra) -> list[tuple[str, dict | None]]:
         """Spec 088 FR-2 (keel-cloud 156, contract 45): what a scripted person posts, in order -- `POST
@@ -2641,6 +2646,42 @@ def fake_lower(label: str | None) -> str | None:
     return label if len(label) > 1 and label[1].isupper() else label[:1].lower() + label[1:]
 
 
+#: Spec 089 FR-2 (keel-cloud 158 T003, contract 46): a Frequency answer counts from 1 -- a 0 after the yes is refused
+#: 400 SHAPE_MISMATCH and nothing is stored. Corpus revision 19 records five people who answered 0 after a yes (158's
+#: *What did not hold*); the corpus is never edited and the engine reads them as recorded, but the wire cannot carry
+#: them. Until the founder decides (drop them in a revision, or replay them as *I can't recall*: quality/decisions.toml
+#: D-2026-10-30-01, held), the harness replays those five as the item's escape, CANT_RECALL, each named in the scripted
+#: person's notes. `(entry, person): window` -- the window each was asked over, as 158 found them.
+ZERO_AS_CANT_RECALL = {("04-linerly", "Bruno Costa"): "12 MONTHS", ("04-linerly", "Dmitri Volkov"): "12 MONTHS",
+                       ("04-linerly", "Gwen Price"): "12 MONTHS", ("05-paidly", "Petra Novak"): "3 MONTHS",
+                       ("05-paidly", "Talia Ben-David"): "3 MONTHS"}
+FREQUENCY_ESCAPE = "CANT_RECALL"
+#: The decision the five wait on.
+ZERO_DECISION = "D-2026-10-30-01"
+
+
+def zero_note(person: str, entry_id: str) -> str:
+    """The note a replayed 0 carries: who, what the file records, what is sent and why."""
+    return (f"{person} ({entry_id}) recorded problem.frequency 0 after a yes; keel-cloud 158 refuses a 0 (a count from "
+            f"1), so the walk sends I can't recall (CANT_RECALL) -- the corpus is unchanged, the founder's call is "
+            f"{ZERO_DECISION}")
+
+
+def _frequency_from_one(entry, person: str, picks: list) -> tuple[list, tuple]:
+    """Spec 089 FR-2: a recorded Frequency below 1 (`registry.FREQUENCY_MIN`) sent as the item's escape, CANT_RECALL,
+    and named. Only the five `ZERO_AS_CANT_RECALL` names are expected; any other 0 is replayed and named the same way
+    (a back-test record the founder has not seen), never dropped silently."""
+    import dataclasses                                                 # noqa: PLC0415
+    out, notes = [], []
+    for pick in picks:
+        if pick.dimension == "problem.frequency" and pick.scale is not None and pick.scale < FREQUENCY_MIN:
+            out.append(dataclasses.replace(pick, scale=None, chip=FREQUENCY_ESCAPE))
+            notes.append(zero_note(person, entry.id))
+        else:
+            out.append(pick)
+    return out, tuple(notes)
+
+
 def _served_commitment(entry, picks: list) -> tuple[list, tuple]:
     """Spec 064 FR-7 (keel-cloud 118 FR-1): Commitment's options are written from the founder's step -- *Yes, I'd
     {step}*, *Yes, after {smaller step} first* (`conditional: true`) only where the list carries a smaller step, then
@@ -2700,6 +2741,7 @@ def person_inputs(entry) -> list[PersonInputs]:
         asked.discard("problem.prevalence")
         picks = [_pick(entry, key, raw) for key, raw in (person.picks or {}).items() if key in asked]
         picks, remapped = _served_commitment(entry, picks)
+        picks, notes = _frequency_from_one(entry, person.person, picks)
         people.append(PersonInputs(
             person=person.person, link=person.link,
             recency=None if person.link == LINK_B2B or not person.in_segment else person.recency == "yes",
@@ -2707,7 +2749,7 @@ def person_inputs(entry) -> list[PersonInputs]:
             picks=picks if person.in_segment else [],
             # spec 071 (keel-cloud 133 FR-4): the problem study asks no pilot question -- nobody can opt in
             pilot_opt_in=person.pilot_opt_in and person.in_segment and scope_of(entry) != "PROBLEM",
-            anchoring=person.anchoring, in_segment=person.in_segment, remapped=remapped))
+            anchoring=person.anchoring, in_segment=person.in_segment, remapped=remapped, notes=notes))
     import dataclasses                                                 # noqa: PLC0415
 
     lines = follow_up_lines(entry, people)

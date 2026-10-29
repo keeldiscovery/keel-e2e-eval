@@ -2684,6 +2684,8 @@ class Interview:
                 self.closed_price.append({"itemId": item.get("itemId"), "dimension": item.get("dimension"), "chip": answer["chip"]})
             return
         if "scale" in answer:
+            # spec 089 FR-2 (keel-cloud 158, keel-web 135 FR-1): Frequency's cells are 1..N -- no 0 is drawn, and the
+            # scripted 0s are sent as the escape (`vectors_script.ZERO_AS_CANT_RECALL`), so the radio is a count from 1
             main.get_by_role("radio", name=str(answer["scale"]), exact=True).click()
             return
         if "interval" in answer:

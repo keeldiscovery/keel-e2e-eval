@@ -2772,6 +2772,10 @@ def _answer_one(j: Journey, person, token: str) -> None:
             if j.strict:
                 assert not unoffered, unoffered
         person = _served_options(j, person, items)
+        for note in getattr(person, "notes", ()) or ():
+            # spec 089 FR-2: what the walk sends other than the file records (a recorded Frequency 0 replayed as I
+            # can't recall, keel-cloud 158) -- named for this person, never silent
+            j.findings.append({"what": note, "person": person.person})
         recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
         expected = person.response(token, recall)
         if unoffered:

@@ -162,6 +162,9 @@ class Served:
 
 _FROM_TO = re.compile(r"from\s+(\d+)\s+to\s+(\d+)", re.I)
 _OUT_OF = re.compile(r"out of\s+(\d+)", re.I)
+#: Frequency's controls: keel-cloud 158's `segmented_1_to_n` (contract 46: a count from 1) and the number box, and
+#: `segmented_0_to_7`, which a run recorded before 46 served.
+FREQUENCY_CONTROLS = ("segmented_1_to_n", "segmented_0_to_7", "number_with_unit")
 _SINGLE = {"single_choice", "single_choice_5", "fixed_four", "fixed_three", "price_ladder", "benefit_with_advantages"}
 
 
@@ -173,9 +176,11 @@ def _range(item: dict) -> tuple[int | None, int | None]:
     m = _FROM_TO.search(line)
     if m:
         return int(m.group(1)), int(m.group(2))
-    unit = ((item.get("numeric") or {}).get("defaultUnit")) or ""
-    m = _OUT_OF.search(unit)
-    return (0, int(m.group(1))) if m else (0, None)
+    # keel-cloud 158 (contract 46): a number box serves its least count (`numeric.min` 1); one served before 46 has none
+    numeric = item.get("numeric") or {}
+    low = int(numeric["min"]) if numeric.get("min") is not None else 0
+    m = _OUT_OF.search(numeric.get("defaultUnit") or "")
+    return (low, int(m.group(1))) if m else (low, None)
 
 
 def served_items(interview: dict, market_currency: str | None = None) -> list[Served]:
@@ -194,7 +199,7 @@ def served_items(interview: dict, market_currency: str | None = None) -> list[Se
             base = dict(item_id=item.get("itemId"), dimension=item.get("dimension") or "")
             if control == "pick_two":
                 out.append(Served(**base, kind="multi", options=options, escape=escape, pick=2))
-            elif control in ("segmented_0_to_7", "number_with_unit"):
+            elif control in FREQUENCY_CONTROLS:
                 low, high = _range(item)
                 out.append(Served(**base, kind="number", escape=escape, low=low, high=high,
                                   unit=(item.get("numeric") or {}).get("defaultUnit")))
