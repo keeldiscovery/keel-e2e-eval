@@ -1,7 +1,7 @@
-"""keel-cloud 146 (`domain.vectors.Qualifiers`, `FounderWords`, `ReadBack.withWhen`), mirrored: the qualifiers of the
-founder's WHICH PEOPLE that a stranger answers about themselves, and the two seams 146 closed on the lines composed from
-the segment and its condition -- a qualifier is said once (`in_core`), and the decision-maker's chip names the people
-once (`head`, `says`) -- with "when" said once before a circumstance (`with_when`).
+"""keel-cloud 146 (`domain.vectors.Qualifiers`, `FounderWords`, `ReadBack.withWhen`), 148 and 149, mirrored: the
+qualifiers of the founder's WHICH PEOPLE that a stranger answers about themselves, and the two seams 146 closed on the
+lines composed from the segment and its condition -- a qualifier is said once (`in_core`), and the decision-maker's
+chip names the people once (`head`, `says`) -- with "when" said once before a circumstance (`with_when`).
 
 Mirrored character for character so the harness predicts what the cloud serves (spec 077); every pattern is the
 cloud's, compiled ASCII as Java's `\\w` and `\\b` read ASCII text. 146's judgement calls are the cloud's and are kept:
@@ -9,6 +9,10 @@ the "said once" rule is read from the core and the condition alone (Issen's *not
 the beginner stage* shares no words and keeps its clause); `says` allows one content word of difference
 (`MOST_DROPPED`) and reads an *-ing* verb as its stem (*working* / *work*); `head` cuts at the last relative pronoun or
 preposition at or before the qualifier (*learners at intermediate level* -> *learners*).
+
+keel-cloud 149 (spec 085): a list *A, B or C* is one part (`parts`), a participle names its verb (`bare`), the job is
+said on the people's verb (`they`), and the condition code draws keeps the founder's subject (`thing_of_theirs`,
+`organisations_clause`, read by `vectors_script.condition_from` before its tool branch).
 """
 
 from __future__ import annotations
@@ -106,6 +110,184 @@ OPENS_QUALIFIER = re.compile(r"(?i)\s(?:who|whose|that|which|in|at|with|of|from|
 #: carry -- *are based in*, *work at a*, *have*, *are*, *who*.
 FRAME = re.compile(r"(?i)^(?:who\s+)?(?:are\s+based\s+in|works?\s+at(?:\s+an?)?|are|is|have|has)\s+", re.ASCII)
 
+#: keel-cloud `Qualifiers.ITEM_OPENS` (149 FR-3): a word that opens a clause of its own, never a list's item -- a
+#: relative pronoun, a preposition, a negation, a conjunction, a participle or an adverb (lower case: *Beijing* and
+#: *Italy* are items).
+_ITEM_OPENS = (r"(?!(?:who|whose|that|which|where|when|while|with|without|in|at|on|of|for"
+               r"|from|by|to|into|across|within|not|no|never|but|and|or)\b|(?-i:[a-z]+(?:ing|ly))\b)")
+#: `Qualifiers.ITEM`: one item of a list before its closing *or* / *and* -- one to three words.
+_ITEM = _ITEM_OPENS + r"[^,;\s]+(?:\s+(?!(?:and|or)\b)[^,;\s]+){0,2}"
+#: `Qualifiers.LIST`: a list's run after a comma -- items of one to three words, the last joined by *or* or *and*
+#: (*Mercury, Brex or similar*; *OPERA Cloud, Sihot and Apaleo*): its commas and its closing *and* stay in the part.
+LIST = re.compile(r"(?i)(?:,\s*" + _ITEM + r")*,\s*" + _ITEM + r"\s+(?:or|and)\s+" + _ITEM_OPENS
+                  + r"[^,;]+?(?=\s+and\b|\s*[,;]|\s*$)", re.ASCII)
+
+
+def _java_split(pattern: str, text: str) -> list[str]:
+    """`String.split(regex)`: the trailing empty strings dropped, the text whole where nothing matches."""
+    pieces = re.split(pattern, text)
+    if len(pieces) == 1:
+        return pieces
+    while pieces and pieces[-1] == "":
+        pieces.pop()
+    return pieces
+
+
+def parts(text: str | None) -> list[str]:
+    """`Qualifiers.parts` (130 FR-8, 149 FR-3): the parts of a people phrase -- split as X8 reads them (commas,
+    semicolons, *and*), never inside a list (`LIST`): *venture-backed startups in the US within two years of a raise,
+    banking with Mercury, Brex or similar* is two parts, the second *banking with Mercury, Brex or similar*. `in_core`
+    and the draw (`vectors_script.drawn_condition`) read the same parts. Unstripped, as `String.split` gives them."""
+    if text is None:
+        return []
+    kept: list[str] = []
+    at = 0
+    for found in LIST.finditer(text):
+        kept.append(text[at:found.start()])
+        kept.append(re.sub(r"\band\b", "\u0002", found.group().replace(",", "\u0001")))
+        at = found.end()
+    kept.append(text[at:])
+    return [part.replace("\u0001", ",").replace("\u0002", "and")
+            for part in _java_split(r"[,;]|\band\b", "".join(kept))]
+
+
+def bare(text: str) -> str:
+    """`Qualifiers.bare` (149 FR-3): the qualifier verbs a participle says (*banking with* is *bank with*), so a
+    condition that says the verb in its own person names the same qualifier."""
+    text = re.sub(r"(?i)\b(bank|work|own|employ)ing\b", r"\1", text)
+    text = re.sub(r"(?i)\brunning\b", "run", text)
+    return re.sub(r"(?i)\boperating\b", "operate", text)
+
+
+# ------------------------------------------------------------------------------------------- the drawn condition
+# keel-cloud 149 FR-3 (`ScreenResultApplier.thingOfTheirs`, `organisationsClause`, 131's frame, `ORGANISATIONS`,
+# `singular`, `article`; `StrangerGrammar.presentVerb`): what `vectors_script.condition_from` draws before its tool
+# branch, so the tool branch draws only where the people are the subject.
+
+#: keel-cloud `StrangerGrammar.VERBS`: the present verbs code turns.
+_VERBS = frozenset((
+    "want", "need", "have", "try", "must", "can", "get", "go", "make", "take", "lose", "pay", "spend", "wait", "decide",
+    "convert", "move", "check", "call", "ask", "look", "hold", "keep", "send", "start", "stop", "feel", "fall", "run",
+    "sit", "stand", "work", "practise", "practice", "talk", "type", "upload", "sort", "choose", "buy", "find", "miss",
+    "struggle", "answer", "pass", "sell", "use", "open", "close", "fill", "file", "book", "log", "track", "review",
+    "plan", "prepare", "write", "read", "update", "chase", "fix", "learn", "give", "tell", "hire", "end", "finish",
+    "leave", "come", "see", "cross", "arrive", "land", "reach", "break", "slip", "pile", "cry", "wake", "ring", "bank",
+    "raise", "earn", "own", "rent", "drive"))
+#: keel-cloud `StrangerGrammar.IRREGULAR`'s presents.
+_IRREGULAR = frozenset((
+    "are", "is", "have", "has", "do", "does", "go", "get", "make", "take", "see", "come", "know", "find", "give", "tell",
+    "feel", "leave", "keep", "begin", "run", "sit", "stand", "lose", "pay", "send", "spend", "buy", "bring", "think",
+    "hold", "can", "will", "may", "must", "put", "set", "cut", "let", "read", "write", "speak", "meet", "sell", "wake",
+    "eat", "fall", "drive", "ride", "build", "hear", "mean", "say", "become", "choose", "win", "fly", "grow", "wear"))
+
+
+def present_verb(word: str | None) -> bool:
+    """`StrangerGrammar.presentVerb`: a present verb code turns (*must*, *can*, *will*, *may* only by `_VERBS`)."""
+    if word is None or not word.strip():
+        return False
+    lower = word.strip().lower()
+    return lower in _VERBS or (lower in _IRREGULAR and lower not in ("must", "can", "will", "may"))
+
+
+def _verb_form(word: str) -> bool:
+    """`ScreenResultApplier.verbForm` (149 FR-3.1): a present verb in either person (*run*, *runs*, *is*, *has*)."""
+    lower = word.lower()
+    return (lower in ("is", "are", "has", "have") or present_verb(lower)
+            or (lower.endswith("es") and present_verb(lower[:-2]))
+            or (lower.endswith("s") and present_verb(lower[:-1])))
+
+
+#: keel-cloud `ScreenResultApplier.ORGANISATIONS` (145 FR-4a): the nouns that name an organisation the person works at.
+ORGANISATIONS = frozenset((
+    "company", "business", "firm", "organization", "organisation", "agency", "department", "practice", "clinic",
+    "hospital", "school", "district", "plant", "factory", "warehouse", "store", "shop", "restaurant", "hotel", "office",
+    "studio", "startup", "team", "group", "bank", "lab", "site", "branch", "location", "employer", "brand", "retailer",
+    "chain", "fleet", "venue", "property", "farm", "center", "centre", "institution", "university", "college",
+    "charity", "nonprofit", "council", "carrier", "airline", "insurer", "manufacturer", "distributor", "operator",
+    "provider", "network", "enterprise", "corporation"))
+
+
+def singular(noun: str) -> str:
+    """`ScreenResultApplier.singular` (145 FR-4a): one of a plural noun (*companies* -> *company*)."""
+    if noun.endswith("ies") and len(noun) > 3:
+        return noun[:-3] + "y"
+    if noun.endswith(("sses", "ches", "shes", "xes")):
+        return noun[:-2]
+    return noun[:-1] if noun.endswith("s") and not noun.endswith("ss") else noun
+
+
+def article(noun: str) -> str:
+    """`ScreenResultApplier.article`."""
+    return "an " if re.match(r"[aeiou]", noun) else "a "
+
+
+def thing_of_theirs(text: str) -> str | None:
+    """`ScreenResultApplier.thingOfTheirs` (149 FR-3.1): a thing of the people's -- *whose {thing} {verb} ...* -- said
+    of that thing: *whose jobs run on Procore or ACC* -> *have jobs that run on Procore or ACC*, a singular thing with
+    its article (*whose team shares a cluster* -> *have a team that shares a cluster*); None where the part says none.
+    The thing is the word after *whose*, or the two where the third is the verb."""
+    whose = re.search(r"(?i)\bwhose\s+(.+)$", text)
+    if not whose:
+        return None
+    said = whose.group(1).strip().split()
+    if len(said) < 2:
+        return None
+    verb = 2 if len(said) > 2 and not _verb_form(said[1]) and _verb_form(said[2]) else 1
+    thing, rest = " ".join(said[:verb]), " ".join(said[verb:])
+    last = said[verb - 1].lower()
+    plural = last.endswith("s") and not last.endswith("ss")
+    return "have " + ("" if plural else article(thing.lower())) + thing + " that " + rest
+
+
+def organisation_frame(text: str) -> str | None:
+    """`ScreenResultApplier.conditionFrom`'s 131 FR-6 branch: the people's organisation qualified by a relative clause,
+    said of one person -- *reservation agents at hotel groups in Germany that run a central reservations office* ->
+    *work at a hotel group in Germany that runs a central reservations office*; None otherwise."""
+    org = re.search(r"(?i)\bat\s+(.+?)\s+(?:that|which)\s+(run|operate|own|employ)s?\s+(.+)$", text)
+    if not org or re.search(r"(?i)\b(?:that|which|who)\b", org.group(1)):
+        return None
+    split = re.split(r"(?i)\s+(?=(?:in|across|from|on)\s)", org.group(1).strip(), maxsplit=1)
+    head = split[0].strip()
+    one = head[:-3] + "y" if head.endswith("ies") else head[:-1] if head.endswith("s") and not head.endswith("ss") \
+        else head
+    rest = re.sub(r"(?i)\btheir\b", "its", org.group(3).strip())
+    if re.match(r"[A-Z]{2,}\b", one):
+        said = "an " if re.match(r"[AEFHILMNORSX]", one) else "a "
+    else:
+        said = "an " if re.match(r"[aeiou]", one.lower()) else "a "
+    return ("work at " + said + one + (" " + split[1].strip() if len(split) > 1 else "") + " that "
+            + org.group(2).lower() + "s " + rest)
+
+
+#: `ScreenResultApplier.ORGANISATION_RELATIVE` (149 FR-3.2): the verbs an organisation is qualified by.
+_ORGANISATION_RELATIVE = re.compile(r"(?i)\b(?:that|which)\s+(bank|run|work|operate|own|employ)s?\s+(.+)$")
+#: `ScreenResultApplier.ORGANISATION_PARTICIPLE`: the same verbs as a participle (*banking with*, *running on*).
+_ORGANISATION_PARTICIPLE = re.compile(r"(?i)(?:^|\s)(banking|running|working|operating|owning|employing)\s+(.+)$")
+
+
+def organisations_clause(part: str, before: str | None) -> str | None:
+    """`ScreenResultApplier.organisationsClause` (149 FR-3.2): a part that qualifies the people's organisation by a
+    relative clause or a participle, without 131's *at X that run Y* frame, draws that frame on the organisation's head
+    noun -- the last noun of `ORGANISATIONS` said before the clause, in the part or the parts ahead of it (`before`):
+    *venture-backed startups in the US within two years of a raise, banking with Mercury, Brex or similar* -> *work at a
+    startup that banks with Mercury, Brex or similar*. None where no organisation is named before it (the people are
+    the subject: the tool branch's)."""
+    clause = _ORGANISATION_RELATIVE.search(part) or _ORGANISATION_PARTICIPLE.search(part)
+    if not clause:
+        return None
+    said = (before or "") + " " + part[:clause.start()]
+    head = None
+    for word in re.split(r"[^a-z]+", said.lower()):
+        if word and singular(word) in ORGANISATIONS:
+            head = singular(word)
+    if head is None:
+        return None
+    verb = clause.group(1).lower()
+    base = "run" if verb == "running" else "operate" if verb == "operating" else \
+        verb[:-3] if verb.endswith("ing") else verb
+    return f"work at {article(head)}{head} that {base}s {clause.group(2).strip()}"
+
+
 _NUMBER = re.compile(r"\d[\d,]*", re.ASCII)
 _CAPITAL = re.compile(r"\b[A-Z][\w.]*", re.ASCII)
 
@@ -127,15 +309,16 @@ def _framed_off(condition: str) -> str:
 
 
 def same_qualifier(condition: str | None, part: str | None) -> bool:
-    """`Qualifiers.sameQualifier` (145 FR-4a): `condition` names the same qualifier as the founder's `part` -- the
-    qualifier (the part from its first DRAWN_QUALIFIER match on, a leading *who / that / which* off) has every number and
-    capitalised word in the condition and no content word lost."""
+    """`Qualifiers.sameQualifier` (145 FR-4a, 149 FR-3): `condition` names the same qualifier as the founder's `part` --
+    the qualifier (the part from its first DRAWN_QUALIFIER match on, a leading *who / that / which* off) has every number
+    and capitalised word in the condition and no content word lost, a participle read as its verb (`bare`)."""
     if condition is None or not condition.strip() or part is None:
         return False
     at = DRAWN_QUALIFIER.search(part)
     qualifier = part[at.start():].strip() if at else part.strip()
     qualifier = re.sub(r"(?i)^(?:who|that|which)\s+", "", qualifier, count=1)
-    return _carries(condition, qualifier) and not dropped(qualifier, condition)
+    # keel-cloud 149 FR-3: a participle is its verb (*banking with Mercury* is named by *banks with Mercury*)
+    return _carries(condition, qualifier) and not dropped(bare(qualifier), bare(condition))
 
 
 def in_core(core: str | None, condition: str | None) -> bool:
@@ -143,7 +326,7 @@ def in_core(core: str | None, condition: str | None) -> bool:
     states it in the core alone. Read from the two alone (146 judgement call 1): (a) the condition with code's frame off
     has its numbers and names in the core, no content word lost and no negation dropped; or (b) it names the qualifier of
     one of the core's comma-, semicolon- or *and*-separated parts (`same_qualifier`, numbers and names held to the core,
-    judgement call 2)."""
+    judgement call 2) -- since keel-cloud 149 FR-3 never inside a list (`parts`)."""
     if core is None or not core.strip() or condition is None or not condition.strip():
         return False
     said = _framed_off(condition)
@@ -152,8 +335,7 @@ def in_core(core: str | None, condition: str | None) -> bool:
     anything = bool(dropped(said, "")) or bool(re.search(r"\d", said)) or bool(re.search(r"\b[A-Z]", said, re.ASCII))
     if anything and not dropped(said, core):
         return True
-    return any(DRAWN_QUALIFIER.search(part) and same_qualifier(condition, part)
-               for part in re.split(r"[,;]|\band\b", core))
+    return any(DRAWN_QUALIFIER.search(part) and same_qualifier(condition, part) for part in parts(core))
 
 
 def head(people: str | None) -> str | None:

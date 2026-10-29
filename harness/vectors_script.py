@@ -2456,17 +2456,28 @@ _NEGATIVE_QUALIFIER = re.compile(r"(?i)\bnot (?:starting|beginning) (?:from|at) 
                                  r"\bnot (?:complete |total |absolute )?beginners?\b")
 
 
-def condition_from(part: str | None) -> str | None:
+def condition_from(part: str | None, before: str | None = None) -> str | None:
     """keel-cloud 130 FR-8 (`ScreenResultApplier.conditionFrom`, X12): one qualifier of the founder's people as a
     condition completing *Only people who ...* -- *not starting from zero* -> *are past the beginner stage*, *with no X*
     -> *have no X*, *departments of 10 to 200 officers* -> *work at a department with 10 to 200 officers*, *that bank
     with Mercury or Brex* -> *bank with Mercury or Brex*, *at intermediate level or above* -> *are at intermediate level
-    or above*; None otherwise (the cloud's last branch, a part opening on a present verb, is not mirrored)."""
+    or above*; None otherwise (145's amount, relative-clause and place branches and the cloud's last branch, a part
+    opening on a present verb, are not mirrored). Since keel-cloud 149 FR-3 (spec 085 FR-2), in the cloud's order before
+    the tool branch: a thing of the people's keeps its subject (*whose jobs run on Procore or ACC* -> *have jobs that run
+    on Procore or ACC*, `qualifiers.thing_of_theirs`); 131's *at X that run Y* frame (`qualifiers.organisation_frame`);
+    an organisation qualified by a participle or a relative clause, named in the part or in the founder's words said
+    `before` it, draws that frame on its head noun (*..., banking with Mercury, Brex or similar* after *venture-backed
+    startups ...* -> *work at a startup that banks with Mercury, Brex or similar*, `qualifiers.organisations_clause`) --
+    so the tool branch draws only where the people are the subject."""
     if part is None or not part.strip():
         return None
     text = re.sub(r"(?i)^(?:who|that|which)\s+", "", part.strip(), count=1)
     if _NEGATIVE_QUALIFIER.search(text):
         return "are past the beginner stage"
+    drawn = (qualifiers.thing_of_theirs(text) or qualifiers.organisation_frame(text)
+             or qualifiers.organisations_clause(part.strip(), before))
+    if drawn:
+        return drawn
     without = re.search(r"(?i)\b(?:with no|without)\s+(.+)$", text)
     if without:
         return "have no " + without.group(1).strip()
@@ -2489,15 +2500,22 @@ def drawn_condition(which_people: str | None, segment: str | None = None) -> str
     """keel-cloud 130 FR-8 (`ScreenResultApplier.drawnCondition`, X12): the condition code draws, past the repair turn,
     where the result writes none and the founder's people are qualified -- a negative qualifier first (the one the
     read-back loses), else the first qualifier that gives one; None where none does. Issen's *adults ... at intermediate
-    level or above, not starting from zero* draws *are past the beginner stage*."""
+    level or above, not starting from zero* draws *are past the beginner stage*. Since keel-cloud 149 FR-3 the parts are
+    `qualifiers.parts` (never inside a list: *banking with Mercury, Brex or similar* is one), each drawn with the words
+    said before it in its own text (where an organisation it qualifies is named)."""
     parts: list[str] = []
+    before: dict[str, str] = {}
     for text in (which_people, segment):
-        for part in re.split(r"[,;]|\band\b", text or ""):
+        said = ""
+        for raw in qualifiers.parts(text or ""):
+            part = raw.strip()
+            before.setdefault(part, said)
+            said += part + ", "
             if QUALIFIER.search(part):
-                parts.append(part.strip())
+                parts.append(part)
     parts.sort(key=lambda p: 0 if re.search(r"(?i)\b(not|no|without|never|no longer)\b", p) else 1)
     for part in parts:
-        drawn = condition_from(part)
+        drawn = condition_from(part, before.get(part, ""))
         if drawn is not None:
             return drawn
     return None

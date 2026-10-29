@@ -138,3 +138,121 @@ def test_the_sentence_mirror_reads_the_clouds_read_back():
     assert '"(?i)^(?:whose|that|which)\\\\s.*"' in source
     slots = _cloud("src/main/java/com/keeldiscovery/cloud/domain/vectors/ContextSlots.java")
     assert "return ReadBack.segment(segment, segmentCondition);" in slots
+
+
+# ----------------------------------------------------------------- FR-2 the drawn condition keeps its subject
+
+
+def _founders_people(entry_id: str) -> str:
+    """The founder's WHICH PEOPLE as the back-test entry records it (`context.segment`), read as plain YAML."""
+    import yaml                                                        # noqa: PLC0415
+    path = corpus_mod.backtest_dir(CONFIG.keel_cloud) / f"{entry_id}.yaml"
+    if not path.is_file():
+        pytest.skip(f"no {entry_id} at {path.parent}")
+    return yaml.safe_load(path.read_text(encoding="utf-8"))["context"]["segment"]
+
+
+def test_a_thing_of_theirs_keeps_the_founders_subject():
+    """149 FR-3.1 (`Fresco.theToolBranchDrawsOnlyWhereThePeopleAreTheSubject`): *whose jobs run on ...* draws *have jobs
+    that run on ...*, a singular thing with its article; the tool branch only where the people are the subject."""
+    assert vs.condition_from(FRESCO_WHICH_PEOPLE) == "have jobs that run on Procore or ACC"
+    assert vs.condition_from("researchers whose team shares a cluster") == "have a team that shares a cluster"
+    assert vs.condition_from("superintendents who run on Procore") == "run on Procore"
+    assert vs.condition_from("that bank with Mercury or Brex") == "bank with Mercury or Brex"
+    assert q.thing_of_theirs("whose jobs") is None, "a thing with no verb says nothing of it"
+
+
+def test_fresco_draws_its_condition_and_reads_149s_sentence():
+    """08-fresco: the founder's WHICH PEOPLE (the back-test entry's) draws *have jobs that run on Procore or ACC*, and the
+    sentence on 149's slots with it is 149's (`ReadBackReadsOnceApplierTest.Fresco.SENTENCE`)."""
+    assert _founders_people("08-fresco") == FRESCO_WHICH_PEOPLE
+    drawn = vs.drawn_condition(FRESCO_WHICH_PEOPLE)
+    assert drawn == "have jobs that run on Procore or ACC"
+    assert vs.sentence(FRESCO_CORE, drawn, FRESCO_WHEN, FRESCO_WHAT, vs.Window(5, "WORKING_DAYS")) == FRESCO_SENTENCE
+
+
+def test_an_organisations_qualifier_draws_on_its_head_noun():
+    """149 FR-3.2 (`Palus.theOrganisationsQualifierDrawsOnItsHeadNoun`): a participle or a relative clause on the
+    organisation named before it draws 131's frame on the head noun; 131's own frame is unchanged."""
+    assert _founders_people("10-palus") == PALUS_WHICH_PEOPLE
+    assert vs.drawn_condition(PALUS_WHICH_PEOPLE) == PALUS_BANKS
+    assert vs.condition_from("banking with Mercury, Brex or similar",
+                             "venture-backed startups in the US within two years of a raise, ") == PALUS_BANKS
+    assert vs.condition_from("banking with Mercury, Brex or similar") is None, \
+        "no organisation named before it: the tool branch's, which reads *bank with*, never *banking with* (the cloud's)"
+    assert vs.condition_from("founders who bank with Mercury, Brex or similar") == \
+        "bank with Mercury, Brex or similar", "the people the subject"
+    assert vs.condition_from("engineers at startups that run on AWS") == "work at a startup that runs on AWS"
+    assert vs.condition_from("reservation agents at hotel groups in Germany that run a central reservations office or "
+                             "call center") == ("work at a hotel group in Germany that runs a central reservations "
+                                                "office or call center")
+
+
+def test_palus_says_its_condition_once():
+    """149 `Palus`: the core as typed already says code's draw (a participle is its verb, `bare`), so the sentence is
+    the core alone; the core that dropped the bank clause takes it after *, who*."""
+    assert q.in_core(PALUS_AS_TYPED, PALUS_BANKS)
+    assert q.segment_line(PALUS_AS_TYPED, PALUS_BANKS) == PALUS_AS_TYPED
+    assert vs.sentence(PALUS_AS_TYPED, PALUS_BANKS, PALUS_WHEN, PALUS_WHAT, vs.Window(3, "MONTHS")) == (
+        "Finance leads at venture-backed startups in the US within two years of a raise, banking with Mercury, Brex or "
+        "similar. When the company decides where cash from a raise sits until it is needed, they want to keep the money "
+        "from a raise safe and earning until the company spends it, counting the last 3 months.")
+    assert vs.sentence("finance leads at venture-backed startups in the US", PALUS_BANKS, PALUS_WHEN, PALUS_WHAT,
+                       vs.Window(3, "MONTHS")).startswith(
+        "Finance leads at venture-backed startups in the US, who work at a startup that banks with Mercury, Brex or "
+        "similar. When the company decides")
+    assert q.same_qualifier("banks with Mercury, Brex or similar", "banking with Mercury, Brex or similar")
+    assert q.bare("banking, running, operating, owning") == "bank, run, operate, own"
+
+
+def test_a_list_is_one_part():
+    """149 FR-3.3 (`ReadBackReadsOnceApplierTest.aListIsOnePart`), and 149's judgement call 2: a list of activities is
+    still split (an item opening on a lower-case *-ing* word is never an item)."""
+    def stripped(text):
+        return [part.strip() for part in q.parts(text)]
+    assert stripped(PALUS_WHICH_PEOPLE) == ["venture-backed startups in the US within two years of a raise",
+                                            "banking with Mercury, Brex or similar"]
+    assert stripped("front-desk teams on OPERA Cloud, Sihot and Apaleo") == \
+        ["front-desk teams on OPERA Cloud, Sihot and Apaleo"]
+    assert stripped("learners at intermediate level or above, not starting from zero") == \
+        ["learners at intermediate level or above", "not starting from zero"]
+    assert stripped("people in Pakistan who earn in rupees and have no foreign currency account") == \
+        ["people in Pakistan who earn in rupees", "have no foreign currency account"]
+    assert stripped("growers in Germany, Italy or France") == ["growers in Germany, Italy or France"]
+    assert stripped("cooks, cleaning or driving") == ["cooks", "cleaning or driving"]
+    assert q.parts("a, b,") == ["a", " b"] and q.parts("") == [""], "as Java's String.split gives them"
+
+
+def test_expanses_amount_is_not_the_harness_to_draw():
+    """FR-3: 17-expanse's *have 100 or more GPUs* is 145's amount branch, which 149 left as it was and the harness's
+    130-era draw does not mirror -- so it draws none, before and after 149 alike."""
+    people = _founders_people("17-expanse")
+    assert people == "researchers and ML engineers on SLURM or Kubernetes clusters of 100 or more GPUs"
+    assert vs.drawn_condition(people) is None
+    applier = _cloud("src/main/java/com/keeldiscovery/cloud/application/ScreenResultApplier.java")
+    assert 'return ORGANISATIONS.contains(noun) ? "work at " + article(noun) + noun + " with " + rest : "have " + rest;' \
+        in applier, "the amount branch 149 did not move"
+
+
+def test_the_draw_mirror_reads_the_clouds_sources():
+    """FR-2's patterns are 149's, held to `Qualifiers.java` and `ScreenResultApplier.java`."""
+    source = _cloud("src/main/java/com/keeldiscovery/cloud/domain/vectors/Qualifiers.java")
+    assert ('"(?!(?:who|whose|that|which|where|when|while|with|without|in|at|on|of|for"\n'
+            '            + "|from|by|to|into|across|within|not|no|never|but|and|or)\\\\b|(?-i:[a-z]+(?:ing|ly))\\\\b)"'
+            ) in source
+    assert 'ITEM_OPENS + "[^,;\\\\s]+(?:\\\\s+(?!(?:and|or)\\\\b)[^,;\\\\s]+){0,2}"' in source
+    assert ('"(?i)(?:,\\\\s*" + ITEM + ")*,\\\\s*" + ITEM + "\\\\s+(?:or|and)\\\\s+"\n'
+            '            + ITEM_OPENS + "[^,;]+?(?=\\\\s+and\\\\b|\\\\s*[,;]|\\\\s*$)"') in source
+    assert 'replaceAll("(?i)\\\\b(bank|work|own|employ)ing\\\\b", "$1")' in source
+    assert "FounderWords.dropped(bare(qualifier), bare(condition)).isEmpty()" in source
+    applier = _cloud("src/main/java/com/keeldiscovery/cloud/application/ScreenResultApplier.java")
+    assert '"(?i)\\\\b(?:that|which)\\\\s+(bank|run|work|operate|own|employ)s?\\\\s+(.+)$"' in applier
+    assert '"(?i)(?:^|\\\\s)(banking|running|working|operating|owning|employing)\\\\s+(.+)$"' in applier
+    assert '"(?i)\\\\bwhose\\\\s+(.+)$"' in applier
+    assert 'return "work at " + article(head) + head + " that " + base + "s " + clause.group(2).strip();' in applier
+    order = [applier.index(marker) for marker in ("String theirs = thingOfTheirs(text);",
+                                                  "String organisations = organisationsClause(part.strip(), before);",
+                                                  '"(?i)\\\\b((?:bank|banks|run|runs|work|works) (?:with|on) .+)$"')]
+    assert order == sorted(order), "the thing and the organisation before the tool branch"
+    for noun in ("startup", "contractor"):
+        assert (f'"{noun}"' in applier) is (noun in q.ORGANISATIONS), noun
