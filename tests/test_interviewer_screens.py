@@ -361,6 +361,7 @@ def test_the_hear_words_and_the_four_hellos_are_keel_webs_own():
     from harness import interviewer_fake as fake                          # noqa: PLC0415
     faces = root / "public"
     assert all((faces / fake.hello_path(f).lstrip("/")).is_file() for f in fake.FACES)
-    # keel-web 087 FR-1: a retired face keeps its still (keel-cloud 110 serves its previewUrl) and has no hello
+    # keel-web 087 FR-1: a retired face keeps its still (keel-cloud 110 serves its previewUrl); 094's, retired by
+    # 110, have no hello; keel-web 125 FR-3 deletes nothing of 143's four (keel-cloud serves their helloUrl null)
     assert all((faces / fake.preview_path(f).lstrip("/")).is_file() for f in fake.FACES + fake.RETIRED)
-    assert not any((faces / fake.hello_path(f).lstrip("/")).is_file() for f in fake.RETIRED)
+    assert not any((faces / fake.hello_path(f).lstrip("/")).is_file() for f in fake.RETIRED_110)

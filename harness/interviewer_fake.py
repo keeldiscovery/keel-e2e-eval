@@ -1,5 +1,5 @@
 """keel-cloud's pre-rendered AI interviewer, restated where this eval reads it (spec 044; keel-cloud 094, contract 16,
-`InferenceCharge` 9, document 22): the charge rows, the faces (four since keel-cloud 110), the refusal codes, the
+`InferenceCharge` 9, document 22): the charge rows, the faces (two since keel-cloud 143), the refusal codes, the
 spoken order of a role's clips, the fixed lines code writes (design `ai-interviewer-prerendered-2026-10-15.md` FR-B),
 and what the stack's fake renderer does (`FakeInterviewerRenders`: a one-second silent mp4 per clip after a 3 s virtual delay, 0.1 s a word, one
 vendorRef failed once on request).
@@ -48,13 +48,23 @@ CHANGE_PRICE = CREDITS
 
 # ------------------------------------------------------------------------------------------ faces (FR-A)
 
-#: Spec 058 (keel-cloud 110, contract 23): four photo avatars, each with its own voice, LIVIA preselected where JUDY
-#: was. 094's five studio faces are retired: a pick of one is 422 FACE_UNKNOWN (`RETIRED`).
-FACES = ("LIVIA", "JIA", "MARIEKE", "CHUKWU")
-FACE_NAMES = {"LIVIA": "Livia", "JIA": "Jia", "MARIEKE": "Marieke", "CHUKWU": "Chukwu"}
-PRESELECTED = "LIVIA"
-RETIRED = ("JUDY", "JIN", "ANNA", "DAPHNE", "TITO")
-#: Spec 058 FR-2 / FR-3 (keel-web 087): each face's hello is one clip of 4.6-5.4 s; one longer than this is not it.
+#: Spec 083 (keel-cloud 143, contract 44, cloud-docs master `f48f256e`; 2026-10-28): two studio avatars, DAPHNE
+#: (preselected, the default) and SASKIA -- `InterviewerFace.OFFERED`, the constants whose last flag is true, in the
+#: order served. Spec 058 (keel-cloud 110, contract 23) had the four photo avatars, LIVIA preselected where JUDY was;
+#: 143 retires them (still constants, so a project that recorded one keeps her clips, name and still, its `helloUrl`
+#: null) and supersedes 094's DAPHNE with the new studio look, so DAPHNE is offered again. A pick of any retired face
+#: is 422 FACE_UNKNOWN (`RETIRED`).
+FACES = ("DAPHNE", "SASKIA")
+FACE_NAMES = {"DAPHNE": "Daphne", "SASKIA": "Saskia"}
+PRESELECTED = "DAPHNE"
+#: 094's faces retired by keel-cloud 110 (not constants since: keel-web ships their stills, no hello).
+RETIRED_110 = ("JUDY", "JIN", "ANNA", "TITO")
+#: 110's photo faces retired by keel-cloud 143 (still constants; keel-web 125 keeps their stills and hellos, but
+#: keel-cloud serves a recording of one with `helloUrl` null -- `served_hello`).
+RETIRED_143 = ("LIVIA", "JIA", "MARIEKE", "CHUKWU")
+RETIRED = RETIRED_110 + RETIRED_143
+#: Spec 058 FR-2 / FR-3 (keel-web 087): each face's hello is one clip of 4.6-5.4 s; one longer than this is not it
+#: (143's two are 4.6 s each).
 HELLO_MAX_S = 8.0
 
 
@@ -66,6 +76,12 @@ def preview_path(face: str) -> str:
 def hello_path(face: str) -> str:
     """`InterviewerFace.helloPath` (keel-cloud 110): the face's hello clip keel-web ships, served as `helloUrl`."""
     return f"/interviewer/faces/{face.lower()}.mp4"
+
+
+def served_hello(face: str) -> str | None:
+    """The `helloUrl` keel-cloud serves for a face on the wire (143 FR-4, `InterviewerPlayer.Face`): an offered face's
+    hello; null for a retired one a recording still carries."""
+    return hello_path(face) if face in FACES else None
 
 
 # ------------------------------------------------------------------------------ refusals (contract 16)

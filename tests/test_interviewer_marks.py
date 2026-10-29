@@ -803,10 +803,16 @@ def test_the_price_word_finds_a_price_and_leaves_plain_words_alone():
 
 def test_charge_v9_and_the_fixed_lines():
     assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (11, 400, 2_000_000, 400)
-    assert fake.FACES == ("LIVIA", "JIA", "MARIEKE", "CHUKWU") and fake.PRESELECTED == "LIVIA"
-    assert fake.RETIRED == ("JUDY", "JIN", "ANNA", "DAPHNE", "TITO") and not set(fake.RETIRED) & set(fake.FACES)
-    assert fake.preview_path("CHUKWU") == "/interviewer/faces/chukwu.webp"
-    assert fake.hello_path("LIVIA") == "/interviewer/faces/livia.mp4"
+    # spec 083 (keel-cloud 143): the two studio faces, DAPHNE preselected; 110's four retired with 094's (less DAPHNE)
+    assert fake.FACES == ("DAPHNE", "SASKIA") and fake.PRESELECTED == "DAPHNE"
+    assert fake.FACE_NAMES == {"DAPHNE": "Daphne", "SASKIA": "Saskia"}
+    assert fake.RETIRED == ("JUDY", "JIN", "ANNA", "TITO", "LIVIA", "JIA", "MARIEKE", "CHUKWU")
+    assert not set(fake.RETIRED) & set(fake.FACES)
+    assert fake.preview_path("SASKIA") == "/interviewer/faces/saskia.webp"
+    assert fake.hello_path("DAPHNE") == "/interviewer/faces/daphne.mp4"
+    # 143 FR-4: a recording that carries a retired face is served with helloUrl null; its still as before
+    assert fake.served_hello("SASKIA") == "/interviewer/faces/saskia.mp4" and fake.served_hello("LIVIA") is None
+    assert fake.preview_path("LIVIA") == "/interviewer/faces/livia.webp" and fake.HELLO_MAX_S == 8.0
     assert fake.REFUSAL_STATUS == {"INTERVIEWER_NOT_READY": 409, "INTERVIEWER_NEEDS_CREDITS": 422,
                                    "FACE_UNKNOWN": 422, "INTERVIEWER_FAILED": 409,
                                    "INSUFFICIENT_CREDITS_FOR_INTERVIEWER": 422}
