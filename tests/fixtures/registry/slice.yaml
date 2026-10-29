@@ -90,10 +90,11 @@ dimensions:
   respondent:
     part: 1
     anchor: that_night
-    control: segmented_0_to_7
+    control: segmented_1_to_n
     guidance: Count how many {window_unit} it happened on, not how many times it happened. Never shows the founder's range.
-    option_rule: A segmented control from 0 to the window's count when the count is at most 7; a number in {window_unit} for
-      a longer window. Code renders the options and the question.
+    option_rule: 'From 1, never a 0 after the yes: a segmented control from 1 to the window''s count when the count is at
+      most 7; a number in {window_unit}, at least 1, for a longer window. ''I can''t recall'' stays apart. Code renders the
+      options and the question.'
     escape:
       code: cant_recall
       label: I can't recall
@@ -133,11 +134,13 @@ dimensions:
   respondent:
     part: 1
     anchor: that_night
-    control: pick_two
-    guidance: '''Thinking about that last {occasion}, which two of these would you most like made easier?'' Your difficulty
-      and your four, shuffled per study, yours never first. Never names the idea.'
-    option_rule: The founder's five (own item + four rivals), own never first; pick exactly two. Escape 'None of these' counts
-      against.
+    control: pick_one_then_one
+    guidance: '''Think of your last {occasion}. Which one of these would you most like made easier?'', then, after the
+      first tap, with the list in place and the pick marked, ''And one more?'' -- two asks. Your difficulty and your four,
+      shuffled per study, yours never first. Never names the idea.'
+    option_rule: The founder's five (own item + four rivals), own never first; pick one, then one more of the same list.
+      Escape 'None of these' at the first ask only, counts against; at the second ask 'Nothing else' (nothing_else)
+      replaces it and the first pick alone is stored, counted as one pick.
     escape:
       code: none_of_these
       label: None of these
@@ -266,18 +269,30 @@ dimensions:
   respondent:
     part: 2
     anchor: the_reveal
-    control: benefit_with_advantages
-    guidance: '''Thinking of your last {occasion}, would'' your idea, by its short name, ''have made things better for you,
-      or not?'' Those who say better tick which of your benefits would have been better.'
-    option_rule: '''It would have made things better'' · ''No difference'' · ''It would have made things worse''; under the
-      first, your benefits in your words. Escape ''I can''t tell'', apart.'
+    control: scale_four
+    guidance: '''On your last {occasion}, would'' your idea, by its short name, ''have made it go better for you, or not?''
+      One thing asked, how much better or not; no benefit of yours named in the question or the options.'
+    option_rule: 'The registry''s fixed four, in order and in these words, code''s whole: A lot better · A little better ·
+      No difference · Worse. No benefit shown or stored with the answer. Escape ''I can''t tell'', apart.'
     escape:
       code: cant_tell
       label: I can't tell
       counts: apart
+    fixed_answers:
+    - code: a_lot_better
+      label: A lot better
+    - code: a_little_better
+      label: A little better
+    - code: no_difference
+      label: No difference
+    - code: worse
+      label: Worse
+    supports:
+    - a_lot_better
+    - a_little_better
   answers:
     shape: choice
-    compare_rule: benefit_first
+    compare_rule: fixed_last_two_against
     floor: 5
   left_out:
     ask_respondent: false

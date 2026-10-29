@@ -1,18 +1,19 @@
-"""Spec 086 FR-2: corpus revision 18 (keel-cloud 152, keel-cloud-docs `21395ab0`), stackless; and what specs 067, 068
-and 080 built on revisions 15, 16 and 17, held at 18.
+"""Spec 089 FR-1: corpus revision 19 (keel-cloud 159, keel-cloud-docs `1cf2ebc3`), stackless; and what specs 067, 068,
+080 and 086 built on revisions 15 to 18, held at 19.
 
-**Rule D18**, the eval's own diff: every entry read beside its revision-17 record (keel-cloud's test mirrors
-`corpus-r17/` and `backtest-r17/`), every leaf difference one of 152's edits -- the revision line everywhere (the
-header is a comment, so the parsed tree holds no other trace of it); on the golden seven the belief sentences of the
-six moved rows (Prevalence, Importance, Current solution, Compatibility, Relative advantage, Commitment) and the belief
-phrases of Prevalence and Relative advantage, eight fields an entry; on the eleven back-test entries whose cost is a
-rate, that cost's belief sentence (*The problem already costs the payer about ...: {loss}.*) -- and never a standing,
-drift, inside, n or verdict (`expected` reads as revision 17's, whole). **D17 and D16 stay as the record**, mirror
-against mirror: 147's one Buyer and payer row (`corpus-r16/` + `backtest-r16/` beside `corpus-r17/` + `backtest-r17/`)
-and 129's 112 Commitment picks (`-r15/` beside `-r16/`). And **the cloud's own checker** `check_corpus_r18.py` prints
-OK on all 35. **Rule Q** (`check_corpus_r15.py`'s, mirrored by the reader) still holds: a person's `condition` is YES or
-NO, on the primary link only, where the context records a condition. The mirrors and the checker are keel-cloud's;
-where its checkout lacks them the tests skip by name (judgement call 4 of 067's tasks.md).
+**Rule D19**, the eval's own diff: every entry read beside its revision-18 record (keel-cloud's test mirrors
+`corpus-r18/` and `backtest-r18/`), every leaf difference one of 159's edits -- the revision line everywhere (the header
+is a comment, so the parsed tree holds no other trace of it); Relative advantage's row, its control
+(`benefit_with_advantages` -> `scale_four`) and codes (the three -> the four); every person's Relative advantage pick moved
+by **the one rule** (`registry.from_three`: positive with a benefit ticked a lot better, positive with none a little
+better, neutral no difference, negative worse; the chip as it was); and on a golden entry the row's `optionCounts`
+added -- and never a standing, drift, inside, n or verdict (`expected` reads as revision 18's but for that field).
+**D18, D17 and D16 stay as the record**, mirror against mirror: 152's eight belief fields and eleven rate beliefs
+(`corpus-r17/` + `backtest-r17/` beside `corpus-r18/` + `backtest-r18/`), 147's one Buyer and payer row (`-r16/` beside
+`-r17/`) and 129's 112 Commitment picks (`-r15/` beside `-r16/`). And **the cloud's own checker** `check_corpus_r19.py`
+prints OK on all 35. **Rule Q** (`check_corpus_r15.py`'s, mirrored by the reader) still holds: a person's `condition` is
+YES or NO, on the primary link only, where the context records a condition. The mirrors and the checker are
+keel-cloud's; where its checkout lacks them the tests skip by name (judgement call 4 of 067's tasks.md).
 """
 
 from __future__ import annotations
@@ -26,13 +27,27 @@ import yaml
 
 from harness import vectors_script as vs
 from instructions import corpus as corpus_mod
+from instructions import registry as registry_mod
 from stack.config import load_config
 from tests import v9_fixtures as fx
 
 KEEL_CLOUD = Path(load_config(validate=False).keel_cloud)
 MIRROR = KEEL_CLOUD / "src" / "test" / "resources" / "keel"
-SIM = KEEL_CLOUD / "canon" / "designs" / "measured-beliefs" / "sim" / "check_corpus_r18.py"
+SIM = KEEL_CLOUD / "canon" / "designs" / "measured-beliefs" / "sim" / "check_corpus_r19.py"
 
+#: keel-cloud 159 (`check_corpus_r19.py`'s D19): Relative advantage, its row and its picks.
+RA = "solution.relative_advantage"
+R19_ROW = ("respondent_questions", RA)
+R19_CODES = ["a_lot_better", "a_little_better", "no_difference", "worse"]
+#: 159 tasks.md T018 / the diff table: the golden seven's 71 non-escape picks, per entry; the 28 back-tests' 361 (267 a
+#: lot better, 0 a little better, 73 no difference, 21 worse).
+R19_GOLDEN_PICKS = {"01-countly": 10, "02-compliancelog": 10, "03-lullaby": 10, "04-linerly": 10, "05-paidly": 11,
+                    "06-repeatline": 11, "07-mulchrun": 9}
+R19_BACKTEST_PICKS = {"a_lot_better": 267, "a_little_better": 0, "no_difference": 73, "worse": 21}
+#: 159's *The rows*: each golden row's optionCounts as the engine recounts them (a lot, a little, no difference, worse).
+R19_OPTION_COUNTS = {"01-countly": (6, 0, 2, 0), "02-compliancelog": (4, 0, 5, 0), "03-lullaby": (6, 0, 2, 0),
+                     "04-linerly": (2, 0, 6, 0), "05-paidly": (6, 0, 3, 0), "06-repeatline": (3, 0, 6, 0),
+                     "07-mulchrun": (5, 0, 2, 0)}
 #: keel-cloud 152 T005 / T008 (`check_corpus_r18.py`'s `R18_GOLDEN`): the eight fields the seven templates move on a
 #: golden entry, `founder_calibration.<row>.<field>`.
 R18_GOLDEN = {("problem.prevalence", "belief_phrase"), ("problem.prevalence", "belief_sentence"),
@@ -87,7 +102,7 @@ def _step_alone(doc: dict) -> bool:
     return len(items) == 1
 
 
-def _pairs(before: str = "r17"):
+def _pairs(before: str = "r18"):
     """Each canon entry beside its record mirror (`corpus-<before>/`, `backtest-<before>/`)."""
     out = []
     for directory, mirror, backtest in ((corpus_mod.corpus_dir(KEEL_CLOUD), MIRROR / f"corpus-{before}", False),
@@ -104,7 +119,7 @@ def _record_pairs(before: str, after: str):
 
 
 def _need_mirrors(*revisions: str):
-    for rev in revisions or ("r17",):
+    for rev in revisions or ("r18",):
         if not (MIRROR / f"corpus-{rev}").is_dir() or not (MIRROR / f"backtest-{rev}").is_dir():
             pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no revision-{rev[1:]} mirrors (corpus-{rev}/, "
                         f"backtest-{rev}/)")
@@ -114,14 +129,89 @@ def _load(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-# ------------------------------------------------------------------------------------------------ rule D18
+# ------------------------------------------------------------------------------------------------ rule D19
 
-def test_every_entry_moves_by_exactly_152s_edits():
-    """D18, the eval's own: 35 entries, each beside its revision-17 record; every difference the revision line (17 ->
+def test_every_entry_moves_by_exactly_159s_edits():
+    """D19, the eval's own: 35 entries, each beside its revision-18 record; every difference the revision line (18 ->
+    19), Relative advantage's row (control and codes), a Relative advantage pick moved by the one rule, or on a golden
+    entry the row's optionCounts added; nothing else -- 71 golden picks and 361 back-test picks."""
+    _need_mirrors("r18")
+    pairs = _pairs("r18")
+    assert len(pairs) == 35, [p.name for p, _, _ in pairs]
+    strays, picks, counts, rows = [], {}, {}, {}
+    for path, before_path, backtest in pairs:
+        after, before = _load(path), _load(before_path)
+        out: list = []
+        _walk(before, after, (), out)
+        entry = after["id"]
+        for p, old, new in out:
+            if p == ("revision",):
+                assert (old, new) == (18, 19), (entry, old, new)
+            elif p == R19_ROW + ("control",):
+                assert (old, new) == ("benefit_with_advantages", "scale_four"), (entry, old, new)
+                rows.setdefault(entry, set()).add("control")
+            elif p[:3] == R19_ROW + ("codes",) and len(p) == 4:
+                rows.setdefault(entry, set()).add("codes")
+            elif len(p) == 4 and p[0] == "answers" and isinstance(p[1], int) and p[2:] == ("picks", RA):
+                assert isinstance(old, dict) and "chip" not in old and new == registry_mod.from_three(old), \
+                    (entry, p, old, new)
+                picks.setdefault(entry, []).append(new)
+            elif not backtest and p == ("expected", "standings", RA, "optionCounts"):
+                assert old is _ABSENT and isinstance(new, str), (entry, old, new)
+                counts[entry] = new
+            else:
+                strays.append((entry, p, old, new))
+        assert after["respondent_questions"][RA]["codes"] == R19_CODES, entry
+        assert before["respondent_questions"][RA]["codes"] == ["positive", "neutral", "negative"], entry
+        # every chip as it was: a person's escape is the same object both sides
+        for a, b in zip(before.get("answers") or [], after.get("answers") or []):
+            was = (a.get("picks") or {}).get(RA)
+            if isinstance(was, dict) and "chip" in was:
+                assert (b.get("picks") or {}).get(RA) == was, (entry, a["person"])
+    assert not strays, strays
+    assert rows == {e: {"control", "codes"} for e in rows} and len(rows) == 35
+    golden = {path.stem for path, _, backtest in pairs if not backtest}
+    assert {e: len(v) for e, v in picks.items() if e in golden} == R19_GOLDEN_PICKS
+    moved = [code for e, v in picks.items() if e not in golden for code in v]
+    assert {code: moved.count(code) for code in R19_CODES} == R19_BACKTEST_PICKS and len(moved) == 361
+    assert set(counts) == golden
+
+
+def test_revision_19_moves_no_standing_and_the_scale_counts_are_the_people_inside_and_outside():
+    """159 T016: no standing, drift, inside, n, median or verdict moved -- every entry's `expected` is revision 18's
+    whole but the golden Relative advantage row's optionCounts -- and those counts are the four's: a lot better plus a
+    little better is the row's inside, no difference plus worse its outside; a little better is 0 on every golden row
+    (every recorded *better* carried a benefit)."""
+    _need_mirrors("r18")
+    for path, before_path, backtest in _pairs("r18"):
+        after, before = _load(path), _load(before_path)
+        got = after.get("expected")
+        if not backtest:
+            row = dict(got["standings"][RA])
+            option_counts = row.pop("optionCounts")
+            got = {**got, "standings": {**got["standings"], RA: row}}
+            numbers = dict((k.strip(), int(v)) for k, v in (pair.split("=") for pair in option_counts.split(",")))
+            assert list(numbers) == R19_CODES, (after["id"], option_counts)
+            assert tuple(numbers.values()) == R19_OPTION_COUNTS[after["id"]], (after["id"], option_counts)
+            assert numbers["a_lot_better"] + numbers["a_little_better"] == row["inside"], after["id"]
+            assert numbers["no_difference"] + numbers["worse"] == row["outside"], after["id"]
+        assert got == before.get("expected"), after["id"]
+        for person in after.get("answers") or []:
+            pick = (person.get("picks") or {}).get(RA)
+            assert pick is None or pick in R19_CODES or (isinstance(pick, dict) and set(pick) == {"chip"}), \
+                (after["id"], person["person"], pick)
+
+
+# ----------------------------------------------------------------------------- rule D18, the record (spec 086)
+
+def test_revision_18_moved_exactly_152s_edits_on_the_record():
+    """D18 kept as the record (spec 086 FR-2), mirror against mirror: `corpus-r18/` and `backtest-r18/` beside
+    `corpus-r17/` and `backtest-r17/`; 35 entries, each beside its revision-17 record; every difference the revision
+    line (17 ->
     18), on a golden entry one of the eight belief fields 152's templates move (all eight moved, strings both sides),
     on a back-test entry the rate cost's belief sentence (on exactly the eleven rate entries); nothing else."""
-    _need_mirrors("r17")
-    pairs = _pairs("r17")
+    _need_mirrors("r17", "r18")
+    pairs = _record_pairs("r17", "r18")
     assert len(pairs) == 35, [p.name for p, _, _ in pairs]
     counts, strays, moved = {}, [], {}
     for path, before_path, backtest in pairs:
@@ -148,14 +238,14 @@ def test_every_entry_moves_by_exactly_152s_edits():
     assert sum(counts.values()) == 35 + 56 + 11
 
 
-def test_revision_18_moves_no_standing_and_writes_the_new_words():
-    """152 T008: no standing, drift, inside, n, median or verdict moved -- every entry's `expected` is revision 17's,
+def test_revision_18_moved_no_standing_and_wrote_the_new_words_on_the_record():
+    """D18's second half, kept as the record (mirror against mirror) -- 152 T008: no standing, drift, inside, n, median or verdict moved -- every entry's `expected` is revision 17's,
     whole -- and the moved words are the templates': Prevalence's phrase one of the five shares and the sentence opening
     on it, Relative advantage's phrase *given them* + the benefit, Commitment *Most ... would ... now.*, Current solution
     *For most ..., ... still falls short.*, Compatibility *For most, ...*, Importance *Of these ...*; and the eleven rate
     costs *The problem already costs the payer about ...: ...*."""
-    _need_mirrors("r17")
-    for path, before_path, backtest in _pairs("r17"):
+    _need_mirrors("r17", "r18")
+    for path, before_path, backtest in _record_pairs("r17", "r18"):
         after, before = _load(path), _load(before_path)
         assert after.get("expected") == before.get("expected"), after["id"]
         cal = after.get("founder_calibration") or {}
@@ -250,7 +340,7 @@ def test_revision_16_moved_exactly_129s_edits_on_the_record():
 
 def test_no_golden_entry_answers_yes_after_trying_without_the_smaller_step():
     """129 FR-12 / r14 rule T: the golden seven's second yes sits only where the founder's list carries the smaller
-    step (02, 03, 06) -- at revision 18 as at 16 and 17."""
+    step (02, 03, 06) -- at revision 19 as at 16, 17 and 18."""
     for path in sorted(corpus_mod.corpus_dir(KEEL_CLOUD).glob("*.yaml")):
         doc = _load(path)
         trying = [a["person"] for a in doc.get("answers") or []
@@ -259,13 +349,13 @@ def test_no_golden_entry_answers_yes_after_trying_without_the_smaller_step():
 
 
 def test_the_cloud_checker_prints_ok_on_every_entry():
-    """`check_corpus_r18.py` itself (the cloud's D18, B and P18 on the new words, C's rate belief, RC both ways and Q,
-    with every older rule) over the 35 entries."""
-    _need_mirrors("r17")
+    """`check_corpus_r19.py` itself (the cloud's D19 and RA19 on the scale, RC both ways and Q, with every older rule --
+    r18's B, P18 and C) over the 35 entries."""
+    _need_mirrors("r18")
     if not SIM.is_file():
         pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no {SIM.name}")
     failed = {}
-    pairs = _pairs("r17")
+    pairs = _pairs("r18")
     assert len(pairs) == 35
     for path, _, _ in pairs:
         run = subprocess.run([sys.executable, "-I", str(SIM), str(path)], cwd=SIM.parent, capture_output=True,
@@ -276,15 +366,15 @@ def test_the_cloud_checker_prints_ok_on_every_entry():
     assert not failed, failed
 
 
-def test_every_revision_18_entry_loads_in_its_mode_and_a_revision_17_file_is_refused_by_name(tmp_path):
-    """Every one of the 35 loads at 18 (the 28 in back-test mode); r17's 03-lullaby is refused by name."""
-    _need_mirrors("r17")
-    for path, _, backtest in _pairs("r17"):
+def test_every_revision_19_entry_loads_in_its_mode_and_a_revision_18_file_is_refused_by_name(tmp_path):
+    """Every one of the 35 loads at 19 (the 28 in back-test mode); r18's 03-lullaby is refused by name."""
+    _need_mirrors("r18")
+    for path, _, backtest in _pairs("r18"):
         entry = corpus_mod.load_file(path, registry=fx.registry(), backtest=backtest)
-        assert entry.revision == 18, entry.id
-    raw = _load(MIRROR / "corpus-r17" / "03-lullaby.yaml")
-    with pytest.raises(corpus_mod.CorpusError, match="revision is 17; this eval reads revision 18 only -- revision 17 "
-                                                     "is MARKS_VERSION 21's corpus before keel-cloud 152"):
+        assert entry.revision == 19, entry.id
+    raw = _load(MIRROR / "corpus-r18" / "03-lullaby.yaml")
+    with pytest.raises(corpus_mod.CorpusError, match="revision is 18; this eval reads revision 19 only -- revision 18 "
+                                                     "is MARKS_VERSION 21's corpus before keel-cloud 159"):
         corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="03-lullaby.yaml"), registry=fx.registry())
 
 
@@ -361,7 +451,7 @@ def test_a_person_outside_is_walked_inside_where_the_page_serves_no_chip():
 # ------------------------------------------------------------------------------- FR-1: the Answer box at load
 
 def test_every_entry_fits_the_answer_box_and_revision_14s_transload_stops_at_load(tmp_path):
-    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): all 35 revision-18 entries name every Importance item inside the
+    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): all 35 revision-19 entries name every Importance item inside the
     25-word Answer; revision 14's 12-transload (*Running the shift with too few workers*) did not, and the harness
     then lost *Finding freight sitting at the wrong door* -- read at revision 15, it stops at load naming the label."""
     _need_mirrors()
@@ -376,6 +466,11 @@ def test_every_entry_fits_the_answer_box_and_revision_14s_transload_stops_at_loa
     now = _load(corpus_mod.backtest_dir(KEEL_CLOUD) / "12-transload.yaml")
     raw["founder_calibration"]["commercial.existing_sacrifice"]["belief_sentence"] = \
         now["founder_calibration"]["commercial.existing_sacrifice"]["belief_sentence"]
+    # spec 089: revision 19's scale (keel-cloud 159, rule RA19) -- the row and every pick by the one rule, as the record
+    raw["respondent_questions"][RA] = now["respondent_questions"][RA]
+    for person in raw.get("answers") or []:
+        if RA in (person.get("picks") or {}):
+            person["picks"][RA] = registry_mod.from_three(person["picks"][RA])
     entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="12-transload.yaml"), registry=fx.registry(),
                                  backtest=True)
     with pytest.raises(vs.VectorsScriptError) as stopped:

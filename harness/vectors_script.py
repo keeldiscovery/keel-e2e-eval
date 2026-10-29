@@ -1706,9 +1706,7 @@ def _pick(entry, key: str, raw) -> Pick:
             return Pick(dimension=key, cost={"mode": "AMOUNT", "value": 0}, cost_period=raw.get("period"))
         return Pick(dimension=key, cost={"mode": raw["mode"], "value": raw["value"]},
                     cost_period=raw.get("period"))
-    if key == "solution.relative_advantage":
-        return Pick(dimension=key, codes=[raw["answer"]],
-                    advantages=[on_the_wire(entry, key, a) for a in raw.get("advantages") or []])
+    # spec 089 FR-1 (keel-cloud 159, revision 19): Relative advantage's pick is one code of the scale, sent as it is
     if key == "problem.frequency":
         return Pick(dimension=key, scale=int(raw))
     if isinstance(raw, list):

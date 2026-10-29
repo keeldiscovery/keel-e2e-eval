@@ -8,7 +8,7 @@
 # `expected` is unchanged; `check_corpus_r12.py`'s rule U would refuse this file, and the reader does not mirror it.
 id: 10-fixture-b2b
 title: Fixture — the keys you cannot find, bought by the office
-revision: 18
+revision: 19
 market:
   country: GB
   region: null
@@ -218,11 +218,12 @@ respondent_questions:
     escape: cant_tell
   solution.relative_advantage:
     part: 2
-    control: benefit_with_advantages
+    control: scale_four
     codes:
-    - positive
-    - neutral
-    - negative
+    - a_lot_better
+    - a_little_better
+    - no_difference
+    - worse
     escape: cant_tell
   solution.adoption_friction:
     part: 2
@@ -286,10 +287,7 @@ answers:
     - the_traffic
     problem.current_solution_satisfaction: hit_and_miss
     solution.compatibility: yes_easily
-    solution.relative_advantage:
-      answer: positive
-      advantages:
-      - shorter_time
+    solution.relative_advantage: a_lot_better
     solution.adoption_friction: 'yes'
   pilot_opt_in: true
 - person: Bo Brand
@@ -304,10 +302,7 @@ answers:
     - finding_keys
     problem.current_solution_satisfaction: works_poorly
     solution.compatibility: yes_easily
-    solution.relative_advantage:
-      answer: positive
-      advantages:
-      - shorter_time
+    solution.relative_advantage: a_lot_better
     solution.adoption_friction: 'yes'
   pilot_opt_in: false
 - person: Cy Cole
@@ -322,10 +317,7 @@ answers:
     - the_weather
     problem.current_solution_satisfaction: mostly_works
     solution.compatibility: yes_with_steps
-    solution.relative_advantage:
-      answer: positive
-      advantages:
-      - shorter_time
+    solution.relative_advantage: a_lot_better
     solution.adoption_friction: yes_if_worth_it
   pilot_opt_in: false
 - person: Di Dunn
@@ -340,10 +332,7 @@ answers:
     - a_flat_tyre
     problem.current_solution_satisfaction: hit_and_miss
     solution.compatibility: 'no'
-    solution.relative_advantage:
-      answer: positive
-      advantages:
-      - shorter_time
+    solution.relative_advantage: a_lot_better
     solution.adoption_friction: 'no'
   pilot_opt_in: true
 - person: Ed Eze
@@ -358,10 +347,7 @@ answers:
     - bike_parking
     problem.current_solution_satisfaction: no_reliable_way
     solution.compatibility: yes_easily
-    solution.relative_advantage:
-      answer: positive
-      advantages:
-      - shorter_time
+    solution.relative_advantage: a_lot_better
     solution.adoption_friction: 'yes'
   pilot_opt_in: false
 - person: Flo Fay
@@ -375,10 +361,7 @@ answers:
       chip: none_of_these
     problem.current_solution_satisfaction: works_well
     solution.compatibility: only_with_help
-    solution.relative_advantage:
-      answer: positive
-      advantages:
-      - shorter_time
+    solution.relative_advantage: a_lot_better
     solution.adoption_friction: 'yes'
   pilot_opt_in: false
 - person: Gus Gale
@@ -395,8 +378,7 @@ answers:
       chip: someone_else_checks
     solution.compatibility:
       chip: cant_tell
-    solution.relative_advantage:
-      answer: neutral
+    solution.relative_advantage: no_difference
     solution.adoption_friction: probably_not
   pilot_opt_in: false
 - person: Hal Hart
@@ -411,8 +393,7 @@ answers:
     - finding_keys
     problem.current_solution_satisfaction: hit_and_miss
     solution.compatibility: yes_with_steps
-    solution.relative_advantage:
-      answer: neutral
+    solution.relative_advantage: no_difference
     solution.adoption_friction: 'yes'
   pilot_opt_in: true
 - person: Ivy Ives
@@ -427,10 +408,7 @@ answers:
     - the_traffic
     problem.current_solution_satisfaction: works_poorly
     solution.compatibility: yes_easily
-    solution.relative_advantage:
-      answer: positive
-      advantages:
-      - shorter_time
+    solution.relative_advantage: a_lot_better
     solution.adoption_friction: 'yes'
   pilot_opt_in: false
 - person: Jo Judd

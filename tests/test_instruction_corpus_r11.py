@@ -147,7 +147,7 @@ def _items(raw, key):
 
 def _revision(n, words):
     return (lambda r: r.__setitem__("revision", n),
-            f"revision is {n}; this eval reads revision 18 only -- revision {n} is {words}")
+            f"revision is {n}; this eval reads revision 19 only -- revision {n} is {words}")
 
 
 #: The registry-free refusals: the file alone is refused.
@@ -178,6 +178,9 @@ MUTATIONS = {
     # spec 086 FR-1: revision 17 refused by name, before keel-cloud 152's seven templates
     "revision 17": _revision(17, "MARKS_VERSION 21's corpus before keel-cloud 152 (the belief sentences of seven "
                                  "templates and the prevalence phrases in revision 17's words"),
+    # spec 089 FR-1: revision 18 refused by name, before keel-cloud 159's one scale
+    "revision 18": _revision(18, "MARKS_VERSION 21's corpus before keel-cloud 159 (Relative advantage answered "
+                                 "positive / neutral / negative with the founder's benefits ticked under positive"),
     # r11's two rules in L (keel-cloud 091 FR-G, DRIFT #77): K3 on a face, S10 on Commitment's step
     "a face with no you": (lambda r: _items(r, "solution.compatibility")[0].__setitem__(
         "asked", "was the phone to hand"), "is said to the stranger and carries no 'you' or 'your' (rule L, K3)"),
@@ -246,17 +249,22 @@ MUTATIONS = {
         "revision 10 lists one to 4 benefits"),
     "the old single-choice benefit row": (
         lambda r: r["respondent_questions"]["solution.relative_advantage"].__setitem__("control", "single_choice"),
-        "revision 10 asks benefit_with_advantages over"),
-    "a benefit pick that is a bare code": (
+        "revision 19 asks scale_four over"),
+    # rule RA19 (spec 089 FR-1, keel-cloud 159): the row is the scale, a pick one of its four codes
+    "the revision-18 benefit row": (
+        lambda r: r["respondent_questions"]["solution.relative_advantage"].update(
+            control="benefit_with_advantages", codes=["positive", "neutral", "negative"]),
+        "revision 19 asks scale_four over ['a_lot_better', 'a_little_better', 'no_difference', 'worse']"),
+    "a benefit pick that is a founder's benefit": (
         lambda r: _person(r, "Ann Abbott")["picks"].__setitem__("solution.relative_advantage", "shorter_time"),
-        "Ann Abbott's solution.relative_advantage pick is 'shorter_time'; revision 10 answers"),
-    "positive without an advantage": (
+        "Ann Abbott's solution.relative_advantage pick is 'shorter_time'; revision 19 answers one of"),
+    "a revision-18 pick with its benefit": (
         lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
-            "solution.relative_advantage", {"answer": "positive"}), "exactly under positive"),
-    "an advantage the founder did not list": (
-        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
-            "solution.relative_advantage", {"answer": "positive", "advantages": ["less_worry"]}),
-        "exactly under positive"),
+            "solution.relative_advantage", {"answer": "positive", "advantages": ["shorter_time"]}),
+        "(keel-cloud 159: no benefit beside it)"),
+    "a revision-18 neutral": (
+        lambda r: _person(r, "Ann Abbott")["picks"].__setitem__("solution.relative_advantage", {"answer": "neutral"}),
+        "revision 19 answers one of a_lot_better | a_little_better | no_difference | worse"),
     # r9's money rules, kept
     "a price off the ladder": (
         lambda r: _fc(r, "commercial.price")["answer"].__setitem__("low", 10000),

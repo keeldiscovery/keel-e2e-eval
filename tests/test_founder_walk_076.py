@@ -103,7 +103,7 @@ def test_every_six_journey_entry_tests_nobody_else_so_no_golden_reading_moves(co
     the row's two readings `SPEC_147_ROW_FROM` / `_TO`."""
     for entry_id in ("01-countly", "05-paidly", "07-mulchrun"):
         assert (_entry(corpus, entry_id).tested("commercial.buyer_payer_alignment") or {}).get("code") == "nobody_else"
-    assert corpus_mod.REVISION == 18      # spec 086: r18 (152) moved no standing; the row stays as 147 recorded it
+    assert corpus_mod.REVISION == 19      # spec 086: r18 (152), 089: r19 (159) moved no standing; the row stays as 147 recorded it
     row = _entry(corpus, "02-compliancelog").expected["standings"]["commercial.buyer_payer_alignment"]
     assert (row["status"], row["drift"], row["inside"], row["n"]) == ("HOLDING_UP", "none", 7, 9)
     golden = _cloud("src/test/java/com/keeldiscovery/cloud/corpus/GoldenCorpusTest.java")
@@ -290,7 +290,7 @@ def test_the_interviewer_marks_moved_to_12():
     from evals import report_marks as rm                               # noqa: PLC0415
     from instructions import marks as instruction_marks                 # noqa: PLC0415
     assert marks.INTERVIEWER_MARKS_VERSION == 13 and rm.REPORT_MARKS_VERSION == 3      # 086 FR-5: IM27
-    assert instruction_marks.MARKS_VERSION == 21 and corpus_mod.REVISION == 18      # spec 080: r17, v21 stands; spec 086: r18
+    assert instruction_marks.MARKS_VERSION == 21 and corpus_mod.REVISION == 19      # spec 080: r17, v21 stands; spec 086: r18; 089: r19
     ok, _ = marks.chip_ended_it({"chip": "I can't recall one particular delivery",
                                  "want_chip": "I can't recall one particular delivery",
                                  "responses": [{"status": 201, "body": {**marks.CHIP_ONLY, "pilotOptIn": False}}],

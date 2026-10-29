@@ -94,6 +94,23 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Corpus revision 19 (2026-10-30, keel-cloud 159; eval 089, the harness half)**: Relative advantage is one scale --
+the stranger answers *A lot better · A little better · No difference · Worse* (`scale_four`, *I can't tell* apart),
+every recorded answer moved by one rule (positive with a benefit ticked a lot better, positive with none a little
+better, neutral no difference, negative worse), the row read by `fixed_last_two_against` and recording the engine's
+`optionCounts` on the four; no standing, drift, inside, n or verdict moved. The reader reads **revision 19** and refuses a
+revision-18 file by name. **v21 stands**: no mark reads the Relative advantage pick's shape or its benefits
+(`compare_correctness` reports `optionCounts` beside the counts, never marks them), so the ruler did not move, the record
+did. The seven revision-19 files, by sha256 (keel-cloud canon's own bytes at keel-cloud-docs `1cf2ebc3`, unchanged
+through `ad5f6441`, equal to `src/test/resources/keel/corpus-r19/`): `01-countly.yaml`
+`431a56d23be2de5cf84da10007802aa87daceb75bb0a9b4c57afa0461da273b3`; `02-compliancelog.yaml`
+`5d2152bf7b0f5a5def830c79907f5e139761a48d3ff121f1a56eb55d6064e16f`; `03-lullaby.yaml`
+`d96220665201746e05d4b4794eea03bb0887e4d6d6dc0aed4a5db6daa50e4c08`; `04-linerly.yaml`
+`27a22794db252cd39113498cb48e115a3c1c3200b429ee416bbaa4eb572d434e`; `05-paidly.yaml`
+`91a37d92128f927516bfaf09ea64cb3a02d0d5fbde25c9637aee835126693ba5`; `06-repeatline.yaml`
+`c971a78f4ea8be5c2ac1eab6d790576bae7a06f9e188bc3af74e7bb0bd0a44f6`; `07-mulchrun.yaml`
+`735476c9c828e0ced83695518771499ac298f8dc864c4e1ac2f500418c046e02`.
+
 **Corpus revision 18 (2026-10-29, keel-cloud 152; eval 086, the harness half)**: the belief words move, no standing --
 seven templates and the prevalence phrases in the founder's words (Commitment *Most {actor_plural} would {value} now.*,
 Current solution *... still falls short.*, Importance *Of these {list_size}, ...*, Prevalence *under 2 in 10 ... at

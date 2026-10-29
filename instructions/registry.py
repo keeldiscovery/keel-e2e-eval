@@ -71,9 +71,11 @@ PURCHASE_FRICTION_KEY = "commercial.purchase_friction"
 COMMITMENT_KEY = "commercial.commitment"
 
 #: The respondent controls whose answer is a number (`answers.shape == interval`, invariant 6):
-#: Frequency's 0-to-7 control and the number it becomes on a longer window, and Existing sacrifice's
-#: one total (keel-cloud 077).
-NUMERIC_RESPONDENT_CONTROLS = ("segmented_0_to_7", "number_with_unit")
+#: Frequency's count from 1 (keel-cloud 158: `segmented_1_to_n`, was `segmented_0_to_7`) and the number it becomes on a
+#: longer window (`numeric.min` 1), and Existing sacrifice's one total (keel-cloud 077).
+NUMERIC_RESPONDENT_CONTROLS = ("segmented_1_to_n", "number_with_unit")
+#: Spec 089 FR-2 (keel-cloud 158 T001): the least count a Frequency answer carries -- a 0 is SHAPE_MISMATCH on the wire.
+FREQUENCY_MIN = 1
 COST_TOTAL_CONTROL = "cost_total"
 #: Registry decision 24 (keel-cloud 115, spec 064 FR-1): the stranger's cost is one value box in the founder's own unit
 #: and period (`interval`); a project whose cost was stated before the chain keeps `cost_total`.
@@ -84,15 +86,35 @@ NUMBER_YIELDING_CONTROLS = NUMERIC_RESPONDENT_CONTROLS + (COST_TOTAL_CONTROL, VA
 LIST_FOUNDER_CONTROLS = ("rival_list", "scale_lines", "item_list", "benefit_list", "role_list", "one_step")
 FOUNDER_CONTROLS = ("single_choice", "numeric_interval") + LIST_FOUNDER_CONTROLS + (
     "cost_estimate", "price_range", "derived")
-#: keel-cloud 087's `RespondentControl`.
-RESPONDENT_CONTROLS = ("gate_yes_no", "segmented_0_to_7", "number_with_unit", "single_choice",
-                       "single_choice_5", "pick_two", "fixed_four", "fixed_three", "cost_total",
-                       "price_ladder", "benefit_with_advantages", "value_box")
-#: The controls whose answers are the registry's fixed set (`respondent.fixed_answers`).
-FIXED_ANSWER_CONTROLS = ("fixed_four", "fixed_three")
-#: keel-cloud 087's `CompareRule`.
+#: keel-cloud 087's `RespondentControl`, as keel-cloud 158 and 159 (contract 47) left it: Frequency `segmented_1_to_n`
+#: (was `segmented_0_to_7`), Importance `pick_one_then_one` (was `pick_two`), Relative advantage `scale_four` (was
+#: `benefit_with_advantages`, gone with its advantages).
+RESPONDENT_CONTROLS = ("gate_yes_no", "segmented_1_to_n", "number_with_unit", "single_choice",
+                       "single_choice_5", "pick_one_then_one", "fixed_four", "fixed_three", "cost_total",
+                       "price_ladder", "scale_four", "value_box")
+#: Spec 089 FR-1: the control names the corpus still records for a row whose control keel-cloud 158 renamed. The
+#: corpus is never edited and 158 cut no revision, so revision 19's Frequency row reads `segmented_0_to_7` and its
+#: Importance row `pick_two`; the stored answers are the same integer and the same two codes (158 T003, T011), so a
+#: recorded row is read as the registry's control of the same answer shape.
+RECORDED_CONTROLS = {"segmented_1_to_n": ("segmented_1_to_n", "segmented_0_to_7"),
+                     "pick_one_then_one": ("pick_one_then_one", "pick_two")}
+#: Importance's second ask (keel-cloud 158 T010, contract 46): `InterviewItem.secondAsk` -- *And one more?* with the
+#: escape *Nothing else* (`NOTHING_ELSE` on the wire, `nothing_else` in the registry's words), which sends the first
+#: pick alone, stored and counted as one pick.
+IMPORTANCE_CONTROL = "pick_one_then_one"
+ONE_MORE = "And one more?"
+NOTHING_ELSE = "nothing_else"
+NOTHING_ELSE_CHIP = "NOTHING_ELSE"
+NOTHING_ELSE_LABEL = "Nothing else"
+#: Frequency's control from 1 (keel-cloud 158 T001).
+FREQUENCY_CONTROL = "segmented_1_to_n"
+#: The controls whose answers are the registry's fixed set (`respondent.fixed_answers`) -- Relative advantage's scale
+#: among them since keel-cloud 159.
+FIXED_ANSWER_CONTROLS = ("fixed_four", "fixed_three", "scale_four")
+#: keel-cloud 087's `CompareRule`; `benefit_first` gone with keel-cloud 159 (Relative advantage is read by
+#: `fixed_last_two_against` over its four).
 COMPARE_RULES = ("proportion_from_gate", "interval_contains_median", "share_in_picks", "below_line",
-                 "fixed_last_two_against", "benefit_first", "ordinal_band", "cost_covers_price",
+                 "fixed_last_two_against", "ordinal_band", "cost_covers_price",
                  "first_supports", "caution_turned")
 #: An escape is apart, or (Importance's alone) counted against (087 FR-004).
 ESCAPE_COUNTS = ("apart", "against")
@@ -124,13 +146,32 @@ DERIVED_FOUNDER_CONTROL = "derived"
 DERIVED_COMPARE_RULE = "cost_covers_price"
 #: `AbilityToPay`'s four bands (with decision 2, 2026-10-10).
 ABILITY_BANDS = ("small_share", "mostly_from_spend", "some_from_spend", "new_money")
-#: Relative advantage, benefit first (keel-cloud 085; 087 makes the founder's ticks a `benefit_list`).
+#: Relative advantage (keel-cloud 159, contract 47): the founder still lists one to four benefits (`benefit_list`,
+#: their side unchanged); the stranger answers one scale of four, `scale_four` -- *A lot better · A little better · No
+#: difference · Worse*, *I can't tell* apart -- read by `fixed_last_two_against` (the first two support). The benefits
+#: are never shown to the stranger nor stored with the answer (`advantageIds`, `yes_no_per_benefit`, `benefit_first`
+#: are gone).
 BENEFIT_KEY = "solution.relative_advantage"
-BENEFIT_CONTROL = "benefit_with_advantages"
-BENEFIT_RULE = "benefit_first"
+BENEFIT_CONTROL = "scale_four"
+BENEFIT_RULE = "fixed_last_two_against"
 BENEFIT_FOUNDER_CONTROL = "benefit_list"
-BENEFIT_CODES = ("positive", "neutral", "negative")
+BENEFIT_CODES = ("a_lot_better", "a_little_better", "no_difference", "worse")
+BENEFIT_LABELS = ("A lot better", "A little better", "No difference", "Worse")
+BENEFIT_SUPPORTS = ("a_lot_better", "a_little_better")
 BENEFIT_MAX_TICKS = 4
+#: Spec 089 FR-1 (keel-cloud 159 FR-3, *the one rule*): a revision-18 answer `{answer, advantages}` on the scale --
+#: positive with a benefit ticked a lot better, positive with none a little better, neutral no difference, negative worse.
+#: The escape is as it was.
+
+
+def from_three(pick) -> str | dict:
+    """keel-cloud `ScaleFour.fromThree`: a revision-18 Relative advantage pick read on the scale (the chip unchanged)."""
+    if isinstance(pick, dict) and "chip" in pick:
+        return pick
+    answer = pick.get("answer") if isinstance(pick, dict) else pick
+    if answer == "positive":
+        return "a_lot_better" if isinstance(pick, dict) and pick.get("advantages") else "a_little_better"
+    return {"neutral": "no_difference", "negative": "worse"}[answer]
 #: Existing sacrifice: its question names no offer (keel-cloud 072 D-2).
 SACRIFICE_KEY = "commercial.existing_sacrifice"
 
@@ -337,9 +378,10 @@ class Dimension:
         return [a.get("code") for a in self.fixed_answers]
 
     @property
-    def benefit_first(self) -> bool:
-        """Relative advantage since keel-cloud 085: read by `benefit_first`, asked by `benefit_with_advantages`."""
-        return self.answers.get("compare_rule") == BENEFIT_RULE
+    def scale_four(self) -> bool:
+        """Relative advantage since keel-cloud 159: asked on `scale_four` (it was `benefit_with_advantages`, read by
+        `benefit_first`, keel-cloud 085)."""
+        return self.respondent_control == BENEFIT_CONTROL
 
     @property
     def compare_rule(self):
@@ -726,12 +768,21 @@ def check_invariants(registry: Registry) -> list[str]:
             if d.compare_rule != DERIVED_COMPARE_RULE:
                 faults.append(f"invariant 5 (derived is cost_covers_price): {d.key} is derived and "
                               f"read by {d.compare_rule!r}")
-        if d.benefit_first != (d.respondent_control == BENEFIT_CONTROL):
-            faults.append(f"invariant 5 (benefit on both sides): {d.key} is read by "
-                          f"{d.compare_rule!r} on a {d.respondent_control!r} control")
-        if d.benefit_first and d.founder_control != BENEFIT_FOUNDER_CONTROL:
-            faults.append(f"invariant 5 (the founder lists benefits): {d.key}'s founder control is "
-                          f"{d.founder_control!r}, not {BENEFIT_FOUNDER_CONTROL!r}")
+        if d.scale_four:
+            # keel-cloud 159 `DimensionRegistry` invariant 5: a scale_four's four, labels and supports are code's
+            # (`ScaleFour`), read by fixed_last_two_against, on the founder's benefit list
+            if d.compare_rule != BENEFIT_RULE:
+                faults.append(f"invariant 5 (the scale is read by {BENEFIT_RULE}): {d.key} is read by "
+                              f"{d.compare_rule!r} on a {BENEFIT_CONTROL!r} control")
+            if tuple(d.fixed_answer_codes) != BENEFIT_CODES \
+                    or tuple(a.get("label") for a in d.fixed_answers) != BENEFIT_LABELS \
+                    or tuple(d.respondent.get("supports") or ()) != BENEFIT_SUPPORTS:
+                faults.append(f"invariant 5 (the scale is code's): {d.key}'s four are {d.fixed_answers!r} supporting "
+                              f"{d.respondent.get('supports')!r}; keel-cloud 159's are {list(BENEFIT_CODES)} "
+                              f"({', '.join(BENEFIT_LABELS)}) supporting {list(BENEFIT_SUPPORTS)}")
+            if d.founder_control != BENEFIT_FOUNDER_CONTROL:
+                faults.append(f"invariant 5 (the founder lists benefits): {d.key}'s founder control is "
+                              f"{d.founder_control!r}, not {BENEFIT_FOUNDER_CONTROL!r}")
         bins = d.normalized.get("bins")
         if bins is not None and not _bins_contiguous(bins):
             faults.append(f"invariant 5 (contiguous bins): {d.key}'s bins {bins} are not "

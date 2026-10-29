@@ -55,7 +55,7 @@ def corpus():
 def test_the_seven_entries_are_all_at_revision_eighteen_and_none_states_the_chain(corpus):
     assert [e.id for e in corpus.entries] == list(ENTRIES)
     for entry in corpus.entries:
-        assert entry.revision == 18, entry.id                               # spec 086: keel-cloud 152
+        assert entry.revision == 19, entry.id                               # spec 086: keel-cloud 152; 089: 159
         assert not entry.chain() and entry.reading() is None, entry.id      # read as r12 (keel-cloud 124 T001)
     assert Path(corpus.directory) == fx.canon_dir()
 
@@ -234,7 +234,10 @@ def test_every_row_is_the_registrys_and_every_pick_its_rows(corpus, entry_id):
     registry = fx.registry()
     for key, row in entry.respondent_questions.items():
         dimension = registry.by_key(key)
-        assert row["control"] == dimension.respondent_control, (entry_id, key)
+        # spec 089 (keel-cloud 158 cut no revision): Frequency's and Importance's rows record the control names before
+        # 158, read as its `segmented_1_to_n` / `pick_one_then_one` (the same integer, the same two codes)
+        assert row["control"] in registry_mod.RECORDED_CONTROLS.get(dimension.respondent_control,
+                                                                     (dimension.respondent_control,)), (entry_id, key)
         assert row.get("escape") == (dimension.escape or {}).get("code"), (entry_id, key)
         if dimension.fixed_answers:
             assert row["codes"] == dimension.fixed_answer_codes, (entry_id, key)
@@ -246,7 +249,7 @@ def test_every_row_is_the_registrys_and_every_pick_its_rows(corpus, entry_id):
                 assert pick["chip"] == row.get("escape") and key != "commercial.commitment"
             elif row["control"] == "pick_two":
                 assert len(pick) == 2 and len(set(pick)) == 2 and set(pick) <= set(row["codes"])
-            elif row["control"] in ("fixed_four", "fixed_three", "single_choice_5", "price_ladder"):
+            elif row["control"] in ("fixed_four", "fixed_three", "single_choice_5", "price_ladder", "scale_four"):
                 assert pick in row["codes"], (entry_id, person.person, key, pick)
 
 
@@ -430,7 +433,7 @@ def test_the_corpus_reads_the_same_through_the_exported_registry(corpus):
     exported = registry_mod.load(path)
     for entry in corpus.entries:
         corpus_mod.load_file(entry.path, registry=exported)
-    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 18      # spec 086
+    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 19      # spec 086; 089
 
 
 #: 105 FR-1's market lines: every entry the US, two with a state.
@@ -482,15 +485,20 @@ def test_every_entry_records_the_two_golden_names(corpus, entry_id):
         assert (short, offer) == ("a suggested reason for crying", "something that helps at night")
 
 
-def test_every_relative_advantage_is_benefit_first(corpus):
-    """Call 76 kept, call 78: the founder's benefits are a one-item list (`{items: [{code, label}]}`), the plan row is
-    the code-written item with its one escape, a pick is `{answer, advantages}`."""
+def test_every_relative_advantage_is_one_scale(corpus):
+    """Call 76 kept, call 78: the founder's benefits are a one-item list (`{items: [{code, label}]}`); since revision 19
+    (spec 089, keel-cloud 159) the plan row is the scale of four with its one escape and a pick one of its codes."""
     key = "solution.relative_advantage"
     for entry in corpus.entries:
         assert len(entry.founder_list(key)["items"]) == 1, entry.id
-        assert entry.respondent_questions[key] == {"part": 2, "control": "benefit_with_advantages",
-                                                   "codes": ["positive", "neutral", "negative"],
+        assert entry.respondent_questions[key] == {"part": 2, "control": "scale_four",
+                                                   "codes": ["a_lot_better", "a_little_better", "no_difference",
+                                                             "worse"],
                                                    "escape": "cant_tell"}, entry.id
+        for person in entry.people():
+            pick = person.picks.get(key)
+            assert pick is None or pick in registry_mod.BENEFIT_CODES or pick == {"chip": "cant_tell"}, \
+                (entry.id, person.person, pick)
 
 
 def test_revision_eleven_fixed_drift_77s_five_words_and_paidlys_frequency_unit(corpus):

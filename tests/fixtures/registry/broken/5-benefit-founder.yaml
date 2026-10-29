@@ -1,5 +1,6 @@
-# slice.yaml with one value changed, failing exactly invariant 5 (spec 038; keel-cloud 085): the founder ticks up to
-# four advantages (087: a benefit_list), so a benefit_first dimension's founder control is benefit_list -- here it is a single_choice.
+# slice.yaml with one value changed, failing exactly invariant 5 (spec 038; keel-cloud 085; spec 089, keel-cloud 159):
+# the founder lists up to four benefits (087: a benefit_list) beside the stranger's scale_four, so a scale_four
+# dimension's founder control is benefit_list -- here it is a single_choice.
 base: ../slice.yaml
 invariant: 5
 key: solution.relative_advantage

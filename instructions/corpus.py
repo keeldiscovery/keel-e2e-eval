@@ -2,6 +2,18 @@
 spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78; spec 042 call 110;
 spec 053 FR-1; spec 064 FR-1).
 
+**Revision 19 read** (spec 089 FR-1; keel-cloud 159, keel-cloud-docs `1cf2ebc3`): revision 18's rules with Relative
+advantage on one scale -- its row `control: scale_four` over `a_lot_better`, `a_little_better`, `no_difference`, `worse`
+(escape `cant_tell`, apart), a pick one of the four codes or the chip, never a benefit beside it; every recorded answer
+moved by **the one rule** (`registry.from_three`: positive with a benefit ticked a lot better, positive with none a little
+better, neutral no difference, negative worse; the corpus holds no a little better, as every recorded *better* carried a
+benefit), and the golden row records the engine's `optionCounts` on the four. No standing, drift, inside, n or verdict
+moved. The founder's side is unchanged (a `benefit_list`). keel-cloud 158 cut no revision: the Frequency and
+Importance rows still record `segmented_0_to_7` and `pick_two`, read as 158's `segmented_1_to_n` and
+`pick_one_then_one` (`registry.RECORDED_CONTROLS`: the same integer, the same two codes), and the five recorded 0s
+after a yes (04-linerly, 05-paidly) are read as recorded -- only the wire refuses a 0 now (the harness replays them as
+*I can't recall*, spec 089 FR-2). A revision-18 file is refused by name (`_REVISION_OF`).
+
 **Revision 18 read** (spec 086 FR-1; keel-cloud 152, keel-cloud-docs `21395ab0`): revision 17's rules with no new shape
 -- seven belief templates and the prevalence phrases moved in the founder's words (Commitment *Most {actor_plural} would
 {value} now.*, Current solution *For most {actor_plural}, {value} still falls short.*, Importance *Of these {list_size},
@@ -100,12 +112,12 @@ import yaml
 
 from . import chain as chain_mod
 from . import text as text_mod
-from .registry import (ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTROL, BENEFIT_KEY,
+from .registry import (RECORDED_CONTROLS, ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTROL, BENEFIT_KEY,
                        BENEFIT_MAX_TICKS, COMMITMENT_KEY, COST_MODES, COST_TOTAL_CONTROL,
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 18
+REVISION = 19
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -135,7 +147,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 16: "MARKS_VERSION 21's corpus before keel-cloud 147 (02-compliancelog's Buyer and payer recorded "
                     "PEOPLE_DISAGREE / both / 5 of 9, before 145 FR-2's direction-aware reading)",
                 17: "MARKS_VERSION 21's corpus before keel-cloud 152 (the belief sentences of seven templates and the "
-                    "prevalence phrases in revision 17's words, the rate cost's belief *Most {actor plural} lose ...*)"}
+                    "prevalence phrases in revision 17's words, the rate cost's belief *Most {actor plural} lose ...*)",
+                18: "MARKS_VERSION 21's corpus before keel-cloud 159 (Relative advantage answered positive / neutral / "
+                    "negative with the founder's benefits ticked under positive, `benefit_with_advantages`)"}
 
 #: Spec 067 FR-6 (keel-cloud 128 FR-11, `check_corpus_r15.py`'s rule Q): a person's answer to the segment's condition
 #: chip -- inside or outside -- where the entry's context records a condition; on the primary link only.
@@ -930,17 +944,16 @@ def _check_shape(raw: dict, path: Path) -> None:
 
 
 def _check_benefit_first(raw: dict, entry_id, path: Path) -> None:
-    """Rule B's shape half at revision 10 (call 81 kept, call 78): the founder's Relative advantage is a list of one
-    to four distinct benefits `{items: [{code, label}]}` (or `unsure`); its plan row is the code-written benefit
-    item; every pick is `{answer, advantages}` with the advantages a non-empty subset of the founder's codes exactly
-    under `positive`, or the escape."""
+    """Rule B's shape half (call 81 kept, call 78) at revision 19 (spec 089, keel-cloud 159 rule RA19): the founder's
+    Relative advantage is a list of one to four distinct benefits `{items: [{code, label}]}` (or `unsure`); its plan row
+    is `scale_four` over the four codes; every pick is one of the four codes (no benefit beside it), or the escape."""
     calibration = (raw.get("founder_calibration") or {}).get(BENEFIT_KEY)
     if calibration is None:
         return
     row = (raw.get("respondent_questions") or {}).get(BENEFIT_KEY)
     if row is not None and (row.get("control") != BENEFIT_CONTROL or list(row.get("codes") or []) != list(BENEFIT_CODES)):
         raise _refuse(entry_id, f"respondent_questions[{BENEFIT_KEY}] is {row.get('control')!r} over codes "
-                                f"{row.get('codes')!r}; revision 10 asks {BENEFIT_CONTROL} over "
+                                f"{row.get('codes')!r}; revision 19 asks {BENEFIT_CONTROL} over "
                                 f"{list(BENEFIT_CODES)}", path)
     if calibration.get("unsure"):
         return
@@ -949,18 +962,13 @@ def _check_benefit_first(raw: dict, entry_id, path: Path) -> None:
         raise _refuse(entry_id, f"founder_calibration[{BENEFIT_KEY}].answer is {calibration.get('answer')!r}; "
                                 f"revision 10 lists one to {BENEFIT_MAX_TICKS} benefits, {{items: [{{code, label}}]}}",
                       path)
-    ticks = [i.get("code") for i in items if isinstance(i, dict)]
     for person in raw.get("answers") or []:
         pick = (person.get("picks") or {}).get(BENEFIT_KEY)
         if pick is None or (isinstance(pick, dict) and "chip" in pick):
             continue
-        if not isinstance(pick, dict) or pick.get("answer") not in BENEFIT_CODES:
-            raise _refuse(entry_id, f"{person.get('person')}'s {BENEFIT_KEY} pick is {pick!r}; revision 10 "
-                                    f"answers {{answer: {' | '.join(BENEFIT_CODES)}, advantages: [...]}}", path)
-        advantages = pick.get("advantages") or []
-        if (pick["answer"] == "positive") != bool(advantages) or not set(advantages) <= set(ticks):
-            raise _refuse(entry_id, f"{person.get('person')}'s {BENEFIT_KEY} pick {pick!r}: its advantages are "
-                                    f"a non-empty subset of the founder's {ticks} exactly under positive", path)
+        if not isinstance(pick, str) or pick not in BENEFIT_CODES:
+            raise _refuse(entry_id, f"{person.get('person')}'s {BENEFIT_KEY} pick is {pick!r}; revision 19 answers "
+                                    f"one of {' | '.join(BENEFIT_CODES)} (keel-cloud 159: no benefit beside it)", path)
 
 
 def _check_price_and_total(raw: dict, entry_id, path: Path, in_chain: bool = False) -> None:
@@ -1383,7 +1391,7 @@ def _check_row(entry: Entry, registry, key: str, row: dict) -> None:
     if _chain_row(entry, key):
         return                                   # rule C held it (`_check_chain`): the chain's row, not the registry's
     control, escape = _registry_row(entry, dimension)
-    if row.get("control") != control:
+    if row.get("control") not in RECORDED_CONTROLS.get(control, (control,)):
         raise _refuse(entry.id, f"respondent_questions[{key}].control is {row.get('control')!r}; the registry's is "
                                 f"{control!r}", entry.path)
     if row.get("escape") != escape:
@@ -1445,12 +1453,14 @@ def _check_pick(entry: Entry, registry, person: dict, key: str, pick) -> None:
         return
     control = row.get("control")
     codes = [str(c) for c in row.get("codes") or []]
-    if control == "pick_two":
+    if control in RECORDED_CONTROLS["pick_one_then_one"]:
+        # the corpus records two picks (keel-cloud 158: two picks are stored as the same two codes; one pick and
+        # Nothing else, which the corpus never records, is stored as the one code)
         if not isinstance(pick, list) or len(pick) != 2 or len(set(pick)) != 2 \
                 or not set(map(str, pick)) <= set(codes):
             raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}; Importance is two distinct codes of "
                                     f"{codes}", entry.path)
-    elif control in ("fixed_four", "fixed_three", "single_choice_5", "single_choice") and codes:
+    elif control in ("fixed_four", "fixed_three", "single_choice_5", "single_choice", BENEFIT_CONTROL) and codes:
         if not isinstance(pick, str) or pick not in codes:
             raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}, not one of {codes}", entry.path)
 

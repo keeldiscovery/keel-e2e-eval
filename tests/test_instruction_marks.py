@@ -354,10 +354,11 @@ def test_the_refusal_mark_is_a_rate_over_the_answers_judged():
     assert marks_mod.judge(totals, marks_mod.load())["refusals"]["met"] is False
 
 
-def test_the_header_names_the_seven_r18_digests_and_keeps_v13s_counted_denominators():
-    """Spec 086 FR-3 (080's, 068's, 064's and 053's before it): the revision-18 paragraph names the seven golden files by
-    their canon bytes at keel-cloud-docs `21395ab0` with v21 standing, the revision-17 to -11 paragraphs stay as
-    history; v13's dated paragraph and its counted denominators stay below it as history."""
+def test_the_header_names_the_seven_r19_digests_and_keeps_v13s_counted_denominators():
+    """Spec 089 FR-1 (086's, 080's, 068's, 064's and 053's before it): the revision-19 paragraph names the seven golden
+    files by their canon bytes at keel-cloud-docs `1cf2ebc3` (159's tasks.md lists the same seven) with v21 standing,
+    the revision-18 to -11 paragraphs stay as history; v13's dated paragraph and its counted denominators stay below it
+    as history."""
     import hashlib                                                          # noqa: PLC0415
     from tests import v9_fixtures as fx                                     # noqa: PLC0415
     doc = marks_mod.__doc__
@@ -374,6 +375,8 @@ def test_the_header_names_the_seven_r18_digests_and_keeps_v13s_counted_denominat
     assert "The seven revision-16 files, by sha256" in header and "keel-cloud-docs\n`efdd37bf`" in header
     assert "The seven revision-17 files, by sha256" in header and "keel-cloud-docs `88bfce8d`" in header
     assert "**v21 stands**: the ruler did not move,\nthe record did" in header
+    assert "The seven revision-19 files, by sha256" in header and "keel-cloud-docs `1cf2ebc3`" in header
+    assert "**v21 stands**: no mark reads the Relative advantage pick's shape" in header
     assert "The seven revision-18 files, by sha256" in header and "keel-cloud-docs `21395ab0`" in header
     assert "**v21\nstands**: no mark scores a belief sentence" in header
     assert "65 reads at N=1" in header
