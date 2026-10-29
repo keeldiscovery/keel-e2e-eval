@@ -89,10 +89,14 @@ def test_the_gate_and_frequency_are_framed_around_the_clause():
     assert wording_mod.gate(SEVEN_NIGHTS, "Had to guess why the baby cried.") == \
         "In the last 7 nights, did you had to guess why the baby cried?"
     assert wording_mod.gate(FOUR_WEEKS, "lose your keys") == "In the last 4 weeks, did you lose your keys?"
+    # spec 089 FR-5 (keel-cloud 160 FR-2): served window first; E4 measures the frame it was set against
     assert wording_mod.frequency_respondent(FOUR_WEEKS, "lose your keys") == \
+        "In the last 4 weeks, on how many weeks did you lose your keys?"
+    assert wording_mod.frequency_respondent(FOUR_WEEKS, "") == "In the last 4 weeks, on how many weeks did that happen?", \
+        "no clause: did that happen, window first (keel-cloud 2026-10-12, 160)"
+    assert wording_mod.frequency_measured(FOUR_WEEKS, "lose your keys") == \
         "On how many of those 4 weeks did you lose your keys?"
-    assert wording_mod.frequency_respondent(FOUR_WEEKS, "") == "On how many of those 4 weeks did that happen?", \
-        "no clause: the old frame (keel-cloud 2026-10-12)"
+    assert wording_mod.frequency_measured(FOUR_WEEKS, "") == "On how many of those 4 weeks did that happen?"
 
 
 def test_e4_holds_each_framed_question_to_twenty_words():
@@ -102,7 +106,7 @@ def test_e4_holds_each_framed_question_to_twenty_words():
     assert wording_mod.framed_fault(eleven, SEVEN_NIGHTS) is None
     fault = wording_mod.framed_fault(eleven + " again", SEVEN_NIGHTS)
     assert fault is not None and fault.startswith("E4:") and "21 words" in fault, fault
-    assert "On how many of those 7 nights" in fault, "the longer of the two is named"
+    assert "On how many of those 7 nights" in fault, "the longer of the two is named (as E4 measures it, keel-cloud 160)"
 
 
 # ---------------------------------------------------------- calls 83, 85 on the two scorers

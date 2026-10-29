@@ -200,6 +200,7 @@ def test_the_respondent_job_writes_the_gates_clause_and_nothing_else(entry_id):
             assert not re.search(r"\d", event) and not _words(event) & TIME_WORDS, event
             assert not event.lower().startswith(FRAME_OPENINGS) and "?" not in event, event
             assert _count(vs.gate_question(window, event)) <= vs.STEM_MAX_WORDS
+            # E4 measures the clause on the frame before keel-cloud 160 (`frequencyMeasured`, 160 judgement call 2)
             assert _count(vs.frequency_question(window, event)) <= vs.STEM_MAX_WORDS
             assert not _words(event) & (PRODUCT_WORDS | terms), event
 

@@ -167,7 +167,21 @@ def gate(window, event) -> str:
 
 
 def frequency_respondent(window, event) -> str:
-    """`WindowFrame.frequencyRespondent(window, event)`: Frequency carries the gate's own clause."""
+    """`WindowFrame.frequencyRespondent(window, event)`: Frequency carries the gate's own clause -- since keel-cloud 160
+    (FR-2, spec 089 FR-5) the window first and plainly, then the event: *In the last 4 weeks, on how many weeks did you
+    lose your keys?*; with no clause *In the last 4 weeks, on how many weeks did that happen?* (it read *On how many of
+    those 4 weeks did ...?*)."""
+    text = clause(event)
+    lead = f"In {window.words()}, on how many {window.plural} did "
+    if not text.strip():
+        return f"{lead}that happen?"
+    return f"{lead}you {text}?"
+
+
+def frequency_measured(window, event) -> str:
+    """`WindowFrame.frequencyMeasured` (keel-cloud 160 judgement call 2): the frame E4 and the gate's fallbacks measure
+    a clause on -- the one E4 was set against (spec 088), *On how many of those {count} {unit} did you {clause}?* --
+    so no gate moves with the window-first frame; what is served is held to the cap on its own."""
     text = clause(event)
     if not text.strip():
         return f"On how many of those {window.count} {window.plural} did that happen?"
@@ -176,8 +190,8 @@ def frequency_respondent(window, event) -> str:
 
 def framed_fault(event, window) -> str | None:
     """E4 (keel-cloud 088 `RespondentQuestionsRules.gate`): framed, the gate and the Frequency question it frames
-    are each at most 20 words."""
-    questions = (gate(window, event), frequency_respondent(window, event))
+    are each at most 20 words -- the Frequency question as E4 measures it (`frequency_measured`, keel-cloud 160)."""
+    questions = (gate(window, event), frequency_measured(window, event))
     longest = max(questions, key=lambda q: len(q.split()))
     count = len(longest.split())
     if count > SPOKEN_STEM_MAX_WORDS:

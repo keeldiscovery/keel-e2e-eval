@@ -285,20 +285,35 @@ def test_the_gate_on_the_circumstances_event_for_the_five_seeds():
         assert len(served.split()) <= vs.STEM_MAX_WORDS, served
     code_four = _backtest("14-code-four")
     frequency = vs.frequency_held(vs.window_of(code_four), vs.circumstance_event(code_four.context["circumstance"]))
-    assert frequency == ("On how many of those 7 days did you have to turn a call's body-cam footage into a written "
-                         "report?") and len(frequency.split()) == 20
+    # spec 089 FR-5 (keel-cloud 160 *What did not hold*): window first, Code Four's clause is 21 words even with the unit
+    # said once, and *into* is no trailing phrase 131 cuts -- it falls to *did that happen?*; in the frame before 160 it
+    # was whole at 20
+    assert frequency == "In the last 7 days, on how many days did that happen?"
+    before = vs.frequency_held_before160(vs.window_of(code_four),
+                                         vs.circumstance_event(code_four.context["circumstance"]))
+    assert before == ("On how many of those 7 days did you have to turn a call's body-cam footage into a written "
+                      "report?") and len(before.split()) == 20
     for entry_id in ("13-aircaps", "15-voltair"):
         assert vs.circumstance_event(_backtest(entry_id).context["circumstance"]) is None, entry_id
 
 
 def test_frequency_is_held_under_the_cap():
-    """131 FR-2 (Fresco): 21 words cut by the trailing phrase to 17; a clause no cut fits asks *did that happen?*."""
+    """131 FR-2 (Fresco): cut by the trailing phrase; a clause no cut fits asks *did that happen?*. Spec 089 FR-5
+    (keel-cloud 160 FR-2, judgement call 4): window first, the unit said once before the cut -- Fresco's 24 words still
+    cut as before (*... by hand?*, 20); the frame before 160 held as 131 held it."""
     window = vs.Window(5, "WORKING_DAYS")
     assert vs.frequency_held(window, "type up the daily log by hand after the site walks") == \
-        "On how many of those 5 working days did you type up the daily log by hand?"
-    assert vs.frequency_held(window, "type it up") == "On how many of those 5 working days did you type it up?"
+        "In the last 5 working days, on how many working days did you type up the daily log by hand?"
+    assert vs.frequency_held(window, "type it up") == \
+        "In the last 5 working days, on how many working days did you type it up?"
     assert vs.frequency_held(window, "reconcile every single supplier delivery note against its matching invoice "
-                                     "line") == "On how many of those 5 working days did that happen?"
+                                     "line") == "In the last 5 working days, on how many working days did that happen?"
+    # the unit said once where that alone fits (keel-cloud 160 judgement call 4)
+    assert vs.frequency_held(vs.Window(7, "DAYS"), "have to recount the stock by hand after a delivery") == \
+        "In the last 7 days, on how many did you have to recount the stock by hand after a delivery?"
+    assert vs.frequency_held_before160(window, "type up the daily log by hand after the site walks") == \
+        "On how many of those 5 working days did you type up the daily log by hand?"
+    assert vs.frequency_held_before160(window, "type it up") == "On how many of those 5 working days did you type it up?"
 
 
 def test_the_adoption_frame_whole():

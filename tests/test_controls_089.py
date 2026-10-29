@@ -7,6 +7,9 @@ FR-3, one pick then one more: the second ask's words and escape held to keel-clo
 `ask: second`, one pick with *Nothing else* a whole answer, the screens' and the AI link's walks in that order. FR-4,
 one scale: the question in `ScaleFour`'s frame (the plain frame past 20 words), one code sent and no `advantageIds`, no
 transform, the brief's line and the two decision sentences held to keel-cloud's `BriefFacts` and `DecisionChangeCorpusTest`.
+FR-5, the frames in the people's words (keel-cloud 160): the served Frequency window first and held to the cap (the unit
+said once, then the cut), E4 still measured on the frame before 160, and the registry's Lullaby examples read as the
+harness composes them.
 """
 
 from __future__ import annotations
@@ -35,6 +38,7 @@ ITEM_FRAMES = "src/main/java/com/keeldiscovery/cloud/domain/vectors/ItemFrames.j
 SCALE_FOUR = "src/main/java/com/keeldiscovery/cloud/domain/vectors/ScaleFour.java"
 BRIEF_FACTS = "src/main/java/com/keeldiscovery/cloud/application/BriefFacts.java"
 DECISION_TEST = "src/test/java/com/keeldiscovery/cloud/corpus/DecisionChangeCorpusTest.java"
+WINDOW_FRAME = "src/main/java/com/keeldiscovery/cloud/domain/vectors/WindowFrame.java"
 
 FIVE = {("04-linerly", "Bruno Costa"), ("04-linerly", "Dmitri Volkov"), ("04-linerly", "Gwen Price"),
         ("05-paidly", "Petra Novak"), ("05-paidly", "Talia Ben-David")}
@@ -283,3 +287,36 @@ def test_the_brief_line_and_the_two_decisions_are_keel_clouds():
     entry = _entry("02-compliancelog")
     card = next(c for c in bf.cards_for(entry, fx.registry()) if c["key"] == registry_mod.BENEFIT_KEY)
     assert (card["number"], card["line"]) == ("4 of 9", "said it would have gone better, 4 of them a lot")
+
+
+# ------------------------------------------------------------------------------------ FR-5: the frames (160)
+
+def test_the_served_frequency_opens_with_the_window_and_e4_keeps_its_measure():
+    """keel-cloud 160 FR-2 / judgement call 2: *In {window}, on how many {unit} did ...?* served; `frequencyMeasured`
+    (*On how many of those ...*) is what E4 and the gate's fallbacks measure a clause on, so no gate moves."""
+    from instructions import wording as wording_mod                        # noqa: PLC0415
+    text = _cloud(WINDOW_FRAME, "frequencyMeasured")
+    assert '", on how many " + w.timeUnit().plural() + " "' in text and '"On how many of those "' in text
+    nights = vs.Window(7, "NIGHTS")
+    assert vs.frequency_served(nights, "have to work out why your baby was crying") == \
+        "In the last 7 nights, on how many nights did you have to work out why your baby was crying?"
+    assert vs.frequency_served(nights, "") == "In the last 7 nights, on how many nights did that happen?"
+    assert vs.frequency_question(nights, "have to work out why your baby was crying") == \
+        "On how many of those 7 nights did you have to work out why your baby was crying?"
+    window = registry_mod.RecallWindow(7, "NIGHTS")
+    assert wording_mod.frequency_respondent(window, "have to work out why your baby was crying") == \
+        vs.frequency_served(nights, "have to work out why your baby was crying")
+    assert wording_mod.frequency_measured(window, "lose your keys") == "On how many of those 7 nights did you lose your keys?"
+
+
+def test_the_registrys_lullaby_examples_are_the_frames_the_harness_composes():
+    """keel-cloud 160 T009 / T015: the registry of record's Lullaby questions follow the frames -- Frequency window first,
+    Importance *Think of your last night. Which one of these ...?*, Current solution *How did {phrase} go?*."""
+    from instructions import cloud_corpus as cloud_mod                     # noqa: PLC0415
+    path = KEEL_CLOUD / cloud_mod.REGISTRY_FILE
+    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    if "on how many nights did you" not in text:
+        pytest.skip("keel-cloud predates spec 160 (the registry's Lullaby Frequency is not window first)")
+    assert vs.frequency_served(vs.Window(7, "NIGHTS"), "have to work out why your baby was crying") in text
+    assert "Think of your last night. Which one of these would you most like made easier?" in text
+    assert "How did your way of working out what the baby needed go?" in text

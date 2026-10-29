@@ -280,7 +280,8 @@ def event_past(entry) -> str:
     return f"had a time when {_ctx(entry)['circumstance']}"
 
 
-#: keel-cloud 088 `E4`: framed, the gate ("In the last 3 months, did you ...?") and the Frequency question
+#: keel-cloud 088 `E4` (measured since keel-cloud 160 on `frequencyMeasured`, the frame below): framed, the gate ("In the
+#: last 3 months, did you ...?") and the Frequency question
 #: ("On how many of those 3 months did you ...?") are each at most 20 words. Where "have a time when
 #: {circumstance}" frames longer, the referee's shorter clause, in the same register (COMPOSED).
 GATE_EVENTS = {
@@ -300,8 +301,18 @@ def gate_question(window: Window, event: str) -> str:
 
 
 def frequency_question(window: Window, event: str) -> str:
-    """keel-cloud `WindowFrame.frequencyRespondent(window, event)`."""
+    """keel-cloud `WindowFrame.frequencyMeasured(window, event)` (160 judgement call 2): the Frequency question E4
+    measures a gate's clause on -- *On how many of those {n} {unit} did you {event}?*, the frame before 160, kept so no
+    gate moves. What is served is `frequency_served` (window first), held by `frequency_held`."""
     return f"On how many of those {window_words(window)} did you {event}?"
+
+
+def frequency_served(window: Window, event: str | None) -> str:
+    """keel-cloud 160 FR-2 (`WindowFrame.frequencyRespondent(window, event)`): the window first and plainly, then the
+    gate's one event -- *In the last 7 nights, on how many nights did you have to work out why your baby was crying?*;
+    with no clause *In the last 7 nights, on how many nights did that happen?*."""
+    lead = f"In the last {window_words(window)}, on how many {_UNIT_WORDS[window.unit][1]} did "
+    return f"{lead}{subject_led(event)}?" if (event or "").strip() else f"{lead}that happen?"
 
 
 def event_base(entry) -> str:
@@ -2528,9 +2539,28 @@ def gate_from_circumstance(window: Window, circumstance: str | None) -> str | No
 
 
 def frequency_held(window: Window, clause: str) -> str:
-    """keel-cloud 131 FR-2 (`WindowFrame.frequencyHeld`): *On how many of those {n} {unit} did ...?* counted with its
-    clause; past 20 words the clause cut by its trailing phrases (the rightmost preposition first), else *... did that
-    happen?* (the grammar check is not mirrored)."""
+    """keel-cloud 160 FR-2 (`WindowFrame.frequencyHeld`, judgement call 4) on 131 FR-2: the served Frequency held to the
+    spoken cap -- the whole (`frequency_served`); past 20 words the unit the window has just named said once (*In the
+    last 7 days, on how many did you ...?*); then the clause cut by its trailing phrases (the rightmost preposition
+    first); else *... did that happen?* (the grammar check is not mirrored)."""
+    from instructions import spoken as spoken_mod                     # noqa: PLC0415
+    whole = frequency_served(window, clause)
+    if _words(whole) <= STEM_MAX_WORDS:
+        return whole
+    if (clause or "").strip():
+        shorter = f"In the last {window_words(window)}, on how many did {subject_led(clause)}?"
+        if _words(shorter) <= STEM_MAX_WORDS:
+            return shorter
+    frame = _words(whole) - _words(clause)
+    cut = spoken_mod.cut_to_fit(clause, STEM_MAX_WORDS - frame)
+    held = frequency_served(window, cut)
+    return held if cut != clause and _words(held) <= STEM_MAX_WORDS else frequency_served(window, None)
+
+
+def frequency_held_before160(window: Window, clause: str) -> str:
+    """keel-cloud 160 judgement call 3 (`WindowFrame.frequencyHeldBefore160`): a Frequency stored before 160 is served
+    in its own frame, held as 131 held it -- *On how many of those {n} {unit} did ...?*, the clause cut, else *... did
+    that happen?*."""
     from instructions import spoken as spoken_mod                     # noqa: PLC0415
     lead = f"On how many of those {window_words(window)} did "
     whole = f"{lead}{subject_led(clause)}?"

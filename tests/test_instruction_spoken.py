@@ -158,9 +158,10 @@ def test_price_is_read_in_two_steps_and_may_offer_six():
 
 
 def test_a_number_has_no_options_and_no_count_line():
-    stem = "On how many of those 7 nights did that happen?"
+    # spec 089 FR-5 (keel-cloud 160 FR-2, 158 T004): window first, and a count from 1
+    stem = "In the last 7 nights, on how many nights did that happen?"
     frequency = _item(key="problem.frequency", part=1, question=stem, stem=stem, options=(),
-                      escape="I can't recall", count_line=None, options_line="A number from 0 to 7.",
+                      escape="I can't recall", count_line=None, options_line="A number from 1 to 7.",
                       escape_line="Or say you can't recall.")
     assert _faults(frequency) == []
     assert _rules(dataclasses.replace(frequency, count_line="I'll read eight options.")) == ["S7"]
@@ -182,8 +183,9 @@ def test_commitment_has_no_escape_and_says_its_step_once():
 
 def test_the_anchor_is_split_off_and_set_once_a_part():
     item = _item(key="problem.current_solution_satisfaction", part=1,
-                 question="Think of the last morning. How well did your way of finding them work?",
-                 anchor="Think of the last morning.", stem="How well did your way of finding them work?",
+                 # spec 089 FR-5 (keel-cloud 160 FR-4): *How did {phrase} go?*
+                 question="Think of the last morning. How did your way of finding them go?",
+                 anchor="Think of the last morning.", stem="How did your way of finding them go?",
                  options=("Found them straight away", "Found them after a quick look", "It took a full search",
                           "Found them only after being late", "Never found them that morning"),
                  escape="Someone else does the checking", count_line="I'll read five options.",
@@ -211,8 +213,8 @@ def _entry(*, chain=False, b2b=False, steps=()):
 
 
 CURRENT = dict(key="problem.current_solution_satisfaction", part=1,
-               question="How well did your way of finding them work?",
-               stem="How well did your way of finding them work?",
+               question="How did your way of finding them go?",
+               stem="How did your way of finding them go?",
                options=("Found them straight away", "Found them after a quick look", "It took a full search",
                         "Found them only after being late", "Never found them that morning"),
                escape="Someone else did it", count_line="I'll read five options.",
