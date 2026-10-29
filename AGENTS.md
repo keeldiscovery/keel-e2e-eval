@@ -530,6 +530,22 @@ was struck, no gate pin moved. `make unit` gated on keel-cloud-docs snapshots at
 the ladder's registry reads skip by name on a keel-cloud before 154. `make eval K=s005` / `s006` / `s007` owed on a stack
 at 154+.
 
+**One charge per interview, at Begin** (spec `088-credits-at-begin`, 2026-10-29; keel-cloud 156, merged `68ff142a`,
+contract 45, `InferenceCharge.VERSION` 12). `PRICE_VERSION` is **12** in both fakes; `harness/interview_charge.py`
+mirrors 156 -- `INTERVIEW` 30 at Begin, `INTERPRET` and `THEMES` 0, §6.3's five-participant journey **1,355** credits
+(was 1,250), the Begin key `interview:<invitationId>`, the INACTIVE body *This link is no longer active.* -- held to
+keel-cloud's `InferenceCharge` and `InterviewController` (skipped by name before 156). The scripted person posts
+`interview/begin` before the response (`vectors_script.PersonInputs.scripted_posts`): S-006's interviewer leg Begins
+the Let-them-choose link twice (one INTERVIEW row of -30, none on the second) and the recorded link before its first
+window; the full leg walks the link's gate (`_inactive_link`: INACTIVE at 29 on the wire, served at 30, the begun link
+still served at 0 while a never-begun one is INACTIVE), its balance moved by labelled stand-ins
+(`stand_in_balance(label=...)`). Every reading and themes HOLD is held at 0, and both legs' *no other row* sweeps let a
+Begin's row through. **What keel-web 131 owns waits behind one marker**, `interview_charge.WEB_131_BUILT` (or
+`KEEL_WEB_131=1`): the screens' Begin row (S-005 and S-006's AI and chip links, S-006's decision-maker) and the
+inactive page are recorded as *SKIPPED -- keel-web 131 not yet built* until it is set. `make unit` gated on a
+keel-cloud-docs snapshot at `68ff142a`; `make eval K=s006` owed on a stack at 156+, and `K=s005` / `K=s006` with the
+marker on after 131.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
