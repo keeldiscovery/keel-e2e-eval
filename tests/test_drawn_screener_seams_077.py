@@ -57,13 +57,14 @@ def test_mulchrun_carries_the_place_code_draws_and_the_fake_writes_none(corpus):
 
 def test_mulchrun_sentence_after_confirm_is_the_cards(corpus):
     """146 FR-2 on S-007: the core keeps the place, so the confirmed sentence is the card's word for word -- no *, who
-    are based in ...* (the thorough pass's red at the confirm step); the segment line is the core alone."""
+    are based in ...* (the thorough pass's red at the confirm step); the segment line is the core alone. Re-pinned by
+    spec 085 to keel-cloud 149's two sentences (the job after *they want to*): the rule pinned here did not move."""
     mulch = _entry(corpus, "07-mulchrun")
     card = vs.read_back(mulch)
     assert card == vs.read_back(mulch, confirmed=True) == (
-        "Landscaping crew leads in the Dallas-Fort Worth suburbs, spring season, when a job needs mulch and the crew has "
-        "to fetch it from the supply yard, get the mulch onto the beds and the crew onto the next job, counting the last "
-        "2 weeks.")
+        "Landscaping crew leads in the Dallas-Fort Worth suburbs, spring season. When a job needs mulch and the crew has "
+        "to fetch it from the supply yard, they want to get the mulch onto the beds and the crew onto the next job, "
+        "counting the last 2 weeks.")
     assert "who are based" not in card
     assert vs.segment_line(mulch) == DFW
 
@@ -82,7 +83,8 @@ def test_the_card_draws_the_settled_condition(corpus):
 
 
 def test_in_core_holds_146s_own_pins():
-    """146 `DrawnScreenerSeamsTest.Fr2*`, mirrored: a core that keeps the part takes no clause; one that lost it does."""
+    """146 `DrawnScreenerSeamsTest.Fr2*`, mirrored: a core that keeps the part takes no clause; one that lost it does.
+    The sentences re-pinned by spec 085 to keel-cloud 149's shape (as 149 re-pinned `DrawnScreenerSeamsTest`)."""
     window = vs.Window(3, "MONTHS")
     assert q.in_core(DFW, "are based in the Dallas-Fort Worth suburbs")
     assert q.in_core("payroll practitioners who run payroll for at least 50 employees",
@@ -97,15 +99,15 @@ def test_in_core_holds_146s_own_pins():
         "a negation the core lacks"
     assert vs.sentence("payroll practitioners who run payroll for at least 50 employees",
                        "run payroll for at least 50 employees", "they run payroll", "run payroll without errors",
-                       window) == ("Payroll practitioners who run payroll for at least 50 employees, when they run "
-                                   "payroll, run payroll without errors, counting the last 3 months.")
+                       window) == ("Payroll practitioners who run payroll for at least 50 employees. When they run "
+                                   "payroll, they want to run payroll without errors, counting the last 3 months.")
     assert vs.sentence("Freelance translators in the US", "work mostly for agencies", "a job comes in", "quote for it",
-                       window) == ("Freelance translators in the US, who work mostly for agencies, when a job comes "
-                                   "in, quote for it, counting the last 3 months.")
+                       window) == ("Freelance translators in the US, who work mostly for agencies. When a job comes "
+                                   "in, they want to quote for it, counting the last 3 months.")
     assert vs.sentence("people in Pakistan who earn in rupees", "have no foreign currency account", "the rupee falls",
                        "move their savings", window).startswith(
-        "People in Pakistan who earn in rupees and have no foreign currency account, when")
-    assert ", who have no foreign currency account," in vs.sentence(
+        "People in Pakistan who earn in rupees and have no foreign currency account. When")
+    assert ", who have no foreign currency account. When" in vs.sentence(
         "people with a foreign currency account", "have no foreign currency account", "the rupee falls",
         "move their savings", window)
 
@@ -120,10 +122,10 @@ def test_the_rule_reads_core_and_condition_alone():
 
 def test_the_journeys_read_backs_and_segment_lines(corpus):
     """FR-2 on the corpus: 05-paidly's line unchanged (the core lost the qualifier); 01-05 keep their clauses; 06 and
-    07 have none to add."""
+    07 have none to add. The read-back re-pinned by spec 085 (keel-cloud 149: the segment its own sentence)."""
     paidly = _entry(corpus, "05-paidly")
     assert vs.segment_line(paidly) == "freelance translators in the US, who work mostly for agencies"
-    assert vs.read_back(paidly).startswith("Freelance translators in the US, who work mostly for agencies, when an "
+    assert vs.read_back(paidly).startswith("Freelance translators in the US, who work mostly for agencies. When an "
                                            "agency has approved the invoice")
     for entry_id in ("01-countly", "02-compliancelog", "03-lullaby", "04-linerly", "05-paidly"):
         entry = _entry(corpus, entry_id)
@@ -225,7 +227,8 @@ def test_which_journey_entries_serve_the_decision_makers_screener(corpus):
 
 def test_when_once_on_every_line():
     """146 `DrawnScreenerSeamsTest.Fr4*`, mirrored: the three lines on *while running payroll* and on *the payroll
-    run*; the five conjunctions of 145 and no more."""
+    run*; the five conjunctions of 145 and no more. The sentence re-pinned by spec 085 to keel-cloud 149's (the
+    circumstance's first letter raised, the job after *they want to*)."""
     assert q.default_about("while running payroll") == "what it is like while running payroll"
     assert q.default_about("the payroll run") == "what it is like when the payroll run"
     assert q.interview_topic("Athul", "payroll practitioners", "while running payroll") == \
@@ -233,11 +236,11 @@ def test_when_once_on_every_line():
     assert q.interview_topic("Athul", "payroll practitioners", "the payroll run") == \
         "Athul is exploring what it is like for payroll practitioners when the payroll run."
     assert vs.sentence("payroll practitioners", None, "while running payroll", "get the numbers right", None) == \
-        "Payroll practitioners, while running payroll, get the numbers right."
+        "Payroll practitioners. While running payroll, they want to get the numbers right."
     assert vs.sentence("payroll practitioners", None, "the payroll run", "get the numbers right", None) == \
-        "Payroll practitioners, when the payroll run, get the numbers right."
+        "Payroll practitioners. When the payroll run, they want to get the numbers right."
     assert vs.sentence("payroll practitioners", None, "when the payroll runs", "get it right", None) == \
-        "Payroll practitioners, when the payroll runs, get it right."
+        "Payroll practitioners. When the payroll runs, they want to get it right."
     for c in ("while", "when", "whenever", "during", "as"):
         assert q.with_when(f"{c} it happens") == f"{c} it happens"
     for c in ("after", "before", "once", "if", "assembling"):
@@ -245,10 +248,11 @@ def test_when_once_on_every_line():
 
 
 def test_no_journey_circumstance_opens_with_a_conjunction(corpus):
-    """FR-4: no corpus entry's circumstance opens with one today, so every journey's line keeps its *when*."""
+    """FR-4: no corpus entry's circumstance opens with one today, so every journey's line keeps its *when* -- since
+    keel-cloud 149 (spec 085) the second sentence's *When*."""
     for entry in corpus.entries:
         assert not q.OPENS_WITH_CONJUNCTION.match(entry.context["circumstance"]), entry.id
-        assert f", when {entry.context['circumstance']}," in vs.read_back(entry), entry.id
+        assert f". When {entry.context['circumstance']}, they " in vs.read_back(entry), entry.id
 
 
 # ----------------------------------------------------------------- the confirm step

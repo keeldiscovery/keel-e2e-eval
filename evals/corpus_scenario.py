@@ -377,8 +377,10 @@ def leg_context(j: Journey) -> None:
     if j.guide_wire is not None:
         _next_write_after_the_welcome(j)
     with _step(j, "the card says what Keel understood -- code's sentence since keel-cloud 122, assembled from the slots "
-                  "(the segment and its condition, the circumstance, the job, the window) -- and, where the segment "
-                  "carries a condition, *Only people who: ...* (keel-web 096)", party="founder") as h:
+                  "(the segment and its condition, the circumstance, the job, the window), since keel-cloud 149 in two "
+                  "sentences (*{Segment}. When {when}, they want to {job}, counting the last {window}.*) -- and, where "
+                  "the segment carries a condition, *Only people who: ...* (keel-web 096)", party="founder") as h:
+        # spec 085 (keel-cloud 149 FR-2): the strict compare is the mirror's two sentences, word for word
         want = vs.read_back(j.entry, window=windowed) if j.strict else "a sentence"
         window_line = j.corridor.context_window_line()
         lines = j.corridor.context_lines()
