@@ -39,6 +39,7 @@ import yaml
 from evals import contacts_marks as marks
 from evals import corpus_scenario
 from harness import contacts_fake as fake
+from harness import interview_charge as charge
 from harness import interviews_screens as iv
 from harness import vectors_screens as vs_screens
 from harness import vectors_script as vs
@@ -253,8 +254,11 @@ def leg_contacts(j) -> dict:
             kinds = [(x["kind"], x.get("action"), x["credits"]) for x in record["ledger"]]
             h.record_assert({"pairs": sorted((p["action"], p["charged"]) for p in record["purchases"]
                                              if p["charged"])}, kinds)
+            # spec 088 FR-2 (keel-cloud 156): the answered person's Begin writes one INTERVIEW row of -30 under
+            # `interview:<invitationId>` once keel-web 131 posts it from the intro -- a row of theirs, not the leg's
             others = [x for x in record["ledger"] if x.get("action") not in ("CONTACT_PAGE", "CONTACT_EMAIL")
-                      and not (x.get("idempotency_key") or "").startswith(stack_ledger.KEY_PREFIX)]
+                      and not (x.get("idempotency_key") or "").startswith(stack_ledger.KEY_PREFIX)
+                      and not charge.is_charge(x, j.project_id)]
             assert not others, others
         record["stack"] = stack_facts(j.stack)
         record["source"] = source_facts(j.stack.keel_cloud)
@@ -571,6 +575,7 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
                 (walked["body"], expected)
     finally:
         stranger.close()
+    _begun_on_screen(j, record, answered_link.get("invitationId"), answered_link["personName"])
 
     with j.recorder.step("contacts (T1): the Sent register -- newest link first; the answered person's row reads Text, "
                          f"from the {DATASET_NAME!r} dataset, Answered, with no *Make a new link*; no email field on any "
@@ -730,6 +735,30 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
             assert x["body"].get("code") == code, x
             assert x["drawn"]["sentence"] == template.format(required=x["required"], available=LOW_BALANCE), x
             assert x["drawn"]["buttons"] == ["Close"], x
+
+
+def _begun_on_screen(j, record: dict, invitation_id: str | None, who: str) -> None:
+    """Spec 088 FR-2, the browser half (keel-cloud 156): the decision-maker pressed Begin on the intro, which from
+    keel-web 131 posts `interview/begin` -- ONE `INTERVIEW` row of -30 under `interview:<invitationId>` on Keel's door.
+    Until 131 merges the page posts nothing: the row is recorded, never two asserted, and the step says it is skipped
+    (`interview_charge.WEB_131_PENDING`)."""
+    built = charge.web_131_built()
+    rows = stack_ledger.rows(j.stack, record["founder_id"])
+    mine = charge.rows_for(rows, invitation_id or "")
+    out = {"invitationId": invitation_id, "rows": mine, "web_131": built,
+           "faults": charge.charged_once(rows, invitation_id or "", j.project_id) if built else []}
+    record["begun_on_screen"] = out
+    title = (f"contacts (spec 088 FR-2): {who}'s Begin, pressed on the screen, wrote one INTERVIEW row of -30" if built
+             else f"contacts (spec 088 FR-2): SKIPPED -- {charge.WEB_131_PENDING}: {who}'s Begin on the screen posts "
+                  "no charge yet; the row is recorded, never two asserted")
+    with j.recorder.step(title, party="stack", kind="assert" if built else "note") as h:
+        if built:
+            h.record_assert({"rows under the key": 1}, out)
+        else:
+            h.request, h.response = {"rows under the key": "0 or 1", "skipped": charge.WEB_131_PENDING}, out
+        assert invitation_id and len(mine) <= 1, out
+        if built:
+            assert not out["faults"], out
 
 
 def _link_times(j, relink: dict, who: str) -> None:

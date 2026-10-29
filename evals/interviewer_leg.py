@@ -302,9 +302,14 @@ def _leg(j, *, short: bool) -> dict:
             reading_jobs = {x.get("inference_job_id") for x in record["ledger"]
                             if x.get("kind") == "HOLD" and x.get("action") in marks.READ_ACTIONS
                             and READ_REASON.match(x.get("reason") or "")}
+            # spec 088 FR-2 (keel-cloud 156): each person's Begin writes one INTERVIEW row of -30 under
+            # `interview:<invitationId>` -- the scripted links' posts, and keel-web 131's intro on the screens
+            begun = charge.charges(record["ledger"], j.project_id)
             others = [x for x in record["ledger"] if x.get("action") not in fake.ACTIONS
                       and not (x.get("idempotency_key") or "").startswith(stack_ledger.key_prefix(SPEC))
-                      and not (x.get("inference_job_id") and x.get("inference_job_id") in reading_jobs)]
+                      and not (x.get("inference_job_id") and x.get("inference_job_id") in reading_jobs)
+                      and not charge.is_charge(x, j.project_id)]
+            record["interview_charges"] = [x.get("idempotency_key") for x in begun]
             # spec 088 (keel-cloud 156, price version 12): the readings and the themes are priced 0 -- every HOLD of
             # theirs is written at 0 (INTERPRET was 10 and THEMES 8), so none moves `creditsAvailable`
             priced_reads = [x for x in record["ledger"] if x.get("kind") == "HOLD" and x.get("action") in
@@ -314,6 +319,7 @@ def _leg(j, *, short: bool) -> dict:
                              "others": others, "reading HOLDs not at 0": priced_reads})
             assert not others, others
             assert not priced_reads, priced_reads
+            assert len(set(record["interview_charges"])) == len(begun), {"two rows under one Begin key": begun}
     finally:
         _restore(j, wire, founder_id, run)
         if record.get("arrivals"):
@@ -1209,6 +1215,7 @@ def _ai_link(j, wire: _Wire, record: dict, *, answer: bool) -> None:
         _dry_run_transcribe(j, wire, record, interview)
     if answer:
         _answer_ai_on_screen(j, wire, record, made, interview)
+        _begun_on_screen(j, record, made.get("invitationId"), "the AI link's")
 
 
 def _chip_ends_it(j, wire: _Wire, record: dict) -> None:
@@ -1293,6 +1300,8 @@ def _chip_ends_it(j, wire: _Wire, record: dict) -> None:
         ok, why = marks.chip_ended_it(x)
         h.record_assert({"ok": True}, {"ok": ok, **why})
         assert ok, why
+    # spec 088 FR-2: a person who begins and ends at the story's chip has begun -- one row, as any other
+    _begun_on_screen(j, record, made.get("invitationId"), "the chip link's")
 
 
 def vs_screens_gate_chip(occasion: str | None) -> str:
@@ -2918,6 +2927,68 @@ def _read_what_is_left(j, wire: _Wire, record: dict) -> None:
         assert all(s in ended or s == "STATE_CONFLICT" for s in new), new
 
 
+def _begin(j, wire: _Wire, record: dict, token: str, invitation_id: str, whose: str, *, twice: bool = False) -> None:
+    """Spec 088 FR-2 (keel-cloud 156, contract 45): the scripted person presses Begin on the wire, as keel-web 131's
+    intro does -- `POST /v2/i/{token}/interview/begin` 204 -- and the ledger holds ONE `INTERVIEW` row of -30 under
+    `interview:<invitationId>` (price 30, version 12, no job, no cost, this project), the balance 30 lower. `twice`:
+    a second Begin on the same link is 204 too and writes nothing -- no row, no move of the balance."""
+    with j.recorder.step(f"interviewer (spec 088 FR-2, keel-cloud 156): {whose} person presses Begin on the wire -- "
+                         "204, one INTERVIEW row of -30 under interview:<invitationId>"
+                         + ("; a second Begin writes none" if twice else ""), party="participant", kind="assert") as h:
+        before = wire.credits()
+        first = _participant(j, "POST", token, vs.BEGIN_PATH)
+        rows = stack_ledger.rows(j.stack, record["founder_id"])
+        after = wire.credits()
+        out = {"invitationId": invitation_id, "status": first.status_code, "balance_before": before,
+               "balance_after": after, "rows": charge.rows_for(rows, invitation_id),
+               "faults": charge.charged_once(rows, invitation_id, j.project_id)}
+        if twice:
+            again = _participant(j, "POST", token, vs.BEGIN_PATH)
+            rows_again = stack_ledger.rows(j.stack, record["founder_id"])
+            out["second"] = {"status": again.status_code, "rows_added": len(rows_again) - len(rows),
+                             "under_the_key": len(charge.rows_for(rows_again, invitation_id)),
+                             "balance_after": wire.credits()}
+        record.setdefault("begins", []).append(out)
+        h.record_assert({"status": charge.BEGIN_STATUS, "row": {"kind": charge.INTERVIEW,
+                                                               "credits": -charge.INTERVIEW_CREDITS,
+                                                               "idempotency_key": charge.key(invitation_id)},
+                         "balance": f"{before} - {charge.INTERVIEW_CREDITS}",
+                         **({"second": {"status": charge.BEGIN_STATUS, "rows_added": 0}} if twice else {})}, out)
+        assert first.status_code == charge.BEGIN_STATUS, (first.status_code, first.text[:300])
+        assert not out["faults"], out
+        assert before is not None and after == before - charge.INTERVIEW_CREDITS, out
+        if twice:
+            second = out["second"]
+            assert second["status"] == charge.BEGIN_STATUS, second
+            assert second["rows_added"] == 0 and second["under_the_key"] == 1, second
+            assert second["balance_after"] == after, second
+
+
+def _begun_on_screen(j, record: dict, invitation_id: str | None, whose: str) -> None:
+    """Spec 088 FR-2, the browser half: the stranger pressed Begin (or *Start the interview*) on the intro, which from
+    keel-web 131 posts `interview/begin` -- so the ledger holds ONE `INTERVIEW` row of -30 under the link's key. Until
+    131 merges the page posts nothing: the row is recorded and only "never two" is asserted, and the step says it is
+    skipped (`interview_charge.WEB_131_PENDING`)."""
+    built = charge.web_131_built()
+    rows = stack_ledger.rows(j.stack, record["founder_id"])
+    mine = charge.rows_for(rows, invitation_id or "")
+    out = {"invitationId": invitation_id, "rows": mine, "web_131": built,
+           "faults": charge.charged_once(rows, invitation_id or "", j.project_id) if built else []}
+    record.setdefault("begins_on_screen", []).append(out)
+    title = (f"interviewer (spec 088 FR-2): {whose} Begin, pressed on the screen, wrote one INTERVIEW row of -30"
+             if built else f"interviewer (spec 088 FR-2): SKIPPED -- {charge.WEB_131_PENDING}: {whose} Begin on the "
+                           "screen posts no charge yet; the row is recorded, never two asserted")
+    with j.recorder.step(title, party="stack", kind="assert" if built else "note") as h:
+        if built:
+            h.record_assert({"rows under the key": 1}, out)
+        else:                                       # a note: what was seen, nothing owed of the page yet
+            h.request, h.response = {"rows under the key": "0 or 1", "skipped": charge.WEB_131_PENDING}, out
+        assert invitation_id, out
+        assert len(mine) <= 1, out
+        if built:
+            assert not out["faults"], out
+
+
 def _choice_intro_on_screen(j, url: str) -> dict:
     """A Let-them-choose link's intro on the stranger's own page (P0c): both offered. Read only -- the answer in
     writing goes on the wire (call 154: the text player behind *Answer in writing* is the text link's, walked on every
@@ -2938,17 +3009,23 @@ def _choice_intro_on_screen(j, url: str) -> dict:
 
 
 def _choice_link(j, wire: _Wire, record: dict) -> None:
-    with j.recorder.step("interviewer (FR-H): a Let-them-choose link's interview offers both -- `formats` [TEXT, "
-                         "AI_INTERVIEWER] with the player -- and an answer in writing posts `format` TEXT, which the "
-                         "register reads as `formatUsed` TEXT", party="participant", kind="assert") as h:
+    with j.recorder.step("interviewer (FR-H): a Let-them-choose link is made and its intro read on the stranger's "
+                         "screen; the person's scripted posts composed (spec 088: Begin, then the response)",
+                         party="participant", kind="protocol") as h:
         made = _send_link(j, "CHOICE", CHOICE_PERSON)
         interview = _json_of(_participant(j, "GET", made["token"], "/interview"))
         intro = _choice_intro_on_screen(j, made["url"])
         person = _person_for_the_link(j)
         items = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
         recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
-        body = dict(person.response(made["token"], recall), format="TEXT")
-        posted = _participant(j, "POST", made["token"], "/interview/response", body)
+        (begin_path, _), (response_path, body) = person.scripted_posts(made["token"], recall, format="TEXT")
+        h.record_wire({"made": made, "posts": [begin_path, response_path]}, {"intro": intro})
+        assert begin_path == vs.BEGIN_PATH
+    # spec 088 FR-2: the scripted person is charged as a real one is -- Begin before the response (and once only)
+    _begin(j, wire, record, made["token"], made["invitationId"], "the Let-them-choose link's", twice=True)
+    with j.recorder.step("interviewer (FR-H): the Let-them-choose link answered in writing -- `format` TEXT, which the "
+                         "register reads as `formatUsed` TEXT", party="participant", kind="assert") as h:
+        posted = _participant(j, "POST", made["token"], response_path, body)
         _, register = wire("GET", "/invitations")
         row = next((r for r in register.get("invitations") or [] if r.get("invitationId") == made["invitationId"]),
                    {})
@@ -2995,6 +3072,8 @@ def _recorded_link(j, wire: _Wire, record: dict) -> None:
         token = _token(link.get("url") or "")
         interview = _json_of(_participant(j, "GET", token, "/interview"))
         gate = interview.get("gate") or {}
+        # spec 088 FR-2: the page's Begin before the first window -- the script's first post
+        _begin(j, wire, record, token, link.get("invitationId"), "the recorded link's")
 
         def answer(audio: bytes) -> dict:
             response = _participant(j, "POST", token, "/interview/answer", {
@@ -3006,10 +3085,10 @@ def _recorded_link(j, wire: _Wire, record: dict) -> None:
         person = _person_for_the_link(j)
         items = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
         recall = ((items.get("commercial.existing_sacrifice") or {}).get("costTotal") or {}).get("recallPeriod")
-        body = dict(person.response(token, recall), format="AI_INTERVIEWER")
+        (_, _), (response_path, body) = person.scripted_posts(token, recall, format="AI_INTERVIEWER")
         body["answers"] = [{**a, "how": "RECORDED", "heard": _heard_for(a, interview)} for a in body["answers"]]
         follow_up = _recorded_follow_up(j, token, interview, person, body)
-        posted = _participant(j, "POST", token, "/interview/response", body)
+        posted = _participant(j, "POST", token, response_path, body)
         _, register = wire("GET", "/invitations")
         row = next((r for r in register.get("invitations") or [] if r.get("invitationId") == link.get("invitationId")),
                    {})

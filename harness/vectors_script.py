@@ -57,6 +57,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
+from harness import interview_charge
 from harness import qualifiers
 from instructions import chain as chain_mod
 from instructions import corpus as corpus_reader
@@ -1618,6 +1619,11 @@ class Pick:
         return out
 
 
+#: Spec 088 FR-2: the stranger's two posts on the scripted path, Begin before the response (`scripted_posts`).
+BEGIN_PATH = interview_charge.BEGIN_PATH
+RESPONSE_PATH = "/interview/response"
+
+
 @dataclass(frozen=True)
 class PersonInputs:
     person: str
@@ -1639,6 +1645,13 @@ class PersonInputs:
     #: Spec 064 FR-7: a corpus pick the served options cannot carry, re-expressed (`(dimension, corpus, sent)`) -- a
     #: finding, never a silent drop (Commitment's *yes, after trying it first* where no smaller step is served).
     remapped: tuple = ()
+
+    def scripted_posts(self, token: str, recall_period: str | None = None, **extra) -> list[tuple[str, dict | None]]:
+        """Spec 088 FR-2 (keel-cloud 156, contract 45): what a scripted person posts, in order -- `POST
+        /v2/i/{token}/interview/begin` first (no body; keel-web 131's intro posts it on Begin, and it writes the one
+        INTERVIEW row of 30 on Keel's door), then the one response (`response`, with `extra` fields such as `format`).
+        A scripted person is charged as a real one is."""
+        return [(BEGIN_PATH, None), (RESPONSE_PATH, {**self.response(token, recall_period), **extra})]
 
     def response(self, token: str, recall_period: str | None = None) -> dict:
         """The one `POST /v2/i/{token}/interview/response` body; a cost total re-expressed over

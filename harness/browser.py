@@ -4651,6 +4651,11 @@ class ParticipantPage:
         Anything else under that button is a refusal to guess: a label this method does not know is
         a copy change in keel-web, and pressing it blind would walk the interview somewhere nobody
         wrote down.
+
+        Spec 088 (keel-cloud 156): from keel-web 131 this press -- Begin and Continue alike -- posts
+        `POST /v2/i/{token}/interview/begin`, which on Keel's door writes the person's one
+        `INTERVIEW` row of 30 credits (a second press writes nothing). The press is unchanged; the
+        legs that stand on Keel's door read the row (`harness/interview_charge.py`).
         """
         with self._scope():
             with self._bstep.step("the stranger presses Begin") as h:
