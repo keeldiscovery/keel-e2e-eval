@@ -382,8 +382,8 @@ def leg_context(j: Journey) -> None:
         want = vs.read_back(j.entry, window=windowed) if j.strict else "a sentence"
         window_line = j.corridor.context_window_line()
         lines = j.corridor.context_lines()
-        # spec 077 FR-1: the card draws the result's condition -- none on 07-mulchrun, whose condition code draws on the
-        # confirm (keel-cloud 146 FR-1)
+        # spec 084 (keel-cloud 148 FR-1): the card draws the settled condition -- on 07-mulchrun the one code draws from
+        # the founder's WHICH PEOPLE (keel-cloud 146 FR-1), though the result writes none
         condition = vs.card_condition(j.entry)
         want_lines = {"only_people_who": f"Only people who: {condition}." if condition else None}
         h.record_assert({"understands": want, "window": vs.window_words(founder.window) if windowed else None,

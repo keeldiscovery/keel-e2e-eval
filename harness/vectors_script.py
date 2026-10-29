@@ -359,9 +359,10 @@ def scripted_segment(entry) -> dict:
 
 
 def card_condition(entry) -> str | None:
-    """The condition the context card draws before the confirm (*Only people who: ...*, keel-web 096): the result's,
-    so none on a `DRAWN` row."""
-    return scripted_segment(entry)["condition"]
+    """The condition the context card draws before the confirm (*Only people who: ...*, keel-web 096): since keel-cloud
+    148 FR-1 (spec 084) the settled one (`segment_of`) -- code's drawn condition on a `DRAWN` row, the scripted one
+    elsewhere -- never the result's as written."""
+    return segment_of(entry)["condition"]
 
 
 def segment_line(entry) -> str:

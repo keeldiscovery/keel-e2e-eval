@@ -68,11 +68,14 @@ def test_mulchrun_sentence_after_confirm_is_the_cards(corpus):
     assert vs.segment_line(mulch) == DFW
 
 
-def test_the_card_draws_no_condition_line_before_the_confirm(corpus):
-    """The pre-confirm card is the model's result: on 07 it carries no condition, so no *Only people who:* line; the
-    other journeys' lines are as before."""
-    assert vs.card_condition(_entry(corpus, "07-mulchrun")) is None
-    assert vs.card_condition(_entry(corpus, "05-paidly")) == "work mostly for agencies"
+def test_the_card_draws_the_settled_condition(corpus):
+    """Spec 084 (keel-cloud 148 FR-1): the card's *Only people who:* line is the settled condition -- on 07 the one code
+    draws (the confirmed segment's, though the result writes none); elsewhere the scripted one, as before."""
+    mulch = _entry(corpus, "07-mulchrun")
+    assert vs.card_condition(mulch) == "are based in the Dallas-Fort Worth suburbs" == vs.segment_of(mulch)["condition"]
+    assert vs.scripted_segment(mulch)["condition"] is None
+    paidly = _entry(corpus, "05-paidly")
+    assert vs.card_condition(paidly) == "work mostly for agencies" == vs.scripted_segment(paidly)["condition"]
 
 
 # ----------------------------------------------------------------- FR-2 a qualifier is said once
