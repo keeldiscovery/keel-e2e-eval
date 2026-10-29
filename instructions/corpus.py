@@ -2,6 +2,16 @@
 spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78; spec 042 call 110;
 spec 053 FR-1; spec 064 FR-1).
 
+**Revision 18 read** (spec 086 FR-1; keel-cloud 152, keel-cloud-docs `21395ab0`): revision 17's rules with no new shape
+-- seven belief templates and the prevalence phrases moved in the founder's words (Commitment *Most {actor_plural} would
+{value} now.*, Current solution *For most {actor_plural}, {value} still falls short.*, Importance *Of these {list_size},
+{value} is one of the two ...*, Prevalence's five phrases *under 2 in 10 ... at least 8 in 10*, Compatibility *For most,
+{value}.*, Relative advantage *For most, it would have {value} on their last {occasion}.* with its phrase *given them* +
+the first benefit, the drift templates with them), so on the golden seven the belief sentences and phrases of those rows
+are the engine's new words; on the eleven back-test entries whose cost is a rate, the cost's belief reads *The problem
+already costs the payer about ...: {loss}.*; every other back-test entry moves by its revision line alone. No standing,
+drift, inside, n or verdict moved. A revision-17 file is refused by name (`_REVISION_OF`).
+
 **Revision 17 read** (spec 080 FR-1; keel-cloud 147, keel-cloud-docs `88bfce8d`): revision 16's rules with no new shape
 -- 02-compliancelog's `commercial.buyer_payer_alignment` reads HOLDING_UP / none / inside 7 / outside 2 (was
 PEOPLE_DISAGREE / both / 5 / 4) under keel-cloud 145 FR-2's direction-aware Buyer and payer (a role named,
@@ -95,7 +105,7 @@ from .registry import (ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTRO
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 17
+REVISION = 18
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -123,7 +133,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 15: "MARKS_VERSION 20's corpus before keel-cloud 129 (112 back-test Commitment picks `yes_after_trying` "
                     "where the founder's list is the step alone and Keel serves no second yes)",
                 16: "MARKS_VERSION 21's corpus before keel-cloud 147 (02-compliancelog's Buyer and payer recorded "
-                    "PEOPLE_DISAGREE / both / 5 of 9, before 145 FR-2's direction-aware reading)"}
+                    "PEOPLE_DISAGREE / both / 5 of 9, before 145 FR-2's direction-aware reading)",
+                17: "MARKS_VERSION 21's corpus before keel-cloud 152 (the belief sentences of seven templates and the "
+                    "prevalence phrases in revision 17's words, the rate cost's belief *Most {actor plural} lose ...*)"}
 
 #: Spec 067 FR-6 (keel-cloud 128 FR-11, `check_corpus_r15.py`'s rule Q): a person's answer to the segment's condition
 #: chip -- inside or outside -- where the entry's context records a condition; on the primary link only.

@@ -8,7 +8,7 @@
 # `expected` is unchanged; `check_corpus_r12.py`'s rule U would refuse this file, and the reader does not mirror it.
 id: 10-fixture-b2b
 title: Fixture — the keys you cannot find, bought by the office
-revision: 17
+revision: 18
 market:
   country: GB
   region: null
