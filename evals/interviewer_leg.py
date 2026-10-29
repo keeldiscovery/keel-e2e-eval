@@ -1326,14 +1326,10 @@ def _on_the_try(answers: list[dict], link: dict, tried: dict) -> list[dict]:
         if not mine:
             continue
         by_label = {o["label"]: o["optionId"] for o in mine.get("options") or []}
-        adv_label = {x["label"]: x["id"] for x in mine.get("advantages") or []}
         labels = {o["optionId"]: o["label"] for o in item.get("options") or []}
-        adv = {x["id"]: x["label"] for x in item.get("advantages") or []}
         moved = {**a, "itemId": mine.get("itemId")}
         if "optionIds" in a:
             moved["optionIds"] = [by_label[labels[o]] for o in a["optionIds"]]
-        if "advantageIds" in a:
-            moved["advantageIds"] = [adv_label[adv[o]] for o in a["advantageIds"]]
         out.append(moved)
     return out
 
@@ -1501,9 +1497,8 @@ CURRENCY_WORDS = {"USD": "dollars", "GBP": "pounds", "EUR": "euros"}
 def _closed(answer: dict) -> dict:
     """An answer's closed fields, order taken out -- what the person answered, not how."""
     a = {k: v for k, v in answer.items() if k not in ("heard", "how", "itemId")}
-    for key in ("optionIds", "advantageIds"):
-        if key in a:
-            a[key] = sorted(a[key])
+    if "optionIds" in a:
+        a["optionIds"] = sorted(a["optionIds"])
     if a.get("costTotal") and a["costTotal"].get("value") is not None:
         a["costTotal"] = {**a["costTotal"], "value": round(float(a["costTotal"]["value"]), 4)}
     return a
@@ -1544,10 +1539,12 @@ def _clearest(indexes: list[int], labels: list[str]) -> int:
 
 
 def _wait_next(player, question: str, *, timeout_s: float = 30) -> None:
-    """The sheet on another question than `question` (or the end screen)."""
+    """The sheet on another question than `question` (or the end screen). Importance's second ask (*And one more?*,
+    keel-cloud 158) is the same item still, never the next question."""
     deadline = time.monotonic() + timeout_s * player.patience
     while time.monotonic() < deadline:
-        if player.page.get_by_test_id("ai-done").count() or (player.question() and player.question() != question):
+        if player.page.get_by_test_id("ai-done").count() or (player.question()
+                                                              and player.question() not in (question, vs.ONE_MORE)):
             return
         time.sleep(0.1)
     raise AssertionError({"the sheet stayed on": question, "status": player.status(), "phase": player.phase()})
@@ -1563,7 +1560,8 @@ def _now(player) -> float:
 
 def _question_words(question: str) -> str:
     """The question read aloud as a recogniser writes it down (no punctuation): up to its question mark, its closing
-    "or not" left off -- "On your last delivery would an alert on mismatched deliveries have made things better" --
+    "or not" left off -- "On your last delivery would an alert on mismatched deliveries have made it go better for you"
+    (keel-cloud 159's frame) --
     which on the relative-advantage ask holds an option's own words (keel-web 072 lit that row as they arrived)."""
     head = re.split(r"[?]", question or "", maxsplit=1)[0]
     words = re.findall(r"[\w'’]+", head)
@@ -1574,8 +1572,8 @@ def _question_words(question: str) -> str:
 
 def _read_aloud_item(interview: dict, expected: dict) -> str | None:
     """Spec 049 judgement call 1: the question that carries the read-aloud step -- the "better" one (Relative
-    advantage, `benefit_with_advantages`: its labels share words) where the person picks one of its options, else the
-    first one-of question whose labels share a word, else the first one-of question."""
+    advantage, `scale_four` since keel-cloud 159: *A lot better* and *A little better* share words) where the person picks
+    one of its options, else the first one-of question whose labels share a word, else the first one-of question."""
     answers = {a["itemId"]: a for a in expected.get("answers") or []}
     items = [i for part in interview.get("parts") or [] for i in part.get("items") or []]
 
@@ -1586,7 +1584,7 @@ def _read_aloud_item(interview: dict, expected: dict) -> str | None:
                 and len(a.get("optionIds") or []) == 1 and not a.get("chip"))
 
     labels = lambda i: [o["label"] for o in i.get("options") or []]  # noqa: E731
-    for rule in (lambda i: i.get("control") == "benefit_with_advantages",
+    for rule in (lambda i: i.get("control") in ("scale_four", "benefit_with_advantages"),
                  lambda i: any(_shared_word(label, labels(i)) for label in labels(i)),
                  lambda i: True):
         for i in items:
@@ -1604,7 +1602,6 @@ class _Walk:
         self.player = player
         self.gate = interview.get("gate") or {}
         self.items = {i.get("question"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
-        self.by_prompt = {i.get("advantagesPrompt"): i for i in self.items.values() if i.get("advantagesPrompt")}
         self.order = [i.get("itemId") for part in interview.get("parts") or [] for i in part.get("items") or []]
         self.by_id = {a["itemId"]: a for a in expected.get("answers") or []}
         self.expected = expected
@@ -1784,11 +1781,8 @@ class _Walk:
                 self.how[self.gate.get("itemId")] = SPOKEN_HOW
                 continue
             after_gate = len(self.walked) > 1 and self.walked[-2]["question"] == self.gate.get("question")
-            if self.gate and after_gate and q not in self.items and q not in self.by_prompt:
+            if self.gate and after_gate and q not in self.items:
                 self.story(entry)
-                continue
-            if q in self.by_prompt:
-                self.advantages(entry, self.by_prompt[q])
                 continue
             item = self.items.get(q)
             assert item, {"an unknown question on the sheet": q, "served": sorted(self.items)}
@@ -1840,14 +1834,6 @@ class _Walk:
             "presses": _presses_between(p, said_at, _now(p)), "classified": len(p.classified) - reads0,
             "next": p.question()}
         entry["did"].append("said the story, then " + ("Save and next" if pressed_at is not None else "the pause"))
-
-    def advantages(self, entry: dict, item: dict) -> None:
-        self.last_item = item
-        want = self.by_id[item["itemId"]].get("advantageIds") or []
-        labels = {a["id"]: a["label"] for a in item.get("advantages") or []}
-        said = "all of them" if want and sorted(want) == sorted(labels) else " and ".join(labels[a] for a in want)
-        self.held(entry, said)
-        _wait_next(self.player, entry["question"])
 
     def pilot(self, entry: dict) -> None:
         """The pilot ask -- *Last question*, never skipped: "yes" said, and (keel-web 073 FR-7) held like any confident
@@ -1913,7 +1899,7 @@ class _Walk:
         options = {o["optionId"]: o["label"] for o in item.get("options") or []}
         answered = self.by_id.get(item.get("itemId")) or {}
         meant = [options[o] for o in answered.get("optionIds") or []]
-        assert len(meant) == 1 and item.get("control") not in PICK_CONTROLS and not answered.get("advantageIds"), \
+        assert len(meant) == 1 and item.get("control") not in PICK_CONTROLS, \
             {"the follow-up's item is answered again by one tap": item.get("dimension"), "meant": meant}
         # the first window
         first = self._follow_up_window(entry, "first", met)
@@ -2239,8 +2225,9 @@ class _Walk:
         others = [i for i in range(len(labels_shown)) if i != index and i < len(ORDINALS)]
         last_item = self.order and item["itemId"] == self.order[-1]
         # keel-web 072 call 7: Back lands on a step's main ask and asks its follow-ups again -- the way back and the
-        # veto are tried on a plain one-of question, never on benefit_with_advantages (its advantages follow)
-        plain = control != "benefit_with_advantages"
+        # veto are tried on a plain one-of question; since keel-cloud 159 every one-of is (the scale has no advantages ask
+        # after it, as `benefit_with_advantages` had)
+        plain = True
         self.how[item["itemId"]] = SPOKEN_HOW
         if not self.used["aloud"] and self.aloud_item == item["itemId"]:
             # keel-web 073 / keel-cloud 100: the question's first words read aloud, then the answer (IM19)
@@ -3359,14 +3346,13 @@ def _heard_for(answer: dict, interview: dict) -> str:
             if item.get("itemId") != answer.get("itemId"):
                 continue
             labels = {o["optionId"]: o["label"] for o in item.get("options") or []}
-            labels.update({a["id"]: a["label"] for a in item.get("advantages") or []})
             if answer.get("chip"):
                 return (item.get("escape") or {}).get("label") or "I can't say"
             if answer.get("costTotal"):
                 return str(answer["costTotal"].get("value"))
             if answer.get("scale") is not None:
                 return str(answer["scale"])
-            words = [labels.get(o, "") for o in (answer.get("optionIds") or []) + (answer.get("advantageIds") or [])]
+            words = [labels.get(o, "") for o in answer.get("optionIds") or []]
             return " and ".join(w for w in words if w) or "yes"
     return "yes"
 

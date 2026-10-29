@@ -2,6 +2,8 @@
 # back-test keys added (`idea_name`, `sources`) -- a well-formed back-test entry but for one golden shape rule:
 # context.occasion is five words, where revision 10 records one to four. The loader in back-test mode refuses
 # it with the sentence a golden author gets. Not a back-test entry; values invented.
+# Revision 19 since spec 089 (keel-cloud 159): Relative advantage's row is scale_four over the four codes and every
+# answer moved by the one rule (positive with a benefit a_lot_better, neutral no_difference, negative worse).
 id: 99-broken
 title: Fixture — the keys you cannot find, bought by the office
 revision: 19

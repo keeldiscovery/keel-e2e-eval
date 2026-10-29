@@ -177,9 +177,11 @@ def test_the_follow_up_text_is_its_spoken_line_on_current_solution_and_relative_
     (S-006 and S-007 hold the route to it): Relative advantage's text no longer pastes the benefits."""
     from harness import interviewer_fake as fake                        # noqa: PLC0415
     from harness import vectors_script as vs                            # noqa: PLC0415
-    # spec 086 FR-5 (keel-cloud 154): the rung names the idea and the job
+    # spec 086 FR-5 (keel-cloud 154): the rung names the idea and the job; spec 089 FR-4 (keel-cloud 159): on the scale's
+    # last two, the occasion said
     assert fake.spoken_of("solution.relative_advantage", also=False) == \
-        "You said {solution_name} would have made no difference. What would make {job} better?"
+        ("You said {solution_name} wouldn't make much difference on your last {occasion}. What would make {job} better "
+         "for you, if anything?")
     # keel-cloud 131 FR-7 (spec 070 FR-2): Importance's text is its spoken line too
     assert set(vs.SAID_AS_SPOKEN) == {"problem.current_solution_satisfaction", "solution.relative_advantage",
                                       "problem.importance"}
@@ -202,13 +204,14 @@ def test_paidlys_owed_relative_advantage_follow_up_reads_as_the_route_serves_it(
     item = {"dimension": "solution.relative_advantage", "advantages": [{"label": "Money in days, not weeks"}],
             "options": []}
     interview = {"occasion": "invoice", "parts": [{"part": 2, "items": [item]}]}
-    owed = vs.follow_up_question(paidly, [vs.Pick(dimension="solution.relative_advantage", codes=["neutral"])],
+    owed = vs.follow_up_question(paidly, [vs.Pick(dimension="solution.relative_advantage", codes=["no_difference"])],
                                  vs.LINK_PRIMARY, interview, "tok")
     assert owed["dimension"] == "solution.relative_advantage"
-    assert owed["text"] == owed["spoken"] == ("You said invoice payout service would have made no difference. What "
-                                              "would make getting paid for finished work in time to cover the month "
-                                              "better?")
-    worse = vs.follow_up_question(paidly, [vs.Pick(dimension="solution.relative_advantage", codes=["negative"])],
+    # spec 089 FR-4 (keel-cloud 159 T011): the rung on the scale's last two, Paidly's occasion said
+    assert owed["text"] == owed["spoken"] == ("You said invoice payout service wouldn't make much difference on your "
+                                              "last invoice. What would make getting paid for finished work in time to "
+                                              "cover the month better for you, if anything?")
+    worse = vs.follow_up_question(paidly, [vs.Pick(dimension="solution.relative_advantage", codes=["worse"])],
                                   vs.LINK_PRIMARY, dict(interview, reveal={"what": "Imagine Paidly."}), "tok")
     assert worse["text"] == worse["spoken"] == "You said Paidly would have made things worse. What would have helped instead?"
 

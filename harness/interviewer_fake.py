@@ -253,7 +253,10 @@ LOCK_RULE = "lock_rule"
 #: The keel-cloud commit of `Ladder.java` the copy below follows (spec 064 FR-7: keel-cloud 118's ladder, the
 #: registry's `follow_up` blocks with their `also` stems; `tests/test_follow_up_ladder.py` holds it to the registry export
 #: the stack runs). Spec 086 FR-5: keel-cloud 154's rows (`9f78b765`), every rung naming the thing.
-LADDER_SHA = "9f78b765"
+#: Spec 089 FR-4: keel-cloud 159's Relative advantage rung (`1cf2ebc3`) -- against the scale's last two, *... wouldn't
+#: make much difference on your last {occasion}. What would make {job} better for you, if anything?*, a *worse* said as
+#: worse.
+LADDER_SHA = "1cf2ebc3"
 #: Design §2, as the registry carries it since keel-cloud 118: `(dimension, against, text template, spoken wording)`, in
 #: registry order. Purchase friction is a rung now (its quick / not-needed answers are against the fear); Adoption
 #: friction's and Commitment's stems are the plain questions of 118 FR-4. Since keel-cloud 154 (spec 086 FR-5) every rung
@@ -270,9 +273,11 @@ LADDER: tuple[tuple[str, tuple[str, ...] | str, str, str], ...] = (
     ("solution.compatibility", ("only_with_help", "no"),
      "You said you couldn't {condition}. What got in the way?",
      "You said {solution_name} would be hard to fit into your setup. What gets in the way?"),
-    ("solution.relative_advantage", ("neutral", "negative"),
-     "You said {solution_name} would have made no difference. What would make {job} better?",
-     "You said {solution_name} would have made no difference. What would make {job} better?"),
+    ("solution.relative_advantage", ("no_difference", "worse"),
+     "You said {solution_name} wouldn't make much difference on your last {occasion}. What would make {job} better for "
+     "you, if anything?",
+     "You said {solution_name} wouldn't make much difference on your last {occasion}. What would make {job} better for "
+     "you, if anything?"),
     ("solution.adoption_friction", ("probably_not", "no"),
      "What makes {effort} too much trouble for you?",
      "What makes {effort} too much trouble for you?"),

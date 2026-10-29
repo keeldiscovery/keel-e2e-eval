@@ -34,8 +34,9 @@ Per composed item (§2, §3, §4, §5):
 - `S8` the options line is §3's *a; b; ...; or z.* -- the options in the screen's order, said to the person
   (first person turned, keel-cloud 088 judgement call 5); Price's first step is *Under {low}; {the middle band};
   over {high}; or {the last}* (§4);
-- `S9` the transform is the one §4 names where its dimension is -- Importance `one_then_one_more`, Relative
-  advantage `yes_no_per_benefit`, Price `two_steps` -- and `none` everywhere else;
+- `S9` the transform is the one §4 names where its dimension is -- Importance `one_then_one_more`, Price `two_steps`
+  -- and `none` everywhere else (Relative advantage's `yes_no_per_benefit` retired with keel-cloud 159: the scale is one
+  question and four short options);
 - `S10` Commitment's step is said to the stranger once: *would you {step}* carries no second *you*.
 
 Per `asked` face of a corpus list (design §4, keel-cloud 088 FR-003's `K` rules, which hold the model's faces):
@@ -245,7 +246,9 @@ def second_yes(smaller_step: str) -> str:
 
 
 #: §4: the three transforms, by dimension; every other item is `none`.
-TRANSFORMS = {IMPORTANCE_KEY: "one_then_one_more", BENEFIT_KEY: "yes_no_per_benefit", PRICE_KEY: "two_steps"}
+#: Spec 089 FR-4 (keel-cloud 159 T005): Relative advantage's `yes_no_per_benefit` is retired -- one question and the
+#: scale's four short options, no transform.
+TRANSFORMS = {IMPORTANCE_KEY: "one_then_one_more", PRICE_KEY: "two_steps"}
 
 #: The list dimensions whose items carry an `asked` face (design §4).
 FACED = (COMPATIBILITY_KEY, ADOPTION_KEY)

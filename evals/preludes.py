@@ -468,14 +468,14 @@ def approved_project_with_one_read(
 
 HEALTHY_FROM = "05-paidly"
 #: One supporting answer a dimension, a link (05-paidly's founder lists and calibration): Frequency 2 months out of
-#: the founder's 2-3; the own item in the top two; the worst-but-one outcome; Compatibility yes, easily; better,
-#: with the founder's advantage; yes to the effort -- and for the decision-maker $150 a month lost (in the founder's
+#: the founder's 2-3; the own item in the top two; the worst-but-one outcome; Compatibility yes, easily; a lot better
+#: (keel-cloud 159's scale; it was better with the founder's advantage); yes to the effort -- and for the decision-maker $150 a month lost (in the founder's
 #: $100-$300), the $50-$100 band (the founder's), a new line signed off, decided alone (the tested *Nobody else*),
 #: the approval quick, and yes to start.
 HEALTHY_PICKS = {
     "PRIMARY": {"problem.frequency": 2, "problem.importance": ["late_payment", "finding_work"],
                 "problem.current_solution_satisfaction": "works_poorly", "solution.compatibility": "yes_easily",
-                "solution.relative_advantage": {"answer": "positive", "advantages": ["shorter_time"]},
+                "solution.relative_advantage": "a_lot_better",
                 "solution.adoption_friction": "yes"},
     "COMMERCIAL_B2B": {"commercial.existing_sacrifice": {"mode": "AMOUNT", "value": 450, "currency": "USD",
                                                          "period": "quarter"},
@@ -503,7 +503,9 @@ def healthy_expected() -> dict:
             every, optionCounts=f"works_well=0, mostly_works=0, hit_and_miss=0, works_poorly={n}, no_reliable_way=0"),
         "solution.compatibility": dict(
             every, optionCounts=f"yes_easily={n}, yes_with_steps=0, only_with_help=0, no=0"),
-        "solution.relative_advantage": dict(every),
+        # keel-cloud 159: the scale is a fixed set, so its row records the engine's counts on the four
+        "solution.relative_advantage": dict(
+            every, optionCounts=f"a_lot_better={n}, a_little_better=0, no_difference=0, worse=0"),
         "solution.adoption_friction": dict(every, optionCounts=f"yes={n}, yes_if_worth_it=0, probably_not=0, no=0"),
         "commercial.existing_sacrifice": dict(every, below=0, above=0, median=150),
         "commercial.price": dict(every, optionCounts=f"under_20=0, band_20_50=0, band_50_100={n}, band_100_250=0, "

@@ -643,6 +643,7 @@ def test_the_backtest_record_holds_every_served_item_to_the_spoken_form():
         cloud = cloud_mod.read(KEEL_CLOUD, corpus=corpus, registry=registry)
     except Exception as missing:                                        # noqa: BLE001
         pytest.skip(f"no keel-cloud record: {missing}")
+    fx.skip_a_spoken_record_before_159(KEEL_CLOUD)                      # spec 089: a record before 158 / 159
     lullaby = corpus.by_id("03-lullaby")
     items = cloud.items_of("03-lullaby")
 

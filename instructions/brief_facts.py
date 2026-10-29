@@ -115,8 +115,9 @@ DECISION_CHANGE = {
     "01-countly": {"line": CURRENT_SOLUTION_KEY,
                    "sentence": "Not yet: Current solution split them, only 5 of 8 say today's way falls short, and 3 did not."},
     "02-compliancelog": {"line": "solution.relative_advantage",
-                         "sentence": "Build, but change what it does better: only 4 of 9 said it would have made their "
-                                     "last compliance report better, and 5 did not.",
+                         # spec 089 FR-4 (keel-cloud 159 FR-2, `DecisionChangeCorpusTest`): the card's line
+                         "sentence": "Build, but change what it does better: only 4 of 9 said it would have gone "
+                                     "better, 4 of them a lot, and 5 did not.",
                          "also": {"line": PRICE_KEY,
                                   "sentence": "Change the price too: 7 of 9 put it below your $250 to $350 a month."}},
     "03-lullaby": {"line": CURRENT_SOLUTION_KEY,
@@ -135,8 +136,8 @@ DECISION_CHANGE = {
                   "also": {"line": PRICE_KEY,
                            "sentence": "Change the price too: 3 of 8 put it below your $60 to $100 a month."}},
     "06-repeatline": {"line": "solution.relative_advantage",
-                      "sentence": "Build, but change what it does better: only 3 of 9 said it would have made their "
-                                  "last shift on the phones better, and 6 did not.",
+                      "sentence": "Build, but change what it does better: only 3 of 9 said it would have gone "
+                                  "better, 3 of them a lot, and 6 did not.",
                       "also": {"line": COMMITMENT_KEY,
                                "sentence": "Change the first step you ask for too: only 2 of 7 would introduce us to the "
                                            "practice's IT supplier, and 5 did not."}},
@@ -189,6 +190,29 @@ def could_phrase(condition: str) -> str:
 
 def _count(standing: dict, name: str = "inside") -> str:
     return f"{standing.get(name)} of {standing.get('n')}"
+
+
+def gone_better_line(a_lot: int) -> str:
+    """keel-cloud 159 `BriefFacts.goneBetterLine`: Relative advantage's card line after *N of M*."""
+    return f"said it would have gone better, {a_lot} of them a lot"
+
+
+def benefit_view(standing: dict) -> dict:
+    """keel-cloud 159 `BriefFacts.Benefit` / `StandingsAssembler.BenefitView` (`chart.benefit`,
+    `BriefFacts.solution.benefit`): `{better, aLot, aLittle, noDifference, worse, n}` -- *better* the scale's two that
+    support (a lot + a little), read off the served chart where the wire carries one, else the row's option counts (the
+    corpus's `optionCounts` since revision 19; the row's inside where it records none)."""
+    chart = ((standing.get("chart") or {}) if isinstance(standing.get("chart"), dict) else {}).get("benefit")
+    if isinstance(chart, dict) and chart.get("n") is not None:
+        return {k: int(chart.get(k) or 0) for k in ("better", "aLot", "aLittle", "noDifference", "worse", "n")}
+    a_lot, a_little = _option_count(standing, "a_lot_better"), _option_count(standing, "a_little_better")
+    no_difference, worse = _option_count(standing, "no_difference"), _option_count(standing, "worse")
+    counted = a_lot + a_little + no_difference + worse
+    if not counted and standing.get("inside") is not None:
+        # a row with no counts on the four (a reading before revision 19): every supporter read as a lot
+        a_lot, no_difference = int(standing.get("inside") or 0), int(standing.get("outside") or 0)
+    return {"better": a_lot + a_little, "aLot": a_lot, "aLittle": a_little, "noDifference": no_difference,
+            "worse": worse, "n": int(standing.get("n") or 0)}
 
 
 def _option_count(standing: dict, code: str) -> int:
@@ -285,7 +309,11 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
     elif key == COMPATIBILITY_KEY:
         out.update(number=_count(standing), line=could_phrase((entry.tested(key) or {}).get("label")))
     elif key == "solution.relative_advantage":
-        out.update(number=_count(standing), line=f"said it would have made their last {entry.occasion()} better")
+        # keel-cloud 159 FR-2 (`BriefFacts.goneBetterLine`): *N of M · said it would have gone better, K of them a lot*
+        # -- the scale's two that support, how many a lot; no benefit named (it read *... made their last {occasion}
+        # better*)
+        view = benefit_view(standing)
+        out.update(number=f"{view['better']} of {view['n']}", line=gone_better_line(view["aLot"]))
     elif key == ADOPTION_KEY:
         # keel-cloud 118 FR-2: the effort as asked -- the plain yes; "if it was clearly worth it" apart, after it
         apart = _option_count(standing, "yes_if_worth_it")

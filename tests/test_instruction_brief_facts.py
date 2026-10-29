@@ -54,7 +54,14 @@ def test_one_card_a_calibrated_dimension_in_registry_order(entry, b2b):
     assert by_key["problem.frequency"]["number"] == "2.5 nights out of 7"
     assert by_key["problem.importance"]["line"] == "put it in their top two"
     assert by_key["solution.compatibility"]["line"] == "said they had a phone to hand"
-    assert by_key["solution.relative_advantage"]["line"] == "said it would have made their last morning better"
+    # spec 089 FR-4 (keel-cloud 159 FR-2): the scale's supporters, how many a lot; no benefit, no occasion
+    assert (by_key["solution.relative_advantage"]["number"], by_key["solution.relative_advantage"]["line"]) == (
+        "6 of 8", "said it would have gone better, 6 of them a lot")
+    assert bf.benefit_view({"n": 9, "inside": 4, "optionCounts": "a_lot_better=3, a_little_better=1, "
+                                                                "no_difference=4, worse=1"}) == {
+        "better": 4, "aLot": 3, "aLittle": 1, "noDifference": 4, "worse": 1, "n": 9}
+    assert bf.benefit_view({"n": 9, "chart": {"benefit": {"better": 4, "aLot": 4, "aLittle": 0, "noDifference": 5,
+                                                          "worse": 0, "n": 9}}})["aLot"] == 4
     # spec 064 FR-7 (keel-cloud 118 FR-2): the plain yes is the number, the conditional yes beside it, apart
     assert (by_key["solution.adoption_friction"]["number"], by_key["solution.adoption_friction"]["line"]) == (
         "5 of 8", "would clip a tag to the key ring · 1 more if it was clearly worth it")
@@ -260,6 +267,10 @@ def cloud_facts_at_104():
     if not any("priceMedian" in ((f or {}).get("commercial") or {}) for f in cloud.facts.values()):
         pytest.skip("keel-cloud's build/brief-facts/ predates keel-cloud 104 (no commercial.priceMedian) -- rerun "
                     "its BriefFactsCorpusTest to compare")
+    if not _at_159(cloud):
+        pytest.skip("keel-cloud's build/brief-facts/ predates keel-cloud 159 (02-compliancelog's Relative advantage card "
+                    "does not read \"said it would have gone better, 4 of them a lot\") -- rerun its "
+                    "BriefFactsCorpusTest to compare")
     if not _at_145(cloud):
         pytest.skip("keel-cloud's build/brief-facts/ predates keel-cloud 145 (02-compliancelog's Buyer and payer card "
                     "does not read \"... had to agree, or they decided alone\") -- rerun its BriefFactsCorpusTest to "
@@ -272,6 +283,19 @@ DECIDED_ALONE_TAIL = "had to agree, or they decided alone"
 #: The one card keel-cloud 145 moved and keel-cloud 147 records at corpus revision 17 (spec 080 FR-3): *Buyer and payer
 #: · 7 of 9 the HR director had to agree, or they decided alone*, HOLDING_UP -- the card `_at_145` reads.
 R17_CARD = ("02-compliancelog", "commercial.buyer_payer_alignment")
+
+
+#: Spec 089 FR-4 (keel-cloud 159 FR-2, `BriefFacts.goneBetterLine`): the Relative advantage card's line since 159, on
+#: the golden entry whose row the decision names (02-compliancelog: 4 of 9, all four a lot).
+R19_CARD = ("02-compliancelog", "solution.relative_advantage", "said it would have gone better, 4 of them a lot")
+
+
+def _at_159(cloud) -> bool:
+    """A `build/brief-facts/` a run of keel-cloud 159 or later wrote (a Gradle output is a run's, not the checkout's:
+    one written before 159 still says *made their last compliance report better*)."""
+    cards = ((cloud.facts.get(R19_CARD[0]) or {}).get("cards") or [])
+    card = next((c for c in cards if c.get("key") == R19_CARD[1]), None)
+    return card is not None and card.get("line") == R19_CARD[2]
 
 
 def _at_145(cloud) -> bool:

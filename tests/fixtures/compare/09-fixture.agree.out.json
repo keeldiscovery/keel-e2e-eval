@@ -66,7 +66,7 @@
       "outside": 2,
       "below": 2,
       "above": 0,
-      "optionCounts": "positive=6, neutral=2, negative=0",
+      "optionCounts": "a_lot_better=6, a_little_better=0, no_difference=2, worse=0",
       "status_line": "6 of 8 said it would have been better"
     },
     "solution.adoption_friction": {

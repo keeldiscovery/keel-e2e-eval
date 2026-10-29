@@ -223,28 +223,34 @@ def test_a_pick_the_page_does_not_offer_is_named_never_swapped():
     """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): on a live run the model drafts the founder's lists, so an option the
     entry names may not be offered. Until 067 the person was moved onto the item's first options (Lakisha and Priya sent
     a difficulty they never chose); now the unoffered pick is dropped and named, the other picks kept where the control
-    carries them, and an item left short (pick_two with one) is left to the walk's escape."""
+    carries them, and an item left short (pick_two with one, a scale with none) is left to the walk's escape."""
     from types import SimpleNamespace                                   # noqa: PLC0415
     from evals.corpus_scenario import _without_the_unoffered            # noqa: PLC0415
     items = {"problem.importance": {"itemId": "i1", "dimension": "problem.importance", "control": "pick_two",
                                     "options": [{"optionId": "a", "label": "A"}, {"optionId": "b", "label": "B"},
                                                 {"optionId": "c", "label": "C"}]},
+             # spec 089 FR-4 (keel-cloud 159): Relative advantage is one code of the scale -- an unoffered one leaves
+             # the item to its escape
              "solution.relative_advantage": {"itemId": "i2", "dimension": "solution.relative_advantage",
-                                             "control": "benefit_with_advantages",
-                                             "options": [{"optionId": "p", "label": "Better"}],
-                                             "advantages": [{"id": "x", "label": "X"}, {"id": "y", "label": "Y"}]}}
+                                             "control": "scale_four",
+                                             "options": [{"optionId": "p", "label": "A lot better"},
+                                                         {"optionId": "q", "label": "No difference"}]},
+             "solution.compatibility": {"itemId": "i3", "dimension": "solution.compatibility", "control": "fixed_four",
+                                        "options": [{"optionId": "y", "label": "Yes"}]}}
     j = SimpleNamespace(findings=[])
     person = SimpleNamespace(person="Lakisha", picks=[])
     body = {"recency": True, "answers": [{"itemId": "i1", "optionIds": ["nope", "b"]},
-                                         {"itemId": "i2", "optionIds": ["p"], "advantageIds": ["gone", "y"]},
+                                         {"itemId": "i2", "optionIds": ["gone"]},
+                                         {"itemId": "i3", "optionIds": ["y"]},
                                          {"itemId": "i9", "scale": 3}]}
     out = _without_the_unoffered(j, person, body, items, "tok")
-    # Importance: one of two left -- pick_two cannot carry it, so the item goes to its escape; never ["a", "b"]
-    assert [a["itemId"] for a in out["answers"]] == ["i2", "i9"]
-    assert out["answers"][0] == {"itemId": "i2", "optionIds": ["p"], "advantageIds": ["y"]}
+    # Importance: one of two left -- a link served pick_two cannot carry it, so the item goes to its escape; never
+    # ["a", "b"] (on pick_one_then_one the one is kept with Nothing else: `tests/test_controls_089.py`)
+    assert [a["itemId"] for a in out["answers"]] == ["i3", "i9"]
+    assert out["answers"][0] == {"itemId": "i3", "optionIds": ["y"]}
     assert out["answers"][1] == {"itemId": "i9", "scale": 3}
     assert len(j.findings) == 2 and "never swapped" in j.findings[0]["what"]
-    assert "left to its escape" in j.findings[0]["what"] and "other picks kept" in j.findings[1]["what"]
+    assert all("left to its escape" in f["what"] for f in j.findings)
     kept = _without_the_unoffered(SimpleNamespace(findings=[]), person,
                                   {"answers": [{"itemId": "i1", "optionIds": ["b", "c"]}]}, items, "tok")
     assert kept["answers"][0]["optionIds"] == ["b", "c"]

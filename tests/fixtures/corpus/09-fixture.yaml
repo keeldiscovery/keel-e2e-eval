@@ -11,6 +11,9 @@
 # Revision 12 since spec 053, and **GB deliberately**: the reader's one non-US path (`MARKET_CURRENCY`, `money_text`'s
 # pound, a GBP price) -- keel-cloud's Market table still serves GB (105 FR-6). `expected` is unchanged (no number moved);
 # `check_corpus_r12.py`'s rule U would refuse this file, and the reader does not mirror that rule (the canon test does).
+# Revision 19 since spec 089 (keel-cloud 159): Relative advantage's row is scale_four over the four codes and every
+# answer moved by the one rule (positive with a benefit a_lot_better, neutral no_difference, negative worse).
+# The Relative advantage row's optionCounts added on the four (inside 6 a lot better, outside 2 no difference).
 id: 09-fixture
 title: Fixture — the keys you cannot find
 revision: 19
@@ -503,6 +506,7 @@ expected:
       n: 8
       inside: 6
       outside: 2
+      optionCounts: a_lot_better=6, a_little_better=0, no_difference=2, worse=0
     solution.adoption_friction:
       status: HOLDING_UP
       drift: none

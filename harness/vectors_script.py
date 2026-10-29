@@ -609,10 +609,17 @@ def idea_card(name: str) -> str:
     return f"Imagine {name.strip()}."
 
 
+#: keel-cloud 159 `ScaleFour.FRAME`: Relative advantage's tail after the idea's name.
+BENEFIT_FRAME = "have made it go better for you, or not?"
+
+
 def benefit_question(occasion_word: str, name: str) -> str:
-    """keel-cloud `BenefitFirst.question` (spec 091 FR-E): Relative advantage's stem, around the idea's current name."""
-    return f"On your last {occasion_word.strip() or 'time'}, would {name.strip() or 'the idea'} have made things " \
-           "better, or not?"
+    """keel-cloud `ScaleFour.question` (spec 159 FR-1; 091 FR-E before it): Relative advantage's stem around the idea's
+    current name -- *On your last {occasion}, would {name} have made it go better for you, or not?*, or, past the 20-word
+    spoken cap, the plain frame *Would {name} have made it go better for you, or not?* (159 judgement call 2)."""
+    idea = name.strip() or "the idea"
+    asked = f"On your last {occasion_word.strip() or 'time'}, would {idea} {BENEFIT_FRAME}"
+    return asked if _words(asked) <= STEM_MAX_WORDS else f"Would {idea} {BENEFIT_FRAME}"
 
 
 def founder_idea_name(entry) -> str:
@@ -829,12 +836,14 @@ def founder_list(entry, key: str) -> dict:
 
 #: The list dimensions a stranger picks among the founder's own items; every other dimension's codes are
 #: the registry's fixed ones and pass through unchanged.
-PICKED_AMONG_ITEMS = ("problem.importance", "problem.current_solution_satisfaction", "solution.relative_advantage")
+#: Spec 089 FR-4 (keel-cloud 159): Relative advantage left this list -- the stranger answers the scale's four, never the
+#: founder's benefits.
+PICKED_AMONG_ITEMS = ("problem.importance", "problem.current_solution_satisfaction")
 
 
 def wire_codes(entry, key: str) -> dict[str, str]:
     """`{corpus code: wire code}` for a list dimension whose items the stranger picks among (Importance's
-    five, Current solution's five outcomes, Relative advantage's benefits); `{}` elsewhere."""
+    five, Current solution's five outcomes); `{}` elsewhere."""
     if key not in PICKED_AMONG_ITEMS:
         return {}
     return {item["code"]: wire_code(key, i) for i, item in enumerate(founder_list(entry, key)["items"])}
@@ -1577,7 +1586,6 @@ class Pick:
     """One item's answer, by dimension and by the wire's code -- the ids are computed per token."""
     dimension: str
     codes: list = field(default_factory=list)
-    advantages: list = field(default_factory=list)
     cost: dict | None = None
     scale: int | None = None
     chip: str | None = None
@@ -1599,8 +1607,8 @@ class Pick:
             return self
         factor = PERIOD_DAYS[period] / PERIOD_DAYS[self.cost_period]
         cost = {**self.cost, "value": round(float(self.cost["value"]) * factor, 6)}
-        return Pick(dimension=self.dimension, codes=self.codes, advantages=self.advantages, cost=cost,
-                    scale=self.scale, chip=self.chip, cost_period=period)
+        return Pick(dimension=self.dimension, codes=self.codes, cost=cost, scale=self.scale, chip=self.chip,
+                    cost_period=period)
 
     def as_wire(self, token: str) -> dict:
         out: dict = {"itemId": item_id(token, self.dimension)}
@@ -1617,8 +1625,7 @@ class Pick:
             out["interval"] = {"low": self.interval["low"], "high": self.interval.get("high", self.interval["low"])}
             return out
         out["optionIds"] = [option_id(token, self.dimension, c) for c in self.codes]
-        if self.advantages:
-            out["advantageIds"] = [option_id(token, self.dimension, a) for a in self.advantages]
+        # spec 089 FR-4 (keel-cloud 159, contract 47): `advantageIds` is gone -- Relative advantage is one code
         return out
 
 
@@ -2034,8 +2041,8 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
             if quoted:
                 values[WHOLE_TEXT] = quoted
     elif rung == "solution.relative_advantage":
-        values["{benefit}"] = fake.joined([a.get("label") for a in item.get("advantages") or []], "or")
-        if codes[:1] == ["negative"]:
+        # spec 089 FR-4 (keel-cloud 159): no benefit is named -- the scale's *worse* is said as worse
+        if codes[:1] == ["worse"]:
             # keel-cloud 128 FR-16: the follow-up quotes the pick that was made (Walter picked worse)
             values[WHOLE_TEXT] = (f"You said {fake.named(name)} would have made things worse. "
                                   "What would have helped instead?")

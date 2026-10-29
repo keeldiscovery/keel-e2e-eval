@@ -145,7 +145,7 @@ def _p(dimension: str, *codes: str, chip: str | None = None) -> dict:
 
 #: Everything supporting the founder (a B2C link that answers all eight rungs, "Nobody else" tested, a £30 low).
 CLEAR = [_p("problem.importance", "rival_1", "own"), _p("problem.current_solution_satisfaction", "outcome_3"),
-         _p("solution.compatibility", "yes_easily"), _p("solution.relative_advantage", "positive"),
+         _p("solution.compatibility", "yes_easily"), _p("solution.relative_advantage", "a_lot_better"),
          _p("solution.adoption_friction", "yes"), _p("commercial.price", "band_20_50"),
          _p("commercial.buyer_payer_alignment", "decided_alone"), _p("commercial.purchase_friction", "yes_long"),
          _p("commercial.commitment", "yes_start")]
@@ -170,7 +170,7 @@ TABLE = [
      _with(_p("problem.current_solution_satisfaction", chip="SOMEONE_ELSE_CHECKS")), NOBODY, "PRIMARY", False, None),
     ("Compatibility: only with help", _with(_p("solution.compatibility", "only_with_help")), NOBODY, "PRIMARY", False,
      "solution.compatibility"),
-    ("Relative advantage: no difference", _with(_p("solution.relative_advantage", "neutral")), NOBODY, "PRIMARY",
+    ("Relative advantage: no difference", _with(_p("solution.relative_advantage", "no_difference")), NOBODY, "PRIMARY",
      False, "solution.relative_advantage"),
     ("Adoption friction: probably not", _with(_p("solution.adoption_friction", "probably_not")), NOBODY, "PRIMARY",
      False, "solution.adoption_friction"),

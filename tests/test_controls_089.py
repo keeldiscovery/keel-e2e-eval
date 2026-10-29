@@ -4,7 +4,9 @@ FR-2, Frequency from 1: a count is sent 1..N (`segmented_1_to_n`, a number box f
 five recorded 0s after a yes (04-linerly Bruno Costa, Dmitri Volkov, Gwen Price; 05-paidly Petra Novak, Talia Ben-David)
 are replayed as the item's escape, CANT_RECALL, each named in the scripted person's notes, and the corpus is unchanged.
 FR-3, one pick then one more: the second ask's words and escape held to keel-cloud's `ItemFrames`, the classifier's
-`ask: second`, one pick with *Nothing else* a whole answer, the screens' and the AI link's walks in that order.
+`ask: second`, one pick with *Nothing else* a whole answer, the screens' and the AI link's walks in that order. FR-4,
+one scale: the question in `ScaleFour`'s frame (the plain frame past 20 words), one code sent and no `advantageIds`, no
+transform, the brief's line and the two decision sentences held to keel-cloud's `BriefFacts` and `DecisionChangeCorpusTest`.
 """
 
 from __future__ import annotations
@@ -30,6 +32,9 @@ from tests import v9_fixtures as fx
 
 KEEL_CLOUD = load_config(validate=False).keel_cloud
 ITEM_FRAMES = "src/main/java/com/keeldiscovery/cloud/domain/vectors/ItemFrames.java"
+SCALE_FOUR = "src/main/java/com/keeldiscovery/cloud/domain/vectors/ScaleFour.java"
+BRIEF_FACTS = "src/main/java/com/keeldiscovery/cloud/application/BriefFacts.java"
+DECISION_TEST = "src/test/java/com/keeldiscovery/cloud/corpus/DecisionChangeCorpusTest.java"
 
 FIVE = {("04-linerly", "Bruno Costa"), ("04-linerly", "Dmitri Volkov"), ("04-linerly", "Gwen Price"),
         ("05-paidly", "Petra Novak"), ("05-paidly", "Talia Ben-David")}
@@ -201,3 +206,80 @@ def test_the_ai_link_taps_one_hears_and_one_more_then_the_second():
     assert im.taps_wait_for_save(record)[0] is True
     record["taps"]["one"]["more_played"] = False
     assert im.taps_wait_for_save(record)[0] is False
+
+
+# ------------------------------------------------------------------------------------------- FR-4: one scale
+
+def _cloud(path: str, marker: str) -> str:
+    text = (KEEL_CLOUD / path).read_text(encoding="utf-8") if (KEEL_CLOUD / path).is_file() else ""
+    if marker not in text:
+        pytest.skip(f"keel-cloud predates spec 159 (no {marker} in {path})")
+    return text
+
+
+def test_the_question_is_scale_fours_and_the_plain_frame_past_the_cap():
+    """keel-cloud 159 T002 (`ScaleFour.question`): *On your last {occasion}, would {name} have made it go better for you,
+    or not?*; where that passes 20 words, *Would {name} ...* (06-repeatline's came to 22)."""
+    text = _cloud(SCALE_FOUR, "FRAME")
+    assert _java_string(text, "FRAME") == vs.BENEFIT_FRAME
+    assert vs.benefit_question("invoice", "invoice payout service") == \
+        "On your last invoice, would invoice payout service have made it go better for you, or not?"
+    long = vs.benefit_question("shift on the phones", "refill requests filed for you")
+    assert long == "Would refill requests filed for you have made it go better for you, or not?"
+    assert len(f"On your last shift on the phones, would refill requests filed for you {vs.BENEFIT_FRAME}".split()) == 22
+    assert vs.benefit_question("", "") == "On your last time, would the idea have made it go better for you, or not?"
+
+
+def test_one_code_is_sent_and_no_benefit():
+    """keel-cloud 159 T004 (contract 47): the answer is one `optionIds` entry on the scale's four; `advantageIds` is gone
+    from every scripted body, and the scripted pick is the corpus's code as it stands."""
+    import dataclasses                                                     # noqa: PLC0415
+    assert "advantages" not in {f.name for f in dataclasses.fields(vs.Pick)}
+    for name in ("01-countly", "05-paidly", "07-mulchrun"):
+        entry = _entry(name)
+        recorded = {p.person: (p.picks or {}).get(registry_mod.BENEFIT_KEY) for p in entry.people()}
+        for person in vs.person_inputs(entry):
+            for pick in person.picks:
+                wire = pick.as_wire("t")
+                assert "advantageIds" not in wire
+                if pick.dimension == registry_mod.BENEFIT_KEY and not pick.chip:
+                    assert pick.codes == [recorded[person.person]] and wire["optionIds"] == [
+                        vs.option_id("t", registry_mod.BENEFIT_KEY, recorded[person.person])]
+
+
+def test_the_one_rule_is_scale_fours():
+    """keel-cloud 159 FR-3 (`ScaleFour.fromThree`): positive with a benefit a lot better, with none a little better,
+    neutral no difference, negative worse; the chip as it was."""
+    text = _cloud(SCALE_FOUR, "fromThree")
+    assert "case OLD_POSITIVE -> benefitTicked ? A_LOT_BETTER : A_LITTLE_BETTER;" in text
+    assert registry_mod.from_three({"answer": "positive", "advantages": ["x"]}) == "a_lot_better"
+    assert registry_mod.from_three({"answer": "positive"}) == "a_little_better"
+    assert registry_mod.from_three({"answer": "neutral"}) == "no_difference"
+    assert registry_mod.from_three({"answer": "negative"}) == "worse"
+    assert registry_mod.from_three({"chip": "cant_tell"}) == {"chip": "cant_tell"}
+    assert list(registry_mod.BENEFIT_CODES) == [_java_string(text, c) for c in
+                                                ("A_LOT_BETTER", "A_LITTLE_BETTER", "NO_DIFFERENCE", "WORSE")]
+
+
+def test_the_scale_is_spoken_without_a_transform():
+    """keel-cloud 159 T005: one question and four short options -- `yes_no_per_benefit` retired, S9 refuses it."""
+    from instructions import spoken as spoken_mod                          # noqa: PLC0415
+    assert registry_mod.BENEFIT_KEY not in spoken_mod.TRANSFORMS
+    assert "yes_no_per_benefit" not in spoken_mod.TRANSFORMS.values()
+
+
+def test_the_brief_line_and_the_two_decisions_are_keel_clouds():
+    """keel-cloud 159 T010 (`BriefFacts.goneBetterLine`, `DecisionChangeCorpusTest`): *N of M · said it would have gone
+    better, K of them a lot*, and 02-compliancelog's and 06-repeatline's decisions in those words."""
+    from instructions import brief_facts as bf                             # noqa: PLC0415
+    text = _cloud(BRIEF_FACTS, "goneBetterLine")
+    assert '"said it would have gone better, " + aLot + " of them a lot"' in text
+    assert bf.gone_better_line(4) == "said it would have gone better, 4 of them a lot"
+    test = re.sub(r'"\s*\+\s*"', "", _cloud(DECISION_TEST, "of them a lot"))
+    for entry_id in ("02-compliancelog", "06-repeatline"):
+        change = bf.DECISION_CHANGE[entry_id]
+        said = change["sentence"] + (" " + change["also"]["sentence"] if change.get("also") else "")
+        assert f'CHANGE.put("{entry_id}", "{said}");' in test, entry_id
+    entry = _entry("02-compliancelog")
+    card = next(c for c in bf.cards_for(entry, fx.registry()) if c["key"] == registry_mod.BENEFIT_KEY)
+    assert (card["number"], card["line"]) == ("4 of 9", "said it would have gone better, 4 of them a lot")

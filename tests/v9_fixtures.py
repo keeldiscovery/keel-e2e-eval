@@ -250,3 +250,17 @@ def interpret_case(entry, person, run_index=1):
                             kind="READING", entry_id=entry.id, screen="INTERPRET",
                             subject=person, run_index=run_index, payload={},
                             meta={"person": person})
+
+
+def skip_a_spoken_record_before_159(keel_cloud) -> None:
+    """Spec 089: keel-cloud's `build/spoken-corpus.txt` is a Gradle run's output, not the checkout's -- one written before
+    keel-cloud 158 / 159 says Importance's *; pick two* and Relative advantage's `yes_no_per_benefit`, which the spoken
+    rules now refuse. Such a record is skipped by name (rerun its SpokenGuidelinesCorpusTest to compare)."""
+    import pytest                                                     # noqa: PLC0415
+    from instructions import cloud_corpus as cloud_mod                # noqa: PLC0415
+    path = Path(keel_cloud) / cloud_mod.SPOKEN_FILE
+    record = path.read_text(encoding="utf-8") if path.is_file() else ""
+    if "; pick two." in record or "yes_no_per_benefit" in record:
+        pytest.skip("keel-cloud's build/spoken-corpus.txt predates keel-cloud 158 / 159 (a count line says '; pick two', "
+                    "an item transforms 'yes_no_per_benefit') -- rerun `./gradlew test --tests "
+                    "'*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout to compare")

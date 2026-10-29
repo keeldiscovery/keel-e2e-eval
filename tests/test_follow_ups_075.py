@@ -69,14 +69,14 @@ def test_the_route_passes_over_what_was_asked():
 
 
 def test_each_follow_up_is_asked_right_after_its_item_and_two_at_most():
-    picks = [_pick(IMP, "rival_1", "rival_2"), _pick(CUR, "outcome_1"), _pick(COMPAT, "no"), _pick(RA, "neutral")]
+    picks = [_pick(IMP, "rival_1", "rival_2"), _pick(CUR, "outcome_1"), _pick(COMPAT, "no"), _pick(RA, "no_difference")]
     plan = fake.asks(picks, FOUNDER, B2B_ORDER, b2b=True)
     assert plan == [{"dimension": IMP, "also": False, "on": IMP}, {"dimension": CUR, "also": False, "on": CUR}]
     assert len(plan) == fake.MAX_FOLLOW_UPS == ivs.MAX_FOLLOW_UPS == marks.MAX_FOLLOW_UPS == 2
 
 
 def test_an_answer_owing_none_asks_nothing_and_a_later_one_is_asked_on_its_own_item():
-    picks = [_pick(IMP, "own", "rival_1"), _pick(CUR, "outcome_5"), _pick(RA, "neutral")]
+    picks = [_pick(IMP, "own", "rival_1"), _pick(CUR, "outcome_5"), _pick(RA, "no_difference")]
     assert fake.asks(picks, FOUNDER, B2B_ORDER, b2b=True) == [{"dimension": RA, "also": False, "on": RA}]
     assert fake.asks([_pick(IMP, "own", "rival_1")], FOUNDER, B2B_ORDER, b2b=True) == []
 
@@ -86,11 +86,11 @@ def test_the_last_items_rung_is_asked_on_the_spot_and_the_end_keeps_what_is_owed
     picks = [_pick(AF, "no")]
     assert fake.asks(picks, FOUNDER, B2B_ORDER, b2b=True) == [{"dimension": AF, "also": False, "on": AF}]
     # a call held past the beat (`late`): the page went on, the rung stays owed -- the end asks it, *One last thing*
-    picks = [_pick(RA, "neutral"), _pick(AF, "yes")]
+    picks = [_pick(RA, "no_difference"), _pick(AF, "yes")]
     assert fake.asks(picks, FOUNDER, B2B_ORDER, b2b=True, late=(RA,)) == [{"dimension": RA, "also": False, "on": None}]
     # one late and one on the last item: the end's call returns the first rung owed (keel-cloud 142 judgement call 2),
     # the earlier one, under *One last thing* -- and after the end's follow-up the response goes (124 FR-2)
-    picks = [_pick(RA, "neutral"), _pick(AF, "no")]
+    picks = [_pick(RA, "no_difference"), _pick(AF, "no")]
     assert fake.asks(picks, FOUNDER, B2B_ORDER, b2b=True, late=(RA,)) == [{"dimension": RA, "also": False, "on": None}]
 
 

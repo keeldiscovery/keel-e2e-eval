@@ -2710,7 +2710,6 @@ class Interview:
             return
         plan = item.get("plan") or {}
         options.update({o.get("optionId"): o.get("label") for o in plan.get("options") or []})
-        advantages = {a.get("id"): a.get("label") for a in item.get("advantages") or []}
         if answer.get("chip"):
             # an item's one escape, or (keel-web 094) the value box's chips -- *Nothing*, *I don't know*, *I'd rather
             # not say* -- each by its served label
@@ -2777,8 +2776,8 @@ class Interview:
             ids = ids[1:]
         for option_id in ids:
             main.locator(".iv-control").get_by_role(role, name=options[option_id], exact=True).first.click()
-        for advantage_id in answer.get("advantageIds") or []:
-            main.get_by_role("checkbox", name=advantages[advantage_id], exact=True).click()
+        # spec 089 FR-4 (keel-cloud 159, keel-web 135 FR-3): Relative advantage is one tap on the scale's four (a radio
+        # by its served label, above); no benefit is drawn or ticked
 
 
 def _is_would_not_pay(label: str | None) -> bool:

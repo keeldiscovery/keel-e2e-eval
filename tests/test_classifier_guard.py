@@ -135,17 +135,18 @@ def test_served_items_read_as_spoken_item_of():
                       "scale": {"min": 0, "max": 7}, "escape": None},
                      {"itemId": "c", "dimension": "problem.frequency", "control": "number_with_unit",
                       "numeric": {"defaultUnit": "months out of 3"}, "escape": None},
-                     {"itemId": "d", "dimension": "solution.relative_advantage", "control": "benefit_with_advantages",
-                      "options": [{"optionId": "x", "label": "Better"}], "escape": {"label": "I can't tell"},
-                      "advantages": [{"id": "v1", "label": "Faster"}, {"id": "v2", "label": "Cheaper"}]},
+                     # spec 089 FR-4 (keel-cloud 159): the scale is one single ask -- no advantages ask after it
+                     {"itemId": "d", "dimension": "solution.relative_advantage", "control": "scale_four",
+                      "options": [{"optionId": "x", "label": "A lot better"}, {"optionId": "y", "label": "Worse"}],
+                      "escape": {"label": "I can't tell"}},
                      {"itemId": "e", "dimension": "commercial.existing_sacrifice", "control": "cost_total",
                       "costTotal": {"currency": "GBP"}, "escape": {"label": "I can't recall"}}]}]}
     got = guard.served_items(interview)
     assert [(s.item_id, s.kind, s.pick, s.ask) for s in got] == [
         ("g", "gate", 0, None), ("a", "multi", 2, None), ("b", "number", 0, None), ("c", "number", 0, None),
-        ("d", "single", 0, None), ("d", "multi", 0, "advantages"), ("e", "amount_or_hours", 0, None)]
+        ("d", "single", 0, None), ("e", "amount_or_hours", 0, None)]
     assert (got[2].low, got[2].high, got[3].low, got[3].high) == (0, 7, 0, 3)
-    assert got[6].currency == "GBP" and got[1].escape == "None of these" and got[0].options == ("Yes", "No")
+    assert got[5].currency == "GBP" and got[1].escape == "None of these" and got[0].options == ("Yes", "No")
 
 
 def _got(**kw) -> dict:

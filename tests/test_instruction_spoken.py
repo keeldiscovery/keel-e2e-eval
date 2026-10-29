@@ -106,16 +106,17 @@ def test_each_spoken_rule_fails_once_for_its_own_reason(change, rule):
 def test_every_stem_is_held_to_twenty_words_the_two_frames_too():
     """Call 111 (keel-cloud 091 FR-E): Relative advantage's and Existing sacrifice's frames were shortened, so spec
     040's 25-word allowance (call 79) is gone -- a 21-word stem is an S1 fault on every dimension."""
-    stem = ("On your last busy morning before work, would a tag that beeps back have made things better, or not, for "
-            "today?")
+    # spec 089 FR-4 (keel-cloud 159): the scale's frame and four options, no transform (`yes_no_per_benefit` retired)
+    stem = ("On your last busy morning before work, would a tag that beeps have made it go better for you, or "
+            "not?")
     assert len(stem.split()) == 21
     benefit = _item(key="solution.relative_advantage", question=stem, stem=stem,
-                    options=("It would have made things better", "No difference", "It would have made things worse"),
-                    count_line="I'll read three options.",
-                    options_line="It would have made things better; no difference; or it would have made things "
-                                 "worse.", transform="yes_no_per_benefit")
+                    options=("A lot better", "A little better", "No difference", "Worse"),
+                    count_line="I'll read four options.",
+                    options_line="A lot better; a little better; no difference; or worse.", transform="none")
     assert _rules(benefit) == ["S1"]
-    short = "On your last busy morning, would a tag that beeps back have made things better, or not?"
+    assert _rules(dataclasses.replace(benefit, transform="yes_no_per_benefit")) == ["S1", "S9"]
+    short = "Would a tag that beeps back have made it go better for you, or not?"
     assert len(short.split()) <= 20
     assert _faults(dataclasses.replace(benefit, question=short, stem=short)) == []
     assert {spoken_mod.stem_limit(k) for k in ("commercial.existing_sacrifice", "solution.relative_advantage",
@@ -434,13 +435,7 @@ def real():
         pytest.skip("keel-cloud's SpokenGuidelinesCorpusTest has not written build/spoken-corpus.txt -- run "
                     "`./gradlew test --tests '*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout")
     fx.canon_entry("01-countly.yaml")                                 # skips by name off revision 13
-    record = (keel_cloud / cloud_mod.SPOKEN_FILE).read_text(encoding="utf-8")
-    if "; pick two." in record or "yes_no_per_benefit" in record:
-        # spec 089: a Gradle output is a run's, not the checkout's -- one written before keel-cloud 158 / 159 says
-        # Importance's *; pick two* and Relative advantage's per-benefit transform, which the rules now refuse
-        pytest.skip("keel-cloud's build/spoken-corpus.txt predates keel-cloud 158 / 159 (a count line says '; pick two', "
-                    "an item transforms 'yes_no_per_benefit') -- rerun `./gradlew test --tests "
-                    "'*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout to compare")
+    fx.skip_a_spoken_record_before_159(keel_cloud)                    # spec 089: a record before 158 / 159
     if not (keel_cloud / cloud_mod.REGISTRY_FILE).is_file():
         pytest.skip(f"no registry of record at {keel_cloud / cloud_mod.REGISTRY_FILE}")
     registry = cloud_mod.registry_of_record(keel_cloud)               # spec 065 FR-1: the registry of record

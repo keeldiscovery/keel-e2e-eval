@@ -19,6 +19,7 @@ import pytest
 
 from evals import corpus_scenario
 from harness import vectors_script as vs
+from instructions import registry as registry_mod
 
 REPO = Path(__file__).resolve().parent.parent
 ENTRIES = ("01-countly", "05-paidly", "07-mulchrun")
@@ -206,8 +207,9 @@ def test_the_respondent_job_writes_the_gates_clause_and_nothing_else(entry_id):
 @pytest.mark.parametrize("entry_id", ENTRIES)
 def test_every_pick_rides_on_the_wires_own_code(entry_id):
     """A person's pick on a list the founder made is sent on the list's positional code (Importance's
-    `own` / `rival_n`, Current solution's `outcome_n`, Relative advantage's `benefit_n`), and every
-    `optionCounts` code the entry records maps onto one -- the fixed answers pass through unchanged."""
+    `own` / `rival_n`, Current solution's `outcome_n`), and every `optionCounts` code the entry records maps onto one --
+    the fixed answers pass through unchanged, Relative advantage's scale among them since revision 19 (spec 089 FR-4:
+    no benefit is sent)."""
     entry = _entry(entry_id)
     importance = vs.wire_codes(entry, "problem.importance")
     own = (entry.founder_list("problem.importance") or {})["items"][0]["code"]
@@ -217,9 +219,10 @@ def test_every_pick_rides_on_the_wires_own_code(entry_id):
         for pick in person.picks:
             codes = vs.wire_codes(entry, pick.dimension)
             if codes:
-                assert set(pick.codes) <= set(codes.values()) | {"positive", "neutral", "negative"}, pick
-            for code in pick.advantages:
-                assert code.startswith("benefit_"), pick
+                assert set(pick.codes) <= set(codes.values()), pick
+            if pick.dimension == "solution.relative_advantage" and not pick.chip:
+                assert len(pick.codes) == 1 and pick.codes[0] in registry_mod.BENEFIT_CODES, pick
+                assert "advantageIds" not in pick.as_wire("t"), pick
             if pick.dimension == "problem.importance" and not pick.chip:
                 assert len(pick.codes) == 2, pick
     for key, row in ((entry.expected or {}).get("standings") or {}).items():
@@ -304,8 +307,11 @@ def test_idea_names_read_as_keel_cloud_derives_them():
     assert vs.idea_name_of("Keel") == "Keel"
     assert vs.idea_name_of("imagine") == ""
     assert vs.idea_card("payroll error catcher") == "Imagine payroll error catcher."
+    # spec 089 FR-4 (keel-cloud 159 `ScaleFour.question`): *made it go better for you*; past 20 words the plain frame
     assert vs.benefit_question("payroll run", "a list of flagged employees") == (
-        "On your last payroll run, would a list of flagged employees have made things better, or not?")
+        "On your last payroll run, would a list of flagged employees have made it go better for you, or not?")
+    assert vs.benefit_question("shift on the phones", "refill requests filed for you") == (
+        "Would refill requests filed for you have made it go better for you, or not?")
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)

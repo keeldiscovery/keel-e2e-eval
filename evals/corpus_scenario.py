@@ -34,7 +34,7 @@ one leg and leave the others alone:
                       decision-maker's commercial link.
 9. `leg_interview` -- each person in their own browser context, no founder session, through keel-web
                       064's screens: the decision-maker's idea screen first, the gate (its one chip), every
-                      item as served (one escape, last), two picks on Importance, the fixed answers,
+                      item as served (one escape, last), one pick then one more on Importance (spec 089), the fixed answers,
                       "nothing" typed as 0; the idea card and the Relative advantage question on the
                       idea's current name (keel-cloud 090); the founder reads after each person.
 10. `leg_standings` -- `GET standings` against the entry's `expected.standings` and `expected.vector_verdicts`
@@ -2757,8 +2757,7 @@ def _answer_one(j: Journey, person, token: str) -> None:
                 item = items.get(pick.dimension) or {}
                 offered = {o.get("optionId") for o in item.get("options") or []}
                 offered |= {o.get("optionId") for o in (item.get("plan") or {}).get("options") or []}
-                offered |= {a.get("id") for a in item.get("advantages") or []}
-                unoffered += [(pick.dimension, code) for code in pick.codes + pick.advantages
+                unoffered += [(pick.dimension, code) for code in pick.codes
                               if vs.option_id(token, pick.dimension, code) not in offered]
                 box = item.get("valueBox") or {}
                 chips = {(item.get("escape") or {}).get("code"), (box.get("nothing") or {}).get("code")}
@@ -3304,8 +3303,9 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
     """keel-web 064, held to the wire on every journey: the decision-maker's link opens with the idea's
     three lines under the served kicker (D9); the gate's story chip is *I can't recall one particular
     {occasion}* alone; every item draws its served kicker and stem, its served options as rows, *Pick two.*
-    on Importance, and its ONE escape -- the served label, after the control and before the buttons, none
-    on Commitment."""
+    on a pick-two Importance (a link served before keel-cloud 158; on `pick_one_then_one` the second ask's *And one
+    more?* and *Nothing else* as served, spec 089 FR-3), and its ONE escape -- the served label, after the control and
+    before the buttons, none on Commitment."""
     for r in walked.get("retried") or []:
         j.findings.append({"what": f"{person.name}: the page stayed on {r.get('dimension')} after Next; the answer was put "
                                    f"again and the walk went on (harness: a lost click or a page that did not take it)",
@@ -3410,7 +3410,8 @@ RA_KEY = "solution.relative_advantage"
 
 def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> None:
     """keel-cloud 090 (D14) on every journey: the idea card strangers read is *Imagine {name}.* and the Relative
-    advantage question *On your last {occasion}, would {name} have made things better, or not?*, both composed by code
+    advantage question *On your last {occasion}, would {name} have made it go better for you, or not?* (keel-cloud 159;
+    the plain frame *Would {name} ...* past 20 words), both composed by code
     around the idea's **current** name -- the one the wire stored after S2 (`IdeaView.shortName`): Keel's short name
     where the founder saved the draft untouched, the founder's own where they renamed it. Held on the wire (the served
     reveal / idea and the item's question) and on the screens (the reveal's or idea screen's card, and the idea card
@@ -3457,7 +3458,7 @@ NOTHING_ELSE_CARRIES = {"pick_one_then_one"}
 def _without_the_unoffered(j: Journey, person, body: dict, items: dict, token: str) -> dict:
     """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): a pick the page does not offer is a finding, never a swap -- the
     walk used to put such an answer on the item's first options (`_on_the_offered_options`, retired), so Lakisha and
-    Priya were sent a difficulty they never chose. The unoffered option (or advantage) is dropped and named; the item's
+    Priya were sent a difficulty they never chose. The unoffered option is dropped and named; the item's
     other picks are kept where the control can carry them, and an item left short of its control (pick_two needs two)
     is left unanswered, which the walk answers with the item's escape and names (`Interview.unanswered`). Never reached
     on a scripted journey (`j.strict` asserts nothing is unoffered)."""
@@ -3469,21 +3470,17 @@ def _without_the_unoffered(j: Journey, person, body: dict, items: dict, token: s
         offered |= {o.get("optionId") for o in (item.get("plan") or {}).get("options") or []}
         labels = {o.get("optionId"): o.get("label") for o in item.get("options") or []}
         kept, lost = dict(answer), []
-        for key, served in (("optionIds", offered), ("advantageIds", {a.get("id") for a in item.get("advantages")
-                                                                       or []})):
-            ids = answer.get(key)
-            if ids and not all(i in served for i in ids):
-                lost += [i for i in ids if i not in served]
-                kept[key] = [i for i in ids if i in served]
+        ids = answer.get("optionIds")
+        if ids and not all(i in offered for i in ids):
+            lost += [i for i in ids if i not in offered]
+            kept["optionIds"] = [i for i in ids if i in offered]
         if not lost:
             answers.append(answer)
             continue
         dimension = item.get("dimension")
         pick = next((p for p in person.picks if p.dimension == dimension), None)
-        codes = [c for c in (list(pick.codes) + list(pick.advantages) if pick else [])
-                 if vs.option_id(token, dimension, c) in lost or c in lost]
-        short = len(kept.get("optionIds") or []) < PICKS_NEEDED.get(item.get("control"), 1) \
-            if "optionIds" in answer else not kept.get("advantageIds")
+        codes = [c for c in (list(pick.codes) if pick else []) if vs.option_id(token, dimension, c) in lost or c in lost]
+        short = len(kept.get("optionIds") or []) < PICKS_NEEDED.get(item.get("control"), 1)
         if short and item.get("control") in NOTHING_ELSE_CARRIES and len(kept.get("optionIds") or []) == 1:
             # one of the two kept: the first pick and *Nothing else* carry it (keel-cloud 158: stored as the one code)
             kept["chip"], short = vs.NOTHING_ELSE_CHIP, False
@@ -3506,9 +3503,8 @@ def _normal_body(body: dict) -> dict:
     answers = {}
     for answer in body.get("answers") or []:
         a = dict(answer)
-        for key in ("optionIds", "advantageIds"):
-            if key in a:
-                a[key] = sorted(a[key])
+        if "optionIds" in a:
+            a["optionIds"] = sorted(a["optionIds"])
         if "costTotal" in a and a["costTotal"].get("value") is not None:
             a["costTotal"] = {**a["costTotal"], "value": round(float(a["costTotal"]["value"]), 4)}
         answers[a.pop("itemId")] = a

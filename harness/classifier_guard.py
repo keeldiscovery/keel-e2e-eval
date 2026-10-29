@@ -167,7 +167,7 @@ PICK_CONTROLS = ("pick_one_then_one", "pick_two")
 #: Frequency's controls: keel-cloud 158's `segmented_1_to_n` (contract 46: a count from 1) and the number box, and
 #: `segmented_0_to_7`, which a run recorded before 46 served.
 FREQUENCY_CONTROLS = ("segmented_1_to_n", "segmented_0_to_7", "number_with_unit")
-_SINGLE = {"single_choice", "single_choice_5", "fixed_four", "fixed_three", "price_ladder", "benefit_with_advantages"}
+_SINGLE = {"single_choice", "single_choice_5", "fixed_four", "fixed_three", "price_ladder", "scale_four"}
 
 
 def _range(item: dict) -> tuple[int | None, int | None]:
@@ -186,8 +186,9 @@ def _range(item: dict) -> tuple[int | None, int | None]:
 
 
 def served_items(interview: dict, market_currency: str | None = None) -> list[Served]:
-    """Every question of a served `Interview` the classifier reads -- the gate, each item, and benefit_with_advantages'
-    advantages as their own ask -- built exactly as keel-cloud `SpokenItem.of` builds them. The story is never
+    """Every question of a served `Interview` the classifier reads -- the gate, each item, and Importance's second ask
+    (keel-cloud 158 `ask: second`; 159 retired the advantages ask with `benefit_with_advantages`) -- built exactly as
+    keel-cloud `SpokenItem.of` builds them. The story is never
     classified, so it is not here."""
     out: list[Served] = []
     gate = interview.get("gate") or {}
@@ -216,9 +217,6 @@ def served_items(interview: dict, market_currency: str | None = None) -> list[Se
                                   currency=(item.get("costTotal") or {}).get("currency") or market_currency))
             else:
                 out.append(Served(**base, kind="single", options=options, escape=escape))
-            if control == "benefit_with_advantages" and item.get("advantages"):
-                out.append(Served(**base, kind="multi", options=tuple(a.get("label") for a in item["advantages"]),
-                                  ask="advantages"))
     return out
 
 
@@ -398,7 +396,7 @@ def plan(served: Iterable[Served], chosen: Iterable[Case] | None = None) -> tupl
     for case in chosen if chosen is not None else all_cases():
         reasons = []
         own = tuple(_norm(o) for o in case_item(case.item).options)
-        # a served item carrying the check's own labels first (Relative advantage's three are code's, word for word)
+        # a served item carrying the check's own labels first (code's own words, word for word)
         for s in sorted(served, key=lambda s: tuple(_norm(o) for o in s.options) != own):
             got = transpose(case, s)
             if isinstance(got, Asked):
