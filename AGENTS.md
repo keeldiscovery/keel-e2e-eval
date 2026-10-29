@@ -484,6 +484,22 @@ contract 44 unchanged). The context card's *Only people who:* line reads the con
 *are based in the Dallas-Fort Worth suburbs* although the scripted result (`scripted_segment`) writes none; spec 077's
 "none on 07-mulchrun" no longer holds. S-007 red on staging `f48f256` + keel-web `786d4c3` until this.
 
+**Decided before** (spec `087-decided-before`, 2026-10-29; the founder, after deciding every proposal of cycle
+`20261028-f48f256`'s advice: *"whatever the agent found and we decided not to go ahead should be recorded, so that
+it's kind of snoozed next time"*). `quality/decisions.toml` is the file of record, one `[[decision]]` per decision
+(`id`, `cycle`, `proposals`, `row` = scope / audience / dimension / screen, `fix`, `decision` taken | declined | held,
+`spec` on taken, `until` spec-merged | never | a cycle id, `why`, and `merged` when the coordinator writes it);
+`quality/decisions.py` reads it and `make unit` refuses a file whose entry lacks a field, says another word, or names a
+scope, audience or screen the cycle does not score. A weak row whose `row` and `fix` match a decision is **snoozed**
+while its `until` holds: listed under *Decided before* in the cycle record and at the end of the advice page, never
+sent to the adviser, not counted. The adviser's prompt carries the declined decisions on its row (`{{declined}}`),
+and a proposal that names one in `reopens` is refused by row, naming it (as 081 FR-6 refuses a special case). **The
+coordinator's duty** (`quality/CYCLE.md` step 3): after a walk-through with the founder, add his decisions before
+the next advise; after a merge of a spec a decision names, write `merged = "<sha>"` on it so the row competes again.
+`make quality-advise CYCLE=quality/cycles/20261028-f48f256.md DRY=1` lists all 62 weak rows under the decisions of
+2026-10-29 and sends nothing. No model, no new LLM place; readers, rubric, weak rule, `REVISION` and the marks
+unchanged.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;

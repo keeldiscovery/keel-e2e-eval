@@ -189,7 +189,8 @@ quality-walk: venv
 # make quality-advise (PAID, one call per weak row, the founder's plan) hands each weak row of a cycle to the adviser
 # (quality/readers/adviser.md, Opus 5.5 through the claude CLI) with the current text at its fix location read from
 # the keel-cloud checkout; the proposals go to quality/cycles/<record>-advice.md, NEVER APPLIED. DRY=1 prints the
-# prompts and calls nothing.
+# prompts and calls nothing. Spec 087: a weak row quality/decisions.toml has decided is snoozed -- listed under
+# Decided before, never sent; the adviser reads the founder's declined decisions on its row.
 #   make quality-advise CYCLE=quality/cycles/<record>.md DRY=1
 quality-advise: venv
 	@if [ -z "$(CYCLE)" ]; then echo "make quality-advise refuses: no CYCLE -- name a cycle record, \`CYCLE=quality/cycles/<yyyymmdd>-<cloud7>.md\` (spec 079 FR-4)"; exit 2; fi

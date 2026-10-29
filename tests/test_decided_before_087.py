@@ -349,3 +349,16 @@ def test_the_dry_advise_on_cycle_f48f256_snoozes_every_weak_row_and_sends_nothin
         assert ids, row
         assert any(int(number) in found[i]["proposals"] for i in ids), f"{row} (proposal {number}): {ids}"
     assert "cycle 20261028-f48f256: 62 weak row(s), every one decided before" in said and "[1/" not in said
+
+
+def test_the_runbook_and_the_agents_file_carry_the_decisions():
+    text = (REPO / "quality" / "CYCLE.md").read_text(encoding="utf-8")
+    step2 = text.split("## Step 2", 1)[1].split("## Step 3", 1)[0]
+    step3 = text.split("## Step 3", 1)[1].split("## Step 4", 1)[0]
+    for step in (step2, step3):
+        assert "quality/decisions.toml" in step and "Decided before" in step
+    flat = " ".join(step3.split())
+    assert 'writes `merged = "<sha>"` on that entry' in flat
+    assert "his decisions to `quality/decisions.toml` before the next advise" in flat
+    agents = (REPO / "AGENTS.md").read_text(encoding="utf-8")
+    assert "**Decided before**" in agents and "spec `087-decided-before`" in agents

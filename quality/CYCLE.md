@@ -9,7 +9,8 @@ your memory: the framework should support all this."*
 
 Everything the commands below read is committed under `quality/`: the entries, the scopes, the door, the bar, the weak
 rule, the reader and the adviser (`quality/cycle.toml`); the rubric (`quality/RUBRIC.md`, `RUBRIC_VERSION`); the reader
-and adviser prompts (`quality/readers/`). Run every command from the keel-e2e-eval checkout's root (the main checkout,
+and adviser prompts (`quality/readers/`); and **the founder's decisions** on what earlier cycles found
+(`quality/decisions.toml`, spec 087 -- step 2). Run every command from the keel-e2e-eval checkout's root (the main checkout,
 whose `runs/` holds the bundles), with `export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` in the shell.
 **Every walk, every reader call and every adviser call is paid and runs only on the founder's word**; nothing here runs
 from `make eval`, `make unit`, the matrix, a checker or a schedule.
@@ -21,6 +22,7 @@ from `make eval`, `make unit`, the matrix, a checker or a schedule.
 | What is the current score? | `quality/TABLE.md`'s head: *this cycle*, *the baseline*, *the bar* -- and the latest record in `quality/cycles/` |
 | What changed? | the latest record's *Against the baseline* and *Against the previous cycle*; `TABLE.md`'s *Moved since the baseline* |
 | What is proposed? | `quality/cycles/<record>-advice.md` beside that record (absent until step 3 is run) |
+| What has the founder already decided? | `quality/decisions.toml`; the record's and the advice's *Decided before* |
 | What is on the homepage? | `quality/BASELINE.md` (the cycle accepted last, its studies and score files) and keel-web `public/sample/index.json` |
 
 `make quality-due` (free) says whether a cycle is due, and why (step 6).
@@ -62,6 +64,20 @@ make quality-walk DRY=1 ENTRIES=21-codyco SCOPES=PROBLEM WHY="dry"   # the plan 
   moved mid-cycle): a cycle whose walks stopped is scored on fewer screens than a whole one -- then the weak rows with their fix location (the design's §1: registry row, shared file,
   code transform, no model) and *instead* lines, and *Moved since the baseline* (each row that moved, turned weak or
   mended, with its *instead* lines). The record's *Against the previous cycle* gives the per-study delta.
+- **Decided before** (spec 087; the founder, 2026-10-29: *"all the decisions we made should be recorded so that the
+  next time the cycle runs we don't show the same things and have to go through the decision again"*): the record
+  matches every weak row against `quality/decisions.toml`, one `[[decision]]` per decision -- `id`, `cycle`,
+  `proposals`, `row` (scope, audience, dimension, screen: a string, a list, or `*`; dimension `-` is a row with
+  none), `fix` (the fix location as the cycle names it, or a free label for a product ask), `decision` (`taken` |
+  `declined` | `held`), `spec` (on `taken`), `until` (`spec-merged` | `never` | a cycle id), `why` (his words), and
+  `merged` once the coordinator writes it. A row whose `row` and `fix` match a decision is **snoozed** while its
+  `until` holds -- `never` always; a cycle id through that cycle; `spec-merged` until `merged = "<cloud or web sha>"`
+  is on the entry -- and is listed under **Decided before** (the decision's id, its word, its spec, its why) instead
+  of *Weak rows*; the advise line counts only the rest. A `fix` matches when it is the row's category, names the file
+  or phrase its fix location names (whole; `dimension-registry.json` is every `registry row`), or is `*`; a free label
+  (*a third persona option*) snoozes nothing -- it is listed when declined, and the adviser reads it (step 3). `make
+  unit` refuses a decisions file with a field missing, a word or an until not one of the three, or a row naming a
+  scope, audience or screen the cycle does not score; `make quality-walk` refuses it before any paid step.
 - **Command**: none (`make read-table BASELINE=1 CYCLE=<record>` rebuilds it, free, if needed).
 - **The founder decides**: advise (step 3), rerun after a change he already has in mind (step 4), or accept (step 5).
 
@@ -78,9 +94,20 @@ make quality-advise CYCLE=quality/cycles/<record>.md
   keel-cloud checkout (the registry row's `founder` / `respondent` / `follow_up` block, or the instruction file's named
   section). It answers with one proposed edit: the new text, three sentences of why, and the rung (words / effort /
   split -- the design's §5 ladder).
-- **What it costs**: one call per weak row (an estimate: about $0.10 each on the founder's plan) and a one-word probe.
+- **Decided before** (spec 087): a weak row snoozed by `quality/decisions.toml` (step 2) is **not sent** and not
+  counted; the advice page lists it at its end under *Decided before*, one line each, so the founder sees what was
+  not advised and why (a taken decision whose spec has merged no longer snoozes: its row competed). When every weak
+  row is decided, nothing is sent and nothing is written. The adviser's prompt carries, for its row, the declined
+  decisions whose `row` matches (a `*` row matches every row) with their whys in full, as *what the founder has already
+  said no to*; its answer names in `reopens` any it goes against, and such a proposal is **refused** and recorded by
+  row naming the decision, as a special case is (spec 081 FR-6).
+- **What it costs**: one call per weak row not decided before (an estimate: about $0.10 each on the founder's plan) and a one-word probe.
 - **What it writes**: `quality/cycles/<record>-advice.md`. **Commit it.** It is **never applied**.
-- **The founder decides**: which proposals to take. A taken proposal becomes a **keel-cloud spec** -- a registry row or
+- **The founder decides**: which proposals to take -- and every proposal is decided: taken, declined or held.
+  **After every walk-through with him, the coordinator adds his decisions to `quality/decisions.toml` before the next
+  advise** (one entry per decision, his why in his words, the specs a taken one became), and **after every merge of a
+  spec a decision names, writes `merged = "<sha>"` on that entry**, so the next cycle measures the fix and the row
+  competes again. A taken proposal becomes a **keel-cloud spec** -- a registry row or
   an instruction file, with the spoken-form acceptance line where a respondent wording moves -- built, gated and merged
   like any other. An `effort` rung is a routing change (a keel-cloud spec too); `split` is a contract change.
 
@@ -128,4 +155,6 @@ make quality-accept CYCLE=quality/cycles/<record>.md
 - Scores of two rubric versions are never averaged or compared; a rubric change (`RUBRIC_VERSION`) means a new cycle.
 - The bar and the weak rule live in `quality/cycle.toml`, held equal to `quality/rubric.py` (the commands refuse when
   they differ); a change is a commit, so every record names the bar it was held to.
+- A row the founder has decided is not advised again while his decision holds (`quality/decisions.toml`, spec
+  087); he reopens a declined one by editing its entry, never by the adviser asking again.
 - The adviser proposes; a keel-cloud spec applies. `quality-accept` is local; the keel-web deploy is its own step.
