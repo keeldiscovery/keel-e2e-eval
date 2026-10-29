@@ -81,7 +81,15 @@ def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens
         assert d["why"].strip()
     assert {d["decision"] for d in found} == {"taken", "declined", "held"}
     assert {d["until"] for d in found} == {"spec-merged", "never", "20261028-f48f256"}
-    assert not any(d.get("merged") for d in found), "nothing it names had merged when it was written"
+    # spec 085 FR-4 (087's duty, written on master at c474dfe): the coordinator marks a spec-merged entry `merged` when
+    # the spec it names lands -- nothing had when the file was written; eight have since, D-01 keel-cloud 149's
+    merged = {d["id"]: d["merged"] for d in found if d.get("merged")}
+    assert merged == {"D-2026-10-29-01": "73426a67", "D-2026-10-29-02": "1b33643f", "D-2026-10-29-03": "0eb15f8f",
+                      "D-2026-10-29-05": "21395ab0", "D-2026-10-29-13": "e3d34831", "D-2026-10-29-14": "e3d34831",
+                      "D-2026-10-29-15": "1cf2ebc3", "D-2026-10-29-19": "078fe157"}
+    for d in found:
+        if d.get("merged"):
+            assert d["decision"] == "taken" and d["until"] == "spec-merged", d["id"]
 
 
 def test_the_screens_are_the_ones_the_cycle_scores():
@@ -334,10 +342,15 @@ def test_a_proposal_that_does_not_say_what_it_reopens_is_not_read_when_a_decline
 
 # ------------------------------------------------------------------------------------------------ the acceptance
 
-def test_the_dry_advise_on_cycle_f48f256_snoozes_every_weak_row_and_sends_nothing(capsys):
+def test_the_dry_advise_on_cycle_f48f256_snoozes_every_weak_row_and_sends_nothing(capsys, tmp_path):
     """The acceptance: every weak row of cycle 20261028-f48f256 is snoozed under a decision of 2026-10-29 (the whole
-    page was decided), each by a decision that names its advice number, and nothing is sent."""
-    code, said = dry(capsys, dec.DECISIONS_PATH, record=F48)
+    page was decided), each by a decision that names its advice number, and nothing is sent. Spec 085 FR-4: read on the
+    file as it was written (no `merged` mark yet); the file of record, with eight marked since, is the next test's."""
+    unmerged = re.sub(r'(?m)^merged = "[0-9a-f]+"\n', "", dec.DECISIONS_PATH.read_text(encoding="utf-8"))
+    assert "merged = " not in unmerged
+    as_written = tmp_path / "decisions.toml"
+    as_written.write_text(unmerged, encoding="utf-8")
+    code, said = dry(capsys, as_written, record=F48)
     assert code == 0
     listed = re.findall(r"^- ((?:COMMERCIAL|PROBLEM|SOLUTION) · .+?) -- (.+)$", said, re.M)
     advised = re.findall(r"^## (\d+)\. (.+?) -- weak on", F48_ADVICE.read_text(encoding="utf-8"), re.M)
@@ -349,6 +362,23 @@ def test_the_dry_advise_on_cycle_f48f256_snoozes_every_weak_row_and_sends_nothin
         assert ids, row
         assert any(int(number) in found[i]["proposals"] for i in ids), f"{row} (proposal {number}): {ids}"
     assert "cycle 20261028-f48f256: 62 weak row(s), every one decided before" in said and "[1/" not in said
+
+
+def test_a_merged_decision_ends_its_snooze_on_the_file_of_record(capsys):
+    """Spec 085 FR-4 (087 FR-2's `until = "spec-merged"`): with the eight `merged` marks of master, the rows decided only
+    by a merged spec are sent to the adviser again (47 prompts, none made on a dry run) and the 15 decided by a
+    declined, held or unmerged entry stay snoozed -- each listed by an entry still active."""
+    code, said = dry(capsys, dec.DECISIONS_PATH, record=F48)
+    assert code == 0
+    listed = re.findall(r"^- ((?:COMMERCIAL|PROBLEM|SOLUTION) · .+?) -- (.+)$", said, re.M)
+    assert len(listed) == 15
+    found = {d["id"]: d for d in dec.load()}
+    for row, said_of in listed:
+        ids = re.findall(r"\*\*(D-2026-10-29-\d\d)\*\*", said_of)
+        assert ids and not any(found[i].get("merged") for i in ids), row
+    assert "dry run: 47 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 15 weak row(s) " \
+           "decided before, not sent" in said
+    assert "[1/47] COMMERCIAL · founder · - · context" in said, "149's row (D-01, merged) goes back to the adviser"
 
 
 def test_the_runbook_and_the_agents_file_carry_the_decisions():
