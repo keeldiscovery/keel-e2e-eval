@@ -31,8 +31,9 @@ brief is written. Leg two is the same leg two: the founder's journey is the foun
 whichever AI is answering it.
 
 It is also **the only run in this repository that spends the company's money** rather than the
-founder's own plan -- about 1,250 credits, $12.50 at list price and about $2.44 of actual
-inference (design §6.3) -- which is why `matrix/cells.py` buys it once a Saturday and refuses it
+founder's own plan -- about 1,355 credits, $13.55 at list price and about $2.44 of actual
+inference (design §6.3, re-summed at price version 12: readings 0, 30 at each person's Begin --
+keel-cloud 156, spec 088) -- which is why `matrix/cells.py` buys it once a Saturday and refuses it
 in `per_change` by name.
 
 Two legs, one runtime, and the runtime is what joins them -- on three of the four doors.
@@ -100,8 +101,8 @@ import pytest
 
 from evals import corpus_scenario
 from evals.preludes import approve_at_connect, own_ai_door, sign_in_with_the_code
-from harness import (agent_host, canary as canary_mod, keel_host as keels_ai, refusals,
-                     vectors_script)
+from harness import (agent_host, canary as canary_mod, interview_charge, keel_host as keels_ai,
+                     refusals, vectors_script)
 from stack import remote
 from harness.browser import Auth, Chat, Landing, Shell
 from harness.evidence import finalize_run, write_block, write_generated, write_host
@@ -1186,9 +1187,12 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                                   "what this journey cost Keel, in micro-dollars": spent_micro,
                                   "...in dollars": round(spent_micro / 1_000_000, 4),
                                   "what the design expects": (
-                                      "a five-participant journey is 1,250 credits ($12.50 at "
-                                      "list) and about $2.44 of Keel's own inference "
-                                      "(ai-credits-design.md §6.3)"),
+                                      f"a five-participant journey is "
+                                      f"{interview_charge.FIVE_PARTICIPANTS:,} credits "
+                                      f"(${interview_charge.FIVE_PARTICIPANTS / 100:.2f} at list: "
+                                      "§6.3's 1,250 with each reading at 0 and 30 at each "
+                                      "person's Begin, keel-cloud 156) and about $2.44 of Keel's "
+                                      "own inference (ai-credits-design.md §6.3)"),
                                   "models, recorded and asserted against nothing": sorted(
                                       {(r["model_requested"], r["model_used"]) for r in per_job})})
                 assert per_job, "keel-cloud reported no jobs at all for this project"
@@ -1236,7 +1240,8 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                          None if credits_before is None or _credits_now() is None
                          else credits_before - _credits_now()),
                      "what the design expects a five-participant journey to cost": (
-                         "1,250 credits (ai-credits-design.md §6.3) -- a figure written for the "
+                         f"{interview_charge.FIVE_PARTICIPANTS:,} credits (ai-credits-design.md §6.3 "
+                         "at price version 12: readings 0, 30 a Begin) -- a figure written for the "
                          "classic walk; the corridor's own spend is the ledger's, recorded here"),
                      "what Keel actually paid, in micro-dollars": sum(
                          r["actual_cost_micro_usd"] or 0 for r in per_job),

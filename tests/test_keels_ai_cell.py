@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from harness import agent_host, keel_host
+from harness import agent_host, interview_charge, keel_host
 from matrix import cells as matrix_cells
 
 REPO = Path(__file__).resolve().parent.parent
@@ -438,7 +438,8 @@ def test_the_make_target_is_the_journey_with_the_host_axis_set_and_nothing_else(
 def test_the_make_target_says_whose_money_it_spends():
     head = MAKEFILE.split("keels-ai: venv", 1)[0]
     assert "COMPANY'S MONEY" in head.upper()
-    assert "$2.44" in head and "1,250 credits" in head
+    # spec 088 (keel-cloud 156): §6.3's five-participant row at price version 12 -- 1,250 -> 1,355
+    assert "$2.44" in head and f"{interview_charge.FIVE_PARTICIPANTS:,} credits" in head and "$13.55" in head
 
 
 # ------------------------------------------------- the other door, and the order the legs run in

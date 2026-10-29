@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from evals import interviewer_marks as marks
+from harness import interview_charge as charge
 from harness import interviewer_fake as fake
 from stack import ledger
 from stack.config import load_config
@@ -38,7 +39,9 @@ CHOICE_INVITATION = str(uuid.uuid4())
 
 
 def _reading(action: str, reason: str | None) -> dict:
-    return {"kind": "HOLD", "credits": -35, "action": action, "price_version": fake.PRICE_VERSION, "project_id": PROJECT,
+    # spec 088 (keel-cloud 156): a reading's and the themes' HOLD is written at 0 from price version 12 (was -35 here,
+    # an invented figure; INTERPRET was 10 and THEMES 8 at version 11)
+    return {"kind": "HOLD", "credits": -charge.READ_PRICES[action], "action": action, "price_version": fake.PRICE_VERSION, "project_id": PROJECT,
             "inference_job_id": str(uuid.uuid4()), "reason": reason}
 
 
@@ -813,7 +816,7 @@ def test_the_price_word_finds_a_price_and_leaves_plain_words_alone():
 # ------------------------------------------------------------------------------- the fake and charge v9, restated
 
 def test_charge_v9_and_the_fixed_lines():
-    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (11, 400, 2_000_000, 400)
+    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (12, 400, 2_000_000, 400)
     # spec 083 (keel-cloud 143): the two studio faces, DAPHNE preselected; 110's four retired with 094's (less DAPHNE)
     assert fake.FACES == ("DAPHNE", "SASKIA") and fake.PRESELECTED == "DAPHNE"
     assert fake.FACE_NAMES == {"DAPHNE": "Daphne", "SASKIA": "Saskia"}

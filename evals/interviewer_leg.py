@@ -81,6 +81,7 @@ import requests
 
 from evals import interviewer_marks as marks
 from harness import classifier_guard as guard
+from harness import interview_charge as charge
 from harness import interviewer_fake as fake
 from harness import interviewer_screens as ivs
 from harness import interviews_screens as iv
@@ -304,9 +305,15 @@ def _leg(j, *, short: bool) -> dict:
             others = [x for x in record["ledger"] if x.get("action") not in fake.ACTIONS
                       and not (x.get("idempotency_key") or "").startswith(stack_ledger.key_prefix(SPEC))
                       and not (x.get("inference_job_id") and x.get("inference_job_id") in reading_jobs)]
-            h.record_assert({"other rows": []}, {"rows": [(x["kind"], x.get("action"), x["credits"])
-                                                          for x in record["ledger"]], "others": others})
+            # spec 088 (keel-cloud 156, price version 12): the readings and the themes are priced 0 -- every HOLD of
+            # theirs is written at 0 (INTERPRET was 10 and THEMES 8), so none moves `creditsAvailable`
+            priced_reads = [x for x in record["ledger"] if x.get("kind") == "HOLD" and x.get("action") in
+                            marks.READ_ACTIONS and int(x.get("credits") or 0) != -charge.READ_PRICES[x["action"]]]
+            h.record_assert({"other rows": [], "reading HOLDs not at 0": []},
+                            {"rows": [(x["kind"], x.get("action"), x["credits"]) for x in record["ledger"]],
+                             "others": others, "reading HOLDs not at 0": priced_reads})
             assert not others, others
+            assert not priced_reads, priced_reads
     finally:
         _restore(j, wire, founder_id, run)
         if record.get("arrivals"):
@@ -2854,6 +2861,11 @@ def _read_on_arrival(j, wire: _Wire, record: dict, invitation_id: str, whose: st
         assert invitation_id in (batch.get("invitationIds") or []), batch
         assert batch.get("status") not in ("RUNNING", "PENDING"), batch
         assert [x for x in mine if x.get("kind") == "HOLD" and x.get("action") == "INTERPRET"], mine
+        # spec 088 (keel-cloud 156, price version 12): the story's reading is priced 0 -- its HOLD is written at 0 (was
+        # -10), so a reading never moves the balance; its cost is inside the person's one INTERVIEW row
+        priced = [x for x in mine if x.get("kind") == "HOLD" and int(x.get("credits") or 0) != -charge.READ_PRICES[
+            "INTERPRET"]]
+        assert not priced, {"a reading HOLD not at 0 (price version 12)": priced}
 
 
 def _read_what_is_left(j, wire: _Wire, record: dict) -> None:
@@ -3177,6 +3189,7 @@ def _change_face(j, wire: _Wire, record: dict) -> None:
         assert status == 200 and record["change"]["face_after"] == CHANGED_FACE, view
         assert pressed["popup"]["title"] == ivs.CHANGE_FACE_TITLE, pressed["popup"]
         assert pressed["popup"]["confirm"] == f"Record {fake.FACE_NAMES[CHANGED_FACE]}", pressed["popup"]
+        # spec 088: exactly the change's 400 -- a reading landing meanwhile is priced 0 since price version 12
         assert before - after == fake.CREDITS, record["change"]
         assert stored.get("face") == CHANGED_FACE and stored.get("status") == "READY", stored.get("status")
         assert not old or gone.get("status") == 404, gone
