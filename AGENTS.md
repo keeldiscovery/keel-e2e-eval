@@ -496,9 +496,22 @@ sent to the adviser, not counted. The adviser's prompt carries the declined deci
 and a proposal that names one in `reopens` is refused by row, naming it (as 081 FR-6 refuses a special case). **The
 coordinator's duty** (`quality/CYCLE.md` step 3): after a walk-through with the founder, add his decisions before
 the next advise; after a merge of a spec a decision names, write `merged = "<sha>"` on it so the row competes again.
-`make quality-advise CYCLE=quality/cycles/20261028-f48f256.md DRY=1` lists all 62 weak rows under the decisions of
-2026-10-29 and sends nothing. No model, no new LLM place; readers, rubric, weak rule, `REVISION` and the marks
+`make quality-advise CYCLE=quality/cycles/20261028-f48f256.md DRY=1` listed all 62 weak rows under the decisions of
+2026-10-29 and sent nothing; with the eight `merged` marks of 2026-10-29/30 it lists 15 and would send 47 (spec 085). No model, no new LLM place; readers, rubric, weak rule, `REVISION` and the marks
 unchanged.
+
+**The read-back in two sentences** (spec `085-read-back-mirror`, 2026-10-29; keel-cloud 149, merged `73426a67`,
+contract 44 unchanged). `vectors_script.sentence` mirrors 149's `ReadBack.sentence`: *{Segment}. When {when}, they want
+to {what}, counting the last {window}.* -- the segment whole (`qualifiers.segment`, 148's own *whose* / *that* /
+*which* kept, said once by `in_core`), a full stop, the circumstance with its first letter raised, and the job on the
+people's verb (`qualifiers.they`: *they {job}* where it already opens *want to* / *need to* / *try to* / *have to* /
+*must*, *they are trying to* on *trying to*). The harness's draw (`vectors_script.condition_from(part, before)`,
+`drawn_condition`) follows 149 FR-3 through `qualifiers`: a list *A, B or C* is one part (`parts`), a participle is its
+verb (`bare`), *whose jobs run on ...* draws *have jobs that run on ...* (`thing_of_theirs`), an organisation's
+participle or relative clause draws *work at a {head} that {verb}s ...* (`organisations_clause`, 131's frame before it),
+so the tool branch draws only where the people are the subject. `leg_context`'s strict compare reads the mirror, so the
+journeys moved with it; 17-expanse's *have 100 or more GPUs* is 145's amount branch, which neither 149 nor the harness
+draws. `make unit` on a keel-cloud-docs snapshot at `73426a67`; `make eval K=s005` / `K=s007` owed on a stack at 149+.
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
