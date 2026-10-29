@@ -20,6 +20,7 @@ from quality import cycle, readers, rubric, table
 from tests.test_quality_078 import BUNDLE, DESIGN, ENTRIES, GUIDE, SCORES, SCREEN_ANSWER, SPOKEN_ANSWER, _run
 from tests.test_quality_078 import wired  # noqa: F401 - the fixture, shared
 from tests.test_quality_cycle_079 import CLOUD, RECORD, WEAK_ROW, _advise
+from tests.test_quality_cycle_079 import no_decisions  # noqa: F401 - the fixture: no decision on file (spec 087)
 
 FIXTURE_CLOUD = Path(__file__).parent / "fixtures" / "quality" / "keel-cloud"
 R6_ROW = "| R6 | **Said aloud.**"

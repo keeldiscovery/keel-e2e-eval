@@ -85,6 +85,13 @@ def build_runs(dest: str | Path) -> Path:
     return dest
 
 
+@pytest.fixture(autouse=True)
+def no_decisions(monkeypatch, tmp_path):
+    """Spec 087: the fixture cycle is read with no decision on file -- the record is 079's to the byte and its weak
+    row is advised. The file of record (`quality/decisions.toml`) and the snooze are spec 087's own tests."""
+    monkeypatch.setattr(cycle, "DECISIONS", tmp_path / "no-decisions.toml")
+
+
 def git_checkout(path: Path, files: dict[str, str]) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     for rel, text in files.items():

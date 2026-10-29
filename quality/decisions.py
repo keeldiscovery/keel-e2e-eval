@@ -157,3 +157,115 @@ def load(path: str | Path | None = None) -> list[dict]:
     if twice:
         raise DecisionsError(f"{path.name}: the id {', '.join(twice)} is used twice")
     return out
+
+
+# ------------------------------------------------------------------------------------------------ FR-2 the match
+
+def _norm(text: str) -> str:
+    return " ".join(str(text).lower().split())
+
+
+def row_matches(decision: dict, row: dict) -> bool:
+    """The decision's `row` against a weak row (`scope`, `audience`, `dimension`, `kind`): `*` any, a list a set, a
+    dimension of `-` only a row with none."""
+    for key, field in (("scope", "scope"), ("audience", "audience"), ("dimension", "dimension"), ("screen", "kind")):
+        allowed = decision["_row"][key]
+        if allowed is not None and (row.get(field) or NO_DIMENSION) not in allowed:
+            return False
+    return True
+
+
+def fix_matches(decision: dict, fix: dict) -> bool:
+    """The decision's `fix` against the row's fix location (`category`, `place`, as quality/table.py names it): `*`
+    any; else one of its values is the category, or names the file or phrase the place names (whole, case and spacing
+    aside), or is `dimension-registry.json` on a `registry row`. A free label for a product ask names no fix location
+    the cycle writes, so it never snoozes a row -- it is listed and, when declined, read by the adviser (FR-3)."""
+    values = decision["_fix"]
+    if values is None:
+        return True
+    category, place = _norm(fix.get("category") or ""), _norm(fix.get("place") or "")
+    for value in values:
+        v = _norm(value)
+        if v == category or (v == REGISTRY_FILE and category == REGISTRY_CATEGORY):
+            return True
+        if v and re.search(rf"(?<![\w.-]){re.escape(v)}(?![\w-])", place):
+            return True
+    return False
+
+
+def active(decision: dict, cycle_id: str | None) -> bool:
+    """Whether the decision's `until` still holds on this cycle: `never` always; `spec-merged` until the entry says
+    `merged`; a cycle id through that cycle (records sort by name: the date, then the build)."""
+    until = decision["until"]
+    if until == "never":
+        return True
+    if until == "spec-merged":
+        return not decision.get("merged")
+    return cycle_id is None or cycle_id <= until
+
+
+def matching(row: dict, decisions: list[dict], cycle_id: str | None) -> list[dict]:
+    return [d for d in decisions if active(d, cycle_id) and row_matches(d, row) and fix_matches(d, row["fix"])]
+
+
+def summary(decision: dict) -> dict:
+    """What a record and an advice page keep of a decision: id, word, why, specs, until."""
+    out = {"id": decision["id"], "decision": decision["decision"], "until": decision["until"],
+           "why": decision["why"].strip()}
+    if decision["decision"] == "taken":
+        spec = decision.get("spec")
+        out["spec"] = [spec] if isinstance(spec, str) else list(spec or [])
+    return out
+
+
+def split(rows: list[dict], decisions: list[dict], cycle_id: str | None, key) -> tuple[list[dict], list[dict]]:
+    """(the rows still to advise, the snoozed ones) -- a snoozed one as `{row, weak_on, decisions}`, `key(row)` its
+    name."""
+    open_rows, snoozed = [], []
+    for row in rows:
+        found = matching(row, decisions, cycle_id)
+        if found:
+            snoozed.append({"row": key(row), "weak_on": list(row.get("weak_on") or []),
+                            "decisions": [summary(d) for d in found]})
+        else:
+            open_rows.append(row)
+    return open_rows, snoozed
+
+
+def _until_words(d: dict) -> str:
+    if d["until"] == "never":
+        return "for good"
+    if d["until"] == "spec-merged":
+        return "until its spec is merged"
+    return f"through cycle {d['until']}"
+
+
+def line(snoozed: dict) -> str:
+    """One line of *Decided before*: the row, then each decision that snoozes it."""
+    said = []
+    for d in snoozed["decisions"]:
+        spec = f" ({'; '.join(d['spec'])})" if d.get("spec") else ""
+        said.append(f"**{d['id']}** {d['decision']}{spec}, {_until_words(d)}: {d['why']}")
+    return f"- {snoozed['row']} -- " + " / ".join(said)
+
+
+# ------------------------------------------------------------------------------------------------ FR-3 the adviser
+
+def declined_for(row: dict, decisions: list[dict], cycle_id: str | None) -> list[dict]:
+    """The active declined decisions whose `row` matches this row (a `*` row matches every one), whatever their fix."""
+    return [d for d in decisions if d["decision"] == "declined" and active(d, cycle_id) and row_matches(d, row)]
+
+
+def _row_words(d: dict) -> str:
+    def one(key):
+        v = d["_row"][key]
+        return "any" if v is None else ", ".join(sorted(v))
+    return f"scope {one('scope')}; audience {one('audience')}; dimension {one('dimension')}; screen {one('screen')}"
+
+
+def prompt_lines(declined: list[dict]) -> str:
+    """The adviser's `{{declined}}`: each declined decision, its row, what was proposed, and the founder's why."""
+    if not declined:
+        return "(The founder has declined nothing on this row.)"
+    return "\n".join(f"- {d['id']} -- on {_row_words(d)}; what was proposed: {'; '.join(d['_fix'] or ['anything'])}. "
+                     f"The founder: {d['why'].strip()}" for d in declined)

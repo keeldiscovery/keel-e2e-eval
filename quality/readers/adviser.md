@@ -1,4 +1,4 @@
-# The adviser (spec 079 FR-4; spec 081 FR-6)
+# The adviser (spec 079 FR-4; spec 081 FR-6; spec 087 FR-3)
 
 The prompt the adviser is sent, once per weak row of a cycle (`make quality-advise CYCLE=<record>`). `quality/cycle.py`
 fills every `{{name}}`: `{{row}}` the row (scope, audience, dimension, screen kind), `{{criteria}}` the criteria the row
@@ -7,7 +7,9 @@ that failed them -- each with its entry, its scores, the reader's whys and *inst
 location (the design's §1, as `quality/table.py` names it), and `{{current}}` **the current text at that location**,
 read from the keel-cloud checkout stack.toml names: the registry row's `founder` or `respondent` block (or its
 `follow_up`), or the named section of the instruction file, or a line saying no model writes these words. `{{ladder}}`
-is the design's §5 ladder. Nothing above the first marker is sent. A change to these words is a change to the adviser:
+is the design's §5 ladder. `{{declined}}` (spec 087 FR-3) is what the founder has already said no to on this row:
+the declined decisions of `quality/decisions.toml` whose `row` matches it (a `*` row matches every row), each with
+its `why` in full. Nothing above the first marker is sent. A change to these words is a change to the adviser:
 say why in the commit.
 
 **The adviser never proposes a special case** (spec 081 FR-6; keel-cloud-docs
@@ -16,6 +18,12 @@ this if-else in the instruction set'; the main fix should be: is it persona awar
 `persona_aware`; `quality/cycle.py` refuses to write a proposal marked false, or whose text adds a condition on who the
 people are, their trade, their country or the product (`special_case`), and records the refusal in the advice file by
 row -- the founder sees that a special case was the model's first idea and was not taken.
+
+**The adviser never reopens a declined decision** (spec 087 FR-3; the founder 2026-10-29: *"whatever the agent found
+and we decided not to go ahead should be recorded, so that it's kind of snoozed next time"*). Its answer carries
+`reopens`, the ids of the quoted decisions its edit goes against; `quality/cycle.py` refuses a proposal that names
+one (`reopened`) and records the refusal by row, naming the decision, as it refuses a special case. A weak row the
+founder has decided is never sent at all: it is listed under *Decided before*.
 
 The adviser **proposes and never applies** (spec 079 judgement call 1): its answer is written to
 `quality/cycles/<record>-advice.md`, the founder says which proposals to take, and a taken one becomes a keel-cloud
@@ -48,6 +56,10 @@ those screens, so that the row stops being weak.
 
 {{current}}
 
+## What the founder has already said no to
+
+{{declined}}
+
 ## The ladder (propose the lowest rung that will fix it)
 
 {{ladder}}
@@ -75,9 +87,17 @@ on. Say whether your edit is persona-aware in `persona_aware`: `true` when it ha
 that hold for every trade, `false` when it adds a condition on who the people are. A proposal with `false`, or with such
 a condition in its text, is refused and recorded as refused, not taken.
 
+## What the founder has declined stays declined
+
+The decisions quoted under *What the founder has already said no to* were made by the founder, with his reasons. Your
+edit must not bring any of them back, here or in other words: not on this row, not by moving the same idea to a
+neighbouring sentence. If the only fix you can see goes against one, say so: name its id in `reopens` -- the proposal
+is then recorded as refused, naming the decision, and the founder sees it. When it goes against none, `reopens` is
+`[]`.
+
 ## Your answer
 
 Reply with ONE JSON object and nothing else -- no prose before or after it, no code fence:
 
-{"new_text": "the whole new text for the location", "why": "three sentences: what fails, what the edit changes, why it will hold on the other entries", "rung": "words" | "effort" | "split", "persona_aware": true | false}
+{"new_text": "the whole new text for the location", "why": "three sentences: what fails, what the edit changes, why it will hold on the other entries", "rung": "words" | "effort" | "split", "persona_aware": true | false, "reopens": [] | ["<decision id>", ...]}
 <!-- advise:end -->

@@ -13,7 +13,8 @@
 - **`advise`** -- `make quality-advise CYCLE=<record> [DRY=1]` (paid, FR-4): one bounded call per weak row of the
   cycle, `quality/readers/adviser.md` filled with the row, its failing screens, its fix location and **the current
   text at that location** read from the keel-cloud checkout; the proposals go to `quality/cycles/<record>-advice.md`,
-  **never applied**.
+  **never applied**. A weak row the founder has already decided (`quality/decisions.toml`, spec 087) is snoozed:
+  listed under *Decided before* with the decision's word and why, not sent; the adviser is told what he declined.
 - **`accept`** -- `make quality-accept CYCLE=<record>` (free, FR-6): `quality/BASELINE.md` rewritten from that cycle's
   score files (the old one kept under `quality/baselines/<date>.md`), then the gallery built from that cycle's bundles
   behind the readers' gate (`evals/gallery.py --scores`), what changed in the snapshot, and the sentence the keel-web
@@ -40,6 +41,7 @@ import tomllib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from quality import decisions as dec
 from quality import readers, rubric, table
 
 REPO = Path(__file__).resolve().parent.parent
@@ -47,6 +49,8 @@ QUALITY = REPO / "quality"
 CYCLE_TOML = QUALITY / "cycle.toml"
 CYCLES_DIR = QUALITY / "cycles"
 ADVISER_PROMPT = QUALITY / "readers" / "adviser.md"
+#: Spec 087: the founder's decisions -- a weak row one of them covers is snoozed, not advised again.
+DECISIONS = QUALITY / "decisions.toml"
 RUNS_DIR = REPO / "runs"
 SCORES_REL = "quality/scores"
 
@@ -126,6 +130,16 @@ def load_config(path: Path | None = None, *, readers_toml: Path | None = None) -
     g.setdefault("scope_order", ["SOLUTION", "PROBLEM", "COMMERCIAL", "SOLUTION_COMMERCIAL", "ALL"])
     cfg["cadence"].setdefault("days", 7)
     return cfg
+
+
+def load_decisions(path: Path | str | None = None) -> list[dict]:
+    """`quality/decisions.toml` (spec 087 FR-1), every entry checked -- refused by name when it is not that shape;
+    no file is no decision."""
+    path = Path(path or DECISIONS)
+    try:
+        return dec.load(path)
+    except dec.DecisionsError as reason:
+        raise Refused(f"the decisions file {_rel(path)} is not the shape spec 087 FR-1 reads: {reason}") from reason
 
 
 # ------------------------------------------------------------------------------------------------ the checkouts
@@ -468,8 +482,11 @@ def walks_of(record: dict, root: Path | None = None) -> dict:
 def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: str, web_sha: str, started: str,
             ended: str, seconds: float, cfg: dict, baseline_path: Path, cycles_dir: Path, root: Path | None = None,
             cloud_branch: str | None = None, web_dirty: bool = False, scores_dir: str = SCORES_REL,
-            entries_arg: str | None = None) -> tuple[str, dict]:
-    """The cycle record (FR-2): markdown for the founder, and the same facts as a data block the other commands read."""
+            entries_arg: str | None = None, decisions: list[dict] | None = None) -> tuple[str, dict]:
+    """The cycle record (FR-2): markdown for the founder, and the same facts as a data block the other commands read.
+    Spec 087 FR-2: a weak row a decision covers is listed under *Decided before* (`decided_before`), not to advise."""
+    if decisions is None:
+        decisions = load_decisions()
     scored = [s for s in studies if s.score_file]
     files = load_files([s.score_file for s in scored], root)
     current, _ = table.split_by_version(files)
@@ -477,6 +494,7 @@ def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: 
     head = _head_of(files)
     rows = table.rows(latest) if latest else []
     weak = [table.row_key(r) for r in rows if r["weak"]]
+    _, snoozed = dec.split([r for r in rows if r["weak"]], decisions, name, table.row_key)
     routing = sorted({str(f.get("routing_version")) for f in files}) or ["?"]
 
     baseline = against_baseline = None
@@ -529,6 +547,8 @@ def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: 
         "cost": {"walk_usd": walk_usd, "read_usd": read_usd, "total_usd": round(walk_usd + read_usd, 4)},
     }
     data["walks"] = walks_of(data, root)
+    if snoozed:                                     # spec 087: absent when nothing is decided, as a 079 record reads
+        data["decided_before"] = snoozed
     return render_record(data), data
 
 
@@ -593,15 +613,29 @@ def render_record(d: dict) -> str:
                                  f"`{s['score_file']}`" if s.get("score_file") else "--", _pct(s.get("score_pct")),
                                  _pct(s.get("flagged_pct")), f"{s['walk_usd']}" if s.get("walk_usd") is not None else "--",
                                  f"{s['read_usd']}" if s.get("read_usd") is not None else "--", f"{minutes} |"]))
-    lines += ["", f"## Weak rows ({len(d['weak_rows'])}) -- their fix locations and *instead* lines are in TABLE.md", ""]
-    lines += [f"- {k}" for k in d["weak_rows"]] or ["- none"]
+    snoozed = d.get("decided_before") or []
+    decided = {s["row"] for s in snoozed}
+    to_advise = [k for k in d["weak_rows"] if k not in decided]
+    if snoozed:
+        lines += ["", f"## Weak rows ({len(d['weak_rows'])}: {len(to_advise)} to advise, {len(snoozed)} decided before) "
+                      "-- their fix locations and *instead* lines are in TABLE.md", ""]
+        lines += [f"- {k}" for k in to_advise] or ["- none to advise: every weak row was decided before (below)"]
+        lines += ["", f"## Decided before ({len(snoozed)}) -- snoozed by `quality/decisions.toml` (spec 087), not sent "
+                      "to the adviser", ""]
+        lines += [dec.line(s) for s in snoozed]
+    else:
+        lines += ["", f"## Weak rows ({len(d['weak_rows'])}) -- their fix locations and *instead* lines are in TABLE.md",
+                  ""]
+        lines += [f"- {k}" for k in d["weak_rows"]] or ["- none"]
+    advise_count = (f"one call per weak row not decided before: {len(to_advise)}" if snoozed
+                    else f"one call per weak row: {len(d['weak_rows'])}")
     c = d["cost"]
     lines += ["", "## Cost and time", "",
               f"Walks ${c['walk_usd']} (Keel's AI, or the CLI's list-price equivalent on the founder's plan), readers "
               f"${c['read_usd']} (the founder's plan), ${c['total_usd']} in all; {round((d['seconds'] or 0) / 60, 1)} "
               "minutes.", "",
               "## What the founder decides now (quality/CYCLE.md)", "",
-              f"1. **Advise** (paid, one call per weak row: {len(d['weak_rows'])}): `make quality-advise CYCLE={rel}`",
+              f"1. **Advise** (paid, {advise_count}): `make quality-advise CYCLE={rel}`",
               f"2. **Rerun** after a keel-cloud change is merged: `make quality-walk ENTRIES={entries} SCOPES={scopes} "
               f"DOOR={d['door']} WHY=\"<why, in his words>\"`",
               f"3. **Accept** (free, on his word): `make quality-accept CYCLE={rel}`", "",
@@ -665,9 +699,11 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
     p.add_argument("--why", default="")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--cycles-dir", default=str(CYCLES_DIR))
+    p.add_argument("--decisions", default="", help=argparse.SUPPRESS)
     a = p.parse_args(argv)
     try:
         cfg = load_config()
+        decisions = load_decisions(a.decisions or None)       # spec 087: refused before any paid step, not after
         entries = resolve_entries(a.entries, cfg)
         scopes = resolve_scopes(a.scopes, cfg)
         door = (a.door or cfg["door"]).strip().lower()
@@ -698,6 +734,8 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
                     for x in step["argv"]]
             print(f"  {i:>3}. {' '.join(argv[4:]) if argv[:1] == ['make'] else ' '.join(argv)}"
                   + (f"   > {_rel(step['log'])}" if step.get("log") else ""))
+        print(f"decisions: {len(decisions)} in quality/decisions.toml (spec 087) -- a weak row one covers is listed "
+              "under Decided before, not advised")
         print(f"then the record: {_rel(record_path)} (and TABLE.md's head); commit both with the score files")
         return 0
     print(f"quality-walk: {len(entries) * len(scopes)} studies on keel-cloud {cloud7}, keel-web {web7}, DOOR={door}; "
@@ -726,7 +764,7 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
     text, data = compose(studies, name=name, why=a.why.strip(), door=door, cloud_sha=cloud7, web_sha=web7,
                          started=started, ended=ended, seconds=round(time.monotonic() - t0, 1), cfg=cfg,
                          baseline_path=table.BASELINE_PATH, cycles_dir=cycles_dir, cloud_branch=git_branch(cloud),
-                         web_dirty=bool(git_dirty(web)), entries_arg=a.entries)
+                         web_dirty=bool(git_dirty(web)), entries_arg=a.entries, decisions=decisions)
     cycles_dir.mkdir(parents=True, exist_ok=True)
     record_path.write_text(text, encoding="utf-8")
     table_argv = [x.replace("CYCLE=<record>", f"CYCLE={record_path}") for x in steps[-1]["argv"]]
@@ -737,6 +775,7 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
     head = data.get("head") or {}
     print(f"cycle record: {_rel(record_path)} -- score_pct {head.get('score_pct')}% against the bar of "
           f"{cfg['bar_pct']:.0f}%, {len(data['weak_rows'])} weak row(s)"
+          + (f" ({len(data['decided_before'])} decided before)" if data.get("decided_before") else "")
           + (f", {data['against_baseline']['verdict'].upper()} than the baseline" if data.get("against_baseline") else ""))
     print(f"commit: git add quality/scores quality/TABLE.md {_rel(record_path)}")
     return 0 if all(s.score_file for s in studies) else 1
@@ -840,7 +879,9 @@ def current_text(row: dict, *, cloud: Path, cfg: dict, sha: str | None = None) -
 
 
 def adviser_prompt(row: dict, files: list[dict], *, cloud: Path, cfg: dict, sha: str | None = None,
-                   template: str | None = None) -> str:
+                   template: str | None = None, declined: list[dict] | None = None) -> str:
+    """The adviser's prompt for one weak row; `declined` (spec 087 FR-3) the decisions the founder has said no to on
+    it, their whys in full."""
     current = current_text(row, cloud=cloud, cfg=cfg, sha=sha)
     means = ", ".join(f"{c.upper()} {v}" for c, v in row["means"].items())
     values = {
@@ -852,11 +893,14 @@ def adviser_prompt(row: dict, files: list[dict], *, cloud: Path, cfg: dict, sha:
             f"\n{also}" for also in row["fix"].get("also") or []),
         "current": f"{current['where']}:\n\n{current['text']}",
         "ladder": LADDER,
+        "declined": dec.prompt_lines(declined or []),
     }
     return readers.fill(template or adviser_template(), values)
 
 
-def parse_advice(raw: str) -> dict:
+def parse_advice(raw: str, *, declined_ids: tuple | list = ()) -> dict:
+    """The adviser's answer. `reopens` (spec 087 FR-3) is the ids of the declined decisions the edit goes against:
+    required as a list when the prompt quoted any, else optional (an answer of 079's shape reads as reopening none)."""
     body = rubric.extract_json(raw)
     rung = str(body.get("rung") or "").strip().lower()
     if rung not in RUNGS:
@@ -867,7 +911,13 @@ def parse_advice(raw: str) -> dict:
     aware = body.get("persona_aware")
     if not isinstance(aware, bool):
         raise rubric.RubricError(f"persona_aware must be true or false (spec 081 FR-6); got {aware!r}")
-    return {"new_text": str(body.get("new_text") or "").strip(), "why": why, "rung": rung, "persona_aware": aware}
+    reopens = body.get("reopens")
+    if reopens is None and not declined_ids:
+        reopens = []
+    if not isinstance(reopens, list) or not all(isinstance(i, str) for i in reopens):
+        raise rubric.RubricError(f"reopens must be a list of decision ids (spec 087 FR-3); got {reopens!r}")
+    return {"new_text": str(body.get("new_text") or "").strip(), "why": why, "rung": rung, "persona_aware": aware,
+            "reopens": [i.strip() for i in reopens if i.strip()]}
 
 
 #: Spec 081 FR-6 (design §5a): a proposal that adds a condition on an industry, a role, a country or a product -- *if
@@ -894,6 +944,17 @@ def special_case(proposal: dict) -> str | None:
     return None
 
 
+def reopened(proposal: dict, declined: list[dict]) -> str | None:
+    """Why a proposal is refused as reopening what the founder declined (spec 087 FR-3), or None: the adviser named a
+    declined decision its edit goes against -- refused as 081 FR-6 refuses a special case, naming the decision."""
+    ids = proposal.get("reopens") or []
+    if not ids:
+        return None
+    why = {d["id"]: d["why"].strip() for d in declined}
+    named = "; ".join(f"{i} ({why[i]})" if i in why else i for i in ids)
+    return f"it reopens what the founder has already declined: {named}"
+
+
 def cycle_files(record: dict, root: Path | None = None) -> list[dict]:
     files = load_files([s["score_file"] for s in record.get("studies") or [] if s.get("score_file")], root)
     if not files:
@@ -911,7 +972,7 @@ def weak_rows(files: list[dict]) -> list[dict]:
 
 
 def render_advice(record: dict, proposals: list[dict], *, adviser: dict, quoted_at: str, cost: float, calls: int,
-                  seconds: float, calls_dir: str) -> str:
+                  seconds: float, calls_dir: str, decided_before: list[dict] | None = None) -> str:
     stem = record["record"]
     moved = "" if quoted_at == record.get("cloud_sha") else (
         f" -- **the checkout has moved since the cycle measured `{record.get('cloud_sha')}`**: the quotes are today's")
@@ -919,7 +980,9 @@ def render_advice(record: dict, proposals: list[dict], *, adviser: dict, quoted_
              f"Spec 079 FR-4. {len(proposals)} weak row(s) of `quality/cycles/{stem}.md`, one call each, adviser "
              f"{adviser['model']} ({adviser['effort']}) through the claude CLI; the current text quoted from keel-cloud "
              f"`{quoted_at}`{moved}. ${cost} in {calls} call(s), {seconds} s; every prompt and answer under "
-             f"`{calls_dir}`.", "",
+             f"`{calls_dir}`."
+             + (f" {len(decided_before)} more decided before, listed at the end (spec 087): not advised."
+                if decided_before else ""), "",
              "**Nothing here is applied.** The founder says which proposals to take; a taken proposal becomes a "
              "keel-cloud spec (the registry row or the instruction file, with the spoken-form acceptance line where a "
              "respondent wording moves), built, gated and merged like any other, and then the cycle is walked again "
@@ -932,17 +995,28 @@ def render_advice(record: dict, proposals: list[dict], *, adviser: dict, quoted_
         if p.get("error"):
             lines += [f"**No proposal**: {p['error']}", ""]
         elif p.get("refused"):
-            lines += [f"**Refused -- not a proposal** (spec 081 FR-6): {p['refused']}. The model's first idea was a "
-                      "special case and it was not taken; the row stays open for a persona-aware proposal.", "",
-                      "<details><summary>The refused text</summary>", "", "```text",
+            if p.get("refused_by") == "spec 087 FR-3":
+                lines += [f"**Refused -- not a proposal** (spec 087 FR-3): {p['refused']}. The model's first idea "
+                          "reopened a decision the founder has already made and it was not taken; the row stays open "
+                          "for a proposal that keeps to it.", ""]
+            else:
+                lines += [f"**Refused -- not a proposal** (spec 081 FR-6): {p['refused']}. The model's first idea was "
+                          "a special case and it was not taken; the row stays open for a persona-aware proposal.", ""]
+            lines += ["<details><summary>The refused text</summary>", "", "```text",
                       p.get("new_text") or "(empty)", "```", "", f"Its why: {p.get('why', '')}", "", "</details>", ""]
         else:
             lines += [f"Rung: **{p['rung']}**", "", f"Why: {p['why']}", "", "The proposed text:", "", "```text",
                       p["new_text"] or "(no change of words: see the rung)", "```", ""]
         lines += ["<details><summary>The current text</summary>", "", "```text", p["current"], "```", "", "</details>",
                   "", "Taken: _(the founder's word)_", ""]
-    lines += [_ADVICE_DATA, "```json", json.dumps({"cycle": stem, "quoted_at": quoted_at, "adviser": adviser,
-                                                   "proposals": proposals}, indent=1, ensure_ascii=False), "```", ""]
+    body = {"cycle": stem, "quoted_at": quoted_at, "adviser": adviser, "proposals": proposals}
+    if decided_before:
+        lines += [f"## Decided before ({len(decided_before)}) -- not advised: `quality/decisions.toml` (spec 087)", "",
+                  "The founder decided these rows before; each stays snoozed while its decision holds (a taken one "
+                  "until its spec is merged, then the row competes again).", ""]
+        lines += [dec.line(s) for s in decided_before] + [""]
+        body["decided_before"] = decided_before
+    lines += [_ADVICE_DATA, "```json", json.dumps(body, indent=1, ensure_ascii=False), "```", ""]
     return "\n".join(lines)
 
 
@@ -952,9 +1026,11 @@ def advise(argv=None, *, runner=subprocess.run) -> int:
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--cloud", default="", help=argparse.SUPPRESS)
     p.add_argument("--out", default="", help="the advice file (default quality/cycles/<record>-advice.md)")
+    p.add_argument("--decisions", default="", help=argparse.SUPPRESS)
     a = p.parse_args(argv)
     try:
         cfg = load_config()
+        decisions = load_decisions(a.decisions or None)
         record = load_record(a.cycle)
         files = cycle_files(record)
         cloud = Path(a.cloud) if a.cloud else checkouts()[0]
@@ -962,15 +1038,29 @@ def advise(argv=None, *, runner=subprocess.run) -> int:
             sha = git_sha(cloud)
         except Refused:
             sha = None
-        rows = weak_rows(files)
+        weak = weak_rows(files)
+        rows, snoozed = dec.split(weak, decisions, record["record"], table.row_key)      # spec 087 FR-2
+        declined = [dec.declined_for(r, decisions, record["record"]) for r in rows]     # spec 087 FR-3
         template = adviser_template()
-        prompts = [(r, adviser_prompt(r, files, cloud=cloud, cfg=cfg, sha=sha, template=template)) for r in rows]
+        prompts = [(r, adviser_prompt(r, files, cloud=cloud, cfg=cfg, sha=sha, template=template, declined=no))
+                   for r, no in zip(rows, declined)]
     except (Refused, rubric.RubricError) as reason:
         print(f"make quality-advise refuses: {reason}", file=sys.stderr)
         return 2
     stem = record["record"]
-    if not rows:
+    if not weak:
         print(f"cycle {stem}: no weak row -- nothing to advise, no call made")
+        return 0
+
+    def decided_lines():
+        if snoozed:
+            print(f"## Decided before ({len(snoozed)}) -- quality/decisions.toml (spec 087): snoozed, not sent")
+            for s in snoozed:
+                print(dec.line(s))
+    if not rows:
+        decided_lines()
+        print(f"cycle {stem}: {len(weak)} weak row(s), every one decided before (quality/decisions.toml, spec 087) -- "
+              "nothing to advise, no call made" + (", nothing written" if a.dry_run else ""))
         return 0
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     if a.dry_run:
@@ -979,7 +1069,9 @@ def advise(argv=None, *, runner=subprocess.run) -> int:
             print(f"[{i}/{len(prompts)}] {table.row_key(row)}")
             print("=" * 100)
             print(prompt)
-        print(f"dry run: {len(prompts)} adviser prompt(s) for cycle {stem}; no call made, nothing written")
+        decided_lines()
+        print(f"dry run: {len(prompts)} adviser prompt(s) for cycle {stem}; no call made, nothing written"
+              + (f"; {len(snoozed)} weak row(s) decided before, not sent" if snoozed else ""))
         return 0
     run_dir = RUNS_DIR / f"{stamp}-advise-{stem}"
     run_dir.mkdir(parents=True, exist_ok=True)  # the CLI runs with this as its cwd: the probe died on a missing dir (2026-10-28, the first live run)
@@ -996,7 +1088,7 @@ def advise(argv=None, *, runner=subprocess.run) -> int:
         return 2
     started = time.monotonic()
     proposals = []
-    for i, (row, prompt) in enumerate(prompts, 1):
+    for i, ((row, prompt), no) in enumerate(zip(prompts, declined), 1):
         current = current_text(row, cloud=cloud, cfg=cfg, sha=sha)
         entry = {"row": table.row_key(row), "weak_on": row["weak_on"], "fix": row["fix"], "where": current["where"],
                  "current": current["text"]}
@@ -1004,24 +1096,29 @@ def advise(argv=None, *, runner=subprocess.run) -> int:
         try:
             if said["error"]:
                 raise rubric.RubricError(said["error"])
-            entry.update(parse_advice(said["answer"]))
+            entry.update(parse_advice(said["answer"], declined_ids=[d["id"] for d in no]))
             refused = special_case(entry)
             if refused:
                 entry["refused"] = refused
+            elif reopened(entry, no):
+                entry.update(refused=reopened(entry, no), refused_by="spec 087 FR-3")
         except rubric.RubricError as reason:
             entry["error"] = f"the answer could not be read ({reason})"
         proposals.append(entry)
-        said_of = "REFUSED: a special case" if entry.get("refused") else entry.get("rung") or "unread"
+        said_of = (("REFUSED: reopens a decision" if entry.get("refused_by") else "REFUSED: a special case")
+                   if entry.get("refused") else entry.get("rung") or "unread")
         print(f"  {entry['row']:<72} {said_of}")
     out = Path(a.out) if a.out else Path(record["_path"]).with_name(f"{stem}-advice.md")
     cost = round(sum(c["cost_usd"] for c in reader.calls if not c["cached"]), 4)
     out.write_text(render_advice(record, proposals, adviser={k: cfg["adviser"][k] for k in ("model", "effort")},
                                  quoted_at=sha or "?", cost=cost, calls=len(reader.calls),
-                                 seconds=round(time.monotonic() - started, 1), calls_dir=_rel(run_dir / "calls")),
+                                 seconds=round(time.monotonic() - started, 1), calls_dir=_rel(run_dir / "calls"),
+                                 decided_before=snoozed),
                    encoding="utf-8")
     refused = sum(1 for p in proposals if p.get("refused"))
     print(f"advice: {_rel(out)} ({len(proposals)} proposal(s), ${cost}"
-          + (f"; {refused} refused as a special case, recorded by row" if refused else "")
+          + (f"; {refused} refused (a special case, or a decision reopened), recorded by row" if refused else "")
+          + (f"; {len(snoozed)} decided before, listed at the end" if snoozed else "")
           + "); nothing applied -- commit it, and the founder says which to take")
     return 0
 
