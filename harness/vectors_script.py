@@ -859,12 +859,16 @@ def _chosen_codes(entry, key: str) -> list[str]:
 #: corpus's own `belief_phrase`, so the belief sentence keel-cloud writes is the corpus's.
 #: Spec 064 FR-6a (keel-cloud 123 FR-6): the labels are code's now (`PrevalenceBins`, written over the model's) and share
 #: no edge; the script writes the same five so the draft reads as served.
+#: Spec 086 (keel-cloud 152, corpus revision 18): the five phrases are the bin's share as the registry's option rule
+#: now says them (*under 2 in 10 ... at least 8 in 10*, recorded capitalised, 152's judgement call 8) -- every corpus
+#: entry's chosen phrase is its bin's, so a default and a chosen phrase never differ; they read *Only a few ... Nearly
+#: all* through revision 17.
 PREVALENCE_OPTIONS = [
-    ("Fewer than 2 in 10", "p_0_20", "Only a few"),
-    ("2 or 3 in 10", "p_20_40", "A minority"),
-    ("4 or 5 in 10", "p_40_60", "Around half"),
-    ("6 or 7 in 10", "p_60_80", "Most"),
-    ("8 or more in 10", "p_80_100", "Nearly all"),
+    ("Fewer than 2 in 10", "p_0_20", "Under 2 in 10"),
+    ("2 or 3 in 10", "p_20_40", "2 to 3 in 10"),
+    ("4 or 5 in 10", "p_40_60", "4 to 5 in 10"),
+    ("6 or 7 in 10", "p_60_80", "6 to 7 in 10"),
+    ("8 or more in 10", "p_80_100", "At least 8 in 10"),
 ]
 
 

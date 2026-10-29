@@ -140,9 +140,10 @@ DECISION_CHANGE = {
                       "also": {"line": COMMITMENT_KEY,
                                "sentence": "Change the first step you ask for too: only 2 of 7 would introduce us to the "
                                            "practice's IT supplier, and 5 did not."}},
+    # spec 086 (keel-cloud 152, `DecisionChangeCorpusTest`): the founder's Prevalence phrase is the bin's share now
     "07-mulchrun": {"line": GATE_KEY,
                     "sentence": "Not yet: Prevalence did not hold, 9 of 12 had it in the last 2 weeks against your "
-                                "nearly all.",
+                                "at least 8 in 10.",
                     "also": {"line": IMPORTANCE_KEY,
                              "sentence": "Importance split them too, only 4 of 7 put it in their top two, and 3 did not."}},
 }

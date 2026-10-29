@@ -634,12 +634,12 @@ def check_invariants(registry: Registry) -> list[str]:
             faults.append(f"invariant 3 (parts): {d.key} is asked in part {d.part}, which asks "
                           f"{PART_VECTOR[d.part]}")
 
-    # 4. `{value}` exactly once in every belief template but the benefit list's, which has none.
+    # 4. `{value}` exactly once in every belief template (keel-cloud 152, `DimensionRegistry.invariant4Templates`, spec
+    #    086: the benefit list's template, which had none, now reads *it would have {value}* -- the gain).
     for d in dims:
         template = str(d.founder.get("belief_template") or "")
-        want = 0 if d.benefit_first else 1           # the benefit list's template names no value
-        if template.count("{value}") != want:
-            faults.append(f"invariant 4 ({{value}} {'never' if want == 0 else 'exactly once'}): "
+        if template.count("{value}") != 1:
+            faults.append(f"invariant 4 ({{value}} exactly once): "
                           f"{d.key}'s belief template carries it {template.count('{value}')} times")
 
     # 5. Codes: the controls are keel-cloud 087's; Prevalence's fifths 4-6, unique, contiguous; a list

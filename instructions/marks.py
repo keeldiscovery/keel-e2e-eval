@@ -94,6 +94,25 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Corpus revision 18 (2026-10-29, keel-cloud 152; eval 086, the harness half)**: the belief words move, no standing --
+seven templates and the prevalence phrases in the founder's words (Commitment *Most {actor_plural} would {value} now.*,
+Current solution *... still falls short.*, Importance *Of these {list_size}, ...*, Prevalence *under 2 in 10 ... at
+least 8 in 10*, Compatibility *For most, {value}.*, Relative advantage *For most, it would have {value} on their last
+{occasion}.*), so on the golden seven the six rows' belief sentences and Prevalence's and Relative advantage's phrases
+are the engine's new words, and on the eleven rate back-test entries the cost's belief names the payer; no standing,
+drift, inside, n or verdict moved. The reader reads **revision 18** and refuses a revision-17 file by name. **v21
+stands**: no mark scores a belief sentence (`compare_correctness` reports it beside the counts, never marks it) and
+`no_leak` reads the founder's `belief_phrase` as data under the same rule, so the ruler did not move, the record did.
+The seven revision-18 files, by sha256 (keel-cloud canon's own bytes at keel-cloud-docs `21395ab0`, equal to
+`src/test/resources/keel/corpus-r18/`): `01-countly.yaml`
+`84e305923f67b9760f4f8b68f793490cfa5327b508f1860e8b45288d8875c499`; `02-compliancelog.yaml`
+`3c8d964502cf413eace932a82bf8ea28bec13679957d31627f771010016084a2`; `03-lullaby.yaml`
+`8b55d8e43bd6f5642a8019ea92f381f8398bca9610e808a8c2fbfcad9490f0ca`; `04-linerly.yaml`
+`6d3dd62fb68f09a0c67bb3319fb3241fdaf7fe88f24bf2d51cccaee7bc830830`; `05-paidly.yaml`
+`0d6f8a0a66ca7d2061487ac5046c95da797c4ba8c68f72eaa32ad67ff70e80e4`; `06-repeatline.yaml`
+`5658999231d463408f7e4f8ff4abc476914a4e7203c799655e2c9cbfd9fe0a7b`; `07-mulchrun.yaml`
+`9da91df12ef3a0f9a4eb8490216ddfe6ccc11c1d2f3b652d1b03fe6310b3d0f4`.
+
 **Corpus revision 17 (2026-10-28, keel-cloud 147; eval 080, the harness half)**: one standings row moves --
 02-compliancelog's Buyer and payer reads HOLDING_UP / none / 7 of 9 inside (was PEOPLE_DISAGREE / both / 5 of 9) under
 keel-cloud 145 FR-2's direction-aware rule (a role named, *had to agree* and *decided alone* both support) -- and every

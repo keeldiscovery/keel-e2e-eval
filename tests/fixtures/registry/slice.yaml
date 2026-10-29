@@ -3,7 +3,9 @@
 # kept) with every founder.* (saves on the seven lists), respondent.* (one escape, the fixed answers, supports,
 # conditional), answers.* (less the drift templates), order, the entry-level b2b_only (Purchase friction) and
 # respondent.b2b_link_only (Ability to pay); the lullaby worked objects, the checks block and the common prose dropped.
-# No weight anywhere (D3: all thirteen decide). Passes all eight invariants. Not a corpus entry.
+# No weight anywhere (D3: all thirteen decide). Passes all eight invariants. Not a corpus entry. Spec 086 (keel-cloud
+# 152, keel-cloud-docs 21395ab0): the five moved belief templates in 152's words -- Relative advantage's now carries
+# {value} once, as invariant 4 reads every template since 152 -- nothing else re-exported.
 version: 4
 common:
   left_out:
@@ -119,8 +121,8 @@ dimensions:
       kind: saved_list
     option_rule: The own item and exactly four rivals, each at most 9 words, difficulties of the same circumstance in the
       same register; no number the founder did not write; never a fix or a product.
-    belief_template: When {circumstance}, {value} is one of the two difficulties {actor_plural} would most like made easier,
-      out of five.
+    belief_template: Of these {list_size}, {value} is one of the two that {actor_plural} would most like made easier when
+      {circumstance}.
     unsure_allowed: true
     saves:
       min_items: 5
@@ -161,7 +163,7 @@ dimensions:
       kind: saved_list
     option_rule: A second-person phrase ('your way of checking for errors') and exactly five outcomes, best to worst, each
       at most 9 words, parallel in form.
-    belief_template: 'For most {actor_plural}, {value} falls short: it takes a lot of effort or lets errors through.'
+    belief_template: For most {actor_plural}, {value} still falls short.
     unsure_allowed: true
     saves:
       min_items: 5
@@ -201,7 +203,7 @@ dimensions:
       kind: saved_list
     option_rule: 2 to 4 conditions, each at most 9 words (third person) with its `asked` clause (second person, at most 20
       words, no question mark); no number the founder did not write.
-    belief_template: For most, on their last {occasion}, {value}.
+    belief_template: For most, {value}.
     unsure_allowed: true
     saves:
       min_items: 2
@@ -254,7 +256,7 @@ dimensions:
       kind: saved_list
     option_rule: 1 to 4 benefits, each at most 9 words, a noun phrase naming the improvement; no number the founder did not
       write.
-    belief_template: For most, it would have made their last {occasion} better.
+    belief_template: For most, it would have {value} on their last {occasion}.
     unsure_allowed: true
     saves:
       min_items: 1
@@ -622,7 +624,7 @@ dimensions:
     normalized:
       kind: saved_list
     option_rule: Exactly one step, base form, at most 9 words; no number the founder did not write.
-    belief_template: Most are open to {value} now.
+    belief_template: Most {actor_plural} would {value} now.
     unsure_allowed: true
     saves:
       min_items: 1

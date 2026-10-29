@@ -66,8 +66,9 @@ def test_the_calibration_block_is_the_registry_in_order_beside_the_founder(tmp_p
     assert "commercial.purchase_friction" not in [r["key"] for r in rows]
     prevalence = rows[0]
     assert prevalence["founder_question"] is None, "the hand-sized registry slice drops the Lullaby worked objects"
-    assert prevalence["belief_phrase"] == "Most"
-    assert prevalence["belief_sentence"].startswith("Most of these parents")
+    # spec 086 (keel-cloud 152, corpus revision 18): Prevalence's phrase is the bin's share, the sentence opens on it
+    assert prevalence["belief_phrase"] == "6 to 7 in 10"
+    assert prevalence["belief_sentence"].startswith("6 to 7 in 10 of these parents")
     importance = rows[2]
     assert importance["list"]["items"][0]["label"] == "Finding the keys on the way out", "the model's draft"
     assert importance["belief_phrase"] == corpus.entries[0].tested("problem.importance")["label"], \
