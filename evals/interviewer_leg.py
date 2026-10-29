@@ -1,5 +1,5 @@
 """The AI interviewer leg (spec 044; keel-cloud 094 at contract 16, `InferenceCharge` 9; keel-web 069): after S-006's
-contacts leg the founder's project gets its interviewer -- Chukwu since spec 058 (Tito before), recorded once by the
+contacts leg the founder's project gets its interviewer -- Saskia since spec 083 (Chukwu since 058, Tito before), recorded once by the
 stack's fake renderer -- and the leg walks everything 094 and 069 say about it: the recording's one charge, the persona
 line through RECORDING to READY, the links that wait for it (`INTERVIEWER_NOT_READY`) and the text link that never
 does, the spoken order of every role's clips, the solution passage's three facts, no founder's word (spec 073: none written, the thanks the default), *Try it yourself* writing nothing,
@@ -94,10 +94,11 @@ FAKE_TRANSCRIPT = "yes"
 #: Spec 074 (keel-web 115 FR-1): every spoken answer takes the recorded path, so the page sends `how` RECORDED for each
 #: (SPOKEN was the browser recogniser's, retired with it).
 SPOKEN_HOW = "RECORDED"
-#: Spec 058 (keel-cloud 110): the four photo avatars -- the first recording is the last card (Tito's place), the change
-#: goes to LIVIA (where JUDY was), the preselected face, which is therefore a change and not the default.
-FIRST_FACE = "CHUKWU"
-CHANGED_FACE = "LIVIA"
+#: Spec 083 (keel-cloud 143): the two studio faces -- the first recording is the face that is not the preselected one,
+#: the last card (SASKIA, as CHUKWU was to LIVIA under 110's four), and the change goes to the preselected face
+#: (DAPHNE), which is therefore a change and not the default. Both read from the fake, never a literal.
+FIRST_FACE = next(f for f in reversed(fake.FACES) if f != fake.PRESELECTED)
+CHANGED_FACE = fake.PRESELECTED
 #: Spec 058 FR-2 / FR-3: how long a tapped hello (4.6-5.4 s) is waited for to end -- on the remote profile the 90 s
 #: navigation timeout, as the welcome's mp4 is (a clip over the wire may take its time to load).
 HEAR_WAIT_S = 20
@@ -414,8 +415,9 @@ def _restore(j, wire: _Wire, founder_id: str, run: str) -> None:
 
 def _first_recording(j, wire: _Wire, record: dict) -> None:
     with j.recorder.step("interviewer (contract 16): on Keel's door the project locked with no recording reads "
-                         "NOT_RECORDED; the four faces with their stills and hellos, Livia preselected, the change price 400; "
-                         "a face not on the list, and a retired one (Judy), is refused FACE_UNKNOWN and charges "
+                         f"NOT_RECORDED; the {fake.number(len(fake.FACES))} faces with their stills and hellos, "
+                         f"{fake.FACE_NAMES[fake.PRESELECTED]} preselected, the change price 400; a face not on the "
+                         f"list, and a retired one ({fake.RETIRED[0].title()}), is refused FACE_UNKNOWN and charges "
                          "nothing", party="founder", kind="assert") as h:
         _, view = wire("GET", "/interviewer")
         _, faces = wire("GET", "/interviewer/faces")
@@ -591,8 +593,8 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
         h.record_assert({"how_it_works": 0}, drawn)
         assert drawn["how_it_works"] == 0, drawn
     with j.recorder.step("interviewer (L1, FR-002): the lock's last screen revisited on Keel's door -- *Who asks the "
-                         "questions*, the four faces, one checked -- and no price on it", party="founder",
-                         kind="assert") as h:
+                         f"questions*, the {fake.number(len(fake.FACES))} faces, one checked -- and no price on it",
+                         party="founder", kind="assert") as h:
         l1 = persona.l1_again(j.project_id)
         record["screens"]["L1"] = l1["text"]
         record["screens_drawn"]["L1"] = l1
@@ -625,7 +627,7 @@ def _hear_the_band(j, record: dict) -> None:
         record["hear_band"] = {**heard, "face": FIRST_FACE, "hello": (view.get("face") or {}).get("helloUrl"),
                                "retired": FIRST_FACE in fake.RETIRED}
         h.record_assert({"words": f"{ivs.HEAR_PREFIX}{fake.FACE_NAMES[FIRST_FACE]} · 5 s", "ended": True,
-                         "hello": fake.hello_path(FIRST_FACE), "still back": True}, record["hear_band"])
+                         "hello": fake.served_hello(FIRST_FACE), "still back": True}, record["hear_band"])
     corpus_scenario.sent_reading(j, "after the first recording")
 
 

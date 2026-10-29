@@ -820,6 +820,17 @@ def test_charge_v9_and_the_fixed_lines():
     assert fake.normal("It’s  CALLED, ‘x’!") == "it's called 'x'"
 
 
+def test_the_legs_two_picks_read_the_fake():
+    """Spec 083 FR-2: the first recording is the face that is not the preselected one (SASKIA, as CHUKWU was to LIVIA),
+    the change goes to the preselected one; both from the fake, never a literal."""
+    from evals import interviewer_leg                                     # noqa: PLC0415
+    assert (interviewer_leg.FIRST_FACE, interviewer_leg.CHANGED_FACE) == ("SASKIA", "DAPHNE")
+    assert interviewer_leg.CHANGED_FACE == fake.PRESELECTED and interviewer_leg.FIRST_FACE in fake.FACES
+    source = Path(interviewer_leg.__file__).read_text(encoding="utf-8")
+    for literal in ('"SASKIA"', '"DAPHNE"', '"Saskia', '"Daphne', '"LIVIA"', '"CHUKWU"', "the four faces"):
+        assert literal not in source, literal
+
+
 def _cloud_text(rel: str) -> str:
     path = load_config(validate=False).keel_cloud / rel
     if not path.is_file():
