@@ -74,7 +74,11 @@ from harness import interviewer_fake as fake
 #: SASKIA the leg's first pick): only the data moved -- IM28's face check, IM29's and IM30's names and IM30's retired
 #: branch read `interviewer_fake` (FACES, FACE_NAMES, RETIRED) as before, and the fake now holds 143's two and the eight
 #: retired; no mark's words changed, none born or dropped.
-INTERVIEWER_MARKS_VERSION = 12
+#: v13 (spec 086 FR-5, keel-cloud 154, contract 44 unchanged: every follow-up names the thing): re-pinned -- IM27 reads
+#: each rung's clip against the words the leg records for it (`said`, `vs.follow_up_clip`: the registry's spoken line
+#: filled with the project's job, idea name, founder's item, effort and step), not the registry's bare line; the served
+#: `followUps[].spoken` is that filled line. No mark born or dropped.
+INTERVIEWER_MARKS_VERSION = 13
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -853,9 +857,16 @@ def speak_or_type(r: dict) -> tuple[bool, Any]:
                 "refused": {v.get("person"): _refused_ok(v) for v in refused}}
 
 
+def _said(role: dict, rung: str) -> str:
+    """v13 (keel-cloud 154): a rung's clip words as the leg recorded them, filled with the project's words (`said`); a
+    record from before v13 carries none and reads the registry's spoken wording, as it did."""
+    return (role.get("said") or {}).get(rung) or fake.rung(rung)[3]
+
+
 def the_follow_up_clips(r: dict) -> tuple[bool, Any]:
     """IM27 (keel-cloud 103 FR-6): every role's recording holds one FOLLOW_UP clip per rung its link walks, each saying
-    *One more thing.* (v11, keel-cloud 144 FR-2) and the registry's spoken wording (the LADDER copy), DONE, served by
+    *One more thing.* (v11, keel-cloud 144 FR-2) and the registry's spoken wording (the LADDER copy; v13, keel-cloud 154:
+    filled with the project's words, the leg's `said`), DONE, served by
     rung -- never in the spoken order -- and (the full leg) a recording without them gains them on the first read: one
     DONE clip per rung per role in the same words, `{}` served before, READY throughout, no ledger row."""
     x = r["follow_up_clips"]
@@ -870,7 +881,7 @@ def the_follow_up_clips(r: dict) -> tuple[bool, Any]:
         also = [c for c in every if "#also" in (c.get("itemId") or "")]
         if not (want and [c.get("itemId") for c in clips] == want and role.get("served") == sorted(want)
                 and all(fake.rung(c.get("itemId")) and c.get("status") == "DONE"
-                        and c.get("script") == fake.follow_up_script(fake.rung(c["itemId"])[3]) for c in clips)
+                        and c.get("script") == fake.follow_up_script(_said(role, c["itemId"])) for c in clips)
                 and all(c["itemId"].split("#")[0] in want and c.get("status") == "DONE"
                         and str(c.get("script") or "").startswith(fake.ONE_MORE_THING) for c in also)):
             bad[link] = role

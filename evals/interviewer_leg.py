@@ -725,7 +725,9 @@ def _follow_up_clips(j, record: dict, tries: dict) -> None:
     """Spec 051 (keel-cloud 103 FR-6), IM27's record and a plain assertion: every role's set holds one FOLLOW_UP clip
     per rung its link walks (the served `followUps[]`: five on a B2B practitioner's link, three on the decision-maker's,
     every rung a B2C link serves), each saying *One more thing.* (keel-cloud 144 FR-2) and the registry's spoken wording, DONE -- and the
-    served `clips.followUp` names exactly those rungs."""
+    served `clips.followUp` names exactly those rungs. Since keel-cloud 154 (spec 086 FR-5) the spoken wording is filled
+    with the project's words (`vs.follow_up_clip`: the job, the idea's name, the founder's item, effort and step), and
+    the served `followUps[].spoken` is that filled line."""
     sets = fake.role_sets(record["recording"])
     roles = {}
     for link, served in tries.items():
@@ -734,6 +736,8 @@ def _follow_up_clips(j, record: dict, tries: dict) -> None:
         clips = [{"itemId": c.get("itemId"), "script": c.get("script"), "status": c.get("status")}
                  for c in sets.get(link) or [] if c.get("kind") == "FOLLOW_UP"]
         roles[link] = {"want": want, "spoken": spoken_words, "clips": clips,
+                       # keel-cloud 154: each rung's clip words as the mirror fills them from the project
+                       "said": {d: vs.follow_up_clip(j.entry, served, d) for d in want},
                        "served": sorted(((served.get("interviewer") or {}).get("clips") or {}).get("followUp") or {})}
     record["follow_up_clips"] = {"roles": roles, "full": not record.get("short")}
     with j.recorder.step("interviewer (keel-cloud 103 FR-6): every role holds one FOLLOW_UP clip per rung its link "
@@ -748,11 +752,11 @@ def _follow_up_clips(j, record: dict, tries: dict) -> None:
             rung_clips = [c for c in r["clips"] if "#also" not in (c["itemId"] or "")]
             also = [c for c in r["clips"] if "#also" in (c["itemId"] or "")]
             assert r["want"] and [c["itemId"] for c in rung_clips] == r["want"], (link, r)
-            assert all(c["script"] == fake.follow_up_script(fake.rung(c["itemId"])[3]) and c["status"] == "DONE"
-                       for c in rung_clips), (link, r["clips"])
+            assert all(c["script"] == fake.follow_up_script(r["said"][c["itemId"]]) and c["status"] == "DONE"
+                       for c in rung_clips), (link, r["clips"], r["said"])
             assert all(c["itemId"].split("#")[0] in r["want"] and c["status"] == "DONE"
                        and c["script"].startswith(fake.ONE_MORE_THING) for c in also), (link, also)
-            assert all(r["spoken"][d] == fake.rung(d)[3] for d in r["want"]), (link, r["spoken"])
+            assert all(r["spoken"][d] == r["said"][d] for d in r["want"]), (link, r["spoken"], r["said"])
             assert r["served"] == sorted(r["want"]), (link, r["served"])
 
 

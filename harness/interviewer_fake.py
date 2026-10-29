@@ -249,50 +249,54 @@ def fake_seconds(script: str) -> float:
 LOCK_RULE = "lock_rule"
 #: The keel-cloud commit of `Ladder.java` the copy below follows (spec 064 FR-7: keel-cloud 118's ladder, the
 #: registry's `follow_up` blocks with their `also` stems; `tests/test_follow_up_ladder.py` holds it to the registry export
-#: the stack runs).
-LADDER_SHA = "f280c5ae"
+#: the stack runs). Spec 086 FR-5: keel-cloud 154's rows (`9f78b765`), every rung naming the thing.
+LADDER_SHA = "9f78b765"
 #: Design §2, as the registry carries it since keel-cloud 118: `(dimension, against, text template, spoken wording)`, in
 #: registry order. Purchase friction is a rung now (its quick / not-needed answers are against the fear); Adoption
-#: friction's and Commitment's stems are the plain questions of 118 FR-4.
+#: friction's and Commitment's stems are the plain questions of 118 FR-4. Since keel-cloud 154 (spec 086 FR-5) every rung
+#: names the thing -- `{job}` (the job as an -ing phrase), `{solution_name}` (the idea's name, *it* where none), `{step}`
+#: (Commitment's step as an -ing phrase), `{effort}` (the tested effort as an -ing phrase) -- and a spoken line may hold
+#: the project's words (`FollowUpBlock.SPOKEN_PLACEHOLDERS`), filled as the clip recorded at the lock says them.
 LADDER: tuple[tuple[str, tuple[str, ...] | str, str, str], ...] = (
     ("problem.importance", ("none_of_these",),
-     "You picked {their_picks} over {founder_item}. What makes those more pressing?",
-     "You put other difficulties ahead of this one. What makes those more pressing?"),
+     "You did not pick {founder_item} as one to make easier. What made the others more pressing for you?",
+     "You did not pick {founder_item} as one to make easier. What made the others more pressing for you?"),
     ("problem.current_solution_satisfaction", ("outcome_1", "outcome_2"),
-     "You said {their_answer}. What do you do today that makes it work?",
-     "You said today's way works for you. What do you do that makes it work?"),
+     "You said your way of {job} works. What keeps it working?",
+     "You said your way of {job} works. What keeps it working?"),
     ("solution.compatibility", ("only_with_help", "no"),
      "You said you couldn't {condition}. What got in the way?",
-     "You said that step would be hard in your setup. What gets in the way?"),
+     "You said {solution_name} would be hard to fit into your setup. What gets in the way?"),
     ("solution.relative_advantage", ("neutral", "negative"),
-     "You said {benefit} would have made no difference to your last {occasion}. What would have?",
-     "You said it would not have made much difference. What would have?"),
+     "You said {solution_name} would have made no difference. What would make {job} better?",
+     "You said {solution_name} would have made no difference. What would make {job} better?"),
     ("solution.adoption_friction", ("probably_not", "no"),
-     "What makes that too much?",
-     "What makes that too much?"),
+     "What makes {effort} too much trouble for you?",
+     "What makes {effort} too much trouble for you?"),
     ("commercial.price", LOCK_RULE,
-     "You put it at {band}. What would make it worth more?",
-     "You put it below what we asked. What would make it worth more?"),
+     "You put {solution_name} at {band}. What would make it worth more to you?",
+     "You put {solution_name} below what we asked. What would make it worth more to you?"),
     ("commercial.buyer_payer_alignment", LOCK_RULE,
-     "Who had to agree, and what did they need to see?",
-     "Who had to agree, and what did they need to see?"),
+     "Who had to agree when you paid for something like {solution_name}, and what did they need to see?",
+     "Who had to agree when you paid for something like {solution_name}, and what did they need to see?"),
     ("commercial.purchase_friction", ("yes_quick", "not_needed"),
-     "What did slow it down, if anything?",
-     "What did slow it down, if anything?"),
+     "What would slow down buying {solution_name}, if anything?",
+     "What would slow down buying {solution_name}, if anything?"),
     ("commercial.commitment", ("probably_not", "no"),
-     "What would you start with instead?",
-     "What would you start with instead?"),
+     "What would you start with instead of {step}?",
+     "What would you start with instead of {step}?"),
 )
 RUNGS = tuple(r[0] for r in LADDER)
 #: Keel-cloud 118 FR-4 (`FollowUpBlock.Also`): a rung's second stem, asked on the answers it names (the conditional yes,
 #: the long purchase) -- `{dimension: (on, text template, spoken wording, heading)}`.
 ALSO: dict[str, tuple[tuple[str, ...], str, str, str]] = {
-    "solution.adoption_friction": (("yes_if_worth_it",), "What would make it clearly worth it to you?",
-                                   "What would make it clearly worth it to you?", "What would make it clearly worth it?"),
-    "commercial.purchase_friction": (("yes_long",), "What took the time?", "What took the time?",
-                                     "What took the time?"),
+    "solution.adoption_friction": (("yes_if_worth_it",), "What would make {solution_name} clearly worth it to you?",
+                                   "What would make {solution_name} clearly worth it to you?",
+                                   "What would make it clearly worth it?"),
+    "commercial.purchase_friction": (("yes_long",), "What would take the time in buying {solution_name}?",
+                                     "What would take the time in buying {solution_name}?", "What took the time?"),
     "commercial.commitment": (("yes_after_trying",), "What would {smaller_step} have to show you?",
-                              "What would that first step have to show you?",
+                              "What would {smaller_step} have to show you?",
                               "What would the first step have to show?"),
 }
 #: Design §2's rungs with no question since keel-cloud 118 (a gate No ends the interview; a number has no why; derived).
@@ -316,28 +320,46 @@ BUYER_SUPPORTS = ("had_to_agree", "decided_alone")
 #: `PriceLadder.POINTS` and its escape below every band.
 PRICE_POINTS = (1, 2, 5, 10, 20, 50, 100, 250, 500, 1_000, 2_500, 5_000, 10_000)
 WOULD_NOT_PAY = "would_not_pay"
-#: `FollowUpComposer.DEFAULTS` / `WOULD_NOT_PAY_BAND`: what a placeholder says when its words are missing.
+#: `FollowUpComposer.DEFAULTS` / `WOULD_NOT_PAY_BAND`: what a placeholder says when its words are missing. keel-cloud 154
+#: (spec 086 FR-5): `{job}` *doing this*, `{solution_name}` *it*, `{step}` *that step*; `{effort}` *doing that* (its slot
+#: is an -ing phrase now; it read *do that*).
 FILL_DEFAULTS = {"{their_picks}": "other difficulties", "{founder_item}": "this one",
                  "{their_answer}": "today's way works", "{condition}": "do that", "{would}": "be hard",
-                 "{benefit}": "it", "{occasion}": "time", "{effort}": "do that", "{band}": "less than we asked",
-                 "{smaller_step}": "that first step"}
+                 "{benefit}": "it", "{occasion}": "time", "{effort}": "doing that", "{band}": "less than we asked",
+                 "{smaller_step}": "that first step", "{job}": "doing this", "{solution_name}": "it",
+                 "{step}": "that step"}
 WOULD_NOT_PAY_BAND = "nothing"
-#: keel-cloud 130 FR-7 (`FollowUpComposer.WORTH_MORE`): Price's follow-up question after its said-back pick.
-WORTH_MORE = "What would make it worth more?"
+#: keel-cloud 130 FR-7 (`FollowUpComposer.WORTH_MORE`): Price's follow-up question after its said-back pick; 154 FR-2:
+#: *to you*.
+WORTH_MORE = "What would make it worth more to you?"
+#: keel-cloud 154 FR-1 (`FollowUpComposer.NO_NAME`): `{solution_name}` where the founder typed no name for the idea.
+NO_NAME = "it"
+
+
+def named(name: str | None) -> str:
+    """keel-cloud 154 (`FollowUpComposer.named`): the idea's name as typed, or *it* where there is none."""
+    return name.strip() if name and name.strip() else NO_NAME
+
+
+def would_not_pay_text(name: str | None) -> str:
+    """keel-cloud 154 FR-2 (`FollowUpComposer.wouldNotPayText`): *You said you wouldn't pay for {name}. What would change
+    your mind?* -- never *this*; *it* where the idea has no name (it read *... for this. What would change that?*)."""
+    return f"You said you wouldn't pay for {named(name)}. What would change your mind?"
 _SHOWN_PRICE = re.compile(r"[$\u20ac\u00a3\u00a5\u20b9]\s?\d[\d,]*(?:\.\d+)?")
 
 
-def price_said_back(question: str | None, band: str | None) -> str:
+def price_said_back(question: str | None, band: str | None, name: str | None = None) -> str:
     """keel-cloud 130 FR-7 (`FollowUpComposer.priceSaidBack`): Price's follow-up composed whole, text and spoken alike --
     *You put it below €3,000.* where the served stem showed a price (its first figure), *You put it at {band}.* where a
-    band was picked, *You put it low.* otherwise -- never *less than we asked* where no price was shown. The registry's
-    `follow_up` words (`LADDER`) are unchanged (130 judgement call 6)."""
+    band was picked, *You put it low.* otherwise -- never *less than we asked* where no price was shown. keel-cloud 154
+    FR-2: the idea named where it has a name (*You put Lullaby at $2 to $5.*), *it* where none."""
+    idea = named(name)
     shown = _SHOWN_PRICE.search(question or "")
     if shown:
-        return f"You put it below {shown.group()}. {WORTH_MORE}"
+        return f"You put {idea} below {shown.group()}. {WORTH_MORE}"
     if band and band.strip() and band != WOULD_NOT_PAY_BAND:
-        return f"You put it at {band}. {WORTH_MORE}"
-    return f"You put it low. {WORTH_MORE}"
+        return f"You put {idea} at {band}. {WORTH_MORE}"
+    return f"You put {idea} low. {WORTH_MORE}"
 
 
 def follow_up_script(spoken_words: str) -> str:
@@ -607,8 +629,18 @@ def fill(dimension: str, values: dict[str, str | None], *, also: bool = False) -
 
 
 def spoken_of(dimension: str, *, also: bool = False) -> str:
-    """The stem's spoken wording (the rung's, or its second stem's)."""
+    """The stem's spoken wording (the rung's, or its second stem's), as the registry writes it (placeholders kept)."""
     return ALSO[dimension][2] if also else rung(dimension)[3]
+
+
+def spoken_filled(dimension: str, values: dict[str, str | None], *, also: bool = False) -> str:
+    """keel-cloud 154 FR-1 (`FollowUpComposer.spoken`): the stem's spoken line with the project's words filled, a missing
+    value its plain default -- what `ask` serves as `spoken` and the clip recorded at the lock says."""
+    text = spoken_of(dimension, also=also)
+    for placeholder in re.findall(r"\{[a-z_]+\}", text):
+        value = values.get(placeholder)
+        text = text.replace(placeholder, value if value and value.strip() else FILL_DEFAULTS[placeholder])
+    return text
 
 
 def role_sets(recording: dict) -> dict[str, list[dict]]:

@@ -34,16 +34,21 @@ def _backtest(entry_id: str):
 # ------------------------------------------------------------------------------- FR-1: Price's follow-up, whole
 
 def test_the_price_follow_up_says_back_the_price_shown_the_band_or_low():
-    """130 FR-7 (`FollowUpComposer.priceSaidBack`): the four cases, never *less than we asked*."""
+    """130 FR-7 (`FollowUpComposer.priceSaidBack`): the four cases, never *less than we asked*; spec 086 FR-5 (keel-cloud
+    154 FR-2): the idea named where it has a name, *it* where none, and *worth more to you*."""
     assert fake.price_said_back("Could you sign off on about €3,000 per hotel yourself?", "under €1,000") == \
-        "You put it below €3,000. What would make it worth more?"
+        "You put it below €3,000. What would make it worth more to you?"
+    assert fake.price_said_back("Could you sign off on about €3,000 per hotel yourself?", "under €1,000", "Codyco") \
+        == "You put Codyco below €3,000. What would make it worth more to you?"
     assert fake.price_said_back("What would it be worth to you a month?", "under $10 a month") == \
-        "You put it at under $10 a month. What would make it worth more?"
+        "You put it at under $10 a month. What would make it worth more to you?"
     assert fake.price_said_back("What would it be worth to you a month?", None) == \
-        "You put it low. What would make it worth more?"
-    assert fake.price_said_back(None, fake.WOULD_NOT_PAY_BAND) == "You put it low. What would make it worth more?"
-    # the registry's words are unchanged (130 judgement call 6): the pre-rendered FOLLOW_UP clip keeps them
-    assert fake.rung("commercial.price")[3] == "You put it below what we asked. What would make it worth more?"
+        "You put it low. What would make it worth more to you?"
+    assert fake.price_said_back(None, fake.WOULD_NOT_PAY_BAND) == \
+        "You put it low. What would make it worth more to you?"
+    # the registry's spoken line (the pre-rendered FOLLOW_UP clip) is 154's, the idea's name in it
+    assert fake.rung("commercial.price")[3] == \
+        "You put {solution_name} below what we asked. What would make it worth more to you?"
 
 
 def _price_interview(question: str, token: str = "tok") -> dict:
@@ -56,18 +61,22 @@ def _price_interview(question: str, token: str = "tok") -> dict:
 def test_the_owed_price_follow_up_is_composed_whole_text_and_spoken_alike():
     """130 FR-7 on the golden walk: Lullaby's stem shows no price, so the text stays *You put it at under $2. ...* and the
     spoken line is the text (it was the registry's *below what we asked*); a stem with a price says it back; the
-    would-not-pay sentence still comes first."""
+    would-not-pay sentence still comes first. Spec 086 FR-5 (keel-cloud 154 FR-2): the idea named, Lullaby's *a
+    suggested reason for crying*; the would-not-pay line *... for {name}. What would change your mind?*"""
     lullaby = _golden("03-lullaby")
     pick = lambda *codes: [vs.Pick(dimension="commercial.price", codes=list(codes))]  # noqa: E731
     stem = "What would something that helps at night be worth to you a month?"
     owed = vs.follow_up_question(lullaby, pick("under_2"), vs.LINK_PRIMARY, _price_interview(stem), "tok")
     assert owed["dimension"] == "commercial.price"
-    assert owed["text"] == owed["spoken"] == "You put it at under $2. What would make it worth more?"
+    assert owed["text"] == owed["spoken"] == \
+        "You put a suggested reason for crying at under $2. What would make it worth more to you?"
     shown = vs.follow_up_question(lullaby, pick("under_2"), vs.LINK_PRIMARY,
                                   _price_interview("Would you pay $5 a month for it?"), "tok")
-    assert shown["text"] == shown["spoken"] == "You put it below $5. What would make it worth more?"
+    assert shown["text"] == shown["spoken"] == \
+        "You put a suggested reason for crying below $5. What would make it worth more to you?"
     closed = vs.follow_up_question(lullaby, pick("would_not_pay"), vs.LINK_PRIMARY, _price_interview(stem), "tok")
-    assert closed["text"] == closed["spoken"] == "You said you wouldn't pay for this. What would change that?"
+    assert closed["text"] == closed["spoken"] == \
+        "You said you wouldn't pay for a suggested reason for crying. What would change your mind?"
 
 
 # ------------------------------------------------------------------------------- FR-1: the named statement, the step

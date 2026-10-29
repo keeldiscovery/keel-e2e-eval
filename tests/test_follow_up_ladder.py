@@ -43,12 +43,24 @@ def _registry() -> dict:
     return registry
 
 
+def _registry_at_154() -> dict:
+    """Spec 086 FR-5: the harness's LADDER is keel-cloud 154's (every rung names the thing); a keel-cloud checkout from
+    before 154's merge (`ba71504a`; the gate's snapshot at 152's `21395ab0` is one) serves the old rows and skips by name
+    -- as `_registry` skips one before 103."""
+    registry = _registry()
+    current = next((e.get("follow_up") or {} for e in registry["dimensions"]
+                    if e["key"] == "problem.current_solution_satisfaction"), {})
+    if "{job}" not in str(current.get("text") or ""):
+        pytest.skip("keel-cloud predates spec 154 (its follow-up rows do not name the thing)")
+    return registry
+
+
 # ------------------------------------------------------------------------------------- the copy, held
 
 def test_the_ladder_is_the_registrys_own():
     """Every rung, in the registry's order (vector, then `order`), with its `against` set (or `lock_rule`), its text
-    and its spoken wording, exactly; the five without a block are NO_FOLLOW_UP."""
-    registry = _registry()
+    and its spoken wording, exactly; the five without a block are NO_FOLLOW_UP. Since keel-cloud 154 (spec 086 FR-5)."""
+    registry = _registry_at_154()
     vectors = ("PROBLEM", "SOLUTION", "COMMERCIAL")
     entries = sorted(registry["dimensions"], key=lambda e: (vectors.index(e["vector"]), e["order"]))
     theirs = [(e["key"], e["follow_up"]["against"] if e["follow_up"]["against"] == fake.LOCK_RULE
@@ -61,21 +73,39 @@ def test_the_ladder_is_the_registrys_own():
     assert sorted(checks.get("lock_rule") or ()) == sorted(r[0] for r in fake.LADDER if r[1] == fake.LOCK_RULE)
 
 
+#: keel-cloud 154 FR-1 (`FollowUpBlock.SPOKEN_PLACEHOLDERS`): the project's words a spoken line may hold -- never a
+#: person's answer.
+SPOKEN_PLACEHOLDERS = {"{job}", "{solution_name}", "{occasion}", "{founder_item}", "{effort}", "{step}",
+                       "{smaller_step}"}
+
+
 def test_each_texts_placeholders_are_the_registrys_and_fill_knows_them():
-    for e in _registry()["dimensions"]:
+    """Spec 086 FR-5 (keel-cloud 154 invariant 9, `spoken_known`): a spoken line holds only the project's words, each one
+    the fake's fill knows; the second stems' too; the ALSO copy is the registry's."""
+    for e in _registry_at_154()["dimensions"]:
         block = e.get("follow_up")
         if block:
             assert re.findall(r"\{[a-z_]+\}", block["text"]) == block["placeholders"], e["key"]
             assert all(p in fake.FILL_DEFAULTS for p in block["placeholders"]), e["key"]
-            assert not re.search(r"[{}]", block["spoken"]), e["key"]
+            spoken = set(re.findall(r"\{[a-z_]+\}", block["spoken"]))
+            assert spoken <= SPOKEN_PLACEHOLDERS and spoken <= set(fake.FILL_DEFAULTS), e["key"]
+            also = block.get("also")
+            if also:
+                assert (tuple(also["on"]), also["text"], also["spoken"]) == fake.ALSO[e["key"]][:3], e["key"]
+                assert set(re.findall(r"\{[a-z_]+\}", also["spoken"])) <= SPOKEN_PLACEHOLDERS, e["key"]
 
 
 def test_the_composers_defaults_and_its_one_more_thing():
     composer = _cloud("src/main/java/com/keeldiscovery/cloud/application/FollowUpComposer.java")
-    defaults = re.search(r"DEFAULTS = Map\.of\((.*?)\);", composer, re.S)
-    pairs = dict(re.findall(r'"(\{[a-z_]+\})",\s*"([^"]*)"', defaults.group(1) if defaults else ""))
+    # keel-cloud 154 (spec 086 FR-5): `Map.ofEntries(Map.entry(...), ...)`, `{solution_name}` read as NO_NAME
+    defaults = re.search(r"DEFAULTS = Map\.of(?:Entries)?\((.*?)\);", composer, re.S)
+    if not defaults or "NO_NAME" not in defaults.group(1):
+        pytest.skip("keel-cloud predates spec 154 (its composer's defaults name no {job}, {solution_name}, {step})")
+    body = defaults.group(1).replace("NO_NAME", f'"{fake.NO_NAME}"')
+    pairs = dict(re.findall(r'"(\{[a-z_]+\})",\s*"([^"]*)"', body))
     assert pairs == fake.FILL_DEFAULTS
     assert f'WOULD_NOT_PAY_BAND = "{fake.WOULD_NOT_PAY_BAND}"' in composer
+    assert f'WORTH_MORE = "{fake.WORTH_MORE}"' in composer and f'NO_NAME = "{fake.NO_NAME}"' in composer
     passages = _cloud("src/main/java/com/keeldiscovery/cloud/application/interviewer/PassageComposer.java")
     # keel-cloud 144 FR-2 (spec 075 FR-5): the lead-in is *One more thing.*; *One last thing.* is the retired one
     assert f'ONE_MORE_THING = "{fake.ONE_MORE_THING} "' in passages
@@ -211,7 +241,12 @@ def test_the_second_stems_and_the_deciding_line_first():
     assert fake.deciding_lines(standings) == ["problem.importance", "commercial.commitment"]
     assert fake.fill("commercial.commitment", {"{smaller_step}": "the free trial"}, also=True) == \
         "What would the free trial have to show you?"
-    assert fake.spoken_of("commercial.purchase_friction", also=True) == "What took the time?"
+    # spec 086 FR-5 (keel-cloud 154): the second stem names the purchase, filled from the project's words
+    assert fake.spoken_of("commercial.purchase_friction", also=True) == \
+        "What would take the time in buying {solution_name}?"
+    assert fake.spoken_filled("commercial.purchase_friction", {"{solution_name}": "Fresco"}, also=True) == \
+        "What would take the time in buying Fresco?"
+    assert fake.spoken_filled("commercial.purchase_friction", {}, also=True) == "What would take the time in buying it?"
     chain = fake.Founder(importance_item="own", price_low=1.0, chain_price=True)
     assert fake.first_rung([_p("commercial.price", "band_0.5_1")], chain, "COMMERCIAL_B2B", b2b=True) == \
         "commercial.price"
@@ -236,21 +271,29 @@ def test_fill_and_its_words():
     assert fake.lower("Matching deliveries") == "matching deliveries" and fake.lower("POS tools") == "POS tools"
     assert fake.joined(["A", "B"], "and") == "a and b" and fake.joined(["A", "B", "C"], "or") == "a, b or c"
     assert fake.joined([None, " "], "and") is None
+    # spec 086 FR-5 (keel-cloud 154): the rungs name the thing; a missing value reads 154's defaults
     assert fake.fill("problem.importance", {"{their_picks}": "a and b", "{founder_item}": "c"}) == \
-        "You picked a and b over c. What makes those more pressing?"
-    assert fake.fill("problem.importance", {}) == ("You picked other difficulties over this one. What makes those "
-                                                   "more pressing?")
+        "You did not pick c as one to make easier. What made the others more pressing for you?"
+    assert fake.fill("problem.importance", {}) == ("You did not pick this one as one to make easier. What made the "
+                                                   "others more pressing for you?")
     assert fake.fill("commercial.price", {"{band}": fake.WOULD_NOT_PAY_BAND}) == \
-        "You put it at nothing. What would make it worth more?"
-    assert fake.fill("commercial.commitment", {}) == "What would you start with instead?"
+        "You put it at nothing. What would make it worth more to you?"
+    assert fake.fill("commercial.price", {"{band}": "$2 to $5", "{solution_name}": "Lullaby"}) == \
+        "You put Lullaby at $2 to $5. What would make it worth more to you?"
+    assert fake.fill("commercial.commitment", {}) == "What would you start with instead of that step?"
+    assert fake.fill("solution.adoption_friction", {}) == "What makes doing that too much trouble for you?"
+    assert fake.spoken_filled("problem.current_solution_satisfaction", {}) == \
+        "You said your way of doing this works. What keeps it working?"
     assert fake.price_floor("under_10") == 0 and fake.price_floor("band_20_50") == 20
     assert fake.price_floor("over_100") == 100 and fake.price_floor("would_not_pay") is None
 
 
 def test_the_fakes_follow_up_lines():
     assert fake.KINDS[-1] == "FOLLOW_UP" and "FOLLOW_UP" in fake.UNSPOKEN
-    assert fake.follow_up_script(fake.rung("problem.importance")[3]) == (
-        "One more thing. You put other difficulties ahead of this one. What makes those more pressing?")
+    assert fake.follow_up_script(fake.spoken_filled("problem.importance", {"{founder_item}": "knowing what the cry "
+                                                                                       "means"})) == (
+        "One more thing. You did not pick knowing what the cry means as one to make easier. What made the others more "
+        "pressing for you?")                                                # keel-cloud 154's Lullaby row
     assert fake.walks("COMMERCIAL_B2B", True) == ("commercial.price", "commercial.buyer_payer_alignment",
                                                   "commercial.purchase_friction", "commercial.commitment")
     assert len(fake.walks("PRIMARY", True)) == 5 and len(fake.walks("PRIMARY", False)) == 9

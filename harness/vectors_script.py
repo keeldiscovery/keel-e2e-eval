@@ -1970,13 +1970,16 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
     label = lambda code: labels.get(option_id(token, rung, code))  # noqa: E731
     pick = next((p for p in picks if p.dimension == rung), None)
     codes = list(pick.codes) if pick else []
-    values: dict[str, str | None] = {"{occasion}": interview.get("occasion")}
+    name = served_idea_name(interview) or _typed_idea_name(entry)
+    # keel-cloud 154 FR-1 (`FollowUpComposer.lockValues`): {job}, {solution_name}, {occasion} and the lock's words on
+    # every rung, either stem; then the person's
+    values: dict[str, str | None] = lock_values(entry, interview, rung,
+                                                label(founder_side(entry).importance_item)
+                                                if rung == "problem.importance" else None)
     if also:
-        step = smaller_step(entry)
-        values["{smaller_step}"] = the_step(step) if step else None
+        pass
     elif rung == "problem.importance":
         values["{their_picks}"] = fake.joined([label(c) for c in codes], "and")
-        values["{founder_item}"] = fake.lower(label(founder_side(entry).importance_item))
     elif rung == "problem.current_solution_satisfaction":
         values["{their_answer}"] = fake.lower(label(codes[0]) if codes else None)
     elif rung == "solution.compatibility":
@@ -2017,46 +2020,92 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         values["{benefit}"] = fake.joined([a.get("label") for a in item.get("advantages") or []], "or")
         if codes[:1] == ["negative"]:
             # keel-cloud 128 FR-16: the follow-up quotes the pick that was made (Walter picked worse)
-            values[WHOLE_TEXT] = (f"You said {served_idea_name(interview) or 'it'} would have made things worse. "
+            values[WHOLE_TEXT] = (f"You said {fake.named(name)} would have made things worse. "
                                   "What would have helped instead?")
     elif rung == "commercial.buyer_payer_alignment":
-        # keel-cloud 128 FR-19: asked about this purchase at the founder's price, followed up in its tense
+        # keel-cloud 128 FR-19: asked about this purchase at the founder's price, followed up in its tense; 154 FR-2:
+        # naming it
         if str(item.get("question") or item.get("text") or "").startswith("Could you sign off on "):
-            values[WHOLE_TEXT] = "Who would have to agree, and what would they need to see?"
-    elif rung == "solution.adoption_friction":
-        values["{effort}"] = fake.lower(founder_follow_up_words(entry)["{effort}"])
+            values[WHOLE_TEXT] = f"Who would have to agree to {fake.named(name)}, and what would they need to see?"
     elif rung == "commercial.price":
         values["{band}"] = fake.WOULD_NOT_PAY_BAND if codes[:1] == [fake.WOULD_NOT_PAY] else \
             fake.lower(label(codes[0]) if codes else None)
         # keel-cloud 130 FR-7 (`FollowUpComposer.priceSaidBack`): composed whole, so text and spoken line are one
         # wording -- *below {the price shown}*, the band said back (the chain's up-front pick first), else *low*; never
         # the registry's *below what we asked* where no price was shown (the would-not-pay sentence still comes first)
-        values[WHOLE_TEXT] = fake.price_said_back(item.get("question") or item.get("text"), values["{band}"])
+        values[WHOLE_TEXT] = fake.price_said_back(item.get("question") or item.get("text"), values["{band}"], name)
     if rung == "commercial.purchase_friction":
         # keel-cloud 128 FR-12: asked about this purchase, followed up in its tense -- on the long purchase's second
         # stem too (`FollowUpComposer.values` runs for either stem; S-006 and S-007 on the 129 build: *What would take the
         # time?*, said as it reads)
         stem = str(item.get("question") or item.get("text") or "")
         if stem.startswith("If ") and " bought " in stem and codes:   # "If you bought …", "If your terminal bought …"
-            values[WHOLE_TEXT] = "What would take the time?" if codes[0] == "yes_long" \
-                else "What would slow it down, if anything?"
+            # keel-cloud 154 FR-2: the purchase named, never *it*
+            values[WHOLE_TEXT] = f"What would take the time in buying {fake.named(name)}?" if codes[0] == "yes_long" \
+                else f"What would slow down buying {fake.named(name)}, if anything?"
     whole = values.pop(WHOLE_TEXT, None)
+    # keel-cloud 154 FR-1: the spoken line is filled too -- the project's words, as the clip says them
+    filled = fake.spoken_filled(rung, values, also=also)
     text = whole if whole is not None else fake.fill(rung, values, also=also)
     # keel-cloud 129 FR-3: Current solution's and Relative advantage's text is their spoken line (the filled text pasted
     # the pick or the benefit labels); a text composed whole keeps its words
     if whole is None and not also and rung in SAID_AS_SPOKEN:
-        text = fake.spoken_of(rung, also=also)
+        text = filled
     would_not_pay = rung == "commercial.price" and codes[:1] == [fake.WOULD_NOT_PAY] and not also
     if would_not_pay:
-        # keel-cloud 126 FR-6a (`FollowUpComposer.WOULD_NOT_PAY_TEXT`): the would-not-pay follow-up has its own sentence
-        text = "You said you wouldn't pay for this. What would change that?"
+        # keel-cloud 126 FR-6a / 154 FR-2 (`FollowUpComposer.wouldNotPayText`): its own sentence, the idea named
+        text = fake.would_not_pay_text(name)
     # keel-cloud 128 FR-12: a follow-up composed whole for the answer given is said as it reads (129: and the would-not-pay)
     # keel-cloud 131 FR-10 (`FollowUpComposer.ask`'s `saidBack`): a Compatibility follow-up that says its condition
     # back is spoken as it reads, on every path (ability, fact, partly, no) -- not the registry's *that step would be hard*
-    said_back = rung == "solution.compatibility" and not also and text != fake.spoken_of(rung) \
+    said_back = rung == "solution.compatibility" and not also and text != filled \
         and fake.FILL_DEFAULTS["{condition}"] not in text
-    spoken = text if whole is not None or would_not_pay or said_back else fake.spoken_of(rung, also=also)
+    spoken = text if whole is not None or would_not_pay or said_back else filled
     return {"dimension": rung, "text": text, "spoken": spoken, "also": also}
+
+
+def _typed_idea_name(entry) -> str | None:
+    """The idea's name as keel-cloud stores it (`corridor.ideaName`), or None where the entry gives none."""
+    try:
+        return idea_name(entry)
+    except VectorsScriptError:
+        return None
+
+
+def lock_values(entry, interview: dict | None, rung: str, founder_item: str | None = None) -> dict[str, str | None]:
+    """keel-cloud 154 FR-1 (`FollowUpComposer.lockValues`): the values a rung's words take from the project alone, the same
+    for everyone on a role's link -- `{occasion}`; `{job}`, the context's job said whole as an -ing phrase
+    (`job_gerund`); `{solution_name}`, the idea's name as typed; and per rung the founder's own Importance item as served
+    (`founder_item`, else the saved list's own item), the tested effort and Commitment's step as -ing phrases
+    (`SpokenCap.gerund` of the label lowered), and the smaller step. A value with no words is None (its default is
+    read)."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    interview = interview or {}
+    values: dict[str, str | None] = {"{occasion}": interview.get("occasion"),
+                                     "{job}": job_gerund(_ctx(entry).get("job")),
+                                     "{solution_name}": served_idea_name(interview) or _typed_idea_name(entry)}
+    if rung == "problem.importance":
+        own = founder_item
+        if own is None:
+            saved = entry.founder_list("problem.importance") or {}
+            own = ((saved.get("items") or [{}])[0] or {}).get("label")
+        values["{founder_item}"] = fake.lower(own)
+    elif rung == "solution.adoption_friction":
+        effort = founder_follow_up_words(entry)["{effort}"]
+        values["{effort}"] = gerund(fake.lower(effort.strip())) if effort and effort.strip() else None
+    elif rung == "commercial.commitment":
+        step = (entry.tested("commercial.commitment") or {}).get("label")
+        values["{step}"] = gerund(fake.lower(step.strip())) if step and step.strip() else None
+        smaller = smaller_step(entry)
+        values["{smaller_step}"] = the_step(smaller) if smaller else None
+    return values
+
+
+def follow_up_clip(entry, interview: dict | None, rung: str, *, also: bool = False) -> str:
+    """keel-cloud 154 FR-1 (`FollowUpComposer.clip`): one rung's spoken line as the clip recorded at the lock says it --
+    the project's words filled -- the same words `GET interview`'s `followUps[].spoken` serves for that rung."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    return fake.spoken_filled(rung, lock_values(entry, interview, rung), also=also)
 
 
 #: keel-cloud 128 (`FollowUpComposer.WHOLE_TEXT`): the values key a follow-up composed whole for the answer is carried
@@ -2187,6 +2236,34 @@ def gerund(step: str) -> str:
             turned = _base_of_past(lower)
         out.append(turned)
     return " ".join(out)
+
+
+#: keel-cloud 154 (`SpokenCap.OBJECT_OPENERS`): the words an object opens on, which tell a verb after *and* from a noun.
+OBJECT_OPENERS = frozenset(("the", "a", "an", "your", "their", "them", "it", "its", "his", "her", "our", "my", "every",
+                            "each", "all", "any", "some", "this", "that", "these", "those", "up", "out", "down", "off",
+                            "back"))
+
+
+def job_gerund(job: str | None) -> str | None:
+    """keel-cloud 154 FR-1 (`SpokenCap.jobGerund`): the context's job (a base-form verb phrase) said after *your way of*
+    -- `gerund`, then every verb joined by *and* before its own object in -ing too (*work out what the baby needs and
+    settle the baby* -> *working out what the baby needs and settling the baby*), while a noun of a list after *and*
+    stays as typed (*memory, GPUs and run time*). Whole, never shortened; None for none."""
+    if job is None or not job.strip():
+        return None
+    words = gerund(_trim_end(job.strip())).split()
+    typed = _second_person(_trim_end(job.strip())).split()
+    if len(typed) == len(words):
+        for i in range(2, len(words)):
+            opens = i + 1 < len(words) and words[i + 1].lower() in OBJECT_OPENERS
+            if words[i - 1].lower() == "and" and words[i].lower() != typed[i].lower() and not opens:
+                words[i] = typed[i]
+    for i in range(2, len(words) - 1):
+        word = words[i].lower()
+        if (words[i - 1].lower() == "and" and words[i + 1].lower() in OBJECT_OPENERS and re.fullmatch(r"[a-z]+", word)
+                and not word.endswith("ing") and word not in OBJECT_OPENERS and not word.endswith("s")):
+            words[i] = _ing(word)
+    return " ".join(words)
 
 
 def adoption_statement(asked: str | None, name: str | None) -> str | None:

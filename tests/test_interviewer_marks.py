@@ -132,8 +132,13 @@ def _follow_up_clips() -> dict:
     primary = ["problem.importance", "problem.current_solution_satisfaction", "solution.compatibility", RA,
                "solution.adoption_friction"]
     commercial = ["commercial.price", "commercial.buyer_payer_alignment", "commercial.commitment"]
-    roles = {link: {"want": dims, "served": sorted(dims),
-                    "clips": [{"itemId": d, "status": "DONE", "script": fake.follow_up_script(fake.rung(d)[3])}
+    # v13 (spec 086 FR-5, keel-cloud 154): each rung's clip says its spoken line filled with the project's words, as
+    # the leg records them (`said`)
+    words = {"{job}": "counting the stock", "{solution_name}": "Countly", "{founder_item}": "matching deliveries",
+             "{effort}": "scanning each invoice", "{step}": "installing the app"}
+    said = {d: fake.spoken_filled(d, words) for d in primary + commercial}
+    roles = {link: {"want": dims, "served": sorted(dims), "said": {d: said[d] for d in dims},
+                    "clips": [{"itemId": d, "status": "DONE", "script": fake.follow_up_script(said[d])}
                               for d in dims]} for link, dims in (("PRIMARY", primary), ("COMMERCIAL_B2B", commercial))}
     want = {"PRIMARY": sorted(primary), "COMMERCIAL_B2B": sorted(commercial)}
     return {"roles": roles, "full": True,
@@ -373,7 +378,7 @@ def test_a_good_record_meets_every_mark():
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
     assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 12
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 13      # spec 086 FR-5: IM27 on the filled clip
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -662,6 +667,9 @@ SEEDED = [
     ("IM27", ["follow_up_clips", "roles", "PRIMARY", "clips", 0, "script"],
      lambda c: c.replace("One more thing.", "One last thing.", 1)),
     ("IM27", ["follow_up_clips", "roles", "PRIMARY", "clips", 0, "status"], "FAILED"),
+    # v13 (keel-cloud 154): a clip in the registry's bare words, the project's not filled in
+    ("IM27", ["follow_up_clips", "roles", "PRIMARY", "clips", 0, "script"],
+     fake.follow_up_script(fake.rung("problem.importance")[3])),
     ("IM27", ["follow_up_clips", "backfill", "ledger_rows_added"], 1),                   # the backfill charged
     ("IM27", ["follow_up_clips", "backfill", "statuses"], ["READY", "RECORDING"]),
     ("IM27", ["follow_up_clips", "backfill", "served_after", "PRIMARY"], []),           # never served again
