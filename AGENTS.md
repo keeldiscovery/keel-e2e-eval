@@ -546,6 +546,29 @@ inactive page are recorded as *SKIPPED -- keel-web 131 not yet built* until it i
 keel-cloud-docs snapshot at `68ff142a`; `make eval K=s006` owed on a stack at 156+, and `K=s005` / `K=s006` with the
 marker on after 131.
 
+**Corpus revision 19 and the three moved controls** (spec `089-revision-19-and-the-controls`, 2026-10-30; keel-cloud 158,
+merged `e3d34831`, contract 46; 159, `1cf2ebc3`, contract 47; 160 at `ad5f6441`). The reader reads **revision 19** and
+refuses 18 by name: Relative advantage is **one scale**, `scale_four` (*A lot better · A little better · No difference ·
+Worse*, *I can't tell* apart), every recorded answer moved by the one rule (`registry.from_three`), the golden row
+recording `optionCounts` on the four; rule D19 (`tests/test_corpus_r19.py`) holds every entry to its `corpus-r18/` /
+`backtest-r18/` record (D18, D17, D16 kept mirror against mirror). The corpus's Frequency and Importance rows still record
+`segmented_0_to_7` / `pick_two`, read as 158's `segmented_1_to_n` / `pick_one_then_one` (`registry.RECORDED_CONTROLS`).
+`MARKS_VERSION` 21 stands with the seven r19 digests; **`INTERVIEWER_MARKS_VERSION` 14** (IM20 reads one tap, the item's
+*And one more?* clip, then the second). On the wire and the screens: **Frequency counts from 1**, and the five recorded
+0s after a yes (04-linerly Bruno Costa, Dmitri Volkov, Gwen Price; 05-paidly Petra Novak, Talia Ben-David) are sent as
+*I can't recall* (`vectors_script.ZERO_AS_CANT_RECALL`), each named in `PersonInputs.notes` and the journey's findings --
+the corpus untouched, the founder's call held as `D-2026-10-30-01`; **Importance asks one, then one more**
+(`vectors_screens.Interview._one_then_one`, `interviewer_leg._Walk.tap_one_then_one`; one pick with `NOTHING_ELSE` a whole
+answer; `interviewer_fake.MORE` *And one more?*; the classifier's `ask: second`; S7 never says *; pick two*);
+**Relative advantage is one tap** (no `advantageIds`, no benefit ticks, no advantages ask, `yes_no_per_benefit` retired;
+the question *... have made it go better for you, or not?*, the plain frame past 20 words; the follow-up rung on
+`no_difference` / `worse`; the brief's line *said it would have gone better, K of them a lot*, `brief_facts.benefit_view`).
+160's frames: the served Frequency opens with the window (`vectors_script.frequency_served`, `frequency_held`: the unit said
+once, then the cut), E4 still measured on the frame before 160 (`frequency_question`, `wording.frequency_measured`). A
+keel-cloud `build/brief-facts/` or `build/spoken-corpus.txt` written before 159 is skipped by name. The screen and
+AI-link walks are written to keel-web 135's spec, which is not built: `make unit` green against the live keel-cloud-docs
+checkout at `ad5f6441` (3,768 / 0 / 63); `make eval K=s005` / `s006` / `s007` owed on a stack at 160+ with web at 135.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
