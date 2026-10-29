@@ -478,6 +478,12 @@ enum on the offered flag. The marks only read the data: `INTERVIEWER_MARKS_VERSI
 hellos are heard unmuted: on a machine whose audio output stalls, headless Chromium fires `playing` and never advances
 (any face; muted or `--disable-audio-output` plays to the end), so IM28 / IM30 fail for the machine, not the product.
 
+**The card's condition is the settled one** (spec `084-card-condition-settled`, 2026-10-28; keel-cloud 148 FR-1,
+contract 44 unchanged). The context card's *Only people who:* line reads the condition the confirmed context stores
+(`vectors_script.card_condition` = `segment_of(entry)["condition"]`), so on a `DRAWN` row (07-mulchrun) it is code's
+*are based in the Dallas-Fort Worth suburbs* although the scripted result (`scripted_segment`) writes none; spec 077's
+"none on 07-mulchrun" no longer holds. S-007 red on staging `f48f256` + keel-web `786d4c3` until this.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
