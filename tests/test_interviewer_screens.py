@@ -155,15 +155,15 @@ def test_the_words_are_keel_webs_own(word):
 
 def test_the_templates_are_keel_webs_own():
     translate = _web("src/lib/translate.ts")
-    assert "`${face} asks your questions.`" in translate and ivs.persona_asks("Livia") == "Livia asks your questions."
+    assert "`${face} asks your questions.`" in translate and ivs.persona_asks("Daphne") == "Daphne asks your questions."
     assert "`Change who asks · ${creditsAmount(credits)} AI credits`" in translate
     assert ivs.change_who_asks(400) == "Change who asks · 400 AI credits"
     assert "`Record the interviewer · ${creditsAmount(credits)} AI credits`" in translate
     # keel-web 109 (keel-cloud 133 FR-9): *1 question* for one
     assert "`${face} asks your questions`" in translate
     assert '`${face} will ask you ${questions} question${questions === 1 ? "" : "s"}.`' in translate
-    assert ivs.ai_intro_heading("Livia", 1) == "Livia will ask you 1 question."
-    assert ivs.ai_intro_heading("Livia", 9) == "Livia will ask you 9 questions."
+    assert ivs.ai_intro_heading("Daphne", 1) == "Daphne will ask you 1 question."
+    assert ivs.ai_intro_heading("Daphne", 9) == "Daphne will ask you 9 questions."
 
 
 @pytest.mark.parametrize("testid", ["persona-line", "change-who-asks", "change-face-popup", "change-face-confirm",

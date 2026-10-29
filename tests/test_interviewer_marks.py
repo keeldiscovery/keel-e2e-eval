@@ -151,24 +151,24 @@ def _media(type_: str, ms: int, *, face: str | None = None, intro: bool = False,
 
 
 def _hear_face() -> dict:
-    """Spec 058 IM28: Chukwu tapped in the popup's carousel, her hello played in the card, the still back."""
-    src = "http://localhost:5173/interviewer/faces/chukwu.mp4"
-    return {"face": "CHUKWU", "hello": fake.hello_path("CHUKWU"), "sent": {"face": "CHUKWU"}, "ended": True,
+    """Spec 058 IM28: Saskia tapped in the popup's carousel, her hello played in the card, the still back."""
+    src = "http://localhost:5173/interviewer/faces/saskia.mp4"
+    return {"face": "SASKIA", "hello": fake.hello_path("SASKIA"), "sent": {"face": "SASKIA"}, "ended": True,
             "before": {"picked": False, "glyph": True, "video": False, "videos": 0, "still": True,
-                       "glyphs": {"JIA": True, "MARIEKE": True, "CHUKWU": True}},
-            "events": [_media("play", 40, face="CHUKWU", src=src), _media("playing", 120, face="CHUKWU", src=src),
-                       _media("pause", 5_330, face="CHUKWU", current=5.2, src=src),
-                       _media("ended", 5_331, face="CHUKWU", current=5.2, src=src)],
+                       "glyphs": {"SASKIA": True}},
+            "events": [_media("play", 40, face="SASKIA", src=src), _media("playing", 120, face="SASKIA", src=src),
+                       _media("pause", 5_330, face="SASKIA", current=5.2, src=src),
+                       _media("ended", 5_331, face="SASKIA", current=5.2, src=src)],
             "polls": [], "elapsed_ms": 5_400,
             "after": {"picked": True, "still": True, "video": False, "videos": 0, "waited_ms": 100},
-            "checked": ["CHUKWU"]}
+            "checked": ["SASKIA"]}
 
 
 def _hear_intro() -> dict:
-    """Spec 058 IM29: *Hear Chukwu* on the Let-them-choose intro, the buttons enabled throughout."""
-    src = "http://localhost:5173/interviewer/faces/chukwu.mp4"
-    return {"face": "CHUKWU", "hello": fake.hello_path("CHUKWU"), "ended": True,
-            "before": {"words": "Hear Chukwu · 5 s", "label": "Hear Chukwu", "still": True, "video": False,
+    """Spec 058 IM29: *Hear Saskia* on the Let-them-choose intro, the buttons enabled throughout."""
+    src = "http://localhost:5173/interviewer/faces/saskia.mp4"
+    return {"face": "SASKIA", "hello": fake.hello_path("SASKIA"), "ended": True,
+            "before": {"words": "Hear Saskia · 5 s", "label": "Hear Saskia", "still": True, "video": False,
                        "videos": 0, "buttons": {"choice-talk": True, "choice-write": True}},
             "events": [_media("playing", 90, intro=True, src=src), _media("ended", 5_300, intro=True, current=5.2,
                                                                           src=src)],
@@ -178,10 +178,10 @@ def _hear_intro() -> dict:
 
 
 def _hear_band() -> dict:
-    """Spec 059 IM30: *Hear Chukwu · 5 s* on Sent's who-asks band after the recording, her hello in the band's circle."""
-    src = "http://localhost:5173/interviewer/faces/chukwu.mp4"
-    return {"present": True, "face": "CHUKWU", "hello": fake.hello_path("CHUKWU"), "retired": False, "ended": True,
-            "before": {"words": "Hear Chukwu · 5 s", "label": None, "still": True, "video": False, "videos": 1,
+    """Spec 059 IM30: *Hear Saskia · 5 s* on Sent's who-asks band after the recording, her hello in the band's circle."""
+    src = "http://localhost:5173/interviewer/faces/saskia.mp4"
+    return {"present": True, "face": "SASKIA", "hello": fake.hello_path("SASKIA"), "retired": False, "ended": True,
+            "before": {"words": "Hear Saskia · 5 s", "label": None, "still": True, "video": False, "videos": 1,
                        "hearing": None},
             "hearing_while": True,
             "events": [_media("play", 30, src=src) | {"band": True}, _media("playing", 95, src=src) | {"band": True},
@@ -205,7 +205,7 @@ def _story_chip() -> dict:
             "mic_off": {"shown": True}, "rows": {}, "row_faults": []}
 
 def good() -> dict:
-    """A record as S-006's leg writes one: Chukwu at the first recording, Livia after the change, one fail-once
+    """A record as S-006's leg writes one: Saskia at the first recording, Daphne after the change, one fail-once
     retried (spec 058: Tito and Judy before)."""
     primary = [_clip("PRIMARY", "OPENING", script=fake.OPENING),
                _clip("PRIMARY", "PROBLEM", script="Translators wait months to be paid. I'll ask you 2 questions."),
@@ -234,13 +234,13 @@ def good() -> dict:
                    {"kind": "PURCHASE", "credits": -800, "action": None, "price_version": None}],
         "screens": {"L1": "Who asks the questions. Keel records your interviewer once for this project. Lock and record "
                           "the interviewer",
-                    "S1": "Chukwu asks your questions. Recording now, usually ready in about five minutes. 3 of 19 clips",
+                    "S1": "Saskia asks your questions. Recording now, usually ready in about five minutes. 3 of 19 clips",
                     "S2": "Recorded today at 16:02. Change who asks · 400 AI credits",
-                    "S3": "AI interviewer · Chukwu Text only Let them choose The interviewer is already recorded."},
-        "wire_views": [{"face": {"code": "CHUKWU"}, "status": "READY", "progress": {"done": 19, "total": 19},
-                        "changePrice": 400, "faces": [{"code": "LIVIA"}]},
-                       {"interviewer": {"face": "CHUKWU", "status": "RECORDING"}, "revision": 40}],
-        "recording": {"face": "LIVIA", "status": "READY", "clips": primary + commercial},
+                    "S3": "AI interviewer · Saskia Text only Let them choose The interviewer is already recorded."},
+        "wire_views": [{"face": {"code": "SASKIA"}, "status": "READY", "progress": {"done": 19, "total": 19},
+                        "changePrice": 400, "faces": [{"code": "DAPHNE"}]},
+                       {"interviewer": {"face": "SASKIA", "status": "RECORDING"}, "revision": 40}],
+        "recording": {"face": "DAPHNE", "status": "READY", "clips": primary + commercial},
         "roles": {"PRIMARY": {"kind": "FULL", "parts": [
                       {"part": 1, "items": ["problem.recency", "problem.importance"]},
                       {"part": 2, "items": ["solution.relative_advantage", "solution.compatibility"]}]},
@@ -264,10 +264,10 @@ def good() -> dict:
                            {"itemId": "d", "how": "TYPED"},                     # a value typed into the field
                            {"itemId": "e", "how": "RECORDED", "heard": "the second one"}]},
                        "register_row": {"formatUsed": "AI_INTERVIEWER"}},
-        "change": {"face": "LIVIA", "face_before": "CHUKWU", "face_after": "LIVIA", "ready_face": "LIVIA",
+        "change": {"face": "DAPHNE", "face_before": "SASKIA", "face_after": "DAPHNE", "ready_face": "DAPHNE",
                    "balance_before": 1100, "balance_after": 700, "trail": ["RECORDING", "RECORDING", "READY"]},
         "low_balance": {"status": 422, "balance": 100, "balance_after": 100, "ledger_rows_added": 0,
-                        "face_before": "LIVIA", "face_after": "LIVIA",
+                        "face_before": "DAPHNE", "face_after": "DAPHNE",
                         "body": {"rule": "credits", "code": "INSUFFICIENT_CREDITS_FOR_INTERVIEWER", "required": 400,
                                  "available": 100, "remedy": fake.INSUFFICIENT_REMEDY.format(required=400,
                                                                                             available=100)}},
@@ -452,11 +452,11 @@ SEEDED = [
     ("IM1", ["ledger", 2, "actual_cost_micro_usd"], 1_430_000),                         # the vendor's bill passed on
     ("IM1", ["ledger", 1, "inference_job_id"], str(uuid.uuid4())),                       # held on a job
     ("IM2", ["screens", "L1"], "Who asks the questions · 400 credits"),                  # a price on Lock
-    ("IM2", ["screens", "S1"], "Chukwu asks your questions. Recording now ($1.43)."),
-    ("IM2", ["screens", "S3"], "AI interviewer · Chukwu · 400 credits"),
+    ("IM2", ["screens", "S1"], "Saskia asks your questions. Recording now ($1.43)."),
+    ("IM2", ["screens", "S3"], "AI interviewer · Saskia · 400 credits"),
     ("IM2", ["screens", "S2"], "Recorded today at 16:02. Change who asks"),              # the one action missing
     ("IM2", ["screens"], lambda s: {k: v for k, v in s.items() if k != "S3"}),           # a screen not drawn
-    ("IM2", ["wire_views"], lambda v: v + [{"interviewer": {"face": "CHUKWU", "creditsCharged": 400}}]),
+    ("IM2", ["wire_views"], lambda v: v + [{"interviewer": {"face": "SASKIA", "creditsCharged": 400}}]),
     ("IM3", ["recording"], _clips(lambda c: [c[4]] + c[:4] + c[5:])),                    # the idea before the problem
     ("IM3", ["recording"], _clips(lambda c: c[:8] + [c[9], c[8]] + c[10:])),              # thanks before the pilot
     ("IM3", ["recording"], _clips(lambda c: c[:2] + [c[3], c[2]] + c[4:])),               # items out of order
@@ -510,11 +510,11 @@ SEEDED = [
     ("IM10", ["ledger"], lambda rows: rows + _pair("INTERVIEWER_CHANGE")),                # charged twice
     ("IM10", ["change", "balance_after"], 1100),
     ("IM10", ["change", "trail"], ["READY"]),                                             # never re-recorded
-    ("IM10", ["change", "ready_face"], "CHUKWU"),                                           # READY on the old face
+    ("IM10", ["change", "ready_face"], "SASKIA"),                                           # READY on the old face
     ("IM11", ["low_balance", "status"], 200),                                             # changed anyway
     ("IM11", ["low_balance", "body", "remedy"], "Not enough credits."),
     ("IM11", ["low_balance", "ledger_rows_added"], 2),
-    ("IM11", ["low_balance", "face_after"], "CHUKWU"),
+    ("IM11", ["low_balance", "face_after"], "SASKIA"),
     ("IM11", ["low_balance", "body", "available"], 0),
     ("IM12", ["retry", "clip", "attempts"], 1),                                           # never failed, never retried
     ("IM12", ["retry", "ledger_rows_added"], 2),                                          # the retry paid again
@@ -673,33 +673,33 @@ _ENDED = 3
 HEAR_FACE_FAULTS = [
     ("picked already", ["hear_face", "before", "picked"], True),
     ("no glyph on the card", ["hear_face", "before", "glyph"], False),
-    ("an unpicked card with no glyph", ["hear_face", "before", "glyphs", "JIA"], False),
+    ("an unpicked card with no glyph", ["hear_face", "before", "glyphs", "SASKIA"], False),
     ("a clip showing before the tap", ["hear_face", "before", "video"], True),
     ("never ended", ["hear_face", "events"], lambda ev: ev[:_ENDED]),
     ("never played", ["hear_face", "events"], lambda ev: [e for e in ev if e["type"] != "playing"]),
     ("muted", ["hear_face", "events", 1, "muted"], True),
-    ("another clip", ["hear_face", "events", 1, "src"], "http://localhost:5173/interviewer/faces/livia.mp4"),
+    ("another clip", ["hear_face", "events", 1, "src"], "http://localhost:5173/interviewer/faces/daphne.mp4"),
     ("over 8 s long", ["hear_face", "events", _ENDED, "duration"], 9.0),
     ("ended over 8 s after playing", ["hear_face", "events", _ENDED, "ms"], 8_200),
     ("stopped short of the end", ["hear_face", "events", _ENDED, "currentTime"], 2.0),
     ("a media error", ["hear_face", "events"], lambda ev: ev + [dict(ev[0], type="error", error=4)]),
-    ("another card played", ["hear_face", "events"], lambda ev: ev + [dict(ev[1], face="JIA")]),
+    ("another card played", ["hear_face", "events"], lambda ev: ev + [dict(ev[1], face="DAPHNE")]),
     ("the still never returned", ["hear_face", "after", "still"], False),
     ("the clip still showing", ["hear_face", "after", "video"], True),
     ("not picked by the tap", ["hear_face", "after", "picked"], False),
-    ("two checked", ["hear_face", "checked"], ["LIVIA", "CHUKWU"]),
-    ("another face posted", ["hear_face", "sent"], {"face": "LIVIA"}),
+    ("two checked", ["hear_face", "checked"], ["DAPHNE", "SASKIA"]),
+    ("another face posted", ["hear_face", "sent"], {"face": "DAPHNE"}),
     ("the hello not served", ["hear_face", "hello"], None),
-    ("a retired face", ["hear_face", "face"], "TITO"),
+    ("a retired face", ["hear_face", "face"], "CHUKWU"),
 ]
 HEAR_INTRO_FAULTS = [
     ("other words", ["hear_intro", "before", "words"], "Listen"),
-    ("another name", ["hear_intro", "before", "words"], "Hear Livia · 5 s"),
+    ("another name", ["hear_intro", "before", "words"], "Hear Daphne · 5 s"),
     ("no still before", ["hear_intro", "before", "still"], False),
     ("never ended", ["hear_intro", "events"], lambda ev: ev[:1]),
     ("muted", ["hear_intro", "events", 0, "muted"], True),
     ("played outside the intro", ["hear_intro", "events"], lambda ev: [dict(e, intro=False) for e in ev]),
-    ("another clip", ["hear_intro", "events", 0, "src"], "http://localhost:5173/interviewer/faces/jia.mp4"),
+    ("another clip", ["hear_intro", "events", 0, "src"], "http://localhost:5173/interviewer/faces/daphne.mp4"),
     ("over 8 s long", ["hear_intro", "events", 1, "duration"], 8.5),
     ("the still never returned", ["hear_intro", "after", "still"], False),
     ("the clip still showing", ["hear_intro", "after", "video"], True),
@@ -709,7 +709,7 @@ HEAR_INTRO_FAULTS = [
     ("Write disabled before", ["hear_intro", "before", "buttons", "choice-write"], False),
     ("Talk disabled after", ["hear_intro", "after", "buttons", "choice-talk"], False),
     ("only one button", ["hear_intro", "after", "buttons"], {"choice-talk": True}),
-    ("the hello not served", ["hear_intro", "hello"], "/interviewer/faces/chukwu.webp"),
+    ("the hello not served", ["hear_intro", "hello"], "/interviewer/faces/saskia.webp"),
 ]
 SEEDED += [("IM28", path, value) for _, path, value in HEAR_FACE_FAULTS]
 SEEDED += [("IM29", path, value) for _, path, value in HEAR_INTRO_FAULTS]
@@ -717,7 +717,7 @@ SEEDED += [("IM29", path, value) for _, path, value in HEAR_INTRO_FAULTS]
 HEAR_BAND_FAULTS = [
     ("no button on a current face", ["hear_band", "present"], False),
     ("a pronoun", ["hear_band", "before", "words"], "Hear her · 5 s"),
-    ("another name", ["hear_band", "before", "words"], "Hear Livia · 5 s"),
+    ("another name", ["hear_band", "before", "words"], "Hear Daphne · 5 s"),
     ("no still before", ["hear_band", "before", "still"], False),
     ("a clip showing before the tap", ["hear_band", "before", "video"], True),
     ("never marked hearing", ["hear_band", "hearing_while"], False),
@@ -725,7 +725,7 @@ HEAR_BAND_FAULTS = [
     ("never played", ["hear_band", "events"], lambda ev: [e for e in ev if e["type"] != "playing"]),
     ("muted", ["hear_band", "events", 1, "muted"], True),
     ("played outside the band", ["hear_band", "events"], lambda ev: [dict(e, band=False) for e in ev]),
-    ("another clip", ["hear_band", "events", 1, "src"], "http://localhost:5173/interviewer/faces/jia.mp4"),
+    ("another clip", ["hear_band", "events", 1, "src"], "http://localhost:5173/interviewer/faces/daphne.mp4"),
     ("over 8 s long", ["hear_band", "events", 2, "duration"], 8.5),
     ("ended over 8 s after playing", ["hear_band", "events", 2, "ms"], 8_300),
     ("stopped short of the end", ["hear_band", "events", 2, "currentTime"], 1.0),
@@ -748,12 +748,15 @@ def test_a_hear_fault_fails_its_mark_alone(why, path, value):
 
 def test_a_retired_face_meets_im30_by_drawing_no_hear_button():
     """Spec 059 FR-2: absent for a retired face -- no journey can record one (keel-cloud 110 refuses it FACE_UNKNOWN),
-    so the branch is this table's: no button and no hello meets IM30; a button drawn for it fails."""
-    record = good()
-    record["hear_band"] = {"present": False, "face": "TITO", "hello": None, "retired": True, "state": "READY"}
-    assert _by_mark(record)["IM30"].ok, _by_mark(record)["IM30"].detail
-    record["hear_band"]["present"] = True
-    assert not _by_mark(record)["IM30"].ok
+    so the branch is this table's: no button and no hello meets IM30; a button drawn for it fails. Spec 083: 094's
+    TITO (retired by 110) and 143's CHUKWU (a constant, served with helloUrl null) alike."""
+    for face in ("TITO", "CHUKWU"):
+        record = good()
+        record["hear_band"] = {"present": False, "face": face, "hello": fake.served_hello(face), "retired": True,
+                               "state": "READY"}
+        assert _by_mark(record)["IM30"].ok, _by_mark(record)["IM30"].detail
+        record["hear_band"]["present"] = True
+        assert not _by_mark(record)["IM30"].ok
 
 
 def test_the_w1_replay_is_retired_and_says_why():
@@ -839,10 +842,19 @@ def _cloud_text(rel: str) -> str:
 
 
 def test_the_faces_are_keel_clouds_own():
+    """Spec 083 FR-3: keel-cloud 143's enum lists every constant, offered or retired, each closing on its offered flag
+    (`InterviewerFace(..., boolean offered)`): the fake's FACES are the constants whose flag is true, in the enum's order
+    (`OFFERED`, the order served), and RETIRED_143 those whose flag is false -- matched on the flag, not on the first two."""
     text = _cloud_text("src/main/java/com/keeldiscovery/cloud/domain/interviewer/InterviewerFace.java")
     import re                                                             # noqa: PLC0415
-    assert tuple(re.findall(r"^\s+([A-Z]+)\(\"", text, re.M)) == fake.FACES
-    assert "PRESELECTED = LIVIA" in text
+    constants = re.findall(r"^\s+([A-Z]+)\(\"[^;]*?,\s*(true|false)\)[,;]", text, re.M | re.S)
+    assert tuple(code for code, offered in constants if offered == "true") == fake.FACES, constants
+    assert tuple(code for code, offered in constants if offered == "false") == fake.RETIRED_143, constants
+    assert f"PRESELECTED = {fake.PRESELECTED};" in text
+    for code in fake.FACES:
+        assert f'{code}("{fake.FACE_NAMES[code]}"' in text, code
+    for code in fake.RETIRED_110:
+        assert not re.search(rf"^\s+{code}\(", text, re.M), code       # 110 removed them: no constant
 
 
 def test_the_kinds_are_keel_clouds_own():

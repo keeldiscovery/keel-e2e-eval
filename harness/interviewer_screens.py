@@ -465,7 +465,7 @@ def _words(locator) -> str:
 # ------------------------------------------------------------------------------------- tap to hear (087)
 
 #: keel-web 087's test ids: the play glyph on an unpicked card, the intro's *Hear <name>*; keel-web 088's twin on the
-#: who-asks band (`persona-hear`, *Hear Livia · 5 s*).
+#: who-asks band (`persona-hear`, *Hear Daphne · 5 s*).
 FACE_HEAR = "face-hear"
 INTRO_HEAR = "intro-hear"
 PERSONA_HEAR = "persona-hear"

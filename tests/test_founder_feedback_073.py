@@ -221,6 +221,8 @@ def test_sc2_v2_counts_the_two_screens():
 from harness import interviewer_screens as ivs                                  # noqa: E402
 from harness.steps import Recorder                                             # noqa: E402
 
+#: Spec 083: the band stays LIVIA -- keel-web 125 keeps 087's picture band for the retired four only (a recording that
+#: carries one); the two studio faces draw their 9:16 render with no band, as `_PLAIN` reads.
 _BAND = """<div data-testid="ai-stage" data-phase="speaking"><div data-testid="ai-face" data-band="LIVIA"
   class="aiv-stage__face aiv-stage__face--band"><div class="aiv-band"><div data-testid="ai-band-blur"></div>
   <div data-testid="ai-band" class="aiv-band__picture"><video class="aiv-stage__video aiv-band__video"

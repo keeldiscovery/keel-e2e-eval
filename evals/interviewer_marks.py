@@ -70,6 +70,10 @@ from harness import interviewer_fake as fake
 #: recall one particular {occasion}* and no solution or money line listing them) and IM23 (a text walk whose person taps
 #: the chip -- 05-paidly's Xavier Dubois, *I'd rather not say* -- reaches no item and no follow-up route: `asked` false,
 #: nothing owed, no screen, no `followUps`). No mark born or dropped.
+#: v12 kept (spec 083, keel-cloud 143 + keel-web 125, contract 44, 2026-10-28: the two studio faces, DAPHNE preselected,
+#: SASKIA the leg's first pick): only the data moved -- IM28's face check, IM29's and IM30's names and IM30's retired
+#: branch read `interviewer_fake` (FACES, FACE_NAMES, RETIRED) as before, and the fake now holds 143's two and the eight
+#: retired; no mark's words changed, none born or dropped.
 INTERVIEWER_MARKS_VERSION = 12
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
