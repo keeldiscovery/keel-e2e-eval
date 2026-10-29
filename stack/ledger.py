@@ -191,17 +191,21 @@ def stand_in_keels_door(config: StackConfig, founder_id: str, run: str, *, spec:
     return added
 
 
-def stand_in_balance(config: StackConfig, founder_id: str, run: str, *, to: int, spec: str = "043") -> int:
+def stand_in_balance(config: StackConfig, founder_id: str, run: str, *, to: int, spec: str = "043",
+                     label: str = "low-balance", what: str | None = None) -> int:
     """Stand-in 2 (call 130): the balance lowered to `to` with one row, as keel-cloud's own `ContactsJourneyTest.
     balance` does (a `PURCHASE` row of the difference) -- the eval cannot spend the fake's 53 people down past 1,454
-    credits of a 2,000 grant. Returns the row's credits."""
+    credits of a 2,000 grant. Returns the row's credits. Spec 088 FR-3 moves one balance several times in one run (29,
+    then 30, then back): each move is its own row under its own `label` (the key is UNIQUE), saying `what` it is for."""
     _require_uuid(founder_id)
+    if not re.fullmatch(r"[a-z0-9-]+", label):
+        raise LedgerUnavailable(f"not a stand-in label: {label!r}")
     delta = int(to) - balance(config, founder_id)
     _psql(config, "INSERT INTO credit_ledger (id, founder_account_id, kind, credits, reason, idempotency_key, created_at)"
                   " VALUES (:'row', :'founder', 'PURCHASE', :'credits', :'reason', :'key', now());\n",
           founder=founder_id, row=str(uuid.uuid4()), credits=str(delta),
-          reason=reason(spec, f"the balance lowered to {int(to)} to see the credit refusals"),
-          key=f"{key_prefix(spec)}{run}:low-balance")
+          reason=reason(spec, what or f"the balance lowered to {int(to)} to see the credit refusals"),
+          key=f"{key_prefix(spec)}{run}:{label}")
     return delta
 
 

@@ -118,6 +118,9 @@ CHOICE_PERSON = "Someone the founder knows, who picks"
 CHIP_PERSON = "Someone the founder knows, who can't recall one"
 #: Spec 048 (keel-cloud 099 FR-4 / FR-7): an AI link answered from the recorded path, on the wire.
 RECORDED_PERSON = "Someone the founder knows, whose browser records"
+#: Spec 088 FR-3 (keel-cloud 156): two text links made while the balance is under one interview -- the first is begun
+#: once the balance covers it, the second never is.
+WAITING_PERSONS = ("Someone the founder knows, whose link waits", "Someone else the founder knows, whose link waits")
 #: keel-cloud 099 judgement call 1: under 12 KiB of audio/webm is silence -- never transcribed, never classified. One
 #: byte under, and one well over (what the stack's fake transcriber hears for it is `FAKE_TRANSCRIPT`).
 SILENT_WEBM = b"\x1a\x45\xdf\xa3" + b"\x00" * (12 * 1024 - 5)
@@ -291,6 +294,7 @@ def _leg(j, *, short: bool) -> dict:
         if not short:
             _choice_link(j, wire, record)
             _recorded_link(j, wire, record)
+            _inactive_link(j, wire, record, founder_id, run)
             _change_face(j, wire, record)
             _low_balance(j, wire, record, founder_id, run)
             _retry(j, wire, record)
@@ -2987,6 +2991,108 @@ def _begun_on_screen(j, record: dict, invitation_id: str | None, whose: str) -> 
         assert len(mine) <= 1, out
         if built:
             assert not out["faults"], out
+
+
+def _inactive_link(j, wire: _Wire, record: dict, founder_id: str, run: str) -> None:
+    """Spec 088 FR-3 (keel-cloud 156 FR-3, contract 45): the link's own gate, on Keel's door. The balance stood in at
+    29 (one under an interview), two fresh text links are made and each opened: 200 `{state: INACTIVE, message: "This
+    link is no longer active."}` -- no number, no *credits* -- and nothing written; the page draws the one line
+    (keel-web 131: skipped until it merges). At 30 the first is served (state OPEN, its parts); its Begin writes the one
+    row and drops the balance to 0, and the begun link is still served there while the never-begun one reads INACTIVE.
+    The balance is put back where it stood for the rest of the leg."""
+    under = charge.INACTIVE_BELOW - 1
+    stood = wire.credits()
+    with j.recorder.step(f"interviewer (spec 088 FR-3): STAND-IN -- the balance lowered to {under}, one under an "
+                         "interview", party="stack", kind="protocol") as h:
+        delta = stack_ledger.stand_in_balance(j.stack, founder_id, run, to=under, spec=SPEC, label="inactive-under",
+                                              what=f"the balance lowered to {under} to see a link inactive")
+        h.record_wire({"row": delta}, {"creditsAvailable": wire.credits()})
+        assert wire.credits() == under
+    with j.recorder.step(f"interviewer (spec 088 FR-3, keel-cloud 156): two text links made at {under} credits and "
+                         "opened -- each 200 INACTIVE \"This link is no longer active.\", no number, no credits; "
+                         "nothing written", party="participant", kind="assert") as h:
+        revision = int((j.get(j.project("/persona")) or {}).get("revision") or 0)
+        status, made = wire("POST", "/invitations/batch", {
+            "expectedRevision": revision, "respondentType": vs.LINK_PRIMARY, "format": "TEXT",
+            "people": [{"personName": name} for name in WAITING_PERSONS]})
+        links = made.get("links") or []
+        rows_before = _rows(j, record)
+        opened = []
+        for link in links:
+            got = _participant(j, "GET", _token(link.get("url") or ""), "/interview")
+            opened.append({"invitationId": link.get("invitationId"), "status": got.status_code, "body": _json_of(got),
+                           "faults": charge.inactive_faults(got.status_code, _json_of(got))})
+        x = record["inactive"] = {"balance": under, "made": status, "links": links, "opened": opened,
+                                  "ledger_rows_added": _rows(j, record) - rows_before}
+        h.record_assert({"status": 200, "body": charge.INACTIVE_BODY, "ledger_rows_added": 0}, x)
+        assert status == 201 and len(links) == len(WAITING_PERSONS), made
+        assert all(not o["faults"] for o in opened), opened
+        assert x["ledger_rows_added"] == 0, x
+    first, second = links
+    _inactive_on_screen(j, record, first.get("url") or "")
+    with j.recorder.step(f"interviewer (spec 088 FR-3): STAND-IN -- the balance raised to {charge.INACTIVE_BELOW}, "
+                         "exactly one interview", party="stack", kind="protocol") as h:
+        delta = stack_ledger.stand_in_balance(j.stack, founder_id, run, to=charge.INACTIVE_BELOW, spec=SPEC,
+                                              label="inactive-at-one",
+                                              what=f"the balance raised to {charge.INACTIVE_BELOW} to see a link served")
+        h.record_wire({"row": delta}, {"creditsAvailable": wire.credits()})
+        assert wire.credits() == charge.INACTIVE_BELOW
+    first_token, second_token = _token(first.get("url") or ""), _token(second.get("url") or "")
+    with j.recorder.step(f"interviewer (spec 088 FR-3): at {charge.INACTIVE_BELOW} credits the first link is served -- "
+                         "state OPEN, its parts", party="participant", kind="assert") as h:
+        got = _participant(j, "GET", first_token, "/interview")
+        x["at_one"] = {"status": got.status_code, "state": _json_of(got).get("state"),
+                       "parts": len(_json_of(got).get("parts") or [])}
+        h.record_assert({"status": 200, "state": charge.OPEN}, x["at_one"])
+        assert charge.served(got.status_code, _json_of(got)), x["at_one"]
+    _begin(j, wire, record, first_token, first.get("invitationId"), "the first waiting link's")
+    with j.recorder.step("interviewer (spec 088 FR-3): the Begin dropped the balance to 0 -- the begun link is still "
+                         "served, the never-begun one reads INACTIVE", party="participant", kind="assert") as h:
+        balance = wire.credits()
+        begun = _participant(j, "GET", first_token, "/interview")
+        waiting = _participant(j, "GET", second_token, "/interview")
+        x["after_begin"] = {"balance": balance,
+                            "begun": {"status": begun.status_code, "state": _json_of(begun).get("state")},
+                            "waiting": {"status": waiting.status_code, "body": _json_of(waiting),
+                                        "faults": charge.inactive_faults(waiting.status_code, _json_of(waiting))}}
+        h.record_assert({"balance": f"< {charge.INACTIVE_BELOW}", "begun": charge.OPEN,
+                         "waiting": charge.INACTIVE_BODY}, x["after_begin"])
+        assert balance is not None and balance < charge.INACTIVE_BELOW, x["after_begin"]
+        assert charge.served(begun.status_code, _json_of(begun)), x["after_begin"]
+        assert not x["after_begin"]["waiting"]["faults"], x["after_begin"]
+    with j.recorder.step(f"interviewer (spec 088 FR-3): STAND-IN -- the balance put back to {stood} for the rest of the "
+                         "leg", party="stack", kind="protocol") as h:
+        delta = stack_ledger.stand_in_balance(j.stack, founder_id, run, to=stood, spec=SPEC, label="inactive-back",
+                                              what=f"the balance put back to {stood} after the inactive link")
+        h.record_wire({"row": delta}, {"creditsAvailable": wire.credits()})
+        assert wire.credits() == stood
+
+
+def _inactive_on_screen(j, record: dict, url: str) -> None:
+    """Spec 088 FR-3, the page (keel-web 131): an inactive link opened in the stranger's browser draws the one line,
+    *This link is no longer active.*, with no number and no *credits*. Until 131 merges keel-web has no such page: the
+    step is a note, skipped (`interview_charge.WEB_131_PENDING`), and nothing is opened."""
+    if not charge.web_131_built():
+        with j.recorder.step(f"interviewer (spec 088 FR-3): SKIPPED -- {charge.WEB_131_PENDING}: the inactive page's "
+                             "one line is not asserted", party="participant", kind="note") as h:
+            h.request, h.response = {"skipped": charge.WEB_131_PENDING}, {"url": url}
+        record["inactive"]["page"] = {"skipped": charge.WEB_131_PENDING}
+        return
+    stranger = j.browser.new_context()
+    try:
+        page = stranger.new_page()
+        with j.recorder.step("interviewer (spec 088 FR-3, keel-web 131): the inactive link's page draws the one line "
+                             "-- no number, no credits", party="participant", kind="assert") as h:
+            page.goto(url, wait_until="load")
+            page.get_by_text(charge.INACTIVE_MESSAGE).first.wait_for(state="visible", timeout=20_000)
+            text = page.locator("body").inner_text()
+            faults = charge.page_faults(text)
+            record["inactive"]["page"] = {"text": text, "faults": faults}
+            h.add_screenshot(ivs.Player(page, j.recorder, patience=j.patience).screenshot("inactive-link"))
+            h.record_assert({"line": charge.INACTIVE_MESSAGE, "number or credits": None}, record["inactive"]["page"])
+            assert not faults, faults
+    finally:
+        stranger.close()
 
 
 def _choice_intro_on_screen(j, url: str) -> dict:

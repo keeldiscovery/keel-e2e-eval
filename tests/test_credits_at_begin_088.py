@@ -3,7 +3,9 @@
 FR-1, the prices: both fakes at price version 12, the harness's mirror (`harness/interview_charge.py`) held to keel-cloud's
 own charge table (skipped by name on a keel-cloud before 156), and §6.3's five-participant figure re-summed wherever the
 harness states it. FR-2, Begin on the wire: the scripted person's posts (Begin, then the response), the one row's shape,
-the legs' sweeps letting a Begin's row through; the browser half behind the keel-web 131 marker."""
+the legs' sweeps letting a Begin's row through; the browser half behind the keel-web 131 marker. FR-3, the inactive
+link: the body held to keel-cloud's controller (skipped by name before 156), what reads inactive and what reads served,
+the full interviewer leg's order and its stand-ins; the page behind the keel-web 131 marker."""
 
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ from harness import contacts_fake
 from harness import interview_charge as charge
 from harness import interviewer_fake
 from harness import vectors_script as vs
+from stack import ledger
 from stack.config import load_config
 
 CONFIG = load_config(validate=False)
@@ -180,3 +183,70 @@ def _web_sources() -> str:
 def test_keel_web_posts_begin_from_the_intro():
     """FR-2's browser half: keel-web 131 posts `interview/begin` when the intro's Begin (or Continue) is pressed."""
     assert "interview/begin" in _web_sources()
+
+
+# ------------------------------------------------------------------------------------------ FR-3: the inactive link
+
+CONTROLLER = "src/main/java/com/keeldiscovery/cloud/protocol/participant/InterviewController.java"
+
+
+def test_the_inactive_body_is_keel_clouds():
+    text = _cloud(CONTROLLER)
+    if "Inactive" not in text:
+        pytest.skip("keel-cloud predates spec 156 (no Inactive link)")
+    assert f'"{charge.INACTIVE_STATE}", "{charge.INACTIVE_MESSAGE}"' in text
+    assert '@PostMapping("/v2/i/{token}/interview/begin")' in text
+    _, rows = _charge_table()
+    assert charge.INACTIVE_BELOW == rows[charge.INTERVIEW]       # CreditPolicy.INTERVIEW_PRICE: inactive below one
+
+
+def test_what_reads_inactive():
+    assert charge.inactive_faults(200, dict(charge.INACTIVE_BODY)) == []
+    assert charge.inactive_faults(404, charge.INACTIVE_BODY)
+    assert charge.inactive_faults(200, {"state": "ALREADY_ANSWERED", "message": "Thanks"})
+    assert charge.inactive_faults(200, {"state": "OPEN", "parts": [{}]})
+    assert charge.inactive_faults(200, {**charge.INACTIVE_BODY, "creditsAvailable": 29})
+    assert any("credits" in f for f in charge.inactive_faults(200, {"state": "INACTIVE",
+                                                                   "message": "Out of credits: 29 left."}))
+
+
+def test_what_reads_served():
+    assert charge.served(200, {"state": "OPEN", "kind": "FULL", "parts": [{"items": []}]})
+    assert not charge.served(200, charge.INACTIVE_BODY)
+    assert not charge.served(200, {"state": "OPEN", "parts": []})
+    assert not charge.served(404, {})
+
+
+def test_what_the_page_may_say():
+    assert charge.page_faults("This link is no longer active.") == []
+    assert charge.page_faults("Keel\nThis link is no longer active.\n") == []
+    assert charge.page_faults("This page doesn't exist.")
+    assert charge.page_faults("This link is no longer active. The founder has 0 credits.")
+
+
+def test_the_full_leg_walks_the_inactive_link_after_the_scripted_ones():
+    leg = inspect.getsource(interviewer_leg._leg)
+    assert leg.index("_recorded_link(j, wire, record)") < leg.index("_inactive_link(j, wire, record, founder_id, run)")
+    assert leg.index("_inactive_link(") < leg.index("_change_face(j, wire, record)")
+    assert leg.index("if not short:\n            _choice_link") < leg.index("_inactive_link(")
+    walk = inspect.getsource(interviewer_leg._inactive_link)
+    labels = re.findall(r'label="([a-z-]+)"', walk)
+    assert labels == ["inactive-under", "inactive-at-one", "inactive-back"] and len(set(labels)) == 3
+    order = [walk.index(s) for s in ('"inactive-under"', "inactive_faults", "_inactive_on_screen(", '"inactive-at-one"',
+                                     "charge.served(", "_begin(", '"inactive-back"')]
+    assert order == sorted(order)
+    assert len(interviewer_leg.WAITING_PERSONS) == 2
+
+
+def test_a_stand_in_label_is_one_word_of_the_key():
+    with pytest.raises(ledger.LedgerUnavailable, match="label"):
+        ledger.stand_in_balance(object(), "6f1c1a52-6a43-4f5e-9d39-0b7a2d6c1e11", "r", to=29, label="x'; DROP")
+    source = inspect.getsource(ledger.stand_in_balance)
+    assert 'key=f"{key_prefix(spec)}{run}:{label}"' in source and 'label: str = "low-balance"' in source
+
+
+@WEB_131
+def test_keel_web_draws_the_inactive_page():
+    """FR-3's page: keel-web 131 renders INACTIVE as the one line (the ALREADY_ANSWERED way), no number, no credits."""
+    sources = _web_sources()
+    assert charge.INACTIVE_STATE in sources and charge.INACTIVE_MESSAGE in sources

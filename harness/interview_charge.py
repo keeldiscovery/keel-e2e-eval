@@ -114,3 +114,48 @@ def is_charge(row: dict, project_id: str | None = None) -> bool:
 
 def charges(ledger: list[dict], project_id: str | None = None) -> list[dict]:
     return [x for x in ledger if is_charge(x, project_id)]
+
+
+# ------------------------------------------------------------------------------------------ FR-3: the inactive link
+
+#: `ParticipantDtos.InactiveResponse` as `InterviewController` serves it (200) on a link opened while the founder's
+#: available balance is below `INTERVIEW_CREDITS` and the link was never begun -- the shape of `AlreadyAnswered`.
+INACTIVE_STATE = "INACTIVE"
+INACTIVE_MESSAGE = "This link is no longer active."
+INACTIVE_BODY = {"state": INACTIVE_STATE, "message": INACTIVE_MESSAGE}
+#: The highest balance a never-begun link is inactive at (one under an interview).
+INACTIVE_BELOW = INTERVIEW_CREDITS
+
+
+def inactive_faults(status: int, body) -> list[str]:
+    """What is wrong with a served link that should read inactive: 200, the body exactly `INACTIVE_BODY`, and nothing
+    in it a stranger could read as money -- no digit, no *credit*."""
+    faults = []
+    if status != 200:
+        faults.append(f"status {status}, not 200")
+    if body != INACTIVE_BODY:
+        faults.append(f"body {body!r}, not {INACTIVE_BODY!r}")
+    words = " ".join(str(v) for v in (body or {}).values()) if isinstance(body, dict) else str(body)
+    if any(c.isdigit() for c in words) or "credit" in words.lower():
+        faults.append(f"a number or the word credits in {words!r}")
+    return faults
+
+
+#: `Interview.state` on a served interview (contract 45: `enum [OPEN]`); the notices carry INACTIVE / ALREADY_ANSWERED.
+OPEN = "OPEN"
+
+
+def served(status: int, body) -> bool:
+    """The interview itself, not a notice: 200, `state` OPEN, and its parts."""
+    return status == 200 and isinstance(body, dict) and body.get("state") == OPEN and bool(body.get("parts"))
+
+
+def page_faults(text: str | None) -> list[str]:
+    """keel-web 131's inactive page: the one line, *This link is no longer active.*, and no number, no *credits*."""
+    text = (text or "").strip()
+    faults = []
+    if INACTIVE_MESSAGE not in text:
+        faults.append(f"the line {INACTIVE_MESSAGE!r} is not on the page: {text[:200]!r}")
+    if any(c.isdigit() for c in text) or "credit" in text.lower():
+        faults.append(f"a number or the word credits on the page: {text[:200]!r}")
+    return faults
