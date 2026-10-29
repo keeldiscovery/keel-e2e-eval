@@ -513,6 +513,23 @@ so the tool branch draws only where the people are the subject. `leg_context`'s 
 journeys moved with it; 17-expanse's *have 100 or more GPUs* is 145's amount branch, which neither 149 nor the harness
 draws. `make unit` on a keel-cloud-docs snapshot at `73426a67`; `make eval K=s005` / `K=s007` owed on a stack at 149+.
 
+**Corpus revision 18 and the follow-ups that name the thing** (spec `086-revision-18-and-the-gate`, 2026-10-29; keel-cloud
+152, merged `21395ab0`, and 154, `9f78b765`, contract 44 unchanged). The reader reads **revision 18** and refuses 17 by
+name: seven belief templates and the Prevalence phrases in the founder's words, the rate cost's belief *The problem
+already costs the payer about ...: {loss}.* (`chain.cost_belief`, rule C), no standing moved -- rule D18
+(`tests/test_corpus_r18.py`) holds every entry to its `corpus-r17/` / `backtest-r17/` record (the revision; on the golden
+seven the eight belief fields; on the eleven rate back-tests the cost's sentence; `expected` whole), D17 and D16 kept as
+mirror-against-mirror records. Invariant 4 reads `{value}` once on every template; the harness's Prevalence phrases are
+the bin's share; the Importance Check box reads *Of these {n}, ...*. `MARKS_VERSION` 21 stands (no mark scores a belief
+sentence) with the seven r18 digests in its header. The follow-up ladder is 154's (`interviewer_fake.LADDER`, `ALSO`,
+`FILL_DEFAULTS`): every rung fills `{job}` (`vectors_script.job_gerund`), `{solution_name}` (*it* where none), `{step}`
+and `{effort}` as -ing phrases, the spoken line filled from the project (`lock_values`, `follow_up_clip` =
+`FollowUpComposer.clip`), Price, would-not-pay, Buyer and payer and Purchase friction naming the idea; IM27 reads the
+leg's filled clip words (`INTERVIEWER_MARKS_VERSION` 13). The gate keeps its two chips (keel-cloud 153 as merged): FR-4
+was struck, no gate pin moved. `make unit` gated on keel-cloud-docs snapshots at `21395ab0` and `1602f8b4` (153 + 154);
+the ladder's registry reads skip by name on a keel-cloud before 154. `make eval K=s005` / `s006` / `s007` owed on a stack
+at 154+.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
