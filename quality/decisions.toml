@@ -1,0 +1,213 @@
+# The founder's decisions on what the quality cycle found -- the record the adviser reads before it writes.
+#
+# One entry per decision. A weak row in a later cycle whose `row` matches an entry (scope, audience, dimension, screen;
+# `*` matches any) and whose `fix` matches (the fix location the cycle names, `*` any) is SNOOZED: listed in the cycle
+# record under "Decided before" with the entry's `decision` and `why`, and not sent to the adviser -- until the snooze
+# ends. A snooze ends by `until`: "spec-merged" (the named spec is on master, so the next cycle measures the fix and the
+# row competes again), "never" (declined for good; the founder reopens it by editing this file), or a cycle id (snoozed
+# through that cycle). Spec 087 reads this file; quality/CYCLE.md step 2 says where the snoozed rows show.
+#
+# decision: taken | declined | held      spec: the spec(s) the taken decision became, by repo and number
+# Keys are the founder's own words where he gave them. Dates are the day he decided.
+
+[[decision]]
+id = "D-2026-10-29-01"
+cycle = "20261028-f48f256"
+proposals = [1, 2, 20, 21, 38, 39]
+row = { scope = "*", audience = "founder", dimension = "-", screen = ["context", "context-card"] }
+fix = "context-interpret.md"
+decision = "taken"
+spec = ["keel-cloud 149"]
+until = "spec-merged"
+why = "The read-back reads once: short phrases, a verb before the job, a condition that keeps its subject. An organisation's qualifier stays in the core (20/21/39 over 1/38). Spec 135's window rule stays: a money-only sentence has no window clause."
+
+[[decision]]
+id = "D-2026-10-29-02"
+cycle = "20261028-f48f256"
+proposals = [3, 11, 12, 40, 47, 48, 56]
+row = { scope = "*", audience = "*", dimension = "-", screen = ["idea", "solution-card", "solution-seed", "reveal"] }
+fix = "solution-mechanism.md"
+decision = "taken"
+spec = ["keel-cloud 150", "keel-web 129"]
+until = "spec-merged"
+why = "Every fact at the seed's grain, nothing added, the two stranger lines heard once. NOT taken: 3/40's code change showing the model's short_name to strangers in place of the founder's typed name -- D14 stands, the founder names the idea; a hint beside the name box instead (web 129), nothing typed is refused."
+
+[[decision]]
+id = "D-2026-10-29-03"
+cycle = "20261028-f48f256"
+proposals = [5, 22, 41, 42]
+row = { scope = "*", audience = "founder", dimension = "-", screen = ["problem-seed", "problem-card"] }
+fix = "problem-interpret.md"
+decision = "taken"
+spec = ["keel-cloud 151"]
+until = "spec-merged"
+why = "Nothing added, every specific and today's tools by name, a removed number's size kept in words, the people named once."
+
+[[decision]]
+id = "D-2026-10-29-04"
+cycle = "20261028-f48f256"
+proposals = [6]
+row = { scope = "COMMERCIAL", audience = "founder", dimension = "-", screen = "problem-seed" }
+fix = "problem-interpret.md"
+decision = "declined"
+until = "never"
+why = "The no-number rule stays: the number is what Keel tests next, and the founder commits to it on the calibration screen, not in the statement. A proposal that keeps digits in the statement is not to be made again."
+
+[[decision]]
+id = "D-2026-10-29-05"
+cycle = "20261028-f48f256"
+proposals = [13, 14, 15, 16, 17, 18, 19, 26, 27, 28, 29, 30, 31, 34, 35, 36, 50, 51, 52, 54, 61]
+row = { scope = "*", audience = "*", dimension = "*", screen = "*" }
+fix = "dimension-registry.json"
+decision = "taken"
+spec = ["keel-cloud 152"]
+until = "spec-merged"
+why = "Twenty registry rows in the founder's words, with corpus revision 18 for the seven belief templates. 52's template not taken (51's is: the occasion stays a noun everywhere). 54's template reshaped. The code and product asks inside them were decided one by one: see D-2026-10-29-08 to -18."
+
+[[decision]]
+id = "D-2026-10-29-06"
+cycle = "20261028-f48f256"
+proposals = [49]
+row = { scope = "SOLUTION", audience = "founder", dimension = "solution.adoption_friction", screen = "answer" }
+fix = "dimension-registry.json"
+decision = "declined"
+until = "never"
+why = "Refused by the harness as a special case (spec 081 FR-6). The 9-word cap on an effort stays; a wider cap is not wanted."
+
+[[decision]]
+id = "D-2026-10-29-07"
+cycle = "20261028-f48f256"
+proposals = [53]
+row = { scope = "SOLUTION", audience = "founder", dimension = "solution.relative_advantage", screen = "answer" }
+fix = "dimension-registry.json"
+decision = "held"
+until = "20261028-f48f256"
+why = "No proposal: the adviser call timed out. Rerun alone on the founder's word; the row competes again next cycle."
+
+[[decision]]
+id = "D-2026-10-29-08"
+cycle = "20261028-f48f256"
+proposals = [4, 7, 8, 9, 10, 23, 24, 25, 43, 44, 45, 46]
+row = { scope = "*", audience = "founder", dimension = "-", screen = ["persona", "ready-interviewer", "ready-pilot", "send-format", "send-who"] }
+fix = "the page's own words"
+decision = "taken"
+spec = ["keel-web 130"]
+until = "spec-merged"
+why = "All twelve for their words (the persona named, Keel's nouns gone, the cost said once, the noise claim in everyday words, the dB.Hear it run-in fixed). The product asks inside them were decided one by one: the shared decider NO (D-09), the open link YES as its own design (D-10), the AI-vs-written choice on the lock screen NO (D-11), 'Not sure yet' NO (D-18)."
+
+[[decision]]
+id = "D-2026-10-29-09"
+cycle = "20261028-f48f256"
+proposals = [4]
+row = { scope = "*", audience = "founder", dimension = "-", screen = "persona" }
+fix = "a third persona option"
+decision = "declined"
+until = "never"
+why = "Keel models one decision-maker; 'decides together with someone else' is already Buyer and payer's 'who has to agree'. Leave it as it is."
+
+[[decision]]
+id = "D-2026-10-29-10"
+cycle = "20261028-f48f256"
+proposals = [10, 25, 46]
+row = { scope = "*", audience = "founder", dimension = "-", screen = "send-who" }
+fix = "an open link; a pasted list"
+decision = "taken"
+spec = ["design: keel-cloud-docs canon/designs/open-link-design-2026-10-29.md (specs to follow on the founder's word)"]
+until = "spec-merged"
+why = "One open link for a group: the group named, a fixed cap of 20, the arrival's name screen, Sent split into By name / By group with the register table unchanged. The pasted list is NOT in it (later, on his word)."
+
+[[decision]]
+id = "D-2026-10-29-11"
+cycle = "20261028-f48f256"
+proposals = [7, 23, 43]
+row = { scope = "*", audience = "founder", dimension = "-", screen = "ready-interviewer" }
+fix = "the AI-vs-written choice on the lock screen"
+decision = "declined"
+until = "never"
+why = "The choice lives on Send more, per link; and from spec 157 the lock always records the interviewer (400 credits), with a staging-only switch to skip the render. No choice on the lock screen."
+
+[[decision]]
+id = "D-2026-10-29-12"
+cycle = "20261028-f48f256"
+proposals = [19]
+row = { scope = "COMMERCIAL", audience = "founder", dimension = "commercial.purchase_friction", screen = "choose" }
+fix = "a 'nothing slowed it' answer"
+decision = "declined"
+until = "never"
+why = "Already covered: the decider's 'No, it wasn't needed' counts against the belief, and the founder's side has 'I'm not sure'."
+
+[[decision]]
+id = "D-2026-10-29-13"
+cycle = "20261028-f48f256"
+proposals = [35]
+row = { scope = "PROBLEM", audience = "respondent", dimension = "problem.frequency", screen = "item" }
+fix = "the frequency control"
+decision = "taken"
+spec = ["keel-cloud 158", "keel-web 135"]
+until = "spec-merged"
+why = "Start at 1 after the yes. HELD: spoken ranges for a long window (frequency over a quarter is its own design question)."
+
+[[decision]]
+id = "D-2026-10-29-14"
+cycle = "20261028-f48f256"
+proposals = [36]
+row = { scope = "PROBLEM", audience = "respondent", dimension = "problem.importance", screen = "item" }
+fix = "the importance control"
+decision = "taken"
+spec = ["keel-cloud 158", "keel-web 135"]
+until = "spec-merged"
+why = "Pick one, then one more, on the same list; 'None of these' at the first ask only. HELD: the stretch-of-work occasion (the occasion stays one noun everywhere)."
+
+[[decision]]
+id = "D-2026-10-29-15"
+cycle = "20261028-f48f256"
+proposals = [61]
+row = { scope = "SOLUTION", audience = "respondent", dimension = "solution.relative_advantage", screen = "item" }
+fix = "the relative advantage control"
+decision = "taken"
+spec = ["keel-cloud 159", "keel-web 135"]
+until = "spec-merged"
+why = "One four-step scale, the founder's benefits off the options; a lot better and a little better for, no difference and worse against, I can't tell apart; corpus revision 19."
+
+[[decision]]
+id = "D-2026-10-29-16"
+cycle = "20261028-f48f256"
+proposals = [13]
+row = { scope = "COMMERCIAL", audience = "founder", dimension = "commercial.buyer_payer_alignment", screen = "check" }
+fix = "the role tags (keel-web LIST_ROLE_*)"
+decision = "taken"
+spec = ["keel-web 130 FR-5a"]
+until = "spec-merged"
+why = "The locked rows' tags made 'decides who decides' and 'has the problem context'; they go, and each role reads has to agree / does not have to agree."
+
+[[decision]]
+id = "D-2026-10-29-17"
+cycle = "20261028-f48f256"
+proposals = [16, 17]
+row = { scope = "COMMERCIAL", audience = "founder", dimension = ["commercial.existing_sacrifice", "commercial.price"], screen = "q" }
+fix = "the money screens' controls (keel-web)"
+decision = "taken"
+spec = ["keel-web 134"]
+until = "spec-merged"
+why = "The cost box asks the mode first, then the period ('each' as 'each time'); the price shapes named as the trade charges, a percent always of something."
+
+[[decision]]
+id = "D-2026-10-29-18"
+cycle = "20261028-f48f256"
+proposals = [10, 25, 46]
+row = { scope = "*", audience = "founder", dimension = "-", screen = "send-who" }
+fix = "a 'Not sure yet' escape"
+decision = "declined"
+until = "never"
+why = "On the founder's own popup it is a second Cancel; the group link gives the founder who has no names a real third choice."
+
+[[decision]]
+id = "D-2026-10-29-19"
+cycle = "20261028-f48f256"
+proposals = [33, 37, 57, 58, 60, 62, 32, 55, 59]
+row = { scope = "*", audience = "respondent", dimension = "*", screen = ["screener", "gate", "item", "follow_up", "insights"] }
+fix = ["respondent-questions.md", "asked.md", "themes.md", "the follow-up ladder"]
+decision = "taken"
+spec = ["keel-cloud 153", "keel-cloud 154", "keel-cloud 155"]
+until = "spec-merged"
+why = "The screener keeps the condition's subject; the gate is Yes or No in words and code; compatibility items written for the person; a theme's label true of every answer; every follow-up names the thing again; adoption friction's conditional yes carries the person's own 'only if'."
