@@ -327,10 +327,15 @@ def test_cycle_1_is_read_from_its_studies_and_score_files_and_never_rewritten():
     steps = {s["study"]: s["step"] for s in walks["stopped"]}
     assert steps["13-aircaps · COMMERCIAL"] == steps["17-expanse · COMMERCIAL"] == "the cost step"
     assert steps["21-codyco · PROBLEM"] == "no step named (stopped outside a step)"
-    committed = (REPO / "quality" / "TABLE.md").read_text(encoding="utf-8")
-    assert "  - 2 of 15 walks reached their end; 13 stopped early (08-fresco · PROBLEM -- " in committed
-    assert "  - keel-cloud moved mid-cycle: 88bfce8 -> f7b0e05 from 10-palus · COMMERCIAL" in committed
-    assert "respondent: score_pct 84.6%, spoken_pct 75.0%, insights_pct 93.8%, flagged 0.0% of 12 screens" in committed
+    # the head as the table renders it for THIS cycle (the committed TABLE.md carries the latest cycle's head, so it
+    # moved on when cycle 2 was walked, 2026-10-28; the facts of cycle 1 are read from its own record and score files)
+    its_files = {Path(s["score_file"]).name for s in record["studies"] if s.get("score_file")}
+    files = [f for f in table.load_scores() if Path(f["_path"]).name in its_files]
+    assert len(files) == 15
+    rendered = table.render(files, cycle=cycle.table_head(record))
+    assert "  - 2 of 15 walks reached their end; 13 stopped early (08-fresco · PROBLEM -- " in rendered
+    assert "  - keel-cloud moved mid-cycle: 88bfce8 -> f7b0e05 from 10-palus · COMMERCIAL" in rendered
+    assert "respondent: score_pct 84.6%, spoken_pct 75.0%, insights_pct 93.8%, flagged 0.0% of 12 screens" in rendered
 
 
 def test_the_walk_records_each_studys_sha_and_names_a_move_without_refusing(tmp_path, capsys):

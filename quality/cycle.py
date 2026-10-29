@@ -982,6 +982,7 @@ def advise(argv=None, *, runner=subprocess.run) -> int:
         print(f"dry run: {len(prompts)} adviser prompt(s) for cycle {stem}; no call made, nothing written")
         return 0
     run_dir = RUNS_DIR / f"{stamp}-advise-{stem}"
+    run_dir.mkdir(parents=True, exist_ok=True)  # the CLI runs with this as its cwd: the probe died on a missing dir (2026-10-28, the first live run)
     reader = readers.Reader({"model": cfg["adviser"]["model"], "effort": cfg["adviser"]["effort"],
                              "timeout_s": cfg["adviser"]["timeout_s"]}, run_dir, runner=runner)
     if not reader.available():

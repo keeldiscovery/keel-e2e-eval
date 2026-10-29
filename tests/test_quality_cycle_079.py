@@ -469,6 +469,24 @@ def test_the_adviser_writes_its_proposals_and_applies_nothing(monkeypatch, tmp_p
     assert sorted(p.name for p in (tmp_path / "runs").rglob("*.prompt.txt"))[0] == "001-probe.prompt.txt"
 
 
+def test_the_adviser_makes_its_run_dir_before_the_probe_runs_in_it(monkeypatch, tmp_path):
+    """2026-10-28, the first live run: the CLI is run with the run dir as its cwd, and the dir did not exist yet --
+    FileNotFoundError on the probe, `make quality-advise refuses`. Now the dir is made first."""
+    seen = []
+
+    class Strict(FakeAdviser):
+        def __call__(self, argv, **kw):
+            cwd = Path(kw["cwd"])
+            seen.append(cwd.is_dir())
+            return super().__call__(argv, **kw)
+
+    monkeypatch.setattr(readers.Reader, "available", lambda self: True)
+    monkeypatch.setattr(cycle, "RUNS_DIR", tmp_path / "runs")
+    out = tmp_path / "advice.md"
+    code = cycle.advise(["--cycle", str(RECORD), "--cloud", str(CLOUD), "--out", str(out)], runner=Strict("{}"))
+    assert code == 0 and seen and all(seen), "every call, the probe first, runs inside a directory that exists"
+
+
 def test_an_unreadable_proposal_is_named_not_invented(monkeypatch, tmp_path):
     code, out, _ = _advise(monkeypatch, tmp_path, json.dumps({"new_text": "x", "why": "y", "rung": "louder"}))
     assert code == 0 and "**No proposal**: the answer could not be read (rung must be one of" in out.read_text()
