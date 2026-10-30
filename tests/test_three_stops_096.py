@@ -159,3 +159,143 @@ def test_a_decider_box_not_drawn_is_named_absent(monkeypatch):
     page = _IdeaPage(f"{BASE}/define/solution/q/1", decider=False)
     out = _corridor(page, monkeypatch).edit_idea_lines("0b7a1c2e", {"howDecider": "plain words"})
     assert out["absent"] == ["howDecider"] and out["typed"] == {} and out["before"]["howDecider"] is None
+
+
+# ------------------------------------------------------------------- FR-2: the cost step reads the rate as drawn
+
+NOTE = vs_screens.HOURLY_RATE_DEFAULTED
+BEFORE = {"amount": 80, "currency": "USD", "currencySymbol": "$", "defaulted": True}
+AFTER = {"amount": 55, "currency": "USD", "currencySymbol": "$", "defaulted": False}
+#: 08-fresco COMMERCIAL as the chain screen read it before typing (`runs/20261030T142020Z-backtest-08-fresco`, seq 46)
+FRESCO_FILLED = {"unit": "contractor", "unit_help": vs_screens.CHAIN_UNIT_HELP, "base": "site walk",
+                 "base_help": vs_screens.CHAIN_HOURS_BASE_HELP, "rate": "80", "rate_note": NOTE,
+                 "order": [-20.296875, 61.078125, 172.59375]}
+
+
+def test_the_rate_drawn_is_held_to_the_view_before_the_save():
+    """The cycle-3 stop: the box drew 80 with its note, the view before the save says 80 defaulted -- it holds."""
+    assert cs.cost_fill_rate_owed(BEFORE) == {"rate": "80", "rate_note": NOTE}
+    assert cs.cost_fill_rate_faults(FRESCO_FILLED, BEFORE) == []
+
+
+def test_the_view_after_the_save_is_not_what_the_box_drew():
+    """The check as it read before 096 -- the box against the view after the save (55, not defaulted) -- faults on the
+    amount and on the note: the wrong moment, both named."""
+    faults = cs.cost_fill_rate_faults(FRESCO_FILLED, AFTER)
+    assert {"rate": "80", "owed": "55"} in faults
+    assert any(f.get("rate_note") == NOTE and f.get("owed") is None and f.get("defaulted") is False for f in faults)
+
+
+def test_the_note_is_drawn_iff_defaulted():
+    own = {"amount": 55, "defaulted": False}
+    assert cs.cost_fill_rate_faults({**FRESCO_FILLED, "rate": "55", "rate_note": None}, own) == []
+    assert cs.cost_fill_rate_faults({**FRESCO_FILLED, "rate": "55"}, own)            # a note on the founder's own rate
+    assert cs.cost_fill_rate_faults({**FRESCO_FILLED, "rate_note": None}, BEFORE)    # Keel's figure, no note
+
+
+def test_a_rate_not_drawn_or_another_amount_faults():
+    assert cs.cost_fill_rate_faults({**FRESCO_FILLED, "rate": None}, BEFORE)[0]["rate"] == "not drawn"
+    assert cs.cost_fill_rate_faults({**FRESCO_FILLED, "rate": ""}, BEFORE)[0]["rate"] == "not drawn"
+    assert cs.cost_fill_rate_faults({**FRESCO_FILLED, "rate": "90"}, BEFORE) == [{"rate": "90", "owed": "80"}]
+    assert cs.cost_fill_rate_faults({**FRESCO_FILLED, "rate": "80.0"}, BEFORE) == []
+
+
+def test_the_order_checks_stay():
+    assert cs.cost_fill_rate_faults({**FRESCO_FILLED, "order": [70, 61, 172]}, BEFORE) == \
+        [{"the rate sits above the hours": [70, 61, 172]}]
+    assert cs.cost_fill_rate_faults({**FRESCO_FILLED, "order": [-20, 180, 172]}, BEFORE) == \
+        [{"the rate sits under what the time goes on": [-20, 180, 172]}]
+    assert cs.cost_fill_rate_faults({**FRESCO_FILLED, "order": [None, None, None]}, BEFORE) == []
+
+
+def test_no_hourly_rate_owes_nothing():
+    assert cs.cost_fill_rate_owed(None) is None and cs.cost_fill_rate_owed({"amount": None}) is None
+    assert cs.cost_fill_rate_faults({"rate": None}, None) == []
+
+
+def test_after_the_save_the_view_carries_the_entrys_own_rate():
+    assert cs.saved_rate_faults(AFTER, 55) == []
+    assert cs.saved_rate_faults(AFTER, 55.0) == []
+    assert cs.saved_rate_faults(BEFORE, 55) == [{"amount": 80, "entry": 55}, {"defaulted": True, "owed": False}]
+    assert cs.saved_rate_faults({**AFTER, "defaulted": True}, 55) == [{"defaulted": True, "owed": False}]
+    assert cs.saved_rate_faults({"amount": 55}, 55) == [{"defaulted": None, "owed": False}]
+    assert cs.saved_rate_faults(None, 55) == [{"amount": None, "entry": 55}, {"defaulted": None, "owed": False}]
+    assert cs.saved_rate_faults(BEFORE, None) == []                              # no rate typed, none owed
+
+
+class _J:
+    """The journey double `_hold_the_cost_fill` reads: the wire's three views and its step recorder."""
+
+    def __init__(self, after: dict, *, strict: bool = False):
+        self.views = {"/calibration/COMMERCIAL": {"hourlyRate": after},
+                      "/persona": {"decider": {"role": "contractor"}}, "/context": {}}
+        self.strict = strict
+        self.steps: list[dict] = []
+        self.entry = None
+
+    def project(self, path: str) -> str:
+        return path
+
+    def get(self, path: str):
+        return self.views.get(path)
+
+
+@pytest.fixture
+def held(monkeypatch):
+    j = _J(AFTER)
+    monkeypatch.setattr(cs.vs, "is_b2b", lambda entry: True)
+
+    @contextlib.contextmanager
+    def step(journey, name, **kw):
+        row = {"name": name, "ok": True}
+        journey.steps.append(row)
+
+        class H:
+            def record_assert(self, want, got):
+                row["want"], row["got"] = want, got
+        try:
+            yield H()
+        except AssertionError as e:
+            row["ok"], row["error"] = False, e
+            raise
+    monkeypatch.setattr(cs, "_step", step)
+    return j
+
+
+HOURS = {"mode": "HOURS", "low": 30, "high": 60, "rate": 55, "period": "month", "unit": "site", "base": "site walk"}
+
+
+def test_the_fresco_cost_step_holds_both_moments(held):
+    """08-fresco's two readings: the box against the view before the save (80, defaulted), then the view after it
+    (55, not defaulted) against the entry's rate -- two steps, both met."""
+    cs._hold_the_cost_fill(held, HOURS, FRESCO_FILLED, BEFORE)
+    assert [s["ok"] for s in held.steps] == [True, True]
+    assert held.steps[0]["want"]["rate"] == "80" and held.steps[0]["want"]["rate_note"] == NOTE
+    assert held.steps[1]["want"] == {"amount": 55, "defaulted": False} and held.steps[1]["got"] == AFTER
+
+
+def test_the_box_held_to_the_view_after_the_save_is_the_old_stop(held):
+    with pytest.raises(AssertionError):
+        cs._hold_the_cost_fill(held, HOURS, FRESCO_FILLED, AFTER)
+    assert held.steps[0]["ok"] is False and len(held.steps) == 1
+
+
+def test_a_save_that_kept_keels_default_faults_the_second_step(held):
+    held.views["/calibration/COMMERCIAL"] = {"hourlyRate": BEFORE}
+    with pytest.raises(AssertionError):
+        cs._hold_the_cost_fill(held, HOURS, FRESCO_FILLED, BEFORE)
+    assert [s["ok"] for s in held.steps] == [True, False]
+
+
+def test_no_rate_in_the_entry_owes_no_second_step(held):
+    held.views["/calibration/COMMERCIAL"] = {"hourlyRate": BEFORE}
+    cs._hold_the_cost_fill(held, {**HOURS, "rate": None}, FRESCO_FILLED, BEFORE)
+    assert len(held.steps) == 1 and held.steps[0]["ok"]
+
+
+def test_the_leg_passes_the_view_read_before_the_walk():
+    import inspect                                                     # noqa: PLC0415
+    leg = inspect.getsource(cs.leg_calibrate)
+    assert 'drawn_rate=view.get("hourlyRate")' in leg
+    assert leg.index("view = _wait_calibration(j, vector)") < leg.index("for question in questions:")
+    assert "_hold_the_cost_fill(j, cost, seen[\"filled\"], drawn_rate)" in inspect.getsource(cs._hold_the_chain_screen)

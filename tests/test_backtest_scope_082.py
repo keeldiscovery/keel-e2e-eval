@@ -253,10 +253,15 @@ def test_the_step_and_the_docstring_say_when_the_box_is_read():
     source = inspect.getsource(cs._hold_the_cost_fill)
     assert "before anything is typed; " in source and "the equation is drawn (keel-web 123)" in source
     assert "Spec 082 FR-2" in source
-    for pin in ('owed["base_help"] = vs_screens.CHAIN_HOURS_BASE_HELP if mode == "HOURS" else '
-                'vs_screens.CHAIN_BASE_HELP', 'assert filled.get("rate_note") == vs_screens.HOURLY_RATE_DEFAULTED',
-                'assert at <= base, {"the rate sits under what the time goes on"'):
-        assert pin in source, pin
+    assert ('owed["base_help"] = vs_screens.CHAIN_HOURS_BASE_HELP if mode == "HOURS" else '
+            'vs_screens.CHAIN_BASE_HELP') in source
+    # re-pinned by spec 096 FR-2: the rate's note and order are held in `cost_fill_rate_faults`, against the view as it
+    # was before the screen's own save -- the note drawn iff `defaulted`, the order unchanged
+    rate = inspect.getsource(cs.cost_fill_rate_faults) + inspect.getsource(cs.cost_fill_rate_owed)
+    for pin in ('"rate_note": vs_screens.HOURLY_RATE_DEFAULTED if drawn_rate.get("defaulted") else None',
+                'faults.append({"the rate sits under what the time goes on": filled.get("order")})'):
+        assert pin in rate, pin
+    assert "cost_fill_rate_faults(filled, drawn_rate)" in source
 
 
 # ------------------------------------------------------------------- FR-3: the record names the walks that stopped

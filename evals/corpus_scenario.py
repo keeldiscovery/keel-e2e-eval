@@ -1668,7 +1668,9 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 _old_cost_on_the_wire(j, question, answer)
             j.framing[key] = [j.corridor.single(question, answer.as_wire())]
             if key in ("commercial.existing_sacrifice", "commercial.price") and j.framing[key][0].get("chain"):
-                _hold_the_chain_screen(j, key, j.framing[key][0])
+                # spec 096 FR-2: the rate box is drawn from the view as it was before this screen's own save (`view`,
+                # read once before the walk); the save then moves it to the entry's own rate
+                _hold_the_chain_screen(j, key, j.framing[key][0], drawn_rate=view.get("hourlyRate"))
             if key == "commercial.price":
                 _hold_the_price_boxes(j, j.framing[key][0])
             continue
@@ -2012,10 +2014,11 @@ def _old_cost_on_the_wire(j: Journey, question: dict, answer) -> None:
         assert not drawn, "keel-web still draws the chain's cost step over a stored cost from before the chain"
 
 
-def _hold_the_chain_screen(j: Journey, key: str, seen: dict) -> None:
+def _hold_the_chain_screen(j: Journey, key: str, seen: dict, *, drawn_rate: dict | None = None) -> None:
     """Spec 064 FR-2 (keel-web 094): the chain's cost step reads its equation back -- the founder's unit and period
     after the boxes (*· per site · a month*) -- and the price step its locked words, held to the cost's unit and
-    period (never typed, never sent)."""
+    period (never typed, never sent). `drawn_rate` (spec 096 FR-2): the view's `hourlyRate` before the screen's own
+    save, which the rate box was drawn from."""
     cost = j.entry.cost() or {}
     period_words = chain_mod.CHAIN_PERIOD_WORDS.get(cost.get("period"), "")
     with _step(j, f"{key}: the chain's screen reads back the founder's unit and period (keel-web 094)",
@@ -2026,7 +2029,7 @@ def _hold_the_chain_screen(j: Journey, key: str, seen: dict) -> None:
         missing = [w for w in want if w and w not in (drawn or "")]
         assert not missing, {"drawn": drawn, "missing": missing}
     if key == "commercial.existing_sacrifice" and seen.get("filled") is not None:
-        _hold_the_cost_fill(j, cost, seen["filled"])
+        _hold_the_cost_fill(j, cost, seen["filled"], drawn_rate)
     if key == "commercial.existing_sacrifice" and seen.get("order") == "mode-first":
         _hold_the_mode_first(j, seen)
 
@@ -2068,7 +2071,66 @@ def _hold_the_mode_first(j: Journey, seen: dict) -> None:
             assert line == owed, {"line": line, "owed": owed}
 
 
-def _hold_the_cost_fill(j: Journey, cost: dict, filled: dict) -> None:
+def cost_fill_rate_owed(drawn_rate: dict | None) -> dict | None:
+    """Spec 096 FR-2: what the cost step's rate box owes as drawn -- the view's `hourlyRate` as it was **before** the
+    screen's own save (Keel's default for the market and the role, `HourlyRates.defaultFor`, while `defaulted`): its
+    amount, and the default note iff `defaulted`. None where the view priced no hours (no rate is owed)."""
+    if not isinstance(drawn_rate, dict) or drawn_rate.get("amount") is None:
+        return None
+    return {"rate": str(drawn_rate["amount"]),
+            "rate_note": vs_screens.HOURLY_RATE_DEFAULTED if drawn_rate.get("defaulted") else None}
+
+
+def cost_fill_rate_faults(filled: dict, drawn_rate: dict | None) -> list[dict]:
+    """Spec 096 FR-2 (keel-web 123 FR-2): the rate box as the chain screen read it before typing (`filled`, from
+    `Corridor._chain_cost`) held to the view before the save (`drawn_rate`) -- the amount drawn, the note drawn iff
+    `defaulted`, and the order (the rate under the hours row, above what the time goes on). `[]` where it holds or where
+    no rate is owed."""
+    owed = cost_fill_rate_owed(drawn_rate)
+    if owed is None:
+        return []
+    faults: list[dict] = []
+    drawn = filled.get("rate")
+    if drawn in (None, ""):
+        faults.append({"rate": "not drawn", "owed": owed["rate"]})
+    else:
+        try:
+            same = float(drawn) == float(owed["rate"])
+        except (TypeError, ValueError):
+            same = False
+        if not same:
+            faults.append({"rate": drawn, "owed": owed["rate"]})
+    if filled.get("rate_note") != owed["rate_note"]:
+        faults.append({"rate_note": filled.get("rate_note"), "owed": owed["rate_note"],
+                       "defaulted": bool(drawn_rate.get("defaulted"))})
+    low, at, base = (list(filled.get("order") or []) + [None] * 3)[:3]
+    if None not in (low, at) and not low <= at:
+        faults.append({"the rate sits above the hours": filled.get("order")})
+    if None not in (at, base) and not at <= base:
+        faults.append({"the rate sits under what the time goes on": filled.get("order")})
+    return faults
+
+
+def saved_rate_faults(saved_rate: dict | None, entry_rate) -> list[dict]:
+    """Spec 096 FR-2: after the cost step's own save, the view's `hourlyRate` is the entry's own rate (the one the chain
+    screen typed into `chain-rate`) with `defaulted: false`. `[]` where it holds or where the entry states no rate."""
+    if entry_rate is None:
+        return []
+    saved = saved_rate if isinstance(saved_rate, dict) else {}
+    faults: list[dict] = []
+    amount = saved.get("amount")
+    try:
+        same = amount is not None and float(amount) == float(entry_rate)
+    except (TypeError, ValueError):
+        same = False
+    if not same:
+        faults.append({"amount": amount, "entry": entry_rate})
+    if saved.get("defaulted") is not False:
+        faults.append({"defaulted": saved.get("defaulted"), "owed": False})
+    return faults
+
+
+def _hold_the_cost_fill(j: Journey, cost: dict, filled: dict, drawn_rate: dict | None = None) -> None:
     """Spec 075 FR-2 (keel-web 123 FR-1, FR-2): the chain cost step's boxes arrive filled -- *Per* with the role word,
     *of* (on a way with the box) with the occasion -- each with its muted helper line; on *Time it takes* at a study the
     view prices hours for (`hourlyRate`), the rate drawn under the hours row with Keel's figure and its default note.
@@ -2076,22 +2138,27 @@ def _hold_the_cost_fill(j: Journey, cost: dict, filled: dict) -> None:
     Spec 082 FR-2: `filled` is read as keel-web draws it (`Corridor._chain_cost`) -- *Per* and its helper before
     anything is typed; *of*, its helper and on hours the rate and its note after the period pill, once the equation is
     on the page (keel-web 123 FR-1 draws the *of* box inside the equation: a mode, a unit and a period). The pins are
-    unchanged."""
+    unchanged.
+
+    Spec 096 FR-2: the rate is held to the view **as it was before the screen's own save** (`drawn_rate`, the leg's
+    read before the walk; `cost_fill_rate_faults`) -- the screen types the entry's rate into `chain-rate` and saves, so
+    the view read here, after, carries the entry's rate. That is a second, separate step (`saved_rate_faults`): the
+    view's `hourlyRate` is the entry's own with `defaulted: false`."""
     view = j.get(j.project("/calibration/COMMERCIAL")) or {}
     want = chain_fill(j.get(j.project("/persona")) or {}, j.get(j.project("/context")) or {}, vs.is_b2b(j.entry))
     mode = str(cost.get("mode") or "").upper()
-    rate = (view.get("hourlyRate") or {}).get("amount")
+    rate_owed = cost_fill_rate_owed(drawn_rate) if mode == "HOURS" else None
     with _step(j, "the cost step: Per arrives filled from the project with its helper line before anything is typed; "
-                  "of with its helper line, and on hours the rate under the hours row with its default note, once the "
-                  "period is picked and the equation is drawn (keel-web 123)", party="founder") as h:
+                  "of with its helper line, and on hours the rate under the hours row as the view had it before the "
+                  "screen's save, its default note while it is Keel's (spec 096), once the period is picked and "
+                  "the equation is drawn (keel-web 123)", party="founder") as h:
         owed = {"unit": want["unit"], "unit_help": vs_screens.CHAIN_UNIT_HELP}
         if mode in ("HOURS", "RATE"):
             owed["base"] = want["base"] or ""
             owed["base_help"] = vs_screens.CHAIN_HOURS_BASE_HELP if mode == "HOURS" else vs_screens.CHAIN_BASE_HELP
-        if mode == "HOURS" and rate is not None:
-            owed["rate"] = str(rate)
-            owed["rate_note"] = vs_screens.HOURLY_RATE_DEFAULTED
-        h.record_assert(owed, {**filled, "hourlyRate": view.get("hourlyRate")})
+        if rate_owed is not None:
+            owed.update(rate_owed)
+        h.record_assert(owed, {**filled, "hourlyRate before the save": drawn_rate})
         assert filled.get("unit_help") == vs_screens.CHAIN_UNIT_HELP, filled
         if mode in ("HOURS", "RATE"):
             assert filled.get("base_help") == owed["base_help"], filled
@@ -2099,14 +2166,17 @@ def _hold_the_cost_fill(j: Journey, cost: dict, filled: dict) -> None:
             assert (filled.get("unit") or None) == want["unit"], (filled, want)
             if mode in ("HOURS", "RATE"):
                 assert (filled.get("base") or "") == (want["base"] or ""), (filled, want)
-        if mode == "HOURS" and rate is not None:
-            assert filled.get("rate") not in (None, "") and float(filled["rate"]) == float(rate), (filled, rate)
-            assert filled.get("rate_note") == vs_screens.HOURLY_RATE_DEFAULTED, filled
-            low, at, base = (list(filled.get("order") or []) + [None] * 3)[:3]
-            if None not in (low, at):
-                assert low <= at, {"the rate sits above the hours": filled.get("order")}
-            if None not in (at, base):
-                assert at <= base, {"the rate sits under what the time goes on": filled.get("order")}
+        if mode == "HOURS":
+            faults = cost_fill_rate_faults(filled, drawn_rate)
+            assert not faults, {"faults": faults, "filled": filled, "hourlyRate before the save": drawn_rate}
+    if mode == "HOURS" and cost.get("rate") is not None and filled.get("rate") is not None:
+        # the screen typed the entry's rate where the box was drawn (`Corridor._chain_cost`), and its Continue saved it
+        with _step(j, "the cost step's save: the view's hourly rate is the entry's own, no longer Keel's default "
+                      "(spec 096)", party="stack") as h:
+            saved = view.get("hourlyRate")
+            h.record_assert({"amount": cost.get("rate"), "defaulted": False}, saved)
+            faults = saved_rate_faults(saved, cost.get("rate"))
+            assert not faults, {"faults": faults, "hourlyRate after the save": saved}
 
 
 #: keel-web 123 FR-1 (`occasionBase`): an occasion that is a window's unit, or *time*, fills no *of* box.
