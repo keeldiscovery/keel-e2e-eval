@@ -643,3 +643,29 @@ def test_a_compare_row_is_never_stamped():
     case = _case("COMPARE", case_id="e/COMPARE")
     models_mod.stamp([case], table, "claude")
     assert models_mod.MODEL_KEY not in case.payload and case.model is None
+
+
+def test_classes_carry_every_class_the_live_routing_table_names():
+    """Spec 091 FR-3a: keel-cloud's own `model-routing.json` (v13 carries `example_match`) parses here, and every class
+    it names is one of `CLASSES` -- so the next class the cloud adds fails `make unit`, not a journey (s012 refused v13
+    by the name *example_match* on 2026-10-30). `example_match` is the cloud's last class (`JobClass`), and `CLASSES`
+    ends on it."""
+    from stack.config import load_config                                    # noqa: PLC0415
+    path = load_config(validate=False).keel_cloud / models_mod.CLOUD_RESOURCE
+    if not path.is_file():
+        pytest.skip(f"no keel-cloud checkout at {path.parent}")
+    document = json.loads(path.read_text(encoding="utf-8"))
+    unknown = [c for c in document["classes"] if c not in models_mod.CLASSES]
+    assert not unknown, f"model-routing.json v{document.get('version')} names {unknown}; add them to CLASSES"
+    models_mod.parse(document)
+    assert models_mod.CLASSES[-1] == "example_match" and "example_match" in models_mod.DORMANT_CLASSES
+    assert "example_match" not in models_mod.REPORTED_CLASSES, "no case measures it"
+
+
+def test_the_validators_message_names_example_match():
+    """Spec 091 FR-3a: the refusal of an unknown class lists the classes, `example_match` last."""
+    table = json.loads(json.dumps(TABLE))
+    table["classes"]["gallery"] = "light"
+    with pytest.raises(models_mod.ModelsUnavailable, match=r"classes names 'gallery'; the classes are exactly "
+                                                             r"context, frame, .*brief, example_match$"):
+        models_mod.parse(table)

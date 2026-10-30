@@ -74,7 +74,11 @@ MEASURED_CLASSES = ("context", "frame", "calibration", "respondent", "reading", 
 #: (*"classes names 'assumptions'"*) instead of the right one (*"says nothing about context,
 #: calibration, respondent"*). A-9: existing rows do not move, and tolerating their names is what
 #: that costs.
-DORMANT_CLASSES = ("assumptions", "reframe", "questions", "brief")
+#: Spec 091 FR-3a: `example_match` (keel-cloud `JobClass.EXAMPLE_MATCH`, the example gallery's match on `POST
+#: /v2/examples/match`, routed `light` in table v13) is the cloud's last class; it runs on no project, so no case of this
+#: eval measures it and it is tolerated like the four above -- the live journey s012 refused table v13 by its name
+#: (2026-10-30) while it was missing. `tests/test_instruction_models.py` reads the live table's classes against these.
+DORMANT_CLASSES = ("assumptions", "reframe", "questions", "brief", "example_match")
 
 CLASSES = MEASURED_CLASSES + DORMANT_CLASSES
 
