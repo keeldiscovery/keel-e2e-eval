@@ -136,7 +136,7 @@ def fix_location(audience: str, kind: str, dimension: str | None) -> tuple[str, 
             return ("registry row", f"{dimension}'s founder guidance (else founder-lists.md, shared: every "
                                     "dimension re-read)")
         return ("no model", "the page's own words (keel-web / keel-cloud code)")
-    if kind in ("screener", "gate"):
+    if kind in ("screener", "condition", "gate"):
         return ("shared file", "respondent-questions.md (the story clause, the screener question)")
     if kind in ("reveal", "idea"):
         return ("shared file", "solution-mechanism.md (the idea card)")

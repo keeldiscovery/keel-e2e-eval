@@ -44,7 +44,10 @@ NO_DIMENSION = "-"
 FOUNDER_SCREENS = ("persona", "persona-who-answers", "name", "market", "context", "context-card", "problem-seed",
                    "problem-card", "idea", "solution-seed", "solution-card", "failed-solution-calibration", "q",
                    "answer", "check", "choose", "ready-interviewer", "ready-pilot", "send-format", "send-who")
-RESPONDENT_SCREENS = ("screener", "gate", "item", "reveal", "idea", "follow_up", "insights")
+#: `condition` is the link's own screener as the walk records it (`vectors_screens.Interview._condition`, spec 076 FR-4 /
+#: spec 101 FR-1: the decision-maker's, keel-web 127 FR-2), read as its own screen by the readers' catch-all -- the
+#: committed money-study score files of 2026-10-30 (`083fc9a`) carry it; `screener` is the gate's own chip question.
+RESPONDENT_SCREENS = ("screener", "condition", "gate", "item", "reveal", "idea", "follow_up", "insights")
 SCREENS = tuple(dict.fromkeys(FOUNDER_SCREENS + RESPONDENT_SCREENS))
 
 CYCLE_ID = re.compile(r"^\d{8}-[0-9a-f]{7,}(-\d+)?$")
