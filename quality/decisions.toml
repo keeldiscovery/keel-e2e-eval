@@ -50,11 +50,11 @@ why = "Nothing added, every specific and today's tools by name, a removed number
 id = "D-2026-10-29-04"
 cycle = "20261028-f48f256"
 proposals = [6]
-row = { scope = "COMMERCIAL", audience = "founder", dimension = "-", screen = "problem-seed" }
+row = { scope = "*", audience = "founder", dimension = "-", screen = "problem-seed" }
 fix = "problem-interpret.md"
 decision = "declined"
 until = "never"
-why = "The no-number rule stays: the number is what Keel tests next, and the founder commits to it on the calibration screen, not in the statement. A proposal that keeps digits in the statement is not to be made again."
+why = "The no-number rule stays: the number is what Keel tests next, and the founder commits to it on the calibration screen, not in the statement. A proposal that keeps digits in the statement is not to be made again. Widened from COMMERCIAL to every scope on 2026-10-30 (the founder): the rule is the same everywhere."
 
 [[decision]]
 id = "D-2026-10-29-05"
