@@ -1,0 +1,82 @@
+{
+  "source": "runs/20261030T183150Z-backtest-21-codyco (21-codyco, SCOPE SOLUTION, 2026-10-30): `typed` is inputs.json's founder.calibration.SOLUTION answer (its list.items and pickedIndex), `drafted` the list Keel drafted and the founder saved untouched on the Check screen (transcript.jsonl seq 60, the review's stored answer: labels and faces, codes dropped); `picked_on_screen` the label the walk picked on Choose (transcript seq 49 and 56)",
+  "entry": "21-codyco",
+  "dimensions": {
+    "solution.compatibility": {
+      "typed": {
+        "dimension": "solution.compatibility",
+        "list": {
+          "items": [
+            {
+              "label": "Unanswered calls could be forwarded to another number",
+              "asked": "could your hotel's phone system have forwarded unanswered calls to another number"
+            },
+            {
+              "label": "The PMS took bookings from outside systems",
+              "asked": "did your hotel's PMS already take bookings from outside systems, like a booking engine"
+            },
+            {
+              "label": "Rates and room types were up to date",
+              "asked": "were your rates and room types up to date in your PMS on that shift"
+            }
+          ],
+          "pickedIndex": 0
+        }
+      },
+      "text": "Unanswered calls could be forwarded to another number; The PMS took bookings from outside systems; Rates and room types were up to date",
+      "drafted": [
+        {
+          "label": "Unanswered calls can be forwarded to another number",
+          "asked": "could you have forwarded your unanswered calls to another number"
+        },
+        {
+          "label": "The PMS takes bookings from outside systems",
+          "asked": "could your PMS have taken bookings from outside systems"
+        },
+        {
+          "label": "Rates and room types are up to date",
+          "asked": "were your rates and room types up to date"
+        }
+      ],
+      "picked_on_screen": "Unanswered calls can be forwarded to another number"
+    },
+    "solution.adoption_friction": {
+      "typed": {
+        "dimension": "solution.adoption_friction",
+        "list": {
+          "items": [
+            {
+              "label": "Let an AI answer guests in the hotel's voice",
+              "asked": "you'd let an AI agent answer guests who call, in your hotel's name and voice"
+            },
+            {
+              "label": "Set which calls the AI hands to the desk",
+              "asked": "you'd set the rules for which calls the AI hands over to your desk"
+            }
+          ],
+          "pickedIndex": 0
+        }
+      },
+      "text": "Let an AI answer guests in the hotel's voice; Set which calls the AI hands to the desk",
+      "drafted": [
+        {
+          "label": "Forward unanswered calls to Codyco",
+          "asked": "forward your unanswered booking calls to Codyco"
+        },
+        {
+          "label": "Connect Codyco to the hotel's PMS",
+          "asked": "connect Codyco to your hotel's PMS"
+        },
+        {
+          "label": "Let an AI answer guests in the hotel's voice",
+          "asked": "let an AI answer guests in your hotel's voice"
+        },
+        {
+          "label": "Set which calls the AI hands to the desk",
+          "asked": "set which calls the AI hands to your desk"
+        }
+      ],
+      "picked_on_screen": "Forward unanswered calls to Codyco"
+    }
+  }
+}
