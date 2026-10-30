@@ -1626,16 +1626,49 @@ def _hold_frame(frame: dict, vector: str, position: int, total: int) -> None:
     assert frame.get("welcome", 0) == 0, frame
 
 
+def _typed_labels(answer: vs.CalibrationAnswer) -> list[str]:
+    """The entry's typed items, in its order: the list `pickedIndex` indexes (spec 104 FR-1)."""
+    return [item.get("label") for item in (answer.listed or {}).get("items") or []]
+
+
+def _drafted_labels(question: dict) -> list[str]:
+    """The rows the Choose screen draws: the list Keel drafted, saved untouched on the Check screen."""
+    return [row.get("label") for row in (question.get("draft") or {}).get("items") or []]
+
+
 def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> tuple[str, int]:
-    """The one item Choose picks: the entry's own (its `pickedIndex`), read off the drafted list the
-    screen shows -- on a live journey the model's list, its item at the entry's index or the last."""
-    rows = (question.get("draft") or {}).get("items") or []
-    listed = answer.listed or {}
-    index = listed.get("pickedIndex") or 0
+    """The one item Choose picks, and its row on the drafted list: the entry's own (its `pickedIndex`, which
+    indexes the entry's TYPED items). Spec 104 FR-1: on a live journey Keel's list writer may draft rows of its own
+    beside the founder's (21-codyco 2026-10-30 prepended *Forward unanswered calls to Codyco*), so the row is found
+    by its label -- the drafted list keeps the founder's labels word for word (spec 081) -- never by the index; a
+    drafted list with no row of that label stops the walk by name, never a fall-back to row 0. The golden walk
+    (`strict`) is unchanged: the scripted list is the entry's own, the index is its row."""
+    typed = _typed_labels(answer)
+    index = (answer.listed or {}).get("pickedIndex") or 0
     if j.strict:
-        return listed["items"][index]["label"], index
-    held = min(index, max(0, len(rows) - 1))
-    return (rows[held].get("label") if rows else listed["items"][index]["label"]), held
+        return typed[index], index
+    want = typed[index]
+    rows = _drafted_labels(question)
+    if want not in rows:
+        raise vs.VectorsScriptError(
+            f"{question.get('dimension')}: the founder's picked item {want!r} is not on the drafted list (spec 104 FR-1); Keel drafted {rows!r}, the founder typed {typed!r}")
+    return want, rows.index(want)
+
+
+def keel_added(question: dict, answer: vs.CalibrationAnswer) -> list[str]:
+    """Spec 104 FR-3: the drafted rows the entry did not type, in the drafted order -- what the product invented."""
+    typed = set(_typed_labels(answer))
+    return [label for label in _drafted_labels(question) if label not in typed]
+
+
+def _name_keel_added(j: Journey, key: str, question: dict, answer: vs.CalibrationAnswer) -> None:
+    """Spec 104 FR-3: one finding per picked dimension whose drafted list carries rows the entry did not type. No
+    fault; the judge reads it."""
+    added = keel_added(question, answer)
+    if added:
+        j.findings.append({"what": f"{vs.NAMES[key]}: Keel added: " + ", ".join(f"'{label}'" for label in added),
+                           "served": {"dimension": key, "drafted": _drafted_labels(question),
+                                      "typed": _typed_labels(answer), "added": added}})
 
 
 def leg_calibrate(j: Journey, vector: str) -> None:
@@ -1693,7 +1726,17 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         else:
             seen.append(j.corridor.list_check(question))
         if key in vs.PICKED:
-            label, _ = _choose_label(j, question, answer)
+            if not j.strict:
+                _name_keel_added(j, key, question, answer)
+            try:
+                label, _ = _choose_label(j, question, answer)
+            except vs.VectorsScriptError:
+                # spec 104 FR-1: the walk stops here, by name, with what was drafted beside what was typed
+                with _step(j, f"{key}: the founder's picked row is on Keel's drafted list, found by its label "
+                              "(spec 104 FR-1)", party="founder") as h:
+                    h.record_assert({"picked": _typed_labels(answer)[(answer.listed or {}).get("pickedIndex") or 0]},
+                                    {"drafted": _drafted_labels(question)})
+                    raise
             seen.append(j.corridor.list_choose(question, label))
         j.framing[key] = seen
     refused = j.corridor.conflicts[conflicts:]

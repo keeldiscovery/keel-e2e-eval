@@ -557,17 +557,21 @@ def test_every_corpus_journey_sweeps_for_another_currency_and_holds_the_entrys_m
         corpus_scenario.leg_one_currency(_currency_journey(REPORT_DRAWN, dict(us, country="GB", language="en-GB")))
 
 
-def test_choose_picks_the_entrys_own_item_and_on_a_live_journey_the_models_at_that_place():
+def test_choose_picks_the_entrys_own_item_and_on_a_live_journey_finds_it_by_its_label():
+    """Spec 104 FR-1: the live journey finds the entry's picked item on the drafted list by its label; the old
+    *the model's item at the entry's index, or the last* (here ``("y", 1)``) is gone -- a label not drafted refuses
+    (``tests/test_choose_by_label_104.py``)."""
     answer = vs.CalibrationAnswer(dimension="solution.compatibility", body={
         "dimension": "solution.compatibility",
         "list": {"items": [{"label": "A"}, {"label": "B"}, {"label": "C"}], "pickedIndex": 2}}, text="A; B; C")
-    question = {"dimension": "solution.compatibility", "draft": {"items": [{"label": "x"}, {"label": "y"}]}}
+    question = {"dimension": "solution.compatibility",
+                "draft": {"items": [{"label": "x"}, {"label": "C"}, {"label": "A"}]}}
 
     class _J:
         strict = True
     assert corpus_scenario._choose_label(_J(), question, answer) == ("C", 2)
     _J.strict = False
-    assert corpus_scenario._choose_label(_J(), question, answer) == ("y", 1)
+    assert corpus_scenario._choose_label(_J(), question, answer) == ("C", 1)
 
 
 def test_a_check_screen_is_read_in_the_corpus_shape():
