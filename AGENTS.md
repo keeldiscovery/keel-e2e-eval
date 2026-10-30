@@ -354,8 +354,8 @@ real callback -- and `stack/auth.py`'s one browserless sign-in walks the same th
 anywhere in this harness that produces a founder session by any other means.** Two scenarios came
 with it: **S-010** (two founders on one instance -- every one of another founder's routes a bare
 404) and **S-011** (the callback's own refusals, each with the founder-voiced line the design
-names). The scenario set is **sixteen** (spec 052 added S-014, the healthy project; spec 071 S-015 and S-016, the
-two study-scope journeys).
+names). The scenario set is **seventeen** (spec 052 added S-014, the healthy project; spec 071 S-015 and S-016, the
+two study-scope journeys; spec 092 S-017, one open link for a group).
 
 **Study scopes** (spec `071-study-scopes`, 2026-10-25; keel-cloud 133, contract 38; keel-web 109 / 110 / 111): a
 project is one of four configurations chosen on *What do you want to validate?* -- PROBLEM, SOLUTION,
@@ -610,8 +610,27 @@ credits sentence (keel-web 130 / 132: *... which uses 400 credits.*) as the scre
 `changePrice`, no currency (`interviewer_marks.price_words_on`). FR-3a: `models.CLASSES` ends on `example_match` (keel-cloud
 routing v13, dormant), and a unit test reads the live `model-routing.json`'s classes against `CLASSES`.
 
+**One open link for a group: three strangers sign in with Google** (spec `092-one-open-link-for-a-group`, 2026-10-30;
+keel-cloud 162, contract 48; keel-web 136). **S-017** (`evals/test_s017_open_link.py`, the walk `evals/open_link_leg.py`):
+01-countly locked on the scripted runtime, the founder stood on Keel's door with a fresh grant (stand-in keyed
+`e2e-eval:092:`, reversed in a `finally`) and the interviewer recorded (`POST interviewer/face`, the fake renderer); Send
+more's third way (*A group, with one open link*, `Interviews.send_group`) makes one *Let them choose* link; four strangers
+registered on the stub issuer (`stack.auth.register_stranger`: `POST /identities`, the `sub` the stub's, addresses under
+`strangers.keel-e2e-eval.test` -- never a real person's) meet it. A and B sign in through the browser (`harness/browser.py`
+`Arrival`: the card, *Continue with Google*, the stranger's own button on the picker, keel-cloud's participant callback,
+their own `/i/{token}`); C on the wire (`stack.auth.sign_in_arrival`: start, the stub's `/authorize` with `identity=`, the
+callback, each hop by hand, the `keel_arrival_` cookie kept). A begins with *Answer in writing* (`walk(begin=
+"choice-write")`), answers and opts in; B stops after the gate and resumes there on a second sign-in; A's second sign-in
+is ALREADY_ANSWERED; Sent's *By group* tab (`study_line`, `tabs`, `groups`, `group_rows` with the email under the name,
+`close_group` / `reopen_group`) is held to the wire; a closed link serves D the inactive line; the ledger carries exactly
+two INTERVIEW rows; the Pilot view carries A's email. `stack/oidc.py` `cloud_env` sets
+`KEEL_GOOGLE_PARTICIPANT_REDIRECT_URI` on the cloud's origin beside the founder's (a stack booted before this needs `make
+down && make up`). Local only: the remote profile refuses S-017 by name. FR-4a: Send more's one credits note is keel-web
+131's `FORMAT_CREDITS_NOTE` (`interviewer_screens.FORMAT_CREDITS_NOTE`, read by `format-credits` apart from the state line;
+S3 holds no greyed word on any row). No mark moves; `MARKS_VERSION` 22 and corpus REVISION 16 unchanged.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
-to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
+to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
 the participants' typed answers are fixture or corpus data, never generated) and every assertion
 enforcing a journey moment cites it (`§n.m`).
@@ -743,7 +762,7 @@ runtime and proves everything a founder owns keeps working with no agent except 
 project and reading answers — it found the product offering the read action anyway, refused only
 on the wire and never explained on the screen (`runs/DRIFT.md` #17). The evidence bundle
 (`runs/<id>/`, report.html) is the product of a run; the scoring policy (`evals/policy.py`,
-versioned) is the yardstick. `make up / eval K=s001|s002|s003|s005|s006|s007|s014|s015|s016 / down`; quickstarts in
+versioned) is the yardstick. `make up / eval K=s001|s002|s003|s005|s006|s007|s014|s015|s016|s017 / down`; quickstarts in
 `specs/*/quickstart.md`.
 
 **Two referee sessions never share the eval profile.** The stack's ports (55432/18080/5173/18090)
