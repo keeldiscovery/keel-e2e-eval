@@ -37,7 +37,13 @@ Two keel-web merges of 2026-10-30 move what the harness clicks and reads on the 
   item in 135's tasks.md's harness list is mirrored in `harness/vectors_screens.py`, `harness/interviewer_screens.py`
   and `evals/interviewer_leg.py` (the radio 1..N, the first tap and the `second-ask` line, *Nothing else*, the `more`
   clip, the `scale-four` rows), with the test ids the build serves; nothing hard-codes a label code can change.
-- **FR-3 Nothing else moves.** The marks, the corpus (revision 19), the readers, the quality cycle's rubric, the
+- **FR-3 The five 0s are sent as 1 (the founder, 2026-10-30: "update the harness to send 1").** Spec 089 FR-2 replayed
+  the five people who answered 0 after a yes (04-linerly: Bruno Costa, Dmitri Volkov, Gwen Price; 05-paidly: Petra
+  Novak, Talia Ben-David) as `{"chip": "CANT_RECALL"}`; now each is sent as the count 1 (`{"scale": 1}` on the
+  segmented control, 1 in the number box on the long window), still named in `PersonInputs.notes` and the journey's
+  finding; the corpus is untouched; the test that holds them to exactly five stays and reads 1. `quality/decisions.toml`
+  D-2026-10-30-01 is marked `merged` with this spec's sha by the coordinator.
+- **FR-4 Nothing else moves.** The marks, the corpus (revision 19), the readers, the quality cycle's rubric, the
   prices (088), the frames (089 FR-5).
 
 ## Acceptance
