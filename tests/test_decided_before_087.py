@@ -369,11 +369,13 @@ def test_the_dry_advise_on_cycle_f48f256_snoozes_every_weak_row_and_sends_nothin
 def test_a_merged_decision_ends_its_snooze_on_the_file_of_record(capsys):
     """Spec 085 FR-4 (087 FR-2's `until = "spec-merged"`): with the eight `merged` marks of master, the rows decided only
     by a merged spec are sent to the adviser again (47 prompts, none made on a dry run) and the 15 decided by a
-    declined, held or unmerged entry stay snoozed -- each listed by an entry still active."""
+    declined, held or unmerged entry stay snoozed -- each listed by an entry still active. Re-pinned 2026-10-30: the
+    founder widened D-2026-10-29-04 (the no-number rule) from COMMERCIAL to every scope, so the PROBLEM and SOLUTION
+    problem-seed rows it now covers join the list: 15 -> 17."""
     code, said = dry(capsys, dec.DECISIONS_PATH, record=F48)
     assert code == 0
     listed = re.findall(r"^- ((?:COMMERCIAL|PROBLEM|SOLUTION) · .+?) -- (.+)$", said, re.M)
-    assert len(listed) == 15
+    assert len(listed) == 17
     found = {d["id"]: d for d in dec.load()}
     for row, said_of in listed:
         ids = re.findall(r"\*\*(D-2026-10-29-\d\d)\*\*", said_of)
