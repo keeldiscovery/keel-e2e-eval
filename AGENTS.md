@@ -673,6 +673,18 @@ moves (SC4 still reads `idea` on a B2C money study's FULL link: findings until a
 0 / 53 (master `705c7a5` 4,003 / 0 / 53); the paid walks (`ENTRIES=08-fresco,13-aircaps,17-expanse SCOPES=COMMERCIAL`,
 `ENTRIES=10-palus,21-codyco SCOPES=SOLUTION,COMMERCIAL`, `DOOR=host`) owed after the merge.
 
+**The money link's body on a consumer entry** (spec `102-the-money-links-body-on-a-consumer-entry`, 2026-10-30;
+keel-cloud 133 FR-4, keel-web 145). `PersonInputs.gate` (`vs.person_inputs`: `serves_gate`) -- off the gate, money
+alone's FULL link, the expected body is `{answers}` as on the decision-maker's link: no `recency`, `story` or
+`anchorChip` (the file's stay its record, never sent), `ends_on_chip` false, `walks_rungs` true for every inside person,
+`_speak_for` None. `vs.not_walked_off_the_gate`: a file gate No has no money answers (`response` refuses it by name,
+`NO_ANSWERS_OFF_THE_GATE`) and a person outside the segment meets no screener until the interview serves `condition`
+(keel-cloud 166 / keel-web 145; `OUTSIDE_OFF_THE_GATE`); `_answer_one` names either in one finding and walks neither --
+every consumer entry has two to five gate Noes (13-aircaps: 17 of 20 answer, `_await_standings` waits its 60 s). Every
+gated body and the B2B body unchanged; no mark moves. `quality/decisions.py` lists `condition` (the walk's screener) among
+the respondent screens, the stop `083fc9a`'s score files left on master. `make unit` 4,076 / 0 / 53 (master `374694d`
+4,047 / 1 / 53); the paid walk (`ENTRIES=13-aircaps SCOPES=COMMERCIAL DOOR=host`) owed after the merge.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
