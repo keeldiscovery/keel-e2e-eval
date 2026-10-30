@@ -30,7 +30,6 @@
               "control": "segmented_0_to_7",
               "hint": null,
               "options": [],
-              "advantages": [],
               "escape": "I can't recall",
               "shown": [
                 "0",
@@ -54,7 +53,6 @@
                 "Keeping an accurate record of the day's work",
                 "Keeping the job on schedule"
               ],
-              "advantages": [],
               "escape": "None of these",
               "shown": [
                 "Getting subs to show up and finish",
@@ -77,7 +75,6 @@
                 "It was barely done; much was left out",
                 "It did not get done at all"
               ],
-              "advantages": [],
               "escape": "Someone else does the checking",
               "shown": [
                 "It was done quickly, with no trouble",
@@ -104,7 +101,6 @@
                 "Only with help or approval",
                 "No"
               ],
-              "advantages": [],
               "escape": "I can't tell",
               "shown": [
                 "Yes, easily",
@@ -149,7 +145,6 @@
                 "Probably not",
                 "No"
               ],
-              "advantages": [],
               "escape": "I can't tell",
               "shown": [
                 "Yes",
@@ -232,7 +227,6 @@
               "control": "cost_total",
               "hint": null,
               "options": [],
-              "advantages": [],
               "escape": "I can't recall",
               "shown": [
                 "Amount",
@@ -253,7 +247,6 @@
                 "Over $2,500",
                 "I wouldn't pay for this"
               ],
-              "advantages": [],
               "escape": "I can't say",
               "shown": [
                 "Under $250",
@@ -276,7 +269,6 @@
                 "Taken from other spending",
                 "There was no budget for it"
               ],
-              "advantages": [],
               "escape": "I can't recall one",
               "shown": [
                 "A budget line we already had",
@@ -297,7 +289,6 @@
                 "No, someone else had to agree",
                 "Someone else decided, not me"
               ],
-              "advantages": [],
               "escape": "I can't recall one",
               "shown": [
                 "Yes, they had to agree",
@@ -317,7 +308,6 @@
                 "Yes, but it was quick",
                 "No, it wasn't needed"
               ],
-              "advantages": [],
               "escape": "I can't recall",
               "shown": [
                 "Yes, and it took a long time",
@@ -337,7 +327,6 @@
                 "Probably not",
                 "No"
               ],
-              "advantages": [],
               "escape": null,
               "shown": [
                 "Yes, I'd start one",

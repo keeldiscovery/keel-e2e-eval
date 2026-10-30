@@ -120,9 +120,12 @@ TERMINAL_BAD = {"RESULT_INVALID", "DOMAIN_REFUSED", "STATE_CONFLICT", "JOB_FAILE
 #: (`DimensionStanding.interval` / `.choice`, `n` on the row).
 INTERVAL_KEYS = ("inside", "below", "above")
 
-#: The controls whose served options the item screen draws as rows (keel-web 064 FR-003).
-ROW_CONTROLS = {"single_choice", "single_choice_5", "price_ladder", "fixed_four", "fixed_three", "pick_two",
-                "pick_one_then_one", "scale_four"}
+#: The controls whose served options the item screen draws as rows (keel-web 064 FR-003). Spec 090 FR-2 (keel-web 135
+#: H-8): `pick_two` is never served on contract 47 and is gone from the list.
+ROW_CONTROLS = {"single_choice", "single_choice_5", "price_ladder", "fixed_four", "fixed_three", "pick_one_then_one",
+                "scale_four"}
+#: Spec 090 FR-2 (keel-web 135 H-5): the controls headed *Pick one.* (`.iv-tick`) as every one-pick screen is.
+PICK_ONE_HINTED = {"pick_one_then_one", "scale_four"}
 
 
 # ------------------------------------------------------------------------------------ the journey
@@ -3412,8 +3415,9 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
             on_plan = bool(plan) and drawn.get("question") == plan.get("question")
             if item.get("control") in ROW_CONTROLS:
                 want["rows"] = [o.get("label") for o in (plan.get("options") if on_plan else item.get("options")) or []]
-            if item.get("control") == "pick_two":
-                want["hint"] = vs_screens.IV_PICK_TWO
+            if item.get("control") in PICK_ONE_HINTED:
+                # keel-web 135 H-5: *Pick one.* over Importance's first ask and over the scale (*Pick two.* is gone)
+                want["hint"] = vs_screens.IV_PICK_ONE
             second = item.get("secondAsk") or {}
             if item.get("control") == vs_screens.PICK_ONE_THEN_ONE and drawn.get("second_ask") is not None:
                 # spec 089 FR-3 (keel-cloud 158 T010, keel-web 135 FR-2): after the first tap the second ask is written
@@ -3487,10 +3491,10 @@ def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> No
         assert not faults, json.dumps(faults, indent=2)
 
 
-#: keel-web `interviewAnswers.ts`: how many options a control's answer carries (pick_two exactly two; any other one or
-#: more). Spec 089 FR-3 (keel-cloud 158 T011): `pick_one_then_one` takes two, or one with *Nothing else*
-#: (`chip: NOTHING_ELSE` beside the one id) -- one pick and NOTHING_ELSE is a whole answer (`NOTHING_ELSE_CARRIES`).
-PICKS_NEEDED = {"pick_two": 2, "pick_one_then_one": 2}
+#: keel-web `interviewAnswers.ts`: how many options a control's answer carries (any other one or more). Spec 089 FR-3
+#: (keel-cloud 158 T011): `pick_one_then_one` takes two, or one with *Nothing else* (`chip: NOTHING_ELSE` beside the one
+#: id) -- one pick and NOTHING_ELSE is a whole answer (`NOTHING_ELSE_CARRIES`). Spec 090 FR-2 (H-8): `pick_two` gone.
+PICKS_NEEDED = {"pick_one_then_one": 2}
 NOTHING_ELSE_CARRIES = {"pick_one_then_one"}
 
 
@@ -3498,7 +3502,7 @@ def _without_the_unoffered(j: Journey, person, body: dict, items: dict, token: s
     """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): a pick the page does not offer is a finding, never a swap -- the
     walk used to put such an answer on the item's first options (`_on_the_offered_options`, retired), so Lakisha and
     Priya were sent a difficulty they never chose. The unoffered option is dropped and named; the item's
-    other picks are kept where the control can carry them, and an item left short of its control (pick_two needs two)
+    other picks are kept where the control can carry them, and an item left short of its control (Importance: two, or one with Nothing else)
     is left unanswered, which the walk answers with the item's escape and names (`Interview.unanswered`). Never reached
     on a scripted journey (`j.strict` asserts nothing is unoffered)."""
     by_id = {i.get("itemId"): i for i in items.values()}

@@ -531,7 +531,9 @@ def taps_wait_for_save(r: dict) -> tuple[bool, Any]:
     pick, then one more -- the first tap marks one pick and nothing goes on by itself for 1.5 s (the same question,
     `listening`, no ring) while the second ask's *And one more?* clip plays (the item's ITEM_MORE, served `more`); the
     second tap (or *Nothing else*) completes the item and it goes on; the response carries the picks wanted, `how`
-    TAPPED. (Before v14 two ticks enabled *Save and next* and a third was ignored.)"""
+    TAPPED. (Before v14 two ticks enabled *Save and next* and a third was ignored.) Spec 090 FR-2 (keel-web 135 H-2):
+    the walk reads `one` once the `more` clip has played and the sheet listens again (`at_tap_wait` keeps what the 1.5 s
+    showed, the stage maybe still `speaking`), so the reading is the same and the version stays."""
     x = r["taps"]
     one, two = x.get("one") or {}, x.get("two") or {}
     want = sorted(x.get("want") or [])

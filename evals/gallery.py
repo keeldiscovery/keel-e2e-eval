@@ -290,9 +290,13 @@ def _item(served: dict, drawn: dict) -> dict:
             "control": served.get("control"),
             "hint": served.get("hint") or drawn.get("hint") or None,
             "options": _labels(served.get("options")),
-            "advantages": _labels(served.get("advantages")),
             "escape": _escape(served.get("escape")),
             "shown": list(drawn.get("rows") or [])}
+    if served.get("advantages"):
+        # spec 090 FR-2 (keel-web 135 H-9): contract 47 serves no `advantages` (keel-cloud 159's one scale); a run
+        # recorded before it keeps its benefits, read as recorded, beside the options -- never an empty list
+        item = {**{k: item[k] for k in ("dimension", "kicker", "question", "control", "hint", "options")},
+                "advantages": _labels(served.get("advantages")), "escape": item["escape"], "shown": item["shown"]}
     if served.get("advantagesPrompt"):
         item["advantagesPrompt"] = served["advantagesPrompt"]
     for key in ("scale", "numeric", "costTotal", "valueBox", "whatYouGet"):

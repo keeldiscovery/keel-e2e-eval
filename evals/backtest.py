@@ -1091,6 +1091,8 @@ def _labels(rows: list | None, key: str = "label") -> list:
 #: Spec 063 FR-3a: what an item carries beyond the six above, kept when served (ids never: `plan`'s options go as
 #: labels) so the gallery's interview.json can draw it -- the item's own kicker, the number and money controls, and
 #: spec 115's value box, plan and what-you-get.
+#: Spec 090 FR-2 (keel-web 135 H-9): `advantagesPrompt` (and `advantages`) are read only where a run recorded before
+#: contract 47 served them -- keel-cloud 159 serves neither, and no empty list is written for them.
 SERVED_EXTRAS = ("kicker", "advantagesPrompt", "scale", "numeric", "costTotal", "valueBox", "whatYouGet")
 
 
@@ -1103,8 +1105,10 @@ def served_items(interview: dict) -> dict:
         for item in part.get("items") or []:
             row = {"dimension": item.get("dimension"), "question": item.get("question"),
                    "control": item.get("control"), "hint": item.get("hint"),
-                   "options": _labels(item.get("options")), "advantages": _labels(item.get("advantages")),
+                   "options": _labels(item.get("options")),
                    "escape": (item.get("escape") or {}).get("label")}
+            if item.get("advantages"):
+                row["advantages"] = _labels(item["advantages"])
             row.update({k: item[k] for k in SERVED_EXTRAS if item.get(k) not in (None, "", [], {})})
             if item.get("plan"):
                 row["plan"] = {"question": item["plan"].get("question"),
@@ -1664,6 +1668,7 @@ def markdown(r: dict) -> str:
             lines.append(f"- Part {part.get('part')}:")
             for n, item in enumerate(part.get("items") or [], start=1):
                 lines.append(f"  {n}. **{item.get('question')}** ({item.get('dimension')}, {item.get('control')})")
+                # a run recorded before contract 47 may still carry `advantages` (read as recorded)
                 opts = item.get("options") or item.get("advantages") or []
                 if opts:
                     lines.append("     options: " + " | ".join(str(o) for o in opts))

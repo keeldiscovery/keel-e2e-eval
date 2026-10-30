@@ -216,7 +216,9 @@ IV_YES = "Yes"
 IV_NO = "No"
 IV_COST_MODE_GROUP = "Measured as"
 IV_COST_MODE_WORD = {"AMOUNT": "Amount", "HOURS": "Hours"}
-IV_PICK_TWO = "Pick two."
+#: keel-web 135 H-5 (`RESPONDENT_PICK_ONE`): the hint over every one-pick screen -- Importance's `pick_one_then_one` and
+#: Relative advantage's `scale_four` included. *Pick two.* (`IV_PICK_TWO`) is never drawn on contract 47 (spec 090 FR-2).
+IV_PICK_ONE = "Pick one."
 #: Spec 089 FR-3 (keel-cloud 158, keel-web 135 FR-2): Importance's control since contract 46, and its second ask's
 #: prompt and escape as the item serves them (`secondAsk`), read from the item where served.
 PICK_ONE_THEN_ONE = "pick_one_then_one"
@@ -2752,20 +2754,28 @@ class Interview:
                 control.get_by_role("radio", name=label, exact=True)).first
 
         option(options[ids[0]]).click()
-        seen = True
+        # spec 090 FR-2 (keel-web 135 H-11): the second ask is `p.iv-second[data-testid=second-ask]` under the list, read
+        # by its test id; `prompt` is what it says (the served `secondAsk.question`), None where it never came
+        line = main.get_by_test_id("second-ask")
         try:
-            main.get_by_text(prompt, exact=True).first.wait_for(state="visible", timeout=10_000)
+            line.first.wait_for(state="visible", timeout=10_000)
         except Exception:                                                  # noqa: BLE001 - recorded, held by the scenario
-            seen = False
-        self._second_ask_seen = {"prompt": prompt if seen else None, "asked": _first_text(self.page, "h1.iv-q"),
+            pass
+        said = (_first_text(main, "[data-testid=second-ask]") or "").strip()
+        self._second_ask_seen = {"prompt": said or None, "asked": _first_text(self.page, "h1.iv-q"),
                                  "chips": [c.strip() for c in _safe_all_texts(self.page, ".iv-chips button")],
-                                 "first": options[ids[0]]}
+                                 "first": options[ids[0]], "served": prompt}
         if len(ids) > 1:
             option(options[ids[1]]).click()
             self._second_ask_seen["second"] = options[ids[1]]
         else:
             main.locator(".iv-chips").get_by_role("button", name=nothing, exact=True).first.click()
             self._second_ask_seen["second"] = nothing
+        # keel-web 135 H-6 / H-7: *2 of 2 picked. ...* (`.iv-picked`) is drawn only once two are marked, so it is read
+        # after the second tap (never after *Nothing else*); *Nothing else* pressed carries `aria-pressed="true"`
+        self._second_ask_seen["picked_line"] = _first_text(self.page, ".iv-picked")
+        self._second_ask_seen["pressed"] = [c.strip() for c in
+                                            _safe_all_texts(self.page, ".iv-chips button[aria-pressed=true]")]
 
     #: Spec 089 FR-3: what Importance's second ask drew (`_one_then_one`), taken by `_item_screen` once.
     _second_ask_seen: dict | None = None
@@ -2821,7 +2831,9 @@ class Interview:
                     radio.click()
             main.locator(".iv-num input").first.fill(_number(cost["value"]))
             return
-        role = "checkbox" if item.get("control") == "pick_two" else "radio"
+        # spec 090 FR-2 (keel-web 135 H-8): every one-of here is a radio row; Importance's ticks are `_one_then_one`'s,
+        # and `pick_two` (the old checkbox path) is never served on contract 47
+        role = "radio"
         ids = list(answer.get("optionIds") or [])
         if plan and len(ids) == 2 and _is_would_not_pay(options.get(ids[0])):
             # keel-web 106 FR-9 (keel-cloud 128 FR-21): "I wouldn't pay for this" closes the price item -- one option is

@@ -147,3 +147,85 @@ def test_with_no_context_the_line_names_the_payer_or_nothing(tmp_path, countly):
     assert owed == vs_screens.CHAIN_COST_HOW and shape.fullmatch(owed)
     owed, shape = cs.cost_line_owed(True, {}, {})
     assert owed == "How would you put what it costs the buyer's organisation?" and shape.fullmatch(owed)
+
+
+# ------------------------------------------------------------------------- FR-2: the three controls as 135 builds them
+
+import inspect                                                          # noqa: E402
+
+from evals import backtest as bt                                        # noqa: E402
+from evals import gallery as g                                          # noqa: E402
+from evals import interviewer_leg                                       # noqa: E402
+from harness import interviewer_screens as ivs                          # noqa: E402
+
+
+def test_h1_the_ai_sheets_second_ask_is_read_from_its_own_line():
+    """H-1: *And one more?* is `[data-testid=ai-sheet] [data-testid=second-ask]`; `.iv-q` stays the item's question, so
+    neither `more_said` nor the loop guard reads `.iv-q` / the status for it."""
+    reader = inspect.getsource(ivs.Player.second_ask)
+    assert 'get_by_test_id("ai-sheet").get_by_test_id("second-ask")' in reader
+    walk = inspect.getsource(interviewer_leg._Walk.tap_one_then_one)
+    assert '"more_said": p.second_ask() == one_more' in walk and "vs.ONE_MORE in" not in walk
+    assert "p.question() in (question, vs.ONE_MORE)" not in walk
+    assert "vs.ONE_MORE" not in inspect.getsource(interviewer_leg._wait_next)
+
+
+def test_h2_the_first_taps_state_is_read_after_the_more_clip():
+    """H-2: `one` (IM20's phase, ring, ticks) is read once the `more` clip has played and the sheet listens; what 1.5 s
+    showed is kept as `at_tap_wait`."""
+    walk = inspect.getsource(interviewer_leg._Walk.tap_one_then_one)
+    tapped, waited, clip, listening, read = (walk.index("p.tap(want[0])"), walk.index("ivs.TAP_WAIT_MS"),
+                                             walk.index("_played_at(p, more_clip) < tapped_at"),
+                                             walk.index('p.phase() != "listening"'), walk.index("one = {**p.save_state()"))
+    assert tapped < waited < clip < listening < read
+    assert '"at_tap_wait": at_wait' in walk
+
+
+def test_h3_h4_importance_with_picks_is_taken_before_the_escape():
+    """H-3: a pick with `chip: NOTHING_ELSE` is the pick, then *Nothing else* -- never the first ask's *None of these*
+    (`tap_chip` taps the first chip). H-4: one pick by speech is held, the second ask waited for, then *Nothing else*."""
+    answer = inspect.getsource(interviewer_leg._Walk.answer)
+    chip = answer.index('if ans.get("chip"):')
+    assert answer.index("self.tap_one_then_one(") < chip and answer.index("self.one_by_speech(") < chip
+    speech = inspect.getsource(interviewer_leg._Walk.one_by_speech)
+    assert speech.index("self.held(entry, label)") < speech.index("p.second_ask()") < speech.index(
+        "p.tap_chip_named(nothing)") < speech.index("_wait_next(p, entry[\"question\"])")
+    assert interviewer_leg.PICK_CONTROLS == ("pick_one_then_one",)
+
+
+def test_h5_the_hint_is_pick_one_on_importance_and_the_scale():
+    """H-5: *Pick one.* (`RESPONDENT_PICK_ONE`) over `pick_one_then_one` and `scale_four`; *Pick two.* is gone."""
+    assert vs_screens.IV_PICK_ONE == "Pick one." and not hasattr(vs_screens, "IV_PICK_TWO")
+    assert cs.PICK_ONE_HINTED == {"pick_one_then_one", "scale_four"}
+    held = inspect.getsource(cs)
+    assert 'want["hint"] = vs_screens.IV_PICK_ONE' in held and "IV_PICK_TWO" not in held
+
+
+def test_h6_h7_h11_the_text_pages_second_ask():
+    """H-11: the second ask waited for by its test id; H-6: *2 of 2 picked* read after the second tap; H-7: the pressed
+    *Nothing else* read by `aria-pressed`."""
+    src = inspect.getsource(vs_screens.Interview._one_then_one)
+    wait, second, picked = (src.index('get_by_test_id("second-ask")'), src.index("option(options[ids[1]]).click()"),
+                            src.index('"picked_line"'))
+    assert wait < second < picked and ".iv-chips button[aria-pressed=true]" in src
+
+
+def test_h8_no_pick_two_path_is_left():
+    """H-8: contract 47 never serves `pick_two` -- the walks' checkbox path, its hint and its counts are gone; the
+    module note no longer says tapped checkboxes wait for *Save and next*."""
+    assert "pick_two" not in cs.ROW_CONTROLS and "pick_two" not in cs.PICKS_NEEDED
+    assert 'role = "radio"' in inspect.getsource(vs_screens.Interview._answer)
+    assert "tapped checkboxes wait for *Save and next* (`save_state`)" not in ivs.__doc__
+
+
+def test_h9_no_advantages_are_read_off_a_47_wire():
+    """H-9: an item served on contract 47 is written with no `advantages` (no empty list); a run recorded before 47
+    keeps its benefits as recorded."""
+    served = {"dimension": "solution.relative_advantage", "question": "Q?", "control": "scale_four",
+              "options": [{"optionId": "a", "label": "A lot better"}], "escape": {"label": "I can't tell"}}
+    assert "advantages" not in g._item(served, {}) and "advantagesPrompt" not in g._item(served, {})
+    row = bt.served_items({"parts": [{"part": 2, "items": [served]}]})["parts"][0]["items"][0]
+    assert "advantages" not in row and "advantagesPrompt" not in row
+    old = {**served, "advantages": [{"label": "Hours back"}]}
+    assert list(g._item(old, {}))[:8] == ["dimension", "kicker", "question", "control", "hint", "options",
+                                         "advantages", "escape"]

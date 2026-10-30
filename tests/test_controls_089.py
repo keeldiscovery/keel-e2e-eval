@@ -186,7 +186,8 @@ def test_the_screens_tap_one_wait_for_the_second_ask_then_the_other():
     """keel-web 135 FR-2 on the text link: the first option tapped, *And one more?* waited for, then the second option or
     *Nothing else*; the item's screen is read on the first ask and keeps what the second drew."""
     src = inspect.getsource(vectors_screens.Interview._one_then_one)
-    first, wait, second = (src.index("option(options[ids[0]]).click()"), src.index("get_by_text(prompt, exact=True)"),
+    # spec 090 FR-2 (keel-web 135 H-11): the wait is on the second ask's own test id, `second-ask`, not its words
+    first, wait, second = (src.index("option(options[ids[0]]).click()"), src.index('get_by_test_id("second-ask")'),
                            src.index("option(options[ids[1]]).click()"))
     assert first < wait < second and "name=nothing, exact=True" in src
     answer = inspect.getsource(vectors_screens.Interview._answer)
@@ -200,7 +201,9 @@ def test_the_ai_link_taps_one_hears_and_one_more_then_the_second():
     *Nothing else*; IM20 (v14) reads that walk."""
     src = inspect.getsource(interviewer_leg._Walk.tap_one_then_one)
     assert src.index("p.tap(want[0])") < src.index("_played_at(p, more_clip) < tapped_at") < src.index("p.tap(second)")
-    assert "p.tap_chip_named(vs.NOTHING_ELSE_LABEL)" in src
+    # spec 090 FR-2 (keel-web 135 H-1): *Nothing else* is the item's served `secondAsk.escape.label`, the registry's
+    # label where none is served
+    assert "p.tap_chip_named(nothing)" in src and "or vs.NOTHING_ELSE_LABEL" in src
     assert im.INTERVIEWER_MARKS_VERSION == 14
     record = {"taps": {"question": "Which one?", "want": ["A", "B"], "next": "Which fits?", "sent": ["B", "A"],
                        "sent_how": "TAPPED",

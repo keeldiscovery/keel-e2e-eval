@@ -223,10 +223,13 @@ def test_a_pick_the_page_does_not_offer_is_named_never_swapped():
     """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): on a live run the model drafts the founder's lists, so an option the
     entry names may not be offered. Until 067 the person was moved onto the item's first options (Lakisha and Priya sent
     a difficulty they never chose); now the unoffered pick is dropped and named, the other picks kept where the control
-    carries them, and an item left short (pick_two with one, a scale with none) is left to the walk's escape."""
+    carries them, and an item left short (a scale with none) is left to the walk's escape.
+
+    Re-pinned by spec 090 FR-2 (keel-web 135 H-8): Importance is `pick_one_then_one` (contract 47 never serves
+    `pick_two`), so one of its two picks left is kept with *Nothing else*, not left to the escape."""
     from types import SimpleNamespace                                   # noqa: PLC0415
     from evals.corpus_scenario import _without_the_unoffered            # noqa: PLC0415
-    items = {"problem.importance": {"itemId": "i1", "dimension": "problem.importance", "control": "pick_two",
+    items = {"problem.importance": {"itemId": "i1", "dimension": "problem.importance", "control": "pick_one_then_one",
                                     "options": [{"optionId": "a", "label": "A"}, {"optionId": "b", "label": "B"},
                                                 {"optionId": "c", "label": "C"}]},
              # spec 089 FR-4 (keel-cloud 159): Relative advantage is one code of the scale -- an unoffered one leaves
@@ -244,13 +247,14 @@ def test_a_pick_the_page_does_not_offer_is_named_never_swapped():
                                          {"itemId": "i3", "optionIds": ["y"]},
                                          {"itemId": "i9", "scale": 3}]}
     out = _without_the_unoffered(j, person, body, items, "tok")
-    # Importance: one of two left -- a link served pick_two cannot carry it, so the item goes to its escape; never
-    # ["a", "b"] (on pick_one_then_one the one is kept with Nothing else: `tests/test_controls_089.py`)
-    assert [a["itemId"] for a in out["answers"]] == ["i3", "i9"]
-    assert out["answers"][0] == {"itemId": "i3", "optionIds": ["y"]}
-    assert out["answers"][1] == {"itemId": "i9", "scale": 3}
+    # Importance: one of two left -- kept with Nothing else (keel-cloud 158), never ["a", "b"]; the scale with none
+    # left goes to its escape
+    assert [a["itemId"] for a in out["answers"]] == ["i1", "i3", "i9"]
+    assert out["answers"][0] == {"itemId": "i1", "optionIds": ["b"], "chip": "NOTHING_ELSE"}
+    assert out["answers"][1] == {"itemId": "i3", "optionIds": ["y"]}
+    assert out["answers"][2] == {"itemId": "i9", "scale": 3}
     assert len(j.findings) == 2 and "never swapped" in j.findings[0]["what"]
-    assert all("left to its escape" in f["what"] for f in j.findings)
+    assert "then Nothing else" in j.findings[0]["what"] and "left to its escape" in j.findings[1]["what"]
     kept = _without_the_unoffered(SimpleNamespace(findings=[]), person,
                                   {"answers": [{"itemId": "i1", "optionIds": ["b", "c"]}]}, items, "tok")
     assert kept["answers"][0]["optionIds"] == ["b", "c"]

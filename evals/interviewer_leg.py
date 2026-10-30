@@ -1486,8 +1486,9 @@ def _person_for_the_link(j):
     return [p for p in j.people if p.person in names][-1]
 
 
-#: Importance's control: keel-cloud 158's `pick_one_then_one` (contract 46), and `pick_two` as a link served before 46.
-PICK_CONTROLS = ("pick_one_then_one", "pick_two")
+#: Importance's control: keel-cloud 158's `pick_one_then_one` (contract 46). Spec 090 FR-2 (keel-web 135 H-8): `pick_two`
+#: is never served on contract 47, so its path is retired here.
+PICK_CONTROLS = ("pick_one_then_one",)
 ORDINALS = ["first", "second", "third", "fourth", "fifth", "sixth"]
 NUMBER_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"]
 #: A cost total said aloud is said in the served currency's word (keel-cloud's FakeClassifier reads these).
@@ -1540,11 +1541,11 @@ def _clearest(indexes: list[int], labels: list[str]) -> int:
 
 def _wait_next(player, question: str, *, timeout_s: float = 30) -> None:
     """The sheet on another question than `question` (or the end screen). Importance's second ask (*And one more?*,
-    keel-cloud 158) is the same item still, never the next question."""
+    keel-cloud 158) is the same item still, never the next question: keel-web 135 writes it under the rows
+    (`second-ask`) and leaves `.iv-q` the item's question (H-1), so the same question is the guard."""
     deadline = time.monotonic() + timeout_s * player.patience
     while time.monotonic() < deadline:
-        if player.page.get_by_test_id("ai-done").count() or (player.question()
-                                                              and player.question() not in (question, vs.ONE_MORE)):
+        if player.page.get_by_test_id("ai-done").count() or (player.question() and player.question() != question):
             return
         time.sleep(0.1)
     raise AssertionError({"the sheet stayed on": question, "status": player.status(), "phase": player.phase()})
@@ -2110,26 +2111,34 @@ class _Walk:
         p.wait_listening()
         question = p.question()
         before = p.save_state()
+        second_ask = (item.get("secondAsk") or {})
+        one_more = second_ask.get("question") or vs.ONE_MORE
+        nothing = (second_ask.get("escape") or {}).get("label") or vs.NOTHING_ELSE_LABEL
         more_clip = ((self.item_clips.get(item["itemId"]) or {}).get("more") or {}).get("clipId")
         tapped_at = _now(p)
         p.tap(want[0])
         p.page.wait_for_timeout(ivs.TAP_WAIT_MS)
-        one = {**p.save_state(), "question_same": p.question() == question, "sheet": p.question(),
-               "more_played": bool(more_clip) and _played_at(p, more_clip) >= tapped_at, "more_clip": more_clip,
-               "more_said": vs.ONE_MORE in " ".join([p.question() or "", p.status() or ""])}
+        # spec 090 FR-2 (keel-web 135 H-2): at 1.5 s the item's `more` clip may still be playing (`speaking`); what the
+        # tap left at that moment is kept apart, and `one` is read once the clip has played and the sheet listens
+        at_wait = {**p.save_state(), "question_same": p.question() == question}
         deadline = time.monotonic() + 15 * p.patience
         while time.monotonic() < deadline and more_clip and _played_at(p, more_clip) < tapped_at:
             time.sleep(0.05)                    # the page waits for the clip as for any clip (keel-web 135 FR-2)
-        one["more_played"] = bool(more_clip) and _played_at(p, more_clip) >= tapped_at
+        while time.monotonic() < deadline and p.phase() != "listening":
+            time.sleep(0.05)
+        # keel-web 135 H-1: the second ask is written under the rows (`second-ask`), never in `.iv-q` or the status
+        one = {**p.save_state(), "question_same": p.question() == question, "sheet": p.question(),
+               "more_played": bool(more_clip) and _played_at(p, more_clip) >= tapped_at, "more_clip": more_clip,
+               "second_ask": p.second_ask(), "more_said": p.second_ask() == one_more, "at_tap_wait": at_wait}
         second = want[1] if len(want) > 1 else None
         if second is not None:
             p.tap(second)
         else:
-            p.tap_chip_named(vs.NOTHING_ELSE_LABEL)
-        two = p.save_state()
+            p.tap_chip_named(nothing)
+        two = {**p.save_state(), "pressed": p.chip_pressed()}
         pressed, start = False, None
         end = time.monotonic() + 3 * p.patience
-        while time.monotonic() < end and p.question() in (question, vs.ONE_MORE) \
+        while time.monotonic() < end and p.question() == question \
                 and not p.page.get_by_test_id("ai-done").count():
             if two.get("shown") and p.save_state().get("enabled"):
                 start = _now(p)
@@ -2141,11 +2150,31 @@ class _Walk:
         _wait_next(p, question)
         after = [st for st in p.statuses() if (st.get("t") or 0) >= start and st.get("question") == question]
         self.taps = {"question": question, "item": item["itemId"], "want": want, "before": before, "one": one,
-                     "two": {**two, "tapped": second or vs.NOTHING_ELSE_LABEL}, "save_pressed": pressed,
+                     "two": {**two, "tapped": second or nothing}, "save_pressed": pressed,
                      "statuses_after": [st.get("status") for st in after], "next": p.question()}
         self.how[item["itemId"]] = "TAPPED"
-        entry["did"].append(f"tapped {want[0]!r} (the item stayed, And one more?), then "
-                            f"{(second or vs.NOTHING_ELSE_LABEL)!r}" + (", Save and next" if pressed else ""))
+        entry["did"].append(f"tapped {want[0]!r} (the item stayed, {one_more}), then "
+                            f"{(second or nothing)!r}" + (", Save and next" if pressed else ""))
+
+    def one_by_speech(self, entry: dict, item: dict, label: str) -> None:
+        """Spec 090 FR-2 (keel-web 135 H-4): Importance by speech with one pick. One option named at the first ask is
+        held and marked, and the item's second ask is put (its `more` clip, then listening on the same `.iv-q`, the
+        line `second-ask` under the rows); *Nothing else* is tapped there -- the one pick sent with `chip:
+        NOTHING_ELSE`, `how` TAPPED (keel-web's `takeSecond` keeps the first pick's words in `heard`)."""
+        p = self.player
+        second_ask = item.get("secondAsk") or {}
+        nothing = (second_ask.get("escape") or {}).get("label") or vs.NOTHING_ELSE_LABEL
+        self.held(entry, label)
+        deadline = time.monotonic() + 30 * p.patience
+        while time.monotonic() < deadline and not p.second_ask():
+            if p.page.get_by_test_id("ai-done").count() or p.question() != entry["question"]:
+                raise AssertionError({"no second ask after one pick said": entry["question"], "now": p.question()})
+            time.sleep(0.05)
+        p.wait_listening()
+        p.tap_chip_named(nothing)
+        entry["did"].append(f"said {label!r}, then tapped {nothing!r} at {p.second_ask() or vs.ONE_MORE!r}")
+        self.how[item["itemId"]] = "TAPPED"
+        _wait_next(p, entry["question"])
 
     def go_back(self, entry: dict) -> None:
         """FR-6: from the next question, *Back* -- the previous question reopens with the (wrong) answer said there lit;
@@ -2168,22 +2197,28 @@ class _Walk:
         options = {o["optionId"]: o["label"] for o in item.get("options") or []}
         control = item.get("control")
         labels_shown = [o["label"] for o in sheet["options"]]
-        if ans.get("chip"):
-            p.tap_chip()
-            entry["did"].append("tap the escape")
-            self.how[item["itemId"]] = "TAPPED"
-            _wait_next(p, entry["question"])
-            return
+        # spec 090 FR-2 (keel-web 135 H-3): Importance with picks is taken before the escape -- one pick with `chip:
+        # NOTHING_ELSE` is the pick, then *Nothing else* at the second ask, never the first ask's *None of these*
         if control in PICK_CONTROLS and not self.used["taps"] and ans.get("optionIds"):
             # spec 089 FR-3 (keel-web 135 FR-2): the first Importance by taps -- one pick, *And one more?*, the second
             # (or *Nothing else*) completes it (IM20)
             self.used["taps"] = True
             self.tap_one_then_one(entry, item, [options[o] for o in ans["optionIds"]], labels_shown)
             return
-        if control in PICK_CONTROLS:
+        if control in PICK_CONTROLS and len(ans.get("optionIds") or []) == 1:
+            # keel-web 135 H-4: one named is marked and the one more asked -- *Nothing else* there
+            self.one_by_speech(entry, item, options[ans["optionIds"][0]])
+            return
+        if control in PICK_CONTROLS and ans.get("optionIds"):
             # keel-cloud 158 T014: the first ask reads a multi of two -- the person names both at once
             self.held(entry, " and ".join(options[o] for o in ans.get("optionIds") or []))
             self.how[item["itemId"]] = SPOKEN_HOW
+            _wait_next(p, entry["question"])
+            return
+        if ans.get("chip"):
+            p.tap_chip()
+            entry["did"].append("tap the escape")
+            self.how[item["itemId"]] = "TAPPED"
             _wait_next(p, entry["question"])
             return
         if ans.get("scale") is not None or ans.get("number") is not None:

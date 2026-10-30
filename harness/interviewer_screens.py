@@ -32,7 +32,9 @@ Spec 049 (keel-web 073, *hear them out*): nothing lights or fills while they spe
 final said within it joins the same utterance. `say()` keeps what the sheet showed while the words were heard
 (`hearing`: nothing newly lit, the field and the preview untouched); `ear()` counts a recogniser as listening only while
 the page still hands it results (keel-web's `__listening()`, 073 D-04: recogniser counts now grow on every final's end);
-tapped checkboxes wait for *Save and next* (`save_state`); the earcons are switched off on the seam (073 FR-8).
+the earcons are switched off on the seam (073 FR-8). (073 FR-6's *tapped checkboxes wait for *Save and next** no longer
+applies to any item since keel-web 135: Importance's ticks go on by themselves at the second tap and contract 47 serves
+no other multi -- spec 090 FR-2, H-8; `save` / `save_state` stay for typed words.)
 
 Spec 050 (keel-web 074 + 075): the gap is 4.0 s on every window (the walk still encodes none); the story says how to
 end it (`STORY`) and its *Save and next* reads it at once; a yes to *Is that right?* is held (`data-unsure="false"`,
@@ -940,6 +942,19 @@ class Player:
 
     def question(self) -> str:
         return _words(self.page.get_by_test_id("ai-sheet").locator(".iv-q").first)
+
+    def second_ask(self) -> str:
+        """Spec 090 FR-2 (keel-web 135 H-1): Importance's second ask as the sheet writes it --
+        `[data-testid=ai-sheet] [data-testid=second-ask]` (`p.iv-second`, the served `secondAsk.question`, *And one
+        more?*) under the rows; `.iv-q` stays the item's question and the status never says it. "" while not drawn."""
+        line = self.page.get_by_test_id("ai-sheet").get_by_test_id("second-ask")
+        return _words(line.first) if line.count() else ""
+
+    def chip_pressed(self) -> list[str]:
+        """keel-web 135 H-7: the chips pressed on the sheet (`.iv-chips` `aria-pressed="true"`) -- *Nothing else* once
+        it is the answer."""
+        chips = self.page.get_by_test_id("ai-sheet").locator(".iv-chips [aria-pressed=true]")
+        return [_words(c) for c in chips.all()]
 
     def wait_status(self, *words: str, timeout_s: float = 20) -> str:
         """The sheet's status line reading one of `words` (keel-web 072 FR-9)."""
