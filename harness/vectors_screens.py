@@ -204,6 +204,20 @@ def l1_title(people: str | None) -> str:
 def before_lock_record(face: str) -> str:
     """keel-web 130 FR-2 (`beforeLockRecord`): the lock names the face it records."""
     return f"Lock and record {face}"
+
+
+#: keel-web 132 FR-2 (spec 094 FR-2): where the server serves `recordOnSend: true` (staging alone) the lock card's
+#: first child is one switch, on by default -- `<label class="before__switch" data-testid="record-at-lock"><input
+#: type="checkbox" role="switch" checked> <span>Record {face} at lock · 400 credits</span></label>`. On, the lock
+#: records and its body carries no `recordOnSend`; off, it carries `recordOnSend: true`. The harness reads it and never
+#: turns it off.
+RECORD_AT_LOCK = "record-at-lock"
+
+
+def record_at_lock_switch(face: str, credits: int) -> str:
+    """keel-web 132 FR-2 (`recordAtLockSwitch(face, credits)`): the switch's label -- the face picked (*the
+    interviewer* before one is) and the served `changePrice`."""
+    return f"Record {face} at lock · {credits} credits"
 NAV_LOCK_LINE = "Opens once you start recruiting"
 NAV_LOCKED_LABEL = "Project sections, locked until recruiting starts"
 SEND_THE_QUESTIONS = "Send the questions"
@@ -2110,7 +2124,24 @@ class Corridor:
                 "sub": _safe_text(lambda: main.locator(".ccard__sub").first.inner_text()),
                 "faces": faces, "carousel": carousel.count() > 0,
                 "button": _safe_text(lambda: button.inner_text()) if button.count() else None,
+                "switch": self.lock_switch(main),
                 "text": " ".join((main.text_content() or "").split())}
+
+    def lock_switch(self, main=None) -> dict:
+        """Spec 094 FR-2 (keel-web 132 FR-2): the lock card's switch as drawn -- how many (`drawn`: 0 where the server
+        serves `recordOnSend: false`, the local stack's and production's screen), and the first one's label, its role,
+        whether it is on (`checked`) and disabled. Read only: the harness never turns it off."""
+        main = main if main is not None else self.page.locator(".corridor.before").first
+        switches = main.get_by_test_id(RECORD_AT_LOCK)
+        drawn = switches.count()
+        if not drawn:
+            return {"drawn": 0}
+        first = switches.first
+        box = first.locator("input[type=checkbox]").first
+        return {"drawn": drawn, "label": " ".join((first.text_content() or "").split()),
+                "role": box.get_attribute("role") if box.count() else None,
+                "on": box.is_checked() if box.count() else None,
+                "disabled": box.is_disabled() if box.count() else None}
 
 
 # ------------------------------------------------------------------------------------ PeopleLinks

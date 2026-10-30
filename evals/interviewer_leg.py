@@ -63,6 +63,12 @@ hold: the pilot ask after *End* records on the kept stream, keel-web 116 FR-2), 
 second window silent to its cap. *Microphone off* is read once the done screen shows it, and the microphone's release
 follows the thank-you's end (116 FR-1).
 
+**Since spec 094 (keel-web 132 FR-2, keel-cloud 157)**: where the server serves `recordOnSend: true` (staging's overlay,
+`KEEL_V2_INTERVIEWER_LOCK_RECORD_OPTIONAL`) the lock card draws one switch, *Record {face} at lock · 400 credits*, on by
+default. The leg's first step reads the lock as `leg_lock` walked it (`j.screens["L1"]`, `Corridor.lock_switch`):
+whether the switch was drawn and its state, never turned off, and the lock body with no `recordOnSend` flag
+(`record["lock"]`, on both profiles). The local stack never sets the variable, so there the switch is recorded absent.
+
 Every rule is scored by `evals/interviewer_marks.py` over the record this leg builds (`interviewer.json` and
 `interviewer-marks.json` in the run bundle); the leg fails when an owed mark is unmet. No model runs, no vendor is
 called and no money is spent anywhere here.
@@ -261,6 +267,7 @@ def _leg(j, *, short: bool) -> dict:
     record: dict = {"entry": j.entry.id, "project_id": j.project_id, "short": short, "responses": [],
                     "wire_views": []}
     wire = _Wire(j, record)
+    _lock_switch(j, record)
     _own_ai(j, wire, record)
     if j.stack is None or j.stack.is_remote:
         with j.recorder.step("interviewer: the rest of the leg needs the local stack's database (the stand-in door, "
@@ -368,6 +375,38 @@ def _owed(record: dict) -> set[str]:
 
 
 # ------------------------------------------------------------------------------------------- the steps
+
+def lock_flags(body) -> list[str]:
+    """Every `recordOnSend` key in a lock body, by its path (keel-web 132: `{expectedRevision}` on its own AI,
+    `{expectedRevision, interviewer: {face}}` with the switch on or not drawn, `... {face, recordOnSend: true}` off)."""
+    return [k for k in marks._keys(body) if k.rsplit(".", 1)[-1] == "recordOnSend"]
+
+
+def _lock_switch(j, record: dict) -> None:
+    """Spec 094 FR-2 (keel-web 132 FR-2's three states): the lock screen as `leg_lock` walked it -- whether the switch
+    (`data-testid=record-at-lock`) was drawn, its label and its state -- and the body the press sent. The journey never
+    turns the switch off (a journey that wants staging's skip is none of the six), so a drawn switch is on and the
+    lock body carries no `recordOnSend` flag; with no switch drawn (a server serving `recordOnSend: false`, the local
+    stack's) the body carries none either. A leg handed no lock screen (a project locked off the page) records
+    nothing here."""
+    l1 = (getattr(j, "screens", None) or {}).get("L1")
+    if not l1:
+        return
+    switch = l1.get("switch") or {"drawn": 0}
+    sent = l1.get("sent")
+    record["lock"] = {"switch": switch, "sent": sent, "flags": lock_flags(sent),
+                      "price words": marks.price_words_on("L1", switch.get("label"))}
+    drawn = int(switch.get("drawn") or 0)
+    with j.recorder.step("interviewer (spec 094 FR-2, keel-web 132 FR-2): the lock screen's switch, *Record {face} at "
+                         "lock · 400 credits* -- drawn only where the server serves recordOnSend true (staging), left "
+                         "on and never turned off -- and the lock body carries no recordOnSend flag",
+                         party="founder", kind="assert") as h:
+        h.record_assert({"switch": "none, or one switch on", "flags": [], "price words": []}, record["lock"])
+        assert drawn <= 1, switch
+        if drawn:
+            assert switch.get("on") is True and switch.get("role") == "switch", switch
+        assert not record["lock"]["flags"], sent
+
 
 def _own_ai(j, wire: _Wire, record: dict) -> None:
     with j.recorder.step("interviewer (094 FR-F): on their own AI the founder's project has no recording -- the lock's "

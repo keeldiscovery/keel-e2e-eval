@@ -15,7 +15,10 @@ import re
 
 import pytest
 
+from evals import interviewer_leg as leg
 from evals import interviewer_marks as im
+from harness import vectors_screens as vs_screens
+from harness.steps import Recorder
 from stack.config import load_config
 
 WEB = load_config(validate=False).keel_web
@@ -28,9 +31,7 @@ def _web_source(relative: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def record_at_lock_switch(face: str, credits: int) -> str:
-    """keel-web 132 `recordAtLockSwitch(face, credits)`, restated (held to the checkout below)."""
-    return f"Record {face} at lock · {credits} credits"
+record_at_lock_switch = vs_screens.record_at_lock_switch      # keel-web 132 `recordAtLockSwitch`, held below
 
 
 SUB = ("Daphne is picked for you. Tap the other face to hear Saskia and pick Saskia instead. Keel records Daphne once "
@@ -61,7 +62,9 @@ def test_the_switch_label_is_keel_webs_words():
     translate = _web_source("src/lib/translate.ts")
     assert ("export const recordAtLockSwitch = (face: string, credits: number): string => "
             "`Record ${face} at lock · ${credits} credits`;") in translate
+    assert record_at_lock_switch("Daphne", 400) == "Record Daphne at lock · 400 credits"
     step = _web_source("src/components/corridor/BeforeStep.tsx")
+    assert im.LOCK_SWITCH_TESTID == vs_screens.RECORD_AT_LOCK == "record-at-lock"
     assert f'data-testid="{im.LOCK_SWITCH_TESTID}"' in step and 'className="before__switch"' in step
     assert 'role="switch"' in step and "checked={!recordOnSend}" in step
     assert "faces.data?.recordOnSend === true" in step
@@ -147,3 +150,141 @@ def test_the_version_moved_with_its_note():
     assert im.INTERVIEWER_MARKS_VERSION == 16
     source = inspect.getsource(im)
     assert "#: v16 (spec 094 FR-1" in source and "#: v15 (spec 091 FR-3" in source
+
+
+# ------------------------------------------------------------------------- FR-2: the lock step leaves it on
+
+def test_the_lock_body_carries_the_flag_only_with_the_switch_off():
+    """keel-web 132's three states, read off the checkout: the lock sends `recordOnSend` only when the switch is off
+    (`recordOnSend` is `lockOptional && skipRenderFor === projectId`), and a fresh mount draws it on."""
+    step = _web_source("src/components/corridor/BeforeStep.tsx")
+    assert "...(recordOnSend ? { recordOnSend } : {})" in step
+    assert "const recordOnSend = lockOptional && skipRenderFor === projectId;" in step
+    assert "useState<string | undefined>(undefined)" in step
+
+
+SWITCH = ('<label class="before__switch" data-testid="record-at-lock"><input type="checkbox" role="switch" CHECKED>'
+          '<span>LABEL</span></label>')
+
+
+def _card(switch: str = "") -> str:
+    """keel-web 132's lock screen (`BeforeStep`, `define/ready/interviewer`): the title, the sub, the card -- the switch
+    as its first child where the server serves `recordOnSend: true` -- the carousel and the button, no whitespace
+    between the elements (as React renders them)."""
+    return ('<!doctype html><html><body><div class="corridor before"><h1>Who should ask them your questions?</h1>'
+            f'<p class="ccard__sub">{SUB}</p><section class="ccard before__card" aria-label="Who asks">{switch}'
+            '<div data-testid="face-carousel" role="radiogroup">'
+            '<button type="button" role="radio" data-face="DAPHNE" aria-checked="true">Daphne</button>'
+            '<button type="button" role="radio" data-face="SASKIA" aria-checked="false">Saskia</button></div>'
+            '</section><button type="button" data-testid="lock-and-record">Lock and record Daphne</button></div>'
+            '</body></html>')
+
+
+@pytest.fixture(scope="module")
+def chromium():
+    from playwright.sync_api import sync_playwright                         # noqa: PLC0415
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        yield b
+        b.close()
+
+
+def _read_l1(chromium, tmp_path, html: str) -> dict:
+    page = chromium.new_page()
+    try:
+        page.set_content(html)
+        return vs_screens.Corridor(page, Recorder(tmp_path), "http://localhost:5173").l1()
+    finally:
+        page.close()
+
+
+def test_l1_reads_staging_switch_on_and_im2_reads_the_text_as_the_screens_own(chromium, tmp_path):
+    """Staging's shape: the switch drawn, on, its label the screen's words; the main column's text (the sub's last word
+    glued to the label, the label to the first face) passes IM2."""
+    label = record_at_lock_switch("Daphne", 400)
+    l1 = _read_l1(chromium, tmp_path, _card(SWITCH.replace("CHECKED", "checked").replace("LABEL", label)))
+    assert l1["switch"] == {"drawn": 1, "label": label, "role": "switch", "on": True, "disabled": False}
+    assert "face.Record Daphne at lock · 400 credits" in l1["text"]
+    assert im.price_words_on("L1", l1["text"]) == []
+    assert l1["button"] == vs_screens.before_lock_record("Daphne")
+
+
+def test_l1_reads_no_switch_on_the_local_stacks_screen(chromium, tmp_path):
+    """The local stack's shape (`recordOnSend: false`): no switch drawn, IM2 as 091 left it."""
+    l1 = _read_l1(chromium, tmp_path, _card())
+    assert l1["switch"] == {"drawn": 0}
+    assert im.LOCK_SWITCH_LABEL.search(l1["text"]) is None and im.price_words_on("L1", l1["text"]) == []
+
+
+def test_l1_reads_a_switch_turned_off_as_off(chromium, tmp_path):
+    """The reader reports what is drawn: a switch off (by someone else) reads `on: False`, which the leg refuses."""
+    label = record_at_lock_switch("Daphne", 400)
+    l1 = _read_l1(chromium, tmp_path, _card(SWITCH.replace("CHECKED", "").replace("LABEL", label)))
+    assert l1["switch"]["on"] is False and l1["switch"]["drawn"] == 1
+
+
+def test_the_harness_never_turns_the_switch_off():
+    """FR-2: nothing in the lock walk or the reader presses, unchecks or sets the switch."""
+    source = inspect.getsource(vs_screens.Corridor.word_pilot_and_lock) + inspect.getsource(vs_screens.Corridor.l1) \
+        + inspect.getsource(vs_screens.Corridor.lock_switch) + inspect.getsource(vs_screens.Corridor.relock)
+    for verb in (".uncheck(", ".set_checked(", ".check(", "RECORD_AT_LOCK).click", "record-at-lock\").click"):
+        assert verb not in source, verb
+
+
+def _journey(tmp_path, l1: dict | None):
+    from types import SimpleNamespace                                       # noqa: PLC0415
+    screens = {} if l1 is None else {"L1": l1}
+    return SimpleNamespace(screens=screens, recorder=Recorder(tmp_path))
+
+
+ON = {"drawn": 1, "label": "Record Daphne at lock · 400 credits", "role": "switch", "on": True, "disabled": False}
+BODY = {"expectedRevision": 41, "interviewer": {"face": "DAPHNE"}}
+
+
+def test_the_lock_step_records_the_switch_on_and_no_flag(tmp_path):
+    """Staging's lock: the switch drawn and on, the body `{expectedRevision, interviewer: {face}}`."""
+    record: dict = {}
+    leg._lock_switch(_journey(tmp_path, {"switch": ON, "sent": BODY}), record)
+    assert record["lock"] == {"switch": ON, "sent": BODY, "flags": [], "price words": []}
+
+
+def test_the_lock_step_records_no_switch_on_the_local_stack(tmp_path):
+    """The local stack's lock (and the own-AI one, `{expectedRevision}`): no switch, no flag."""
+    for body in (BODY, {"expectedRevision": 41}):
+        record: dict = {}
+        leg._lock_switch(_journey(tmp_path, {"switch": {"drawn": 0}, "sent": body}), record)
+        assert record["lock"]["switch"] == {"drawn": 0} and record["lock"]["flags"] == []
+    record = {}
+    leg._lock_switch(_journey(tmp_path, {"sent": BODY}), record)          # read before 094: no `switch` key
+    assert record["lock"]["switch"] == {"drawn": 0}
+
+
+@pytest.mark.parametrize("l1", [
+    {"switch": {**ON, "on": False}, "sent": BODY},                                              # turned off
+    {"switch": ON, "sent": {"expectedRevision": 41, "interviewer": {"face": "DAPHNE", "recordOnSend": True}}},
+    {"switch": {"drawn": 0}, "sent": {"expectedRevision": 41, "recordOnSend": True}},           # a flag, no switch
+    {"switch": {**ON, "drawn": 2}, "sent": BODY},                                               # a second switch
+    {"switch": {**ON, "role": None}, "sent": BODY},                                             # not a switch
+], ids=["off", "flag-with-switch-on", "flag-without-switch", "two-switches", "no-role"])
+def test_the_lock_step_fails_a_switch_turned_off_or_a_flag_sent(tmp_path, l1):
+    with pytest.raises(AssertionError):
+        leg._lock_switch(_journey(tmp_path, l1), {})
+
+
+def test_a_leg_handed_no_lock_screen_records_nothing(tmp_path):
+    record: dict = {}
+    leg._lock_switch(_journey(tmp_path, None), record)
+    assert "lock" not in record
+
+
+def test_lock_flags_finds_the_flag_at_any_depth():
+    assert leg.lock_flags({"interviewer": {"face": "DAPHNE", "recordOnSend": True}}) == ["interviewer.recordOnSend"]
+    assert leg.lock_flags({"recordOnSend": True}) == ["recordOnSend"]
+    assert leg.lock_flags(BODY) == [] and leg.lock_flags(None) == []
+
+
+def test_the_leg_reads_the_lock_first_on_both_profiles():
+    """FR-2: the step runs before the own-AI refusals, so the remote profile records it too."""
+    source = inspect.getsource(leg._leg)
+    assert source.index("_lock_switch(j, record)") < source.index("_own_ai(j, wire, record)") \
+        < source.index("j.stack.is_remote")
