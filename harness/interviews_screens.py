@@ -134,6 +134,75 @@ FOUND_STATUS = {"FOUND": "Saved · no link yet", "LINK_MADE": "Not opened", "OPE
                 "ANSWERED": "Answered"}
 REGISTER_STATUS = {"SENT": "Not opened", "OPENED": "Opened, not answered", "ANSWERED": "Answered"}
 
+# ---- keel-web 136 (spec 092 FR-3; keel-cloud 162, contract 48): Send more's third way, Sent's two tabs, a group's
+# section. Every test id and word is 136's tasks.md's *The pins for keel-e2e-eval 092*, copied from `translate.ts`.
+#: `SEND_WHO.GROUP`, the third radio of *Who gets a link?* (`send-who-GROUP`, after `send-who-OWN` and `-DATASET`).
+WHO_GROUP = "A group, with one open link"
+WHO_GROUP_LINE = ("I post one link where the people already are. Each person who opens it signs in with Google, then is "
+                  "interviewed.")
+SEND_WHO_IDS = ("send-who-OWN", "send-who-DATASET", "send-who-GROUP")
+SEND_GROUP = "[data-testid='send-group']"
+SEND_GROUP_NAME = "#send-group-name"
+SEND_GROUP_CAP = "[data-testid='send-group-cap']"
+GROUP_LINK_MADE = "[data-testid='group-link-made']"
+SEND_GROUP_NAME_LABEL = "Name this group"
+SEND_GROUP_NAME_EXAMPLE = "The supers' group"
+GROUP_NAME_MAX = 60
+GROUP_CAP = 20
+SEND_GROUP_CAP_LINE = ("Up to 20 people can answer on this link. After that it says the study is full. Every interview "
+                       "uses Keel's credits; you can close the link earlier from Sent.")
+SEND_GROUP_HINT = ("Post it where the people already are. Each person who opens it signs in with Google, then is "
+                   "interviewed. Sent keeps this link under By group, to copy again or close.")
+SENT_STUDY_LINE = "[data-testid='sent-study-line']"
+SENT_TABS_LABEL = "Links by name or by group"
+SENT_TAB = {"name": "[data-testid='sent-tab-name']", "group": "[data-testid='sent-tab-group']"}
+SENT_GROUP = "[data-testid='sent-group']"
+GROUP_NAME = "[data-testid='group-name']"
+GROUP_COUNT = "[data-testid='group-count']"
+GROUP_LINK = "[data-testid='group-link']"
+GROUP_CLOSE = "[data-testid='group-close']"
+GROUP_REOPEN = "[data-testid='group-reopen']"
+GROUP_EMPTY = "[data-testid='group-empty']"
+ROW_EMAIL = "[data-testid='row-email']"
+GROUP_COPY_LINK = "Copy link"
+GROUP_CLOSE_WORD = "Close link"
+GROUP_REOPEN_WORD = "Reopen"
+GROUP_NOBODY_YET = "Nobody has signed in on this link yet."
+#: `KIND_FROM_GROUP`: a group person's *Kind · from* (one value in a section, so folded into the table's footer).
+KIND_FROM_GROUP = "Group · opened the link"
+
+
+def send_make_group(word: str) -> str:
+    """136 `sendMakeGroup`: *Make the link · Daphne* -- the face on the AI interviewer, else step 1's format word."""
+    return f"Make the link · {word}"
+
+
+def send_group_ready(name: str) -> str:
+    return f"The link for {name} is ready"
+
+
+def sent_study_line(answered: int, planned: int, counted: int | None = None) -> str:
+    """136 `sentStudyLine`: *{a} answered · {p} planned · {c} counted* (without *· counted* until the standings came)."""
+    return f"{answered} answered · {planned} planned" + ("" if counted is None else f" · {counted} counted")
+
+
+def sent_tab_by_name(n: int) -> str:
+    return f"By name · {n}"
+
+
+def sent_tab_by_group(n: int) -> str:
+    return f"By group · {n}"
+
+
+def group_answered(answered: int, cap: int = GROUP_CAP) -> str:
+    """136 `groupAnswered`: a group's counter, *8 of 20 answered*."""
+    return f"{answered} of {cap} answered"
+
+
+def group_link_label(name: str) -> str:
+    """136 `groupLinkLabel`: *Copy link*'s accessible name in a group's section."""
+    return f"Copy link · {name}"
+
 
 def _cells(row) -> dict:
     """A `table.ppl` row's cells by their `data-label` (the column heading keel-web writes on each)."""
@@ -595,6 +664,183 @@ class Interviews:
         offers = _safe_all_texts(row, "td:last-child button")
         self.first_page()
         return offers
+
+    # ------------------------------------------------------------------- spec 092: one open link for a group
+
+    def send_group(self, project_id: str, kind_label: str, name: str, fmt: str = "CHOICE") -> dict:
+        """*Send more* on a kind's row, the third way (keel-web 136 FR-1): step 1's `fmt`, *A group, with one open
+        link*, the group named, *Make the link · {word}*, and the one link shown once. Returns what each step drew
+        (the three ways in order, the group's box and its cap line, the button's words), the `POST .../groups` keel-web
+        sent and the 201 it received (the last of keel-web's one silent retry on a stale revision), the link drawn and
+        the ready screen's words; *Done* pressed."""
+        with self._b.step(f"founder makes one open link for the group {name!r} from Send more") as h:
+            if not self.page.url.split("?")[0].endswith(f"/p/{project_id}/interviews/sent"):
+                self.land(project_id)
+            self._kind_card(kind_label).locator(".btn.primary").click()
+            dialog = self.page.get_by_role("dialog")
+            formats = self._step_one(dialog, fmt)
+            who_group = dialog.get_by_role("radiogroup", name="Who")
+            ways = [{"id": r.get_attribute("data-testid"), "name": _words(r.locator(".fmt__name")),
+                     "line": _words(r.locator(".fmt__d")), "checked": r.get_attribute("aria-checked") == "true"}
+                    for r in who_group.locator("[role=radio]").all()]
+            self._shot("send-who")
+            dialog.locator("[data-testid='send-who-GROUP']").click()
+            panel = dialog.locator(SEND_GROUP).first
+            panel.wait_for(state="visible", timeout=10_000)
+            box = dialog.locator(SEND_GROUP_NAME).first
+            label = dialog.locator(f"label[for='{SEND_GROUP_NAME[1:]}']")
+            drawn_panel = {"label": _words(label), "max_length": box.get_attribute("maxlength"),
+                           "placeholder": box.get_attribute("placeholder"),
+                           "cap": _words(dialog.locator(SEND_GROUP_CAP)),
+                           "cap_lead": _words(dialog.locator(f"{SEND_GROUP_CAP} b"))}
+            button = dialog.get_by_role("button", name=re.compile(r"^Make the link · "))
+            disabled_before = button.first.is_disabled() if button.count() else None
+            box.fill(name)
+            words = _words(button)
+            made: list = []
+            keep = lambda r: made.append(r) if (r.request.method == "POST"  # noqa: E731
+                                                and r.url.split("?")[0].endswith("/groups")) else None
+            self.page.on("response", keep)
+            try:
+                with self.page.expect_response(lambda r: r.request.method == "POST"
+                                               and r.url.split("?")[0].endswith("/groups"), timeout=30_000) as first:
+                    button.first.click()
+                response = first.value
+                if response.status == 409 and (_json(response) or {}).get("rule") == "concurrency":
+                    # keel-web 136 (`useMakeGroupLink`, `withOneRetry`): a stale revision is read again and sent once
+                    for _ in range(60):
+                        if len(made) >= 2:
+                            response = made[-1]
+                            break
+                        self.page.wait_for_timeout(250)
+            finally:
+                self.page.remove_listener("response", keep)
+            body = _json(response)
+            out = {"status": response.status, "made": body, "sent": response.request.post_data_json,
+                   "retried": [r.status for r in made[:-1]], "formats": formats, "ways": ways, "panel": drawn_panel,
+                   "button": words, "button_disabled_before": disabled_before}
+            if response.status >= 400:
+                out["drawn"] = " ".join((dialog.text_content() or "").split())
+                h.add_screenshot(self._b.screenshot("group-link-refused"))
+                return out
+            link = dialog.locator(GROUP_LINK_MADE).first
+            link.wait_for(state="visible", timeout=20_000)
+            out["url"] = (link.text_content() or "").strip()
+            out["ready"] = _words(dialog.get_by_role("heading", level=2))
+            out["hint"] = " ".join(t for t in (_words(p) for p in dialog.locator("p.hint").all()) if t)
+            out["copy"] = dialog.get_by_role("button", name=GROUP_COPY_LINK, exact=True).count()
+            h.add_screenshot(self._b.screenshot("group-link-made"))
+            dialog.get_by_role("button", name=SEND_DONE, exact=True).click()
+            dialog.wait_for(state="hidden", timeout=10_000)
+            return out
+
+    def study_line(self) -> str | None:
+        """136 FR-2: the line above the register on a project with a group link, or None (no group: today's page)."""
+        found = self.page.locator(SENT_STUDY_LINE)
+        return " ".join((found.first.text_content() or "").split()) if found.count() else None
+
+    def tabs(self) -> dict:
+        """136 FR-2: the tab list (its name) and its two tabs -- words and `aria-selected` -- or {} with no group link."""
+        tablist = self.page.locator(".sent__tabs[role=tablist]")
+        if not tablist.count():
+            return {}
+        out = {"label": tablist.first.get_attribute("aria-label")}
+        for key, selector in SENT_TAB.items():
+            tab = self.page.locator(selector).first
+            out[key] = {"text": " ".join((tab.text_content() or "").split()), "role": tab.get_attribute("role"),
+                        "selected": tab.get_attribute("aria-selected") == "true"}
+        return out
+
+    def open_tab(self, key: str) -> dict:
+        """Presses *By name* / *By group* when it is not the open one; the tabs after."""
+        tab = self.page.locator(SENT_TAB[key]).first
+        tab.wait_for(state="visible", timeout=20_000)
+        if tab.get_attribute("aria-selected") != "true":
+            tab.click()
+            self.page.wait_for_function("(sel) => document.querySelector(sel)?.getAttribute('aria-selected') === 'true'",
+                                        arg=SENT_TAB[key], timeout=10_000)
+        return self.tabs()
+
+    def _group(self, group_id: str):
+        return self.page.locator(f"{SENT_GROUP}[data-group='{group_id}']").first
+
+    def group_rows(self, section) -> list[dict]:
+        """A group section's `LinksTable` rows as drawn: the register's own `td[data-label]` cells, *Who* the name
+        alone (`td b`) with the email stacked under it read apart (`row-email`), the folded *Kind · from*, the row's
+        invitation id and its action's words."""
+        table = section.locator(LINKS)
+        if not table.count():
+            return []
+        kind = _words(table.locator(".lt-foot .hint"))
+        rows = []
+        for row in table.locator("table.ppl tbody tr[data-invitation]").all():
+            cells = _cells(row)
+            who = row.locator("td.lt-c-who, td").first
+            cells["Who"] = _words(who.locator("b"))
+            email = row.locator(ROW_EMAIL)
+            cells["email"] = _words(email) if email.count() else None
+            cells["email_under_name"] = bool(email.count()) and email.first.evaluate(
+                "(e) => { const b = e.parentElement && e.parentElement.querySelector('b');"
+                " return !!b && !!(b.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING); }")
+            if kind:
+                cells.setdefault("Kind · from", kind)
+            cells["invitation"] = row.get_attribute("data-invitation")
+            cells["actions"] = _safe_all_texts(row, "td:last-child button")
+            rows.append(cells)
+        return rows
+
+    def groups(self) -> list[dict]:
+        """136 FR-2, the open *By group* tab: one record a `sent-group` section -- its id, closed or not, the name
+        (`group-name`'s DOM text, as typed: CSS uppercases it), the counter, the short link and its full url (`title`),
+        *Copy link*'s accessible name, *Close link* / *Reopen*, the empty line, and its rows (`group_rows`)."""
+        out = []
+        for section in self.page.locator(SENT_GROUP).all():
+            link = section.locator(GROUP_LINK)
+            copy = section.get_by_role("button", name=re.compile(r"^Copy link"))
+            out.append({"id": section.get_attribute("data-group"), "closed": section.get_attribute("data-closed"),
+                        "aria_label": section.get_attribute("aria-label"),
+                        "name": " ".join((section.locator(GROUP_NAME).first.text_content() or "").split())
+                        if section.locator(GROUP_NAME).count() else None,
+                        "name_tag": section.locator(GROUP_NAME).first.evaluate("(e) => e.tagName")
+                        if section.locator(GROUP_NAME).count() else None,
+                        "count": _words(section.locator(GROUP_COUNT)),
+                        "link": _words(link) or None, "url": link.first.get_attribute("title") if link.count() else None,
+                        "copy": copy.first.get_attribute("aria-label") if copy.count() else None,
+                        "copy_words": _words(copy) or None,
+                        "close": _words(section.locator(GROUP_CLOSE)) or None,
+                        "reopen": _words(section.locator(GROUP_REOPEN)) or None,
+                        "empty": _words(section.locator(GROUP_EMPTY)) or None,
+                        "rows": self.group_rows(section)})
+        return out
+
+    def _open_or_close(self, group_id: str, action: str) -> dict:
+        selector, closed_after = (GROUP_CLOSE, "true") if action == "close" else (GROUP_REOPEN, "false")
+        with self._b.step(f"founder presses {'Close link' if action == 'close' else 'Reopen'} on the group's section") \
+                as h:
+            self.open_tab("group")
+            section = self._group(group_id)
+            section.wait_for(state="visible", timeout=20_000)
+            with self.page.expect_response(lambda r: r.request.method == "POST"
+                                           and r.url.split("?")[0].endswith(f"/groups/{group_id}/{action}"),
+                                           timeout=30_000) as pressed:
+                section.locator(selector).first.click()
+            self.page.wait_for_function(
+                "([sel, want]) => document.querySelector(sel)?.getAttribute('data-closed') === want",
+                arg=[f"{SENT_GROUP}[data-group='{group_id}']", closed_after], timeout=20_000)
+            h.add_screenshot(self._b.screenshot(f"group-{action}"))
+            group = next((g for g in self.groups() if g["id"] == group_id), {})
+            out = {"status": pressed.value.status, "sent": pressed.value.request.post_data, "group": group}
+            h.record_wire({"action": action, "groupId": group_id}, out)
+            return out
+
+    def close_group(self, group_id: str) -> dict:
+        """*Close link* on the group's section (keel-web 136: `POST .../groups/{id}/close`, no body, 204); the section
+        once it reads closed."""
+        return self._open_or_close(group_id, "close")
+
+    def reopen_group(self, group_id: str) -> dict:
+        """*Reopen* on a closed group's section (`POST .../reopen`, 204; 409 GROUP_FULL once every place is held)."""
+        return self._open_or_close(group_id, "reopen")
 
 
 class Contacts:

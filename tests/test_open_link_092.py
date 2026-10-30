@@ -268,3 +268,192 @@ def test_the_cards_words_are_136s():
         "Eval Founder is asking: How restaurants count stock."
     assert browser_mod.arrival_hello("Maya", "Eval Founder is exploring it.") == "Hi Maya. Eval Founder is exploring it."
     assert browser_mod.arrival_signed_in("Maya") == "Signed in with Google as Maya · not you?"
+
+
+# ================================================================================= FR-3: the register read
+
+from playwright.sync_api import sync_playwright                                  # noqa: E402
+
+from harness import interviews_screens as iv                                     # noqa: E402
+from harness.steps import Recorder                                               # noqa: E402
+
+WEB = load_config(validate=False).keel_web
+
+
+def _web_source(relative: str) -> str:
+    path = WEB / relative
+    if not path.is_file():
+        pytest.skip(f"keel-web is not checked out at {WEB}")
+    return path.read_text(encoding="utf-8")
+
+
+def test_send_mores_third_way_is_136s_words():
+    """keel-web 136 FR-1 `SEND_WHO.GROUP`, the name box, the cap line, the hint -- read off the checkout the stack
+    serves, so a reworded line fails here before it fails a journey."""
+    words = _web_source("src/lib/translate.ts")
+    for text in (iv.WHO_GROUP, iv.WHO_GROUP_LINE, iv.SEND_GROUP_NAME_LABEL, iv.SEND_GROUP_NAME_EXAMPLE,
+                 iv.SEND_GROUP_HINT, iv.KIND_FROM_GROUP, iv.GROUP_NOBODY_YET, iv.SENT_TABS_LABEL,
+                 iv.GROUP_COPY_LINK, iv.GROUP_CLOSE_WORD, iv.GROUP_REOPEN_WORD,
+                 browser_mod.ARRIVAL_CONTINUE_GOOGLE, browser_mod.ARRIVAL_CONSENT_WORDS):
+        assert text.replace("'", "\\'") in words or text in words, text
+    lead, _, rest = iv.SEND_GROUP_CAP_LINE.partition(" After")
+    assert f'SEND_GROUP_CAP_LEAD = "{lead}"' in words and f'" After{rest}"' in words
+    assert f"GROUP_NAME_MAX = {iv.GROUP_NAME_MAX}" in words and f"GROUP_CAP = {iv.GROUP_CAP}" in words
+    assert "`Make the link · ${format}`" in words and "`The link for ${group} is ready`" in words
+    assert "`${answered} of ${cap} answered`" in words and "`Copy link · ${name}`" in words
+    assert "`By name · ${n}`" in words and "`By group · ${n}`" in words
+    assert "lead: `${answered} answered`" in words and "rest: ` · ${planned} planned" in words
+
+
+@pytest.mark.parametrize("relative, ids", [
+    ("src/components/interviews/SendMorePopup.tsx",
+     ["send-who-${option}", "send-group", "send-group-cap", "group-link-made", 'id="send-group-name"']),
+    ("src/components/interviews/SentPage.tsx", ["sent-study-line", "sent-tab-${key}"]),
+    ("src/components/interviews/GroupSection.tsx",
+     ["sent-group", "data-group=", "data-closed=", "group-name", "group-count", "group-link", "group-close",
+      "group-reopen", "group-empty"]),
+    ("src/components/interviews/LinksTable.tsx", ["row-email"]),
+    ("src/routes/participant/GroupArrivalCard.tsx",
+     ["group-arrival", "arrival-heading", "arrival-interviewer", "arrival-places", "arrival-google", "arrival-consent",
+      "arrival-auth-error"]),
+    ("src/components/interview/IntroScreen.tsx", ["arrival-greeting", "arrival-who", "arrival-not-you"]),
+    ("src/components/interview/ai/AiIntro.tsx", ["arrival-greeting", "ai-intro", "choice-write", "choice-talk"]),
+    ("src/routes/participant/ParticipantRoute.tsx", ["link-inactive", "GROUP_ARRIVAL"]),
+])
+def test_every_pin_the_harness_reads_is_in_136s_markup(relative, ids):
+    """136's tasks.md, *The pins for keel-e2e-eval 092*: each test id is in the component that draws it."""
+    source = _web_source(relative)
+    missing = [i for i in ids if i not in source]
+    assert not missing, (relative, missing)
+
+
+@pytest.fixture(scope="module")
+def chromium():
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        yield b
+        b.close()
+
+
+def _row(invitation: str, name: str, email: str | None, status: str, action: str) -> str:
+    mail = f'<span class="lt-email" data-testid="row-email">{email}</span>' if email else ""
+    return (f'<tr data-invitation="{invitation}"><td class="lt-c-who" data-label="Who"><b>{name}</b>{mail}</td>'
+            f'<td class="lt-c-format soft" data-label="Format">Choice</td>'
+            f'<td class="lt-c-made soft" data-label="Made">Today 10:02</td>'
+            f'<td class="lt-c-status" data-label="Status">{status}</td>'
+            f'<td class="lt-c-action lt-action" data-label=""><button type="button" class="btn link" '
+            f'aria-label="{action}, {name}">{action}</button></td></tr>')
+
+
+SENT_HTML = f"""<!doctype html><html><body><main>
+<p class="sent__study" id="sent-study" data-testid="sent-study-line"><b>1 answered</b> · 0 planned · 1 counted</p>
+<div class="toggle sent__tabs" role="tablist" aria-label="{iv.SENT_TABS_LABEL}">
+  <button type="button" role="tab" id="sent-tab-name" aria-selected="false" data-testid="sent-tab-name">By name · 0</button>
+  <button type="button" role="tab" id="sent-tab-group" aria-selected="true" class="on" data-testid="sent-tab-group">By group · 1</button>
+</div>
+<div role="tabpanel" id="sent-panel-group" aria-labelledby="sent-tab-group">
+ <section class="sent__group" data-testid="sent-group" data-group="g-1" data-closed="false" aria-label="Restaurant managers' forum">
+  <div class="sent__group-top"><h3 class="lt-head sent__group-name" data-testid="group-name" style="text-transform: uppercase">Restaurant managers' forum</h3>
+   <span class="sent__group-count" data-testid="group-count">1 of 20 answered</span></div>
+  <div class="sent__group-actions"><span class="linkshort" data-testid="group-link" title="http://localhost:5173/i/gRoUp">…/i/gRoU…up</span>
+   <button type="button" class="btn small" aria-label="Copy link · Restaurant managers' forum">Copy link</button>
+   <button type="button" class="btn small" data-testid="group-close">Close link</button></div>
+  <section class="sent__links" data-testid="links"><div class="sent__register"><table class="ppl ppl--sent"><tbody>
+   {_row("inv-c", "Iris Calloway", "c@strangers.keel-e2e-eval.test", "Not opened", "New link")}
+   {_row("inv-b", "Tomas Arden", "b@strangers.keel-e2e-eval.test", "Opened, not answered", "New link")}
+   {_row("inv-a", "Maya Fenwick", "a@strangers.keel-e2e-eval.test", "Answered · Today 10:09", "See answers")}
+  </tbody></table></div><div class="lt-foot"><span class="hint">{iv.KIND_FROM_GROUP}</span></div></section>
+ </section>
+</div></main></body></html>"""
+
+
+def test_the_by_group_tab_is_read_as_136_draws_it(tmp_path, chromium):
+    """The study line, the two tabs, one group's section (its name as typed -- the DOM text, not the uppercased
+    render --, the counter, the short link with the full url as its title, *Copy link*'s name, *Close link*) and its
+    rows: the register's own cells, *Who* the name alone, the email under it, *Kind · from* folded from the footer."""
+    page = chromium.new_page()
+    try:
+        page.set_content(SENT_HTML)
+        sent = iv.Interviews(page, Recorder(tmp_path), "http://localhost:5173")
+        assert sent.study_line() == iv.sent_study_line(1, 0, 1)
+        assert sent.tabs() == {"label": iv.SENT_TABS_LABEL,
+                               "name": {"text": iv.sent_tab_by_name(0), "role": "tab", "selected": False},
+                               "group": {"text": iv.sent_tab_by_group(1), "role": "tab", "selected": True}}
+        [group] = sent.groups()
+        assert group["id"] == "g-1" and group["closed"] == "false" and group["name_tag"] == "H3"
+        assert group["name"] == "Restaurant managers' forum"
+        assert group["count"] == iv.group_answered(1) and group["url"] == "http://localhost:5173/i/gRoUp"
+        assert group["copy"] == iv.group_link_label("Restaurant managers' forum")
+        assert (group["close"], group["reopen"], group["empty"]) == (iv.GROUP_CLOSE_WORD, None, None)
+        rows = {r["Who"]: r for r in group["rows"]}
+        assert list(rows) == ["Iris Calloway", "Tomas Arden", "Maya Fenwick"]
+        maya = rows["Maya Fenwick"]
+        assert maya["email"] == "a@strangers.keel-e2e-eval.test" and maya["email_under_name"] is True
+        assert maya["Kind · from"] == iv.KIND_FROM_GROUP and maya["actions"] == ["See answers"]
+        assert maya["Status"].startswith(iv.REGISTER_STATUS["ANSWERED"]) and maya["invitation"] == "inv-a"
+        assert rows["Iris Calloway"]["actions"] == ["New link"]
+    finally:
+        page.close()
+
+
+ARRIVAL_HTML = """<!doctype html><html><body><div class="iv-page"><main class="iv-body iv-arrival" data-testid="group-arrival">
+<p class="iv-kicker">About this conversation</p>
+<h1 class="iv-topic" data-testid="arrival-heading">Eval Founder is exploring how restaurants count stock.</h1>
+<div class="iv-arrival__who" data-testid="arrival-interviewer"><span>Keel's interviewer asks the questions · about 9 minutes</span></div>
+<div class="iv-arrival__go"><p class="iv-facts" data-testid="arrival-places">20 of 20 places left on this link</p>
+<a class="btn google" href="/v2/i/gRoUp/auth/google/start" data-testid="arrival-google"><svg aria-hidden="true"></svg>Continue with Google</a>
+<p class="iv-facts" data-testid="arrival-consent">CONSENT</p></div></main></div></body></html>"""
+
+
+def test_the_arrival_card_is_read_as_136_draws_it(tmp_path, chromium):
+    page = chromium.new_page()
+    try:
+        page.set_content(ARRIVAL_HTML.replace("CONSENT", browser_mod.ARRIVAL_CONSENT_WORDS))
+        read = browser_mod.Arrival(page, Recorder(tmp_path), "http://localhost:5173").read()
+        assert read["state"] == "GROUP_ARRIVAL" and read["heading_tag"] == "H1"
+        assert read["heading"] == "Eval Founder is exploring how restaurants count stock."
+        assert read["interviewer"] == browser_mod.arrival_interviewer(9)
+        assert read["places"] == browser_mod.arrival_places(20)
+        assert read["google"] == {"text": "Continue with Google", "href": "/v2/i/gRoUp/auth/google/start", "tag": "A",
+                                  "role_link": 1}
+        assert read["consent"] == browser_mod.ARRIVAL_CONSENT_WORDS
+        assert read["auth_error"] is None and read["begin"] == 0
+        page.set_content('<div class="iv-shell iv"><p class="hello" data-testid="link-inactive">'
+                         'This link is no longer active.</p></div>')
+        assert browser_mod.Arrival(page, Recorder(tmp_path), "http://x").read()["inactive"] == \
+            "This link is no longer active."
+    finally:
+        page.close()
+
+
+INTRO_HTML = """<!doctype html><html><body><div class="iv-page"><main class="iv-body" data-testid="ai-intro" data-intro="CHOICE">
+<p class="iv-arrival-hi" data-testid="arrival-greeting">Hi Maya. Eval Founder is exploring it.</p>
+<p class="iv-arrival-who" data-testid="arrival-who">Signed in with Google as Maya · <a href="/i/gRoUp" data-testid="arrival-not-you">not you?</a></p>
+<div class="iv-actions"><button type="button" data-testid="choice-talk">Talk to Daphne · about 9 minutes</button>
+<button type="button" data-testid="choice-write">Answer in writing · about 9 minutes</button></div></main></div></body></html>"""
+
+
+def test_the_intro_after_the_sign_in_is_read_as_136_draws_it(tmp_path, chromium):
+    page = chromium.new_page()
+    try:
+        page.set_content(INTRO_HTML)
+        intro = browser_mod.Arrival(page, Recorder(tmp_path), "http://x").intro(timeout_s=5)
+        assert intro["state"] == "INTERVIEW" and intro["intro"] == "CHOICE"
+        assert intro["greeting"] == browser_mod.arrival_hello("Maya", "Eval Founder is exploring it.")
+        assert intro["who"] == browser_mod.arrival_signed_in("Maya") and intro["not_you"] == "/i/gRoUp"
+        assert intro["buttons"] == ["choice-talk", "choice-write"]
+        page.set_content('<div class="iv-shell iv"><p class="hello">You have already answered. Thank you.</p></div>')
+        assert browser_mod.Arrival(page, Recorder(tmp_path), "http://x").intro(timeout_s=5) == {
+            "state": "ALREADY_ANSWERED", "line": "You have already answered. Thank you.", "url": "about:blank"}
+    finally:
+        page.close()
+
+
+def test_send_group_presses_the_third_way_names_it_and_reads_the_link_once():
+    """`Interviews.send_group`: the third radio by its test id, the name in `#send-group-name`, the button by its
+    words' start (*Make the link · *), the `POST .../groups` awaited (and keel-web's one silent retry on a stale
+    revision followed), the link read from `group-link-made`, Done."""
+    source = inspect.getsource(iv.Interviews.send_group)
+    for needle in ("send-who-GROUP", "SEND_GROUP_NAME", 're.compile(r"^Make the link · ")', 'endswith("/groups")',
+                   "GROUP_LINK_MADE", "SEND_DONE", '"concurrency"'):
+        assert needle in source, needle
