@@ -51,8 +51,11 @@ def _entry(name: str):
 # ------------------------------------------------------------------------------------- FR-2: Frequency from 1
 
 def test_the_five_recorded_zeros_are_named_and_nobody_else_is_replayed():
-    """158's *What did not hold*: the five 0s after a yes, exactly, are the harness's replayed escapes; every other
-    Frequency pick on the golden seven is sent 1..N as recorded."""
+    """158's *What did not hold*: the five 0s after a yes, exactly, are the ones the harness sends other than recorded;
+    every other Frequency pick on the golden seven is sent 1..N as recorded.
+
+    Re-pinned by spec 090 FR-3 (the founder's D-2026-10-30-01): each of the five is sent as the count 1, no longer as
+    *I can't recall*."""
     replayed = set()
     for name in ("01-countly", "02-compliancelog", "03-lullaby", "04-linerly", "05-paidly", "06-repeatline",
                  "07-mulchrun"):
@@ -61,20 +64,20 @@ def test_the_five_recorded_zeros_are_named_and_nobody_else_is_replayed():
             frequency = next((p for p in person.picks if p.dimension == "problem.frequency"), None)
             if person.notes:
                 replayed.add((entry.id, person.person))
-                assert frequency.chip == vs.FREQUENCY_ESCAPE and frequency.scale is None, person.person
-                assert frequency.as_wire("t") == {"itemId": vs.item_id("t", "problem.frequency"),
-                                                  "chip": "CANT_RECALL"}
+                assert frequency.scale == 1 and frequency.chip is None, person.person
+                assert frequency.as_wire("t") == {"itemId": vs.item_id("t", "problem.frequency"), "scale": 1}
                 assert person.notes == (vs.zero_note(person.person, entry.id),)
                 assert "0 after a yes" in person.notes[0] and vs.ZERO_DECISION in person.notes[0]
+                assert "sends 1" in person.notes[0] and "can't recall" not in person.notes[0].lower()
             elif frequency is not None and frequency.scale is not None:
                 assert frequency.scale >= registry_mod.FREQUENCY_MIN, (entry.id, person.person)
-    assert replayed == FIVE == set(vs.ZERO_AS_CANT_RECALL)
+    assert replayed == FIVE == set(vs.ZERO_SENT_AS_ONE)
 
 
 def test_the_corpus_still_records_the_five_zeros_and_the_reader_reads_them():
     """The corpus is never edited: the file still says 0 after a yes for each of the five, and the reader keeps it (the
     engine reads them as recorded; only the wire refuses a 0)."""
-    for (entry_id, name), window in vs.ZERO_AS_CANT_RECALL.items():
+    for (entry_id, name), window in vs.ZERO_SENT_AS_ONE.items():
         raw = yaml.safe_load(fx.canon_entry(f"{entry_id}.yaml").read_text(encoding="utf-8"))
         person = next(p for p in raw["answers"] if p["person"] == name)
         assert person["recency"] == "yes" and person["picks"]["problem.frequency"] == 0, (entry_id, name)
@@ -85,8 +88,8 @@ def test_the_corpus_still_records_the_five_zeros_and_the_reader_reads_them():
 
 
 def test_a_zero_anywhere_is_replayed_and_named_never_sent(tmp_path):
-    """A 0 the five do not name (01-countly's first person with a count, moved here) is replayed and named the same way
-    -- never posted as a 0, never dropped."""
+    """A 0 the five do not name (01-countly's first person with a count, moved here) is sent as 1 and named the same way
+    -- never posted as a 0, never dropped (spec 090 FR-3; spec 089 sent it as I can't recall)."""
     raw = yaml.safe_load(fx.canon_entry("01-countly.yaml").read_text(encoding="utf-8"))
     person = next(p for p in raw["answers"] if isinstance(p.get("picks", {}).get("problem.frequency"), int))
     person["picks"]["problem.frequency"] = 0
@@ -94,7 +97,7 @@ def test_a_zero_anywhere_is_replayed_and_named_never_sent(tmp_path):
     walked = next(p for p in vs.person_inputs(entry) if p.person == person["person"])
     assert walked.notes and person["person"] in walked.notes[0]
     sent = [a for a in walked.response("t").get("answers") or [] if a["itemId"] == vs.item_id("t", "problem.frequency")]
-    assert sent == [{"itemId": vs.item_id("t", "problem.frequency"), "chip": "CANT_RECALL"}]
+    assert sent == [{"itemId": vs.item_id("t", "problem.frequency"), "scale": 1}]
 
 
 def test_the_classifier_reads_the_count_from_one():
@@ -328,16 +331,20 @@ def test_the_registrys_lullaby_examples_are_the_frames_the_harness_composes():
 # ---------------------------------------------------------------------------------------- FR-6: decided before
 
 def test_the_five_zeros_are_held_for_the_founder_and_158_159_are_marked_merged():
-    """FR-6: D-2026-10-29-13 / -14 carry 158's merge (`e3d34831`), -15 159's (`1cf2ebc3`); the five 0s are a `held`
-    entry, D-2026-10-30-01, `spec-merged` with no spec (087's validator takes it: a spec is required on `taken` only),
-    still active, on the Frequency item, and naming each of the five; its fix names no location the cycle writes, so it
-    snoozes no weak row."""
+    """FR-6: D-2026-10-29-13 / -14 carry 158's merge (`e3d34831`), -15 159's (`1cf2ebc3`); the five 0s' entry,
+    D-2026-10-30-01, on the Frequency item, naming each of the five; its fix names no location the cycle writes, so it
+    snoozes no weak row.
+
+    Re-pinned by spec 090 FR-3: the founder decided on 2026-10-30 ("update the harness to send 1") -- the entry is
+    `taken`, its spec keel-e2e-eval 090 FR-3, `spec-merged`; the coordinator marks it `merged` with this spec's sha, so
+    the test takes it with or without that mark."""
     from quality import decisions as dec                                    # noqa: PLC0415
     found = {d["id"]: d for d in dec.load(dec.DECISIONS_PATH)}
     assert (found["D-2026-10-29-13"]["merged"], found["D-2026-10-29-14"]["merged"],
             found["D-2026-10-29-15"]["merged"]) == ("e3d34831", "e3d34831", "1cf2ebc3")
     held = found[vs.ZERO_DECISION]
-    assert (held["decision"], held["until"], "spec" in held, "merged" in held) == ("held", "spec-merged", False, False)
-    assert dec.active(held, "20261028-f48f256") and held["_row"]["dimension"] == {"problem.frequency"}
-    assert all(name in held["why"] for _, name in vs.ZERO_AS_CANT_RECALL)
+    assert (held["decision"], held["until"]) == ("taken", "spec-merged")
+    assert any("090 FR-3" in spec for spec in held["spec"])
+    assert held["_row"]["dimension"] == {"problem.frequency"} and "sends 1" in held["why"]
+    assert all(name in held["why"] for _, name in vs.ZERO_SENT_AS_ONE)
     assert not dec.fix_matches(held, {"category": "registry row", "place": "dimension-registry.json problem.frequency"})
