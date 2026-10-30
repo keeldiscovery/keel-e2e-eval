@@ -22,7 +22,11 @@ friction -- **and keel-cloud's L5 has admitted a `suggested` on Compatibility si
   admits `suggested` on Purchase friction AND Compatibility, never elsewhere (the cloud's rule since 121), so the
   founder-lists screen of 2026-10-29 stops faulting the Lullaby listening item for it; `MARKS_VERSION` moves if a mark's
   reading moved, with its note.
-- **FR-4 Nothing else moves.** The corpus (revision 19), the frames (089/090), the marks beyond L1/L5, the readers.
+- **FR-4 The adoption-friction frame is the cloud's.** `instructions/spoken.py` (402-407) frames an adoption-friction
+  clause as the cloud's `ItemFrames` does (keel-cloud 163's tasks.md: a leading *would you* becomes *You'd ...*, then
+  *Would you do that, or not?*), so the harness and the cloud count the same words; the 12-word clause rule of 163 is
+  read from the registry, never restated.
+- **FR-5 Nothing else moves.** The corpus (revision 19), the frames (089/090), the marks beyond L1/L5, the readers.
 
 ## Acceptance
 
