@@ -3655,9 +3655,9 @@ def _read(j: Journey, person) -> None:
     `NOTHING_TO_READ` once all is read). **On the founder's own AI with the agent connected before the answers**
     nothing reads on arrival (095 judgement call 14: the own door reads at its next connect or on the founder's own
     `POST readings`), so the founder's session asks for the reading on the wire -- the call People's button made --
-    exactly as before (spec 044 call 151)."""
-    readable = any(p.person == person.person for p in vs.readable_people(j.entry))
-    if not readable:
+    exactly as before (spec 044 call 151). Spec 101 FR-1: on money alone nobody is read -- no gate is served, so no
+    story is typed (`vs.read_owed`)."""
+    if not vs.read_owed(j.entry, person.person):
         return
     door = (j.get("/v2/me") or {}).get("aiPath")
     if door == "KEEL":

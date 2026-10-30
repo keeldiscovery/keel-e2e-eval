@@ -2252,6 +2252,45 @@ def _link_of(box) -> str:
 LATE_FOLLOW_UP_S = 3.5
 
 
+def first_screens(interview: dict) -> list[str]:
+    """Spec 101 FR-1: the screens a link opens with before its first item, in walking order -- keel-web
+    `interviewAnswers.ts` `screensOf`'s head, read off the served interview alone:
+
+    * ``condition`` -- the link's own screener, `Interview.condition`, wherever it is served, whatever the kind (keel-web
+      127 FR-2 on the decision-maker's link; keel-web 145 FR-1 / keel-cloud 166 on the money study's person link, a FULL
+      link with no gate); a FULL link with a gate asks its screener inside the gate (`gate.condition`), not here;
+    * ``idea`` -- the decision-maker's idea card, `Interview.idea`, on a COMMERCIAL_LINK (D9);
+    * ``gate`` -- a FULL link's gate;
+    * ``reveal`` -- a FULL link's reveal where it comes before the first served part (`reveal_opens`): money alone on
+      the person's own link (keel-cloud 133 FR-4: `reveal.afterPart` 0 -- *First, an idea, in three lines. Then a few
+      questions on the money side.*). Elsewhere the reveal comes after its part, inside the items.
+
+    The walk asks the first two before the gate and the reveal before the first item; an outside answer to the
+    screener ends the link there."""
+    kind = interview.get("kind")
+    out = []
+    if interview.get("condition"):
+        out.append("condition")
+    if kind == "COMMERCIAL_LINK" and interview.get("idea"):
+        out.append("idea")
+    if kind == "FULL" and interview.get("gate"):
+        out.append("gate")
+    parts = interview.get("parts") or []
+    if kind == "FULL" and parts and reveal_opens(interview.get("reveal"), parts[0].get("part"), revealed=False):
+        out.append("reveal")
+    return out
+
+
+def reveal_opens(reveal: dict | None, part: int | None, *, revealed: bool) -> bool:
+    """Spec 101 FR-1 (keel-web `screensOf`, spec 109 FR-5): the reveal is walked before `part` when it was not walked yet
+    and `part` comes after the part it follows -- before part 3 on money alone (`afterPart` 0), before the first part
+    after an unserved one. After its own part it is walked there, as before (`Interview._items`)."""
+    if not reveal or revealed or part is None:
+        return False
+    after = reveal.get("afterPart")
+    return isinstance(after, int) and int(part) > after
+
+
 class Interview:
     """The stranger's `/i/{token}` (keel-web 064): one screen at a time, every word as served. `walk`
     takes the interview as the wire served it (to read the labels of the option ids a pick names) and
@@ -2310,7 +2349,9 @@ class Interview:
         on a refused microphone (T6), then typed. What the route answered, the screen drew and the box did is kept.
         `begin` (spec 092): the test id of the control that starts the written interview instead of *Begin* -- on a
         Let-them-choose link the intro's *Answer in writing* (`choice-write`), which is keel-web 131's Begin and hands
-        over to the written interview at its first screen."""
+        over to the written interview at its first screen. Spec 101 FR-1: the screens before the first item are
+        `first_screens`' -- the screener wherever `condition` is served, the idea card on the decision-maker's link, the
+        gate, and on money alone's person link (no gate) the reveal, which is the idea card there."""
         page = self.page
         self.route: dict = {}
         self.follow_up_seen: dict | None = None
@@ -2343,11 +2384,13 @@ class Interview:
                 else:
                     _button(page, IV_BEGIN).click()
                 inside = True
-                if interview.get("kind") == "COMMERCIAL_LINK" and interview.get("condition"):
+                opening = first_screens(interview)
+                if "condition" in opening:
                     # spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): the decision-maker's screener, its own
-                    # screen before the idea; outside, Continue sends `outsideSegment` alone and lands on the exit
+                    # screen before the idea; outside, Continue sends `outsideSegment` alone and lands on the exit.
+                    # Spec 101 FR-1 (keel-cloud 166, keel-web 145): the money study's person link asks it the same
                     inside = self._condition(person, interview["condition"])
-                if inside and interview.get("kind") == "COMMERCIAL_LINK" and interview.get("idea"):
+                if inside and "idea" in opening:
                     self._idea()
                 gate = interview.get("gate")
                 if gate:
@@ -2529,15 +2572,17 @@ class Interview:
             self.page.get_by_role("checkbox", name=label, exact=True).click()
         assert ticked.value.status == 204, f"the pilot tick answered {ticked.value.status}"
 
-    def _idea(self) -> None:
+    def _idea(self, screen: str = "idea") -> None:
         """D9 (keel-web 064 FR-007): the decision-maker's link opens with the idea's three lines -- and, since keel-web 109
-        FR-5 (keel-cloud 133 FR-6, `Idea.problem`), the problem in one sentence above the card (`reveal-problem`)."""
+        FR-5 (keel-cloud 133 FR-6, `Idea.problem`), the problem in one sentence above the card (`reveal-problem`).
+        Spec 101 FR-1: the same screen opens the money study's person link (`screen="reveal"`, keel-web's name for it
+        there: the served `reveal` with `afterPart` 0, keel-cloud 133 FR-4), recorded under that name."""
         page = self.page
         _button(page, IV_CONTINUE).wait_for(state="visible", timeout=20_000)
         self._keep()
-        self._shot("idea")
+        self._shot(screen)
         problem = page.locator("main.iv-body [data-testid=reveal-problem]")
-        self.screens.append({"screen": "idea", "kicker": _first_text(page, ".iv-kicker"),
+        self.screens.append({"screen": screen, "kicker": _first_text(page, ".iv-kicker"),
                              "card": _first_text(page, ".iv-card"),
                              "question": _first_text(page, "h1.iv-q"),
                              "problem": _tc(problem) if problem.count() else None})
@@ -2692,7 +2737,13 @@ class Interview:
         page = self.page
         parts = interview.get("parts") or []
         reveal = interview.get("reveal") or {}
+        revealed = False
         for p_index, part in enumerate(parts):
+            if interview.get("kind") == "FULL" and reveal_opens(reveal, part.get("part"), revealed=revealed):
+                # spec 101 FR-1 (keel-cloud 133 FR-4, keel-web `screensOf`): money alone on the person's own link opens
+                # with the idea card (`reveal.afterPart` 0) -- the problem's sentence, the card, the bridge, Continue
+                self._idea(screen="reveal")
+                revealed = True
             items = part.get("items") or []
             for i_index, item in enumerate(items):
                 page.locator("h1.iv-q").first.wait_for(state="visible", timeout=20_000)
@@ -2763,7 +2814,8 @@ class Interview:
                         drawn = self._follow_up_screen(item.get("dimension"))
                         self._after_follow_up(drawn)
             if interview.get("kind") == "FULL" and reveal and reveal.get("afterPart") == part.get("part") \
-                    and p_index < len(parts) - 1:
+                    and p_index < len(parts) - 1 and not revealed:
+                revealed = True
                 _button(page, IV_CONTINUE).wait_for(state="visible", timeout=20_000)
                 self._keep()
                 self._shot("reveal")

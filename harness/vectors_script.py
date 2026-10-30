@@ -1380,6 +1380,15 @@ def readable_people(entry) -> list:
     return [p for p in entry.people() if p.readable]
 
 
+def read_owed(entry, name: str) -> bool:
+    """Spec 101 FR-1: whether `name`'s answer queues a reading on the study the entry is walked under -- a readable
+    person (`readable_people`) on a study that serves the gate, where the story is asked. Money alone serves no gate
+    (keel-cloud 133 FR-4: the person's link opens with the idea card, then part 3), so nobody types a story there, no
+    answer awaits a reading (keel-cloud `Invitation.awaitsReading`) and the founder's `POST readings` is refused
+    `NOTHING_TO_READ` -- the file's story is not the walk's."""
+    return serves_gate(entry) and any(p.person == name for p in readable_people(entry))
+
+
 def interpret_entries(entry) -> list[dict]:
     out = []
     for person in readable_people(entry):
