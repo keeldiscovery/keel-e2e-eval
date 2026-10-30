@@ -382,7 +382,7 @@ def test_a_good_record_meets_every_mark():
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
     assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 15      # spec 086 FR-5: IM27; 089 FR-3: IM20; 091 FR-3: IM2
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 16      # 086 FR-5: IM27; 089: IM20; 091 / 094: IM2
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -466,6 +466,9 @@ SEEDED = [
     ("IM2", ["screens", "L1"], "Keel records Daphne once for this project, which uses 400 credits. Keel records "
                                "Daphne once for this project, which uses 400 credits."),
     ("IM2", ["screens", "L1"], "Keel records Daphne once for this project, which uses 400 credits. About $2."),
+    # spec 094 FR-1 (IM2 v16): staging's switch is L1's own, once, at the served price -- a second, or another number
+    ("IM2", ["screens", "L1"], lambda t: "Record Daphne at lock · 400 credits" + t + " Record Saskia at lock · 400 credits"),
+    ("IM2", ["screens", "L1"], lambda t: "Record Daphne at lock · 900 credits" + t),
     ("IM2", ["screens", "S1"], "Saskia asks your questions. Recording now ($1.43)."),
     ("IM2", ["screens", "S3"], "AI interviewer · Saskia · 400 credits"),
     ("IM2", ["screens", "S2"], "Recorded today at 16:02. Change who asks"),              # the one action missing

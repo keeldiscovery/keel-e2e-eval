@@ -87,7 +87,14 @@ from harness import interviewer_fake as fake
 #: founder typed: L1 holds that sentence at most once, its number is the served `changePrice` (400) and nothing else,
 #: no currency appears anywhere on it, and no price word stands outside it (`price_words_on`). S1, S2 and S3 read as
 #: before; the journey's *L1 revisited ... no price on it* reads the same helper. No mark born or dropped.
-INTERVIEWER_MARKS_VERSION = 15
+#: v16 (spec 094 FR-1, keel-web 132 FR-2, keel-cloud 157: staging's switch): re-pinned -- IM2 reads L1's one switch
+#: label, the element `data-testid=record-at-lock` (*Record {face} at lock · {changePrice} credits*,
+#: `recordAtLockSwitch`), drawn only where the server serves `recordOnSend: true` (staging's overlay,
+#: `KEEL_V2_INTERVIEWER_LOCK_RECORD_OPTIONAL`), as the screen's own words beside v15's sentence: L1 holds that label at
+#: most once and its one number is the served `changePrice` (400), no currency anywhere on the screen. A second
+#: switch's label, or a label with another number, is named. Where the server serves `recordOnSend: false` (the local
+#: stack, production) no switch is drawn and IM2 reads as v15. No mark born or dropped.
+INTERVIEWER_MARKS_VERSION = 16
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -147,6 +154,13 @@ CHANGE_ACTION = f"Change who asks · {fake.CHANGE_PRICE} AI credits"
 #: the render's served price (`changePrice`, 400). Spec 091 FR-3: the screen's own words, never a price the founder typed.
 LOCK_CREDITS_SENTENCE = re.compile(r"Keel records [\w’'-]+(?: [\w’'-]+){0,2} once for this project, which uses "
                                    r"(?:Keel[’']s credits|(?P<credits>\d[\d,]*) credits)\.")
+#: keel-web 132 FR-2 (`recordAtLockSwitch(face, changePrice)`, keel-web e4f204e / aec26ec): the lock card's one switch,
+#: `<label class="before__switch" data-testid="record-at-lock">`, drawn only where the server serves `recordOnSend:
+#: true` -- *Record {face} at lock · 400 credits* (the face picked, *the interviewer* before one is; the served
+#: `changePrice`). Spec 094 FR-1: the screen's own words, never a price the founder typed. No word boundary before
+#: *Record*: the card's text runs on from the sub's last word with no space between the elements.
+LOCK_SWITCH_TESTID = "record-at-lock"
+LOCK_SWITCH_LABEL = re.compile(r"Record [\w’'-]+(?: [\w’'-]+){0,2} at lock · (?P<credits>\d[\d,]*) credits")
 #: A currency on a screen that must carry none (spec 091 FR-3: no amount of money, whatever the sentence).
 CURRENCY = re.compile(r"[$£€¥₹]|\b(?:USD|EUR|GBP|dollars?|pounds?|euros?)\b", re.I)
 CONTENT_WORD = 4          # a word of at least this many letters counts toward a line's coverage
@@ -220,19 +234,23 @@ def one_recording_pair(r: dict) -> tuple[bool, Any]:
 def price_words_on(name: str, text: str | None, served: set[int] | None = None) -> list[str]:
     """The price words a founder screen carries that it must not (IM2). S2's one action, *Change who asks · 400 AI
     credits*, is the screen's own; on L1 (spec 091 FR-3, v15) the one served credits sentence (`LOCK_CREDITS_SENTENCE`)
-    is too, while its number is the served `changePrice` (`served`, else `fake.CHANGE_PRICE`) -- a second such sentence,
-    another number in it, any currency on the screen, or a price word outside the sentence is named."""
+    is too, and (spec 094 FR-1, v16) the one switch label staging draws (`LOCK_SWITCH_LABEL`), while the number in
+    each is the served `changePrice` (`served`, else `fake.CHANGE_PRICE`) -- a second such sentence or switch, another
+    number in either, any currency on the screen, or a price word outside them is named."""
     text = text or ""
     if name == "S2":
         return PRICE_WORD.findall(text.replace(CHANGE_ACTION, ""))
     if name != "L1":
         return PRICE_WORD.findall(text)
     prices = {int(p) for p in served or ()} or {fake.CHANGE_PRICE}
-    found = list(LOCK_CREDITS_SENTENCE.finditer(text))
-    out = [f"a second credits sentence: {m.group(0)!r}" for m in found[1:]]
-    if found and found[0].group("credits") and int(found[0].group("credits").replace(",", "")) not in prices:
-        out.append(f"{found[0].group('credits')} credits is not the served price {sorted(prices)}")
-    rest = LOCK_CREDITS_SENTENCE.sub(" ", text, count=1)
+    out: list[str] = []
+    rest = text
+    for pattern, what in ((LOCK_CREDITS_SENTENCE, "credits sentence"), (LOCK_SWITCH_LABEL, "switch")):
+        found = list(pattern.finditer(rest))
+        out += [f"a second {what}: {m.group(0)!r}" for m in found[1:]]
+        if found and found[0].group("credits") and int(found[0].group("credits").replace(",", "")) not in prices:
+            out.append(f"{found[0].group('credits')} credits is not the served price {sorted(prices)}")
+        rest = pattern.sub(" ", rest, count=1)
     return out + CURRENCY.findall(text) + PRICE_WORD.findall(rest)
 
 
@@ -253,7 +271,8 @@ def served_prices(r: dict) -> set[int]:
 
 def no_price_shown(r: dict) -> tuple[bool, Any]:
     """IM2: no price word on L1, S1, S2 or S3 -- S2's one action, *Change who asks · 400 AI credits*, aside, and (v15,
-    spec 091 FR-3: keel-web 130 / 132) L1's one served credits sentence, the screen's own words, holding the served
+    spec 091 FR-3: keel-web 130 / 132) L1's one served credits sentence and (v16, spec 094 FR-1: keel-web 132 FR-2)
+    its one switch label where the server serves `recordOnSend: true`, the screen's own words, each holding the served
     price and no currency (`price_words_on`) -- and no key on the founder's interviewer wire carries a price but
     `changePrice`."""
     screens = r["screens"]
@@ -266,9 +285,11 @@ def no_price_shown(r: dict) -> tuple[bool, Any]:
                    if PRICE_KEY.search(k.rsplit(".", 1)[-1]) and k.rsplit(".", 1)[-1] not in ALLOWED_PRICE_KEYS})
     drawn = {"L1", "S1", "S2", "S3"} <= set(screens) and CHANGE_ACTION in s2
     credits = LOCK_CREDITS_SENTENCE.search(screens.get("L1") or "")
+    switch = LOCK_SWITCH_LABEL.search(screens.get("L1") or "")
     return drawn and not priced and not keys, {"priced": priced, "keys": keys, "drawn": sorted(screens),
                                                "change action drawn": CHANGE_ACTION in s2,
-                                               "L1 credits sentence": credits.group(0) if credits else None}
+                                               "L1 credits sentence": credits.group(0) if credits else None,
+                                               "L1 switch": switch.group(0) if switch else None}
 
 
 def _expected_kinds(role: dict) -> list[tuple[str, str | None]]:

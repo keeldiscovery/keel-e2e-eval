@@ -217,7 +217,7 @@ def _check(record, mark):
 def test_the_version_moves_for_the_re_pins_alone():
     # spec 075 moved it to 10 (IM23-IM25 re-pinned to keel-web 124's order), then 11 (FR-5: IM23, IM26, IM27); 074's
     # own re-pins are still read as 9's; spec 076 FR-5 to 12 (IM22, IM23: a story chip ends the interview)
-    assert marks.INTERVIEWER_MARKS_VERSION == 15      # spec 086 FR-5 (keel-cloud 154): IM27; 089 FR-3: IM20; 091 FR-3: IM2
+    assert marks.INTERVIEWER_MARKS_VERSION == 16      # spec 086 FR-5 (keel-cloud 154): IM27; 089: IM20; 091 / 094: IM2
     assert instruction_marks.MARKS_VERSION == 23 and corpus_mod.REVISION == 19       # spec 078: `read`, v21; spec 080: r17; 086: r18; 089: r19; 093: v22; 091: v23
 
 
