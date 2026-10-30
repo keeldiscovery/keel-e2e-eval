@@ -1,6 +1,7 @@
 """The set itself (spec 010 FR-016/T055, research R12; spec 012 adds the eighth, spec 013 the
 ninth, spec 015's second half the tenth and eleventh, spec 016 the twelfth, spec 022 the thirteenth, spec 052
-the fourteenth and spec 071 the fifteenth and sixteenth): **sixteen** scenarios, **two** of them live.
+the fourteenth, spec 071 the fifteenth and sixteenth, spec 092 the seventeenth): **seventeen** scenarios, **two** of them
+live.
 
 FR-016 asks that `K=s005|s006|s007` dispatch exactly as `s001`-`s003` do, that all three run under
 `make eval` and `make eval-all`, and that none is live. **`K` is pytest's own `-k`**, so none of
@@ -53,6 +54,9 @@ EXPECTED = {
     # the problem study, and money alone on a B2B persona. Deterministic (the scripted executor), never live.
     "test_s015_problem_only.py",
     "test_s016_money_only.py",
+    # spec 092 (keel-cloud 162, keel-web 136): one open link for a group -- three strangers registered on the local stub
+    # issuer sign in with Google. Deterministic (the scripted executor and the stack's fakes), never live, local only.
+    "test_s017_open_link.py",
 }
 
 
@@ -60,9 +64,17 @@ def _scenario_files() -> set[str]:
     return {p.name for p in EVALS.glob("test_s*.py")}
 
 
-def test_there_are_sixteen_scenarios():
+def test_there_are_seventeen_scenarios():
     assert _scenario_files() == EXPECTED, (
-        "the scenario set moved; README.md and AGENTS.md name these sixteen by number")
+        "the scenario set moved; README.md and AGENTS.md name these seventeen by number")
+
+
+def test_the_open_link_journey_is_deterministic_and_refuses_the_remote_profile():
+    """Spec 092: S-017 runs on the scripted executor under `make eval`, never live; the remote profile refuses it by
+    name (its strangers are the local stub issuer's)."""
+    body = (EVALS / "test_s017_open_link.py").read_text()
+    assert "pytest.mark.live" not in body
+    assert "open_link_leg.refusal(stack)" in body and "pytest.skip(refused)" in body
 
 
 def test_the_scope_journeys_are_deterministic():

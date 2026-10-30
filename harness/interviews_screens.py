@@ -674,8 +674,12 @@ class Interviews:
         sent and the 201 it received (the last of keel-web's one silent retry on a stale revision), the link drawn and
         the ready screen's words; *Done* pressed."""
         with self._b.step(f"founder makes one open link for the group {name!r} from Send more") as h:
-            if not self.page.url.split("?")[0].endswith(f"/p/{project_id}/interviews/sent"):
+            # Sent with its kinds drawn -- not the walkthrough W1 plays over Sent's own address once per account
+            if not (self.page.url.split("?")[0].endswith(f"/p/{project_id}/interviews/sent")
+                    and self.page.locator(".sent__kinds").count()):
                 self.land(project_id)
+            else:
+                self.pass_sheet()                  # keel-web 088's first-open sheet, when it is over Sent
             self._kind_card(kind_label).locator(".btn.primary").click()
             dialog = self.page.get_by_role("dialog")
             formats = self._step_one(dialog, fmt)

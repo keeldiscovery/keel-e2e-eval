@@ -2240,7 +2240,7 @@ class Interview:
 
     def walk(self, person, interview: dict, wire_answers: dict, *, follow_up: str | None = None,
              speak: str | None = None, follow_up_rung: str | None = None,
-             lines: Callable[[str], str | None] | None = None, late=()) -> dict:
+             lines: Callable[[str], str | None] | None = None, late=(), begin: str | None = None) -> dict:
         """Begin, the decision-maker's idea screen, the gate, every item and the reveal, *Send my
         answers*; returns the body the page POSTed, the done screen's heading and what every screen drew.
         `wire_answers` is `{itemId: ItemAnswer}` -- what this person answers, already re-expressed as the
@@ -2257,7 +2257,10 @@ class Interview:
         and every follow-up screen (`follow_ups`). `late` (spec 075): the items whose *Next* call is held past the beat
         (`LATE_FOLLOW_UP_S`) -- the page goes on, and the rung is the end's to ask. `speak` drives the story's box (`SpeakOrTypeBox`, through `text_seam`): "quiet" or "done" -- the story
         typed, then *Speak*, a sound, and the take ended by the 4 s quiet or by *Done* (T1 -> T4); "refused" -- *Speak*
-        on a refused microphone (T6), then typed. What the route answered, the screen drew and the box did is kept."""
+        on a refused microphone (T6), then typed. What the route answered, the screen drew and the box did is kept.
+        `begin` (spec 092): the test id of the control that starts the written interview instead of *Begin* -- on a
+        Let-them-choose link the intro's *Answer in writing* (`choice-write`), which is keel-web 131's Begin and hands
+        over to the written interview at its first screen."""
         page = self.page
         self.route: dict = {}
         self.follow_up_seen: dict | None = None
@@ -2285,7 +2288,10 @@ class Interview:
             with page.expect_response(lambda r: r.request.method == "POST"
                                       and r.url.endswith("/interview/response"),
                                       timeout=120_000) as answered:
-                _button(page, IV_BEGIN).click()
+                if begin:
+                    page.get_by_test_id(begin).click()
+                else:
+                    _button(page, IV_BEGIN).click()
                 inside = True
                 if interview.get("kind") == "COMMERCIAL_LINK" and interview.get("condition"):
                     # spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): the decision-maker's screener, its own

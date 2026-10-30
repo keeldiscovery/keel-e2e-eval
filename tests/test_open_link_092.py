@@ -457,3 +457,123 @@ def test_send_group_presses_the_third_way_names_it_and_reads_the_link_once():
     for needle in ("send-who-GROUP", "SEND_GROUP_NAME", 're.compile(r"^Make the link · ")', 'endswith("/groups")',
                    "GROUP_LINK_MADE", "SEND_DONE", '"concurrency"'):
         assert needle in source, needle
+
+
+# ================================================================================= FR-2: the journey's helpers
+
+from types import SimpleNamespace                                                # noqa: E402
+
+from evals import open_link_leg as leg                                           # noqa: E402
+from harness import interview_charge as charge                                   # noqa: E402
+from harness import vectors_script as vs                                         # noqa: E402
+
+
+def test_the_remote_profile_refuses_the_journey_by_name():
+    assert leg.refusal(SimpleNamespace(is_remote=True)) == leg.REMOTE_REFUSAL
+    assert "remote profile" in leg.REMOTE_REFUSAL and "stub issuer" in leg.REMOTE_REFUSAL
+    assert leg.refusal(SimpleNamespace(is_remote=False)) is None
+
+
+def test_each_run_registers_its_own_four_strangers():
+    ids = leg.stranger_ids("1030120000ab12")
+    assert ids == {x: f"stranger-{x}-1030120000ab12" for x in "abcd"}
+    from stack.stub_oidc.registry import ID_PATTERN
+    assert all(ID_PATTERN.match(i) for i in ids.values())
+    assert [n for _, n in leg.STRANGERS] == ["Maya Fenwick", "Tomas Arden", "Iris Calloway", "Jun Halvorsen"]
+    assert len({n.split()[0] for _, n in leg.STRANGERS}) == 4, "every greeting names one stranger"
+
+
+def _person(name, *, link=vs.LINK_PRIMARY, recency=True, story="a story", chip=None, pilot=False, inside=True):
+    return SimpleNamespace(person=name, link=link, recency=recency, story=story, anchor_chip=chip, pilot_opt_in=pilot,
+                           in_segment=inside)
+
+
+def test_a_and_b_answer_as_the_entrys_people_with_a_story_a_opted_in():
+    people = [_person("Decider", link=vs.LINK_B2B, pilot=True), _person("No", recency=False, pilot=True),
+              _person("Chip", chip="CANT_RECALL", pilot=True), _person("Outside", inside=False, pilot=True),
+              _person("Bea"), _person("Ann", pilot=True), _person("Cal")]
+    a, b = leg.stranger_people(people)
+    assert (a.person, b.person) == ("Ann", "Bea")
+    with pytest.raises(ValueError):
+        leg.stranger_people([_person("Bea"), _person("Cal")])
+
+
+def test_the_countly_entry_gives_a_and_b():
+    try:
+        _, entry = vs.entry_for(load_config(validate=False).keel_cloud, leg.ENTRY_ID)
+    except Exception as missing:  # noqa: BLE001 - no keel-cloud checkout here
+        pytest.skip(f"keel-cloud's corpus is not readable: {missing}")
+    a, b = leg.stranger_people(vs.person_inputs(entry))
+    assert a.pilot_opt_in and a.story and b.story and a.person != b.person
+
+
+def _charge_row(invitation, project="p-1", credits=-30):
+    return {"kind": "INTERVIEW", "action": "INTERVIEW", "credits": credits, "project_id": project,
+            "idempotency_key": charge.key(invitation)}
+
+
+def test_the_ledger_owes_one_interview_row_a_person_who_began_and_no_other():
+    begun = {"a": "inv-a", "b": "inv-b"}
+    rows = [{"kind": "GRANT", "credits": 2000}, _charge_row("inv-a"), _charge_row("inv-b")]
+    assert leg.ledger_faults(rows, "p-1", begun) == []
+    assert leg.ledger_faults(rows + [_charge_row("inv-c")], "p-1", begun)          # C began after all
+    assert leg.ledger_faults(rows[:2], "p-1", begun)                              # B's Begin wrote nothing
+    assert leg.ledger_faults(rows + [_charge_row("inv-x", project="p-2")], "p-1", begun) == []  # another project's
+
+
+def _strangers():
+    return {x: auth.StubStranger(id=f"s-{x}", sub=f"cell-s-{x}", email=f"s-{x}@{auth.STRANGER_EMAIL_DOMAIN}", name=n)
+            for x, n in (("a", "Maya Fenwick"), ("b", "Tomas Arden"), ("c", "Iris Calloway"))}
+
+
+def _wire_row(x, name, status):
+    return {"invitationId": f"inv-{x}", "personName": name, "email": f"s-{x}@{auth.STRANGER_EMAIL_DOMAIN}",
+            "status": status, "source": "GROUP", "groupId": "g-1"}
+
+
+def _drawn_row(x, name, status_word, action):
+    return {"invitation": f"inv-{x}", "Who": name, "email": f"s-{x}@{auth.STRANGER_EMAIL_DOMAIN}",
+            "email_under_name": True, "Kind · from": iv.KIND_FROM_GROUP, "Status": status_word, "actions": [action]}
+
+
+def test_the_register_is_held_row_by_row_to_the_wires_group_rows():
+    wire = [_wire_row("a", "Maya Fenwick", "ANSWERED"), _wire_row("b", "Tomas Arden", "OPENED"),
+            _wire_row("c", "Iris Calloway", "SENT")]
+    drawn = [_drawn_row("a", "Maya Fenwick", "Answered · Today 10:09", iv.SEE_ANSWERS),
+             _drawn_row("b", "Tomas Arden", "Opened, not answered", iv.NEW_LINK),
+             _drawn_row("c", "Iris Calloway", "Not opened", iv.NEW_LINK)]
+    assert leg.register_faults(drawn, wire, _strangers()) == []
+    moved = [dict(drawn[0], email_under_name=False), dict(drawn[1], actions=[iv.SEE_ANSWERS]), drawn[2]]
+    assert len(leg.register_faults(moved, wire, _strangers())) == 2
+    assert leg.register_faults(drawn[:2], wire, _strangers())                     # C's row not drawn
+    assert leg.register_faults([dict(drawn[0], **{"Kind · from": "your own"})] + drawn[1:], wire, _strangers())
+
+
+def test_the_journey_never_reaches_a_real_address():
+    """FR-2: every address the journey types or reads is a stub stranger's, under the reserved `.test` domain."""
+    source = inspect.getsource(leg)
+    assert "@" not in "".join(line for line in source.splitlines() if "email" in line and '"' in line
+                              and "@{" not in line and "STRANGER_EMAIL_DOMAIN" not in line)
+    assert auth.STRANGER_EMAIL_DOMAIN.endswith(".test")
+
+
+def test_the_walk_begins_a_choice_link_by_answer_in_writing():
+    """FR-2: A's written interview starts from the Let-them-choose intro's *Answer in writing* (keel-web 131's Begin),
+    the one change `vs_screens.Interview.walk` takes (`begin`), every other walk unchanged (*Begin*)."""
+    from harness import vectors_screens as vs_screens
+    walk = inspect.getsource(vs_screens.Interview.walk)
+    assert "begin: str | None = None" in walk and "page.get_by_test_id(begin).click()" in walk
+    assert "_button(page, IV_BEGIN).click()" in walk
+    assert "begin=CHOICE_WRITE" in inspect.getsource(leg.stranger_a) and browser_mod.CHOICE_WRITE == "choice-write"
+
+
+# ================================================================================= FR-4: no mark moves
+
+def test_no_quality_walk_or_gallery_makes_a_group_link():
+    """FR-4: the quality walk's founders make no group link and the gallery records nothing new -- neither reaches
+    `send_group` or the groups route."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    for path in sorted((root / "quality").rglob("*.py")) + [root / "evals" / "gallery.py", root / "evals" / "backtest.py"]:
+        text = path.read_text(encoding="utf-8")
+        assert "send_group" not in text and "/groups" not in text, path.name
