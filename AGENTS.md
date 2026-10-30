@@ -629,6 +629,24 @@ down && make up`). Local only: the remote profile refuses S-017 by name. FR-4a: 
 131's `FORMAT_CREDITS_NOTE` (`interviewer_screens.FORMAT_CREDITS_NOTE`, read by `format-credits` apart from the state line;
 S3 holds no greyed word on any row). No mark moves; `MARKS_VERSION` 22 and corpus REVISION 16 unchanged.
 
+**IM2 knows the staging switch** (spec `094-im2-knows-the-staging-switch`, 2026-10-30; keel-web 132 FR-2). Where the
+server serves `recordOnSend: true` (staging's `KEEL_V2_INTERVIEWER_LOCK_RECORD_OPTIONAL`) the lock card's first child is
+one switch, *Record {face} at lock · 400 credits* (`data-testid=record-at-lock`, `role=switch`, on by default).
+**`INTERVIEWER_MARKS_VERSION` 16**: IM2 reads its label on L1 as the screen's own words beside 091's credits sentence --
+once, its one number the served `changePrice`, no currency (`interviewer_marks.LOCK_SWITCH_LABEL`, `price_words_on`; the
+detail names `L1 switch`); a second switch or another number faults; with no switch drawn (the local stack, production) IM2
+reads as v15. `Corridor.l1()` reads the switch at the lock (`Corridor.lock_switch`: drawn, label, role, on, disabled;
+never pressed), and the interviewer leg's first step `_lock_switch` (both profiles) records `record["lock"]` and asserts
+at most one switch, a drawn one on, and no `recordOnSend` in the lock body (`lock_flags`). Held by unit tests from
+keel-web's source words and static frames of 132's card; no stack sets the variable. FR-1a (journey s006): IM2 reads S3's
+one credits note, keel-web 131's *Each person who answers uses 30 credits, whichever way they answer.*
+(`interviewer_marks.FORMAT_CREDITS_NOTE`, its one number `interview_charge.INTERVIEW_CREDITS`), as S3's own words; a
+second credits line or any other price word still faults. FR-2a (journey s017): the open-link leg reads keel-web 140
+(contract 49) -- the card's row names the served face (`arrival_interviewer(minutes, name)`: *Daphne, Keel's interviewer,
+asks the questions · about 10 minutes*; 136's words on `interviewer: null`), the intro's who line is the served email
+(`arrival_signed_in(email)`) and *not you?* the served absolute `groupUrl`; no press is needed for the greeting. No other
+mark moves.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
