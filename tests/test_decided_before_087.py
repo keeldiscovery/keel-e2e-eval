@@ -88,6 +88,7 @@ def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens
     merged = {d["id"]: d["merged"] for d in found if d.get("merged")}
     assert merged == {"D-2026-10-29-01": "73426a67", "D-2026-10-29-02": "1b33643f", "D-2026-10-29-03": "0eb15f8f",
                       "D-2026-10-29-05": "21395ab0", "D-2026-10-29-13": "e3d34831", "D-2026-10-29-14": "e3d34831",
+                      "D-2026-10-30-01": "48621fd",  # 090 FR-3: the five 0s sent as 1 (2026-10-30)
                       "D-2026-10-29-15": "1cf2ebc3", "D-2026-10-29-19": "078fe157"}
     for d in found:
         if d.get("merged"):

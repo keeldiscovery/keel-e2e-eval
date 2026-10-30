@@ -15,7 +15,13 @@ reads `saves.min_items` against the draft, so a correct draft scores 3 of 4 and 
   on 03-lullaby's bundle scores 4 of 4 under the new reading; a draft that truly writes fewer than its answer names is
   still faulted, by the right rule, with a test for each.
 - **FR-2 Decided before.** `quality/decisions.toml` gains no entry (a harness mark, not a founder's decision).
-- **FR-3 Nothing else moves.** The other rules, the marks version (unless a mark's reading moved: then `MARKS_VERSION`
+- **FR-3 IM2's price word and the lock screen's credits line.** keel-web 130 and 132 put *uses Keel's credits* / *uses
+  400 credits* on the lock screen (L1); the interviewer mark IM2 (*L1 revisited ... no price*) catches *credits* through
+  `PRICE_WORD`, so every lock walk would fault on the stack (090's builder, 2026-10-30). IM2 reads the lock screen's
+  one served credits sentence as the screen's own words, not a price the founder typed: the mark holds that no NUMBER
+  the founder typed and no currency appears, and that the credits sentence is 130/132's one line;
+  `INTERVIEWER_MARKS_VERSION` moves with its note.
+- **FR-4 Nothing else moves.** The other rules, the marks version (unless a mark's reading moved: then `MARKS_VERSION`
   and its note), the screens' other marks.
 
 ## Acceptance
