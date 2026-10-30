@@ -1333,7 +1333,10 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             # key, what every job *requested* must be exactly what the cloud's table names for this
             # host and that job's class -- and `None`, the CLI's default, where the table has no
             # entry (it ships empty). The job's class comes from the interaction the cloud reports
-            # for it, its screen mapped the way `InferenceScreen.jobClass()` maps it. Not a loosened
+            # for it, its screen mapped the way `InferenceScreen.jobClass()` maps it. Since routing v14
+            # (keel-cloud 169, spec 105 FR-1) `resolve_screen` stands a frontier class on the host's
+            # standard row where the host pins no frontier model (codex / copilot frame jobs on
+            # gpt-5.6-terra), as keel-cloud's `ModelRouting.FALLBACK` sends it. Not a loosened
             # assertion: an older runtime, or a checkout with no table yet, is a note that says which,
             # never a pass.
             screen_by_job = {(i.get("job") or {}).get("job_id"): i.get("screen")

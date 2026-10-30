@@ -61,6 +61,13 @@ EFFORTS = ("low", "medium", "high", "xhigh", "max")
 #: The ladder (design §3): light → standard → frontier. Exactly these three, in this order.
 TIERS = ("light", "standard", "frontier")
 
+#: keel-cloud `ModelRouting.FALLBACK` (spec 169, routing v14): the rung a host stands on for a class whose own tier it
+#: does not pin -- `frontier` on `standard`, and nothing else falls (a `standard` class on a host with no `standard` row
+#: is still no pin: a standard job is never sent to a light model). v14 puts `frame` on `frontier` and pins it on
+#: `claude` alone, so a codex or copilot frame job runs on that host's standard row (`gpt-5.6-terra`, `medium`), model
+#: and effort together. The table is read as the file; this mirror applies the fallback (spec 105 FR-1).
+FALLBACK = {"frontier": "standard"}
+
 #: The job classes (spec 029 FR-023, A-8; spec 040 call 84): the **six** the seven model screens of contract 19
 #: route through, lower-cased `JobClass` names -- `context` (CONTEXT_INTERPRET), `frame` (PROBLEM_INTERPRET,
 #: SOLUTION_MECHANISM), `calibration`, `respondent`, `reading` (INTERPRET) and, since keel-cloud 088, `asked` (ASKED,
@@ -143,12 +150,24 @@ class ModelTable:
     def tier_for(self, job_class: str) -> str | None:
         return self.classes.get(job_class)
 
-    def resolve(self, host: str, job_class: str) -> str | None:
-        """The model this host pins for this class, or `None` -- the CLI's default."""
+    def standing_tier(self, host: str, job_class: str) -> str | None:
+        """The tier this host's row answers the class at (keel-cloud `ModelRouting.standingTier`, spec 169): the
+        class's own tier where the host pins it, else `FALLBACK`'s rung where the host pins that, else `None` (no
+        pin, the CLI's own default)."""
         tier = self.tier_for(job_class)
         if tier is None:
             return None
-        return (self.hosts.get(host) or {}).get(tier)
+        row = self.hosts.get(host) or {}
+        if tier in row:
+            return tier
+        below = FALLBACK.get(tier)
+        return below if below is not None and below in row else None
+
+    def resolve(self, host: str, job_class: str) -> str | None:
+        """The model this host pins for this class, or `None` -- the CLI's default. A `frontier` class on a host
+        with no frontier row stands on its `standard` row (spec 105 FR-1, keel-cloud `ModelRouting.FALLBACK`)."""
+        standing = self.standing_tier(host, job_class)
+        return None if standing is None else (self.hosts.get(host) or {}).get(standing)
 
     def resolve_kind(self, host: str, kind: str) -> str | None:
         job_class = KIND_TO_CLASS.get(kind)
@@ -166,14 +185,18 @@ class ModelTable:
     def resolve_effort(self, host: str, job_class: str) -> str | None:
         """The effort this host pins for this class, or `None` -- the CLI's own default.
 
-        Looked up at the class's own tier and no other, which is what keeps a reading clean: the
-        `reading` class routes to `light`, keel-cloud's `light` row carries no effort, and `effort`
-        errors on Haiku 4.5.
+        Looked up at the tier the host's MODEL row answers the class at, which is what keeps a
+        reading clean: the `reading` class routes to `light`, keel-cloud's `light` row carries no
+        effort, and `effort` errors on Haiku 4.5. That tier is the class's own, except where the
+        model falls back (spec 105 FR-1): a `frontier` class on a host with no frontier row takes
+        that host's `standard` effort with its `standard` model -- model and effort together, as
+        keel-cloud's `ModelRouting` resolves them (the class's own tier when no model stands at all).
         """
         tier = self.tier_for(job_class)
         if tier is None:
             return None
-        return (self.efforts.get(host) or {}).get(tier)
+        standing = self.standing_tier(host, job_class)
+        return (self.efforts.get(host) or {}).get(standing or tier)
 
     def resolve_effort_kind(self, host: str, kind: str) -> str | None:
         job_class = KIND_TO_CLASS.get(kind)
