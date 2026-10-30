@@ -297,6 +297,7 @@ def test_s006_takes_the_export_only_when_asked():
     assert source.index("corpus_scenario.run(") < source.index("sample.settle()")
 
 
-def test_marks_version_is_21():
-    """Spec 078 moved MARKS_VERSION 20 -> 21 (the `read` mark kind, reported, never gating); the export moved nothing."""
-    assert instruction_marks.MARKS_VERSION == 21
+def test_marks_version_is_22():
+    """Spec 078 moved MARKS_VERSION 20 -> 21 (the `read` mark kind, reported, never gating); spec 093 21 -> 22 (`L1`,
+    `L5`); the export moved nothing."""
+    assert instruction_marks.MARKS_VERSION == 22

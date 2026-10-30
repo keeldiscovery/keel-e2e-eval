@@ -151,7 +151,8 @@ GOOD_LISTS = {
                                      {"label": "Riding in wet weather"},
                                      {"label": "Fixing a flat tyre on the way"},
                                      {"label": "Finding somewhere safe to park"}]},
-    "problem.current_solution_satisfaction": {"phrase": "your way of finding them",
+    # spec 093 FR-3 (keel-cloud 161 L1): a draft that meets every L rule writes the act bare
+    "problem.current_solution_satisfaction": {"phrase": "finding them",
                                               "items": [{"label": "Found them straight away"},
                                                         {"label": "Found them after a quick look"},
                                                         {"label": "It took a full search"},

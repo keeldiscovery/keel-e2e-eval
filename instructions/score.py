@@ -51,7 +51,7 @@ from . import context as context_mod
 from . import spoken as spoken_mod
 from . import text as text_mod
 from . import wording as wording_mod
-from .registry import DEFAULT_WINDOW, GATE_KEY, PURCHASE_FRICTION_KEY, words
+from .registry import COMPATIBILITY_KEY, DEFAULT_WINDOW, GATE_KEY, PURCHASE_FRICTION_KEY, words
 
 
 # ------------------------------------------------------------------------------------ compare
@@ -285,6 +285,14 @@ def sources_of(context: dict | None) -> str:
                     if context.get(k) is not None)
 
 
+#: keel-cloud 161 FR-1 (`ItemFrames.YOUR_WAY_OF`): the opening a drafted Current solution phrase must not carry.
+_YOUR_WAY_OF = re.compile(r"^(?i:your\s+way\s+of)\s+")
+#: keel-cloud 121 FR-3 (`ScreenResultApplier`'s `L5`, the founder's "Agree." of 2026-10-22, contract 31): the two
+#: dimensions Keel may mark one item `suggested` on -- Purchase friction (a step it adds) and Compatibility (the condition
+#: most likely to be missing, the Choose screen's pre-pick). Spec 093 FR-3: the harness said *Purchase friction only*.
+SUGGESTED_ON = (PURCHASE_FRICTION_KEY, COMPATIBILITY_KEY)
+
+
 def list_faults(question: dict, dimension, *, sources: str = "", occasion: str | None = None) -> list:
     """`L1`-`L5` on one list dimension's draft (keel-cloud 087 `ScreenResultApplier.draft`, restated), and on a
     Compatibility or Adoption friction item's `asked` face the `K` rules (call 85)."""
@@ -302,9 +310,15 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
     if not low <= len(items) <= high:
         faults.append(f"L1: {dimension.key} takes {'exactly ' + str(low) if low == high else f'{low} to {high}'} "
                       f"items{' besides Nobody else' if fixed else ''}, and {len(items)} were written")
-    if saves.get("phrase") and not str(draft.get("phrase") or "").strip():
-        faults.append("L1: Current solution carries the second-person phrase today's way is asked by "
-                      "('your way of ...')")
+    phrase = str(draft.get("phrase") or "").strip()
+    if saves.get("phrase") and not phrase:
+        # spec 093 FR-3 (keel-cloud 161 T002): L1 in 161's words
+        faults.append("L1: Current solution carries the phrase today's way is asked by, the act in the people's words "
+                      "('checking for errors')")
+    elif saves.get("phrase") and _YOUR_WAY_OF.match(phrase):
+        # keel-cloud 161 T002: the phrase is the people's -- the bare act, never Keel's *your way of*
+        faults.append(f"L1: {phrase!r} opens on 'your way of'; write the act alone, in the people's words "
+                      f"({phrase[_YOUR_WAY_OF.match(phrase).end():].strip()!r})")
     suggested = 0
     allowed = set(_DIGITS.findall(sources))
     for i, item in enumerate(items):
@@ -328,8 +342,11 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
                                                                                    occasion, dimension.part)]
         if item.get("suggested"):
             suggested += 1
-            if dimension.key != PURCHASE_FRICTION_KEY or suggested > 1:
-                faults.append(f"L5: item {i + 1}: Keel suggests at most one item, on Purchase friction only")
+            if dimension.key not in SUGGESTED_ON or suggested > 1:
+                # spec 093 FR-3: the cloud's L5 since keel-cloud 121 -- Purchase friction and Compatibility, never
+                # elsewhere (Adoption friction included, keel-cloud 161 FR-3)
+                faults.append(f"L5: item {i + 1}: Keel suggests at most one item, on Purchase friction (a step it adds) "
+                              "and Compatibility (the condition most likely to be missing) only")
     hit = wording_mod.money(" ".join([str(draft.get("phrase") or "")] + [
         str(t) for i in items for t in (i.get("label"), i.get("asked")) if t]))
     if hit:

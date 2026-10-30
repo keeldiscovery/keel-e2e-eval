@@ -290,7 +290,7 @@ def test_the_interviewer_marks_moved_to_12():
     from evals import report_marks as rm                               # noqa: PLC0415
     from instructions import marks as instruction_marks                 # noqa: PLC0415
     assert marks.INTERVIEWER_MARKS_VERSION == 14 and rm.REPORT_MARKS_VERSION == 3      # 086 FR-5: IM27; 089: IM20
-    assert instruction_marks.MARKS_VERSION == 21 and corpus_mod.REVISION == 19      # spec 080: r17, v21 stands; spec 086: r18; 089: r19
+    assert instruction_marks.MARKS_VERSION == 22 and corpus_mod.REVISION == 19      # spec 080: r17, v21 stands; spec 086: r18; 089: r19; 093: v22
     ok, _ = marks.chip_ended_it({"chip": "I can't recall one particular delivery",
                                  "want_chip": "I can't recall one particular delivery",
                                  "responses": [{"status": 201, "body": {**marks.CHIP_ONLY, "pilotOptIn": False}}],

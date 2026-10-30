@@ -343,7 +343,7 @@ def test_the_dry_adviser_on_the_fixture_cycle_prints_the_rule(monkeypatch, tmp_p
 
 def test_nothing_else_moves():
     from instructions import marks as marks_mod                         # noqa: PLC0415
-    assert marks_mod.MARKS_VERSION == 21
+    assert marks_mod.MARKS_VERSION == 22                          # spec 093 moved it (L1, L5)
     ids = [r["id"] for r in rubric.criteria()]
     assert ids[:5] == list(rubric.SHARED) and rubric.G_CRITERIA == ("g1", "g2")
     assert (rubric.BAR_PCT, rubric.WEAK_ZERO_ENTRIES, rubric.WEAK_MEAN) == (90.0, 2, 1.5)

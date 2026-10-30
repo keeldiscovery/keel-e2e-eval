@@ -79,3 +79,43 @@ def test_lullabys_rung_is_161s_worked_example():
     assert values["{phrase}"] == "working out what the baby needed"
     assert vs.follow_up_clip(entry, {"occasion": "night"}, CUR) == \
         "You said working out what the baby needed works for you. What keeps it working?"
+
+
+# ------------------------------------------------------------------------- FR-3: the harness's own rules say the cloud's
+
+from instructions import marks as marks_mod                              # noqa: E402
+from instructions import score as score_mod                              # noqa: E402
+from tests import v9_fixtures as fx                                      # noqa: E402
+
+
+def _list_faults(key, draft):
+    return score_mod.list_faults({"key": key, "list": draft}, fx.registry().by_key(key))
+
+
+def test_l1_is_161s():
+    """keel-cloud 161 T002: a blank phrase in 161's words; a drafted *your way of* faults, naming the bare act."""
+    good = fx.GOOD_LISTS[CUR]
+    assert _list_faults(CUR, good) == []
+    assert any("the act in the people's words ('checking for errors')" in f
+               for f in _list_faults(CUR, {**good, "phrase": " "}))
+    faults = _list_faults(CUR, {**good, "phrase": "Your way of finding them"})
+    assert faults == ["L1: 'Your way of finding them' opens on 'your way of'; write the act alone, in the people's "
+                      "words ('finding them')"]
+
+
+def test_l5_admits_compatibility_never_elsewhere():
+    """keel-cloud 121 FR-3 / 161 FR-3: one `suggested` on Purchase friction or Compatibility; never on Adoption."""
+    assert score_mod.SUGGESTED_ON == ("commercial.purchase_friction", "solution.compatibility")
+    compat = "solution.compatibility"
+    one = {**fx.GOOD_LISTS[compat], "items": [{**fx.GOOD_LISTS[compat]["items"][0], "suggested": True}]
+           + fx.GOOD_LISTS[compat]["items"][1:]}
+    assert not [f for f in _list_faults(compat, one) if f.startswith("L5")]
+    adoption = "solution.adoption_friction"
+    tagged = {**fx.GOOD_LISTS[adoption], "items": [{**fx.GOOD_LISTS[adoption]["items"][0], "suggested": True}]
+              + fx.GOOD_LISTS[adoption]["items"][1:]}
+    assert [f for f in _list_faults(adoption, tagged) if f.startswith("L5")]
+
+
+def test_the_marks_version_moved_with_its_note():
+    """FR-3: the reading of `option_validity` moved both ways, so MARKS_VERSION moved (calls 124-125)."""
+    assert marks_mod.MARKS_VERSION == 22 and "124. **v22**" in marks_mod.__doc__ and "125. **v22**" in marks_mod.__doc__

@@ -368,4 +368,4 @@ def test_the_versions_move_as_the_spec_says():
     # spec 075 FR-1 moved it to 10; FR-5 (keel-cloud 144, keel-web 126) to 11 -- IM23, IM26, IM27 re-pinned; spec 076
     # FR-5 (keel-cloud 145, keel-web 127) to 12 -- IM22, IM23 (held in test_founder_walk_076.py)
     assert marks.INTERVIEWER_MARKS_VERSION >= 11
-    assert instruction_marks.MARKS_VERSION == 21 and corpus_mod.REVISION == 19      # spec 080: r17, v21 stands; spec 086: r18; 089: r19
+    assert instruction_marks.MARKS_VERSION == 22 and corpus_mod.REVISION == 19      # spec 080: r17, v21 stands; spec 086: r18; 089: r19; 093: v22

@@ -19,6 +19,16 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
+**`MARKS_VERSION` 22** (spec 093, 2026-10-30): `option_validity`'s two list rules say keel-cloud's (calls 124-125).
+`L1` is 161's -- a blank phrase is *the phrase today's way is asked by, the act in the people's words ('checking for
+errors')*, and a drafted phrase that opens on *your way of* faults (*write the act alone, in the people's words*); `L5`
+admits one `suggested` item on Purchase friction **and Compatibility** (keel-cloud 121 FR-3, contract 31), never
+elsewhere -- the harness's *Purchase friction only* was a stale restatement. The reading moved both ways (a Lullaby
+Compatibility draft with its one suggested condition passes; a draft in Keel's old words fails), so the version
+moves; no number in `[marks]` moved, the corpus stays **revision 19**, and a v20 or v21 bundle re-scores at v22 (its
+drafts are in the bundle). **There is no v22 run of record until `WHY=marks:22` is spent -- the founder's word only.**
+v21's paragraph below is history.
+
 **`MARKS_VERSION` 21** (spec 078, 2026-10-28): the question-quality readers' **`read`** joins the rubric as a mark kind
 beside `no_leak` (calls 121-123). It is scored from a **committed score file** (`quality/scores/<entry>/`, written by
 `make read-screens` against `quality/RUBRIC.md` at `RUBRIC_VERSION`), never from a run: the scorecard shows, per
@@ -1120,6 +1130,18 @@ Calls 91-109 are spec 041's (the journey on corpus revision 10): they read no ma
 123. **v21**: **`rescore.py` still re-scores a v20 bundle.** v21 moves no row a bundle is scored on -- `read` is read
     from `quality/scores/`, never from the bundle -- so `OLDEST` stays 20 and a v20 scorecard re-scored at v21 is the
     same numbers with the `read` block beside them. Every bundle below 20 is refused as before.
+124. **v22**: **`L1` and `L5` say keel-cloud's rules** (spec 093 FR-3). `L1` in keel-cloud 161's words: a blank
+    Current solution phrase is *the phrase today's way is asked by, the act in the people's words ('checking for
+    errors')*, and a drafted one that opens on *your way of* (any case, any spacing; `ItemFrames.bare`) is a fault --
+    *write the act alone, in the people's words* -- as keel-cloud's applier refuses it once and then notes it. `L5`
+    admits at most one `suggested` item on Purchase friction (a step Keel adds) and on Compatibility (the condition most
+    likely to be missing, keel-cloud 121 FR-3, the founder's *"Agree."* of 2026-10-22), never on any other dimension --
+    Adoption friction included (keel-cloud 161 FR-3). keel-cloud's `suggested_why` note is not restated (it is a note,
+    never a fault the harness counts). Both read the draft alone, so a bundle's own `cases/**/envelope.json` is enough.
+125. **v22**: **`rescore.py` re-scores a v20 or v21 bundle at v22.** The rules above read the produced draft the bundle
+    already holds, so `OLDEST` stays 20: a v21 scorecard re-scored at v22 moves only where a draft carried a suggested
+    Compatibility condition (now met) or a phrase in Keel's old words (now an `L1`). Every bundle below 20 is refused as
+    before.
 """
 
 from __future__ import annotations
@@ -1127,7 +1149,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 21
+MARKS_VERSION = 22
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 

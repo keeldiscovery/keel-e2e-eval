@@ -78,7 +78,7 @@ def test_the_calibration_block_is_the_registry_in_order_beside_the_founder(tmp_p
 def test_a_drafted_list_is_rendered_with_its_faces(tmp_path, corpus):
     html = _render(tmp_path, corpus, _produced(fx.registry()))
     assert "Clip a tag to the key ring" in html and "asked: you&#x27;d clip a tag" in html
-    assert "phrase: your way of finding them" in html
+    assert "phrase: finding them" in html          # spec 093 FR-3: the good draft writes the act bare (161)
 
 
 def test_the_three_interpretations_are_marked_only_accepted_or_refused_by_rule(tmp_path, corpus):

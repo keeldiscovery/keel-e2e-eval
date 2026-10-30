@@ -263,12 +263,12 @@ def test_the_matrix_never_names_the_backtest():
             assert "backtest" not in path.read_text(encoding="utf-8").lower(), path
 
 
-def test_the_paid_command_is_documented_and_marks_version_is_21():
-    """Spec 078 moved MARKS_VERSION 20 -> 21 (the `read` mark kind, reported, never gating); the back-test moved
-    nothing."""
+def test_the_paid_command_is_documented_and_marks_version_is_22():
+    """Spec 078 moved MARKS_VERSION 20 -> 21 (the `read` mark kind, reported, never gating); spec 093 21 -> 22 (`L1` and
+    `L5` say keel-cloud's rules); the back-test moved nothing."""
     agents = (REPO / "AGENTS.md").read_text(encoding="utf-8")
     assert "make backtest" in agents and "spec 062" in agents
-    assert instruction_marks.MARKS_VERSION == 21
+    assert instruction_marks.MARKS_VERSION == 22
 
 
 # ------------------------------------------------------------------- spec 064 FR-2 / FR-3: the chain on the wire

@@ -242,7 +242,9 @@ def _set(key, index, field, value):
     # L1: the count, the phrase, the list itself
     ("importance four", "PROBLEM", lambda r: _items(r, IMPORTANCE).pop(), "L1: problem.importance takes exactly 5"),
     ("no phrase", "PROBLEM", lambda r: _q(r, CURRENT)["list"].__setitem__("phrase", " "),
-     "L1: Current solution carries the second-person phrase"),
+     "L1: Current solution carries the phrase today's way is asked by"),    # spec 093 FR-3: 161's words
+    ("a phrase in Keel's words", "PROBLEM", lambda r: _q(r, CURRENT)["list"].__setitem__(
+        "phrase", "your way of finding them"), "L1: 'your way of finding them' opens on 'your way of'"),
     ("no list", "SOLUTION", lambda r: _q(r, COMPAT).pop("list"), "write its draft list"),
     ("options on a list", "SOLUTION", lambda r: _q(r, ADOPTION).__setitem__(
         "options", [{"label": "Clip it", "belief_phrase": "clip"}]), "never options"),
@@ -267,8 +269,11 @@ def _set(key, index, field, value):
     ("framed too long", "SOLUTION", _set(ADOPTION, 0, "asked",
                                          "you'd clip a small tag to your key ring once and then whistle for "
                                          "it every morning before work"), "K2: framed"),
-    # L5: one suggested item, on Purchase friction only
-    ("a suggested condition", "SOLUTION", _set(COMPAT, 0, "suggested", True), "L5: item 1"),
+    # L5: one suggested item, on Purchase friction and Compatibility only (spec 093 FR-3: keel-cloud 121 FR-3; the
+    # harness said Purchase friction only) -- never on Adoption friction
+    ("a suggested effort", "SOLUTION", _set(ADOPTION, 0, "suggested", True), "L5: item 1"),
+    ("two suggested conditions", "SOLUTION", lambda r: [_items(r, COMPAT)[i].__setitem__("suggested", True)
+                                                        for i in (0, 1)], "L5: item 2"),
     # C3 and W9 on a list
     ("a not-sure rival", "PROBLEM", _set(IMPORTANCE, 4, "label", "Not sure"), "C3:"),
     ("money in an outcome", "PROBLEM", _set(CURRENT, 1, "label", "Lost five pounds on a taxi, £5"), "W9:"),
@@ -309,6 +314,12 @@ def test_one_suggested_step_is_allowed_on_purchase_friction_and_a_second_is_not(
     score = _calibrate(b2b_entry, registry, "COMMERCIAL",
                        _set("commercial.purchase_friction", 0, "suggested", True))
     assert any("L5: item 2" in f["evidence"] for f in score.faults)
+
+
+def test_one_suggested_condition_is_allowed_on_compatibility(entry, registry):
+    """Spec 093 FR-3 (keel-cloud 121 FR-3, the cloud's L5): the condition most likely to be missing is marked on
+    Compatibility -- the founder-lists screen of 2026-10-29 faulted the Lullaby listening item for it."""
+    assert _calibrate(entry, registry, "SOLUTION", _set(COMPAT, 0, "suggested", True)).faults == []
 
 
 def test_a_drafted_face_is_held_to_its_own_labels_digits(entry, registry):
@@ -371,7 +382,9 @@ def _drafted_from(entry, registry, vector) -> dict:
             saved = entry.founder_list(d.key) or {}
             items = [{k: i[k] for k in ("label", "asked") if k in i} for i in saved.get("items") or []
                      if i.get("code") != "nobody_else"]
-            draft = {"items": items} | ({"phrase": saved["phrase"]} if saved.get("phrase") else {})
+            # spec 093 FR-3 (keel-cloud 161): the job drafts the act bare -- the stored *your way of ...* read bare
+            phrase = score_mod._YOUR_WAY_OF.sub("", saved.get("phrase") or "").strip()
+            draft = {"items": items} | ({"phrase": phrase} if phrase else {})
             questions.append({"key": d.key, "list": draft, "respondent_note": "x"})
         else:
             questions.append({"key": d.key, "respondent_note": "x"})
