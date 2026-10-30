@@ -21,8 +21,11 @@ one run by vector, and the exporter refuses a run that did not invite twenty peo
   `invited` (`gallery.py:517`) and the disclaimer says the number in words (*seven people answered, all simulated*),
   never a fixed *twenty*; `instructions/gallery_names.toml`'s disclaimer text moves. The quality readers score the
   screens, not the count; the brief's lines read whatever n the study has.
-- **FR-3 The gate is a parameter.** `--scores` keeps the readers' gate; `--bar <pct>` sets its threshold for the gallery
-  (default the cycle's bar, 90); a flagged screen still refuses. `make quality-accept` passes both.
+- **FR-3 No score bar on the gallery (the founder, 2026-10-30: *"we don't have to wait till 90; I'm pretty sure the next
+  one will be better than what we already have there"*).** The gallery is built from the cycle's bundles whatever their
+  score_pct; `--scores` keeps only the **flagged-screen** refusal (a screen the reader marked out of place or leaking is
+  never published), and `--bar <pct>` exists as an optional stricter gate, off by default. `make quality-accept` passes
+  `--scores` alone. The cycle's own 90% bar (quality/cycle.toml) is untouched: it measures the product, not the gallery.
 - **FR-4 Provenance and privacy as today**: one provenance file outside OUT naming cycle, entry, study and run per slug;
   no entry id or run name under OUT; *Simulated* and *inspiredBy* on every row and manifest.
 - **FR-5 Tests.** `tests/test_gallery_106.py`: three studies exported from one cycle's bundles (fixtures), the index row's
