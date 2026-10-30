@@ -21,6 +21,12 @@ reads `saves.min_items` against the draft, so a correct draft scores 3 of 4 and 
   one served credits sentence as the screen's own words, not a price the founder typed: the mark holds that no NUMBER
   the founder typed and no currency appears, and that the credits sentence is 130/132's one line;
   `INTERVIEWER_MARKS_VERSION` moves with its note.
+- **FR-3a The model table's classes are the cloud's.** keel-cloud's `model-routing.json` (version 13) carries the job
+  class `example_match` (the example gallery's match, routed `light`); `instructions/models.py` `CLASSES` does not, so
+  the live journey s012 refuses the table at its first read (*classes names 'example_match'; the classes are exactly
+  ...*, 2026-10-30). `CLASSES` gains `example_match` in the cloud's order, the validator's message follows, and a test
+  reads the live `model-routing.json`'s classes against `CLASSES` so the next addition is caught by `make unit`, not by a
+  journey.
 - **FR-4 Nothing else moves.** The other rules, the marks version (unless a mark's reading moved: then `MARKS_VERSION`
   and its note), the screens' other marks.
 

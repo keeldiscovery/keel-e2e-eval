@@ -28,6 +28,10 @@ harness's side: one journey, the stub issuer serving strangers, the register's B
   same `td[data-label]` cells as today plus the stacked email; `Interviews.send_group(name, format)` makes one.
 - **FR-4 The marks and the walk.** No mark moves; the quality walk's founders make no group link (the readers score the
   Send more screens as today, with the third choice drawn). The gallery records nothing new.
+- **FR-4a Send more's credits note is keel-web 131's.** `harness/interviews_screens.py` `SEND_FORMAT_RECORDED` still
+  holds spec 130's note; since 131 the one line under the format rows reads *Each person who answers uses 30 credits,
+  whichever way they answer.* (journey s006 faulted on it, 2026-10-30, bundle `runs/20261030T121939Z-s006-paidly`);
+  the harness reads 131's sentence, and the per-row `word` is None on every row (no *needs Keel's credits* tag).
 - **FR-5 Nothing else moves.** The named and dataset legs, the credits mirror (088), the controls (089/090).
 
 ## Acceptance
