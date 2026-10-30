@@ -6,10 +6,11 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
-# MARKS_VERSION 22 (judgement calls 124-125, 2026-10-30; spec 093-the-phrase-is-the-peoples-mirror, the mirror of
+# MARKS_VERSION 22 (judgement calls 124-126, 2026-10-30; spec 093-the-phrase-is-the-peoples-mirror, the mirror of
 # keel-cloud 161 / 163). option_validity's L1 and L5 say keel-cloud's rules: L1 in 161's words (a drafted Current
 # solution phrase opening on 'your way of' faults), L5 admits one suggested item on Purchase friction and Compatibility
-# (keel-cloud 121 FR-3), never elsewhere. No key of [marks] below moved; corpus revision 19.
+# (keel-cloud 121 FR-3), never elsewhere; an Adoption friction face is framed as keel-cloud's ItemFrames frames it (K2,
+# call 126). No key of [marks] below moved; corpus revision 19.
 # **Scores before and after this bump are not comparable** where a draft suggested a Compatibility condition or wrote
 # 'your way of'; a v20 or v21 bundle re-scores at v22 (call 125).
 # **Run of record: none yet** -- there is none until `WHY=marks:22` is spent, on the founder's word only.

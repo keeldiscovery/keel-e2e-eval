@@ -399,12 +399,84 @@ def _first_step(options: list) -> list:
     return [f"Under {low}", options[2], f"Over {high}", options[5]]
 
 
+#: keel-cloud `ItemFrames.adoptionFriction`'s question after the clause.
+ADOPTION_ASK = "Would you do that, or not?"
+#: keel-cloud `SpokenCap.LEADING_CLAUSE` (132 FR-1): a step stored with a leading clause before its question.
+_LEADING_CLAUSE = re.compile(r"(?i)^([^,?]+?),\s*((?:would|will|could|can|do) you\s+.+)$")
+#: keel-cloud `ItemFrames.questionPart`'s opener, the words `adoptionFriction` turns into *You'd*.
+_ASKS_YOU = re.compile(r"(?i)^(?:would|will|could|can|do) you\s+")
+#: keel-cloud `StrangerGrammar.secondPerson`: the third person said to the stranger (the count does not move).
+_THIRD_TO_SECOND = {"they": "you", "them": "you", "their": "your", "theirs": "yours", "themselves": "yourself",
+                    "they're": "you're", "they've": "you've", "they'd": "you'd", "they'll": "you'll"}
+_THIRD_RE = re.compile(r"\b(" + "|".join(sorted((re.escape(w) for w in _THIRD_TO_SECOND), key=len, reverse=True))
+                       + r")\b", re.IGNORECASE)
+#: keel-cloud `StrangerGrammar.wouldDo`'s turns: *you had to* is asked *you would have to* -- one word more.
+_WOULD_DO = (("you had to ", "you would have to "), ("you have to ", "you would have to "),
+             ("you need to ", "you would need to "), ("you needed to ", "you would need to "))
+
+
+def _belief_lower(text: str) -> str:
+    """keel-cloud `BeliefSentence.lower`: the first letter lower-cased unless the second is a capital (an acronym)."""
+    return text if len(text) > 1 and text[1].isupper() else text[:1].lower() + text[1:]
+
+
+def _trim_end(text: str) -> str:
+    t = str(text or "").strip()
+    while t.endswith((".", "?")):
+        t = t[:-1].strip()
+    return t
+
+
+def _clause(asked: str) -> str:
+    """keel-cloud `ItemFrames.clause`: no closing stop or question mark, lower-cased as the frame takes it."""
+    text = _trim_end(asked)
+    return _belief_lower(text) if text else "it would have fitted"
+
+
+def _second_person(text: str) -> str:
+    def turn(m):
+        said = _THIRD_TO_SECOND[m.group(1).lower()]
+        return said[:1].upper() + said[1:] if m.group(1)[:1].isupper() else said
+    return _THIRD_RE.sub(turn, text)
+
+
+def adoption_frame(asked: str) -> str:
+    """Spec 093 FR-4 (keel-cloud 163's tasks.md, `ItemFrames.adoptionFriction` as `AskedRules.framed` reads it): an
+    Adoption friction clause as code frames it, so the harness and the cloud count the same words. A clause the model
+    opens on *would you* (or *will / could / can / do you*) is said *You'd ...* -- its own *would you* counted as one
+    word -- with a leading clause (*When the repair was done, would you ...*) said after it while the whole stays at
+    most 20 words, then *Would you do that, or not?*; any other clause is said in the second person, *you had to* as
+    *you would have to* (`StrangerGrammar.wouldDo`), capitalised, then the same question. 163's 12-word clause rule is
+    the registry's (`option_rule`), never restated here. (keel-cloud's past-tense turn, *you wore* -> *you'd wear*, moves
+    no word and is not restated.)"""
+    trimmed = _trim_end(asked)
+    led = _LEADING_CLAUSE.match(trimmed)
+    led = (_belief_lower(led.group(1).strip()), led.group(2).strip()) if led and len(led.group(1).split()) >= 2 \
+        else None
+    text = led[1] if led else _clause(asked)
+    if _ASKS_YOU.match(text):
+        said = "You'd " + _ASKS_YOU.sub("", _clause(_belief_lower(text)), count=1)
+        # `SpokenCap.present`: the leading clause said after it in the present (*was* -> *is*; no word moves)
+        after = re.sub(r"(?i)\bwere\b", "are", re.sub(r"(?i)\bwas\b", "is", _second_person(_belief_lower(led[0])))) \
+            if led else None
+        whole = said if after is None else f"{said} {after}"
+        line = f"{whole}. {ADOPTION_ASK}"
+        return line if words(line) <= STEM_MAX_WORDS else f"{said}. {ADOPTION_ASK}"
+    clause = _second_person(_clause(asked))
+    for old, new in _WOULD_DO:
+        if clause.lower().startswith(old):
+            clause = (new[:1].upper() if clause[:1].isupper() else new[:1]) + new[1:] + clause[len(old):]
+            break
+    return f"{clause[:1].upper()}{clause[1:]}. {ADOPTION_ASK}"
+
+
 def framed(key: str, occasion: str | None, asked: str) -> str:
     """The question a face is framed into (design §5.1), to count its words: *On your last {occasion},
-    {asked}?* and *{Asked}. Would you do that, or not?*."""
+    {asked}?* and, on Adoption friction, keel-cloud's own frame (`adoption_frame`, spec 093 FR-4; before it the harness
+    kept the model's *would you* and counted one word more than `ItemFrames`)."""
     clause = str(asked or "").strip().rstrip("?.").strip()
     if key == ADOPTION_KEY:
-        return (clause[:1].upper() + clause[1:]) + ". Would you do that, or not?"
+        return adoption_frame(asked)
     return f"On your last {occasion or 'time'}, {clause}?"
 
 

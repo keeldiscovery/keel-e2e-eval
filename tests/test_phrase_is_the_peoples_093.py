@@ -119,3 +119,40 @@ def test_l5_admits_compatibility_never_elsewhere():
 def test_the_marks_version_moved_with_its_note():
     """FR-3: the reading of `option_validity` moved both ways, so MARKS_VERSION moved (calls 124-125)."""
     assert marks_mod.MARKS_VERSION == 22 and "124. **v22**" in marks_mod.__doc__ and "125. **v22**" in marks_mod.__doc__
+
+
+# ------------------------------------------------------------------------ FR-4: the adoption-friction frame is the cloud's
+
+from instructions import spoken as spoken_mod                            # noqa: E402
+
+ADOPTION = "solution.adoption_friction"
+
+
+@pytest.mark.parametrize("asked, line, count", [
+    # keel-cloud 163's recorded slip: code reads 20 (the harness read 21 before -- the model's *would you* kept)
+    ("would you hold your phone near the crib for ten seconds while your baby cried",
+     "You'd hold your phone near the crib for ten seconds while your baby cried. Would you do that, or not?", 20),
+    # 163's worked example, the plain frame: 15
+    ("hold your phone near the cot for ten seconds",
+     "Hold your phone near the cot for ten seconds. Would you do that, or not?", 15),
+    # 132 FR-1: a leading clause said after the step, in the present
+    ("When the repair was done, would you speak the fix into your phone.",
+     "You'd speak the fix into your phone when the repair is done. Would you do that, or not?", 18),
+    # 123 FR-2 (`StrangerGrammar.wouldDo`): *you had to* asked *you would have to*
+    ("you had to talk out loud on site", "You would have to talk out loud on site. Would you do that, or not?", 15),
+    ("you'd scan it.", "You'd scan it. Would you do that, or not?", 9),
+])
+def test_the_frame_is_itemframes_adoption_friction(asked, line, count):
+    """FR-4: the harness frames an Adoption friction clause as `ItemFrames.adoptionFriction` does (163's tasks.md), so
+    `K2` counts the words the cloud counts."""
+    assert spoken_mod.framed(ADOPTION, None, asked) == line and spoken_mod.words(line) == count
+
+
+def test_163s_slip_is_no_longer_a_k2_and_a_long_one_still_is():
+    """163's *What did not hold*: the cloud passes the 20-word crib line; one word more is still over."""
+    assert not [f for f in spoken_mod.face_faults("would you hold your phone near the crib for ten seconds while your "
+                                                  "baby cried", "Hold the phone near the cot", ADOPTION, None)
+                if f.startswith("K2")]
+    assert [f for f in spoken_mod.face_faults("would you hold your phone near the crib for ten long seconds while your "
+                                              "baby cried", "Hold the phone near the cot", ADOPTION, None)
+            if f.startswith("K2: framed")]
