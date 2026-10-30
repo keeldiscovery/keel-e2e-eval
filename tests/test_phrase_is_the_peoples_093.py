@@ -156,3 +156,30 @@ def test_163s_slip_is_no_longer_a_k2_and_a_long_one_still_is():
     assert [f for f in spoken_mod.face_faults("would you hold your phone near the crib for ten long seconds while your "
                                               "baby cried", "Hold the phone near the cot", ADOPTION, None)
             if f.startswith("K2: framed")]
+
+
+# ------------------------------------------------------------------------------- FR-5: K3 reads the framed line
+
+@pytest.mark.parametrize("asked", [
+    "open the app before picking the baby up",                 # the 2026-10-30 screen's two K3 faults, both gone
+    "open it near the cot when the crying starts",
+    "would you open the app before picking the baby up",
+    "they'd clip a tag to the key ring",                       # said to the stranger once framed (*You'd ...*)
+])
+def test_a_clause_that_reads_to_the_stranger_once_framed_passes_k3(asked):
+    """FR-5: *Would you {asked}. Would you do that, or not?* addresses the person -- a base-form clause is said to the
+    stranger."""
+    assert not [f for f in spoken_mod.face_faults(asked, "x", ADOPTION, None) if f.startswith("K3")]
+
+
+@pytest.mark.parametrize("asked", ["the cry wakes the whole house", "the room is quiet enough to hear it",
+                                   "it listens near the cot all night"])
+def test_a_third_person_subject_still_faults_k3(asked):
+    faults = [f for f in spoken_mod.face_faults(asked, "x", ADOPTION, None) if f.startswith("K3")]
+    assert faults and "framed it reads" in faults[0]
+
+
+def test_compatibility_k3_is_unchanged():
+    """FR-5 moves Adoption friction's K3 alone: a Compatibility clause still owes *you / your* itself."""
+    assert [f for f in spoken_mod.face_faults("did the phone sit within reach", "x", "solution.compatibility", "night")
+            if f.startswith("K3")]

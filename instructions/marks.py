@@ -20,7 +20,8 @@ is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every
 by name. v10 has no run of record; it is history from v11.
 
 **`MARKS_VERSION` 22** (spec 093, 2026-10-30): `option_validity`'s two list rules say keel-cloud's (calls 124-125),
-and an Adoption friction face is framed as keel-cloud frames it (call 126: `K2` counts `ItemFrames`' frame).
+and an Adoption friction face is framed and judged as keel-cloud frames it (call 126: `K2` counts `ItemFrames`' frame,
+`K3` reads the framed line).
 `L1` is 161's -- a blank phrase is *the phrase today's way is asked by, the act in the people's words ('checking for
 errors')*, and a drafted phrase that opens on *your way of* faults (*write the act alone, in the people's words*); `L5`
 admits one `suggested` item on Purchase friction **and Compatibility** (keel-cloud 121 FR-3, contract 31), never
@@ -1143,13 +1144,16 @@ Calls 91-109 are spec 041's (the journey on corpus revision 10): they read no ma
     already holds, so `OLDEST` stays 20: a v21 scorecard re-scored at v22 moves only where a draft carried a suggested
     Compatibility condition (now met) or a phrase in Keel's old words (now an `L1`). Every bundle below 20 is refused as
     before.
-126. **v22**: **an Adoption friction face is framed as keel-cloud frames it** (spec 093 FR-4; keel-cloud 163).
-    `spoken.framed` is `ItemFrames.adoptionFriction` as `AskedRules.framed` reads it: a clause the model opens on *would
-    you* is said *You'd ...* (its *would you* one word), a leading clause after it while the whole fits 20, *you had to*
-    as *you would have to*, then *Would you do that, or not?* -- so `K2` counts the words the stranger hears (the
-    harness counted the model's *would you* and the frame's: one word more than the cloud, 163's *What did not hold*).
-    163's 12-word clause rule is the registry's option rule and is not restated. A v20 or v21 bundle re-scores at v22
-    (call 125).
+126. **v22**: **an Adoption friction face is framed as keel-cloud frames it, and `K3` reads the framed line** (spec 093
+    FR-4, FR-5; keel-cloud 163). `spoken.framed` is `ItemFrames.adoptionFriction` as `AskedRules.framed` reads it: a
+    clause the model opens on *would you* is said *You'd ...* (its *would you* one word), a leading clause after it
+    while the whole fits 20, *you had to* as *you would have to*, then *Would you do that, or not?* -- so `K2` counts
+    the words the stranger hears (the harness counted the model's *would you* and the frame's: one word more than the
+    cloud, 163's *What did not hold*). `K3` on Adoption friction reads the clause as framed: the frame's *Would you*
+    addresses the person, so a base-form clause (*open the app before picking the baby up*) is said to the stranger;
+    one whose subject is someone or something else (*the cry ...*, *the room ...*, `THIRD_PERSON_OPENERS`) still
+    faults. Compatibility's `K3` is unchanged (the clause carries *you / your*). 163's 12-word clause rule is the
+    registry's option rule and is not restated. A v20 or v21 bundle re-scores at v22 (call 125).
 """
 
 from __future__ import annotations

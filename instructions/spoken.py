@@ -40,7 +40,8 @@ Per composed item (§2, §3, §4, §5):
 - `S10` Commitment's step is said to the stranger once: *would you {step}* carries no second *you*.
 
 Per `asked` face of a corpus list (design §4, keel-cloud 088 FR-003's `K` rules, which hold the model's faces):
-`K2` at most 20 words and the question it frames into at most 20; `K3` the second person; `K4` no digit the
+`K2` at most 20 words and the question it frames into at most 20 (Adoption friction's frame keel-cloud's own since
+spec 093 FR-4); `K3` the second person (on Adoption friction, the clause as framed: spec 093 FR-5); `K4` no digit the
 label does not carry (no founder value reaches a stranger but the label's own); `K5` no product word on a part-1
 item (vacuous for both list dimensions today, kept for the guidelines' sake); `K6` no question mark. The same
 function marks the model's faces on the `ASKED` screen (`score.score_asked`).
@@ -470,6 +471,20 @@ def adoption_frame(asked: str) -> str:
     return f"{clause[:1].upper()}{clause[1:]}. {ADOPTION_ASK}"
 
 
+#: Spec 093 FR-5: the words a clause's subject opens on when it is someone or something other than the stranger --
+#: *the cry*, *the room*, *it*, *someone*. A base-form clause opens on its verb, and the frame's *Would you* is its
+#: subject.
+THIRD_PERSON_OPENERS = frozenset({"the", "a", "an", "this", "that", "these", "those", "it", "its", "it's", "he", "she",
+                                  "his", "her", "someone", "somebody", "something", "everyone", "everybody", "nobody",
+                                  "no", "there", "my", "our", "i", "we"})
+
+
+def _third_person_subject(clause: str) -> bool:
+    """Whether a framed clause opens on a subject other than the stranger (`THIRD_PERSON_OPENERS`)."""
+    first = (re.findall(r"[A-Za-z']+", clause or "") or [""])[0].lower()
+    return first in THIRD_PERSON_OPENERS
+
+
 def framed(key: str, occasion: str | None, asked: str) -> str:
     """The question a face is framed into (design §5.1), to count its words: *On your last {occasion},
     {asked}?* and, on Adoption friction, keel-cloud's own frame (`adoption_frame`, spec 093 FR-4; before it the harness
@@ -491,7 +506,15 @@ def face_faults(asked: str, label: str, key: str, occasion: str | None, part: in
     question = framed(key, occasion, asked)
     if words(question) > STEM_MAX_WORDS:
         faults.append(f"K2: framed, it reads {question!r}, {words(question)} words; at most {STEM_MAX_WORDS}")
-    if not _YOU.search(asked):
+    if key == ADOPTION_KEY:
+        # spec 093 FR-5: K3 judges the line as framed -- *Would you {asked}. Would you do that, or not?* addresses the
+        # person itself, so a base-form clause (*open the app before picking the baby up*) reads to the stranger once
+        # framed; a clause whose subject is someone or something else (*the cry ...*, *the room ...*) still does not
+        said_clause = question.rsplit(f". {ADOPTION_ASK}", 1)[0]
+        if not _YOU.search(said_clause) and _third_person_subject(said_clause):
+            faults.append(f"K3: {asked!r} is not said to the stranger: framed it reads {said_clause!r}, a third-person "
+                          "subject and no you / your")
+    elif not _YOU.search(asked):
         faults.append(f"K3: {asked!r} is not said to the stranger (no you / your)")
     for digit in _DIGITS.findall(asked):
         if digit not in str(label or ""):
