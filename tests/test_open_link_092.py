@@ -258,16 +258,39 @@ def test_the_browser_sign_in_presses_the_cards_link_then_the_strangers_own_butto
 
 def test_the_cards_words_are_136s():
     """keel-web 136 `translate.ts`: the places, the interviewer's row, the heading's rule (J-11), the greeting and the
-    who line (J-14)."""
+    who line (J-14); keel-web 140 (spec 094 FR-2a, contract 49): the row with a served face names her, and the who
+    line is the served email."""
     assert browser_mod.arrival_places(19) == "19 of 20 places left on this link"
     assert browser_mod.arrival_interviewer(9) == "Keel's interviewer asks the questions · about 9 minutes"
+    assert browser_mod.arrival_interviewer(10, None) == "Keel's interviewer asks the questions · about 10 minutes"
+    assert browser_mod.arrival_interviewer(10, "Daphne") == \
+        "Daphne, Keel's interviewer, asks the questions · about 10 minutes"
     assert browser_mod.arrival_heading("Eval Founder", "Eval is exploring how restaurants count stock.") == \
         "Eval Founder is exploring how restaurants count stock."
     assert browser_mod.arrival_heading("Eval Founder", "Eval Founder is exploring it.") == "Eval Founder is exploring it."
     assert browser_mod.arrival_heading("Eval Founder", "How restaurants count stock.") == \
         "Eval Founder is asking: How restaurants count stock."
     assert browser_mod.arrival_hello("Maya", "Eval Founder is exploring it.") == "Hi Maya. Eval Founder is exploring it."
-    assert browser_mod.arrival_signed_in("Maya") == "Signed in with Google as Maya · not you?"
+    assert browser_mod.arrival_signed_in("maya.okafor@gmail.com") == \
+        "Signed in with Google as maya.okafor@gmail.com · not you?"
+
+
+def test_the_cards_words_are_keel_web_140s():
+    """Spec 094 FR-2a: the row after the name, the null row and the who line, read off the keel-web checkout the stack
+    serves (`arrivalInterviewerAfterName`, `arrivalInterviewer`, `arrivalSignedIn`, `ARRIVAL_NOT_YOU`), and the card's
+    face markup (`iv-arrival__face`, `iv-arrival__name`) and the intro's absolute href (`href={arrival.groupUrl}`)."""
+    words = _web_source("src/lib/translate.ts")
+    assert ("export const arrivalInterviewerAfterName = (minutes: number): string =>\n"
+            "  `, Keel's interviewer, asks the questions · about ${minutes} minutes`;") in words
+    assert ("export const arrivalInterviewer = (minutes: number): string => `Keel's interviewer asks the questions · "
+            "about ${minutes} minutes`;") in words
+    assert "export const arrivalSignedIn = (email: string): string => `Signed in with Google as ${email} · `;" in words
+    assert 'export const ARRIVAL_NOT_YOU = "not you?";' in words
+    card = _web_source("src/routes/participant/GroupArrivalCard.tsx")
+    assert 'className="iv-arrival__face"' in card and 'className="iv-arrival__name"' in card
+    assert browser_mod.ARRIVAL_FACE == "span.iv-arrival__face" and browser_mod.ARRIVAL_NAME == "strong.iv-arrival__name"
+    intro = _web_source("src/components/interview/IntroScreen.tsx")
+    assert "arrivalSignedIn(arrival.email)" in intro and 'href={arrival.groupUrl} data-testid="arrival-not-you"' in intro
 
 
 # ================================================================================= FR-3: the register read
@@ -399,20 +422,43 @@ def test_the_by_group_tab_is_read_as_136_draws_it(tmp_path, chromium):
 ARRIVAL_HTML = """<!doctype html><html><body><div class="iv-page"><main class="iv-body iv-arrival" data-testid="group-arrival">
 <p class="iv-kicker">About this conversation</p>
 <h1 class="iv-topic" data-testid="arrival-heading">Eval Founder is exploring how restaurants count stock.</h1>
-<div class="iv-arrival__who" data-testid="arrival-interviewer"><span>Keel's interviewer asks the questions · about 9 minutes</span></div>
+<div class="iv-arrival__who" data-testid="arrival-interviewer">ROW</div>
 <div class="iv-arrival__go"><p class="iv-facts" data-testid="arrival-places">20 of 20 places left on this link</p>
 <a class="btn google" href="/v2/i/gRoUp/auth/google/start" data-testid="arrival-google"><svg aria-hidden="true"></svg>Continue with Google</a>
 <p class="iv-facts" data-testid="arrival-consent">CONSENT</p></div></main></div></body></html>"""
 
 
+#: keel-web 140 FR-1: the row on a card served a face (the still, the bold name, the words after it) and on a text
+#: group's (`interviewer: null`: Keel's mark and 136's words).
+ROW_FACE = ('<span class="iv-arrival__face" aria-hidden="true"><span class="pface" style="background-image: '
+            'url(/interviewer/faces/daphne.webp)"></span></span><span><strong class="iv-arrival__name">Daphne</strong>, '
+            "Keel's interviewer, asks the questions · about 10 minutes</span>")
+ROW_NULL = ('<span class="iv-arrival__mark" aria-hidden="true"><svg></svg></span>'
+            "<span>Keel's interviewer asks the questions · about 9 minutes</span>")
+
+
+def test_the_arrival_card_is_read_as_140_draws_it(tmp_path, chromium):
+    """keel-web 140 FR-1 (spec 094 FR-2a): a card served a face reads *Daphne, Keel's interviewer, asks the questions ·
+    about 10 minutes*, the name and her still read apart -- what journey s017 of 2026-10-30 met."""
+    page = chromium.new_page()
+    try:
+        page.set_content(ARRIVAL_HTML.replace("CONSENT", browser_mod.ARRIVAL_CONSENT_WORDS).replace("ROW", ROW_FACE))
+        read = browser_mod.Arrival(page, Recorder(tmp_path), "http://localhost:5173").read()
+        assert read["interviewer"] == browser_mod.arrival_interviewer(10, "Daphne")
+        assert (read["interviewer_name"], read["interviewer_face"]) == ("Daphne", 1)
+    finally:
+        page.close()
+
+
 def test_the_arrival_card_is_read_as_136_draws_it(tmp_path, chromium):
     page = chromium.new_page()
     try:
-        page.set_content(ARRIVAL_HTML.replace("CONSENT", browser_mod.ARRIVAL_CONSENT_WORDS))
+        page.set_content(ARRIVAL_HTML.replace("CONSENT", browser_mod.ARRIVAL_CONSENT_WORDS).replace("ROW", ROW_NULL))
         read = browser_mod.Arrival(page, Recorder(tmp_path), "http://localhost:5173").read()
         assert read["state"] == "GROUP_ARRIVAL" and read["heading_tag"] == "H1"
         assert read["heading"] == "Eval Founder is exploring how restaurants count stock."
         assert read["interviewer"] == browser_mod.arrival_interviewer(9)
+        assert (read["interviewer_name"], read["interviewer_face"]) == (None, 0)
         assert read["places"] == browser_mod.arrival_places(20)
         assert read["google"] == {"text": "Continue with Google", "href": "/v2/i/gRoUp/auth/google/start", "tag": "A",
                                   "role_link": 1}
@@ -428,19 +474,21 @@ def test_the_arrival_card_is_read_as_136_draws_it(tmp_path, chromium):
 
 INTRO_HTML = """<!doctype html><html><body><div class="iv-page"><main class="iv-body" data-testid="ai-intro" data-intro="CHOICE">
 <p class="iv-arrival-hi" data-testid="arrival-greeting">Hi Maya. Eval Founder is exploring it.</p>
-<p class="iv-arrival-who" data-testid="arrival-who">Signed in with Google as Maya · <a href="/i/gRoUp" data-testid="arrival-not-you">not you?</a></p>
+<p class="iv-arrival-who" data-testid="arrival-who">Signed in with Google as maya.okafor@gmail.com · <a href="http://localhost:5173/i/gRoUp" data-testid="arrival-not-you">not you?</a></p>
 <div class="iv-actions"><button type="button" data-testid="choice-talk">Talk to Daphne · about 9 minutes</button>
 <button type="button" data-testid="choice-write">Answer in writing · about 9 minutes</button></div></main></div></body></html>"""
 
 
-def test_the_intro_after_the_sign_in_is_read_as_136_draws_it(tmp_path, chromium):
+def test_the_intro_after_the_sign_in_is_read_as_140_draws_it(tmp_path, chromium):
+    """keel-web 140 FR-2 (spec 094 FR-2a): the who line is the served email, *not you?* the served groupUrl, absolute."""
     page = chromium.new_page()
     try:
         page.set_content(INTRO_HTML)
         intro = browser_mod.Arrival(page, Recorder(tmp_path), "http://x").intro(timeout_s=5)
         assert intro["state"] == "INTERVIEW" and intro["intro"] == "CHOICE"
         assert intro["greeting"] == browser_mod.arrival_hello("Maya", "Eval Founder is exploring it.")
-        assert intro["who"] == browser_mod.arrival_signed_in("Maya") and intro["not_you"] == "/i/gRoUp"
+        assert intro["who"] == browser_mod.arrival_signed_in("maya.okafor@gmail.com")
+        assert intro["not_you"] == "http://localhost:5173/i/gRoUp"
         assert intro["buttons"] == ["choice-talk", "choice-write"]
         page.set_content('<div class="iv-shell iv"><p class="hello">You have already answered. Thank you.</p></div>')
         assert browser_mod.Arrival(page, Recorder(tmp_path), "http://x").intro(timeout_s=5) == {

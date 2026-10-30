@@ -760,10 +760,15 @@ ARRIVAL_AUTH_ERROR = "[data-testid='arrival-auth-error']"
 #: keel-web 131's one inactive line (`Inactive.message`), the group page's when the link is closed, full or the
 #: founder's balance is under one interview.
 LINK_INACTIVE = "[data-testid='link-inactive']"
-#: The intro after the sign-in, in the browser that pressed *Continue with Google* (keel-web 136 J-14).
+#: The intro after the sign-in (keel-web 136 J-14). Since keel-web 140 FR-2 (contract 49, spec 094 FR-2a) it is drawn
+#: from the arrival token's own `Interview.arrival` -- no press, no browser note: any context that opens the arrival's
+#: `/i/{token}` gets the greeting and the who line.
 ARRIVAL_GREETING = "[data-testid='arrival-greeting']"
 ARRIVAL_WHO = "[data-testid='arrival-who']"
 ARRIVAL_NOT_YOU = "[data-testid='arrival-not-you']"
+#: keel-web 140 FR-1: on a card served a face, the name in bold in the row and her round still beside it.
+ARRIVAL_NAME = "strong.iv-arrival__name"
+ARRIVAL_FACE = "span.iv-arrival__face"
 #: The intro itself: the AI player's (`ai-intro`, `data-intro` CHOICE or AI_INTERVIEWER, the choice's two buttons) or
 #: the text link's (`.iv-body` with *Begin*); the answered link's one line (`.iv-shell p.hello`).
 AI_INTRO = "[data-testid='ai-intro']"
@@ -782,8 +787,13 @@ def arrival_places(left: int) -> str:
     return f"{left} of {ARRIVAL_GROUP_CAP} places left on this link"
 
 
-def arrival_interviewer(minutes: int) -> str:
-    """keel-web 136 `arrivalInterviewer` (J-12: no face on contract 48's card)."""
+def arrival_interviewer(minutes: int, name: str | None = None) -> str:
+    """The card's interviewer row. keel-web 140 FR-1 (contract 49, spec 094 FR-2a): with `GroupArrival.interviewer`
+    served, her name and `arrivalInterviewerAfterName` -- *Daphne, Keel's interviewer, asks the questions · about 10
+    minutes*; with `interviewer: null` (a text group), 136's `arrivalInterviewer` -- *Keel's interviewer asks the
+    questions · about {minutes} minutes*."""
+    if name:
+        return f"{name}, Keel's interviewer, asks the questions · about {minutes} minutes"
     return f"Keel's interviewer asks the questions · about {minutes} minutes"
 
 
@@ -804,9 +814,10 @@ def arrival_hello(first_name: str, heading: str) -> str:
     return f"Hi {first_name}. {heading}"
 
 
-def arrival_signed_in(first_name: str) -> str:
-    """keel-web 136 `arrivalSignedIn` + `ARRIVAL_NOT_YOU`: the line above Begin."""
-    return f"Signed in with Google as {first_name} · not you?"
+def arrival_signed_in(email: str) -> str:
+    """keel-web `arrivalSignedIn` + `ARRIVAL_NOT_YOU`: the line above Begin -- since keel-web 140 FR-2 (contract 49,
+    spec 094 FR-2a) the served `Interview.arrival.email` (136 drew the given name)."""
+    return f"Signed in with Google as {email} · not you?"
 
 
 class Arrival:
@@ -814,12 +825,13 @@ class Arrival:
 
     `open` reads the card the group's token serves (`GROUP_ARRIVAL`: who is asking, the interviewer's row, the places
     left, *Continue with Google*, the sentence) or the inactive line in its place; `sign_in` is `Auth.sign_in`'s round
-    trip on the stranger's side -- the card's *Continue with Google* (an `<a href=signInUrl>`, a navigation; its press
-    notes the group in this browser), the stub's picker, the stranger's own button (by the hidden `identity` field, as
+    trip on the stranger's side -- the card's *Continue with Google* (an `<a href=signInUrl>`, a navigation; since
+    keel-web 140 its press notes nothing), the stub's picker, the stranger's own button (by the hidden `identity` field, as
     a founder's), keel-cloud's participant callback, and the arrival's own `/i/{token}` on keel-web. Never a cookie
     set by hand: the `keel_arrival_<group>` cookie is the callback's own `Set-Cookie`, kept by this browser context.
     `intro` reads what the arrival's page drew; `answered` the answered link's one line. Selectors and words are
-    keel-web 136's pins for this repository (its tasks.md); nothing here asserts."""
+    keel-web 136's pins for this repository (its tasks.md), and keel-web 140's (the card's face, the intro's email and
+    absolute `groupUrl`; spec 094 FR-2a); nothing here asserts."""
 
     def __init__(self, page: Page, recorder: Recorder, base_url: str, *, party: str = "participant"):
         self.page = page
@@ -855,6 +867,10 @@ class Arrival:
                 "heading_tag": (page.locator(ARRIVAL_HEADING).first.evaluate("(e) => e.tagName")
                                 if page.locator(ARRIVAL_HEADING).count() else None),
                 "interviewer": words(ARRIVAL_INTERVIEWER), "places": words(ARRIVAL_PLACES),
+                # keel-web 140 FR-1: the name in bold and her still, on a card served a face (None / 0 on a text group)
+                "interviewer_name": " ".join((_optional_text(page.locator(f"{ARRIVAL_INTERVIEWER} {ARRIVAL_NAME}"))
+                                              or "").split()) or None,
+                "interviewer_face": page.locator(f"{ARRIVAL_INTERVIEWER} {ARRIVAL_FACE}").count(),
                 "google": {"text": " ".join((google.text_content() or "").split()),
                            "href": google.get_attribute("href"), "tag": google.evaluate("(a) => a.tagName"),
                            "role_link": page.get_by_role("link", name=ARRIVAL_CONTINUE_GOOGLE).count()},
@@ -893,9 +909,9 @@ class Arrival:
 
     def intro(self, *, timeout_s: float = 30) -> dict:
         """The arrival's own page once it drew: the intro (`ai-intro` with its `data-intro`, or the text intro's
-        *Begin*), the greeting and the *Signed in with Google as {first} · not you?* line (with *not you?*'s href, the
-        group's page) when this browser pressed *Continue with Google*, the choice's two buttons -- or the answered
-        line, or the inactive one."""
+        *Begin*), the greeting and the *Signed in with Google as {email} · not you?* line (with *not you?*'s href, the
+        served `groupUrl`, absolute) -- keel-web 140 FR-2: from the arrival's own `Interview.arrival`, whatever browser
+        opens it, no press needed -- the choice's two buttons; or the answered line, or the inactive one."""
         page = self.page
         page.locator(f"{AI_INTRO}, main.iv-body, {ANSWERED_LINE}, {LINK_INACTIVE}").first.wait_for(
             state="visible", timeout=timeout_s * 1000)

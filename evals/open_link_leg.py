@@ -13,7 +13,8 @@ the fake renderer). Then, through keel-web 136's screens:
    (`group-link-made`) -- that is the copy.
 2. **Stranger A** (the browser) opens the link: the arrival card, as the group's token serves it (`GROUP_ARRIVAL`);
    *Continue with Google*, A's own button on the stub's picker, keel-cloud's participant callback, A's own `/i/{token}`;
-   the intro greets A by the given name with *Signed in with Google as A · not you?*; *Answer in writing* is A's Begin
+   the intro greets A by the given name with *Signed in with Google as {A's email} · not you?* (keel-web 140, spec 094
+   FR-2a: the served `Interview.arrival`, *not you?* the absolute `groupUrl`); *Answer in writing* is A's Begin
    (one INTERVIEW row of -30 on the ledger), A answers as Countly's first opted-in manager, and ticks the pilot box.
 3. **Stranger B** (the browser) signs in the same way, begins (*Answer in writing*), answers the gate as another manager
    and stops on part 1's first question -- the page closed.
@@ -41,6 +42,7 @@ and no money: the corridor is the scripted executor's, the recording the fake re
 from __future__ import annotations
 
 import json
+import re
 import secrets
 import time
 
@@ -277,12 +279,16 @@ def make_the_link(j, sent, record: dict) -> dict:
 def read_the_card(j, arrival: Arrival, group_url: str, group_token: str, places: int, what: str) -> dict:
     card = arrival.open(group_url, title=f"{what} opens the group link")
     _, served = _participant(j, group_token)
+    face = served.get("interviewer") or {}
     with cs._step(j, f"{what}: the arrival card as the group's token serves it -- who is asking and about what, the "
-                     f"interviewer's row, {places} of 20 places, Continue with Google (a link to signInUrl), the "
-                     "sentence; no Begin", party="participant") as h:
+                     f"interviewer's row ({face.get('name') or 'no face'}: keel-web 140, contract 49), {places} of 20 "
+                     "places, Continue with Google (a link to signInUrl), the sentence; no Begin",
+                  party="participant") as h:
+        # spec 094 FR-2a (keel-web 140 FR-1, contract 49): the row names the served face, or 136's words when it is null
         want = {"state": "GROUP_ARRIVAL",
                 "heading": arrival_heading(served.get("founderName") or "", served.get("title") or ""),
-                "interviewer": arrival_interviewer(int(served.get("minutes") or 0)),
+                "interviewer": arrival_interviewer(int(served.get("minutes") or 0), face.get("name")),
+                "interviewer_name": face.get("name"), "interviewer_face": 1 if face else 0,
                 "places": arrival_places(places), "href": served.get("signInUrl"), "consent": ARRIVAL_CONSENT_WORDS}
         h.record_assert({**want, "served": {"state": "GROUP_ARRIVAL", "placesLeft": places}},
                         {"card": card, "served": served})
@@ -291,6 +297,8 @@ def read_the_card(j, arrival: Arrival, group_url: str, group_token: str, places:
         assert card["state"] == "GROUP_ARRIVAL" and card["heading_tag"] == "H1", card
         assert (card["heading"], card["interviewer"], card["places"]) == (want["heading"], want["interviewer"],
                                                                          want["places"]), card
+        assert (card["interviewer_name"], card["interviewer_face"]) == (want["interviewer_name"],
+                                                                        want["interviewer_face"]), card
         assert card["google"]["href"] == want["href"] and card["google"]["tag"] == "A", card["google"]
         assert card["google"]["role_link"] == 1 and card["consent"] == ARRIVAL_CONSENT_WORDS, card
         assert card["begin"] == 0 and card["auth_error"] is None, card
@@ -310,14 +318,17 @@ def sign_in_in_the_browser(j, arrival: Arrival, stranger, group_token: str, what
 def read_the_intro(j, arrival: Arrival, stranger, token: str, group_token: str, what: str) -> tuple[dict, dict]:
     status, interview = _participant(j, token)
     intro = arrival.intro()
-    with cs._step(j, f"{what}: their own link serves the interview (FULL, the given name, text or the interviewer) and "
-                     f"the intro greets them -- *Hi {stranger.given_name}.* and *Signed in with Google as "
-                     f"{stranger.given_name} · not you?* back to the group's page (keel-web 136 J-14)",
-                  party="participant") as h:
+    with cs._step(j, f"{what}: their own link serves the interview (FULL, the given name, text or the interviewer, and "
+                     "the arrival: the email and the group's url) and the intro greets them -- *Hi "
+                     f"{stranger.given_name}.* and *Signed in with Google as {{email}} · not you?* back to the group's "
+                     "page, the absolute groupUrl (keel-web 140 FR-2, contract 49)", party="participant") as h:
         heading = arrival_heading(interview.get("founderName") or "", interview.get("topic") or "")
+        arrived = interview.get("arrival") or {}
+        # spec 094 FR-2a (keel-web 140 FR-2): the who line is the served email, *not you?* the served groupUrl as is
         want = {"kind": "FULL", "personName": stranger.given_name, "formats": ["TEXT", "AI_INTERVIEWER"],
                 "intro": FORMAT, "greeting": arrival_hello(stranger.given_name, heading),
-                "who": arrival_signed_in(stranger.given_name), "not_you": f"/i/{group_token}",
+                "who": arrival_signed_in(stranger.email), "not_you": arrived.get("groupUrl"),
+                "arrival": {"email": stranger.email, "groupUrl": f"http(s)://…/{group_token}"},
                 "buttons": ["choice-talk", CHOICE_WRITE]}
         h.record_assert(want, {"status": status, "interview": {k: interview.get(k) for k in
                                                                ("kind", "personName", "formats", "arrival")},
@@ -325,9 +336,10 @@ def read_the_intro(j, arrival: Arrival, stranger, token: str, group_token: str, 
         assert status == 200 and interview.get("kind") == "FULL", (status, interview.get("kind"))
         assert interview.get("personName") == stranger.given_name, interview.get("personName")
         assert interview.get("formats") == want["formats"], interview.get("formats")
-        arrived = interview.get("arrival")
-        if arrived is not None:                      # contract 49 (keel-cloud 164): the stored email, on this token only
-            assert arrived.get("email") == stranger.email, arrived
+        # contract 49 (keel-cloud 164): the stored email and the group's own url, on this token only
+        assert arrived.get("email") == stranger.email, interview.get("arrival")
+        assert re.match(r"^https?://", arrived.get("groupUrl") or "") and \
+            arrived["groupUrl"].endswith(f"/{group_token}"), arrived
         assert intro["state"] == "INTERVIEW" and intro["intro"] == FORMAT, intro
         assert (intro["greeting"], intro["who"], intro["not_you"]) == (want["greeting"], want["who"], want["not_you"]), \
             intro
