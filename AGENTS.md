@@ -659,6 +659,20 @@ named line alone (`how` no longer drags `howDecider`). No mark moves. `make unit
 3,970 / 0 / 53); the paid walk (`make quality-walk ENTRIES=10-palus,08-fresco SCOPES=SOLUTION,COMMERCIAL`) owed after the
 merge, on a cloud at 165+.
 
+**The money study's people** (spec `101-the-money-studys-people`, 2026-10-30; keel-cloud 133 FR-4 / 139 / 166, keel-web
+145). The screens before a link's first item are `vectors_screens.first_screens` (keel-web `screensOf`'s head): the
+screener wherever `Interview.condition` is served, any kind; the idea card on a COMMERCIAL_LINK; the gate; and on money
+alone's person link (kind FULL, no gate) the card served as `reveal` with `afterPart` 0, walked before part 3
+(`reveal_opens`, `Interview._items`, recorded as the `reveal` screen with its problem line). Nobody is read on money
+alone (`vs.read_owed`: no gate, no story). On a B2B entry money alone sends the decision-makers alone
+(`vs.study_people`'s `DECIDERS_ONLY_SCOPES`; keel-cloud 133: the register serves COMMERCIAL_B2B only), so `j.people`,
+`inputs.json`, the follow-up lines, the interview leg and SC3 read the deciders; `leg_invite` sends through
+`not_on_this_study` / `people_to_send`, one step records the PRIMARY people as not on this study, and a kind the register
+does not serve is a named fault, never a KeyError. A B2C money study and every other scope send as before. No mark
+moves (SC4 still reads `idea` on a B2C money study's FULL link: findings until a scope-marks spec). `make unit` 4,048 /
+0 / 53 (master `705c7a5` 4,003 / 0 / 53); the paid walks (`ENTRIES=08-fresco,13-aircaps,17-expanse SCOPES=COMMERCIAL`,
+`ENTRIES=10-palus,21-codyco SCOPES=SOLUTION,COMMERCIAL`, `DOOR=host`) owed after the merge.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
