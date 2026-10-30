@@ -336,7 +336,8 @@ def _drift_96_guard(j: Journey, drawn: str, window_line: str) -> None:
         if j.strict:
             assert drawn == want, {"served": drawn, "windowless read-back": want}
         else:
-            assert "counting the last" not in drawn.lower(), drawn
+            # spec 103 (keel-cloud 168): the window is its own sentence, *We'll ask about the last {window}.*
+            assert "we'll ask about" not in drawn.lower(), drawn
     j.changed["drift_96"] = {"sent": [b.get("recallWindow") for b in sent], "understands": drawn,
                              "window_line": window_line}
 
@@ -382,7 +383,8 @@ def leg_context(j: Journey) -> None:
         _next_write_after_the_welcome(j)
     with _step(j, "the card says what Keel understood -- code's sentence since keel-cloud 122, assembled from the slots "
                   "(the segment and its condition, the circumstance, the job, the window), since keel-cloud 149 in two "
-                  "sentences (*{Segment}. When {when}, they want to {job}, counting the last {window}.*) -- and, where "
+                  "sentences and since 168 the window a third (*{Segment}. When {when}, they want to {job}. We'll ask "
+                  "about the last {window}.*) -- and, where "
                   "the segment carries a condition, *Only people who: ...* (keel-web 096)", party="founder") as h:
         # spec 085 (keel-cloud 149 FR-2): the strict compare is the mirror's two sentences, word for word
         want = vs.read_back(j.entry, window=windowed) if j.strict else "a sentence"

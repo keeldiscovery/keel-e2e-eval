@@ -126,7 +126,23 @@ def test_money_alone_sends_draws_and_reads_back_no_window(tmp_path, countly):
     j = _context_journey(tmp_path, seed, dict(FIELDS), {**FIELDS, "occasion": "delivery"})
     cs._drift_96_guard(j, vs.read_back(seed, window=False), "")
     assert j.changed["drift_96"]["sent"] == [None, None]
-    assert "counting" not in j.changed["drift_96"]["understands"]
+    # re-pinned by spec 103: since keel-cloud 168 the window is said as "We'll ask about ...", so "counting" proved nothing
+    assert "we'll ask about" not in j.changed["drift_96"]["understands"].lower()
+
+
+def test_a_live_models_money_alone_sentence_is_held_to_no_window_sentence(tmp_path, countly):
+    """Spec 103 FR-3: off the strict compare (S-012, a host's live model) the guard looks for 168's window sentence --
+    *"counting the last"* could no longer be drawn, so the check passed whatever the card said."""
+    seed = _seed(countly, "COMMERCIAL")
+    windowed = vs.read_back(seed, window=vs.Window(7, "NIGHTS"))
+    assert windowed.endswith(". We'll ask about the last 7 nights.") and "counting" not in windowed
+    live = _context_journey(tmp_path, seed, dict(FIELDS))
+    live.strict = False
+    cs._drift_96_guard(live, "Some people. When it happens, they want to cope.", "")
+    live = _context_journey(tmp_path, seed, dict(FIELDS))
+    live.strict = False
+    with pytest.raises(AssertionError):
+        cs._drift_96_guard(live, windowed, "")
 
 
 @pytest.mark.parametrize("sent, drawn, line", [

@@ -239,7 +239,8 @@ def test_money_alone_s_expected_walk(countly):
                                                   "commercial.ability_to_pay", "commercial.buyer_payer_alignment",
                                                   "commercial.purchase_friction", "commercial.commitment"]
     assert vs.read_back(seed, window=False).endswith("matching what is on the shelves.")
-    assert "counting" not in vs.read_back(seed, window=False)
+    # re-pinned by spec 103: since keel-cloud 168 the window is said as "We'll ask about ...", so "counting" proved nothing
+    assert "we'll ask about" not in vs.read_back(seed, window=False).lower()
     assert cs.before_counters("COMMERCIAL") == ["1 of 2", "2 of 2"]
     assert vs_screens.step_of("solution", "COMMERCIAL") == (3, 5)
     assert sj.problem_sentence(countly.interpretations["problem"]) == (
