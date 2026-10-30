@@ -569,6 +569,36 @@ keel-cloud `build/brief-facts/` or `build/spoken-corpus.txt` written before 159 
 AI-link walks are written to keel-web 135's spec, which is not built: `make unit` green against the live keel-cloud-docs
 checkout at `ad5f6441` (3,768 / 0 / 63); `make eval K=s005` / `s006` / `s007` owed on a stack at 160+ with web at 135.
 
+**The money screens, the three controls and the founder screens as drawn** (spec `090-the-money-screens-and-the-controls-as-drawn`,
+2026-10-30; keel-web 134, 135's build, 130). The cost box asks the mode first and alone (`Corridor._chain_cost`: the
+line `chain-cost-line` read, *Per* and the period chips read only after the pick -- `before_mode` held at none by
+`corpus_scenario._hold_the_mode_first` -- the line held to `costHowLine`'s shape, `vectors_screens.cost_how_line` /
+`cost_line_parts`: *the buyer's organisation* on B2B, else the context's people, *each {occasion}*, never the
+circumstance); RATE is *A share they lose*; the price is six named choices, one click on its own id
+(`chain_price_choice`; `chain-share-COST_BASE` is gone). The three controls are walked as 135 **builds** them (its
+harness list H-1 to H-16): the AI sheet's second ask read from `[data-testid=ai-sheet] [data-testid=second-ask]`
+(`Player.second_ask`), IM20's `one` read after the `more` clip, Importance with picks taken before the escape (one pick +
+*Nothing else*, never *None of these*; one pick by speech then *Nothing else*), *Pick one.* held over Importance and the
+scale, the text page's second ask by its test id, `pick_two` retired from the walks, no `advantages` read off a
+contract-47 wire. **The five recorded 0s are sent as the count 1** (`vectors_script.ZERO_SENT_AS_ONE`, the founder's
+D-2026-10-30-01), each still named in `PersonInputs.notes` and the findings. Send more's ways are *People I know by
+name* / *People I found with Keel*; the persona question and L1's title are matched by their shape (130's
+`personaQuestion`, `beforeInterviewerTitle`); *Lock and record {face}*, *Lock and write the questions*, *Offer a pilot?*.
+IM2 / the L1 *no price* assertion meet 130 / 132's *uses ... credits* on L1 -- named for the coordinator, not moved.
+`make unit` green against keel-cloud-docs `a396fe9f` and keel-web `02b952c`; the journeys owed after the merge.
+
+**The phrase is the people's: the harness mirrors keel-cloud 161 and 163** (spec `093-the-phrase-is-the-peoples-mirror`,
+2026-10-30). The scripted Current solution draft writes the act bare (`vectors_script.bare_phrase` / `said_phrase`,
+`ItemFrames.bare` / `said`; the saved list and the Check screen's corpus list too; the corpus still records *your way of
+...* and is never edited); the rung is *You said {phrase} works for you. What keeps it working?* (`{phrase}` filled at
+the lock, default *the way you do it*; `LADDER_SHA` `b009fac8`; the ladder's registry tests, silently skipped on a 161
+registry, run again). **`MARKS_VERSION` 22** (calls 124-126): `L1` in 161's words (a drafted *your way of* faults), `L5`
+admits one `suggested` on Purchase friction and Compatibility (keel-cloud 121 FR-3), never elsewhere; an Adoption friction
+face is framed as `ItemFrames.adoptionFriction` frames it (`spoken.adoption_frame`: *would you ...* said *You'd ...*), so
+K2 counts the cloud's words, and K3 reads the framed line (a base-form clause passes, a third-person subject faults).
+`OLDEST` stays 20. Re-scored at v22, the founder-lists screen of 2026-10-30 keeps only spec 091's Importance L1s (its
+L5 and K3 faults gone); the 2026-10-29 one loses its L5s.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
