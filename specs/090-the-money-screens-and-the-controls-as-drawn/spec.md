@@ -43,7 +43,12 @@ Two keel-web merges of 2026-10-30 move what the harness clicks and reads on the 
   segmented control, 1 in the number box on the long window), still named in `PersonInputs.notes` and the journey's
   finding; the corpus is untouched; the test that holds them to exactly five stays and reads 1. `quality/decisions.toml`
   D-2026-10-30-01 is marked `merged` with this spec's sha by the coordinator.
-- **FR-4 Nothing else moves.** The marks, the corpus (revision 19), the readers, the quality cycle's rubric, the
+- **FR-4 Send more's words (keel-web 130).** `harness/interviews_screens.py` `WHO_OWN` / `WHO_DATASET` (102-103) and
+  `send_someone`'s radio match (479, `^Someone I know`) read 130's labels: *People I know by name* and *People I found
+  with Keel* (`SEND_WHO` in keel-web `translate.ts`); every other 130 word the harness reads on the five founder screens
+  (the persona question, the lock button *Lock and record {face}*, the pilot title *Offer a pilot?*, the format rows, the
+  list label) is checked against 130's tasks.md and re-pinned where it is read; the recorded frames likewise.
+- **FR-5 Nothing else moves.** The marks, the corpus (revision 19), the readers, the quality cycle's rubric, the
   prices (088), the frames (089 FR-5).
 
 ## Acceptance
