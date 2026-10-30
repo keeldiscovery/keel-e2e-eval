@@ -699,6 +699,20 @@ confirmed before 168 keeps the old sentence in its stored `understands`; the wal
 failure). `make unit` 4,077 / 0 / 53 (master `a2c76e0` 4,074 / 2 / 53 against keel-cloud-docs at 168+); no paid walk owed
 by this spec.
 
+**Choose picks the founder's own row, by its label** (spec `104-choose-picks-the-founders-own-row`, 2026-10-30; the
+re-walk of 21-codyco, 17-expanse and 08-fresco). The corpus's `pickedIndex` indexes the entry's TYPED items; Keel's list
+writer may draft rows of its own ahead of them (21-codyco: *Forward unanswered calls to Codyco* before the founder's *Let
+an AI answer guests in the hotel's voice*), so off the golden walk `corpus_scenario._choose_label` finds the typed item's
+label on the drafted rows, for every `vs.PICKED` dimension, and a label not drafted stops the walk by name
+(`VectorsScriptError`, recorded in its own step) -- never row 0, never the old clamp to the last row. One finding per
+picked dimension names the rows Keel added (*Adoption friction: Keel added: '...', '...'*), no fault. The golden walk
+(`strict`) is unchanged: the typed label and index, no finding. Not foreseen: Keel does not always keep the founder's
+labels word for word -- the same 21-codyco bundle's compatibility draft moved *could* to *can*, so that walk now stops at
+compatibility (pinned in `tests/test_choose_by_label_104.py`); 13-aircaps adoption friction and 08-fresco purchase
+friction were drafted without the founder's picked label too, on 2026-10-30. `make unit` 4,093 / 1 / 53 (master `92c0b75` 4,076 / 1 / 53; the one failure is
+`test_credits_at_begin_088`'s price version, keel-cloud 169's VERSION 13, spec 105 FR-2's); the paid re-walk is the
+coordinator's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
