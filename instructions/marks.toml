@@ -6,6 +6,15 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
+# MARKS_VERSION 23 (judgement calls 127-128, 2026-10-30; spec 091-the-draft-list-minimum). option_validity's L1 holds a
+# drafted list to the draft's rule, not the save's: Importance (rival_list) is the problem itself alone with the job's
+# `answers` {} and the problem itself plus the N difficulties the founder's Answer names with one (1 + N, at most
+# saves.max_items); saves.min_items is the rule at Save, read only where a saved list is checked (corpus._check_list).
+# No key of [marks] below moved; corpus revision 19.
+# **Scores before and after this bump are not comparable** where a seed-time Importance draft wrote the problem alone
+# (now valid) or added rivals (now an L1); a v20, v21 or v22 bundle re-scores at v23 (call 128).
+# **Run of record: none yet** -- there is none until `WHY=marks:23` is spent, on the founder's word only.
+#
 # MARKS_VERSION 22 (judgement calls 124-126, 2026-10-30; spec 093-the-phrase-is-the-peoples-mirror, the mirror of
 # keel-cloud 161 / 163). option_validity's L1 and L5 say keel-cloud's rules: L1 in 161's words (a drafted Current
 # solution phrase opening on 'your way of' faults), L5 admits one suggested item on Purchase friction and Compatibility

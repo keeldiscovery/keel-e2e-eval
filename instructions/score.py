@@ -293,9 +293,64 @@ _YOUR_WAY_OF = re.compile(r"^(?i:your\s+way\s+of)\s+")
 SUGGESTED_ON = (PURCHASE_FRICTION_KEY, COMPATIBILITY_KEY)
 
 
-def list_faults(question: dict, dimension, *, sources: str = "", occasion: str | None = None) -> list:
+#: Spec 091 FR-1: the parts of a founder's Answer that name a difficulty each -- one a line, a bullet, a `;` or a `,`
+#: apart (a serial list's last *and* / *or* too: *A, B and C* is three); a lone *and* with no comma list is one
+#: difficulty (*settling the baby and finding the bottle*), as the Answer's own words leave it.
+_BULLET = re.compile(r"^(?:[-*\u2022\u00b7]+|\d+[.)])\s*")
+_SERIAL_LAST = re.compile(r"^(.+?)\s+(?:and|or)\s+(.+)$", re.I)
+#: An Answer that names no other difficulty (*Nothing else*, *None*): the own item alone (keel-cloud 097 F9).
+_NAMES_NONE = re.compile(r"^(?:nothing(?:\s+else)?|none|no|nope|n/?a|nobody)[.!]?$", re.I)
+
+
+def named_difficulties(answer) -> list[str]:
+    """Spec 091 FR-1 (`founder-lists.md`'s `rival_list` bullet): the other difficulties the founder's Importance Answer
+    names, in its order -- what Keel's draft writes after the problem itself, adding none. A list Answer is one difficulty
+    an element; a text one is split on lines, bullets, `;` and `,` (and a serial list's last *and* / *or*)."""
+    if answer is None:
+        return []
+    texts = [str(a) for a in answer] if isinstance(answer, (list, tuple)) else [str(answer)]
+    named = []
+    for text in texts:
+        chunks = [c for c in re.split(r"\s*[;\n\r]+\s*", text) if c.strip()]
+        for chunk in chunks:
+            parts = [_BULLET.sub("", p).strip() for p in re.split(r"\s*,\s*", chunk)]
+            parts = [re.sub(r"^(?:and|or)\s+", "", p, flags=re.I).strip(" .") for p in parts if p.strip(" .")]
+            if len(parts) > 1:
+                last = _SERIAL_LAST.match(parts[-1])
+                if last:
+                    parts[-1:] = [last.group(1).strip(" ."), last.group(2).strip(" .")]
+            named += [p for p in parts if p and not _NAMES_NONE.match(p)]
+    return named
+
+
+def _draft_count(dimension, answers: dict | None) -> tuple[int, int, str]:
+    """`(low, high, why)`: how many items a DRAFT of this list dimension carries (spec 091 FR-1). Importance
+    (`rival_list`) is held to the draft's own rule, never the save's: with no founder Answer for it the problem itself
+    alone (one item), with one the problem itself and the N difficulties the Answer names (1 + N, at most
+    `saves.max_items`) -- `saves.min_items` is the rule at Save (keel-cloud 087 / 152), once the founder has named the
+    others, and is read where a saved list is checked (`corpus._check_list`), never here. Every other list keeps the
+    registry's bounds, less a fixed first item code adds."""
+    saves = dimension.saves
+    fixed = 1 if saves.get("fixed_first") else 0
+    if dimension.founder_control == "rival_list":
+        answer = (answers or {}).get(dimension.key)
+        if answer is None or (isinstance(answer, str) and not answer.strip()):
+            return 1, 1, "the problem itself alone, with no founder Answer"
+        named = len(named_difficulties(answer))
+        count = min(1 + named, int(saves.get("max_items") or 1 + named))
+        return count, count, (f"the problem itself and the {count - 1} "
+                              f"difficult{'y' if count - 1 == 1 else 'ies'} the founder's Answer names"
+                              if named else "the problem itself alone: the founder's Answer names no other")
+    low = max(0, int(saves.get("min_items") or 0) - fixed)
+    high = int(saves.get("max_items") or 0) - fixed
+    return low, high, ""
+
+
+def list_faults(question: dict, dimension, *, sources: str = "", occasion: str | None = None,
+                answers: dict | None = None) -> list:
     """`L1`-`L5` on one list dimension's draft (keel-cloud 087 `ScreenResultApplier.draft`, restated), and on a
-    Compatibility or Adoption friction item's `asked` face the `K` rules (call 85)."""
+    Compatibility or Adoption friction item's `asked` face the `K` rules (call 85). `answers` is the job's `answers`
+    slot (`{}` on the seed-time job; the founder's Answer by key on a redraft): Importance's count reads it (spec 091)."""
     faults = []
     saves = dimension.saves
     draft = question.get("list")
@@ -304,12 +359,12 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
     if question.get("options"):
         faults.append(f"L1: {dimension.key} is a list; it carries `list`, never options")
     fixed = 1 if saves.get("fixed_first") else 0
-    low = max(0, int(saves.get("min_items") or 0) - fixed)
-    high = int(saves.get("max_items") or 0) - fixed
+    low, high, why = _draft_count(dimension, answers)
     items = [i for i in draft["items"] if isinstance(i, dict)]
     if not low <= len(items) <= high:
         faults.append(f"L1: {dimension.key} takes {'exactly ' + str(low) if low == high else f'{low} to {high}'} "
-                      f"items{' besides Nobody else' if fixed else ''}, and {len(items)} were written")
+                      f"item{'' if high == 1 else 's'}{' besides Nobody else' if fixed else ''}"
+                      f"{f' ({why})' if why else ''}, and {len(items)} were written")
     phrase = str(draft.get("phrase") or "").strip()
     if saves.get("phrase") and not phrase:
         # spec 093 FR-3 (keel-cloud 161 T002): L1 in 161's words
@@ -355,7 +410,7 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
 
 
 def calibration_checks(question: dict, dimension, *, window=DEFAULT_WINDOW, sources: str = "",
-                       occasion: str | None = None) -> list:
+                       occasion: str | None = None, answers: dict | None = None) -> list:
     """Every structural rule the founder-lists job is held to, for one dimension's entry; `[]` is valid.
 
     Prevalence owes its `event` clause (E1-E3) and its five fifths, each a label and a belief phrase (C2-C4);
@@ -365,7 +420,7 @@ def calibration_checks(question: dict, dimension, *, window=DEFAULT_WINDOW, sour
     faults = []
     key = dimension.key
     if dimension.founder_list:
-        return list_faults(question, dimension, sources=sources, occasion=occasion)
+        return list_faults(question, dimension, sources=sources, occasion=occasion, answers=answers)
     if question.get("list"):
         faults.append(f"L1: {key} is no list; a draft is written only for the seven list dimensions")
     options = question.get("options")
@@ -463,8 +518,13 @@ def score_calibration(case, entry, registry, result, *, judge=None,
     for fault in coverage:
         score.faults.append({"key": None, "check": "dimension_coverage", "evidence": fault})
     window = context_mod.window_of(entry)
-    sources = sources_of(case.payload.get("context") if getattr(case, "payload", None) else None) \
-        or sources_of(context_mod.build_calibration(entry, vector, registry))
+    sent = case.payload.get("context") if getattr(case, "payload", None) else None
+    sources, built = sources_of(sent), None
+    if not sent or not sources:
+        built = context_mod.build_calibration(entry, vector, registry)
+        sources = sources or sources_of(built)
+    # spec 091 FR-1: the job's `answers` slot (`{}` on the seed-time job) -- Importance's draft count reads it
+    answers = (sent if isinstance(sent, dict) and sent else built or {}).get("answers") or {}
     for question in questions:
         key = question.get("key")
         if key not in slice_keys:
@@ -472,7 +532,7 @@ def score_calibration(case, entry, registry, result, *, judge=None,
         dimension = registry.by_key(key)
         score.validity_of += 1
         checks = calibration_checks(question, dimension, window=window, sources=sources,
-                                    occasion=entry.occasion())
+                                    occasion=entry.occasion(), answers=answers)
         if checks:
             score.faults.append({"key": key, "check": "option_validity", "evidence": "; ".join(checks)})
         else:

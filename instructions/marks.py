@@ -19,6 +19,16 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
+**`MARKS_VERSION` 23** (spec 091, 2026-10-30): a drafted list is held to the draft's rule, not the save's (call 127).
+`option_validity`'s `L1` counts Importance's draft (`rival_list`) as `founder-lists.md` asks it written: with the job's
+`answers` `{}` the problem itself alone (one item), with the founder's Answer the problem itself and the N difficulties
+the Answer names (1 + N, at most `saves.max_items`). `saves.min_items` (2 on the registry of record) is the rule at
+Save, once the founder has named the others (keel-cloud 087 / 152), and is read only where a saved list is checked
+(`corpus._check_list`), never against a draft. The reading moved both ways (a correct one-item draft passes; a rival
+Keel adds with no Answer fails), so the version moves; no number in `[marks]` moved, the corpus stays **revision 19**,
+and a v20, v21 or v22 bundle re-scores at v23 (call 128). **There is no v23 run of record until `WHY=marks:23` is spent
+-- the founder's word only.** v22's paragraph below is history.
+
 **`MARKS_VERSION` 22** (spec 093, 2026-10-30): `option_validity`'s two list rules say keel-cloud's (calls 124-125),
 and an Adoption friction face is framed and judged as keel-cloud frames it (call 126: `K2` counts `ItemFrames`' frame,
 `K3` reads the framed line).
@@ -1154,6 +1164,21 @@ Calls 91-109 are spec 041's (the journey on corpus revision 10): they read no ma
     one whose subject is someone or something else (*the cry ...*, *the room ...*, `THIRD_PERSON_OPENERS`) still
     faults. Compatibility's `K3` is unchanged (the clause carries *you / your*). 163's 12-word clause rule is the
     registry's option rule and is not restated. A v20 or v21 bundle re-scores at v22 (call 125).
+127. **v23**: **a drafted list is held to the draft's rule, not the save's** (spec 091 FR-1). `L1` on Importance's
+    draft (`rival_list`) reads the job's `answers` slot: `{}` (the seed-time job, every screen this eval runs) is the
+    problem itself alone -- exactly one item; the founder's Answer for it is the problem itself and the difficulties the
+    Answer names, Keel adding none (*an answer naming one difficulty yields two items*) -- exactly 1 + N, at most
+    `saves.max_items`; an Answer naming none (*Nothing else*) leaves the own item. N is read off the Answer's parts
+    (`score.named_difficulties`: a line, a bullet, a `;` or a `,` apart, a serial list's last *and* / *or*; a lone *and*
+    is one difficulty, grammar only, no trade words). `saves.min_items` is the save's rule and is applied where a saved
+    list is checked (`corpus._check_list`: the corpus's recorded lists), never to a draft. Every other list dimension's
+    draft keeps the registry's bounds. keel-cloud's applier (spec 097 F9) bounds the redraft 1 to `max_items`; the
+    harness holds the founder-lists rule's exact count, so a draft that writes fewer than its Answer names, or adds to
+    it, is faulted -- by the draft's rule, named.
+128. **v23**: **`rescore.py` re-scores a v20, v21 or v22 bundle at v23.** Call 127 reads the produced draft and the job's
+    `answers` the bundle already holds (the case's sent context, else the seed-time job's `{}`), so `OLDEST` stays 20: a
+    v22 scorecard re-scored at v23 moves only where Importance's draft count moved (a one-item seed-time draft is now
+    valid; a draft that added rivals with no Answer is now an `L1`). Every bundle below 20 is refused as before.
 """
 
 from __future__ import annotations
@@ -1161,7 +1186,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 22
+MARKS_VERSION = 23
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 

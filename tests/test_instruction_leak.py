@@ -34,7 +34,9 @@ def _score(entry, registry, result, judge=None, vector="PROBLEM"):
                                        result, judge=judge)
 
 
-def _with_label(registry, key, label, *, index=1, vector="PROBLEM"):
+def _with_label(registry, key, label, *, index=0, vector="PROBLEM"):
+    """Spec 091 FR-1: the seed-time Importance draft is the problem itself alone (`answers` `{}`), so the label swept is
+    item 0's -- it was a rival's (item 1) while the harness held the draft to the save's four rivals."""
     result = fx.calibration_result(registry, vector)
     question = next(q for q in result["questions"] if q["key"] == key)
     question["list"]["items"][index]["label"] = label

@@ -41,16 +41,17 @@ def judgement_calls() -> list:
     return [int(n) for n in re.findall(r"^(\d+)\.\s", marks_mod.__doc__, re.M)]
 
 
-def test_marks_version_is_twenty_two():
-    assert marks_mod.MARKS_VERSION == 22                          # spec 093: L1 and L5 say keel-cloud's
+def test_marks_version_is_twenty_three():
+    assert marks_mod.MARKS_VERSION == 23                          # spec 093: L1 and L5 say keel-cloud's; 091: the draft's count
 
 
-def test_the_judgement_calls_are_one_to_ninety_and_110_to_126_with_none_missing_and_none_twice():
+def test_the_judgement_calls_are_one_to_ninety_and_110_to_128_with_none_missing_and_none_twice():
     """91-109 are spec 041's journey calls (they read no mark; `specs/041-vectors-journey-r10/spec.md`), so the
-    rubric's list resumes at 110 (spec 042); 116-120 are spec 052's, 121-123 spec 078's, 124-126 spec 093's."""
+    rubric's list resumes at 110 (spec 042); 116-120 are spec 052's, 121-123 spec 078's, 124-126 spec 093's, 127-128
+    spec 091's."""
     numbers = judgement_calls()
-    assert sorted(numbers) == list(range(1, 91)) + list(range(110, 127)), \
-        "append-only: 1-90 and 110-126, none struck or renumbered"
+    assert sorted(numbers) == list(range(1, 91)) + list(range(110, 129)), \
+        "append-only: 1-90 and 110-128, none struck or renumbered"
     assert len(numbers) == len(set(numbers)), "no judgement call is written twice"
     assert "Calls 91-109 are spec 041's" in marks_mod.__doc__
 
@@ -199,9 +200,9 @@ def test_the_three_v21_calls_are_marked_and_say_what_they_are():
 def test_the_marks_file_carries_the_v21_header_and_the_read_table():
     import tomllib
     text = marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
-    assert text.index("MARKS_VERSION 22") < text.index("MARKS_VERSION 21") < text.index("MARKS_VERSION 20") \
-        < text.index("MARKS_VERSION 19")                                # spec 093: v22 heads the file
-    assert "WHY=marks:21" in text and "WHY=marks:22" in text
+    assert text.index("MARKS_VERSION 23") < text.index("MARKS_VERSION 22") < text.index("MARKS_VERSION 21") \
+        < text.index("MARKS_VERSION 20") < text.index("MARKS_VERSION 19")   # spec 091: v23 heads the file
+    assert "WHY=marks:21" in text and "WHY=marks:22" in text and "WHY=marks:23" in text
     raw = tomllib.loads(text)
     assert raw["read"] == {"kind": "read", "source": "quality/scores", "gating": False, "bar_pct": 90}
     assert "read" not in marks_mod.load(), "load() reads [marks] alone: a verdict carries no value for `read`"

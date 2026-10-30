@@ -93,7 +93,7 @@ def _fails(record: dict, mark: str) -> None:
 
 def test_the_version_is_three_and_the_instruction_marks_did_not_move():
     assert marks.GUIDE_MARKS_VERSION == 3
-    assert instruction_marks.MARKS_VERSION == 22                  # spec 059 call 3: a journey ruler moved; 078: `read`; 093: L1/L5
+    assert instruction_marks.MARKS_VERSION == 23                  # spec 059 call 3: a journey ruler moved; 078: `read`; 093: L1/L5; 091: L1's draft count
     source = (REPO / "evals" / "guide_marks.py").read_text(encoding="utf-8")
     assert "v1 (spec 054, keel-cloud 106 / keel-web 080, contract 20)" in source
     assert "v2 (spec 057, keel-web 086 / keel-cloud 109, contract 22)" in source

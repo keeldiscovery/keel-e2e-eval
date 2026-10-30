@@ -240,7 +240,11 @@ def _set(key, index, field, value):
 
 @pytest.mark.parametrize("name, vector, mutate, words", [
     # L1: the count, the phrase, the list itself
-    ("importance four", "PROBLEM", lambda r: _items(r, IMPORTANCE).pop(), "L1: problem.importance takes exactly 5"),
+    # spec 091 FR-1: a draft with no founder Answer is the problem itself alone -- a rival Keel adds is the fault
+    ("importance with a rival and no Answer", "PROBLEM", lambda r: _items(r, IMPORTANCE).append(
+        {"label": "Getting through the morning traffic"}), "L1: problem.importance takes exactly 1 item (the problem "
+                                                           "itself alone, with no founder Answer), and 2 were written"),
+    ("importance empty", "PROBLEM", lambda r: _items(r, IMPORTANCE).clear(), "L1: problem.importance takes exactly 1"),
     ("no phrase", "PROBLEM", lambda r: _q(r, CURRENT)["list"].__setitem__("phrase", " "),
      "L1: Current solution carries the phrase today's way is asked by"),    # spec 093 FR-3: 161's words
     ("a phrase in Keel's words", "PROBLEM", lambda r: _q(r, CURRENT)["list"].__setitem__(
@@ -255,8 +259,9 @@ def _set(key, index, field, value):
     ("three roles", "COMMERCIAL", lambda r: _items(r, "commercial.buyer_payer_alignment").extend(
         [{"label": "The owner"}, {"label": "Finance"}]), "takes 0 to 2 items besides Nobody else"),
     # L2: words an item (roles four)
-    ("a long rival", "PROBLEM", _set(IMPORTANCE, 2, "label", "Riding in the wet weather on the way into work today"),
-     "L2: item 3 is 1 to 9 words"),
+    # spec 091 FR-1: the draft is the own item alone, so the long item is item 1
+    ("a long own item", "PROBLEM", _set(IMPORTANCE, 0, "label", "Riding in the wet weather on the way into work today"),
+     "L2: item 1 is 1 to 9 words"),
     ("a long role", "COMMERCIAL", _set("commercial.buyer_payer_alignment", 0, "label",
                                        "The manager of the whole office"), "L2: item 1 is 1 to 4 words"),
     # L3: no number the founder did not write
@@ -275,7 +280,7 @@ def _set(key, index, field, value):
     ("two suggested conditions", "SOLUTION", lambda r: [_items(r, COMPAT)[i].__setitem__("suggested", True)
                                                         for i in (0, 1)], "L5: item 2"),
     # C3 and W9 on a list
-    ("a not-sure rival", "PROBLEM", _set(IMPORTANCE, 4, "label", "Not sure"), "C3:"),
+    ("a not-sure own item", "PROBLEM", _set(IMPORTANCE, 0, "label", "Not sure"), "C3:"),   # 091: one item drafted
     ("money in an outcome", "PROBLEM", _set(CURRENT, 1, "label", "Lost five pounds on a taxi, £5"), "W9:"),
     # Prevalence: the clause and the five fifths (E1-E3, C2-C4)
     ("no event", "PROBLEM", lambda r: _q(r, GATE).pop("event"), "E2: Prevalence carries `event`"),
@@ -382,6 +387,8 @@ def _drafted_from(entry, registry, vector) -> dict:
             saved = entry.founder_list(d.key) or {}
             items = [{k: i[k] for k in ("label", "asked") if k in i} for i in saved.get("items") or []
                      if i.get("code") != "nobody_else"]
+            if d.founder_control == "rival_list":
+                items = items[:1]    # spec 091 FR-1: with `answers` `{}` the draft is the problem itself alone
             # spec 093 FR-3 (keel-cloud 161): the job drafts the act bare -- the stored *your way of ...* read bare
             phrase = score_mod._YOUR_WAY_OF.sub("", saved.get("phrase") or "").strip()
             draft = {"items": items} | ({"phrase": phrase} if phrase else {})
