@@ -2380,20 +2380,30 @@ def _answer_the_refused_lock(j: Journey, drawn: dict) -> dict:
     return {"receipt": answered["receipt"], "status": answered["status"]}
 
 
+def l1_title_owed(j: Journey) -> str:
+    """Spec 090 FR-4 (keel-web 130 FR-2): L1's title names the context's people while it fits ten words."""
+    context = j.get(j.project("/context")) or {}
+    return vs_screens.l1_title(vs_screens._sentence_lower(((context.get("segment") or {}).get("core"))))
+
+
 def _keels_door_l1(j: Journey, drawn: dict) -> None:
-    """Spec 062 (Keel's door, keel-web 069): L1 draws the faces' carousel with one preselected and *Lock and record the
-    interviewer*; the lock records that face (fake renders on the local stack). Held: the three counters and the title;
-    the rest recorded."""
-    with _step(j, "step 5 is two screens since keel-web 113 hid the word -- the pilot 1 of 2 and L1 *Who asks the "
-                  "questions* 2 of 2 (who asks alone in the problem study), which on Keel's door is the faces' carousel "
-                  "and *Lock and record the interviewer* (keel-web 069; spec 062)",
+    """Spec 062 (Keel's door, keel-web 069): L1 draws the faces' carousel with one preselected and *Lock and record
+    {face}* (keel-web 130 FR-2; *Lock and record the interviewer* before it); the lock records that face (fake renders
+    on the local stack). Held: the three counters and the title (spec 090 FR-4: *Who should ask {people} your
+    questions?*, keel-web 130's); the rest recorded."""
+    title = l1_title_owed(j)
+    with _step(j, "step 5 is two screens since keel-web 113 hid the word -- *Offer a pilot?* 1 of 2 and L1 "
+                  f"*{title}* 2 of 2 (who asks alone in the problem study), which on Keel's door is the faces' "
+                  "carousel and *Lock and record {face}* (keel-web 069, 130; spec 062)",
                party="founder") as h:
         l1 = drawn.get("l1") or {}
-        h.record_assert({"counters": before_counters(j.scope), "title": vs_screens.L1_TITLE,
-                         "button": vs_screens.BEFORE_LOCK_RECORD},
-                        {**l1, "counters": drawn["counters"], "receipt": j.receipt})
+        h.record_assert({"counters": before_counters(j.scope), "title": title,
+                         "button": vs_screens.BEFORE_LOCK_RECORD.pattern,
+                         "pilot_title": vs_screens.PILOT_TITLE if before_counters(j.scope) else None},
+                        {**l1, "counters": drawn["counters"], "receipt": j.receipt,
+                         "pilot_title": (drawn.get("ready") or {}).get("pilot_title")})
         assert drawn["counters"] == before_counters(j.scope), drawn
-        assert l1.get("title") == vs_screens.L1_TITLE, l1
+        assert l1.get("title") == title, l1
 
 
 def _plan_view(j: Journey) -> dict:
@@ -2453,18 +2463,21 @@ def _hold_no_word(j: Journey, drawn: dict) -> None:
 
 
 def _own_door_l1(j: Journey, drawn: dict) -> None:
-    with _step(j, "step 5 is two screens since keel-web 113 hid the word -- the pilot 1 of 2 and L1 *Who asks the "
-                  "questions* 2 of 2 (who asks alone, no counter, in the problem study), which on an account on its own "
-                  "AI is one line and *Lock and approve*, no carousel; the lock's receipt carries no interviewer "
-                  "(contract 16)", party="founder") as h:
+    """Spec 090 FR-4 (keel-web 130 FR-2): on an account on its own AI, L1's title names the people, its line is 130's
+    and the lock is *Lock and write the questions*."""
+    title = l1_title_owed(j)
+    with _step(j, "step 5 is two screens since keel-web 113 hid the word -- *Offer a pilot?* 1 of 2 and L1 "
+                  f"*{title}* 2 of 2 (who asks alone, no counter, in the problem study), which on an account on its own "
+                  "AI is one line and *Lock and write the questions*, no carousel; the lock's receipt carries no "
+                  "interviewer (contract 16)", party="founder") as h:
         l1 = drawn.get("l1") or {}
         counters = before_counters(j.scope)
-        h.record_assert({"counters": counters, "title": vs_screens.L1_TITLE,
+        h.record_assert({"counters": counters, "title": title,
                          "sub": vs_screens.BEFORE_INTERVIEWER_OWN, "carousel": False,
                          "button": vs_screens.BEFORE_LOCK_APPROVE, "receipt.interviewer": None},
                         {**l1, "counters": drawn["counters"], "receipt": j.receipt})
         assert drawn["counters"] == counters, drawn
-        assert l1.get("title") == vs_screens.L1_TITLE and l1.get("carousel") is False, l1
+        assert l1.get("title") == title and l1.get("carousel") is False, l1
         assert l1.get("sub") == vs_screens.BEFORE_INTERVIEWER_OWN, l1
         assert l1.get("button") == vs_screens.BEFORE_LOCK_APPROVE, l1
         assert "interviewer" not in j.receipt, j.receipt
@@ -2546,7 +2559,8 @@ def _lock_lands(j: Journey) -> None:
 def leg_invite(j: Journey) -> None:
     """One link per corpus person, in corpus order, through keel-web 068's Interviews section (spec 043's second
     commit; the People page and its two popups are gone): Sent, W1 the walkthrough the first time this account
-    arrives, then each kind's *Send the questions* / *Send more* -- Text, *Someone I know*, the person's name, *Make
+    arrives, then each kind's *Send the questions* / *Send more* -- Text, *People I know by name* (keel-web 130; *Someone
+    I know* before), the person's name, *Make
     their link* -- for the specialist and, on a B2B entry, the decision-maker (one `POST invitations/batch` for both,
     068 call 11). The register is then held to the wire: newest link first, one row a person, Text, not opened."""
     register = j.get(j.project("/invitations")) or {}

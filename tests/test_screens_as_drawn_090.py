@@ -229,3 +229,75 @@ def test_h9_no_advantages_are_read_off_a_47_wire():
     old = {**served, "advantages": [{"label": "Hours back"}]}
     assert list(g._item(old, {}))[:8] == ["dimension", "kicker", "question", "control", "hint", "options",
                                          "advantages", "escape"]
+
+
+# ------------------------------------------------------------------------------- FR-4: Send more's words (keel-web 130)
+
+from harness import interviews_screens as iv                            # noqa: E402
+
+
+def test_send_mores_two_ways_are_130s_words():
+    """keel-web 130 FR-5 (`SEND_WHO`): *People I know by name* / *People I found with Keel*; the radio is matched on the
+    name's start, the line after it."""
+    assert (iv.WHO_OWN, iv.WHO_DATASET) == ("People I know by name", "People I found with Keel")
+    src = inspect.getsource(iv.Interviews.send_someone) if hasattr(iv, "Interviews") else inspect.getsource(iv)
+    assert 'name=re.compile(rf"^{re.escape(WHO_OWN)}")' in src
+
+
+@pytest.mark.parametrize("name", ["Would the construction superintendent decide to use and pay for Fresco, or would "
+                                  "someone else?", "Would parents of babies under six months decide to use and pay for "
+                                  "it, or would someone else?"])
+def test_the_persona_question_is_found_by_its_shape(name):
+    """keel-web 130 FR-1 (`personaQuestion`): the question names the WHO and the idea; the old question is not it."""
+    assert vs_screens.PERSONA_QUESTION.match(name)
+    assert not vs_screens.PERSONA_QUESTION.match("Who makes the buying decision?")
+
+
+@pytest.mark.parametrize("label, same", [("The construction superintendent decides", True),
+                                         ("Parents of babies under six months decide", True),
+                                         ("Someone else decides", False),
+                                         ("The same person would decide to pay", False)])
+def test_the_first_option_is_the_actor_deciding(label, same):
+    """keel-web 130 FR-1 (`personaSame`, `PERSONA_SOMEONE_ELSE`)."""
+    assert bool(vs_screens.PERSONA_SAME.match(label)) is same
+    assert vs_screens.PERSONA_SOMEONE_ELSE == "Someone else decides"
+
+
+@pytest.mark.parametrize("people, title", [
+    ("payroll practitioners", "Who should ask payroll practitioners your questions?"),
+    ("parents of babies under six months old at home", "Who should ask them your questions?"),   # past ten words
+    (None, "Who should ask them your questions?"),
+])
+def test_l1s_title_names_the_people_within_ten_words(people, title):
+    """keel-web 130 FR-2 (`beforeInterviewerTitle`)."""
+    assert vs_screens.l1_title(people) == title
+
+
+def test_the_lock_screens_words_are_130s():
+    """keel-web 130 FR-2 / FR-3: *Lock and record {face}*, *Lock and write the questions*, the own-AI line, *Offer a
+    pilot?*."""
+    assert vs_screens.before_lock_record("Daphne") == "Lock and record Daphne"
+    assert vs_screens.BEFORE_LOCK_RECORD.match("Lock and record Saskia")
+    assert vs_screens.BEFORE_LOCK_APPROVE == "Lock and write the questions"
+    assert vs_screens.BEFORE_INTERVIEWER_OWN.startswith("This account runs on its own AI")
+    assert vs_screens.PILOT_TITLE == "Offer a pilot?"
+
+
+def _l1_journey(tmp_path, countly, core):
+    j = cs.Journey(recorder=Recorder(tmp_path), page=None, context=None, web_base="", cloud_base="", entry=countly,
+                   founder=None, people=[], project_id="p1", scope=countly.scope)
+    j.get = lambda path: {"segment": {"core": core}} if path.endswith("/context") else {}
+    j.receipt = {}
+    return j
+
+
+def test_the_l1_holds_take_130s_title(tmp_path, countly):
+    j = _l1_journey(tmp_path, countly, "Payroll practitioners")
+    drawn = {"counters": cs.before_counters(j.scope), "ready": {"pilot_title": "Offer a pilot?"},
+             "l1": {"title": "Who should ask payroll practitioners your questions?", "carousel": False,
+                    "sub": vs_screens.BEFORE_INTERVIEWER_OWN, "button": vs_screens.BEFORE_LOCK_APPROVE}}
+    cs._keels_door_l1(j, drawn)
+    cs._own_door_l1(j, drawn)
+    drawn["l1"]["title"] = "Who asks the questions"
+    with pytest.raises(AssertionError):
+        cs._keels_door_l1(j, drawn)

@@ -99,8 +99,10 @@ FORMAT_NEEDS_CREDITS = "needs Keel's credits"
 
 def ai_format_name(face: str) -> str:
     return f"AI interviewer · {face}"
-WHO_OWN = "Someone I know"
-WHO_DATASET = "People from a dataset"
+#: Spec 090 FR-4 (keel-web 130 FR-5, `SEND_WHO`): Send more's two ways, in the founder's words -- was *Someone I know* /
+#: *People from a dataset*.
+WHO_OWN = "People I know by name"
+WHO_DATASET = "People I found with Keel"
 SEND_NAME = "Their name"
 SEND_MAKE_ONE = "Make their link"
 #: keel-web 026's second box on *Someone I know*, removed by keel-web 127 FR-1 (spec 076 FR-3): read only to say none is
@@ -476,7 +478,7 @@ class Interviews:
             dialog = self.page.get_by_role("dialog")
             formats = self._step_one(dialog, fmt)
             self._shot("send-who")
-            dialog.get_by_role("radio", name=re.compile(rf"^{WHO_OWN}")).click()
+            dialog.get_by_role("radio", name=re.compile(rf"^{re.escape(WHO_OWN)}")).click()
             dialog.locator("#send-name").fill(person)
             about_boxes = dialog.locator("#send-about").count() + dialog.get_by_label(SEND_ABOUT_LABEL).count()
             batches: list = []

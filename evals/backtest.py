@@ -997,11 +997,13 @@ def founder_answer(j, slug: str) -> Any:
     if slug in ("persona-who-answers", "ready-pilot"):
         return "Continue"
     if slug == "ready-interviewer":
-        return "Lock and record the interviewer (the face Keel preselects)"
+        # spec 090 FR-4 (keel-web 130 FR-2): the lock names the face it records
+        return "Lock and record the face Keel preselects"
     if slug == "send-format":
         return "Text only"
     if slug == "send-who":
-        return "Someone I know: each person by name"
+        # spec 090 FR-4 (keel-web 130 FR-5, `SEND_WHO.OWN`)
+        return "People I know by name: each person by name"
     kind, _, key = slug.partition("-")
     answer = answers.get(key)
     if answer is None:

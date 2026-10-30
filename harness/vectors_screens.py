@@ -168,20 +168,42 @@ def chain_price_choice(price: dict) -> str:
 #: keel-web 094 FR-2: the chain's price step.
 CHAIN_SHAPE_GROUP = "The shape of your price"
 COST_MODE_WORD = {"AMOUNT": "Fixed amount", "HOURS": "Hours"}
-PERSONA_QUESTION = "Who makes the buying decision?"
-PERSONA_SAME = "The same person would decide to pay"
-PERSONA_SOMEONE_ELSE = "Someone else would decide"
+#: Spec 090 FR-4 (keel-web 130 FR-1, `personaQuestion` / `personaSame`): the question names the typed WHO and the idea
+#: (*Would {actor} decide to use and pay for {idea}, or would someone else?*; was *Who makes the buying decision?*), so
+#: the radiogroup is found by the question's shape; the first option is *{Actor} decides* (*decide* on a plural WHO;
+#: was *The same person would decide to pay*), the second *Someone else decides* (was *Someone else would decide*).
+PERSONA_QUESTION = re.compile(r"^Would .+ decide to use and pay for .+, or would someone else\?$")
+PERSONA_SAME = re.compile(r"^(?!Someone else ).+ decides?$")
+PERSONA_SOMEONE_ELSE = "Someone else decides"
 PERSONA_ROLE = "If someone else, what role would that person typically have?"
 #: keel-web 099 FR-6 (`PERSONA_TITLE_LABEL`): the decider's job title, one to five words; Continue waits for it.
 PERSONA_TITLE = "What is their job title?"
 BEFORE_CONTINUE = "Continue"
 BEFORE_LOCK = "Lock and write the questions"           # until keel-web 069
 #: keel-web 069 `translate.ts`: L1, the last screen of step 5 (2 of 2 since keel-web 113 hid the word; alone in the
-#: problem study).
-L1_TITLE = "Who asks the questions"
-BEFORE_LOCK_RECORD = "Lock and record the interviewer"
-BEFORE_LOCK_APPROVE = "Lock and approve"
-BEFORE_INTERVIEWER_OWN = "The AI interviewer needs Keel's credits; links go out as text."
+#: problem study). Spec 090 FR-4 (keel-web 130 FR-2): the title names the people (`beforeInterviewerTitle`, `l1_title`;
+#: was *Who asks the questions*), the button the face it records (*Lock and record {face}*; was *Lock and record the
+#: interviewer*), an account on its own AI *Lock and write the questions* (was *Lock and approve*) under its own line.
+L1_TITLE = "Who should ask them your questions?"
+BEFORE_LOCK_RECORD = re.compile(r"^Lock and record \S.*$")
+BEFORE_LOCK_APPROVE = "Lock and write the questions"
+BEFORE_INTERVIEWER_OWN = ("This account runs on its own AI, so people read the questions and tap their answers. The AI "
+                          "interviewer needs Keel's credits.")
+#: keel-web 130 FR-3 (`BEFORE_SCREEN.pilot`): the pilot screen's title (was *The pilot*), read into the step's record.
+PILOT_TITLE = "Offer a pilot?"
+
+
+def l1_title(people: str | None) -> str:
+    """keel-web 130 FR-2 (`beforeInterviewerTitle`): *Who should ask {people} your questions?* while that is at most ten
+    words, else (or with no segment served) *Who should ask them your questions?*. `people` is the context's
+    `segment.core` as a sentence takes it (`cost_line_parts`' reading, keel-web `thePeople`)."""
+    named = f"Who should ask {people} your questions?" if people else None
+    return named if named and len(named.split()) <= 10 else L1_TITLE
+
+
+def before_lock_record(face: str) -> str:
+    """keel-web 130 FR-2 (`beforeLockRecord`): the lock names the face it records."""
+    return f"Lock and record {face}"
 NAV_LOCK_LINE = "Opens once you start recruiting"
 NAV_LOCKED_LABEL = "Project sections, locked until recruiting starts"
 SEND_THE_QUESTIONS = "Send the questions"
@@ -1926,12 +1948,13 @@ class Corridor:
     def persona(self, decider: dict) -> dict:
         with self._b.step(f"founder says who decides to pay: {decider.get('kind')}") as h:
             _wait_url(self.page, r"/define/persona")
-            group = self.page.get_by_role("radiogroup", name=PERSONA_QUESTION, exact=True)
+            # spec 090 FR-4 (keel-web 130 FR-1): the question names the WHO and the idea, so it is found by its shape
+            group = self.page.get_by_role("radiogroup", name=PERSONA_QUESTION)
             group.wait_for(state="visible", timeout=20_000)
             pass_teaching_sheet(self.page, self._b.recorder, self.base, "opener", "COMMERCIAL")
             self._shot("persona")
             if decider["kind"] == "SAME_PERSON":
-                group.get_by_role("radio", name=PERSONA_SAME, exact=True).click()
+                group.get_by_role("radio", name=PERSONA_SAME).click()
             else:
                 group.get_by_role("radio", name=PERSONA_SOMEONE_ELSE, exact=True).click()
                 self.page.get_by_label(PERSONA_ROLE, exact=True).fill(decider["role"])
@@ -1952,12 +1975,13 @@ class Corridor:
 
     def word_pilot_and_lock(self, face: str | None = None, *, pilot: bool = True) -> dict:
         """Step 5 since keel-web 113 FR-2 (spec 073 FR-2): *A word from you* is hidden (`READY_WORD_SCREEN` off), so the
-        step starts on its first visible screen -- *The pilot* (1 of 2), then L1 *Who asks the questions* (2 of 2): the
-        carousel of faces on Keel's door (`face` tapped when given), one line on an account on its own AI -- and in the
-        problem study (`pilot=False`, keel-web 109 FR-3) *Who asks the questions* alone, no counter. The word's own
-        address is opened once and answers with that first screen (`ReadyRoute`'s redirect). Then *Lock and record the
-        interviewer* / *Lock and approve*. Returns the counters, the landing and the redirect, what L1 drew and the
-        lock's receipt as keel-web received it (`LockReceipt`). The method keeps its name (its callers and stubs)."""
+        step starts on its first visible screen -- *Offer a pilot?* (1 of 2; *The pilot* before keel-web 130), then L1
+        *Who should ask {people} your questions?* (2 of 2): the carousel of faces on Keel's door (`face` tapped when
+        given), one line on an account on its own AI -- and in the problem study (`pilot=False`, keel-web 109 FR-3) who
+        asks alone, no counter. The word's own address is opened once and answers with that first screen
+        (`ReadyRoute`'s redirect). Then *Lock and record {face}* / *Lock and write the questions*. Returns the counters,
+        the landing and the redirect, the pilot's title, what L1 drew and the lock's receipt as keel-web received it
+        (`LockReceipt`). The method keeps its name (its callers and stubs)."""
         with self._b.step("founder walks the last step from its first screen (no word), picks who asks, then locks") as h:
             first_screen = r"/define/ready/pilot" if pilot else r"/define/ready/interviewer"
             _wait_url(self.page, first_screen)
@@ -1977,6 +2001,8 @@ class Corridor:
                 counter.wait_for(state="visible", timeout=20_000)
                 self.page.locator("[data-testid=before-counter]", has_text="1 of 2").wait_for(timeout=10_000)
                 first = (counter.text_content() or "").strip()
+                # spec 090 FR-4 (keel-web 130 FR-3): the pilot screen's title, recorded (*Offer a pilot?*)
+                ready["pilot_title"] = _first_text(self.page, "h1")
                 h.add_screenshot(self._b.screenshot("pilot"))
                 self._shot("ready-pilot")
                 _button(self.page, BEFORE_CONTINUE).click()
