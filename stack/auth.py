@@ -38,6 +38,7 @@ this module does.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import parse_qs, urlsplit
 
 import requests
 
@@ -158,3 +159,125 @@ def login_and_keel_session(config: StackConfig, founder: StubFounder = FOUNDER_O
     changed is only how the session is opened, and where `keelSessionId` is read from."""
     session = sign_in_session(config, founder)
     return session, read_me(config, session)
+
+
+# ------------------------------------------------------------------- spec 092: strangers on a group link
+
+#: Where every stranger's address lives (spec 092 FR-2: the journey never prints a real person's email). `.test` is
+#: reserved (RFC 2606): nothing at this domain can ever reach anybody.
+STRANGER_EMAIL_DOMAIN = "strangers.keel-e2e-eval.test"
+
+#: keel-cloud 162's own cookie on the participant callback's path: the arrival's token, so the same browser signing in
+#: again on the same group link comes back to the same arrival (`keel_arrival_<groupId hex>`).
+ARRIVAL_COOKIE_PREFIX = "keel_arrival_"
+
+
+@dataclass(frozen=True)
+class StubStranger:
+    """Spec 092 FR-1: one stranger the stub issuer signs in on a group link's arrival card -- registered on the stub
+    (`POST /identities`, ungated on the local profiles) for this run alone. `id` is the picker's and `?identity=`'s
+    handle; `sub` is derived by the stub from it (`cell-<id>`, never supplied: keel-cloud 162 finds an arrival by its
+    group and this `sub`); `email` sits under `STRANGER_EMAIL_DOMAIN`; `name` is what the ID token's `name` carries and
+    `given_name` (the stub's `given_name` claim: the name's first word) is what the interview serves as `personName`."""
+
+    id: str
+    sub: str
+    email: str
+    name: str
+
+    @property
+    def given_name(self) -> str:
+        return self.name.partition(" ")[0]
+
+
+def stranger_email(stranger_id: str) -> str:
+    return f"{stranger_id}@{STRANGER_EMAIL_DOMAIN}"
+
+
+def register_stranger(config: StackConfig, stranger_id: str, name: str, *,
+                      label: str | None = None) -> StubStranger:
+    """`POST {issuer}/identities` -- one stranger, before they open the link (the stub's registry, e2e-matrix-design.md
+    §4.3, in memory on the local profiles). 201 or a RuntimeError naming the stub's answer (409: the id is taken)."""
+    body = {"id": stranger_id, "name": name, "email": stranger_email(stranger_id)}
+    if label:
+        body["label"] = label
+    response = requests.post(f"{oidc.issuer_url(config)}/identities", json=body, timeout=10,
+                             auth=config.gate_credential)
+    if response.status_code != 201:
+        raise RuntimeError(f"the stub issuer refused to register {stranger_id!r}: {response.status_code} "
+                           f"{response.text[:200]!r}")
+    made = response.json()
+    return StubStranger(id=made["id"], sub=made["sub"], email=made["email"], name=made["name"])
+
+
+def token_of(url: str) -> str:
+    """The token a participant link carries: the last segment of `/i/{token}`, without its query."""
+    path = urlsplit(url).path if "://" in url else url.split("?", 1)[0]
+    return path.rstrip("/").rsplit("/", 1)[-1]
+
+
+@dataclass(frozen=True)
+class ArrivalSignIn:
+    """What one wire sign-in on a group link came to (spec 092 FR-1). `refused` is the start's status when keel-cloud
+    would not send the person to the issuer (410: the link is closed, full, or the founder's balance is under one
+    interview; 404: not a group's token); else `landed` is where the callback sent them -- their own `/i/{token}`
+    (`token`), or the group's page with `auth_error`. `cookie` names the `keel_arrival_` cookie the session holds
+    afterwards; `hops` is every hop's status and URL, in order."""
+
+    group_token: str
+    refused: int | None = None
+    landed: str | None = None
+    token: str | None = None
+    auth_error: str | None = None
+    cookie: str | None = None
+    hops: tuple = ()
+
+
+def arrival_cookie(session: requests.Session) -> str | None:
+    names = sorted(c.name for c in session.cookies if c.name.startswith(ARRIVAL_COOKIE_PREFIX))
+    return names[0] if names else None
+
+
+def sign_in_arrival(config: StackConfig, group_url: str, stranger: StubStranger, *,
+                    session: requests.Session | None = None) -> tuple[requests.Session, ArrivalSignIn]:
+    """**A stranger signs in on a group link, on the wire** (spec 092 FR-1; keel-cloud 162 FR-3) -- `sign_in_session`'s
+    three hops, on the participant's routes: `GET /v2/i/{groupToken}/auth/google/start` (keel-cloud writes the login
+    attempt keyed to the group and sends the issuer the participant callback, no `hd`), the stub's `/authorize` with
+    the click supplied (`identity=<id>` appended to the URL keel-cloud produced, so its `state`, `nonce`,
+    `redirect_uri` and PKCE challenge are the ones that travel), and `GET /v2/i/auth/google/callback`, which verifies
+    the ID token, finds or creates the arrival by (group, `sub`) and 302s to the arrival's own `/i/{token}` with the
+    `keel_arrival_<group>` cookie. Every redirect is followed by hand, so the 302 that lands the person is read as
+    keel-cloud sent it and never fetched from keel-web. Pass the same `session` again to sign in a second time from
+    the same "browser" (the cookie rides it); a fresh session is another browser."""
+    session = session or requests.Session()
+    group_token = token_of(group_url)
+    hops: list[tuple[int, str]] = []
+    start_url = f"{cloud_base(config)}/v2/i/{group_token}/auth/google/start"
+    started = session.get(start_url, allow_redirects=False, timeout=10)
+    hops.append((started.status_code, start_url))
+    if started.status_code != 302:
+        return session, ArrivalSignIn(group_token=group_token, refused=started.status_code, hops=tuple(hops))
+    authorize_url = started.headers.get("Location", "")
+    if not authorize_url.startswith(oidc.issuer_url(config)):
+        raise RuntimeError(
+            f"keel-cloud sent the group link's sign-in to {authorize_url[:120]!r}, not to this profile's stub issuer "
+            f"at {oidc.issuer_url(config)} -- is KEEL_OIDC_ISSUER reaching the JVM?")
+    joined = "&" if "?" in authorize_url else "?"
+    picked_url = f"{authorize_url}{joined}identity={stranger.id}"
+    picked = session.get(picked_url, allow_redirects=False, timeout=15, auth=config.gate_credential)
+    hops.append((picked.status_code, authorize_url))
+    if picked.status_code != 302:
+        raise RuntimeError(f"the stub issuer answered {picked.status_code} for {stranger.id!r}: "
+                           f"{picked.text[:200]!r}")
+    callback_url = picked.headers.get("Location", "")
+    called = session.get(callback_url, allow_redirects=False, timeout=15)
+    hops.append((called.status_code, callback_url.split("?", 1)[0]))
+    if called.status_code != 302:
+        raise RuntimeError(f"the participant callback answered {called.status_code}, not a 302: "
+                           f"{called.text[:200]!r}")
+    landed = called.headers.get("Location", "")
+    query = parse_qs(urlsplit(landed).query)
+    auth_error = (query.get("auth_error") or [None])[0]
+    return session, ArrivalSignIn(group_token=group_token, landed=landed,
+                                  token=None if auth_error else token_of(landed), auth_error=auth_error,
+                                  cookie=arrival_cookie(session), hops=tuple(hops))

@@ -105,17 +105,32 @@ def clear_key(config: StackConfig) -> None:
 
 
 def cloud_env(config: StackConfig) -> dict[str, str]:
-    """The four variables `stack/cloud.py` passes keel-cloud (§10.3). Both profiles get them and
+    """The five variables `stack/cloud.py` passes keel-cloud (§10.3). Both profiles get them and
     only the ports differ, exactly as the two base URLs already do. **No
     `KEEL_GOOGLE_ALLOWED_DOMAIN`**: the open posture is what the scenarios exercise and the closed
-    one is a keel-cloud unit test, not a stack variant."""
+    one is a keel-cloud unit test, not a stack variant.
+
+    **The fifth is the stranger's** (spec 092 FR-1; keel-cloud 162 FR-3): a person who opens a group
+    link signs in with Google on the arrival card, and keel-cloud sends the issuer the participant
+    callback, `{KEEL_V2_FOUNDER_BASE_URL}/v2/i/auth/google/callback` by default -- keel-web's origin,
+    reached through its dev proxy. It is set beside the founder's, on the cloud's own origin, as 162's
+    tasks.md recommends, so the callback reaches keel-cloud directly and its 302 lands the person on
+    their own `/i/{token}` on keel-web. The stub accepts any absolute redirect URI and holds the token
+    exchange to the one the authorize request carried, which keel-cloud sends at both."""
     return {
         "KEEL_OIDC_ISSUER": issuer_url(config),
         "KEEL_GOOGLE_CLIENT_ID": CLIENT_ID,
         "KEEL_GOOGLE_CLIENT_SECRET": CLIENT_SECRET,
         "KEEL_GOOGLE_REDIRECT_URI":
             f"{config.cloud_base_url}/v2/auth/google/callback",
+        "KEEL_GOOGLE_PARTICIPANT_REDIRECT_URI": participant_redirect_uri(config),
     }
+
+
+def participant_redirect_uri(config: StackConfig) -> str:
+    """Spec 092 FR-1: where the issuer sends a stranger back after the group link's sign-in --
+    keel-cloud 162's `GET /v2/i/auth/google/callback`, on this profile's own Keel."""
+    return f"{config.cloud_base_url}/v2/i/auth/google/callback"
 
 
 def is_up(config: StackConfig) -> bool:

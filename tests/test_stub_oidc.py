@@ -528,7 +528,8 @@ def test_stack_toml_carries_both_oidc_ports():
     assert oidc.issuer_url(playground) == "http://localhost:18091"
 
 
-def test_the_four_variables_keel_cloud_will_be_pointed_at_it_with(tmp_path):
+def test_the_five_variables_keel_cloud_will_be_pointed_at_it_with(tmp_path):
+    """Spec 092 FR-1 adds the fifth: the group link's participant callback, beside the founder's (keel-cloud 162)."""
     config = load_config(tmp_path / "absent.toml", validate=False)
     env = oidc.cloud_env(config)
     assert env == {
@@ -536,6 +537,7 @@ def test_the_four_variables_keel_cloud_will_be_pointed_at_it_with(tmp_path):
         "KEEL_GOOGLE_CLIENT_ID": "keel-eval-client",
         "KEEL_GOOGLE_CLIENT_SECRET": "keel-eval-client-secret",
         "KEEL_GOOGLE_REDIRECT_URI": "http://localhost:18080/v2/auth/google/callback",
+        "KEEL_GOOGLE_PARTICIPANT_REDIRECT_URI": "http://localhost:18080/v2/i/auth/google/callback",
     }
     # No KEEL_GOOGLE_ALLOWED_DOMAIN: the open posture is what the scenarios exercise, and the
     # closed one is a keel-cloud unit test, not a stack variant (§10.3).

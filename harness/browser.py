@@ -747,6 +747,184 @@ def chooser_button_selector(identity_id: str) -> str:
     return f'form:has(input[name="identity"][value="{safe}"]) button[type="submit"]'
 
 
+# ---------------------------------------------------------------------- spec 092: a group link's arrival
+
+#: keel-web 136 FR-3 (the pins for keel-e2e-eval 092): the group link's own page -- one card, no Begin, no `/opened`.
+ARRIVAL_CARD = "[data-testid='group-arrival']"
+ARRIVAL_HEADING = "[data-testid='arrival-heading']"
+ARRIVAL_INTERVIEWER = "[data-testid='arrival-interviewer']"
+ARRIVAL_PLACES = "[data-testid='arrival-places']"
+ARRIVAL_GOOGLE = "[data-testid='arrival-google']"
+ARRIVAL_CONSENT = "[data-testid='arrival-consent']"
+ARRIVAL_AUTH_ERROR = "[data-testid='arrival-auth-error']"
+#: keel-web 131's one inactive line (`Inactive.message`), the group page's when the link is closed, full or the
+#: founder's balance is under one interview.
+LINK_INACTIVE = "[data-testid='link-inactive']"
+#: The intro after the sign-in, in the browser that pressed *Continue with Google* (keel-web 136 J-14).
+ARRIVAL_GREETING = "[data-testid='arrival-greeting']"
+ARRIVAL_WHO = "[data-testid='arrival-who']"
+ARRIVAL_NOT_YOU = "[data-testid='arrival-not-you']"
+#: The intro itself: the AI player's (`ai-intro`, `data-intro` CHOICE or AI_INTERVIEWER, the choice's two buttons) or
+#: the text link's (`.iv-body` with *Begin*); the answered link's one line (`.iv-shell p.hello`).
+AI_INTRO = "[data-testid='ai-intro']"
+CHOICE_TALK = "choice-talk"
+CHOICE_WRITE = "choice-write"
+ANSWERED_LINE = ".iv-shell p.hello"
+#: keel-web 136 `translate.ts`: the card's words.
+ARRIVAL_CONTINUE_GOOGLE = "Continue with Google"
+ARRIVAL_CONSENT_WORDS = ("We use your Google name and email so the person who posted this link knows who answered, "
+                         "and so you can pick up where you left off. Nothing is posted anywhere.")
+ARRIVAL_GROUP_CAP = 20
+
+
+def arrival_places(left: int) -> str:
+    """keel-web 136 `arrivalPlaces`: *12 of 20 places left on this link*."""
+    return f"{left} of {ARRIVAL_GROUP_CAP} places left on this link"
+
+
+def arrival_interviewer(minutes: int) -> str:
+    """keel-web 136 `arrivalInterviewer` (J-12: no face on contract 48's card)."""
+    return f"Keel's interviewer asks the questions · about {minutes} minutes"
+
+
+def arrival_heading(founder_name: str, title: str) -> str:
+    """keel-web 136 `arrivalHeading` (J-11): the served title opens on the founder's first name, and the served full
+    name takes its place; a title that does not is drawn after *{founderName} is asking:*."""
+    full, line = founder_name.strip(), title.strip()
+    first = full.split()[0] if full.split() else ""
+    if full and line.startswith(f"{full} "):
+        return line
+    if first and line.startswith(f"{first} "):
+        return f"{full}{line[len(first):]}"
+    return f"{full} is asking: {line}" if full else line
+
+
+def arrival_hello(first_name: str, heading: str) -> str:
+    """keel-web 136 `arrivalHello`: the intro's greeting after the sign-in."""
+    return f"Hi {first_name}. {heading}"
+
+
+def arrival_signed_in(first_name: str) -> str:
+    """keel-web 136 `arrivalSignedIn` + `ARRIVAL_NOT_YOU`: the line above Begin."""
+    return f"Signed in with Google as {first_name} · not you?"
+
+
+class Arrival:
+    """**A group link's own page, and a stranger's way in** (spec 092 FR-1; keel-web 136 FR-3, keel-cloud 162).
+
+    `open` reads the card the group's token serves (`GROUP_ARRIVAL`: who is asking, the interviewer's row, the places
+    left, *Continue with Google*, the sentence) or the inactive line in its place; `sign_in` is `Auth.sign_in`'s round
+    trip on the stranger's side -- the card's *Continue with Google* (an `<a href=signInUrl>`, a navigation; its press
+    notes the group in this browser), the stub's picker, the stranger's own button (by the hidden `identity` field, as
+    a founder's), keel-cloud's participant callback, and the arrival's own `/i/{token}` on keel-web. Never a cookie
+    set by hand: the `keel_arrival_<group>` cookie is the callback's own `Set-Cookie`, kept by this browser context.
+    `intro` reads what the arrival's page drew; `answered` the answered link's one line. Selectors and words are
+    keel-web 136's pins for this repository (its tasks.md); nothing here asserts."""
+
+    def __init__(self, page: Page, recorder: Recorder, base_url: str, *, party: str = "participant"):
+        self.page = page
+        self.base_url = base_url.rstrip("/")
+        self._bstep = _BrowserStep(recorder, page, party)
+
+    # ---------------------------------------------------------------------------------- the card
+
+    def open(self, group_url: str, *, title: str = "the stranger opens the group link") -> dict:
+        with self._bstep.step(title) as h:
+            self.page.goto(group_url, wait_until="load")
+            self.page.locator(f"{ARRIVAL_CARD}, {LINK_INACTIVE}").first.wait_for(state="visible", timeout=30_000)
+            read = self.read()
+            h.capture_text("participant_page", read.get("text") or "")
+            h.record_wire({"url": group_url}, read)
+            h.add_screenshot(self._bstep.screenshot("group-arrival" if read["state"] == "GROUP_ARRIVAL"
+                                                    else "group-inactive"))
+        return read
+
+    def read(self) -> dict:
+        """The card as drawn: `state` GROUP_ARRIVAL (the card), INACTIVE (keel-web 131's line) or None."""
+        page = self.page
+        if page.locator(LINK_INACTIVE).count():
+            return {"state": "INACTIVE", "inactive": _optional_text(page.locator(LINK_INACTIVE)).strip(),
+                    "url": page.url, "text": _optional_text(page.locator("body"))}
+        if not page.locator(ARRIVAL_CARD).count():
+            return {"state": None, "url": page.url, "text": _optional_text(page.locator("body"))}
+        google = page.locator(ARRIVAL_GOOGLE).first
+
+        def words(selector: str) -> str:
+            return " ".join((_optional_text(page.locator(selector)) or "").split())
+        return {"state": "GROUP_ARRIVAL", "heading": words(ARRIVAL_HEADING),
+                "heading_tag": (page.locator(ARRIVAL_HEADING).first.evaluate("(e) => e.tagName")
+                                if page.locator(ARRIVAL_HEADING).count() else None),
+                "interviewer": words(ARRIVAL_INTERVIEWER), "places": words(ARRIVAL_PLACES),
+                "google": {"text": " ".join((google.text_content() or "").split()),
+                           "href": google.get_attribute("href"), "tag": google.evaluate("(a) => a.tagName"),
+                           "role_link": page.get_by_role("link", name=ARRIVAL_CONTINUE_GOOGLE).count()},
+                "consent": words(ARRIVAL_CONSENT), "auth_error": words(ARRIVAL_AUTH_ERROR) or None,
+                "begin": page.get_by_role("button", name="Begin", exact=True).count(),
+                "url": page.url, "text": words(ARRIVAL_CARD)}
+
+    # ------------------------------------------------------------------------------- the sign-in
+
+    def sign_in(self, stranger, *, title: str | None = None) -> dict:
+        """*Continue with Google* on the card the page shows, the stranger's own button on the stub's picker, and the
+        callback's landing: `{"landed": url, "token": the arrival's token}` (or `auth_error` when the callback sent
+        the person back to the group's page)."""
+        group_token = self.page.url.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1]
+        with self._bstep.step(title or f"{stranger.name} signs in with Google on the group link") as h:
+            self.page.locator(ARRIVAL_GOOGLE).first.click()
+            self.page.get_by_role("heading", name="Choose an account").wait_for(state="visible", timeout=20_000)
+            h.add_screenshot(self._bstep.screenshot("stub-picker"))
+            self.page.locator(chooser_button_selector(stranger.id)).first.click()
+
+            def landed(url: str) -> bool:
+                if not url.startswith(f"{self.base_url}/i/"):
+                    return False
+                return "auth_error=" in url or url.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1] != group_token
+            _wait_for_url_change(self.page, landed, timeout_ms=30_000)
+            url = self.page.url
+            auth_error = None
+            if "auth_error=" in url:
+                auth_error = url.split("auth_error=", 1)[1].split("&", 1)[0]
+            result = {"landed": url, "group_token": group_token, "auth_error": auth_error,
+                      "token": None if auth_error else url.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1]}
+            h.record_wire({"stranger": stranger.id, "group_token": group_token}, result)
+        return result
+
+    # --------------------------------------------------------------------- after the sign-in
+
+    def intro(self, *, timeout_s: float = 30) -> dict:
+        """The arrival's own page once it drew: the intro (`ai-intro` with its `data-intro`, or the text intro's
+        *Begin*), the greeting and the *Signed in with Google as {first} · not you?* line (with *not you?*'s href, the
+        group's page) when this browser pressed *Continue with Google*, the choice's two buttons -- or the answered
+        line, or the inactive one."""
+        page = self.page
+        page.locator(f"{AI_INTRO}, main.iv-body, {ANSWERED_LINE}, {LINK_INACTIVE}").first.wait_for(
+            state="visible", timeout=timeout_s * 1000)
+        if page.locator(ANSWERED_LINE).count() and not page.locator("main.iv-body").count():
+            return {"state": "ALREADY_ANSWERED", "line": _optional_text(page.locator(ANSWERED_LINE)).strip(),
+                    "url": page.url}
+        if page.locator(LINK_INACTIVE).count():
+            return {"state": "INACTIVE", "line": _optional_text(page.locator(LINK_INACTIVE)).strip(), "url": page.url}
+        ai = page.locator(AI_INTRO)
+        not_you = page.locator(ARRIVAL_NOT_YOU)
+        return {"state": "INTERVIEW", "url": page.url,
+                "intro": ai.first.get_attribute("data-intro") if ai.count() else "TEXT",
+                "greeting": " ".join((_optional_text(page.locator(ARRIVAL_GREETING)) or "").split()) or None,
+                "who": " ".join((_optional_text(page.locator(ARRIVAL_WHO)) or "").split()) or None,
+                "not_you": not_you.first.get_attribute("href") if not_you.count() else None,
+                "buttons": [b for b in (CHOICE_TALK, CHOICE_WRITE) if page.get_by_test_id(b).count()],
+                "begin": page.get_by_role("button", name="Begin", exact=True).count()}
+
+    def write_my_answers(self) -> None:
+        """*Answer in writing* on the Let-them-choose intro: keel-web 131's Begin for the written interview (spec 088:
+        the link's one INTERVIEW row), then the written interview at its first unanswered screen (keel-web 136: a kept
+        draft resumes where the person left it)."""
+        self.page.get_by_test_id(CHOICE_WRITE).click()
+
+    def answered(self) -> str:
+        self.page.locator(ANSWERED_LINE).first.wait_for(state="visible", timeout=30_000)
+        return _optional_text(self.page.locator(ANSWERED_LINE)).strip()
+
+
 # ---------------------------------------------------------------------------------------- Connect
 
 # Each frame's title, in both vocabularies: keel-web spec 017 ("your AI", keel-cloud
