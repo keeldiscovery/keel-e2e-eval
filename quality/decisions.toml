@@ -272,12 +272,12 @@ why = "DECIDED 2026-10-30 (the founder: the top three). The read-back's tail ', 
 id = "D-2026-10-30-04"
 cycle = "20261030-fcec453"
 proposals = []
-row = { scope = "*", audience = "founder", dimension = "-", screen = ["ready-interviewer", "ready-pilot", "send-format"] }
+row = { scope = "*", audience = "founder", dimension = "-", screen = ["ready-pilot"] }
 fix = "the page's own words"
 decision = "taken"
 spec = ["keel-web 146"]
 until = "spec-merged"
-why = "DECIDED 2026-10-30 (the founder: the top three). The lock step's three screens are the cycle's largest single cause (61 points on R2 and R4, all five entries) after spec 130's rewording (D-2026-10-29-08, merged): 'runs on its own AI' / 'needs Keel's credits' are Keel's terms, the pilot screen says neither what a yes commits to nor yes/no, the noise claim never says what it counts. No proposal: the rows were snoozed by D-08 when the adviser ran. 146 rewrites the three in plain words; the decided NOs (D-09, D-11, D-18) stand."
+why = "DECIDED 2026-10-30 (the founder: the top three). The lock step's three screens are the cycle's largest single cause (61 points on R2 and R4, all five entries) after spec 130's rewording (D-2026-10-29-08, merged): 'runs on its own AI' / 'needs Keel's credits' are Keel's terms, the pilot screen says neither what a yes commits to nor yes/no, the noise claim never says what it counts. No proposal: the rows were snoozed by D-08 when the adviser ran. 146 rewrites the three in plain words; the decided NOs (D-09, D-11, D-18) stand. NARROWED 2026-10-30 (the founder: 'the only one to fix is the pilot one'): 146 now rewrites the pilot screen alone (Yes/No cards, no default, Continue disabled until picked, no offer box); ready-interviewer and send-format are D-2026-10-30-05's."
 
 [[decision]]
 id = "D-2026-10-30-05"
