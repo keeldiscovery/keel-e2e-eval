@@ -1985,7 +1985,8 @@ def _corpus_list(entry, key: str) -> dict:
         labels = labels[:1 + len(vs.importance_named(entry))]
     out = {"items": labels}
     if key == "problem.current_solution_satisfaction":
-        out["phrase"] = saved.get("phrase")
+        # spec 093 FR-1 (keel-cloud 161): Keel drafts the act bare, so the Check screen draws the phrase bare
+        out["phrase"] = vs.bare_phrase(saved.get("phrase"))
     return out
 
 

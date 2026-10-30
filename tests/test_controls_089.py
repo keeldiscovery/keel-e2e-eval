@@ -325,7 +325,10 @@ def test_the_registrys_lullaby_examples_are_the_frames_the_harness_composes():
         pytest.skip("keel-cloud predates spec 160 (the registry's Lullaby Frequency is not window first)")
     assert vs.frequency_served(vs.Window(7, "NIGHTS"), "have to work out why your baby was crying") in text
     assert "Think of your last night. Which one of these would you most like made easier?" in text
-    assert "How did your way of working out what the baby needed go?" in text
+    # spec 093 FR-1 (keel-cloud 161 T005): the registry's Lullaby phrase is bare -- *How did working out what the baby
+    # needed go?*, the stored *your way of ...* read as the cloud's helper reads it
+    said = vs.said_phrase("your way of working out what the baby needed")
+    assert f"How did {said} go?" in text and "How did your way of" not in text
 
 
 # ---------------------------------------------------------------------------------------- FR-6: decided before

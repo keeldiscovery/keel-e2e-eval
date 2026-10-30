@@ -896,6 +896,47 @@ PREVALENCE_OPTIONS = [
 ]
 
 
+#: keel-cloud 161 FR-1 (`ItemFrames.YOUR_WAY_OF`): the opening a Current solution phrase stored before 161 carries.
+YOUR_WAY_OF = re.compile(r"^(?i:your\s+way\s+of)\s+")
+
+
+def bare_phrase(phrase: str | None) -> str | None:
+    """keel-cloud 161 FR-1 (`ItemFrames.bare`): the Current solution phrase is the bare act in the people's words -- a
+    phrase that opens on *your way of* (any case, any spacing) is read without it; any other stripped of its edges."""
+    if phrase is None:
+        return None
+    text = phrase.strip()
+    opening = YOUR_WAY_OF.match(text)
+    return text[opening.end():].strip() if opening else text
+
+
+def one_act(phrase: str | None) -> str | None:
+    """keel-cloud 128 FR-16 (`ItemFrames.oneAct`): a phrase names one act -- *finding the fix and logging it* keeps
+    *finding the fix*, *catching and fixing that failure* keeps *catching that failure*."""
+    if phrase is None:
+        return None
+    text = phrase.strip()
+    shared = re.match(r"^(.*?\b[a-z]+ing) and [a-z]+ing\b(.*)$", text)
+    if shared:
+        return (shared.group(1) + shared.group(2)).strip()
+    two = re.match(r"^(.*?\b[a-z]+ing\b.*?),? and [a-z]+ing\b.*$", text)
+    if two:
+        return two.group(1).strip()
+    return text
+
+
+def said_phrase(phrase: str | None) -> str | None:
+    """keel-cloud 161 FR-1 (`ItemFrames.said`): the phrase as the stranger hears it -- bare, one act, no closing stop or
+    question mark; None where there is none. The frame (*How did {said} go?*) and the follow-up's `{phrase}` say it."""
+    bare = bare_phrase(phrase)
+    if not bare:
+        return None
+    said = one_act(bare)
+    while said.endswith((".", "?")):
+        said = said[:-1].strip()
+    return said or None
+
+
 def drafted_list(entry, key: str) -> dict:
     """The `CALIBRATION_QUESTIONS` result's `list` for a list dimension (founder-lists.md): the entry's own
     items in its order -- Buyer and payer's "Nobody else" left to code, which adds it -- each `label`, the
@@ -916,8 +957,10 @@ def drafted_list(entry, key: str) -> dict:
     draft: dict = {"items": items}
     if key == "problem.current_solution_satisfaction":
         if not saved.get("phrase"):
-            raise VectorsScriptError(f"{entry.id}: {key} carries no second-person phrase (L1)")
-        draft["phrase"] = saved["phrase"]
+            raise VectorsScriptError(f"{entry.id}: {key} carries no phrase (L1)")
+        # spec 093 FR-1 (keel-cloud 161 FR-1): the draft writes the act bare, as the model now does -- the corpus's
+        # *your way of ...* read with the opening stripped (`ItemFrames.bare`), so no scripted draft earns an `L1` note
+        draft["phrase"] = bare_phrase(saved["phrase"])
         # spec 064 FR-5a (keel-cloud 117): the leading rungs the founder typed, kept verbatim, and the line after D4's 2
         rungs = founder_rungs(entry)
         if rungs:
@@ -963,7 +1006,8 @@ def rungs_plan(entry, drawn: list[str], max_items: int) -> dict:
 def saved_list(entry, key: str) -> dict:
     """The list as the founder saves it and the wire stores it (keel-cloud `SavedList`): every item, in
     order, with code's positional codes, `asked` where the dimension carries faces, `pickedIndex` where it
-    picks, Current solution's `phrase`."""
+    picks, Current solution's `phrase` -- bare since spec 093 FR-1 (keel-cloud 161): the founder saves the draft's
+    phrase as Keel drafted it, the act without *your way of*."""
     saved = founder_list(entry, key)
     items = []
     for i, item in enumerate(saved["items"]):
@@ -973,7 +1017,7 @@ def saved_list(entry, key: str) -> dict:
         items.append(out)
     picked = saved.get("picked")
     return {"items": items, "pickedIndex": int(picked) if key in PICKED and picked is not None else None,
-            "phrase": saved.get("phrase") if key == "problem.current_solution_satisfaction" else None}
+            "phrase": bare_phrase(saved.get("phrase")) if key == "problem.current_solution_satisfaction" else None}
 
 
 #: keel-web's Answer box on a list dimension: *Up to 25 words* (the founder's words Keel drafts the list from).

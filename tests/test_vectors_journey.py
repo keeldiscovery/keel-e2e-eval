@@ -159,7 +159,9 @@ def test_the_drafted_lists_keep_keel_clouds_rules(entry_id):
                     assert "Nobody else" != item["label"], "code adds Buyer and payer's fixed first item"
                     texts += [item["label"], item.get("asked") or ""]
                 if key == "problem.current_solution_satisfaction":
-                    assert draft["phrase"].startswith("your "), draft
+                    # spec 093 FR-1 (keel-cloud 161 L1): the drafted phrase is the bare act, never *your way of*
+                    assert draft["phrase"] and draft["phrase"] == vs.bare_phrase(draft["phrase"]), draft
+                    assert not draft["phrase"].lower().startswith("your way of"), draft
                     texts.append(draft["phrase"])
                 else:
                     assert "phrase" not in draft

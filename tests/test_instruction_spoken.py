@@ -183,9 +183,10 @@ def test_commitment_has_no_escape_and_says_its_step_once():
 
 def test_the_anchor_is_split_off_and_set_once_a_part():
     item = _item(key="problem.current_solution_satisfaction", part=1,
-                 # spec 089 FR-5 (keel-cloud 160 FR-4): *How did {phrase} go?*
-                 question="Think of the last morning. How did your way of finding them go?",
-                 anchor="Think of the last morning.", stem="How did your way of finding them go?",
+                 # spec 089 FR-5 (keel-cloud 160 FR-4): *How did {phrase} go?*; spec 093 FR-1 (keel-cloud 161): the
+                 # phrase bare
+                 question="Think of the last morning. How did finding them go?",
+                 anchor="Think of the last morning.", stem="How did finding them go?",
                  options=("Found them straight away", "Found them after a quick look", "It took a full search",
                           "Found them only after being late", "Never found them that morning"),
                  escape="Someone else does the checking", count_line="I'll read five options.",
@@ -213,8 +214,8 @@ def _entry(*, chain=False, b2b=False, steps=()):
 
 
 CURRENT = dict(key="problem.current_solution_satisfaction", part=1,
-               question="How did your way of finding them go?",
-               stem="How did your way of finding them go?",
+               question="How did finding them go?",            # spec 093 FR-1 (keel-cloud 161): the phrase bare
+               stem="How did finding them go?",
                options=("Found them straight away", "Found them after a quick look", "It took a full search",
                         "Found them only after being late", "Never found them that morning"),
                escape="Someone else did it", count_line="I'll read five options.",

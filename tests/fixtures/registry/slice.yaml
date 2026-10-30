@@ -160,12 +160,14 @@ dimensions:
   meaning: How adequately the actor's current method or alternative solves the job.
   founder:
     control: scale_lines
-    guidance: 'How they deal with it today: the founder''s Answer becomes a second-person phrase for today''s way and five
-      outcomes from works well to fails, the line after 2; the founder rewords them, order and line fixed.'
+    guidance: 'How they deal with it today: the founder''s Answer becomes the act itself, a bare gerund phrase in the
+      people''s own words (never ''your way of''), and five outcomes from works well to fails, the line after 2; the
+      founder rewords them, order and line fixed.'
     normalized:
       kind: saved_list
-    option_rule: A second-person phrase ('your way of checking for errors') and exactly five outcomes, best to worst, each
-      at most 9 words, parallel in form.
+    option_rule: The act today's way is, as a bare gerund phrase in the people's own words ('checking for errors'; never
+      opening on 'your way of', never a bare 'it') and exactly five outcomes, best to worst, each at most 9 words,
+      parallel in form.
     belief_template: For most {actor_plural}, {value} still falls short.
     unsure_allowed: true
     saves:
