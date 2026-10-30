@@ -93,6 +93,11 @@ SEND_TEXT_ONLY_LINKS = "Send text-only links"
 SEND_LINKS = "Send links"
 SEND_FORMAT_RECORDED = "The interviewer is already recorded for this project."
 SEND_FORMAT_RECORDING = "The interviewer is still recording; Text only is ready now."
+#: Spec 092 FR-4a (keel-web 131 FR-3, `FORMAT_CREDITS_NOTE`): since 131 the first line under Send more's format rows, on
+#: an account on Keel's AI (`format-credits`), is one interview's price in every way of answering -- in place of spec
+#: 130's AI-only note. `SEND_FORMAT_RECORDED` / `SEND_FORMAT_RECORDING` above are unchanged and still drawn, under it.
+FORMAT_CREDITS_NOTE = "Each person who answers uses 30 credits, whichever way they answer."
+FORMAT_CREDITS = "[data-testid='format-credits']"
 CHANGE_FACE_TITLE = "Change who asks"
 RECORD_FACE_TITLE = "Record the interviewer"
 #: keel-web 068's replay of W1 on Sent's header, gone with keel-web 088 FR-1 (spec 059): never on Sent again.
@@ -675,7 +680,12 @@ class Persona:
             rows[_words(radio.locator(".fmt__name").first)] = {
                 "disabled": radio.is_disabled(), "checked": radio.get_attribute("aria-checked") == "true",
                 "word": _words(word) if word.count() else None}
-        out = {"rows": rows, "hint": _words(dialog.locator(".hint").first), "text": _words(dialog)}
+        # spec 092 FR-4a: keel-web 131's credits note (`format-credits`) is the first `.hint` under the rows now; the
+        # format's state line (recorded / still recording) is read apart from it, and both are kept
+        credits = dialog.locator(FORMAT_CREDITS)
+        out = {"rows": rows, "hint": _words(dialog.locator(f".hint:not({FORMAT_CREDITS})").first),
+               "credits": _words(credits) if credits.count() else None,
+               "hints": [_words(h) for h in dialog.locator(".hint").all()], "text": _words(dialog)}
         dialog.get_by_role("button", name="Cancel", exact=True).first.click()
         dialog.wait_for(state="hidden", timeout=10_000)
         return out

@@ -595,13 +595,19 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
         h.record_assert({"line": "Recorded today at", "action": ivs.change_who_asks(fake.CREDITS),
                          "try": ivs.TRY_IT_YOURSELF, "primary": ivs.SEND_LINKS,
                          "formats": [iv.ai_format_name(name), iv.TEXT_ONLY, iv.CHOICE_NAME],
-                         "hint": ivs.SEND_FORMAT_RECORDED}, {"S2": record["screens_drawn"]["S2"], "S3": formats})
+                         "hint": ivs.SEND_FORMAT_RECORDED, "credits": ivs.FORMAT_CREDITS_NOTE, "row words": None},
+                        {"S2": record["screens_drawn"]["S2"], "S3": formats})
         assert "Recorded today at" in line["text"] and line.get("action") == ivs.change_who_asks(fake.CREDITS), line
         assert all(c["try"] and c["try"]["enabled"] and c["try"]["text"] == ivs.TRY_IT_YOURSELF for c in cards), cards
         assert all(c["primary"] == ivs.SEND_LINKS for c in cards), cards
         assert list(formats["rows"]) == [iv.ai_format_name(name), iv.TEXT_ONLY, iv.CHOICE_NAME], formats["rows"]
         assert not any(r["disabled"] for r in formats["rows"].values()), formats["rows"]
+        # spec 092 FR-4a (keel-web 131 FR-3): the one credits note under the rows is 131's (`format-credits`, the first
+        # `.hint` -- s006 of 2026-10-30 read it where the state line was); the state line is still *already recorded*;
+        # no row carries a greyed word (*needs Keel's credits* is the own-AI word, and this founder is on Keel's door)
+        assert formats["credits"] == ivs.FORMAT_CREDITS_NOTE, formats
         assert formats["hint"] == ivs.SEND_FORMAT_RECORDED, formats
+        assert all(r["word"] is None for r in formats["rows"].values()), formats["rows"]
     with j.recorder.step("interviewer (W1, spec 059 FR-2): the replay reading retires -- keel-web 088 removed *How it "
                          "works* from Sent, and no control of that name is left on the page", party="founder",
                          kind="assert") as h:

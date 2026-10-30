@@ -147,7 +147,7 @@ def test_the_seam_records_what_was_said_in_a_real_page():
 
 @pytest.mark.parametrize("word", [ivs.PERSONA_RECORDING, ivs.PERSONA_NOT_RECORDED, ivs.TRY_IT_YOURSELF_RECORDING,
                                   ivs.TRY_NOTHING_STORED, ivs.SEND_TEXT_ONLY_LINKS, ivs.SEND_FORMAT_RECORDED,
-                                  ivs.SEND_FORMAT_RECORDING, ivs.RECORD_FACE_TITLE, ivs.CHANGE_FACE_TITLE,
+                                  ivs.SEND_FORMAT_RECORDING, ivs.FORMAT_CREDITS_NOTE, ivs.RECORD_FACE_TITLE, ivs.CHANGE_FACE_TITLE,
                                   iv.TEXT_ONLY, iv.FORMAT_RECORDING, iv.FORMAT_NOT_RECORDED, iv.FORMAT_NEEDS_CREDITS])
 def test_the_words_are_keel_webs_own(word):
     assert f'"{word}"' in _web("src/lib/translate.ts"), word
@@ -365,3 +365,21 @@ def test_the_hear_words_and_the_four_hellos_are_keel_webs_own():
     # 110, have no hello; keel-web 125 FR-3 deletes nothing of 143's four (keel-cloud serves their helloUrl null)
     assert all((faces / fake.preview_path(f).lstrip("/")).is_file() for f in fake.FACES + fake.RETIRED)
     assert not any((faces / fake.hello_path(f).lstrip("/")).is_file() for f in fake.RETIRED_110)
+
+
+def test_send_mores_credits_note_is_131s_and_read_apart_from_the_state_line():
+    """Spec 092 FR-4a (keel-web 131 FR-3): `FORMAT_CREDITS_NOTE` under the rows (`format-credits`), drawn before the
+    recorded / recording line; `formats_now` reads the note by its test id and the state line as the first other
+    `.hint`, and S3 holds both and no greyed word on a row."""
+    import inspect                                                              # noqa: PLC0415
+
+    from evals import interviewer_leg                                           # noqa: PLC0415
+    assert "export const FORMAT_CREDITS_NOTE = \"" + ivs.FORMAT_CREDITS_NOTE + "\";" in _web("src/lib/translate.ts")
+    popup = _web("src/components/interviews/SendMorePopup.tsx")
+    assert 'data-testid="format-credits"' in popup
+    assert popup.index("FORMAT_CREDITS_NOTE}") < popup.index("SEND_FORMAT_RECORDED :"), "the note is the first hint"
+    reader = inspect.getsource(ivs.Persona.formats_now)
+    assert '.hint:not({FORMAT_CREDITS})' in reader and '"credits"' in reader
+    held = inspect.getsource(interviewer_leg._screens_ready)
+    assert 'formats["credits"] == ivs.FORMAT_CREDITS_NOTE' in held
+    assert 'r["word"] is None for r in formats["rows"].values()' in held
