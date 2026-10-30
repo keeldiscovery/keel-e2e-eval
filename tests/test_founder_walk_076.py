@@ -241,7 +241,9 @@ def test_the_screener_screen_is_first_and_the_idea_after_it():
     assert 'data-testid="condition-screen"' in gate and 'heading="h1"' in gate
     contract = _cloud("canon/openapi-v2.yaml")
     assert int(re.search(r"x-keel-contract: (\d+)", contract).group(1)) >= 43
-    assert "Spec 145 (FR-4, contract 43): COMMERCIAL_LINK only -- the screener, asked before `idea`" in contract
+    # re-pinned by spec 103: keel-cloud 166 FR-4 (c2437f90) reworded "COMMERCIAL_LINK only" to "on COMMERCIAL_LINK" (and
+    # on a link with no gate), contract 49 unbumped; what this test holds (the screener before `idea`) did not move
+    assert "Spec 145 (FR-4, contract 43): on COMMERCIAL_LINK -- the screener, asked before `idea`" in contract
 
 
 # ----------------------------------------------------------------- FR-5 A story chip ends the interview
