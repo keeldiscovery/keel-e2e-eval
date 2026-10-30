@@ -1722,6 +1722,10 @@ class PersonInputs:
     #: Spec 089 FR-2: the scripted person's notes -- what the walk sends other than the file records, each named in
     #: words (a recorded Frequency 0 after a yes sent as 1, `ZERO_SENT_AS_ONE`, spec 090 FR-3).
     notes: tuple = ()
+    #: Spec 102 FR-1 (keel-cloud 133 FR-4): whether the study the person is walked under serves the gate (`serves_gate`,
+    #: set by `person_inputs`). Off the gate -- money alone -- nobody is asked *Yes, I recall* and nobody types a story:
+    #: `recency`, `story` and `anchor_chip` stay the file's record and are never sent.
+    gate: bool = True
 
     def scripted_posts(self, token: str, recall_period: str | None = None, **extra) -> list[tuple[str, dict | None]]:
         """Spec 088 FR-2 (keel-cloud 156, contract 45): what a scripted person posts, in order -- `POST
@@ -1740,6 +1744,13 @@ class PersonInputs:
             return {"outsideSegment": True, "answers": []}
         if self.link == LINK_B2B:
             return {"answers": answers}
+        if not self.gate:
+            # spec 102 FR-1 (keel-cloud 133 FR-4, keel-web 145): money alone's FULL link serves no gate -- the page posts
+            # the answers alone (beside `followUps` / `pilotOptIn`), as the decision-maker's link does; the file's story
+            # and chip are the gate's, which this study never asks. FR-2: a recorded gate No has nothing to send
+            if self.recency is False:
+                raise VectorsScriptError(NO_ANSWERS_OFF_THE_GATE.format(person=self.person))
+            return {"answers": answers}
         if not self.recency:
             return {"recency": False, "answers": []}
         if self.anchor_chip:
@@ -1754,7 +1765,34 @@ class PersonInputs:
     @property
     def ends_on_chip(self) -> bool:
         """Spec 076 FR-5: the gate's Yes with a story chip -- the interview ends at the gate (keel-web 127 FR-3)."""
-        return bool(self.recency and self.in_segment and self.anchor_chip and self.link != LINK_B2B)
+        # spec 102 FR-2: off the gate no chip is asked, so none ends the interview
+        return bool(self.gate and self.recency and self.in_segment and self.anchor_chip and self.link != LINK_B2B)
+
+
+#: Spec 102 FR-2: the refusal of a file person with a gate No on a study that serves no gate -- the page asks them part
+#: 3, and the file records no money answers for them (a gate No is asked nothing more).
+NO_ANSWERS_OFF_THE_GATE = ("{person}: the file records a gate No (recency: false), but money alone serves no gate "
+                           "(keel-cloud 133 FR-4) -- the page asks them part 3 and the file has no answers for it; a "
+                           "revision would have to record their money picks (and a gate Yes, or no gate answer) for the "
+                           "walk to send them (spec 102 FR-2)")
+#: Spec 102 FR-4: a person outside the segment on a study that serves no gate, until the money link asks a screener.
+OUTSIDE_OFF_THE_GATE = ("{person}: outside the segment; the money link asks no screener yet (keel-cloud 166 / keel-web "
+                        "145, spec 100)")
+
+
+def not_walked_off_the_gate(person, interview: dict) -> str | None:
+    """Spec 102 FR-2 / FR-4: why `person` is not walked on a study that serves no gate (money alone's FULL link), or
+    None -- walked as everyone is. A gate No in the file has no money answers to give (`NO_ANSWERS_OFF_THE_GATE`, the
+    words `PersonInputs.response` refuses with); a person outside the segment cannot be screened until the served
+    interview carries `condition` (keel-cloud 166 / keel-web 145; spec 100 owns that walk) -- once it does they are
+    walked to the screener's exit. Never on the decision-maker's link, never where the gate is served."""
+    if getattr(person, "gate", True) or person.link == LINK_B2B:
+        return None
+    if not getattr(person, "in_segment", True):
+        return None if (interview or {}).get("condition") else OUTSIDE_OFF_THE_GATE.format(person=person.person)
+    if person.recency is False:
+        return NO_ANSWERS_OFF_THE_GATE.format(person=person.person)
+    return None
 
 
 #: keel-cloud `Period`'s days, the one table a cost total is normalised by.
@@ -2871,7 +2909,8 @@ def person_inputs(entry) -> list[PersonInputs]:
             picks=picks if person.in_segment else [],
             # spec 071 (keel-cloud 133 FR-4): the problem study asks no pilot question -- nobody can opt in
             pilot_opt_in=person.pilot_opt_in and person.in_segment and scope_of(entry) != "PROBLEM",
-            anchoring=person.anchoring, in_segment=person.in_segment, remapped=remapped, notes=notes))
+            anchoring=person.anchoring, in_segment=person.in_segment, remapped=remapped, notes=notes,
+            gate=serves_gate(entry)))
     import dataclasses                                                 # noqa: PLC0415
 
     lines = follow_up_lines(entry, people)

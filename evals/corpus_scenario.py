@@ -2904,6 +2904,15 @@ def _answer_one(j: Journey, person, token: str) -> None:
         j.interviews[person.person] = interview
         items = {i.get("dimension"): i for part in interview.get("parts") or []
                  for i in part.get("items") or []}
+        unwalked = vs.not_walked_off_the_gate(person, interview)
+        if unwalked:
+            # spec 102 FR-2 / FR-4 (keel-cloud 133 FR-4): money alone serves no gate -- a gate No in the file has no money
+            # answers to send, and a person outside the segment meets no screener yet (keel-cloud 166 / keel-web 145);
+            # not walked, and named in one finding, never passed over in silence
+            j.findings.append({"what": unwalked, "person": person.person,
+                               "served": {"kind": interview.get("kind"), "gate": interview.get("gate"),
+                                          "condition": interview.get("condition")}})
+            return
         if not getattr(person, "in_segment", True) and not ((interview.get("gate") or {}).get("condition")) \
                 and not j.strict:
             # spec 067 FR-6 (corpus revision 15): the entry answers the segment's chip NO, but the page serves no chip
@@ -2962,9 +2971,11 @@ def _answer_one(j: Journey, person, token: str) -> None:
         # item it hangs on, at most two, the end's only for a rung still owed, every one under *One more thing* --
         # and on each the line the person types for that rung (`vs.follow_up_line`), None a skip
         inside = getattr(person, "in_segment", True)
-        # spec 076 FR-5 (keel-web 127 FR-3): a story chip ends the interview at the gate -- no item, no follow-up route
-        walks_rungs = person.link == vs.LINK_B2B or bool(person.recency and inside
-                                                              and not getattr(person, "ends_on_chip", False))
+        # spec 076 FR-5 (keel-web 127 FR-3): a story chip ends the interview at the gate -- no item, no follow-up route.
+        # Spec 102 FR-2 (keel-cloud 133 FR-4): off the gate (money alone) there is no No and no chip -- every inside
+        # person walked meets the items and their follow-ups, as on the decision-maker's link
+        walks_rungs = person.link == vs.LINK_B2B or bool(inside and (not getattr(person, "gate", True) or (
+            person.recency and not getattr(person, "ends_on_chip", False))))
         deciding = _deciding_now(j) if walks_rungs else []
         # spec 075 (judgement call): one person a golden journey has their call after their rung's item held past the
         # beat, so the end's follow-up is met too
@@ -3063,7 +3074,10 @@ REMOTE_TYPES = ("keel-web reads window.__keelSpeech only in its test build and s
 def _speak_for(j: Journey, person) -> str | None:
     """Spec 051 FR-5's speaker (`vs.STORY_SPOKEN`: "quiet", "done" or "refused") for this person's story, or None:
     nobody else speaks, and on the remote profile nobody does -- the page gets no seam, the story is typed as everyone
-    else's is, and `_hold_the_box` is not run (the step says why)."""
+    else's is, and `_hold_the_box` is not run (the step says why). Spec 102 FR-3: off the gate (money alone) there is no
+    story box to speak into, so nobody speaks."""
+    if not getattr(person, "gate", True):
+        return None
     speak = vs.STORY_SPOKEN.get(j.entry.id, {}).get(person.person) if person.recency and person.story else None
     if speak and getattr(j.stack, "is_remote", False):
         with _step(j, f"{person.person}: the story's box is typed, not spoken ({speak}) -- {REMOTE_TYPES}",
