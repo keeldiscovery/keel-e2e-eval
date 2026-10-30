@@ -647,6 +647,18 @@ asks the questions · about 10 minutes*; 136's words on `interviewer: null`), th
 (`arrival_signed_in(email)`) and *not you?* the served absolute `groupUrl`; no press is needed for the greeting. No other
 mark moves.
 
+**Three stops of the walk that were the harness's** (spec `096-three-stops-of-the-walk`, 2026-10-30; keel-web 109 FR-3,
+keel-cloud 165). After a refused lock `Corridor.edit_idea_lines` waits for the scope's next screen -- the solution's first
+question or, in the money-only study, who decides (`vectors_screens.IDEA_SAVE_LANDS`, `/define/solution/q/\d+$` or
+`/define/persona$`) -- and returns which (`landed`, `idea_save_landing`). The chain cost step's rate box is held to the
+view **as it was before the screen's own save** (`leg_calibrate` passes its before-walk read's `hourlyRate` through
+`_hold_the_chain_screen`; `corpus_scenario.cost_fill_rate_faults`: the amount, Keel's note iff `defaulted`, the order),
+and the entry's own rate is a second step after the save (`saved_rate_faults`: the amount the entry's, `defaulted:
+false`). `lock_refusal` reads 165's *the idea card's decision-maker's how line* as `howDecider`; `LOCK_EDITS` edits each
+named line alone (`how` no longer drags `howDecider`). No mark moves. `make unit` 4,003 / 0 / 53 (master `dafb23d`
+3,970 / 0 / 53); the paid walk (`make quality-walk ENTRIES=10-palus,08-fresco SCOPES=SOLUTION,COMMERCIAL`) owed after the
+merge, on a cloud at 165+.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
