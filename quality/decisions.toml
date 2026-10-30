@@ -278,3 +278,13 @@ decision = "taken"
 spec = ["keel-web 146"]
 until = "spec-merged"
 why = "DECIDED 2026-10-30 (the founder: the top three). The lock step's three screens are the cycle's largest single cause (61 points on R2 and R4, all five entries) after spec 130's rewording (D-2026-10-29-08, merged): 'runs on its own AI' / 'needs Keel's credits' are Keel's terms, the pilot screen says neither what a yes commits to nor yes/no, the noise claim never says what it counts. No proposal: the rows were snoozed by D-08 when the adviser ran. 146 rewrites the three in plain words; the decided NOs (D-09, D-11, D-18) stand."
+
+[[decision]]
+id = "D-2026-10-30-05"
+cycle = "20261030-35dfb74"
+proposals = []
+row = { scope = "*", audience = "founder", dimension = "-", screen = ["ready-interviewer", "send-format"] }
+fix = "the page's own words"
+decision = "declined"
+until = "never"
+why = "DECIDED 2026-10-30 (the founder: 'you are the product through the backdoor ... lets also add a condition not to add this as a negative', and the same for How should they answer?). Cycles 1-3 walked DOOR=host, the founder's own AI: that account records no interviewer and sends text alone, so the lock's who-asks screen says 'This account runs on its own AI ... The AI interviewer needs Keel's credits' with no choice to make, and the Send sheet's AI interviewer and Let them choose are greyed 'needs Keel's credits'. Both are the own-AI road's true screens, not faults: a Google sign-up on Keel's AI (the grant, 2,500) sees the three formats offered. No proposal that reads the own-AI hint or the greyed formats as a defect is advised; the cycle walks Keel's door from the next cycle (cycle.toml door = keel, the key in the shell) so the reader scores the screens a signed-up founder sees. The words of the three lock screens on Keel's door are 146's (D-2026-10-30-04)."
