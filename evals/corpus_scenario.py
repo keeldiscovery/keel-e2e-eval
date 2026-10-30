@@ -2023,6 +2023,45 @@ def _hold_the_chain_screen(j: Journey, key: str, seen: dict) -> None:
         assert not missing, {"drawn": drawn, "missing": missing}
     if key == "commercial.existing_sacrifice" and seen.get("filled") is not None:
         _hold_the_cost_fill(j, cost, seen["filled"])
+    if key == "commercial.existing_sacrifice" and seen.get("order") == "mode-first":
+        _hold_the_mode_first(j, seen)
+
+
+def cost_line_owed(b2b: bool, context: dict, persona: dict | None = None) -> tuple[str, re.Pattern]:
+    """Spec 090 FR-1 (keel-web 134 T003, `lib/costLine.ts`): the cost box's line as the page composes it on a fresh
+    draft -- who pays (the buyer's organisation on a B2B study, else the context's people) and the core of the loss
+    (*each <occasion>*, the occasion the *of* box arrives with) -- and the shape it must have for the parts the wire
+    serves: *How would you put the cost of ... to ...?* where both are, the shorter forms where not."""
+    payer, core = vs_screens.cost_line_parts(b2b, context, chain_fill(persona or {}, context, b2b)["base"])
+    if payer and core:
+        shape = r"How would you put the cost of .+ to .+\?"
+    elif core:
+        shape = r"How would you put the cost of .+\?"
+    elif payer:
+        shape = r"How would you put what it costs .+\?"
+    else:
+        shape = re.escape(vs_screens.CHAIN_COST_HOW)
+    return vs_screens.cost_how_line(payer, core), re.compile(shape)
+
+
+def _hold_the_mode_first(j: Journey, seen: dict) -> None:
+    """Spec 090 FR-1 (keel-web 134 FR-1): the cost box asks the mode first and alone -- neither *Per* nor a period chip
+    on the page before a mode is picked -- under the page's own line (`chain-cost-line`), which names the cost, who
+    pays it and the core of the loss in the shape the served parts allow, and never the circumstance."""
+    context = j.get(j.project("/context")) or {}
+    owed, shape = cost_line_owed(vs.is_b2b(j.entry), context, j.get(j.project("/persona")) or {})
+    circumstance = str(((context.get("fields") or {}).get("circumstance")) or "").strip()
+    with _step(j, "the cost step asks the mode first, alone, under the line that names the cost, who pays it and the "
+                  "core of the loss -- never the circumstance (keel-web 134)", party="founder") as h:
+        line = str(seen.get("line") or "")
+        h.record_assert({"before_mode": {"unit": 0, "periods": 0}, "line": owed, "shape": shape.pattern},
+                        {"before_mode": seen.get("before_mode"), "line": line, "circumstance": circumstance})
+        assert seen.get("before_mode") == {"unit": 0, "periods": 0}, seen.get("before_mode")
+        assert shape.fullmatch(line), {"line": line, "shape": shape.pattern}
+        assert not circumstance or circumstance.lower() not in line.lower(), {"line": line,
+                                                                              "circumstance": circumstance}
+        if j.strict:
+            assert line == owed, {"line": line, "owed": owed}
 
 
 def _hold_the_cost_fill(j: Journey, cost: dict, filled: dict) -> None:

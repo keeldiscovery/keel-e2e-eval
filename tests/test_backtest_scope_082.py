@@ -126,9 +126,13 @@ class _Box:
 
 
 class _ChainPage:
-    """keel-web 123's cost step as `FounderControl` draws it: *Per* (`chain-unit`, its helper) from the start, the
-    equation -- and inside it the *of* box (`chain-base`, `#chain-base-help`) on a way with the box, and on hours the
-    rate and its note -- only once a mode, a unit and a period are picked (`ready`)."""
+    """keel-web 134's cost step as `FounderControl` draws it (spec 090 FR-1): the line `chain-cost-line` over the three
+    mode chips, alone; once a mode is picked the equation (and inside it the *of* box, `chain-base`,
+    `#chain-base-help`, on a way with the box, and on hours the rate and its note -- 134 J-6), *Per* (`chain-unit`, its
+    helper) and the period chips; the equation's words after the boxes (`chain-per`) once the unit and the period are
+    both given (`ready`)."""
+
+    LINE = "How would you put the cost of each job to the buyer's organisation?"
 
     def __init__(self):
         self.mode = self.period = None
@@ -137,22 +141,27 @@ class _ChainPage:
                        "chain-high": "", "chain-count": ""}
         self.texts = {"#chain-unit-help": vs_screens.CHAIN_UNIT_HELP, "[data-testid=chain-equation]":
                       "40 to 80 hours of job · per superintendent · a month", "[data-testid=chain-per]":
-                      "per superintendent · a month", ".calib__note": vs_screens.HOURLY_RATE_DEFAULTED}
+                      "per superintendent · a month", ".calib__note": vs_screens.HOURLY_RATE_DEFAULTED,
+                      "[data-testid=chain-cost-line]": self.LINE}
 
     @property
     def ready(self) -> bool:
         return bool(self.mode and self.values["chain-unit"] and self.period)
 
     def drawn(self, key: str) -> bool:
-        if key in ("chain-unit", "#chain-unit-help") or key.startswith(("chain-mode-", "chain-period-")):
+        if key == "[data-testid=chain-cost-line]" or key.startswith("chain-mode-"):
             return True
-        if key in ("chain-equation", "[data-testid=chain-equation]", "[data-testid=chain-per]", "chain-low",
-                   "chain-high", "chain-measure-percent", "chain-measure-count", "chain-count"):
+        if key in ("chain-unit", "#chain-unit-help", vs_screens.CHAIN_PERIOD_CHIPS) or key.startswith("chain-period-"):
+            return self.mode is not None
+        if key in ("chain-equation", "[data-testid=chain-equation]", "chain-low", "chain-high",
+                   "chain-measure-percent", "chain-measure-count", "chain-count"):
+            return self.mode is not None
+        if key == "[data-testid=chain-per]":
             return self.ready
         if key in ("chain-base", "#chain-base-help"):
-            return self.ready and self.mode in ("HOURS", "RATE")
+            return self.mode in ("HOURS", "RATE")
         if key in ("chain-rate", ".calib__note"):
-            return self.ready and self.mode == "HOURS"
+            return self.mode == "HOURS"
         raise AssertionError(f"the double draws no {key}")
 
     def press(self, key: str) -> None:
@@ -204,17 +213,23 @@ def _chain_cost(cost: dict) -> tuple[dict, _ChainPage]:
 @pytest.mark.parametrize("mode", ["HOURS", "RATE"])
 def test_the_of_box_is_read_after_the_period_once_the_equation_is_drawn(mode):
     """FR-2: on a fresh draft the *of* box is not on the page until the period is picked (cycle 1's 13-aircaps and
-    17-expanse COMMERCIAL read None there); `_chain_cost` reads *Per* first, as before, then *of* and its helper -- and
-    on hours the rate -- after the period pill, once `chain-equation` is visible."""
+    17-expanse COMMERCIAL read None there); `_chain_cost` reads *Per* first, then *of* and its helper -- and on hours
+    the rate -- after the period pill, once `chain-equation` is visible.
+
+    Re-pinned by spec 090 FR-1 (keel-web 134 FR-1): the mode is picked first -- *Per* is drawn only after it -- so the
+    order is the mode, *Per* read, the period; nothing of *Per* or the periods is on the page before the mode, and the
+    line over the modes is read."""
     cost = {"mode": mode, "unit": "superintendent", "period": "month", "low": 40, "high": 80, "base": "job",
             "measure": "%", "rate": None}
     seen, page = _chain_cost(cost)
     filled = seen["filled"]
     assert filled["unit"] == "superintendent" and filled["unit_help"] == vs_screens.CHAIN_UNIT_HELP
     assert filled["base"] == "job" and filled["base_help"] == page.help_text
+    assert seen["before_mode"] == {"unit": 0, "periods": 0} and seen["order"] == "mode-first"
+    assert seen["line"] == _ChainPage.LINE
     log = page.log
     period = log.index(("press", "chain-period-month"))
-    assert log.index(("read", "chain-unit")) < log.index(("press", f"chain-mode-{mode}")) < period
+    assert log.index(("press", f"chain-mode-{mode}")) < log.index(("read", "chain-unit")) < period
     assert period < log.index(("read", "chain-base")) and period < log.index(("read", "#chain-base-help"))
     assert log.index(("read", "chain-base")) < log.index(("fill", "chain-low")), "read before anything is typed in it"
     if mode == "HOURS":

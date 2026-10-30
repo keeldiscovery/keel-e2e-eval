@@ -104,9 +104,67 @@ PRICE_NONE_CHIP = "No price yet"
 LEAVE_OUT_CHIP = "Leave this out of the study"
 LIST_DRAFTING = "Keel is writing this from your answer."
 COST_MODE_GROUP = "Measured as"
-#: keel-web 094 FR-1 (spec 064 FR-2): the chain's cost step -- the three ways, by their pills.
+#: keel-web 094 FR-1 (spec 064 FR-2): the chain's cost step -- the three ways, by their pills. Spec 090 FR-1 (keel-web
+#: 134 FR-1, `CHAIN_COST_MODE_WORD`): RATE is *A share they lose* (was *A rate they lose*), and the modes are asked first
+#: and alone, under the page's own line `chain-cost-line` (`costHowLine`, `cost_how_line` below).
 CHAIN_COST_HOW = "How would you put what it costs them?"
-CHAIN_MODE_WORD = {"MONEY": "Money they spend", "HOURS": "Time it takes", "RATE": "A rate they lose"}
+CHAIN_MODE_WORD = {"MONEY": "Money they spend", "HOURS": "Time it takes", "RATE": "A share they lose"}
+#: keel-web 134 FR-1 (`COST_PAYER_B2B`, keel-cloud 152's `CostEstimate.B2B_PAYER`): who pays on a B2B study.
+COST_PAYER_B2B = "the buyer's organisation"
+
+
+def cost_how_line(payer: str | None, core: str | None) -> str:
+    """keel-web 134 FR-1 (`translate.ts` `costHowLine`): the cost box's line names the cost, who pays it and the core of
+    the loss -- *How would you put the cost of {core} to {payer}?*; without a payer *How would you put the cost of
+    {core}?*; without a core *How would you put what it costs {payer}?*; with neither `CHAIN_COST_HOW`. Never the
+    circumstance."""
+    if not payer:
+        return f"How would you put the cost of {core}?" if core else CHAIN_COST_HOW
+    return f"How would you put the cost of {core} to {payer}?" if core else f"How would you put what it costs {payer}?"
+
+
+def _sentence_lower(said: str | None) -> str | None:
+    """keel-web `thePeople` / `costCore`'s case: collapsed spaces, the first letter lower-cased unless the words open on
+    an acronym (*HR leads* keeps its capitals)."""
+    text = " ".join(str(said or "").split())
+    if not text:
+        return None
+    return text if len(text) > 1 and text[0].isupper() and text[1].isupper() else text[:1].lower() + text[1:]
+
+
+def cost_line_parts(b2b: bool, context: dict | None, base: str | None) -> tuple[str | None, str | None]:
+    """keel-web 134 `lib/costLine.ts`: who pays (`costPayer`: the buyer's organisation on a B2B study, else the context's
+    people, `segment.core`, as a sentence takes them) and the core of the loss (`costCore` on a fresh draft: *each
+    <occasion>*, the occasion the *of* box arrives with -- `corpus_scenario.chain_fill`'s `base`)."""
+    payer = COST_PAYER_B2B if b2b else _sentence_lower(((context or {}).get("segment") or {}).get("core"))
+    core = _sentence_lower(base)
+    return payer, (f"each {core}" if core else None)
+
+
+#: keel-web 134 FR-2 (J-4): the price step's six named choices, one radiogroup -- each shape's first choice keeps
+#: `chain-shape-<SHAPE>`; the share's second base and up front's second outcome keep the ids of the controls they
+#: replaced, `chain-share-RECOVERED` and `chain-then-nothing`. `chain-share-COST_BASE` is gone: `chain-shape-SHARE` is
+#: that choice.
+CHAIN_PRICE_CHOICE = {("AMOUNT_PERIOD", None): "chain-shape-AMOUNT_PERIOD", ("SHARE", "COST_BASE"): "chain-shape-SHARE",
+                      ("SHARE", "RECOVERED"): "chain-share-RECOVERED",
+                      ("UPFRONT_THEN", False): "chain-shape-UPFRONT_THEN", ("UPFRONT_THEN", True): "chain-then-nothing",
+                      ("FREE", None): "chain-shape-FREE"}
+
+
+#: keel-web 134 T002: the period chips (`chain-period-<period>`), not their label `chain-period-label`.
+CHAIN_PERIOD_CHIPS = "[data-testid^=chain-period-]:not([data-testid=chain-period-label])"
+
+
+def chain_price_choice(price: dict) -> str:
+    """The test id of the one choice a chain price is (keel-web 134 FR-2's six)."""
+    shape = price["shape"]
+    if shape == "SHARE":
+        return CHAIN_PRICE_CHOICE[("SHARE", price.get("shareBase") or "COST_BASE")]
+    if shape == "UPFRONT_THEN":
+        return CHAIN_PRICE_CHOICE[("UPFRONT_THEN", bool(price.get("thenNothing")))]
+    return CHAIN_PRICE_CHOICE[(shape, None)]
+
+
 #: keel-web 094 FR-2: the chain's price step.
 CHAIN_SHAPE_GROUP = "The shape of your price"
 COST_MODE_WORD = {"AMOUNT": "Fixed amount", "HOURS": "Hours"}
@@ -1555,21 +1613,28 @@ class Corridor:
 
     def _chain_cost(self, cost: dict) -> dict:
         """keel-web 094 FR-1 (spec 064 FR-2): the chain's cost step -- the way (*Money they spend* / *Time it takes* /
-        *A rate they lose*), the unit box, the period pill, then on the equation a rate's measure (% or a count word)
+        *A share they lose*), the unit box, the period pill, then on the equation a rate's measure (% or a count word)
         and its "of what they lose" box, the two numbers, the hourly rate on time at a B2B study; the equation line
         read back (`equation`, its words after the boxes `per`). A base on money or time is drawn read-only only where
         a stored answer carries one (094 judgement call 4): none is typed.
 
-        Spec 082 FR-2: what arrives filled is read when keel-web draws it -- *Per* (`chain-unit`) and its helper before
-        anything is typed; *of* (`chain-base`, `#chain-base-help`) and on hours the rate and its note only after the
-        period pill, once `chain-equation` is visible: keel-web 123 FR-1 draws the box inside the equation
-        (`FounderControl`'s `ready`: a mode, a unit and a period), so on a fresh draft it is not on the page before."""
+        Spec 090 FR-1 (keel-web 134 FR-1): the box asks the mode first and alone -- the page's line `chain-cost-line`
+        (read as `line`) over the three mode chips, and nothing else drawn until one is picked (`before_mode`: what of
+        *Per* and the period chips was on the page before the pick, read to hold the order). Then *Per*
+        (`chain-unit`) and its helper are read as they arrive filled (spec 082 FR-2 / spec 075), the unit typed, the
+        period chip pressed (*each* drawn *each time*, the id `chain-period-each` kept), and once `chain-equation` is
+        visible *of* (`chain-base`, `#chain-base-help`) and on hours the rate and its note."""
         page = self.page
-        # spec 075 (keel-web 123 FR-1): *Per* arrives filled (the role word) with its helper line, before anything is
-        # typed
-        filled = {"unit": _input_value(page, "chain-unit"), "unit_help": _first_text(page, "#chain-unit-help") or None}
+        line = _first_text(page, "[data-testid=chain-cost-line]") or None
+        before_mode = {"unit": page.get_by_test_id("chain-unit").count(),
+                       "periods": page.locator(CHAIN_PERIOD_CHIPS).count()}
         page.get_by_test_id(f"chain-mode-{'MONEY' if cost['mode'] == 'AMOUNT' else cost['mode']}").click()
-        page.get_by_test_id("chain-unit").fill(str(cost.get("unit") or ""))
+        # keel-web 134 T002: the rest is drawn once a mode is picked -- *Per* arrives filled (the role word, spec 075;
+        # 134 T005 fills it when the persona's read lands after the pick) with its helper line, before anything is typed
+        unit = page.get_by_test_id("chain-unit")
+        unit.wait_for(state="visible", timeout=10_000)
+        filled = {"unit": _input_value(page, "chain-unit"), "unit_help": _first_text(page, "#chain-unit-help") or None}
+        unit.fill(str(cost.get("unit") or ""))
         page.get_by_test_id(f"chain-period-{cost['period']}").click()
         page.get_by_test_id("chain-equation").wait_for(state="visible", timeout=10_000)
         # spec 082 FR-2: *of* arrives filled (the occasion) on a way with the box -- drawn with the equation, read now
@@ -1604,28 +1669,31 @@ class Corridor:
         if cost["mode"] == "HOURS" and cost.get("rate") is not None and rate.count():
             rate.fill(_number(cost["rate"]))
         return {"chain": True, "equation": _first_text(page, "[data-testid=chain-equation]"),
-                "per": _first_text(page, "[data-testid=chain-per]"), "filled": filled}
+                "per": _first_text(page, "[data-testid=chain-per]"), "filled": filled, "line": line,
+                "before_mode": before_mode, "order": "mode-first"}
 
     def _chain_price(self, price: dict) -> dict:
-        """keel-web 094 FR-2: the chain's price step -- the shape pill, then its numbers (an amount a period's range;
-        a share's sub-choice and its one percent; up front and the plan, or *then nothing*; nothing for free), the
-        locked words read back (`locked`: the cost's unit and period, never typed or sent)."""
+        """keel-web 094 FR-2: the chain's price step -- the choice, then its numbers (a fixed fee's range; a percent's
+        one box; up front and the fee, or up front alone; nothing for free), the locked words read back (`locked`: the
+        cost's unit and period, never typed or sent).
+
+        Spec 090 FR-1 (keel-web 134 FR-2, J-4): the shapes are six named choices in one group, each clicked by its own
+        id (`chain_price_choice`): a percent of the cost's base is `chain-shape-SHARE` alone (`chain-share-COST_BASE` is
+        gone), of what it gets back `chain-share-RECOVERED`, one price then nothing more `chain-then-nothing`."""
         page = self.page
         shape = price["shape"]
-        page.get_by_test_id(f"chain-shape-{shape}").click()
+        choice = chain_price_choice(price)
+        page.get_by_test_id(choice).click()
         if shape == "AMOUNT_PERIOD":
             page.get_by_test_id("chain-price-low").fill(_number(price["low"]))
             page.get_by_test_id("chain-price-high").fill(_number(price["high"]))
         elif shape == "SHARE":
-            page.get_by_test_id(f"chain-share-{price.get('shareBase') or 'COST_BASE'}").click()
             page.get_by_test_id("chain-share").fill(_number(price["low"]))
         elif shape == "UPFRONT_THEN":
             page.get_by_test_id("chain-upfront").fill(_number(price["upfrontLow"]))
-            if price.get("thenNothing"):
-                page.get_by_test_id("chain-then-nothing").click()
-            else:
+            if not price.get("thenNothing"):
                 page.get_by_test_id("chain-plan").fill(_number(price["low"]))
-        return {"chain": True, "locked": _first_text(page, "[data-testid=chain-locked]")}
+        return {"chain": True, "locked": _first_text(page, "[data-testid=chain-locked]"), "choice": choice}
 
     # ------------------------------------------- calibration: a list's Answer, Check and save, Choose
 
