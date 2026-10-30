@@ -2,54 +2,63 @@
 
 Built by `make read-table` from `quality/scores/` (spec 078 FR-5) at RUBRIC_VERSION 2. Regenerated and committed with every score file; never edited by hand.
 
-- **This cycle** (`quality/cycles/20261030-fcec453.md`, cloud fcec453, 15 studies): score_pct **84.9%**, flagged 4.4%
-  - 8 of 15 walks reached their end; 7 stopped early (08-fresco · COMMERCIAL -- the cost step; 10-palus · SOLUTION -- the lock is answered, not a stop; 10-palus · COMMERCIAL -- founder edits the idea card's how, howDecider line after the lock was refused; 13-aircaps · COMMERCIAL -- Harriet Coleman answers the interview, screen by screen; 17-expanse · COMMERCIAL -- no step named (stopped outside a step); 21-codyco · SOLUTION -- the lock is answered, not a stop; 21-codyco · COMMERCIAL -- founder edits the idea card's how, howDecider line after the lock was refused); their scores are of the screens served before the stop
-  - keel-cloud moved mid-cycle: fcec453 -> 9093d99 from 17-expanse · PROBLEM
-  - keel-web moved mid-cycle: 78c012f -> ff55387 from 17-expanse · COMMERCIAL, then ff55387 -> eec5856 from 21-codyco · SOLUTION, then eec5856 -> f661542 from 21-codyco · COMMERCIAL
+- **This cycle** (`quality/cycles/20261030-35dfb74-2.md`, cloud 35dfb74, 4 studies): score_pct **81.9%**, flagged 4.9%
+  - 4 of 4 walks reached their end; 0 stopped early
 - **The baseline**: none cut yet (`make quality-accept` cuts it, on the founder's word)
 - **The bar**: 90% -- this cycle is BELOW it
 
-**Overall score_pct 84.9%** over the latest file of each of 15 studies (entry · scope) -- is BELOW the bar of **90%** the founder named before the remaining entries are walked.
+**Overall score_pct 83.3%** over the latest file of each of 15 studies (entry · scope) -- is BELOW the bar of **90%** the founder named before the remaining entries are walked.
 
-- founder: score_pct 85.8%, flagged 4.4% of 272 screens
-- respondent: score_pct 81.0%, spoken_pct 73.9%, insights_pct 95.3%, flagged 4.3% of 46 screens
-- scope COMMERCIAL: score_pct 85.9%, flagged 7.9% of 101 screens
+- founder: score_pct 84.7%, flagged 4.1% of 292 screens
+- respondent: score_pct 80.2%, spoken_pct 71.4%, insights_pct 96.9%, flagged 4.8% of 105 screens
+- scope COMMERCIAL: score_pct 82.7%, flagged 6.7% of 163 screens
 - scope PROBLEM: score_pct 83.4%, flagged 3.0% of 100 screens
-- scope SOLUTION: score_pct 85.4%, flagged 2.6% of 117 screens
-- studies: 08-fresco · COMMERCIAL (20261030-COMMERCIAL-r2-fcec453-v13-claude-opus-5-5.json), 08-fresco · PROBLEM (20261030-PROBLEM-r2-fcec453-v13-claude-opus-5-5.json), 08-fresco · SOLUTION (20261030-SOLUTION-r2-fcec453-v13-claude-opus-5-5.json), 10-palus · COMMERCIAL (20261030-COMMERCIAL-r2-fcec453-v13-claude-opus-5-5.json), 10-palus · PROBLEM (20261030-PROBLEM-r2-fcec453-v13-claude-opus-5-5.json), 10-palus · SOLUTION (20261030-SOLUTION-r2-fcec453-v13-claude-opus-5-5.json), 13-aircaps · COMMERCIAL (20261030-COMMERCIAL-r2-fcec453-v13-claude-opus-5-5.json), 13-aircaps · PROBLEM (20261030-PROBLEM-r2-fcec453-v13-claude-opus-5-5.json), 13-aircaps · SOLUTION (20261030-SOLUTION-r2-fcec453-v13-claude-opus-5-5.json), 17-expanse · COMMERCIAL (20261030-COMMERCIAL-r2-9093d99-v13-claude-opus-5-5.json), 17-expanse · PROBLEM (20261030-PROBLEM-r2-9093d99-v13-claude-opus-5-5.json), 17-expanse · SOLUTION (20261030-SOLUTION-r2-9093d99-v13-claude-opus-5-5.json), 21-codyco · COMMERCIAL (20261030-COMMERCIAL-r2-9093d99-v13-claude-opus-5-5.json), 21-codyco · PROBLEM (20261030-PROBLEM-r2-9093d99-v13-claude-opus-5-5.json), 21-codyco · SOLUTION (20261030-SOLUTION-r2-9093d99-v13-claude-opus-5-5.json)
+- scope SOLUTION: score_pct 83.8%, flagged 2.2% of 134 screens
+- studies: 08-fresco · COMMERCIAL (20261030-COMMERCIAL-r2-35dfb74-v13-claude-opus-5-5.json), 08-fresco · PROBLEM (20261030-PROBLEM-r2-fcec453-v13-claude-opus-5-5.json), 08-fresco · SOLUTION (20261030-SOLUTION-r2-fcec453-v13-claude-opus-5-5.json), 10-palus · COMMERCIAL (20261030-COMMERCIAL-r2-35dfb74-v13-claude-opus-5-5.json), 10-palus · PROBLEM (20261030-PROBLEM-r2-fcec453-v13-claude-opus-5-5.json), 10-palus · SOLUTION (20261030-SOLUTION-r2-35dfb74-v13-claude-opus-5-5.json), 13-aircaps · COMMERCIAL (20261030-COMMERCIAL-r2-35dfb74-v13-claude-opus-5-5.json), 13-aircaps · PROBLEM (20261030-PROBLEM-r2-fcec453-v13-claude-opus-5-5.json), 13-aircaps · SOLUTION (20261030-SOLUTION-r2-fcec453-v13-claude-opus-5-5.json), 17-expanse · COMMERCIAL (20261030-COMMERCIAL-r2-35dfb74-v13-claude-opus-5-5.json), 17-expanse · PROBLEM (20261030-PROBLEM-r2-9093d99-v13-claude-opus-5-5.json), 17-expanse · SOLUTION (20261030-SOLUTION-r2-9093d99-v13-claude-opus-5-5.json), 21-codyco · COMMERCIAL (20261030-COMMERCIAL-r2-35dfb74-v13-claude-opus-5-5.json), 21-codyco · PROBLEM (20261030-PROBLEM-r2-9093d99-v13-claude-opus-5-5.json), 21-codyco · SOLUTION (20261030-SOLUTION-r2-35dfb74-v13-claude-opus-5-5.json)
 
 ## The rows
 
-Weak = a 0 on one criterion in two or more entries, or a mean under 1.5 (RUBRIC.md). 57 of 78 rows are weak.
+Weak = a 0 on one criterion in two or more entries, or a mean under 1.5 (RUBRIC.md). 71 of 92 rows are weak.
 
 R6 (said aloud) is the respondent-reader's alone: a founder row shows –.
 
 | | scope | audience | dimension | kind | n | R1 | R2 | R3 | R4 | R5 | R6 | 0s | entries with a 0 | fix |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **WEAK** | COMMERCIAL | founder | - | context | 5 | 2.00 | 1.60 | 2.00 | 2.00 | 1.40 | – | 0 |  | shared file: context-interpret.md, and code (ReadBack, Qualifiers) |
-|  | COMMERCIAL | founder | - | context-card | 5 | 2.00 | 1.60 | 2.00 | 2.00 | 2.00 | – | 0 |  | shared file: context-interpret.md, and code (ReadBack, Qualifiers) |
-| **WEAK** | COMMERCIAL | founder | - | idea | 5 | 2.00 | 1.60 | 2.00 | 1.00 | 1.00 | – | 0 |  | shared file: solution-mechanism.md |
+| **WEAK** | COMMERCIAL | founder | - | context | 5 | 2.00 | 1.80 | 2.00 | 1.75 | 1.40 | – | 0 |  | shared file: context-interpret.md, and code (ReadBack, Qualifiers) |
+|  | COMMERCIAL | founder | - | context-card | 5 | 2.00 | 2.00 | 2.00 | 2.00 | 1.80 | – | 0 |  | shared file: context-interpret.md, and code (ReadBack, Qualifiers) |
+| **WEAK** | COMMERCIAL | founder | - | idea | 5 | 2.00 | 1.60 | 2.00 | – | 1.00 | – | 0 |  | shared file: solution-mechanism.md |
 |  | COMMERCIAL | founder | - | market | 5 | 2.00 | 2.00 | 2.00 | 2.00 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
 |  | COMMERCIAL | founder | - | name | 5 | 2.00 | 2.00 | 2.00 | – | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
-|  | COMMERCIAL | founder | - | persona | 5 | 2.00 | 1.60 | 2.00 | 1.60 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
-| **WEAK** | COMMERCIAL | founder | - | persona-who-answers | 5 | 2.00 | 1.80 | 2.00 | 1.20 | 1.60 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
-| **WEAK** | COMMERCIAL | founder | - | problem-card | 5 | 2.00 | 2.00 | 2.00 | 2.00 | 1.00 | – | 0 |  | shared file: problem-interpret.md |
+| **WEAK** | COMMERCIAL | founder | - | persona | 5 | 2.00 | 1.80 | 2.00 | 1.20 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
+| **WEAK** | COMMERCIAL | founder | - | persona-who-answers | 5 | 2.00 | 2.00 | 1.80 | 1.20 | 1.60 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
+| **WEAK** | COMMERCIAL | founder | - | problem-card | 5 | 2.00 | 1.80 | 2.00 | 2.00 | 1.00 | – | 0 |  | shared file: problem-interpret.md |
 | **WEAK** | COMMERCIAL | founder | - | problem-seed | 5 | 2.00 | 2.00 | 2.00 | – | 1.00 | – | 0 |  | shared file: problem-interpret.md |
-| **WEAK** | COMMERCIAL | founder | - | ready-interviewer | 4 | 2.00 | 1.00 | 2.00 | 1.00 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-| **WEAK** | COMMERCIAL | founder | - | ready-pilot | 4 | 1.75 | 1.00 | 2.00 | 1.00 | 1.25 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-|  | COMMERCIAL | founder | - | send-who | 1 | 2.00 | 2.00 | 2.00 | 2.00 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
-| **WEAK** | COMMERCIAL | founder | - | solution-card | 5 | 2.00 | 1.80 | 2.00 | – | 1.00 | – | 0 |  | shared file: solution-mechanism.md |
-| **WEAK** | COMMERCIAL | founder | - | solution-seed | 5 | 2.00 | 2.00 | 2.00 | – | 1.20 | – | 0 |  | shared file: solution-mechanism.md |
-|  | COMMERCIAL | founder | commercial.buyer_payer_alignment | answer | 4 | 1.50 | 2.00 | 2.00 | 1.75 | 1.50 | – | 1 | 13-aircaps | registry row: commercial.buyer_payer_alignment's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-| **WEAK** | COMMERCIAL | founder | commercial.buyer_payer_alignment | check | 4 | 2.00 | 2.00 | 2.00 | 1.00 | 1.50 | – | 0 |  | registry row: commercial.buyer_payer_alignment's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-| **WEAK** | COMMERCIAL | founder | commercial.buyer_payer_alignment | choose | 4 | 1.25 | 1.25 | 2.00 | 1.00 | 2.00 | – | 1 | 21-codyco | registry row: commercial.buyer_payer_alignment's founder guidance (else founder-lists.md, shared: every dimension re-read); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | COMMERCIAL | founder | - | ready-interviewer | 5 | 1.60 | 1.00 | 2.00 | 1.00 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | COMMERCIAL | founder | - | ready-pilot | 5 | 2.00 | 1.00 | 2.00 | 1.00 | 1.40 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | COMMERCIAL | founder | - | send-format | 5 | 1.60 | 1.00 | 2.00 | 1.00 | 1.80 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | COMMERCIAL | founder | - | send-who | 5 | 2.00 | 1.60 | 2.00 | 1.40 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
+| **WEAK** | COMMERCIAL | founder | - | solution-card | 5 | 2.00 | 1.60 | 2.00 | 2.00 | 1.20 | – | 0 |  | shared file: solution-mechanism.md |
+| **WEAK** | COMMERCIAL | founder | - | solution-seed | 5 | 2.00 | 1.80 | 2.00 | – | 1.20 | – | 0 |  | shared file: solution-mechanism.md |
+| **WEAK** | COMMERCIAL | founder | commercial.buyer_payer_alignment | answer | 4 | 1.75 | 2.00 | 2.00 | 2.00 | 1.25 | – | 0 |  | registry row: commercial.buyer_payer_alignment's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | COMMERCIAL | founder | commercial.buyer_payer_alignment | check | 4 | 2.00 | 1.50 | 2.00 | 1.25 | 1.25 | – | 0 |  | registry row: commercial.buyer_payer_alignment's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | COMMERCIAL | founder | commercial.buyer_payer_alignment | choose | 5 | 1.20 | 1.40 | 1.80 | 1.00 | 1.80 | – | 1 | 21-codyco | registry row: commercial.buyer_payer_alignment's founder guidance (else founder-lists.md, shared: every dimension re-read); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
 | **WEAK** | COMMERCIAL | founder | commercial.commitment | answer | 4 | 2.00 | 2.00 | 2.00 | 2.00 | 0.50 | – | 2 | 17-expanse, 21-codyco | registry row: commercial.commitment's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-| **WEAK** | COMMERCIAL | founder | commercial.commitment | check | 3 | 2.00 | 1.67 | 1.67 | – | 1.00 | – | 1 | 21-codyco | registry row: commercial.commitment's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-| **WEAK** | COMMERCIAL | founder | commercial.existing_sacrifice | q | 5 | 2.00 | 1.00 | 1.80 | 1.00 | 1.00 | – | 1 | 13-aircaps | registry row: commercial.existing_sacrifice's founder guidance (else founder-lists.md, shared: every dimension re-read); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-| **WEAK** | COMMERCIAL | founder | commercial.price | q | 4 | 2.00 | 1.75 | 2.00 | 0.50 | 1.25 | – | 2 | 13-aircaps, 21-codyco | registry row: commercial.price's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-| **WEAK** | COMMERCIAL | founder | commercial.purchase_friction | answer | 3 | 2.00 | 2.00 | 2.00 | 2.00 | 1.33 | – | 0 |  | registry row: commercial.purchase_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-| **WEAK** | COMMERCIAL | founder | commercial.purchase_friction | check | 3 | 2.00 | 2.00 | 2.00 | 1.33 | 2.00 | – | 0 |  | registry row: commercial.purchase_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-| **WEAK** | COMMERCIAL | founder | commercial.purchase_friction | choose | 3 | 2.00 | 1.67 | 2.00 | 1.00 | 1.33 | – | 0 |  | registry row: commercial.purchase_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | COMMERCIAL | founder | commercial.commitment | check | 5 | 2.00 | 1.80 | 1.00 | – | 0.40 | – | 5 | 08-fresco, 17-expanse, 21-codyco | registry row: commercial.commitment's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | COMMERCIAL | founder | commercial.existing_sacrifice | q | 5 | 2.00 | 1.00 | 1.80 | 1.00 | 1.20 | – | 0 |  | registry row: commercial.existing_sacrifice's founder guidance (else founder-lists.md, shared: every dimension re-read); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | COMMERCIAL | founder | commercial.price | q | 5 | 2.00 | 1.20 | 2.00 | 0.80 | 1.40 | – | 1 | 13-aircaps | registry row: commercial.price's founder guidance (else founder-lists.md, shared: every dimension re-read); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | COMMERCIAL | founder | commercial.purchase_friction | answer | 4 | 2.00 | 2.00 | 2.00 | 1.75 | 1.00 | – | 0 |  | registry row: commercial.purchase_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | COMMERCIAL | founder | commercial.purchase_friction | check | 3 | 2.00 | 2.00 | 2.00 | 1.00 | 2.00 | – | 0 |  | registry row: commercial.purchase_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | COMMERCIAL | founder | commercial.purchase_friction | choose | 4 | 2.00 | 2.00 | 2.00 | 0.75 | 1.50 | – | 2 | 08-fresco | registry row: commercial.purchase_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | COMMERCIAL | respondent | - | condition | 4 | 2.00 | 1.25 | 2.00 | 1.50 | 1.50 | 1.50 | 0 |  | code transform: the respondent page's code; R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+|  | COMMERCIAL | respondent | - | follow_up | 7 | 2.00 | 1.86 | 1.71 | – | 1.57 | 1.57 | 0 |  | registry row: the follow-up ladder (registry data; code writes the words) |
+| **WEAK** | COMMERCIAL | respondent | - | idea | 4 | 2.00 | 1.50 | 2.00 | – | 1.25 | 1.00 | 0 |  | shared file: solution-mechanism.md (the idea card); R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering) |
+| **WEAK** | COMMERCIAL | respondent | - | reveal | 1 | 2.00 | 2.00 | 2.00 | – | 1.00 | 1.00 | 0 |  | shared file: solution-mechanism.md (the idea card); R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering) |
+| **WEAK** | COMMERCIAL | respondent | commercial.ability_to_pay | item | 5 | 1.60 | 1.80 | 1.60 | 1.00 | 2.00 | 1.80 | 0 |  | registry row: commercial.ability_to_pay's respondent wording, else the code transform (no model) |
+| **WEAK** | COMMERCIAL | respondent | commercial.buyer_payer_alignment | item | 5 | 1.80 | 1.60 | 1.80 | 1.00 | 2.00 | 1.00 | 0 |  | registry row: commercial.buyer_payer_alignment's respondent wording, else the code transform (no model); R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering) |
+| **WEAK** | COMMERCIAL | respondent | commercial.commitment | item | 5 | 2.00 | 1.80 | 2.00 | 1.00 | 1.80 | 1.40 | 0 |  | registry row: commercial.commitment's respondent wording, else the code transform (no model); R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering) |
+| **WEAK** | COMMERCIAL | respondent | commercial.existing_sacrifice | item | 5 | 1.60 | 0.80 | 1.20 | 1.00 | 1.40 | 1.20 | 1 | 10-palus | registry row: commercial.existing_sacrifice's respondent wording, else the code transform (no model); R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | COMMERCIAL | respondent | commercial.price | item | 5 | 1.80 | 1.80 | 1.80 | 1.00 | 1.60 | 0.60 | 2 | 10-palus, 13-aircaps | registry row: commercial.price's respondent wording, else the code transform (no model); R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering) |
+| **WEAK** | COMMERCIAL | respondent | commercial.purchase_friction | item | 4 | 2.00 | 1.75 | 1.75 | 1.00 | 1.75 | 2.00 | 0 |  | registry row: commercial.purchase_friction's respondent wording, else the code transform (no model) |
 | **WEAK** | PROBLEM | founder | - | context | 5 | 2.00 | 1.00 | 2.00 | 2.00 | 1.00 | – | 0 |  | shared file: context-interpret.md, and code (ReadBack, Qualifiers); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
 | **WEAK** | PROBLEM | founder | - | context-card | 5 | 2.00 | 1.20 | 2.00 | 2.00 | 2.00 | – | 0 |  | shared file: context-interpret.md, and code (ReadBack, Qualifiers); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
 |  | PROBLEM | founder | - | market | 5 | 2.00 | 2.00 | 2.00 | 2.00 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
@@ -72,169 +81,276 @@ R6 (said aloud) is the respondent-reader's alone: a founder row shows –.
 | **WEAK** | PROBLEM | respondent | problem.importance | item | 5 | 1.60 | 1.20 | 1.60 | 1.00 | 1.80 | 1.40 | 0 |  | registry row: problem.importance's respondent wording, else the code transform (no model); R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
 | **WEAK** | PROBLEM | respondent | problem.prevalence | gate | 5 | 2.00 | 1.20 | 1.80 | 0.80 | 1.40 | 1.60 | 1 | 13-aircaps | shared file: respondent-questions.md (the story clause, the screener question); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
 | **WEAK** | SOLUTION | founder | - | context | 5 | 2.00 | 1.00 | 2.00 | 2.00 | 1.40 | – | 0 |  | shared file: context-interpret.md, and code (ReadBack, Qualifiers); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-| **WEAK** | SOLUTION | founder | - | context-card | 5 | 2.00 | 1.00 | 2.00 | 2.00 | 1.80 | – | 0 |  | shared file: context-interpret.md, and code (ReadBack, Qualifiers); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-| **WEAK** | SOLUTION | founder | - | idea | 5 | 2.00 | 1.40 | 2.00 | – | 1.00 | – | 0 |  | shared file: solution-mechanism.md; R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-|  | SOLUTION | founder | - | market | 5 | 2.00 | 2.00 | 1.80 | 2.00 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
+| **WEAK** | SOLUTION | founder | - | context-card | 5 | 2.00 | 1.00 | 2.00 | 2.00 | 2.00 | – | 0 |  | shared file: context-interpret.md, and code (ReadBack, Qualifiers); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | SOLUTION | founder | - | idea | 5 | 2.00 | 1.20 | 2.00 | 1.00 | 1.00 | – | 0 |  | shared file: solution-mechanism.md; R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+|  | SOLUTION | founder | - | market | 4 | 2.00 | 2.00 | 1.75 | 2.00 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
 |  | SOLUTION | founder | - | name | 5 | 2.00 | 2.00 | 2.00 | – | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
-| **WEAK** | SOLUTION | founder | - | problem-card | 5 | 2.00 | 1.80 | 2.00 | 2.00 | 1.00 | – | 0 |  | shared file: problem-interpret.md |
+| **WEAK** | SOLUTION | founder | - | problem-card | 5 | 2.00 | 1.60 | 2.00 | 2.00 | 1.00 | – | 0 |  | shared file: problem-interpret.md |
 | **WEAK** | SOLUTION | founder | - | problem-seed | 5 | 2.00 | 2.00 | 2.00 | – | 1.00 | – | 0 |  | shared file: problem-interpret.md |
 | **WEAK** | SOLUTION | founder | - | ready-interviewer | 5 | 1.80 | 1.00 | 2.00 | 1.00 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-| **WEAK** | SOLUTION | founder | - | ready-pilot | 5 | 2.00 | 1.60 | 2.00 | 1.00 | 1.40 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
-| **WEAK** | SOLUTION | founder | - | send-format | 3 | 1.67 | 1.00 | 2.00 | 1.33 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-|  | SOLUTION | founder | - | send-who | 3 | 2.00 | 2.00 | 2.00 | 1.67 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
-| **WEAK** | SOLUTION | founder | - | solution-card | 5 | 2.00 | 1.80 | 2.00 | – | 1.00 | – | 0 |  | shared file: solution-mechanism.md |
-| **WEAK** | SOLUTION | founder | - | solution-seed | 5 | 2.00 | 1.80 | 2.00 | – | 1.20 | – | 0 |  | shared file: solution-mechanism.md |
-| **WEAK** | SOLUTION | founder | solution.adoption_friction | answer | 5 | 2.00 | 2.00 | 2.00 | 2.00 | 0.60 | – | 2 | 17-expanse, 21-codyco | registry row: solution.adoption_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-| **WEAK** | SOLUTION | founder | solution.adoption_friction | check | 3 | 2.00 | 2.00 | 1.67 | 1.00 | 1.33 | – | 0 |  | registry row: solution.adoption_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-| **WEAK** | SOLUTION | founder | solution.adoption_friction | choose | 5 | 2.00 | 1.80 | 1.40 | 1.40 | 1.00 | – | 1 | 17-expanse | registry row: solution.adoption_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-| **WEAK** | SOLUTION | founder | solution.compatibility | answer | 5 | 2.00 | 1.60 | 2.00 | 2.00 | 1.00 | – | 0 |  | registry row: solution.compatibility's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-|  | SOLUTION | founder | solution.compatibility | check | 4 | 2.00 | 2.00 | 2.00 | 1.50 | 2.00 | – | 0 |  | registry row: solution.compatibility's founder guidance (else founder-lists.md, shared: every dimension re-read) |
-| **WEAK** | SOLUTION | founder | solution.compatibility | choose | 5 | 2.00 | 1.40 | 2.00 | 1.60 | 1.80 | – | 0 |  | registry row: solution.compatibility's founder guidance (else founder-lists.md, shared: every dimension re-read); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-| **WEAK** | SOLUTION | founder | solution.relative_advantage | answer | 5 | 2.00 | 1.40 | 2.00 | 2.00 | 1.00 | – | 0 |  | registry row: solution.relative_advantage's founder guidance (else founder-lists.md, shared: every dimension re-read); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | SOLUTION | founder | - | ready-pilot | 5 | 2.00 | 1.40 | 2.00 | 1.00 | 1.40 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | SOLUTION | founder | - | send-format | 4 | 1.75 | 1.00 | 2.00 | 1.50 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+|  | SOLUTION | founder | - | send-who | 5 | 2.00 | 2.00 | 2.00 | 1.60 | 2.00 | – | 0 |  | no model: the page's own words (keel-web / keel-cloud code) |
+| **WEAK** | SOLUTION | founder | - | solution-card | 5 | 2.00 | 1.60 | 2.00 | – | 1.00 | – | 0 |  | shared file: solution-mechanism.md |
+| **WEAK** | SOLUTION | founder | - | solution-seed | 5 | 2.00 | 1.60 | 2.00 | – | 1.20 | – | 0 |  | shared file: solution-mechanism.md |
+| **WEAK** | SOLUTION | founder | solution.adoption_friction | answer | 5 | 2.00 | 2.00 | 2.00 | 1.80 | 0.80 | – | 1 | 17-expanse | registry row: solution.adoption_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | SOLUTION | founder | solution.adoption_friction | check | 4 | 2.00 | 2.00 | 1.75 | 1.25 | 1.00 | – | 0 |  | registry row: solution.adoption_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | SOLUTION | founder | solution.adoption_friction | choose | 5 | 1.80 | 2.00 | 1.40 | 1.20 | 0.60 | – | 2 | 17-expanse, 21-codyco | registry row: solution.adoption_friction's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | SOLUTION | founder | solution.compatibility | answer | 5 | 2.00 | 1.80 | 2.00 | 2.00 | 1.00 | – | 0 |  | registry row: solution.compatibility's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | SOLUTION | founder | solution.compatibility | check | 4 | 2.00 | 2.00 | 2.00 | 1.25 | 2.00 | – | 0 |  | registry row: solution.compatibility's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | SOLUTION | founder | solution.compatibility | choose | 5 | 2.00 | 1.60 | 2.00 | 1.40 | 1.80 | – | 0 |  | registry row: solution.compatibility's founder guidance (else founder-lists.md, shared: every dimension re-read) |
+| **WEAK** | SOLUTION | founder | solution.relative_advantage | answer | 5 | 2.00 | 1.20 | 2.00 | 2.00 | 1.00 | – | 0 |  | registry row: solution.relative_advantage's founder guidance (else founder-lists.md, shared: every dimension re-read); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
 | **WEAK** | SOLUTION | founder | solution.relative_advantage | check | 5 | 2.00 | 1.00 | 1.80 | 1.40 | 1.20 | – | 0 |  | registry row: solution.relative_advantage's founder guidance (else founder-lists.md, shared: every dimension re-read); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-| **WEAK** | SOLUTION | respondent | - | follow_up | 1 | 2.00 | 1.00 | 2.00 | – | 2.00 | 2.00 | 0 |  | registry row: the follow-up ladder (registry data; code writes the words); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-| **WEAK** | SOLUTION | respondent | - | reveal | 3 | 2.00 | 2.00 | 2.00 | – | 2.00 | 1.00 | 0 |  | shared file: solution-mechanism.md (the idea card); R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering) |
-|  | SOLUTION | respondent | - | screener | 3 | 2.00 | 2.00 | 2.00 | 2.00 | 2.00 | 2.00 | 0 |  | shared file: respondent-questions.md (the story clause, the screener question) |
-| **WEAK** | SOLUTION | respondent | problem.prevalence | gate | 3 | 2.00 | 1.33 | 2.00 | 1.00 | 1.67 | 1.67 | 0 |  | shared file: respondent-questions.md (the story clause, the screener question); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-| **WEAK** | SOLUTION | respondent | solution.adoption_friction | item | 3 | 2.00 | 1.67 | 1.00 | 1.00 | 1.67 | 1.33 | 0 |  | shared file: asked.md (the clause), else solution.adoption_friction's respondent wording; R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering) |
-| **WEAK** | SOLUTION | respondent | solution.compatibility | item | 3 | 1.67 | 1.00 | 1.67 | 1.33 | 1.67 | 1.67 | 0 |  | shared file: asked.md (the clause), else solution.compatibility's respondent wording; R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
-| **WEAK** | SOLUTION | respondent | solution.relative_advantage | item | 3 | 2.00 | 1.00 | 1.33 | 2.00 | 1.33 | 1.67 | 0 |  | registry row: solution.relative_advantage's respondent wording, else the code transform (no model); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | SOLUTION | respondent | - | follow_up | 3 | 2.00 | 1.33 | 2.00 | – | 1.33 | 1.67 | 0 |  | registry row: the follow-up ladder (registry data; code writes the words); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | SOLUTION | respondent | - | reveal | 5 | 2.00 | 1.80 | 2.00 | – | 1.80 | 1.00 | 0 |  | shared file: solution-mechanism.md (the idea card); R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering) |
+|  | SOLUTION | respondent | - | screener | 5 | 2.00 | 1.80 | 2.00 | 1.80 | 1.80 | 1.80 | 0 |  | shared file: respondent-questions.md (the story clause, the screener question) |
+| **WEAK** | SOLUTION | respondent | problem.prevalence | gate | 5 | 1.60 | 1.40 | 1.80 | 1.00 | 1.60 | 1.80 | 0 |  | shared file: respondent-questions.md (the story clause, the screener question); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | SOLUTION | respondent | solution.adoption_friction | item | 5 | 1.80 | 1.60 | 1.20 | 1.00 | 1.80 | 1.40 | 0 |  | shared file: asked.md (the clause), else solution.adoption_friction's respondent wording; R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering) |
+| **WEAK** | SOLUTION | respondent | solution.compatibility | item | 5 | 1.60 | 1.00 | 1.40 | 1.20 | 1.60 | 1.80 | 0 |  | shared file: asked.md (the clause), else solution.compatibility's respondent wording; R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
+| **WEAK** | SOLUTION | respondent | solution.relative_advantage | item | 5 | 2.00 | 1.00 | 1.40 | 2.00 | 1.40 | 1.60 | 0 |  | registry row: solution.relative_advantage's respondent wording, else the code transform (no model); R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade |
 
 ## Insights -- the grouping of the follow-up lines (§G)
 
 | | scope | dimension | kind | lines | G1 | G2 | insights % | 0s | entries with a 0 | fix |
 |---|---|---|---|---|---|---|---|---|---|---|
+|  | COMMERCIAL | commercial.buyer_payer_alignment | insights | 4 | 2.00 | 2.00 | 100.0 | 0 |  | shared file: the THEMES grouping instruction (themes.md) |
+|  | COMMERCIAL | commercial.price | insights | 4 | 2.00 | 2.00 | 100.0 | 0 |  | shared file: the THEMES grouping instruction (themes.md) |
+|  | COMMERCIAL | commercial.purchase_friction | insights | 4 | 2.00 | 2.00 | 100.0 | 0 |  | shared file: the THEMES grouping instruction (themes.md) |
 |  | PROBLEM | problem.current_solution_satisfaction | insights | 4 | 2.00 | 2.00 | 100.0 | 0 |  | shared file: the THEMES grouping instruction (themes.md) |
 |  | PROBLEM | problem.importance | insights | 4 | 1.75 | 2.00 | 93.8 | 0 |  | shared file: the THEMES grouping instruction (themes.md) |
-|  | SOLUTION | solution.adoption_friction | insights | 3 | 1.67 | 2.00 | 91.7 | 0 |  | shared file: the THEMES grouping instruction (themes.md) |
+|  | SOLUTION | solution.adoption_friction | insights | 5 | 1.60 | 2.00 | 90.0 | 0 |  | shared file: the THEMES grouping instruction (themes.md) |
 |  | SOLUTION | solution.compatibility | insights | 2 | 2.00 | 2.00 | 100.0 | 0 |  | shared file: the THEMES grouping instruction (themes.md) |
-|  | SOLUTION | solution.relative_advantage | insights | 3 | 1.67 | 2.00 | 91.7 | 0 |  | shared file: the THEMES grouping instruction (themes.md) |
+|  | SOLUTION | solution.relative_advantage | insights | 5 | 1.80 | 2.00 | 95.0 | 0 |  | shared file: the THEMES grouping instruction (themes.md) |
 
 ## The weak rows, with their *instead* lines
 
 ### COMMERCIAL · founder · - · context -- weak on R5
 Fix: **shared file** -- context-interpret.md, and code (ReadBack, Qualifiers).
-- 10-palus: Finance leads at venture-backed US startups within two years of a raise, banking with Mercury, Brex or similar. When the company decides where that cash sits until it is needed, they want to keep it safe and earning until it is spent.
-- 13-aircaps: Keep the screen, but have the summary read: Deaf and hard-of-hearing adults in the US who talk with hearing people every week want to follow and join face-to-face conversations, even when they are too fast or too noisy to follow.
-- 21-codyco: Reservation agents at hotel groups in Germany that run a central reservations office or call center. Booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered; they want to turn every guest who calls into a booking.
+- 21-codyco: Keel understands: reservation agents at German hotel groups with a central reservations office or call center. Over the last 7 days, booking calls came in after hours, at peak and on holidays and not all were answered, and they want every one of those callers booked. Is that right?
 
-### COMMERCIAL · founder · - · idea -- weak on R4, R5
+### COMMERCIAL · founder · - · idea -- weak on R5
 Fix: **shared file** -- solution-mechanism.md.
-- 08-fresco: What: a scribe that turns narrated site-walk videos into your daily notes. How: as drafted. Belief: The people building it believe superintendents would finish their notes during the site walk, not after it, about 90% faster.
-- 10-palus: What: 'More yield on your long-term cash without switching banks'. How: 'You link your existing bank through Plaid. Your long-term reserve goes into a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds, targeting 4.5 to 5 percent. Cash returns to checking in one to two business days, and an SEC-licensed custodian holds the assets.' Belief: 'The people building it believe it would reach 4.5 to 5 percent on the long-term reserve, against roughly 3.5 percent from most money market funds.'
-- 13-aircaps: What: Glasses that caption conversations. How: You wear lightweight glasses paired to your phone. They show live captions of what the people nearby are saying inside the lens, so you read the words while keeping eye contact. Belief: The people building it believe it would let the wearer follow and join a face-to-face conversation without looking away.
-- 17-expanse: What: a tool that predicts the GPU VRAM, utilisation, RAM, CPUs and walltime a job needs before you submit it. How: it runs on every node of your cluster and hooks into SLURM or Kubernetes; at submit it reads your source code, job script and the hardware, gives its prediction with a confidence interval, flags jobs likely to fail and suggests line-level fixes; if a job fails, it tells you why and how to fix it; everything stays on your network.
-- 21-codyco: What: an AI agent that answers a hotel's missed calls. How: The hotel forwards the calls nobody picks up to the agent. It answers in the hotel's voice, answers the guest's questions and writes the confirmed booking straight into the hotel's PMS, such as OPERA Cloud, Sihot or Apaleo. It hands a call to the desk by rules the hotel sets.
+- 08-fresco: What the person gets: A tool for your site walk. You take short videos and talk over them, and it turns them into notes with photos, assignees and due dates, texts the crew their action items, and sends the notes to Procore or ACC in one click.
+- 10-palus: What: A treasury account for your startup's long-term reserve that earns more without switching banks. How: You link it to your existing bank through Plaid; it holds the reserve in a managed portfolio of short-duration, floating-rate government-backed mortgage bonds, a regulated custodian holds the assets in your company's name, and cash is back in checking in one to two days. Belief: The people building it believe it would target 4.5 to 5 percent a year in returns, against roughly 3.5 percent from most money market funds.
+- 13-aircaps: What: glasses that caption conversations. How: You wear lightweight glasses paired to your phone, which needs to be online. Live captions of what the people nearby are saying appear inside the lens, so you can read the words while keeping eye contact. Belief: The people building it believe this would let the wearer follow and join a face-to-face conversation while keeping eye contact.
+- 17-expanse: What: job sizes predicted before you submit. How: An agent on every node hooks into SLURM or Kubernetes and reads your job's source code, submission script and hardware. It predicts the GPU VRAM, utilisation, system memory, CPUs and walltime the job needs, with a confidence interval, flags likely failures and suggests line-level optimisations. If a job fails, it says why and how to fix it. Everything runs on your network.
+- 21-codyco: You forward the calls nobody picks up to an AI agent. It answers in the hotel's voice, answers the guest's questions and writes the confirmed booking straight into the hotel's booking system (PMS), such as OPERA Cloud, Sihot or Apaleo. It hands a call to the desk by rules the hotel sets.
+
+### COMMERCIAL · founder · - · persona -- weak on R4
+Fix: **no model** -- the page's own words (keel-web / keel-cloud code).
+- 08-fresco: Who would sign off on paying for Fresco on a job: the construction superintendent, or someone else at the contractor?
+- 13-aircaps: Who decides to get AirCaps and pays for it? Options: The deaf or hard-of-hearing adult decides and pays / The adult decides, but someone else pays / Someone else decides
+- 17-expanse: Who would decide to put Expanse on the cluster and pay for it: the researcher who submits the jobs, or someone else (who)?
 
 ### COMMERCIAL · founder · - · persona-who-answers -- weak on R4
 Fix: **no model** -- the page's own words (keel-web / keel-cloud code).
-- 08-fresco: Who decides on paying for Fresco on a job? General contractor's operations lead (the firm pays per site) — change the title if it is someone else at the GC.
-- 21-codyco: Who at the hotel group would decide to pay for Codyco, and who should answer the money questions? Revenue director / Reservations director / Hotel owner / Someone else (type the title)
+- 08-fresco: Who at the general contractor decides to pay for this per site? Role: General contractor; Title: Operations lead (edit if different).
+- 21-codyco: Who decides to pay for this? Hotel group revenue or reservations director (the hotel's owner has to agree) -- change it if that's wrong.
 
 ### COMMERCIAL · founder · - · problem-card -- weak on R5
 Fix: **shared file** -- problem-interpret.md.
-- 08-fresco: Construction superintendents take 30 to 200 photos on their site walks each day. At the end of the day they spend hours in the trailer uploading them to Procore, ACC or OneDrive and typing daily logs and punch lists, mostly for liability or in case of a dispute with the owner.
-- 10-palus: Finance leads at startups that raise enough for a long runway leave the money they will not touch for many months in their bank's treasury product, a money market fund that pays a modest return after a fee, giving up yield for same-day access they do not need, because switching banks or managing it themselves is not worth their time.
-- 13-aircaps: Deaf or hard-of-hearing adults lose the conversation when they talk with hearing people at a restaurant, a family meal or a meeting. Hearing aids, for those who wear them, are not dependable with background noise, and reading captions on a phone means looking down and missing faces. In a group many understand only a small part and nod along.
-- 17-expanse: Researchers and ML engineers running jobs on SLURM or Kubernetes clusters have to guess memory, run time and GPUs before they submit. Guess too low and the job fails mid-run, losing days of work. Guess too high and the compute sits reserved and unused. So everyone over-requests by two to three times, and clusters run at roughly 30% to 40% effective utilisation. [Yes, that's the problem / Let me edit it]
-- 21-codyco: Reservation agents at hotel groups in Germany miss about 5% of booking calls, even with a central reservations office or a call center: after hours, at peak hours and on holidays. Each call that rings out is a booking lost to an online travel agency or a competitor, and across a mid-sized group that is a seven-figure rounding error. Is that the problem?
+- 08-fresco: Construction superintendents spend up to 3 hours a day on documents: they take 30-200 photos on their site walks, then at the end of the day sit in the trailer uploading them to Procore or OneDrive and typing up daily logs, mostly for liability or in case of a dispute with the owner. Is that the problem?
+- 10-palus: Finance leads at startups that have raised 18 to 24 months of runway leave cash they won't touch for six months or more in their bank's treasury product, a money market fund that pays a modest return after a fee, giving up yield for same-day liquidity they don't need because nobody at the company has time to manage it.
+- 13-aircaps: Deaf or hard-of-hearing adults lose the conversation when hearing people talk too fast or over noise, at a restaurant, a family meal or a meeting. Hearing aids aren't dependable with background noise, and phone captions mean looking down and missing faces, so in groups they follow only a small part and nod along. Is that the problem? (Yes, that's the problem / Close, but I'd change it)
+- 17-expanse: Researchers and ML engineers on SLURM or Kubernetes clusters must guess memory, run time and GPUs before they submit a job. Guess too low and the job fails mid-run, and days of work are lost. Guess too high and the compute sits reserved and unused. So everyone over-requests by two to three times, datacenters run at roughly 30% to 40% effective utilisation, and on one cluster we measured, 59% of the compute was wasted.
+- 21-codyco: Even hotel groups with a central reservations office or call center miss 5% of their calls: after hours, during peak hours, on holidays. Across a mid-sized group, those missed bookings add up to a seven-figure rounding error. [Yes, that's the problem / Not quite, let me change it]
 
 ### COMMERCIAL · founder · - · problem-seed -- weak on R5
 Fix: **shared file** -- problem-interpret.md.
-- 08-fresco: Construction superintendents spend up to 3 hours a day on documents. They take 30-200 photos a day on their site walks, then spend hours at the end of the day in the trailer uploading them to Procore or OneDrive and typing daily logs and punch lists, mostly for liability or a dispute with the owner.
+- 08-fresco: Construction superintendents spend up to 3 hours a day on documents. They take 30-200 photos a day on their site walks, then at the end of the day sit in the trailer uploading them to Procore or OneDrive and typing up daily logs and punch lists, mostly for liability or in case of a dispute with the owner.
 - 10-palus: Finance leads at startups that raise 18 to 24 months of runway leave the money they will not touch for six months or more in their bank's treasury product, a money market fund paying about 3.5% after a fee of 0.15% to 0.60%, because nobody at the company has time to manage it.
-- 13-aircaps: Deaf or hard-of-hearing adults lose the conversation when they sit around a table with hearing people, at a restaurant, a family meal, a meeting or the theatre. Their hearing aids are not dependable with background noise, and reading captions on a phone means looking down and missing faces. In a group their understanding can drop to 20% at best, and they nod along.
-- 17-expanse: Researchers and ML engineers running jobs on SLURM or Kubernetes clusters have to guess memory, run time and GPUs before they submit. Guess too low and the job fails mid-run, losing days of work. Guess too high and the compute sits reserved and unused. So everyone over-requests by two to three times, and datacenters run at roughly 30% to 40% effective utilisation; on one national-scale HPC cluster we measured for a month, 59% of the compute across 122k jobs was wasted.
-- 21-codyco: Hotel groups in Germany miss about 5% of their reservation calls, even with a central reservations office or a call center: after hours, at peak hours and on holidays. Each call that rings out is a booking that goes to an online travel agency or a competitor, a seven-figure rounding error for a mid-sized group.
+- 13-aircaps: Deaf or hard-of-hearing adults lose the conversation when they sit around a table with hearing people, at a restaurant, a family meal or a meeting, or when they are at the theatre, because hearing aids are not dependable with background noise and reading captions on a phone means looking down and missing faces; in groups their understanding can drop to 20% at best, and they nod along.
+- 17-expanse: Researchers and ML engineers on SLURM or Kubernetes clusters must guess memory, run time and GPUs before they submit a job. Guess too low and the job fails mid-run, and days of work are lost. Guess too high and the compute sits reserved and unused. So everyone over-requests by two to three times, and datacenters run at roughly 30% to 40% effective utilisation; on one national-scale HPC cluster we measured for a month, 59% of the compute across 122k jobs was wasted.
+- 21-codyco: Hotel groups miss about 5% of their reservation calls even with a central reservations office or a call center: after hours, during peak hours, on holidays. Every call that rings out is a booking that goes to an online travel agency or a competitor, a seven-figure rounding error for a mid-sized group.
 
 ### COMMERCIAL · founder · - · ready-interviewer -- weak on R2, R4
 Fix: **no model** -- the page's own words (keel-web / keel-cloud code).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
-- 10-palus: How should finance leads answer your questions? Options: They read the questions and tap their answers (included) / An AI interviewer asks them, and you choose its face (uses Keel credits).
-- 13-aircaps: How should people answer your questions? Options: Read the questions and tap answers (works without hearing) / AI interviewer that speaks with live captions on screen (uses Keel's credits).
-- 17-expanse: How should people get your questions? Options: 'They read and tap (included)', 'A recorded face asks, and they tap their answers (included)', 'An AI interviewer talks with them (uses Keel credits)'.
-- 21-codyco: Who should ask your questions? Options: "People read and tap (included on your plan)" or "An AI interviewer speaks them (needs Keel credits)".
+- 08-fresco: Who should ask superintendents at US general contractors your questions? Options: 'They read the questions and tap their answers (free)' / 'An AI interviewer asks them out loud, using this face (uses Keel credits)'.
+- 10-palus: How should people get your questions? Options: They read and tap (included on this account) / An AI interviewer asks them aloud (uses Keel credits).
+- 13-aircaps: How should people get your questions? Options: They read and tap their answers (no sound needed, included with your account) / An AI interviewer talks with them, with captions on screen (uses Keel credits).
+- 17-expanse: How should people answer your questions? Options: "They read the questions and tap their answers (included)" / "An AI interviewer asks them out loud (uses Keel credits)".
+- 21-codyco: How should people answer your questions? Options: They read and tap (included on this account) / An AI interviewer talks with them (uses Keel credits).
 
 ### COMMERCIAL · founder · - · ready-pilot -- weak on R2, R4, R5
 Fix: **no model** -- the page's own words (keel-web / keel-cloud code).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
-- 10-palus: Offer a small first step? After answering, people can ask to try Palus with a small part of their reserve. Nothing here changes their answers. [Offer it] [Not now]
-- 13-aircaps: After people answer, should they be able to ask to try the glasses early? Options: Yes, let them ask / No, not now.
-- 17-expanse: After people have answered, can they ask to join your pilot (your two-week waste measurement, then the fixed-fee pilot)? Options: Yes, let them ask / No, not in this study.
-- 21-codyco: Do you want people who answer to be able to ask about your pilot (€3,000 money-back, one hotel, up to 8 weeks)? Optional, and it does not change their answers.
+- 08-fresco: Offer your paid pilot on one site to the people who finish this study? They can ask to join after they have answered, and nothing here changes their answers. [Yes, offer it] [No, not on this study]
+- 10-palus: Do you want to offer people who finish the study a way to start small with Palus? This is optional and won't change their answers. [Yes, let them ask to join] [Not now]
+- 13-aircaps: Do you want people who finish the study to be able to ask to try the glasses early? Options: Yes, let them ask / No, not this time.
+- 17-expanse: Offer a pilot to the cluster operators who answer? It would be your two-week waste measurement, then a paid per-cluster pilot; their answers don't change. Options: Yes, offer it / No, not in this study.
+- 21-codyco: Let people ask to join your paid pilot once they have answered: €3,000 up front, money-back, one hotel, up to 8 weeks? (Yes, offer it / No, not in this study)
+
+### COMMERCIAL · founder · - · send-format -- weak on R2, R4
+Fix: **no model** -- the page's own words (keel-web / keel-cloud code).
+Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
+- 08-fresco: How should they answer? AI interviewer: a face on video asks each question aloud and they talk, type or tap (we catch every answer in a quiet room, more than 9 in 10 on a loud site; uses Keel credits). Text only: they read each question and tap or type. Let them choose: they pick when they open the link (uses Keel credits).
+- 10-palus: How should they answer? AI interviewer: a face on video asks each question aloud, and they talk, type or tap (spoken answers are captured correctly nearly every time, even in a noisy place; uses Keel's credits). Text only: they read each question and tap or type. Let them choose: they pick when they open the link (uses Keel's credits).
+- 13-aircaps: How should they answer? Text only: they read each question and tap or type (best for people who can't hear a spoken question). AI interviewer: a face on video asks aloud with captions on screen, and they can talk, type or tap (needs Keel's credits). Let them choose: they pick when they open the link (needs Keel's credits).
+- 17-expanse: How should they answer? AI interviewer: a face on video asks each question aloud, and they talk, type or tap (uses Keel credits; it catches nearly every spoken answer in a quiet room and more than 9 in 10 in a loud one) / Text only: they read each question and tap or type / Let them choose when they open the link (uses Keel credits).
+- 21-codyco: How should they answer? AI interviewer: a face on video asks each question aloud, and they talk, type or tap; it understands speech reliably in a quiet room, slightly less in a noisy one (needs Keel's credits). Text only: they read each question and tap or type. Let them choose: they pick when they open the link (needs Keel's credits).
+
+### COMMERCIAL · founder · - · send-who -- weak on R4
+Fix: **no model** -- the page's own words (keel-web / keel-cloud code).
+- 08-fresco: Who gets a link? Keep the three options, and add under them: 'You'll do this once for the superintendents and once for the contractor operations leads.'
+- 13-aircaps: Who gets a link? People I know by name (each gets their own link) / People I find with a Keel search (Keel makes a link for each; I send them) / A group where one open link gets posted (each person signs in with Google).
+- 17-expanse: Who gets a link? People I know by name (I send each one their own link) / People Keel finds for me (I search for them in Keel, pick a list, and send each person their own link) / A group, with one open link (I post one link where the people already are; each person signs in with Google, then is interviewed).
 
 ### COMMERCIAL · founder · - · solution-card -- weak on R5
 Fix: **shared file** -- solution-mechanism.md.
-- 08-fresco: The people building it believe superintendents will talk over short videos during their site walks, and that this will get their notes done about 90% faster than doing them after.
-- 10-palus: You link your existing bank through Plaid, with no switching banks. Palus holds your long-term reserve in a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds, targeting 4.5 to 5 percent against roughly 3.5 from most money market funds. Cash returns to checking in one to two business days, and an SEC-licensed custodian holds the assets. Belief: the people building it believe a startup's long-term reserve can earn 4.5 to 5 percent without switching banks, if the company can wait a day or two for its cash.
-- 13-aircaps: You wear lightweight glasses paired to an app on your phone, and live captions of what people nearby are saying appear inside the lens. The people building it believe this would let the wearer follow and join a face-to-face conversation while keeping eye contact. Does this look right?
-- 17-expanse: How: Expanse installs on every node and hooks into SLURM or Kubernetes. On submit, it reads source code, submission script and hardware, and predicts the GPU VRAM, utilisation, memory, CPUs and walltime the job needs, with a confidence interval. It flags likely failures and suggests line-level optimisations; a failed job gets why and how to fix it. All on your network. Belief: The people building it believe it would predict what a job actually needs closely enough that researchers stop over-requesting and the wasted capacity comes back.
-- 21-codyco: How: The hotel forwards the calls nobody picks up to Codyco. Codyco answers in the hotel's voice, answers the guest's questions and takes the payment. It writes the confirmed booking straight into the hotel's PMS (OPERA Cloud, Sihot, Apaleo) and hands a call to the desk by rules the hotel sets. Belief: We believe it would answer the calls nobody picks up and turn them into confirmed bookings in the PMS.
+- 10-palus: Belief line: "The people building it believe it would earn a target yield of 4.5 to 5 percent a year, against roughly 3.5 percent from most money market funds."
+- 13-aircaps: You wear lightweight glasses paired to your phone. They show live captions of what the people nearby are saying, inside the lens, so you can read the words while keeping eye contact. We believe this would let the wearer follow and join a face-to-face conversation. Does this describe your idea? [Looks right] [Change it]
+- 17-expanse: How: Expanse installs on every node and hooks into SLURM or Kubernetes, reads each job's source code, submission script and hardware telemetry, and predicts the GPU VRAM, utilisation, memory, CPUs and walltime it needs, with a confidence interval; it flags likely failures, suggests line-level fixes, explains any failure and how to fix it, and all analysis runs on your network.
+- 21-codyco: You forward the calls nobody picks up to Codyco. Codyco answers in the hotel's voice, answers the guest's questions and takes the payment. It writes the confirmed booking straight into the hotel's PMS (OPERA Cloud, Sihot or Apaleo) and hands a call to the desk by rules the hotel sets.
 
 ### COMMERCIAL · founder · - · solution-seed -- weak on R5
 Fix: **shared file** -- solution-mechanism.md.
-- 08-fresco: Belief: The people building it believe superintendents would talk over short videos during the site walk and get their notes done then, instead of spending hours on them in the trailer at the end of the day.
-- 10-palus: How: You link your existing bank through Plaid. It holds your long-term reserve in a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds, targeting 4.5 to 5 percent. Cash returns to checking in one to two business days. A regulated custodian holds the assets in your company's name. Belief: We believe it would earn 4.5 to 5 percent on the long-term reserve, without switching banks.
-- 17-expanse: Expanse installs on every node and hooks into SLURM or Kubernetes. On submit, it reads the source code, submission script and hardware, predicts the GPU memory, memory, CPUs and walltime the job needs, flags failures before they happen and suggests line-level optimisations. A failed job gets why and how to fix it. Everything runs on the customer's own network.
-- 21-codyco: What: Codyco, an AI reservation agent. How: The hotel forwards the calls nobody picks up to Codyco; the AI answers in the hotel's voice, answers the guest's questions, takes the payment and writes the confirmed booking straight into the PMS (OPERA Cloud, Sihot, Apaleo), handing a call to the desk by rules the hotel sets.
+- 08-fresco: Keep the how line as written and make the belief line: The people building it believe an AI scribe would turn site walk videos into notes with photos, assignees and due dates, text the crew their action items, and send the notes to Procore or ACC in one click.
+- 10-palus: Palus: you link a treasury account to your existing bank through Plaid; it holds your long-term reserve in a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds, in your company's name at a regulated custodian, and cash is back in checking in one to two business days. The people building it are targeting a 4.5% to 5% annual yield.
+- 17-expanse: Expanse installs on every node and hooks into SLURM or Kubernetes. It reads the job's source code, submission script and hardware, and at submit time predicts the GPU memory, memory, CPUs and walltime the job actually needs. It flags failures before they happen and suggests line-level optimisations. When a job fails, it says why and how to fix it. Everything runs on the customer's own network.
+- 21-codyco: how: An AI reservation agent: you forward the calls nobody picks up to Codyco. It answers in the hotel's voice and answers the guest's questions. It takes the payment. It writes the confirmed booking straight into the hotel's PMS (OPERA Cloud, Sihot, Apaleo). It hands a call to the desk by rules the hotel sets.
 
-### COMMERCIAL · founder · commercial.buyer_payer_alignment · check -- weak on R4
+### COMMERCIAL · founder · commercial.buyer_payer_alignment · answer -- weak on R5
 Fix: **registry row** -- commercial.buyer_payer_alignment's founder guidance (else founder-lists.md, shared: every dimension re-read).
-- 10-palus: Keep the belief and label the third row: 'The board · does not have to agree (we test this)'.
-- 13-aircaps: Rows: deaf or hard-of-hearing adult · has the problem; deaf or hard-of-hearing adult · decides and pays. Belief: The deaf or hard-of-hearing adult decides and pays, and nobody else has to agree.
-- 17-expanse: Keep the rows, label the last two 'has to agree' and 'can block it', and write: The cluster operator decides, the department head has to agree, and the security team can block it.
-- 21-codyco: Is this who is involved in the purchase? Reservation agent: has the problem; Hotel group revenue director: decides to buy; The hotel's owner: has to agree (and the finance director only if I add them, with a stated role).
+- 10-palus: Besides the startup founder, who has to agree before the company moves its cash reserve? "Nobody" is an answer.
+- 13-aircaps: You said the deaf or hard-of-hearing adult decides and pays: does anyone else, such as family or an audiologist, have to agree first? If not, type "Nobody".
+- 17-expanse: Keep the question and options, but show the belief as: "The cluster operator decides, and the department head and the security team have to agree."
+- 21-codyco: Keep the question and chip, and make the belief line carry both names: "The hotel group revenue director decides, and the hotel's owner and the finance director have to agree."
+
+### COMMERCIAL · founder · commercial.buyer_payer_alignment · check -- weak on R4, R5
+Fix: **registry row** -- commercial.buyer_payer_alignment's founder guidance (else founder-lists.md, shared: every dimension re-read).
+- 10-palus: Rows: 'Finance lead · has the problem', 'Startup founder · decides to buy', 'The board · we'll check whether it has to agree'; belief: 'The startup founder decides, and nobody else has to agree.'
+- 13-aircaps: deaf or hard-of-hearing adult · has the problem; deaf or hard-of-hearing adult · decides and pays. Belief: The deaf or hard-of-hearing adult decides and pays, and nobody else has to agree.
+- 17-expanse: Keep the sentence and label the rows: researcher · has the problem; Cluster operator · decides to buy; The department head · has to agree (we test this); The security team · also has to agree (not tested).
+- 21-codyco: Is this who buys? Reservation agent: has the problem. Hotel group revenue director: decides to buy. Hotel's owner: has to agree. Anyone else who has to agree? (Finance director / No one else)
 
 ### COMMERCIAL · founder · commercial.buyer_payer_alignment · choose -- weak on R1, R2, R4
 Fix: **registry row** -- commercial.buyer_payer_alignment's founder guidance (else founder-lists.md, shared: every dimension re-read).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
-- 10-palus: Besides the founder, who has to agree before the company moves its reserve? Nobody else / The board / A lead investor
-- 13-aircaps: Keel will test: the deaf or hard-of-hearing adult decides, and nobody else has to agree; it holds if at least 2 in 3 say they decided on their own. Is this what you believe? (Yes, test this / No, someone else has a say, let me change it)
-- 17-expanse: Who else has to agree before a cluster operator can start a paid pilot? Nobody else / The department head / The security team / Finance or procurement / Someone else; holds if at least 2 in 3 operators say the department head had to agree the last time they bought cluster software.
-- 21-codyco: Skip the repeat question and show the belief to confirm, with the bar as: 'Holds if at least 2 in 3 revenue directors say the hotel's owner had to agree the last time they bought something like this.' If the choice stays, offer: Nobody else / The hotel's owner / The finance director / The group's managing director / Someone else.
+- 08-fresco: Which of these do you most want to test as the person who has to agree? (The CFO / The project executive / Someone else: name them / Nobody else); bar: Holds if at least 2 in 3 operations leads say the CFO had to agree the last time they bought software for a job.
+- 10-palus: Who else has to agree before a startup founder can move the reserve? Nobody else / The board / A lead investor / Not sure yet
+- 13-aircaps: The belief to test: the deaf or hard-of-hearing adult decides alone, and nobody else has to agree. Options: Yes, test this / No, change my answer.
+- 17-expanse: Which one person's sign-off are you least sure of, besides the cluster operator's: nobody else, the department head, the security team, or someone else? We'll ask operators who bought cluster software: 'Did the department head have to agree?' It holds if at least 2 in 3 say yes.
+- 21-codyco: Skip the repeat pick and show only the belief and test: "The hotel group revenue director decides, and the hotel's owner has to agree. Holds if at least 2 in 3 directors say the owner had to agree the last time they bought something like this."
 
 ### COMMERCIAL · founder · commercial.commitment · answer -- weak on R5
 Fix: **registry row** -- commercial.commitment's founder guidance (else founder-lists.md, shared: every dimension re-read).
-- 10-palus: What's the first real step you'd want the startup to take? e.g. move a small part of the reserve into it. Belief: Most startups would move a small part of the reserve now.
-- 13-aircaps: What's the first real step you'd want them to take? Belief: Most deaf or hard-of-hearing adults who have this problem would order a pair of the glasses now, with free returns.
-- 17-expanse: Keep the question and hint, and rewrite the belief as: 'Most operators of SLURM or Kubernetes clusters of 100 or more GPUs would run a two-week waste measurement on their cluster now.'
-- 21-codyco: Question: "What's the first real step you'd want the hotel group's revenue director to take?" Belief: "Most hotel group revenue directors would pay €3,000 now for a money-back pilot at one hotel."
+- 10-palus: Keep the question, hint and chip, but have the belief read: "Most founders would move a small part of the reserve into this now."
+- 17-expanse: Keep the question and hint, but change the belief to: 'Most operators of SLURM or Kubernetes clusters of 100 or more GPUs would run a two-week waste measurement on the cluster now.'
+- 21-codyco: Keep the question and box, and write the belief as: "Most revenue or reservations directors at hotel groups would pay €3,000 now for a money-back pilot at one hotel."
 
-### COMMERCIAL · founder · commercial.commitment · check -- weak on R5
+### COMMERCIAL · founder · commercial.commitment · check -- weak on R3, R5
 Fix: **registry row** -- commercial.commitment's founder guidance (else founder-lists.md, shared: every dimension re-read).
-- 10-palus: Most startup founders would move a small part of the reserve now.
-- 13-aircaps: Most deaf or hard-of-hearing adults would order a pair of these glasses now, knowing they can send them back free.
-- 21-codyco: Most hotel group revenue directors would pay €3,000 now for a money-back pilot at one hotel; holds if no more than 1 in 3 say probably not or no.
+- 08-fresco: Belief to test: Most contractor operations leads would start a paid pilot on one site now. Bar: holds if no more than 1 in 3 say probably not or no.
+- 10-palus: Most startup founders would move a small part of the reserve out of the bank's treasury now. Holds if no more than 1 in 3 say probably not or no.
+- 13-aircaps: Most deaf or hard-of-hearing adults who talk with hearing people every week would order a pair of caption glasses at $599 with free returns now. Holds if no more than 1 in 3 say probably not or no.
+- 17-expanse: Most cluster operators would run a two-week waste measurement on their cluster now.
+- 21-codyco: Most hotel group revenue directors would pay €3,000 now for a money-back pilot at one hotel. Holds if no more than 1 in 3 directors say probably not or no.
 
 ### COMMERCIAL · founder · commercial.existing_sacrifice · q -- weak on R2, R4, R5
 Fix: **registry row** -- commercial.existing_sacrifice's founder guidance (else founder-lists.md, shared: every dimension re-read).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
-- 08-fresco: What does keeping the daily log cost the general contractor today? Options: Money they pay out / Hours their people spend / Money lost on disputes and delays; chip: I'm not sure -- then: Between 30 and 60 hours per site a month, at $55 an hour, spent on the daily log.
-- 10-palus: What does leaving this cash where it sits cost the company today? Options: Fees and money they pay / Hours it takes / Yield they miss out on, as a % of the balance a year; chip: I'm not sure -- with the belief reading "Companies miss out on about 2% a year on the balance, in interest on cash that sits in the operating account."
-- 13-aircaps: In a typical year, how much do deaf or hard-of-hearing adults spend on captioning apps and hearing-aid extras to keep up with conversations? Options: Money they spend: between $200 and $1,500 a year / Conversations they lose the thread of each month / Time it takes each week / chip: I'm not sure
-- 17-expanse: What does this problem cost the cluster's operator today? Options: Money they spend / Staff time it takes / A share of the cluster they lose; then: 'Between 30% and 59% of the cluster's GPU hours are reserved by jobs and never used, each month.'
-- 21-codyco: What does this problem cost a hotel group today? (Money they spend / Staff time it takes / A share of bookings they lose / I'm not sure), with the belief line: 'About 5% of reservation calls go unanswered, and the bookings on those calls are lost.'
+- 08-fresco: What does the daily log cost the general contractor today? Options: Superintendent hours it takes / Money they pay for it (software, a document controller) / Money they lose when a thin log hurts them in a dispute; chip: I'm not sure.
+- 10-palus: What does leaving this cash where it sits cost the company today? Options: Fees and other money they pay / Hours someone spends on it / Yield they miss on the balance; chip: I'm not sure; belief line: "Cash sitting in the operating account misses about 2% of the balance in interest a year, per company."
+- 13-aircaps: What does this problem cost deaf or hard-of-hearing adults today? Options: Money they spend (apps, captioning, hearing-aid extras) / Time it takes / Conversations they lose track of. Belief line: 'They lose the thread of about 12 conversations a month, and the moment with the people in them.'
+- 17-expanse: What does this problem cost the cluster's operator today? Money they spend / Time it takes / A share they lose; then: about 30% to 59% of the cluster's GPU hours are reserved by jobs and never used, each month.
+- 21-codyco: What does this problem cost the hotel group today? Bookings lost in euros per hotel a month / A share of reservation calls that ring out unanswered / Staff hours spent on it / I'm not sure -- then: about 5% of the reservation calls, the bookings lost after hours, at peak and on holidays.
 
-### COMMERCIAL · founder · commercial.price · q -- weak on R4, R5
+### COMMERCIAL · founder · commercial.price · q -- weak on R2, R4, R5
 Fix: **registry row** -- commercial.price's founder guidance (else founder-lists.md, shared: every dimension re-read).
-- 10-palus: What price do you have in mind for earning more on raised cash without switching banks? Options: A percent of the balance each year; A fixed fee each year; A share of the yield earned; One setup price, then a fee each year; One price, then nothing more; Free to them. Chip: No price yet.
-- 13-aircaps: What price do you have in mind for help following face-to-face conversations? Options: One price, nothing more; One price, then a fee each month; One price, with an optional monthly upgrade; A fixed fee each month; Free to them. Chip: No price yet.
-- 17-expanse: What price do you have in mind for a fix for guessing job resources? Options: A fixed fee per cluster each month / A percent of the compute cost it recovers / One price, then a fee each month / One price, then nothing more / Free to them; chip: No price yet
-- 21-codyco: What price do you have in mind for a fix for missed booking calls? (A fixed fee each month / A fee per call or per minute answered / A percent of the bookings it wins back / A pilot fee, then a fee each month / One price, then nothing more / Free to them; chip: No price yet), with the belief line: The payer would think it worth €3,000 for the pilot, then €1,000 to €1,500 per hotel a month.
+Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
+- 08-fresco: What price do you have in mind for Fresco? Options: A fixed fee per site each month; A fixed fee per user each month; A percent of the contract value; One price, then a fee each month; One price, then nothing more; Free to them. Chip: No price yet.
+- 10-palus: What price do you have in mind for earning more on the cash a startup won't need for six months or more? Options: a percent of the balance each year; a percent of the extra yield; a fixed fee each year; one price, then a fee each year; one price, then nothing more; free to them. Chip: No price yet.
+- 13-aircaps: What price do you have in mind for the glasses that show captions of a face-to-face conversation? Options: One price, then nothing more; One price, with an optional monthly plan; One price, then a required monthly fee; A fixed fee each month; Free to them. Belief line: The wearer would think it worth $599 up front, with an optional $20 a month for Pro.
+- 17-expanse: What price do you have in mind for a fix for guessing job resources? Options: A fixed fee each month; A fee per GPU or node each month; A percent of what it gets back; One price, then a fee each month; One price, then nothing more; Free to them. Chip: No price yet.
+- 21-codyco: How would you charge a hotel group for a fix for missed booking calls, and how much? Options: a fixed fee per hotel each month; a fee per call answered; a commission on the bookings it wins back; one price, then a fee per hotel each month; one price, then nothing more; free to them. Chip: no price yet.
 
 ### COMMERCIAL · founder · commercial.purchase_friction · answer -- weak on R5
 Fix: **registry row** -- commercial.purchase_friction's founder guidance (else founder-lists.md, shared: every dimension re-read).
-- 10-palus: What could slow down or stop a founder moving the company's reserve to you? Diligence, board or investor approval, a tax adviser, switching. Up to 25 words.
-- 21-codyco: What could slow down or stop a purchase? Keep the box and hint, and write the belief as: 'A data protection review of guest calls can slow or stop the purchase.'
+- 08-fresco: What could slow down or stop a purchase, and which one slows it most? Type the steps, then pick one: A trial on one live job / A check that it works with Procore / A security review.
+- 10-palus: What could slow down or stop a startup moving its reserve to you, and which one do you expect to matter most? (Diligence, board approval, tax adviser's sign-off, switching.) Up to 25 words.
+- 17-expanse: What could slow down or stop a purchase? Name each one, then mark which you think slows it most (approvals, reviews, procurement, switching). Up to 25 words.
+- 21-codyco: What could slow down or stop a hotel group buying this? (Approvals, data protection, PMS checks, a trial first.) Up to 25 words.
 
 ### COMMERCIAL · founder · commercial.purchase_friction · check -- weak on R4
 Fix: **registry row** -- commercial.purchase_friction's founder guidance (else founder-lists.md, shared: every dimension re-read).
-- 21-codyco: Keep the belief and change the third row to 'Works council sign-off on recording calls'.
+- 10-palus: Diligence slows the purchase most. Rows: Diligence on a new provider (including its account terms) / Board approval of the cash policy / A tax adviser's sign-off.
 
-### COMMERCIAL · founder · commercial.purchase_friction · choose -- weak on R4, R5
+### COMMERCIAL · founder · commercial.purchase_friction · choose -- weak on R4
 Fix: **registry row** -- commercial.purchase_friction's founder guidance (else founder-lists.md, shared: every dimension re-read).
-- 10-palus: Which step do you believe slows the purchase most? Diligence on a new provider / Board approval of the cash policy / An investor's sign-off / A tax adviser's sign-off. Holds if at least 2 in 3 say it was needed last time and took a long time, and more of them name it as the slowest than any other step.
-- 21-codyco: Which one do you believe slows a hotel group's purchase most? A data protection review of guest calls / A check that bookings land in the group's PMS / Works council sign-off on call monitoring -- Holds if at least 2 in 3 say that, the last time their group bought software that touches guest calls, this review was needed and took a long time.
+- 08-fresco: Which step do you believe slows the purchase most? A trial on one live job / A check that it works with Procore / A security review / A budget approval
+
+### COMMERCIAL · respondent · - · condition -- weak on R2
+Fix: **code transform** -- the respondent page's code.
+Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
+- 08-fresco: Do any of your company's jobs run on Procore or ACC? Yes; No
+- 10-palus: Does your startup bank with Mercury, Brex or something similar? Yes; No
+- 17-expanse: Does the cluster you run have 100 or more GPUs? Yes; No
+
+### COMMERCIAL · respondent · - · idea -- weak on R5, R6
+Fix: **shared file** -- solution-mechanism.md (the idea card).
+Fix for R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering).
+- 08-fresco: Imagine Fresco. During the site walk, your superintendents take short videos and talk over them. Fresco turns them into notes with photos, assignees and due dates, and texts the crew their action items. Your superintendents then send the notes to Procore or ACC in one click. The people building it believe it would save superintendents the evening write-up.
+- 10-palus: Imagine Palus. You link it to your existing bank, and it holds the cash you won't need soon in short-term government-backed bonds, in your company's name at a regulated custodian, with money back in checking in one to two days. The people building it believe it would earn 4.5 to 5 percent a year.
+- 17-expanse: Imagine Expanse, which installs on every node and hooks into SLURM or Kubernetes. At submit time it reads each job's code, script and hardware, predicts the resources the job needs and flags likely failures; if a job fails, it says why and how to fix it. The people building it believe its predictions would match what a job actually needs.
+- 21-codyco: Imagine Codyco. Calls nobody picks up are forwarded to Codyco, which answers in your hotel's name, answers the guest's questions and takes the payment. It writes the confirmed booking straight into OPERA Cloud and passes calls to your desk by rules you set. The people building it believe it would turn missed calls into confirmed bookings.
+
+### COMMERCIAL · respondent · - · reveal -- weak on R5, R6
+Fix: **shared file** -- solution-mechanism.md (the idea card).
+Fix for R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering).
+- 13-aircaps: Imagine AirCaps. You wear lightweight glasses that show live captions of what people nearby are saying, inside the lens. The people building it believe you could follow a conversation while keeping eye contact.
+
+### COMMERCIAL · respondent · commercial.ability_to_pay · item -- weak on R4
+Fix: **registry row** -- commercial.ability_to_pay's respondent wording, else the code transform (no model).
+- 08-fresco: Think of the last tool your team paid for. Where did the money come from? A budget line we already had; A new budget line someone signed off; Or taken from other spending. Or say I can't recall one.
+- 10-palus: Think of the last tool your company paid for. Where did the money come from? A budget we already had; a new budget someone signed off; taken from other spending; or just put on the card with no budget. Or say I can't recall one.
+- 13-aircaps: Could you pay about $599 once for AirCaps, or not? Yes, from what I spend on hearing help; Yes, from savings; Yes, if insurance or an agency helped; No, I couldn't pay it; or say I can't say.
+- 17-expanse: Think of the last tool your team paid for. Where did the money come from? A budget line we already had; A new budget line someone signed off; Taken from other spending; or Paid before any budget was agreed. Or say I can't recall one.
+- 21-codyco: Think of the last tool your team paid for. Where did the money come from? A budget line we already had; a new budget line someone signed off; or taken from other spending. Or say I can't recall one.
+
+### COMMERCIAL · respondent · commercial.buyer_payer_alignment · item -- weak on R4, R6
+Fix: **registry row** -- commercial.buyer_payer_alignment's respondent wording, else the code transform (no model).
+Fix for R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering).
+- 08-fresco: Could you sign off on about $800 per site a month yourself, or not? Yes, on my own; No, the CFO would decide; No, several people would decide; No, another person would decide; or say I can't tell.
+- 10-palus: Could you sign off on Palus yourself, or would someone else have to agree? Yes, I could sign off myself; No, one other person would have to agree; No, several people would have to agree; No, someone else would decide. Or say I can't tell.
+- 13-aircaps: The last time you paid for a hearing or captioning product, who made the decision? I decided alone; I decided with one other person; I decided with several people; or someone else decided for me. Or say I can't recall one.
+- 17-expanse: Could you sign off on about $10,000 per cluster a month yourself, or not? Yes, on my own; No, my department head decides; No, several people must agree; No, someone outside my department decides; or say I can't tell.
+- 21-codyco: Could you approve about €3,000 per hotel across the group yourself, or would someone else have to agree? Options: Yes, I could approve it myself; No, group management would have to agree; No, the hotel's owner would have to agree; No, several people would have to agree. Escape: I can't tell.
+
+### COMMERCIAL · respondent · commercial.commitment · item -- weak on R4, R6
+Fix: **registry row** -- commercial.commitment's respondent wording, else the code transform (no model).
+Fix for R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering).
+- 08-fresco: If it were ready today, would you start a paid pilot on one site, or not? Yes, I'd start one; Probably, with conditions; Probably not; or No.
+- 10-palus: If it were ready today, would you move a small part of your company's cash into it, or not? Yes, right away; Probably, after checking it out; Probably not; or No.
+- 13-aircaps: If it were ready today, would you order a pair with free returns, or not? Yes, I'd order a pair; Maybe, I'd want to know more; or No.
+- 17-expanse: If it were ready today, would you run a two-week waste measurement on the cluster, or not? Yes, I'd run it; Probably not; or No.
+- 21-codyco: If it were ready today, would you pay €3,000 for a money-back pilot at one hotel, or not? Yes, I'd pay; Probably not; or No.
+
+### COMMERCIAL · respondent · commercial.existing_sacrifice · item -- weak on R2, R3, R4, R5, R6
+Fix: **registry row** -- commercial.existing_sacrifice's respondent wording, else the code transform (no model).
+Fix for R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering).
+Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
+- 08-fresco: Last month, about how many hours did one superintendent spend on the daily log at a typical site? Type a number, or say I can't recall.
+- 10-palus: Last year, about what percent of your company's cash balance did you miss out on in interest or pay in bank fees? Box: % of the balance. Or say I can't recall.
+- 13-aircaps: Think of the last 7 days: about how many face-to-face conversations with hearing people did you lose track of or drop out of? Type a number, or choose None or I can't recall.
+- 17-expanse: Last month, about what percent of your cluster's GPU hours were wasted on failed jobs or over-allocated GPUs? [box: % of GPU hours last month] Or say I can't recall.
+- 21-codyco: Last month, about what share of your reservation calls went unanswered or were abandoned before anyone picked up? Box: % of reservation calls last month; escape: I can't recall.
+
+### COMMERCIAL · respondent · commercial.price · item -- weak on R4, R6
+Fix: **registry row** -- commercial.price's respondent wording, else the code transform (no model).
+Fix for R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering).
+- 08-fresco: What would Fresco be worth to you per site each month: under $500; $500 to $799; $800 to $2,499; $2,500 to $5,000; over $5,000; or I wouldn't pay for this? Or say I can't say. (When spoken, first ask: under $800, $800 or more, or I wouldn't pay for this? Then read only the bands in that range.)
+- 10-palus: Palus takes a yearly fee on the balance; what fee would feel fair? Under 0.1%; 0.1% up to 0.25%; 0.25% up to 0.5%; 0.5% up to 1%; 1% or more; I wouldn't pay for this. Or say I can't say. (When spoken, first ask: under 0.25%, 0.25% up to 1%, 1% or more, or I wouldn't pay for this; then narrow within the range chosen.)
+- 13-aircaps: What's the most you would pay up front for AirCaps? Under $250; $250 to $599; $600 to $1,000; $1,001 to $2,500; or over $2,500. Or say I can't say. (Asked in two steps aloud, with "I wouldn't pay for this" taken first and the monthly question asked separately, in non-overlapping bands: under $10; $10 to $19; $20 to $49; $50 to $99; or $100 or more.)
+- 17-expanse: What would Expanse be worth to you a month, per cluster? Spoken in two steps: first "Would you pay nothing, under $10,000, or $10,000 or more?", then only the matching bands: under $5,000; $5,000 to under $10,000; $10,000 to under $25,000; $25,000 to $50,000; or over $50,000.
+- 21-codyco: What would you pay up front per hotel, if anything? Nothing up front; under €1,000; €1,000 to under €3,000; €3,000 to under €5,000; €5,000 to under €10,000; or €10,000 or more, asked in two spoken steps with the 'I wouldn't pay for this' answer kept for the monthly question, and 'I can't say' as the escape on both.
+
+### COMMERCIAL · respondent · commercial.purchase_friction · item -- weak on R4
+Fix: **registry row** -- commercial.purchase_friction's respondent wording, else the code transform (no model).
+- 08-fresco: If you bought Fresco, would someone have to check it works with your Procore or ACC setup first? Yes, and it would take a long time; Yes, but it would be quick; No, no check needed; or say I can't tell.
+- 10-palus: If you bought Palus, would it need diligence on a new provider before it went through? Yes, and it would take a long time; Yes, but it would be quick; No, it wouldn't be needed; or say I can't tell.
+- 17-expanse: If you bought Expanse, would it need a security review of an agent on every node first? Yes, and it would take a long time; Yes, but it would be quick; No, it wouldn't be needed; or say I can't tell.
+- 21-codyco: If you bought Codyco, would it need a data protection review of guest calls first? Yes, and it would take a long time; Yes, but it would be quick; or No, it wouldn't be needed. Or say I can't tell.
 
 ### PROBLEM · founder · - · context -- weak on R2, R5
 Fix: **shared file** -- context-interpret.md, and code (ReadBack, Qualifiers).
@@ -375,226 +491,243 @@ Fix for R2 -- the registry row, or the instruction gains the trade's words: the 
 Fix: **shared file** -- context-interpret.md, and code (ReadBack, Qualifiers).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
 - 08-fresco: Keel understands: Construction superintendents at US general contractors whose jobs run on Procore or ACC. When the day's site walks are done and the photos and notes still have to go into the daily log, they want to keep an accurate record of the day's work on site. We'll ask about their last 5 working days.
-- 10-palus: Finance leads at venture-backed US startups within two years of a raise, banking with Mercury, Brex or similar, who keep the money from the raise safe and earning until the company spends it. We'll ask about the last 3 months. Is this right?
+- 10-palus: Finance leads at venture-backed startups in the US within two years of a raise, banking with Mercury, Brex or similar. When the company decides where cash from a raise sits until it is needed, they want to keep that money safe and earning until the company spends it. We will ask them about the last 3 months.
 - 13-aircaps: Deaf and hard-of-hearing adults in the US who talk with hearing people every week. When a conversation is too fast or too noisy to follow, they want to follow and join it. We'll ask about the last 7 days. Is that right?
 - 17-expanse: Researchers and ML engineers on SLURM or Kubernetes clusters of 100 or more GPUs. When a job is ready to submit and its memory, GPUs and run time have to be guessed first, they want to get each job to run to the end without wasting the cluster. We'll ask about the jobs they submitted in the last 5 working days.
-- 21-codyco: Reservation agents at hotel groups in Germany that run a central reservations office or call center. Booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered; they want to turn every guest who calls into a booking. We'll ask about the last 7 days.
+- 21-codyco: Reservation agents at hotel groups in Germany that run a central reservations office or call center. Booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered; they want to turn every guest who calls into a booking. We will ask about their last 7 days.
 
 ### SOLUTION · founder · - · context-card -- weak on R2
 Fix: **shared file** -- context-interpret.md, and code (ReadBack, Qualifiers).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
 - 08-fresco: Construction superintendents at US general contractors with jobs on Procore or ACC. The day's site walks are done and the photos and notes still have to go into the daily log. We'll ask about their last 5 working days. Is that right?
-- 10-palus: Finance leads at venture-backed US startups within two years of a raise, banking with Mercury, Brex or similar. When the company decides where the raise sits until it's needed, they want to keep that money safe and earning until it's spent. We'll ask about the last 3 months. Is that right? [Yes, that's it] [Not quite]
+- 10-palus: Finance leads at venture-backed startups in the US within two years of a raise, banking with Mercury, Brex or similar. Over the last 3 months, when the company decided where cash from a raise sits until it is needed, they wanted to keep that money safe and earning until the company spends it. Is that it? (Yes, that's it / Change something)
 - 13-aircaps: Keep the card, but end it: "We'll ask about the last 7 days: when a conversation with hearing people was too fast or too noisy to follow, and they wanted to follow and join in." (Yes, that's it / Not quite)
 - 17-expanse: Researchers and ML engineers on SLURM or Kubernetes clusters of 100 or more GPUs. When a job is ready to submit and its memory, GPUs and run time have to be guessed first, they want to get each job to run to the end without wasting the cluster. We'll ask about jobs they submitted in the last 5 working days. Is that it?
-- 21-codyco: Reservation agents at hotel groups in Germany with a central reservations office or call center. Booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered; they want every guest who calls to end up booked. We'll ask them about their last 7 days. Is that it?
+- 21-codyco: Reservation agents at hotel groups in Germany with a central reservations office or call center. Booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered; they want to turn every guest who calls into a booking. We will ask about the last 7 days. Is that it? (Yes, that's it / Change something)
 
-### SOLUTION · founder · - · idea -- weak on R2, R5
+### SOLUTION · founder · - · idea -- weak on R2, R4, R5
 Fix: **shared file** -- solution-mechanism.md.
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
 - 08-fresco: What: an AI scribe for superintendents. How: During the site walk, you take short videos and talk over them, or upload photos. These become notes with photos, assignees and due dates. You text the crew their action items and send the notes to Procore or ACC in one click.
-- 10-palus: What: a treasury account for a startup's long-term cash. How: You connect it to your existing bank through Plaid and move your long-term reserve into a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds, held with an SEC-licensed custodian; when you need cash, it returns to checking. Belief: We believe it can target 4.5 to 5 percent, against roughly 3.5 percent from most money market funds, with cash typically back in one to two business days.
+- 10-palus: What: a higher-yield account for your startup's long-term cash. How: You link it to your existing bank through Plaid. It holds your long-term reserve in a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds, and an SEC-licensed custodian holds them in your company's name. Cash returns to checking in one to two business days. Belief: The people building it believe it can target a 4.5 to 5 percent return, against roughly 3.5 percent from most money market funds, with cash back in checking in one to two business days.
 - 13-aircaps: When a conversation with hearing people is too fast or too noisy to follow, you wear lightweight glasses paired to your phone, and live captions of what the people nearby are saying appear inside the lens, so you can read the words while keeping eye contact.
 - 17-expanse: What: a prediction of the memory, GPUs and run time a job needs, made as you submit it. How: An agent on every node hooks into SLURM or the Kubernetes scheduler, on your own network, and reads the job's source code, submission script and hardware. It predicts VRAM, RAM, CPUs and walltime at submit time, flags likely failures, suggests line-level fixes, and when a job fails says why and how to fix it.
-- 21-codyco: what: an AI agent that answers a hotel's missed calls; how: You forward calls nobody picks up to the agent. It answers in the hotel's voice, answers the guest's questions and takes the payment. It writes the confirmed booking straight into the hotel's PMS, such as OPERA Cloud, Sihot or Apaleo, and hands a call to the desk by rules the hotel sets.
+- 21-codyco: An AI agent answers the booking calls your hotel misses, in your hotel's voice: the hotel forwards the calls nobody picks up, the agent answers the guest's questions, takes the payment, writes the confirmed booking into the hotel's booking system (such as OPERA Cloud, Sihot or Apaleo), and hands a call to the desk by rules the hotel sets.
 
 ### SOLUTION · founder · - · problem-card -- weak on R5
 Fix: **shared file** -- problem-interpret.md.
 - 08-fresco: Construction superintendents take 30-200 photos a day on their site walks, mostly for liability or in case of a dispute with the owner, then spend hours at the end of the day in the trailer uploading them to Procore or OneDrive and typing up daily logs and punch lists. Is that the problem? (Yes, that's the problem / Not quite, let me fix it)
-- 10-palus: Finance leads at startups with a long runway leave cash they won't touch for six months or more in their bank's treasury product, giving up yield for same-day liquidity they don't need, because managing it themselves is too much work.
+- 10-palus: Finance leads at startups with 18-24 months of cash from a raise leave the money they won't touch for months in their bank's treasury product, giving up yield and paying a fee for same-day access they don't need, because moving it elsewhere feels like more work than it's worth. [Yes, that's the problem / Close, but let me fix it]
 - 13-aircaps: Deaf and hard-of-hearing adults lose the conversation when hearing people talk too fast or over noise, at a restaurant, a family meal or a meeting. Hearing aids are not dependable with background noise, and phone captions mean looking down and missing faces. In groups they catch only a small part, so they nod along instead of joining in. Is that the problem? (Yes, that's the problem / Close, but I'd change it)
 - 17-expanse: Researchers and ML engineers on SLURM or Kubernetes clusters of 100+ GPUs have to guess memory, time and GPUs before they submit. Guess too low and the job fails mid-run, and days of work are lost. Guess too high and the compute sits reserved and unused. So everyone over-requests by two to three times, and datacenters run at roughly 30% to 40% effective utilisation, with up to 59% of the compute wasted. [Yes, that's the problem / Not quite]
-- 21-codyco: Reservation agents at hotel groups, even with a central reservations office or a call center, still miss about 5% of booking calls: after hours, at peak hours and on holidays. Many of those callers book through an online travel agency or a competitor instead, and across a mid-sized group it adds up to a seven-figure sum. [Yes, that's the problem / Not quite, let me fix it]
+- 21-codyco: Keep the screen and its yes, reworded: "Even the best central reservation offices and call centers miss 5% of their calls: after hours, during peak hours, on holidays. Some of those callers would have booked, and across a mid-sized hotel group that adds up to a seven-figure rounding error."
 
 ### SOLUTION · founder · - · problem-seed -- weak on R5
 Fix: **shared file** -- problem-interpret.md.
 - 08-fresco: Construction superintendents spend up to 3 hours a day on documents: they take 30-200 photos a day on their site walks, then spend hours at the end of the day in the trailer uploading them to Procore or OneDrive and typing up daily logs and punch lists, mostly for liability or in case of a dispute with the owner.
-- 10-palus: Finance leads at startups that raised 18 to 24 months of runway leave the money they will not touch for six months or more in their bank's treasury product, a money market fund paying about 3.5% after a fee of 0.15% to 0.60%, because nobody at the company has time to manage it.
+- 10-palus: Finance leads at startups that have raised 18 to 24 months of runway leave the money they will not touch for six months or more in their bank's treasury product, a money market fund paying about 3.5% after a fee of 0.15% to 0.60%, because nobody at the company has time to manage it.
 - 13-aircaps: Deaf and hard-of-hearing adults lose the conversation when they sit around a table with hearing people, at a restaurant, a family meal, a meeting or the theatre. Their hearing aids are not dependable with background noise, and reading captions on a phone means looking down and missing faces. In groups, their understanding can drop to 20% at best, so they nod along.
 - 17-expanse: Researchers and ML engineers running jobs on SLURM or Kubernetes clusters have to guess memory, time and GPUs before they submit. Guess too low and the job fails mid-run, and days of work are lost. Guess too high and the compute sits reserved and unused. So everyone over-requests by two to three times, and datacenters run at roughly 30% to 40% effective utilisation; on one national-scale HPC cluster we measured for a month, 59% of the compute across 122k jobs was wasted.
-- 21-codyco: Reservation agents at hotel groups, even with a central reservations office or a call center, still see about 5% of booking calls go unanswered: after hours, at peak hours and on holidays. Every call that rings out is a booking that goes to an online travel agency or a competitor, a seven-figure rounding error for a mid-sized group.
+- 21-codyco: Hotel groups miss about 5% of their reservation calls even with a central reservations office or call center: after hours, during peak hours, on holidays. Every call that rings out is a booking lost to an online travel agency or a competitor, a seven-figure rounding error for a mid-sized group.
 
 ### SOLUTION · founder · - · ready-interviewer -- weak on R2, R4
 Fix: **no model** -- the page's own words (keel-web / keel-cloud code).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
 - 08-fresco: Who should ask your questions? Options: "Keel's AI interviewer (uses Keel credits)" / "No interviewer: people read the questions and tap their answers"
-- 10-palus: How should people answer your questions? Options: 'They read and tap (included)' or 'An AI interviewer asks them (30 Keel credits per person who answers)', and if AI, show the face it will use.
+- 10-palus: Who should ask your questions? Options: 'People read the questions and tap their answers (free on this account)' or 'An AI interviewer asks them (uses Keel credits)'.
 - 13-aircaps: How should people answer your questions? Options: They read and tap (included) / An AI interviewer asks them, with captions on screen (uses Keel's credits).
 - 17-expanse: How should researchers answer your questions? Options: "They read the questions and tap their answers (included)" / "Keel's AI interviewer asks them, using Keel's credits".
-- 21-codyco: How should people answer your questions? Options: 'They read and tap their answers (included with your account)' / 'An AI interviewer asks them out loud (uses Keel credits)'; if the second is picked, then ask 'Which face should they see?'
+- 21-codyco: How should reservation agents answer your questions? (Read and tap: included on this account / Talk to the AI interviewer: needs Keel credits)
 
-### SOLUTION · founder · - · ready-pilot -- weak on R4, R5
+### SOLUTION · founder · - · ready-pilot -- weak on R2, R4, R5
 Fix: **no model** -- the page's own words (keel-web / keel-cloud code).
+Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
 - 08-fresco: Offer a pilot on one site to people who finish the study? (Yes, let them ask to join / No, not now). Optional, and it does not change their answers.
-- 10-palus: Offer early access? Optional. After people have answered, they can ask to try Palus with a small part of their reserve. Nothing here changes their answers.
+- 10-palus: Offer people who answer the chance to try it early with a small part of their reserve? Optional, and nothing here changes their answers.
 - 13-aircaps: Do you want people who finish to be able to ask to try the glasses? (Yes, let them ask / Not now) Optional, and it doesn't change their answers.
 - 17-expanse: Offer a pilot to people who answer? Options: Yes, let cluster operators ask for the two-week measurement and paid pilot / No, not in this study.
-- 21-codyco: Offer your pilot to people who finish the study? They could ask to join the €3,000 money-back pilot at one hotel. Nothing here changes their answers. [Yes, offer it / No, not now]
+- 21-codyco: Offer a pilot to the people who answer? Options: Yes, the pilot I described (€3,000 at one hotel, up to 8 weeks, money back) / Yes, but with different terms / No, not in this study. Nothing here changes their answers.
 
-### SOLUTION · founder · - · send-format -- weak on R2, R4
+### SOLUTION · founder · - · send-format -- weak on R2
 Fix: **no model** -- the page's own words (keel-web / keel-cloud code).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
 - 08-fresco: How should they answer? AI interviewer: a face on video asks each question aloud and they talk, type or tap; it catches every word in a quiet room and more than 9 in 10 on a loud site (needs Keel's credits). Text only: they read each question and tap or type. Let them choose: they pick when they open the link (needs Keel's credits).
 - 13-aircaps: How should they answer? Text only: they read each question and tap or type. AI interviewer: a face on video asks each question aloud with captions on screen, and they talk, type or tap (uses Keel's credits). Let them choose: they pick when they open the link (uses Keel's credits).
 - 17-expanse: How should they answer? AI interviewer: a face on video asks each question aloud and they talk, type or tap (it understands nearly every spoken answer, even somewhere loud; uses Keel's credits) / Text only: they read each question and tap or type / Let them choose: they pick when they open the link (uses Keel's credits)
+- 21-codyco: How should they answer? AI interviewer: a face on video asks each question aloud and they talk, type or tap; spoken answers are understood every time in a quiet room and more than 9 in 10 times somewhere loud (needs Keel's credits). Text only: they read each question and tap or type. Let them choose: they pick one when they open the link (needs Keel's credits).
 
 ### SOLUTION · founder · - · solution-card -- weak on R5
 Fix: **shared file** -- solution-mechanism.md.
 - 08-fresco: Belief: The people building it believe superintendents could talk over short videos or upload photos during the site walk and get notes and crew texts, then send the notes to Procore or ACC in one click.
-- 10-palus: How: You connect your existing bank through Plaid and move your long-term reserve into a portfolio of short-duration, floating-rate government-backed mortgage-backed securities, held with an SEC-licensed custodian; cash comes back to your checking account when you need it. Belief: We believe it can target 4.5 to 5 percent, against roughly 3.5 percent from most money market funds, with cash back in one to two business days.
+- 10-palus: How: You link Palus to your existing bank through Plaid and move your long-term reserve into a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds, held with an SEC-licensed custodian; cash returns to checking in 1-2 business days. Belief: We believe it can target 4.5-5% returns, against roughly 3.5% from most money market funds, with cash back in checking in 1-2 business days.
 - 13-aircaps: When a conversation with hearing people is too fast or too noisy to follow, you wear lightweight glasses paired to your phone; they pick up the people nearby and show live captions inside the lens, visible only to you, so you read the words and keep eye contact.
 - 17-expanse: How: Expanse installs an agent on every node and hooks into the SLURM or Kubernetes scheduler, all on your own network. It reads the job's source code, submission script and live hardware telemetry, predicts the GPU VRAM, utilisation, memory, CPUs and walltime the job needs at submit time, flags likely failures, suggests line-level optimisations, and says why a job failed and how to fix it.
-- 21-codyco: Keep the card but change one line to: 'It writes the confirmed booking straight into the hotel's PMS, such as OPERA Cloud, Sihot or Apaleo.'
+- 21-codyco: The hotel forwards the calls nobody picks up to Codyco. Codyco answers in the hotel's voice, answers the guest's questions and writes the confirmed booking straight into the hotel's PMS (OPERA Cloud, Sihot or Apaleo). It hands a call to the hotel's desk by rules the hotel sets. Does this look right?
 
 ### SOLUTION · founder · - · solution-seed -- weak on R5
 Fix: **shared file** -- solution-mechanism.md.
 - 08-fresco: The people building it believe it would turn site walk videos into notes and crew texts, and send the notes to Procore or ACC in one click.
-- 10-palus: How: You link the treasury account to your existing bank through Plaid. It holds your long-term reserve in a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds, held in your company's name at a regulated custodian. Cash returns to checking. Belief: The people building it believe it would target a 4.5 to 5 percent yield, with the cash back in checking in one to two business days.
+- 10-palus: How: You link the treasury account to your existing bank through Plaid. It holds your long-term reserve in a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds. Cash returns to checking in one to two business days, and a regulated custodian holds the assets in your company's name. Belief: We believe it can target a 4.5 to 5 percent yield and return cash to checking in one to two business days.
 - 17-expanse: Expanse installs on every node and hooks into SLURM or Kubernetes, on your own network. It reads the job's source code, submission script and hardware, and at submit time predicts the GPU memory, memory, CPUs and walltime the job needs. It flags failures before they happen and suggests line-level optimisations. When a job fails, it says why and how to fix it.
-- 21-codyco: You forward calls nobody picks up to Codyco, an AI reservation agent. It answers in the hotel's voice, answers the guest's questions, takes the payment and writes the confirmed booking straight into the PMS (OPERA Cloud, Sihot, Apaleo). It hands a call to the desk by rules the hotel sets.
+- 21-codyco: Codyco is an AI reservation agent. The hotel forwards the calls nobody picks up to Codyco. It answers in the hotel's voice, answers the guest's questions and takes the payment. It writes the confirmed booking straight into the hotel's PMS (OPERA Cloud, Sihot, Apaleo). It hands a call to the hotel's desk by rules the hotel sets.
 
 ### SOLUTION · founder · solution.adoption_friction · answer -- weak on R5
 Fix: **registry row** -- solution.adoption_friction's founder guidance (else founder-lists.md, shared: every dimension re-read).
 - 08-fresco: What will a superintendent have to do to start using it? (Any setup, extra steps or learning. Up to 25 words.) Same chip, with only the belief drawn from this answer, e.g. "Most would take short videos and talk over them on walks."
-- 10-palus: Keep the question and hint, but have Keel write: 'Most would link the company bank account through Plaid and move the long-term reserve out of the bank's treasury', or show which of the two steps it kept for testing and why.
+- 10-palus: What will they have to do to start using it? Any setup, extra steps or learning, up to 25 words; then show each step I typed as its own belief to confirm: 'Link the company bank account through Plaid' and 'Move the long-term reserve out of the bank's treasury'.
 - 13-aircaps: Keep the question and hint, but make the belief: Most would wear the glasses paired to their phone and charge them every day.
 - 17-expanse: Keep the question and hint, but change the belief to: Most would use the suggested sizes instead of padding their requests.
-- 21-codyco: Keep the question and hint, and write the belief from my answer: 'Most would let an AI answer guests in the hotel's voice and set which calls it hands to the desk.'
+- 21-codyco: Keep the question and hint, and show the belief line without the brand: 'Most would forward unanswered calls to the AI.'
 
 ### SOLUTION · founder · solution.adoption_friction · check -- weak on R4, R5
 Fix: **registry row** -- solution.adoption_friction's founder guidance (else founder-lists.md, shared: every dimension re-read).
 - 08-fresco: What would they have to do to start? Take short videos or photos on walks and talk over them; check and fix the notes before they go out; get Procore or ACC connected, by them or the office. Belief: Most would take short videos and talk over them on their walks.
-- 10-palus: Keep the screen, but add a row, 'Open the account and move a small first amount', so the belief can test the step I actually ask for first.
+- 10-palus: Rows: Link the company bank account through Plaid; Move part of the long-term reserve out of the bank's treasury or checking. Belief: Most would move part of their long-term reserve out of where it sits today.
 - 13-aircaps: Most would wear the glasses, paired to their phone, in their conversations. Rows: Pair the glasses to their phone / Wear the glasses in conversations with hearing people / Keep the glasses charged for the day
+- 21-codyco: Check the belief: "Most would let an AI answer their guests in the hotel's voice." Rows: Forward unanswered calls to the AI; Connect it to the hotel's PMS; Let an AI answer guests in the hotel's voice; Set which calls the AI hands to the desk.
 
 ### SOLUTION · founder · solution.adoption_friction · choose -- weak on R3, R4, R5
 Fix: **registry row** -- solution.adoption_friction's founder guidance (else founder-lists.md, shared: every dimension re-read).
 - 08-fresco: Which of these do you most need to be true? Take short videos and talk over them on walks (selected; Keel will test: Most would take short videos and talk over them on walks) / Check and fix the notes before they go out / Connect it to Procore or ACC
-- 10-palus: Which step is most likely to stop them? (Link the company bank account through Plaid / Move the long-term reserve out of the bank's treasury) Keel will ask finance leads if they would do it, and your belief holds if no more than 1 in 3 say probably not or no.
+- 10-palus: Which step do you most need to test? Link the company bank account through Plaid / Move a first small part of the reserve out of the bank's treasury / Move the long-term reserve out of the bank's treasury
 - 13-aircaps: Which step do you most need to test? Options: Wear the glasses in conversations, paired to their phone / Keep the glasses charged through the day / Keep their phone with them and online; belief: Most would wear the glasses, paired to their phone, in their conversations.
 - 17-expanse: Which step might stop them? Use the suggested sizes instead of padding / Apply the line-level code fixes it suggests -- and drop connecting the cluster, because the operator installs it and the researcher submits as before; Keel tests: Most would use the suggested sizes instead of padding.
-- 21-codyco: Which step might stop them? Let an AI answer guests in the hotel's voice / Decide which calls the AI hands to the desk / Have the hotel's booking system connected to the AI (their IT does this); belief: Most would let an AI answer guests in the hotel's voice.
+- 21-codyco: Which step would most make them hold back? Forward unanswered calls to an outside service / Connect it to the hotel's PMS / Let an AI answer guests in the hotel's voice / Set which calls go to the desk -- with 'Let an AI answer guests in the hotel's voice' selected, so the belief reads 'Most would let an AI answer guests in the hotel's voice.'
 
 ### SOLUTION · founder · solution.compatibility · answer -- weak on R5
 Fix: **registry row** -- solution.compatibility's founder guidance (else founder-lists.md, shared: every dimension re-read).
 - 08-fresco: Keep the question and hint, but show all three beliefs: "For most, they had their phone out on the walk." / "For most, they could talk over the noise on site." / "For most, the job kept its logs in Procore or ACC."
-- 10-palus: What must already be true at their company for this to work? (for example: their bank links through Plaid, they can wait two days for cash, their policy allows bonds beyond Treasuries)
+- 10-palus: What must already be true at their company for this to work: what they have, what they allow, what they can live with? Up to 25 words; we test the one you are least sure of.
 - 13-aircaps: What do they already have with them, or already do, in a conversation that this relies on? (e.g. phone with them and online; wearing glasses throughout; reading while watching faces) -- and test each of my three points as its own belief.
 - 17-expanse: How does it fit into the way they work today? Name what they already have or do that it plugs into, and we'll test the one most likely to fail -- here, the source code sits on the cluster beside the job script.
-- 21-codyco: How does it fit into the way they work today? Keep Keel's belief to the one thing that matters most, but show it as: "Unanswered calls can be forwarded to another number, and the PMS takes bookings from outside systems."
+- 21-codyco: Keep the question and hint, but show the dropped conditions as their own beliefs to confirm or remove: "For most, unanswered calls can be forwarded to another number." / "For most, the PMS can take bookings from outside systems." / "For most, rates and room types are kept up to date."
 
-### SOLUTION · founder · solution.compatibility · choose -- weak on R2
+### SOLUTION · founder · solution.compatibility · check -- weak on R4
 Fix: **registry row** -- solution.compatibility's founder guidance (else founder-lists.md, shared: every dimension re-read).
-Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
+- 10-palus: Keep the first two rows and change the third to: Nothing they had agreed with their board or investors stopped them holding bonds beyond Treasuries.
+
+### SOLUTION · founder · solution.compatibility · choose -- weak on R4
+Fix: **registry row** -- solution.compatibility's founder guidance (else founder-lists.md, shared: every dimension re-read).
 - 08-fresco: What must be true for this to fit their day? Options: They had their phone out on the walk / They could talk over the noise on site / They would be fine talking into their phone with the crew around / Their notes could go straight into Procore or ACC
 - 13-aircaps: For most, their phone was with them and online during that conversation.
-- 21-codyco: Which must be true at most hotel groups for this to work? Unanswered calls can be forwarded to another number / The PMS accepts bookings from outside systems / Rates and room types are kept up to date; holds if at least 2 in 3 say yes, always.
 
 ### SOLUTION · founder · solution.relative_advantage · answer -- weak on R2, R5
 Fix: **registry row** -- solution.relative_advantage's founder guidance (else founder-lists.md, shared: every dimension re-read).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
 - 08-fresco: What does it do better than the way they do it today? Belief: For most, it would have given them hours back at the end of the day on their last daily log, and got action items to the crew the same day.
-- 10-palus: Keep the question and hint, but have the belief read: 'For most, it would have earned them higher yield on the cash from a raise, without hiring anyone to manage treasury.'
+- 10-palus: Keep the question, and write the belief as: "For most, it would have earned more on the cash from their raise, without hiring anyone to manage it, the last time they decided where that cash sits."
 - 13-aircaps: What does it let them do that they can't do today with phone captions, lipreading or asking people to repeat? Belief: For most, it would have let them follow more of their last conversation without asking anyone to repeat.
 - 17-expanse: What does it do better than the way they do it today? Belief: For most, their last job would have run first time with no resubmit, and waited less in the queue.
-- 21-codyco: Keep the question and hint, and have the belief read: 'For most, it would have answered the booking call nobody picked up on their last shift and turned it into a booking.'
+- 21-codyco: What does it do better than the way they do it today? Belief to check: 'For most, on their last shift it would have answered the calls nobody could pick up and turned them into bookings.'
 
 ### SOLUTION · founder · solution.relative_advantage · check -- weak on R2, R4, R5
 Fix: **registry row** -- solution.relative_advantage's founder guidance (else founder-lists.md, shared: every dimension re-read).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
 - 08-fresco: For most, it would have saved them hours on their last daily log. Rows: Hours saved on the daily log; Notes and action items done during the site walk, not after.
-- 10-palus: For most, it would have earned more on the long-term cash from their raise over the last 3 months, without switching banks or adding treasury work. Rows: Higher yield on the cash from a raise / No need to hire for treasury.
+- 10-palus: Belief to test: "For most, it would have earned more on the cash they last decided to leave sitting from their raise, without switching banks or hiring for treasury." Rows: "Higher yield on cash waiting to be spent" / "No need to switch banks" / "No need to hire for treasury".
 - 13-aircaps: Belief: "For most, the glasses would have helped them follow more of their last hard conversation without asking anyone to repeat." Rows: "Followed more of what was said" / "Asked people to repeat less".
 - 17-expanse: For most, their last job would have run to the end first time, with no resubmit.
-- 21-codyco: Think of the last booking call you could not answer: if an assistant had picked it up and put the booking in your system, how would that have compared with what actually happened? (Much better / A bit better / No difference / Worse)
+- 21-codyco: Belief: "For most, it would have turned at least one unanswered booking call from their last shift into a booking." Rows: "Unanswered calls turned into bookings" / "Calls answered after hours, at peak and on holidays".
 
-### SOLUTION · respondent · - · follow_up -- weak on R2
+### SOLUTION · respondent · - · follow_up -- weak on R2, R5
 Fix: **registry row** -- the follow-up ladder (registry data; code writes the words).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
+- 10-palus: You said Palus wouldn't make much difference on your last cash decision. What would make managing your raise cash better for you, if anything?
+- 10-palus: What makes you not want to move the long-term reserve out of your bank's treasury?
 - 13-aircaps: You said only if it connected without any trouble. What would have to happen when you set up the glasses for that to be true?
 
 ### SOLUTION · respondent · - · reveal -- weak on R6
 Fix: **shared file** -- solution-mechanism.md (the idea card).
 Fix for R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering).
 - 08-fresco: Imagine Fresco. During the site walk, you take short videos and talk over them. Fresco turns them into notes with photos, assignees and due dates, and texts the crew their action items. You send the notes to Procore or ACC in one click. The people building it believe this would save you the hours of logging after the walk.
+- 10-palus: Imagine Palus. You link a treasury account to your existing bank through Plaid, and it holds your reserve cash in short-term, floating-rate government bonds, held by a regulated custodian in your company's name. The people building it believe it would target 4.5 to 5 percent and return cash to checking in one to two business days.
 - 13-aircaps: Imagine AirCaps. When a conversation with hearing people is too fast or too noisy to follow, you wear lightweight glasses with an app. Live captions of what people nearby are saying appear in the lens. The people building it believe you could read the words while keeping eye contact.
 - 17-expanse: Imagine Expanse. It connects to SLURM or Kubernetes on your own network and reads your job's code, submission script and hardware. When you submit, it predicts GPU memory, memory, CPUs and walltime, and if a job fails it says why and how to fix it. The people building it believe its predictions would match what a job actually needs.
+- 21-codyco: Imagine Codyco. Calls nobody picks up are forwarded to it, and it answers in the hotel's voice, answers the guest's questions and takes the payment. It writes the confirmed booking straight into OPERA Cloud and hands calls to your desk by rules you set. The people building it believe it would turn every guest who calls into a booking.
 
 ### SOLUTION · respondent · problem.prevalence · gate -- weak on R2, R4
 Fix: **shared file** -- respondent-questions.md (the story clause, the screener question).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
 - 08-fresco: In the last 5 working days, after your site walks, did you still have photos or notes to put in the daily log? Yes or no, with no escape chips.
+- 10-palus: In the last 3 months, did you decide or review where the cash from your raise is held? Yes / No
 - 13-aircaps: In the last 7 days, did you lose track of a conversation with hearing people? Yes; No; or say I can't recall.
 - 17-expanse: In the last 5 working days, did you submit a job where you had to guess its memory, GPUs or run time? Yes; No; or say I can't recall.
+- 21-codyco: In the last 7 days, did you take a booking call on your shift? Yes / No (no escape chip)
 
 ### SOLUTION · respondent · solution.adoption_friction · item -- weak on R3, R4, R6
 Fix: **shared file** -- asked.md (the clause), else solution.adoption_friction's respondent wording.
 Fix for R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering).
 - 08-fresco: Fresco has to connect to your Procore or ACC account. Would you connect it, or not? Yes; Only if the connection is easy; Probably not; or No. Or say I can't tell.
+- 10-palus: Palus means moving your runway cash out of your bank's treasury account. Would you do that, or not? Yes; Only if I could get the cash back quickly; Only if it added no extra work; or No. Or say I can't tell.
 - 13-aircaps: AirCaps means pairing the glasses to your phone. Would you do that, or not? Yes; Yes, if it pairs the first time; Probably not; or No. Or say I can't tell.
 - 17-expanse: Would you connect Expanse to your SLURM or Kubernetes cluster, or not? Yes; Only if it ran on our own network; Only if our cluster admins agreed; or No. Or say I can't tell.
+- 21-codyco: Codyco means forwarding your unanswered booking calls to Codyco. Would you do that, or not? Yes; Only for after-hours and peak-time calls; Probably not; or No. Or say I can't tell.
 
-### SOLUTION · respondent · solution.compatibility · item -- weak on R2, R4
+### SOLUTION · respondent · solution.compatibility · item -- weak on R2, R3, R4
 Fix: **shared file** -- asked.md (the clause), else solution.compatibility's respondent wording.
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
 - 08-fresco: Think of your last daily log. Where you did your site walk, could you have spoken your notes into your phone over the noise? Yes, easily; Yes, mostly; Only sometimes; or No. Or say I can't tell.
+- 10-palus: Think of the last time you moved cash to cover payroll or a bill. Could that money have taken two days to arrive, or not? Yes, easily; Yes, with some juggling; No. Or say I can't tell.
 - 13-aircaps: Think of your last conversation with hearing people. Did you have your phone with you, and was it online? Yes, with me and online; With me, but not online; or Not with me. Or say I can't tell.
 - 17-expanse: Think of your last submission. Where was the source code? On the cluster's shared filesystem; in a container image; pulled from a repo at launch; or somewhere else. Or say I can't tell.
+- 21-codyco: Think of the last booking call on your shift that nobody answered. Could that call have been forwarded to another number? Yes, without any trouble; Yes, but with some setup; No, our phone system doesn't allow it; or say I can't tell.
 
 ### SOLUTION · respondent · solution.relative_advantage · item -- weak on R2, R3, R5
 Fix: **registry row** -- solution.relative_advantage's respondent wording, else the code transform (no model).
 Fix for R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona (*in the words of {actor_plural}*), never a condition on one trade.
 - 08-fresco: Would Fresco have made your last daily log better, or not? A lot better; A little better; No difference; or Worse. Or say I can't tell.
+- 10-palus: Would Palus have made your last cash decision go better for you, or not? A lot better; A little better; No difference; or Worse. Or say I can't tell.
 - 13-aircaps: Think of your last conversation with hearing people: would AirCaps have made it go better for you, or not? A lot better; A little better; No difference; Worse; or I can't tell.
 - 17-expanse: Think of your last submission: would Expanse have helped that job run to the end without wasting the cluster, or not? A lot; A little; No difference; It would have been worse; or I can't tell.
+- 21-codyco: Would Codyco have made your last booking call go better, or not? A lot better; A little better; No difference; Worse; or I can't tell.
 
 
 ## The trend per study (entry · scope; the last three score files)
 
 | study | file | scored | cloud | founder % | respondent % | overall % | spoken % | flagged % | R1 | R2 | R3 | R4 | R5 | R6 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 08-fresco · COMMERCIAL | 20261028-COMMERCIAL-r2-88bfce8-v13-claude-opus-5-5.json | 2026-10-28 | 88bfce8 | 89.5 | – | 89.5 | – | 0.0 | 2.00 | 1.50 | 2.00 | 2.00 | 1.50 | – |
-| 08-fresco · COMMERCIAL | 20261028-COMMERCIAL-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 82.1 ↓ | – | 82.1 ↓ | – | 0.0 = | 2.00 = | 1.58 ↑ | 1.92 ↓ | 1.50 ↓ | 1.17 ↓ | – |
+| 08-fresco · COMMERCIAL | 20261028-COMMERCIAL-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 82.1 | – | 82.1 | – | 0.0 | 2.00 | 1.58 | 1.92 | 1.50 | 1.17 | – |
 | 08-fresco · COMMERCIAL | 20261030-COMMERCIAL-r2-fcec453-v13-claude-opus-5-5.json | 2026-10-30 | fcec453 | 89.6 ↑ | – | 89.6 ↑ | – | 0.0 = | 2.00 = | 1.75 ↑ | 2.00 ↑ | 1.60 ↑ | 1.50 ↑ | – |
+| 08-fresco · COMMERCIAL | 20261030-COMMERCIAL-r2-35dfb74-v13-claude-opus-5-5.json | 2026-10-30 | 35dfb74 | 82.8 ↓ | 83.3 | 83.0 ↓ | 70.0 | 6.5 ↑ | 1.94 ↓ | 1.71 ↓ | 1.81 ↓ | 1.18 ↓ | 1.55 ↑ | 1.40 |
 | 08-fresco · PROBLEM | 20261028-PROBLEM-r2-88bfce8-v13-claude-opus-5-5.json | 2026-10-28 | 88bfce8 | 89.5 | – | 89.5 | – | 0.0 | 2.00 | 1.50 | 2.00 | 2.00 | 1.50 | – |
 | 08-fresco · PROBLEM | 20261028-PROBLEM-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 82.9 ↓ | 72.1 | 79.4 ↓ | 80.0 | 0.0 = | 1.95 ↓ | 1.25 ↓ | 1.90 ↓ | 1.39 ↓ | 1.35 ↓ | 1.60 |
 | 08-fresco · PROBLEM | 20261030-PROBLEM-r2-fcec453-v13-claude-opus-5-5.json | 2026-10-30 | fcec453 | 87.5 ↑ | 83.8 ↑ | 86.3 ↑ | 90.0 ↑ | 0.0 = | 1.95 ↓ | 1.37 ↑ | 2.00 ↑ | 1.53 ↑ | 1.68 ↑ | 1.80 ↑ |
 | 08-fresco · SOLUTION | 20261028-SOLUTION-r2-88bfce8-v13-claude-opus-5-5.json | 2026-10-28 | 88bfce8 | 87.6 | – | 87.6 | – | 0.0 | 2.00 | 1.62 | 2.00 | 1.53 | 1.57 | – |
 | 08-fresco · SOLUTION | 20261028-SOLUTION-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 87.0 ↓ | 80.5 | 85.0 ↓ | 75.0 | 3.8 ↑ | 1.96 ↓ | 1.54 ↓ | 1.96 ↓ | 1.48 ↓ | 1.50 ↓ | 1.50 |
 | 08-fresco · SOLUTION | 20261030-SOLUTION-r2-fcec453-v13-claude-opus-5-5.json | 2026-10-30 | fcec453 | 85.8 ↓ | 84.1 ↑ | 85.3 ↑ | 83.3 ↑ | 0.0 ↓ | 1.96 = | 1.61 ↑ | 1.85 ↓ | 1.70 ↑ | 1.35 ↓ | 1.67 ↑ |
-| 10-palus · COMMERCIAL | 20261028-COMMERCIAL-r2-f7b0e05-v13-claude-opus-5-5.json | 2026-10-28 | f7b0e05 | 89.5 | – | 89.5 | – | 0.0 | 2.00 | 1.50 | 2.00 | 2.00 | 1.50 | – |
-| 10-palus · COMMERCIAL | 20261028-COMMERCIAL-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 85.4 ↓ | – | 85.4 ↓ | – | 0.0 = | 1.95 ↓ | 1.43 ↓ | 2.00 = | 1.47 ↓ | 1.62 ↑ | – |
+| 10-palus · COMMERCIAL | 20261028-COMMERCIAL-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 85.4 | – | 85.4 | – | 0.0 | 1.95 | 1.43 | 2.00 | 1.47 | 1.62 | – |
 | 10-palus · COMMERCIAL | 20261030-COMMERCIAL-r2-fcec453-v13-claude-opus-5-5.json | 2026-10-30 | fcec453 | 86.7 ↑ | – | 86.7 ↑ | – | 0.0 = | 2.00 ↑ | 1.74 ↑ | 2.00 = | 1.35 ↓ | 1.48 ↓ | – |
+| 10-palus · COMMERCIAL | 20261030-COMMERCIAL-r2-35dfb74-v13-claude-opus-5-5.json | 2026-10-30 | 35dfb74 | 85.5 ↓ | 75.4 | 81.9 ↓ | 65.0 | 5.7 ↑ | 1.89 ↓ | 1.54 ↓ | 1.94 ↓ | 1.29 ↓ | 1.46 ↓ | 1.30 |
 | 10-palus · PROBLEM | 20261028-PROBLEM-r2-88bfce8-v13-claude-opus-5-5.json | 2026-10-28 | 88bfce8 | 89.5 | – | 89.5 | – | 0.0 | 2.00 | 1.50 | 2.00 | 2.00 | 1.50 | – |
 | 10-palus · PROBLEM | 20261028-PROBLEM-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 84.0 ↓ | 78.4 | 81.4 ↓ | 78.6 | 5.6 ↑ | 1.83 ↓ | 1.44 ↓ | 1.89 ↓ | 1.36 ↓ | 1.50 = | 1.57 |
 | 10-palus · PROBLEM | 20261030-PROBLEM-r2-fcec453-v13-claude-opus-5-5.json | 2026-10-30 | fcec453 | 83.1 ↓ | 73.9 ↓ | 79.6 ↓ | 64.3 ↓ | 9.1 ↑ | 1.91 ↑ | 1.27 ↓ | 1.86 ↓ | 1.31 ↓ | 1.54 ↑ | 1.29 ↓ |
-| 10-palus · SOLUTION | 20261028-SOLUTION-r2-88bfce8-v13-claude-opus-5-5.json | 2026-10-28 | 88bfce8 | 89.5 | – | 89.5 | – | 0.0 | 2.00 | 1.50 | 2.00 | 2.00 | 1.50 | – |
-| 10-palus · SOLUTION | 20261028-SOLUTION-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 88.0 ↓ | 78.6 | 84.8 ↓ | 75.0 | 0.0 = | 1.96 ↓ | 1.44 ↓ | 1.96 ↓ | 1.67 ↓ | 1.48 ↓ | 1.50 |
+| 10-palus · SOLUTION | 20261028-SOLUTION-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 88.0 | 78.6 | 84.8 | 75.0 | 0.0 | 1.96 | 1.44 | 1.96 | 1.67 | 1.48 | 1.50 |
 | 10-palus · SOLUTION | 20261030-SOLUTION-r2-fcec453-v13-claude-opus-5-5.json | 2026-10-30 | fcec453 | 86.5 ↓ | – | 86.5 ↑ | – | 0.0 = | 2.00 ↑ | 1.47 ↑ | 2.00 ↑ | 1.69 ↑ | 1.47 ↓ | – |
-| 13-aircaps · COMMERCIAL | 20261028-COMMERCIAL-r2-f7b0e05-v13-claude-opus-5-5.json | 2026-10-28 | f7b0e05 | 86.8 | – | 86.8 | – | 0.0 | 2.00 | 1.73 | 2.00 | 1.67 | 1.27 | – |
-| 13-aircaps · COMMERCIAL | 20261028-COMMERCIAL-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 87.2 ↑ | – | 87.2 ↑ | – | 5.6 ↑ | 1.94 ↓ | 1.56 ↓ | 2.00 = | 1.50 ↓ | 1.67 ↑ | – |
+| 10-palus · SOLUTION | 20261030-SOLUTION-r2-35dfb74-v13-claude-opus-5-5.json | 2026-10-30 | 35dfb74 | 83.7 ↓ | 78.6 | 81.9 ↓ | 81.2 | 0.0 = | 1.93 ↓ | 1.43 ↓ | 1.93 ↓ | 1.35 ↓ | 1.43 ↓ | 1.62 |
+| 13-aircaps · COMMERCIAL | 20261028-COMMERCIAL-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 87.2 | – | 87.2 | – | 5.6 | 1.94 | 1.56 | 2.00 | 1.50 | 1.67 | – |
 | 13-aircaps · COMMERCIAL | 20261030-COMMERCIAL-r2-fcec453-v13-claude-opus-5-5.json | 2026-10-30 | fcec453 | 85.7 ↓ | – | 85.7 ↓ | – | 14.3 ↑ | 1.91 ↓ | 1.71 ↑ | 1.95 ↓ | 1.29 ↓ | 1.57 ↓ | – |
+| 13-aircaps · COMMERCIAL | 20261030-COMMERCIAL-r2-35dfb74-v13-claude-opus-5-5.json | 2026-10-30 | 35dfb74 | 85.7 = | 66.2 | 80.3 ↓ | 50.0 | 6.9 ↓ | 1.86 ↓ | 1.59 ↓ | 1.79 ↓ | 1.41 ↑ | 1.48 ↓ | 1.00 |
 | 13-aircaps · PROBLEM | 20261028-PROBLEM-r2-f7b0e05-v13-claude-opus-5-5.json | 2026-10-28 | f7b0e05 | 84.9 | 86.8 | 85.6 | 70.0 | 5.6 | 2.00 | 1.44 | 2.00 | 1.31 | 1.78 | 1.40 |
 | 13-aircaps · PROBLEM | 20261028-PROBLEM-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 84.2 ↓ | 86.5 ↓ | 84.8 ↓ | 87.5 ↑ | 5.3 ↓ | 2.00 = | 1.53 ↑ | 1.95 ↓ | 1.47 ↑ | 1.47 ↓ | 1.75 ↑ |
 | 13-aircaps · PROBLEM | 20261030-PROBLEM-r2-fcec453-v13-claude-opus-5-5.json | 2026-10-30 | fcec453 | 84.6 ↑ | 79.4 ↓ | 82.8 ↓ | 60.0 ↓ | 5.3 = | 1.95 ↓ | 1.37 ↓ | 1.90 ↓ | 1.47 = | 1.63 ↑ | 1.20 ↓ |
 | 13-aircaps · SOLUTION | 20261028-SOLUTION-r2-f7b0e05-v13-claude-opus-5-5.json | 2026-10-28 | f7b0e05 | 89.6 | 83.0 | 87.6 | 78.6 | 0.0 | 2.00 | 1.64 | 1.93 | 1.64 | 1.57 | 1.57 |
 | 13-aircaps · SOLUTION | 20261028-SOLUTION-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 88.9 ↓ | 87.5 ↑ | 88.5 ↑ | 83.3 ↑ | 0.0 = | 2.00 = | 1.68 ↑ | 2.00 ↑ | 1.56 ↓ | 1.64 ↑ | 1.67 ↑ |
 | 13-aircaps · SOLUTION | 20261030-SOLUTION-r2-fcec453-v13-claude-opus-5-5.json | 2026-10-30 | fcec453 | 86.2 ↓ | 84.8 ↓ | 85.8 ↓ | 71.4 ↓ | 0.0 = | 1.96 ↓ | 1.54 ↓ | 1.93 ↓ | 1.58 ↑ | 1.61 ↓ | 1.43 ↓ |
-| 17-expanse · COMMERCIAL | 20261028-COMMERCIAL-r2-f7b0e05-v13-claude-opus-5-5.json | 2026-10-28 | f7b0e05 | 85.5 | – | 85.5 | – | 0.0 | 2.00 | 1.42 | 1.92 | 1.57 | 1.58 | – |
-| 17-expanse · COMMERCIAL | 20261028-COMMERCIAL-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 88.3 ↑ | – | 88.3 ↑ | – | 0.0 = | 2.00 = | 1.50 ↑ | 2.00 ↑ | 1.60 ↑ | 1.68 ↑ | – |
+| 17-expanse · COMMERCIAL | 20261028-COMMERCIAL-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 88.3 | – | 88.3 | – | 0.0 | 2.00 | 1.50 | 2.00 | 1.60 | 1.68 | – |
 | 17-expanse · COMMERCIAL | 20261030-COMMERCIAL-r2-9093d99-v13-claude-opus-5-5.json | 2026-10-30 | 9093d99 | 88.0 ↓ | – | 88.0 ↓ | – | 4.5 ↑ | 1.96 ↓ | 1.77 ↑ | 2.00 = | 1.56 ↓ | 1.46 ↓ | – |
+| 17-expanse · COMMERCIAL | 20261030-COMMERCIAL-r2-35dfb74-v13-claude-opus-5-5.json | 2026-10-30 | 35dfb74 | 85.9 ↓ | 85.3 | 85.7 ↓ | 72.2 | 5.9 ↑ | 1.97 ↑ | 1.74 ↓ | 1.94 ↓ | 1.29 ↓ | 1.53 ↑ | 1.44 |
 | 17-expanse · PROBLEM | 20261028-PROBLEM-r2-f7b0e05-v13-claude-opus-5-5.json | 2026-10-28 | f7b0e05 | 86.5 | – | 86.5 | – | 0.0 | 2.00 | 1.39 | 2.00 | 1.54 | 1.69 | – |
 | 17-expanse · PROBLEM | 20261028-PROBLEM-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 84.6 ↓ | 77.0 | 81.9 ↓ | 75.0 | 5.0 ↑ | 2.00 = | 1.35 ↓ | 1.85 ↓ | 1.29 ↓ | 1.65 ↓ | 1.50 |
 | 17-expanse · PROBLEM | 20261030-PROBLEM-r2-9093d99-v13-claude-opus-5-5.json | 2026-10-30 | 9093d99 | 85.4 ↑ | 81.2 ↑ | 84.1 ↑ | 70.0 ↓ | 0.0 ↓ | 2.00 = | 1.45 ↑ | 1.80 ↓ | 1.47 ↑ | 1.70 ↑ | 1.40 ↓ |
 | 17-expanse · SOLUTION | 20261028-SOLUTION-r2-f7b0e05-v13-claude-opus-5-5.json | 2026-10-28 | f7b0e05 | 89.5 | – | 89.5 | – | 0.0 | 2.00 | 1.50 | 2.00 | 2.00 | 1.50 | – |
 | 17-expanse · SOLUTION | 20261028-SOLUTION-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-28 | f48f256 | 88.3 ↓ | 71.8 | 83.5 ↓ | 83.3 | 7.7 ↑ | 1.92 ↓ | 1.46 ↓ | 1.92 ↓ | 1.47 ↓ | 1.46 ↓ | 1.67 |
 | 17-expanse · SOLUTION | 20261030-SOLUTION-r2-9093d99-v13-claude-opus-5-5.json | 2026-10-30 | 9093d99 | 84.9 ↓ | 83.3 ↑ | 84.5 ↑ | 83.3 = | 7.7 = | 1.96 ↑ | 1.54 ↑ | 1.85 ↓ | 1.50 ↑ | 1.50 ↑ | 1.67 = |
-| 21-codyco · COMMERCIAL | 20261028-COMMERCIAL-r2-f7b0e05-v13-claude-opus-5-5.json | 2026-10-28 | f7b0e05 | 88.2 | – | 88.2 | – | 0.0 | 2.00 | 1.50 | 2.00 | 1.00 | 1.75 | – |
-| 21-codyco · COMMERCIAL | 20261029-COMMERCIAL-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-29 | f48f256 | 86.9 ↓ | – | 86.9 ↓ | – | 0.0 = | 1.95 ↓ | 1.57 ↑ | 2.00 = | 1.47 ↑ | 1.62 ↓ | – |
+| 21-codyco · COMMERCIAL | 20261029-COMMERCIAL-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-29 | f48f256 | 86.9 | – | 86.9 | – | 0.0 | 1.95 | 1.57 | 2.00 | 1.47 | 1.62 | – |
 | 21-codyco · COMMERCIAL | 20261030-COMMERCIAL-r2-9093d99-v13-claude-opus-5-5.json | 2026-10-30 | 9093d99 | 81.3 ↓ | – | 81.3 ↓ | – | 17.4 ↑ | 1.87 ↓ | 1.61 ↑ | 1.96 ↓ | 1.40 ↓ | 1.22 ↓ | – |
+| 21-codyco · COMMERCIAL | 20261030-COMMERCIAL-r2-35dfb74-v13-claude-opus-5-5.json | 2026-10-30 | 35dfb74 | 80.3 ↓ | 86.2 | 82.2 ↑ | 72.2 | 8.8 ↓ | 1.88 ↑ | 1.65 ↑ | 1.91 ↓ | 1.23 ↓ | 1.44 ↑ | 1.44 |
 | 21-codyco · PROBLEM | 20261028-PROBLEM-r2-f7b0e05-v13-claude-opus-5-5.json | 2026-10-28 | f7b0e05 | 83.8 | – | 83.8 | – | 0.0 | 1.93 | 1.36 | 1.93 | 1.50 | 1.64 | – |
 | 21-codyco · PROBLEM | 20261029-PROBLEM-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-29 | f48f256 | 85.3 ↑ | 78.6 | 84.0 ↑ | 75.0 | 0.0 = | 1.93 = | 1.36 = | 1.79 ↓ | 1.58 ↑ | 1.79 ↑ | 1.50 |
 | 21-codyco · PROBLEM | 20261030-PROBLEM-r2-9093d99-v13-claude-opus-5-5.json | 2026-10-30 | 9093d99 | 88.4 ↑ | 76.6 ↓ | 84.8 ↑ | 70.0 ↓ | 0.0 = | 1.85 ↓ | 1.50 ↑ | 1.75 ↓ | 1.67 ↑ | 1.80 ↑ | 1.40 ↓ |
-| 21-codyco · SOLUTION | 20261028-SOLUTION-r2-f7b0e05-v13-claude-opus-5-5.json | 2026-10-28 | f7b0e05 | 85.6 | – | 85.6 | – | 0.0 | 2.00 | 1.50 | 1.95 | 1.64 | 1.45 | – |
-| 21-codyco · SOLUTION | 20261029-SOLUTION-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-29 | f48f256 | 86.0 ↑ | – | 86.0 ↑ | – | 0.0 = | 2.00 = | 1.63 ↑ | 1.90 ↓ | 1.69 ↑ | 1.37 ↓ | – |
+| 21-codyco · SOLUTION | 20261029-SOLUTION-r2-f48f256-v13-claude-opus-5-5.json | 2026-10-29 | f48f256 | 86.0 | – | 86.0 | – | 0.0 | 2.00 | 1.63 | 1.90 | 1.69 | 1.37 | – |
 | 21-codyco · SOLUTION | 20261030-SOLUTION-r2-9093d99-v13-claude-opus-5-5.json | 2026-10-30 | 9093d99 | 85.1 ↓ | – | 85.1 ↓ | – | 5.6 ↑ | 2.00 = | 1.72 ↑ | 1.89 ↓ | 1.67 ↓ | 1.22 ↓ | – |
+| 21-codyco · SOLUTION | 20261030-SOLUTION-r2-35dfb74-v13-claude-opus-5-5.json | 2026-10-30 | 35dfb74 | 83.2 ↓ | 76.9 | 81.3 ↓ | 75.0 | 3.8 ↓ | 1.89 ↓ | 1.54 ↓ | 1.81 ↓ | 1.55 ↓ | 1.35 ↑ | 1.50 |
