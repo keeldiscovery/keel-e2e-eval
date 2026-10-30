@@ -26,7 +26,12 @@ friction -- **and keel-cloud's L5 has admitted a `suggested` on Compatibility si
   clause as the cloud's `ItemFrames` does (keel-cloud 163's tasks.md: a leading *would you* becomes *You'd ...*, then
   *Would you do that, or not?*), so the harness and the cloud count the same words; the 12-word clause rule of 163 is
   read from the registry, never restated.
-- **FR-5 Nothing else moves.** The corpus (revision 19), the frames (089/090), the marks beyond L1/L5, the readers.
+- **FR-5 K3 reads the framed line.** The founder-lists screen after keel-cloud 163 (`runs/20261030T111940Z-instructions`)
+  faults an Adoption friction clause for carrying no *you / your* (*open the app before picking the baby up*), yet the
+  frame *Would you {asked}. Would you do that, or not?* addresses the person itself. `instructions/validate.py`'s K3
+  judges the line as framed (FR-4's frame), so a clause that reads to the stranger once framed passes; a clause with a
+  third-person subject (*the cry*, *the room*) still faults.
+- **FR-6 Nothing else moves.** The corpus (revision 19), the frames (089/090), the marks beyond L1/L5, the readers.
 
 ## Acceptance
 
