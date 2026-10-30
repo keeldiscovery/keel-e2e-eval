@@ -599,6 +599,17 @@ K2 counts the cloud's words, and K3 reads the framed line (a base-form clause pa
 `OLDEST` stays 20. Re-scored at v22, the founder-lists screen of 2026-10-30 keeps only spec 091's Importance L1s (its
 L5 and K3 faults gone); the 2026-10-29 one loses its L5s.
 
+**A drafted list is held to the draft's rule, not the save's** (spec `091-the-draft-list-minimum`, 2026-10-30).
+**`MARKS_VERSION` 23** (calls 127-128): `option_validity`'s `L1` counts Importance's draft (`rival_list`) as
+`founder-lists.md` asks it -- with the job's `answers` `{}` the problem itself alone (one item), with the founder's Answer
+the problem itself and the N difficulties it names (1 + N, at most `saves.max_items`; `score.named_difficulties`);
+`saves.min_items` is the save's rule, read only where a saved list is checked (`corpus._check_list`). `OLDEST` stays 20.
+Re-scored at v23, the 2026-10-30 founder-lists screen reads 33/33 and the 2026-10-29 one 27/33 (Importance valid on every
+run). **`INTERVIEWER_MARKS_VERSION` 15**: IM2 (and the journey's *L1 revisited ... no price*) reads L1's one served
+credits sentence (keel-web 130 / 132: *... which uses 400 credits.*) as the screen's own words -- once, at the served
+`changePrice`, no currency (`interviewer_marks.price_words_on`). FR-3a: `models.CLASSES` ends on `example_match` (keel-cloud
+routing v13, dormant), and a unit test reads the live `model-routing.json`'s classes against `CLASSES`.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **sixteen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
