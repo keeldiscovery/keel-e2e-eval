@@ -255,8 +255,9 @@ LOCK_RULE = "lock_rule"
 #: the stack runs). Spec 086 FR-5: keel-cloud 154's rows (`9f78b765`), every rung naming the thing.
 #: Spec 089 FR-4: keel-cloud 159's Relative advantage rung (`1cf2ebc3`) -- against the scale's last two, *... wouldn't
 #: make much difference on your last {occasion}. What would make {job} better for you, if anything?*, a *worse* said as
-#: worse.
-LADDER_SHA = "1cf2ebc3"
+#: worse. Spec 093 FR-2: keel-cloud 161's Current solution rung (`b009fac8`) -- *You said {phrase} works for you. What
+#: keeps it working?*, `{phrase}` the locked phrase as the question says it.
+LADDER_SHA = "b009fac8"
 #: Design §2, as the registry carries it since keel-cloud 118: `(dimension, against, text template, spoken wording)`, in
 #: registry order. Purchase friction is a rung now (its quick / not-needed answers are against the fear); Adoption
 #: friction's and Commitment's stems are the plain questions of 118 FR-4. Since keel-cloud 154 (spec 086 FR-5) every rung
@@ -267,9 +268,10 @@ LADDER: tuple[tuple[str, tuple[str, ...] | str, str, str], ...] = (
     ("problem.importance", ("none_of_these",),
      "You did not pick {founder_item} as one to make easier. What made the others more pressing for you?",
      "You did not pick {founder_item} as one to make easier. What made the others more pressing for you?"),
+    # spec 093 FR-2 (keel-cloud 161 T003): the rung says the founder's phrase, `{phrase}` (was *your way of {job}*)
     ("problem.current_solution_satisfaction", ("outcome_1", "outcome_2"),
-     "You said your way of {job} works. What keeps it working?",
-     "You said your way of {job} works. What keeps it working?"),
+     "You said {phrase} works for you. What keeps it working?",
+     "You said {phrase} works for you. What keeps it working?"),
     ("solution.compatibility", ("only_with_help", "no"),
      "You said you couldn't {condition}. What got in the way?",
      "You said {solution_name} would be hard to fit into your setup. What gets in the way?"),
@@ -335,7 +337,7 @@ FILL_DEFAULTS = {"{their_picks}": "other difficulties", "{founder_item}": "this 
                  "{their_answer}": "today's way works", "{condition}": "do that", "{would}": "be hard",
                  "{benefit}": "it", "{occasion}": "time", "{effort}": "doing that", "{band}": "less than we asked",
                  "{smaller_step}": "that first step", "{job}": "doing this", "{solution_name}": "it",
-                 "{step}": "that step"}
+                 "{step}": "that step", "{phrase}": "the way you do it"}
 WOULD_NOT_PAY_BAND = "nothing"
 #: keel-cloud 130 FR-7 (`FollowUpComposer.WORTH_MORE`): Price's follow-up question after its said-back pick; 154 FR-2:
 #: *to you*.

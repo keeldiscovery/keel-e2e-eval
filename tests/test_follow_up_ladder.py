@@ -50,7 +50,9 @@ def _registry_at_154() -> dict:
     registry = _registry()
     current = next((e.get("follow_up") or {} for e in registry["dimensions"]
                     if e["key"] == "problem.current_solution_satisfaction"), {})
-    if "{job}" not in str(current.get("text") or ""):
+    # spec 093 FR-2: keel-cloud 161 moved this rung from 154's `{job}` to `{phrase}`; either names the thing (a
+    # registry at 161 skipped here by mistake until this read both)
+    if not {"{job}", "{phrase}"} & set(re.findall(r"\{[a-z_]+\}", str(current.get("text") or ""))):
         pytest.skip("keel-cloud predates spec 154 (its follow-up rows do not name the thing)")
     return registry
 
@@ -76,7 +78,7 @@ def test_the_ladder_is_the_registrys_own():
 #: keel-cloud 154 FR-1 (`FollowUpBlock.SPOKEN_PLACEHOLDERS`): the project's words a spoken line may hold -- never a
 #: person's answer.
 SPOKEN_PLACEHOLDERS = {"{job}", "{solution_name}", "{occasion}", "{founder_item}", "{effort}", "{step}",
-                       "{smaller_step}"}
+                       "{smaller_step}", "{phrase}"}                    # spec 093 FR-2: keel-cloud 161's `{phrase}`
 
 
 def test_each_texts_placeholders_are_the_registrys_and_fill_knows_them():
@@ -282,8 +284,9 @@ def test_fill_and_its_words():
         "You put Lullaby at $2 to $5. What would make it worth more to you?"
     assert fake.fill("commercial.commitment", {}) == "What would you start with instead of that step?"
     assert fake.fill("solution.adoption_friction", {}) == "What makes doing that too much trouble for you?"
+    # spec 093 FR-2 (keel-cloud 161 T003): the rung says `{phrase}`, its default *the way you do it*
     assert fake.spoken_filled("problem.current_solution_satisfaction", {}) == \
-        "You said your way of doing this works. What keeps it working?"
+        "You said the way you do it works for you. What keeps it working?"
     assert fake.price_floor("under_10") == 0 and fake.price_floor("band_20_50") == 20
     assert fake.price_floor("over_100") == 100 and fake.price_floor("would_not_pay") is None
 

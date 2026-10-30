@@ -117,9 +117,11 @@ def test_the_plan_composes_each_question_and_where_it_hangs():
                  "followUps": [{"dimension": d} for d in fake.walks("PRIMARY", True)], "occasion": "invoice"}
     plan = vs.follow_up_plan(entry, talia.picks, vs.LINK_PRIMARY, interview, "tok")
     assert [(a["dimension"], a["on"]) for a in plan] == [(IMP, IMP), (CUR, CUR)]
-    # keel-cloud 129 FR-3: said as it reads; 154 (spec 086 FR-5): the spoken line filled with the project's job
-    assert plan[1]["text"] == fake.spoken_filled(CUR, {"{job}": vs.job_gerund(vs._ctx(entry).get("job"))}) == \
-        "You said your way of getting paid for finished work in time to cover the month works. What keeps it working?"
+    # keel-cloud 129 FR-3: said as it reads; 154 (spec 086 FR-5): the spoken line filled with the project's words --
+    # spec 093 FR-2 (keel-cloud 161 T003): the founder's phrase as the question says it, not the job gerund
+    phrase = vs.said_phrase(entry.founder_list(CUR)["phrase"])
+    assert plan[1]["text"] == fake.spoken_filled(CUR, {"{phrase}": phrase}) == \
+        "You said getting an approved invoice paid works for you. What keeps it working?"
     # the first rung's call held past the beat: every later call returns that earlier rung, so nothing more is asked on
     # the spot and the end asks it
     late = vs.follow_up_plan(entry, talia.picks, vs.LINK_PRIMARY, interview, "tok", late=(IMP,))

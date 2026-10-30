@@ -2156,8 +2156,8 @@ def lock_values(entry, interview: dict | None, rung: str, founder_item: str | No
     for everyone on a role's link -- `{occasion}`; `{job}`, the context's job said whole as an -ing phrase
     (`job_gerund`); `{solution_name}`, the idea's name as typed; and per rung the founder's own Importance item as served
     (`founder_item`, else the saved list's own item), the tested effort and Commitment's step as -ing phrases
-    (`SpokenCap.gerund` of the label lowered), and the smaller step. A value with no words is None (its default is
-    read)."""
+    (`SpokenCap.gerund` of the label lowered), the smaller step, and (keel-cloud 161) Current solution's `{phrase}` as
+    the question says it (`said_phrase`). A value with no words is None (its default is read)."""
     from harness import interviewer_fake as fake                       # noqa: PLC0415
     interview = interview or {}
     values: dict[str, str | None] = {"{occasion}": interview.get("occasion"),
@@ -2172,6 +2172,10 @@ def lock_values(entry, interview: dict | None, rung: str, founder_item: str | No
     elif rung == "solution.adoption_friction":
         effort = founder_follow_up_words(entry)["{effort}"]
         values["{effort}"] = gerund(fake.lower(effort.strip())) if effort and effort.strip() else None
+    elif rung == "problem.current_solution_satisfaction":
+        # spec 093 FR-2 (keel-cloud 161 T003, `FollowUpComposer.lockValues`): `{phrase}`, the locked phrase as the
+        # question says it (`ItemFrames.said`: a stored *your way of ...* read bare)
+        values["{phrase}"] = said_phrase((entry.founder_list("problem.current_solution_satisfaction") or {}).get("phrase"))
     elif rung == "commercial.commitment":
         step = (entry.tested("commercial.commitment") or {}).get("label")
         values["{step}"] = gerund(fake.lower(step.strip())) if step and step.strip() else None
@@ -2324,8 +2328,9 @@ OBJECT_OPENERS = frozenset(("the", "a", "an", "your", "their", "them", "it", "it
 
 
 def job_gerund(job: str | None) -> str | None:
-    """keel-cloud 154 FR-1 (`SpokenCap.jobGerund`): the context's job (a base-form verb phrase) said after *your way of*
-    -- `gerund`, then every verb joined by *and* before its own object in -ing too (*work out what the baby needs and
+    """keel-cloud 154 FR-1 (`SpokenCap.jobGerund`): the context's job (a base-form verb phrase) said as an -ing phrase
+    (Relative advantage's rung, *What would make {job} better for you*; since keel-cloud 161 the Current solution rung
+    says the founder's phrase, `{phrase}`, not the job) -- `gerund`, then every verb joined by *and* before its own object in -ing too (*work out what the baby needs and
     settle the baby* -> *working out what the baby needs and settling the baby*), while a noun of a list after *and*
     stays as typed (*memory, GPUs and run time*). Whole, never shortened; None for none."""
     if job is None or not job.strip():

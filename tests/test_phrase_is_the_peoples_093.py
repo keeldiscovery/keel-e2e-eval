@@ -56,3 +56,26 @@ def test_every_scripted_draft_writes_the_phrase_bare(name):
     assert vs.saved_list(entry, CUR)["phrase"] == draft["phrase"]
     problem = next(q for q in vs.calibration_result(entry, "PROBLEM")["questions"] if q["key"] == CUR)
     assert problem["list"]["phrase"] == draft["phrase"]
+
+
+# ------------------------------------------------------------------------------------------------- FR-2: the rung
+
+from harness import interviewer_fake as fake                             # noqa: E402
+
+
+def test_the_rung_is_161s_and_says_the_phrase():
+    """keel-cloud 161 T003: *You said {phrase} works for you. What keeps it working?*, text and spoken; `{phrase}` the
+    locked phrase as the question says it, *the way you do it* where there is none."""
+    rung = fake.rung(CUR)
+    assert rung[2] == rung[3] == "You said {phrase} works for you. What keeps it working?"
+    assert fake.FILL_DEFAULTS["{phrase}"] == "the way you do it"
+    assert fake.LADDER_SHA == "b009fac8"
+
+
+def test_lullabys_rung_is_161s_worked_example():
+    """161's table: a stored *your way of working out what the baby needed* and a bare one say the same rung."""
+    entry = _entry("03-lullaby")
+    values = vs.lock_values(entry, {"occasion": "night"}, CUR)
+    assert values["{phrase}"] == "working out what the baby needed"
+    assert vs.follow_up_clip(entry, {"occasion": "night"}, CUR) == \
+        "You said working out what the baby needed works for you. What keeps it working?"
