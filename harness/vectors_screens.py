@@ -276,6 +276,21 @@ def _wait_url(page: Page, pattern: str, *, timeout_s: float = 30) -> None:
     page.wait_for_url(re.compile(pattern), timeout=timeout_s * 1000)
 
 
+#: Spec 096 FR-1: where the idea card's Save lands after a refused lock's edit -- the solution's first question where
+#: the solution is in scope, who decides (`/define/persona`) in the money-only study (keel-web 109 FR-3,
+#: `IdeaCheck.tsx`). One pattern for the wait, read back by `idea_save_landing`.
+IDEA_SAVE_LANDINGS = {"solution": r"/define/solution/q/\d+$", "persona": r"/define/persona$"}
+IDEA_SAVE_LANDS = "|".join(f"(?:{p})" for p in IDEA_SAVE_LANDINGS.values())
+
+
+def idea_save_landing(url: str | None) -> str | None:
+    """Spec 096 FR-1: which of the scope's next screens the idea's Save landed on (`solution` / `persona`), or None."""
+    for landed, pattern in IDEA_SAVE_LANDINGS.items():
+        if re.search(pattern, str(url or "")):
+            return landed
+    return None
+
+
 def _button(page, name, *, exact: bool = True):
     return page.get_by_role("button", name=name, exact=exact) if isinstance(name, str) else \
         page.get_by_role("button", name=name)
@@ -2059,9 +2074,12 @@ class Corridor:
         """Spec 070 FR-1 (keel-cloud 131 FR-5): after a refused lock, the founder opens the idea's Check screen
         (`define/solution/idea`), types each line's new words into its box (`edits`: {how | howDecider | belief: words};
         a box the screen does not draw is skipped and named) and presses Save -- the edit and the approval keel-web's
-        `IdeaCheck` sends -- and the page moves on to the solution's first question. Returns the lines as drawn before
-        the edit, what was typed, the boxes not drawn and the primary's label."""
-        with self._b.step(f"founder edits the idea card's {', '.join(edits)} line after the lock was refused") as h:
+        `IdeaCheck` sends -- and the page moves on to the scope's next screen: the solution's first question, or who
+        decides in the money-only study (spec 096 FR-1, keel-web 109 FR-3). Returns the lines as drawn before the edit,
+        what was typed, the boxes not drawn, the primary's label and where Save landed (`landed`: `solution` /
+        `persona`)."""
+        with self._b.step(f"founder edits the idea card's {', '.join(edits)} line after the lock was refused; Save goes "
+                          "on to the solution's first question, or to who decides in the money study") as h:
             self.page.goto(f"{self.base}/p/{project_id}/define/solution/idea", wait_until="load")
             self.page.locator("#idea-how").wait_for(state="visible", timeout=20_000)
             self.page.wait_for_function("() => (document.querySelector('#idea-how')?.value || '') !== ''",
@@ -2079,8 +2097,9 @@ class Corridor:
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot("idea-edited"))
             label = self._press_primary(SAVE)
-            _wait_url(self.page, r"/define/solution/q/\d+$")
-            return {"before": before, "typed": typed, "absent": absent, "primary": label}
+            _wait_url(self.page, IDEA_SAVE_LANDS)
+            return {"before": before, "typed": typed, "absent": absent, "primary": label,
+                    "landed": idea_save_landing(self.page.url)}
 
     def relock(self, project_id: str) -> dict:
         """Spec 070 FR-1: the lock pressed again, on L1 (`define/ready/interviewer`, the screen it was refused on), after
