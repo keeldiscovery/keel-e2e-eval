@@ -94,7 +94,8 @@ def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens
                       "D-2026-10-29-15": "1cf2ebc3", "D-2026-10-29-19": "078fe157",
                       # marked 2026-10-30 after cycle 3: web 130 (D-08, D-16), web 134 (D-17), the open link's specs (D-10)
                       "D-2026-10-29-08": "51c3c4a", "D-2026-10-29-16": "51c3c4a", "D-2026-10-29-17": "e5577d2",
-                      "D-2026-10-29-10": "01048e86"}
+                      "D-2026-10-29-10": "01048e86",
+                      "D-2026-10-30-02": "69496bdc", "D-2026-10-30-03": "9ba42382"}
     for d in found:
         if d.get("merged"):
             assert d["decision"] == "taken" and d["until"] == "spec-merged", d["id"]
@@ -382,15 +383,17 @@ def test_a_merged_decision_ends_its_snooze_on_the_file_of_record(capsys):
     assert code == 0
     listed = re.findall(r"^- ((?:COMMERCIAL|PROBLEM|SOLUTION) · .+?) -- (.+)$", said, re.M)
     # cycle 3 (2026-10-30): D-2026-10-30-02 (idea, solution-card, solution-seed, every scope) and -03 (context,
-    # context-card) take rows of this cycle too, and D-08/D-16/D-17/D-10 are marked merged: 17 -> 19 snoozed, 45 -> 43 sent
-    assert len(listed) == 19
+    # context-card) take rows of this cycle too, and D-08/D-16/D-17/D-10 are marked merged: 17 -> 19 snoozed, 45 -> 43 sent.
+    # Later on 2026-10-30: -02 (167) and -03 (168) merged, so their rows go back to the adviser, and -04 narrowed to
+    # ready-pilot (-05, never, holds ready-interviewer and send-format): 19 -> 13 snoozed, 43 -> 49 sent
+    assert len(listed) == 13
     found = {d["id"]: d for d in dec.load()}
     for row, said_of in listed:
         ids = re.findall(r"\*\*(D-2026-10-\d\d-\d\d)\*\*", said_of)
         assert ids and not any(found[i].get("merged") for i in ids), row
-    assert "dry run: 43 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 19 weak row(s) " \
+    assert "dry run: 49 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 13 weak row(s) " \
            "decided before, not sent" in said
-    assert "[1/43] COMMERCIAL · founder · - · context" in said, "149's row (D-01, merged) goes back to the adviser"
+    assert "[1/49] COMMERCIAL · founder · - · context" in said, "149's row (D-01, merged) goes back to the adviser"
 
 
 def test_the_runbook_and_the_agents_file_carry_the_decisions():

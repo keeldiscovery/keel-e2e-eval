@@ -255,6 +255,7 @@ fix = "solution-mechanism.md"
 decision = "taken"
 spec = ["keel-cloud 167"]
 until = "spec-merged"
+merged = "69496bdc"
 why = "DECIDED 2026-10-30 (the founder: 'be tactical -- pick the top three consistent causes, not all 46'). The how and belief lines drift from the seed on all five entries (37 points on R5, the cycle's third-largest cause): the file tells the writer to work from the seed and from the shorter card, and lets the belief carry some claims. 167: the seed the only source, every fact and every claim kept, the idea's own name never, a two-way check before the answer."
 
 [[decision]]
@@ -266,6 +267,7 @@ fix = "code (ReadBack) and context-interpret.md"
 decision = "taken"
 spec = ["keel-cloud 168"]
 until = "spec-merged"
+merged = "9ba42382"
 why = "DECIDED 2026-10-30 (the founder: the top three). The read-back's tail ', counting the last N days' is stitched onto the job by ReadBack and read twice on 21 screens across all five entries (35 points, mostly R2). 168: the window is its own sentence -- 'We'll ask about the last 5 working days.' -- and context-interpret.md describes the new shape; proposal 16's job-slot edit is not taken (one change at a time)."
 
 [[decision]]
