@@ -1641,7 +1641,8 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
     indexes the entry's TYPED items). Spec 104 FR-1: on a live journey Keel's list writer may draft rows of its own
     beside the founder's (21-codyco 2026-10-30 prepended *Forward unanswered calls to Codyco*), so the row is found
     by its label -- the drafted list keeps the founder's labels word for word (spec 081) -- never by the index; a
-    drafted list with no row of that label stops the walk by name, never a fall-back to row 0. The golden walk
+    drafted list with no row of that label (21-codyco's compatibility draft moved *could* to *can* the same day) stops
+    the walk by name, never a fall-back to row 0. The golden walk
     (`strict`) is unchanged: the scripted list is the entry's own, the index is its row."""
     typed = _typed_labels(answer)
     index = (answer.listed or {}).get("pickedIndex") or 0
@@ -1651,7 +1652,8 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
     rows = _drafted_labels(question)
     if want not in rows:
         raise vs.VectorsScriptError(
-            f"{question.get('dimension')}: the founder's picked item {want!r} is not on the drafted list (spec 104 FR-1); Keel drafted {rows!r}, the founder typed {typed!r}")
+            f"{question.get('dimension')}: the founder's picked item {want!r} is not on the drafted list (spec 104 "
+            f"FR-1); Keel drafted {rows!r}, the founder typed {typed!r}")
     return want, rows.index(want)
 
 
