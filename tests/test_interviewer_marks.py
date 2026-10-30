@@ -240,8 +240,11 @@ def good() -> dict:
                    *_pair("INTERVIEWER_RECORDING"), *_pair("INTERVIEWER_CHANGE"),
                    _reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}"), _reading("THEMES", "themes:on-return"),
                    {"kind": "PURCHASE", "credits": -800, "action": None, "price_version": None}],
-        "screens": {"L1": "Who asks the questions. Keel records your interviewer once for this project. Lock and record "
-                          "the interviewer",
+        # spec 091 FR-3 (IM2 v15): L1 carries keel-web 130 / 132's one served credits sentence, the screen's own words
+        "screens": {"L1": "Who should ask them your questions? Daphne is picked for you. Tap the other face to hear "
+                          "Saskia and pick Saskia instead. Keel records Daphne once for this project, which uses 400 "
+                          "credits. People get the link by text message either way. The voice goes with the face. "
+                          "Lock and record Daphne",
                     "S1": "Saskia asks your questions. Recording now, usually ready in about five minutes. 3 of 19 clips",
                     "S2": "Recorded today at 16:02. Change who asks · 400 AI credits",
                     "S3": "AI interviewer · Saskia Text only Let them choose The interviewer is already recorded."},
@@ -379,7 +382,7 @@ def test_a_good_record_meets_every_mark():
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
     assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 14      # spec 086 FR-5: IM27; 089 FR-3: IM20
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 15      # spec 086 FR-5: IM27; 089 FR-3: IM20; 091 FR-3: IM2
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -458,6 +461,11 @@ SEEDED = [
     ("IM1", ["ledger", 2, "actual_cost_micro_usd"], 1_430_000),                         # the vendor's bill passed on
     ("IM1", ["ledger", 1, "inference_job_id"], str(uuid.uuid4())),                       # held on a job
     ("IM2", ["screens", "L1"], "Who asks the questions · 400 credits"),                  # a price on Lock
+    # spec 091 FR-3 (IM2 v15): the credits sentence is L1's own, once, at the served price, with no currency
+    ("IM2", ["screens", "L1"], "Keel records Daphne once for this project, which uses 900 credits."),
+    ("IM2", ["screens", "L1"], "Keel records Daphne once for this project, which uses 400 credits. Keel records "
+                               "Daphne once for this project, which uses 400 credits."),
+    ("IM2", ["screens", "L1"], "Keel records Daphne once for this project, which uses 400 credits. About $2."),
     ("IM2", ["screens", "S1"], "Saskia asks your questions. Recording now ($1.43)."),
     ("IM2", ["screens", "S3"], "AI interviewer · Saskia · 400 credits"),
     ("IM2", ["screens", "S2"], "Recorded today at 16:02. Change who asks"),              # the one action missing

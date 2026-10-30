@@ -146,3 +146,64 @@ def test_the_marks_version_moved_with_its_note():
     assert "127. **v23**" in marks_mod.__doc__ and "128. **v23**" in marks_mod.__doc__
     assert "**`MARKS_VERSION` 23** (spec 091" in marks_mod.__doc__
     assert "MARKS_VERSION 23 (judgement calls 127-128" in marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")
+
+
+# --------------------------------------------------------------------- FR-3: IM2 and the lock screen's credits line
+
+def _lock(uses: str) -> str:
+    """keel-web `beforeInterviewerSub` (130 FR-2, 132 FR-1) as L1 draws it, the title and the button around it."""
+    return ("Who should ask them your questions? Daphne is picked for you. Tap the other face to hear Saskia and pick "
+            f"Saskia instead. Keel records Daphne once for this project, which uses {uses}. People get the link by text "
+            "message either way. The voice goes with the face. Lock and record Daphne")
+
+
+@pytest.mark.parametrize("uses", ["400 credits", "Keel's credits"])
+def test_the_lock_screens_credits_sentence_is_the_screens_own_words(uses):
+    """FR-3: *uses 400 credits* (132) and *uses Keel's credits* (130, the faceless fallback) are L1's own sentence."""
+    from evals import interviewer_marks as im                              # noqa: PLC0415
+    assert im.PRICE_WORD.search(_lock(uses)), "the word IM2 caught before v15"
+    assert im.price_words_on("L1", _lock(uses)) == []
+    assert im.price_words_on("L1", "Keel records them once for this project, which uses Keel's credits.") == []
+
+
+def test_the_credits_sentence_holds_the_served_price_and_no_currency():
+    """FR-3: no number the founder typed (the sentence's number is the served `changePrice`), no currency, one line."""
+    from evals import interviewer_marks as im                              # noqa: PLC0415
+    assert im.price_words_on("L1", _lock("1,250 credits"))[0] == "1,250 credits is not the served price [400]"
+    assert im.price_words_on("L1", _lock("1,250 credits"), {1250}) == [], "the price the wire served"
+    assert "$" in im.price_words_on("L1", _lock("400 credits") + " A $2 render.")
+    twice = _lock("400 credits") + " Keel records Daphne once for this project, which uses 400 credits."
+    assert im.price_words_on("L1", twice)[0].startswith("a second credits sentence")
+    assert im.price_words_on("L1", "Who asks the questions · 400 credits") == ["credits"], "outside the sentence"
+    assert im.price_words_on("L1", _lock("400 credits") + " Your price is set.") == ["price"]
+
+
+def test_the_sentence_is_read_on_l1_alone():
+    """FR-3: S1 and S3 read as before -- the credits sentence on any other screen is a price word."""
+    from evals import interviewer_marks as im                              # noqa: PLC0415
+    assert im.price_words_on("S1", _lock("400 credits")) == ["credits"]
+    assert im.price_words_on("S2", f"Recorded today at 16:02. {im.CHANGE_ACTION}") == []
+
+
+def test_im2_passes_the_lock_screen_as_served_and_the_version_moved():
+    """FR-3: IM2 on a record whose L1 is 132's screen is met, and names the sentence it read;
+    `INTERVIEWER_MARKS_VERSION` 14 -> 15 with its note."""
+    from evals import interviewer_marks as im                              # noqa: PLC0415
+    record = {"screens": {"L1": _lock("400 credits"), "S1": "Saskia asks your questions.",
+                          "S2": f"Recorded today at 16:02. {im.CHANGE_ACTION}", "S3": "AI interviewer · Saskia"},
+              "wire_views": [{"changePrice": 400}]}
+    ok, detail = im.no_price_shown(record)
+    assert ok, detail
+    assert detail["L1 credits sentence"] == "Keel records Daphne once for this project, which uses 400 credits."
+    assert im.INTERVIEWER_MARKS_VERSION == 15
+    import inspect                                                          # noqa: PLC0415
+    assert "#: v15 (spec 091 FR-3" in inspect.getsource(im)
+
+
+def test_the_journeys_l1_no_price_step_reads_the_same_helper():
+    """FR-3: the leg's *L1 revisited ... no price on it* reads `price_words_on`, not the bare `PRICE_WORD`."""
+    import inspect                                                          # noqa: PLC0415
+    from evals import interviewer_leg                                       # noqa: PLC0415
+    src = inspect.getsource(interviewer_leg)
+    assert 'marks.price_words_on("L1", l1["text"])' in src
+    assert 'marks.PRICE_WORD.search(l1["text"])' not in src

@@ -616,9 +616,10 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
         record["screens"]["L1"] = l1["text"]
         record["screens_drawn"]["L1"] = l1
         h.record_assert({"faces": list(fake.FACES), "checked": 1, "price words": []},
-                        {**l1, "price words": marks.PRICE_WORD.findall(l1["text"])})
+                        {**l1, "price words": marks.price_words_on("L1", l1["text"])})
         assert l1["faces"] == list(fake.FACES) and len(l1["checked"]) == 1, l1
-        assert not marks.PRICE_WORD.search(l1["text"]), l1["text"]
+        # spec 091 FR-3 (IM2 v15): L1's one served credits sentence (keel-web 130 / 132) is the screen's own words
+        assert not marks.price_words_on("L1", l1["text"]), l1["text"]
     with j.recorder.step("interviewer (keel-web 070, DRIFT #87 closed): L1 revisited after the lock checks the face "
                          f"that was recorded -- {fake.FACE_NAMES[FIRST_FACE]} -- not the preselected "
                          f"{fake.FACE_NAMES[fake.PRESELECTED]}", party="founder", kind="assert") as h:

@@ -81,7 +81,13 @@ from harness import interviewer_fake as fake
 #: v14 (spec 089 FR-3, keel-cloud 158 + keel-web 135, contract 46: Importance asks one, then one more): re-pinned --
 #: IM20 reads the one-then-one-more walk (the first tap holds the item while the ITEM_MORE clip *And one more?* plays,
 #: the second tap or *Nothing else* completes it) where it read two ticks and *Save and next*. No mark born or dropped.
-INTERVIEWER_MARKS_VERSION = 14
+#: v15 (spec 091 FR-3, keel-web 130 FR-2 + 132 FR-1, keel-cloud 157: the lock records and charges on every server):
+#: re-pinned -- IM2 reads L1's one served credits sentence (*Keel records {face} once for this project, which uses
+#: Keel's credits.* / *... which uses 400 credits.*, `beforeInterviewerSub`) as the screen's own words, not a price the
+#: founder typed: L1 holds that sentence at most once, its number is the served `changePrice` (400) and nothing else,
+#: no currency appears anywhere on it, and no price word stands outside it (`price_words_on`). S1, S2 and S3 read as
+#: before; the journey's *L1 revisited ... no price on it* reads the same helper. No mark born or dropped.
+INTERVIEWER_MARKS_VERSION = 15
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -136,6 +142,13 @@ PRICE_KEY = re.compile(r"price|credit|cost|charge", re.I)
 ALLOWED_PRICE_KEYS = {"changePrice"}
 #: S2's one priced action, the single place a number of credits is drawn (decision 3).
 CHANGE_ACTION = f"Change who asks · {fake.CHANGE_PRICE} AI credits"
+#: keel-web 130 FR-2 / 132 FR-1 (`beforeInterviewerSub`, keel-web e4f204e): L1's one served credits sentence -- the
+#: face recorded once for this project, which uses Keel's credits (the faceless fallback, before the faces are read) or
+#: the render's served price (`changePrice`, 400). Spec 091 FR-3: the screen's own words, never a price the founder typed.
+LOCK_CREDITS_SENTENCE = re.compile(r"Keel records [\w’'-]+(?: [\w’'-]+){0,2} once for this project, which uses "
+                                   r"(?:Keel[’']s credits|(?P<credits>\d[\d,]*) credits)\.")
+#: A currency on a screen that must carry none (spec 091 FR-3: no amount of money, whatever the sentence).
+CURRENCY = re.compile(r"[$£€¥₹]|\b(?:USD|EUR|GBP|dollars?|pounds?|euros?)\b", re.I)
 CONTENT_WORD = 4          # a word of at least this many letters counts toward a line's coverage
 COVERAGE = 0.8            # the share of a line's content words the solution passage must say
 SHINGLE = 6               # six words of the founder's word in a row, spoken, is the word spoken
@@ -204,19 +217,58 @@ def one_recording_pair(r: dict) -> tuple[bool, Any]:
     return kinds == ["HOLD", "SPEND"] and not faults, {"rows": mine, "faults": faults}
 
 
+def price_words_on(name: str, text: str | None, served: set[int] | None = None) -> list[str]:
+    """The price words a founder screen carries that it must not (IM2). S2's one action, *Change who asks · 400 AI
+    credits*, is the screen's own; on L1 (spec 091 FR-3, v15) the one served credits sentence (`LOCK_CREDITS_SENTENCE`)
+    is too, while its number is the served `changePrice` (`served`, else `fake.CHANGE_PRICE`) -- a second such sentence,
+    another number in it, any currency on the screen, or a price word outside the sentence is named."""
+    text = text or ""
+    if name == "S2":
+        return PRICE_WORD.findall(text.replace(CHANGE_ACTION, ""))
+    if name != "L1":
+        return PRICE_WORD.findall(text)
+    prices = {int(p) for p in served or ()} or {fake.CHANGE_PRICE}
+    found = list(LOCK_CREDITS_SENTENCE.finditer(text))
+    out = [f"a second credits sentence: {m.group(0)!r}" for m in found[1:]]
+    if found and found[0].group("credits") and int(found[0].group("credits").replace(",", "")) not in prices:
+        out.append(f"{found[0].group('credits')} credits is not the served price {sorted(prices)}")
+    rest = LOCK_CREDITS_SENTENCE.sub(" ", text, count=1)
+    return out + CURRENCY.findall(text) + PRICE_WORD.findall(rest)
+
+
+def served_prices(r: dict) -> set[int]:
+    """The `changePrice` the founder's interviewer wire served (IM2's L1 reading), as numbers."""
+    def walk(value):
+        if isinstance(value, dict):
+            for k, v in value.items():
+                if k == "changePrice" and isinstance(v, int) and not isinstance(v, bool):
+                    yield v
+                else:
+                    yield from walk(v)
+        elif isinstance(value, list):
+            for v in value:
+                yield from walk(v)
+    return set(walk(r.get("wire_views") or []))
+
+
 def no_price_shown(r: dict) -> tuple[bool, Any]:
-    """IM2: no price word on L1, S1, S2 or S3 -- S2's one action, *Change who asks · 400 AI credits*, aside -- and no
-    key on the founder's interviewer wire carries a price but `changePrice`."""
+    """IM2: no price word on L1, S1, S2 or S3 -- S2's one action, *Change who asks · 400 AI credits*, aside, and (v15,
+    spec 091 FR-3: keel-web 130 / 132) L1's one served credits sentence, the screen's own words, holding the served
+    price and no currency (`price_words_on`) -- and no key on the founder's interviewer wire carries a price but
+    `changePrice`."""
     screens = r["screens"]
     s2 = screens.get("S2") or ""
-    priced = {name: PRICE_WORD.findall((text or "").replace(CHANGE_ACTION, "") if name == "S2" else (text or ""))
+    served = served_prices(r)
+    priced = {name: price_words_on(name, text, served)
               for name, text in screens.items() if name in ("L1", "S1", "S2", "S3")}
     priced = {k: v for k, v in priced.items() if v}
     keys = sorted({k for body in r.get("wire_views") or [] for k in _keys(body)
                    if PRICE_KEY.search(k.rsplit(".", 1)[-1]) and k.rsplit(".", 1)[-1] not in ALLOWED_PRICE_KEYS})
     drawn = {"L1", "S1", "S2", "S3"} <= set(screens) and CHANGE_ACTION in s2
+    credits = LOCK_CREDITS_SENTENCE.search(screens.get("L1") or "")
     return drawn and not priced and not keys, {"priced": priced, "keys": keys, "drawn": sorted(screens),
-                                               "change action drawn": CHANGE_ACTION in s2}
+                                               "change action drawn": CHANGE_ACTION in s2,
+                                               "L1 credits sentence": credits.group(0) if credits else None}
 
 
 def _expected_kinds(role: dict) -> list[tuple[str, str | None]]:
