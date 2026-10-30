@@ -1,6 +1,7 @@
 """Spec 088 (keel-cloud 156, contract 45, `InferenceCharge.VERSION` 12): one charge per interview, at Begin.
 
-FR-1, the prices: both fakes at price version 12, the harness's mirror (`harness/interview_charge.py`) held to keel-cloud's
+FR-1, the prices: both fakes at price version 13 (keel-cloud 169, spec 105: the two frame prices doubled; no row this
+spec holds moved), the harness's mirror (`harness/interview_charge.py`) held to keel-cloud's
 own charge table (skipped by name on a keel-cloud before 156), and §6.3's five-participant figure re-summed wherever the
 harness states it. FR-2, Begin on the wire: the scripted person's posts (Begin, then the response), the one row's shape,
 the legs' sweeps letting a Begin's row through; the browser half behind the keel-web 131 marker. FR-3, the inactive
@@ -49,8 +50,8 @@ def _charge_table() -> tuple[int, dict[str, int]]:
 
 # --------------------------------------------------------------------------------------------- FR-1: the prices
 
-def test_both_fakes_carry_price_version_12():
-    assert interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == charge.PRICE_VERSION == 12
+def test_both_fakes_carry_price_version_13():
+    assert interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == charge.PRICE_VERSION == 13
 
 
 def test_the_mirror_is_keel_clouds_charge_table():
@@ -61,6 +62,8 @@ def test_the_mirror_is_keel_clouds_charge_table():
     # the founder-side rows 156 left alone, as the two fakes state them
     assert rows["INTERVIEWER_RECORDING"] == rows["INTERVIEWER_CHANGE"] == interviewer_fake.CREDITS
     assert rows["CONTACT_PAGE"] == contacts_fake.PAGE_CREDITS and rows["CONTACT_EMAIL"] == contacts_fake.EMAIL_CREDITS
+    # what 13 moved (keel-cloud 169, spec 105 FR-2): the two frame prices, the old ones doubled
+    assert (rows["PROBLEM_INTERPRET"], rows["SOLUTION_MECHANISM"]) == (26, 28)
 
 
 def test_section_6_3s_five_participants_re_summed():
@@ -92,7 +95,7 @@ PROJECT = "0b8e5f8e-3a5c-4b7e-8f0e-6c2b1d9a7e22"
 
 
 def _row(**over) -> dict:
-    row = {"kind": "INTERVIEW", "action": "INTERVIEW", "credits": -30, "price_credits": 30, "price_version": 12,
+    row = {"kind": "INTERVIEW", "action": "INTERVIEW", "credits": -30, "price_credits": 30, "price_version": 13,
            "inference_job_id": None, "actual_cost_micro_usd": None, "reason": f"invitation:{INVITATION}",
            "idempotency_key": f"interview:{INVITATION}", "project_id": PROJECT}
     return {**row, **over}

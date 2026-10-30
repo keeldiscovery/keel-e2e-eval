@@ -33,7 +33,8 @@ whichever AI is answering it.
 It is also **the only run in this repository that spends the company's money** rather than the
 founder's own plan -- about 1,355 credits, $13.55 at list price and about $2.44 of actual
 inference (design §6.3, re-summed at price version 12: readings 0, 30 at each person's Begin --
-keel-cloud 156, spec 088) -- which is why `matrix/cells.py` buys it once a Saturday and refuses it
+keel-cloud 156, spec 088; price version 13, keel-cloud 169, doubled the corridor's two frame prices
+and moved no row of this classic figure, spec 105) -- which is why `matrix/cells.py` buys it once a Saturday and refuses it
 in `per_change` by name.
 
 Two legs, one runtime, and the runtime is what joins them -- on three of the four doors.
@@ -1241,8 +1242,9 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                          else credits_before - _credits_now()),
                      "what the design expects a five-participant journey to cost": (
                          f"{interview_charge.FIVE_PARTICIPANTS:,} credits (ai-credits-design.md §6.3 "
-                         "at price version 12: readings 0, 30 a Begin) -- a figure written for the "
-                         "classic walk; the corridor's own spend is the ledger's, recorded here"),
+                         "at price version 12: readings 0, 30 a Begin; unmoved at 13, which doubled "
+                         "the corridor's two frame prices) -- a figure written for the classic walk; "
+                         "the corridor's own spend is the ledger's, recorded here"),
                      "what Keel actually paid, in micro-dollars": sum(
                          r["actual_cost_micro_usd"] or 0 for r in per_job),
                      "per job": per_job,

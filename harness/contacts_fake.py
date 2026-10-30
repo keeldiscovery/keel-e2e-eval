@@ -35,9 +35,10 @@ EMAIL_COST_MICRO_USD = 60_000
 #: `InferenceCharge.VERSION`, which every HOLD carries: 8 at spec 093, **9** since keel-cloud 094 added the interviewer's
 #: two rows (spec 044 FR-001; the contacts rows and their prices did not move); **10** since keel-cloud 104 (BRIEF out,
 #: THEMES in; spec 052 -- no contacts price moved); **11** since keel-cloud 125 (EXAMPLE_MATCH added at 0, never held;
-#: no price moved -- S-006 met it on the 129 build, spec 068); **12** since keel-cloud 156 (spec 088: INTERVIEW 30 at
-#: Begin added, INTERPRET and THEMES priced 0; no contacts price moved).
-PRICE_VERSION = 12
+#: no price moved -- S-006 met it on the 129 build, spec 068); 12 since keel-cloud 156 (spec 088: INTERVIEW 30 at
+#: Begin added, INTERPRET and THEMES priced 0; no contacts price moved); **13** since keel-cloud 169 (spec 105:
+#: PROBLEM_INTERPRET 26 and SOLUTION_MECHANISM 28, the frame class on frontier; no contacts price moved).
+PRICE_VERSION = 13
 
 _WORDS = re.compile(r"\W+", re.ASCII)
 

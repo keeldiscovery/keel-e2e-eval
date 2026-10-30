@@ -127,3 +127,20 @@ def test_s012s_per_job_check_reads_the_resolver_that_falls_back():
     source = (REPO / "evals" / "test_s012_journey_through_a_host.py").read_text(encoding="utf-8")
     assert "routing_table.resolve_screen(HOST, screen)" in source
     assert "standing_tier" in inspect.getsource(models_mod.ModelTable.resolve)
+
+
+# ------------------------------------------------------------------------------------ FR-2: the price version
+
+def test_price_version_13_is_pinned_in_the_mirror_and_both_fakes():
+    from harness import contacts_fake, interviewer_fake                     # noqa: PLC0415
+    from harness import interview_charge as charge                          # noqa: PLC0415
+    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == 13
+    # §6.3's classic five-participant figure moved no row at 13
+    assert charge.FIVE_PARTICIPANTS == charge.project_credits(5, version=12) == 1_355
+
+
+@pytest.mark.parametrize("rel", ["harness/interview_charge.py", "harness/interviewer_fake.py",
+                                 "harness/contacts_fake.py", "evals/test_s012_journey_through_a_host.py"])
+def test_the_prose_beside_each_pin_names_13(rel):
+    text = (REPO / rel).read_text(encoding="utf-8")
+    assert "13" in text and "169" in text, rel
