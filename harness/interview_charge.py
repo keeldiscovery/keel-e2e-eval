@@ -59,7 +59,7 @@ BEGIN_STATUS = 204
 #: asserts only what holds either way; the coordinator turns them on by setting `WEB_131_BUILT = True` here (or
 #: `KEEL_WEB_131=1` in the environment for one run against a 131 build).
 WEB_131_PENDING = "keel-web 131 not yet built"
-WEB_131_BUILT = False
+WEB_131_BUILT = True  # keel-web 131 merged 2026-10-29, web master 58ba87f
 
 
 def web_131_built() -> bool:
