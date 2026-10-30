@@ -97,6 +97,7 @@ fix = "the page's own words"
 decision = "taken"
 spec = ["keel-web 130"]
 until = "spec-merged"
+merged = "51c3c4a"
 why = "All twelve for their words (the persona named, Keel's nouns gone, the cost said once, the noise claim in everyday words, the dB.Hear it run-in fixed). The product asks inside them were decided one by one: the shared decider NO (D-09), the open link YES as its own design (D-10), the AI-vs-written choice on the lock screen NO (D-11), 'Not sure yet' NO (D-18)."
 
 [[decision]]
@@ -118,6 +119,7 @@ fix = "an open link; a pasted list"
 decision = "taken"
 spec = ["design: keel-cloud-docs canon/designs/open-link-design-2026-10-29.md (specs to follow on the founder's word)"]
 until = "spec-merged"
+merged = "01048e86"
 why = "One open link for a group: the group named, a fixed cap of 20, the arrival's name screen, Sent split into By name / By group with the register table unchanged. The pasted list is NOT in it (later, on his word)."
 
 [[decision]]
@@ -185,6 +187,7 @@ fix = "the role tags (keel-web LIST_ROLE_*)"
 decision = "taken"
 spec = ["keel-web 130 FR-5a"]
 until = "spec-merged"
+merged = "51c3c4a"
 why = "The locked rows' tags made 'decides who decides' and 'has the problem context'; they go, and each role reads has to agree / does not have to agree."
 
 [[decision]]
@@ -196,6 +199,7 @@ fix = "the money screens' controls (keel-web)"
 decision = "taken"
 spec = ["keel-web 134"]
 until = "spec-merged"
+merged = "e5577d2"
 why = "The cost box asks the mode first, then the period ('each' as 'each time'); the price shapes named as the trade charges, a percent always of something."
 
 [[decision]]
@@ -241,3 +245,36 @@ spec = ["keel-e2e-eval 090 FR-3"]
 until = "spec-merged"
 merged = "48621fd"
 why = "DECIDED 2026-10-30 (the founder): the harness sends 1 for the five -- a yes followed by a count of 1 is the logical floor now that the control starts at 1. The corpus is untouched (no revision); the CANT_RECALL stand-in of spec 089 FR-2 goes; each of the five is still named in the scripted person's notes. Before: corpus revision 19 records five people who answered 0 after a yes (04-linerly: Bruno Costa, Dmitri Volkov, Gwen Price, window 12 MONTHS; 05-paidly: Petra Novak, Talia Ben-David, window 3 MONTHS); since keel-cloud 158 the wire refuses a 0 (a count from 1). The corpus is untouched and the engine reads them as recorded. For the founder: drop them in a corpus revision, or replay them as I can't recall. Until he decides, the harness replays the five as CANT_RECALL, each named in the scripted person's notes (spec 089 FR-2). Held with no spec yet: it snoozes nothing (its fix names no location the cycle writes) and ends when the spec his decision becomes is merged."
+
+[[decision]]
+id = "D-2026-10-30-02"
+cycle = "20261030-fcec453"
+proposals = [2, 5, 6, 31, 33, 34]
+row = { scope = "*", audience = "founder", dimension = "-", screen = ["idea", "solution-card", "solution-seed"] }
+fix = "solution-mechanism.md"
+decision = "taken"
+spec = ["keel-cloud 167"]
+until = "spec-merged"
+why = "DECIDED 2026-10-30 (the founder: 'be tactical -- pick the top three consistent causes, not all 46'). The how and belief lines drift from the seed on all five entries (37 points on R5, the cycle's third-largest cause): the file tells the writer to work from the seed and from the shorter card, and lets the belief carry some claims. 167: the seed the only source, every fact and every claim kept, the idea's own name never, a two-way check before the answer."
+
+[[decision]]
+id = "D-2026-10-30-03"
+cycle = "20261030-fcec453"
+proposals = [16, 17, 29, 30]
+row = { scope = "*", audience = "founder", dimension = "-", screen = ["context", "context-card"] }
+fix = "code (ReadBack) and context-interpret.md"
+decision = "taken"
+spec = ["keel-cloud 168"]
+until = "spec-merged"
+why = "DECIDED 2026-10-30 (the founder: the top three). The read-back's tail ', counting the last N days' is stitched onto the job by ReadBack and read twice on 21 screens across all five entries (35 points, mostly R2). 168: the window is its own sentence -- 'We'll ask about the last 5 working days.' -- and context-interpret.md describes the new shape; proposal 16's job-slot edit is not taken (one change at a time)."
+
+[[decision]]
+id = "D-2026-10-30-04"
+cycle = "20261030-fcec453"
+proposals = []
+row = { scope = "*", audience = "founder", dimension = "-", screen = ["ready-interviewer", "ready-pilot", "send-format"] }
+fix = "the page's own words"
+decision = "taken"
+spec = ["keel-web 146"]
+until = "spec-merged"
+why = "DECIDED 2026-10-30 (the founder: the top three). The lock step's three screens are the cycle's largest single cause (61 points on R2 and R4, all five entries) after spec 130's rewording (D-2026-10-29-08, merged): 'runs on its own AI' / 'needs Keel's credits' are Keel's terms, the pilot screen says neither what a yes commits to nor yes/no, the noise claim never says what it counts. No proposal: the rows were snoozed by D-08 when the adviser ran. 146 rewrites the three in plain words; the decided NOs (D-09, D-11, D-18) stand."

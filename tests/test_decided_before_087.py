@@ -71,8 +71,9 @@ def dry(capsys, decisions_path: Path, record: Path = RECORD) -> tuple[int, str]:
 def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens():
     found = dec.load(dec.DECISIONS_PATH)
     # spec 089 FR-6: the five recorded 0s, held for the founder (D-2026-10-30-01, spec-merged with no spec yet)
-    assert len(found) == 21 and [d["id"] for d in found] == [f"D-2026-10-29-{i:02d}" for i in range(1, 21)] + [
-        "D-2026-10-30-01"]
+    # cycle 3 (2026-10-30, the founder: the top three consistent causes): D-2026-10-30-02 (167), -03 (168), -04 (web 146)
+    assert len(found) == 24 and [d["id"] for d in found] == [f"D-2026-10-29-{i:02d}" for i in range(1, 21)] + [
+        f"D-2026-10-30-{i:02d}" for i in range(1, 5)]
     records = {p.stem for p in cycle.record_files(REPO / "quality" / "cycles")}
     for d in found:
         assert d["cycle"] in records, f"{d['id']} names a committed cycle record"
@@ -89,7 +90,10 @@ def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens
     assert merged == {"D-2026-10-29-01": "73426a67", "D-2026-10-29-02": "1b33643f", "D-2026-10-29-03": "0eb15f8f",
                       "D-2026-10-29-05": "21395ab0", "D-2026-10-29-13": "e3d34831", "D-2026-10-29-14": "e3d34831",
                       "D-2026-10-30-01": "48621fd",  # 090 FR-3: the five 0s sent as 1 (2026-10-30)
-                      "D-2026-10-29-15": "1cf2ebc3", "D-2026-10-29-19": "078fe157"}
+                      "D-2026-10-29-15": "1cf2ebc3", "D-2026-10-29-19": "078fe157",
+                      # marked 2026-10-30 after cycle 3: web 130 (D-08, D-16), web 134 (D-17), the open link's specs (D-10)
+                      "D-2026-10-29-08": "51c3c4a", "D-2026-10-29-16": "51c3c4a", "D-2026-10-29-17": "e5577d2",
+                      "D-2026-10-29-10": "01048e86"}
     for d in found:
         if d.get("merged"):
             assert d["decision"] == "taken" and d["until"] == "spec-merged", d["id"]
@@ -376,14 +380,16 @@ def test_a_merged_decision_ends_its_snooze_on_the_file_of_record(capsys):
     code, said = dry(capsys, dec.DECISIONS_PATH, record=F48)
     assert code == 0
     listed = re.findall(r"^- ((?:COMMERCIAL|PROBLEM|SOLUTION) · .+?) -- (.+)$", said, re.M)
-    assert len(listed) == 17
+    # cycle 3 (2026-10-30): D-2026-10-30-02 (idea, solution-card, solution-seed, every scope) and -03 (context,
+    # context-card) take rows of this cycle too, and D-08/D-16/D-17/D-10 are marked merged: 17 -> 19 snoozed, 45 -> 43 sent
+    assert len(listed) == 19
     found = {d["id"]: d for d in dec.load()}
     for row, said_of in listed:
-        ids = re.findall(r"\*\*(D-2026-10-29-\d\d)\*\*", said_of)
+        ids = re.findall(r"\*\*(D-2026-10-\d\d-\d\d)\*\*", said_of)
         assert ids and not any(found[i].get("merged") for i in ids), row
-    assert "dry run: 45 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 17 weak row(s) " \
+    assert "dry run: 43 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 19 weak row(s) " \
            "decided before, not sent" in said
-    assert "[1/45] COMMERCIAL · founder · - · context" in said, "149's row (D-01, merged) goes back to the adviser"
+    assert "[1/43] COMMERCIAL · founder · - · context" in said, "149's row (D-01, merged) goes back to the adviser"
 
 
 def test_the_runbook_and_the_agents_file_carry_the_decisions():
