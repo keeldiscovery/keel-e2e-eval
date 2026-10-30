@@ -2814,15 +2814,40 @@ def _served_commitment(entry, picks: list) -> tuple[list, tuple]:
 #: study's, so a walk under one of these sends the PRIMARY people alone.
 PRIMARY_ONLY_SCOPES = ("PROBLEM", "SOLUTION")
 
+#: Spec 101 FR-2 (keel-cloud 133 FR-4, 139): the scopes whose project on a B2B entry has no PRIMARY kind -- money alone,
+#: where someone else decides, offers the decision-maker's link only (the register's `kinds` is COMMERCIAL_B2B alone),
+#: so a walk under one of these sends the decision-makers alone. On a B2C entry the one FULL link takes everyone.
+DECIDERS_ONLY_SCOPES = ("COMMERCIAL",)
+
+#: Spec 101 FR-2: why a person of the entry is not on the study, by the rule that left them out.
+NOT_ON_STUDY = {
+    "PRIMARY_ONLY": "the money study's (keel-cloud 133): the project has no decision-maker's kind under this scope",
+    "DECIDERS_ONLY": "money alone on a B2B entry: the decision-maker's link only (keel-cloud 133)",
+}
+
 
 def study_people(entry) -> list:
     """Spec 082 FR-1: the entry's people the study under `entry.scope` sends a link to -- under PROBLEM or SOLUTION the
     PRIMARY people alone (the B2B people are the money study's, keel-cloud 133, and the project has no kind to send them
-    on); under COMMERCIAL, SOLUTION_COMMERCIAL and ALL every person, as before."""
+    on); under SOLUTION_COMMERCIAL and ALL every person, as before. Spec 101 FR-2: under COMMERCIAL on a B2B entry the
+    decision-makers alone (keel-cloud 133 FR-4: the person's own link is not offered where the money is the whole study
+    and someone else decides); under COMMERCIAL on a B2C entry every person, on the one FULL link."""
     people = list(entry.people())
     if scope_of(entry) in PRIMARY_ONLY_SCOPES:
         return [p for p in people if p.link != LINK_B2B]
+    if scope_of(entry) in DECIDERS_ONLY_SCOPES and is_b2b(entry):
+        return [p for p in people if p.link == LINK_B2B]
     return people
+
+
+def not_on_study(entry) -> tuple[list[str], str | None]:
+    """Spec 101 FR-2: the entry's people `study_people` leaves out, in corpus order, and why (`NOT_ON_STUDY`); ([], None)
+    where the study sends everyone."""
+    sent = {p.person for p in study_people(entry)}
+    left = [p.person for p in entry.people() if p.person not in sent]
+    if not left:
+        return [], None
+    return left, NOT_ON_STUDY["PRIMARY_ONLY" if scope_of(entry) in PRIMARY_ONLY_SCOPES else "DECIDERS_ONLY"]
 
 
 def person_inputs(entry) -> list[PersonInputs]:

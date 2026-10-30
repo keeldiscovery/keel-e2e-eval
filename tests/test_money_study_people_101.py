@@ -10,6 +10,7 @@ COMMERCIAL_B2B kind only); the PRIMARY people are recorded as not on this study.
 No browser, no stack: the pure decisions, the back-test files and a page double for the items' reveal."""
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import inspect
 from pathlib import Path
@@ -193,3 +194,169 @@ def test_the_read_step_asks_read_owed():
     read = inspect.getsource(cs._read)
     assert "vs.read_owed(j.entry, person.person)" in read
     assert "readable_people" not in read
+
+
+# ------------------------------------------------------------------- FR-2: a B2B money study sends the deciders alone
+
+def _names(people):
+    return [p.person for p in people]
+
+
+def test_the_expanse_stop_money_alone_on_a_b2b_entry_is_the_deciders_alone():
+    """17-expanse COMMERCIAL (`runs/quality-walk/20261030T135615Z-20261030-fcec453/17-expanse-COMMERCIAL.backtest.log`):
+    the register served `kinds` COMMERCIAL_B2B alone, and the leg sent Priyanka Raghunathan on `labels['PRIMARY']`. The
+    study's people are the seven decision-makers; the thirteen PRIMARY people are not on this study."""
+    expanse = _bt("17-expanse")
+    money = _scoped(expanse, "COMMERCIAL")
+    deciders = [p.person for p in expanse.people() if p.link == vs.LINK_B2B]
+    primary = [p.person for p in expanse.people() if p.link != vs.LINK_B2B]
+    assert vs.is_b2b(expanse) and len(deciders) == 7 and len(primary) == 13
+    assert _names(vs.study_people(money)) == deciders
+    assert _names(vs.person_inputs(money)) == deciders
+    assert {p.link for p in vs.person_inputs(money)} == {vs.LINK_B2B}
+    left, why = vs.not_on_study(money)
+    assert left == primary and "Priyanka Raghunathan" in left
+    assert why == vs.NOT_ON_STUDY["DECIDERS_ONLY"] and "decision-maker's link only" in why
+
+
+@pytest.mark.parametrize("name", ["08-fresco", "10-palus", "21-codyco"])
+def test_the_other_b2b_money_studies_are_their_deciders_alone(name):
+    """08-fresco, 10-palus and 21-codyco: the same stop once 096 carries them past the cost step and the lock."""
+    entry = _bt(name)
+    if not vs.is_b2b(entry):
+        pytest.skip(f"{name} is not a B2B entry")
+    money = _scoped(entry, "COMMERCIAL")
+    assert _names(vs.person_inputs(money)) == [p.person for p in entry.people() if p.link == vs.LINK_B2B]
+    for scope in ("ALL", "SOLUTION_COMMERCIAL"):
+        assert _names(vs.study_people(_scoped(entry, scope))) == _names(entry.people()), scope
+
+
+def test_money_alone_on_a_b2c_entry_sends_everyone_on_the_one_full_link():
+    """13-aircaps: no decision-maker of its own, so money alone sends every person, as today."""
+    aircaps = _bt("13-aircaps")
+    money = _scoped(aircaps, "COMMERCIAL")
+    assert not vs.is_b2b(aircaps)
+    assert _names(vs.person_inputs(money)) == _names(aircaps.people())
+    assert vs.not_on_study(money) == ([], None)
+
+
+def test_the_problem_and_solution_studies_keep_082s_rule_and_reason():
+    expanse = _bt("17-expanse")
+    deciders = [p.person for p in expanse.people() if p.link == vs.LINK_B2B]
+    for scope in ("PROBLEM", "SOLUTION"):
+        left, why = vs.not_on_study(_scoped(expanse, scope))
+        assert left == deciders and why == vs.NOT_ON_STUDY["PRIMARY_ONLY"], scope
+    assert vs.not_on_study(_scoped(expanse, "ALL")) == ([], None)
+
+
+def test_downstream_reads_the_deciders_alone_on_a_b2b_money_study():
+    """The follow-up lines and `inputs.json` are worked out over the study's people: nobody left out is named there."""
+    expanse = _scoped(_bt("17-expanse"), "COMMERCIAL")
+    people = vs.person_inputs(expanse)
+    primary = {p.person for p in expanse.people() if p.link != vs.LINK_B2B}
+    assert not primary & set(vs.follow_up_lines(expanse, people))
+    named = {p["person"] for p in vs.inputs_json(expanse, vs.founder_inputs(expanse), people)["people"]}
+    assert named == {p.person for p in people} and not primary & named
+
+
+# the register, as `leg_invite` reads it: {respondentType: label}
+ONE_KIND = {"COMMERCIAL_B2B": "Operator"}
+TWO_KINDS = {"PRIMARY": "Researcher", "COMMERCIAL_B2B": "Operator"}
+
+
+@dataclasses.dataclass(frozen=True)
+class _P:
+    person: str
+    link: str
+
+
+MIXED = [_P("Ada", "PRIMARY"), _P("Ben", "COMMERCIAL_B2B"), _P("Cy", "PRIMARY"), _P("Di", "COMMERCIAL_B2B")]
+
+
+def test_people_to_send_from_a_register_with_one_kind():
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    sent, unserved = cs.people_to_send(MIXED, ONE_KIND)
+    assert _names(sent) == ["Ben", "Di"] and _names(unserved) == ["Ada", "Cy"]
+    sent, unserved = cs.people_to_send([p for p in MIXED if p.link == "COMMERCIAL_B2B"], ONE_KIND)
+    assert _names(sent) == ["Ben", "Di"] and unserved == []
+
+
+def test_people_to_send_from_a_register_with_two_kinds_is_everyone_in_order():
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    assert cs.people_to_send(MIXED, TWO_KINDS) == (MIXED, [])
+    assert cs.people_to_send(MIXED, ["PRIMARY", "COMMERCIAL_B2B"]) == (MIXED, [])
+    sent, unserved = cs.people_to_send(MIXED, {"PRIMARY": "Researcher"})
+    assert _names(sent) == ["Ada", "Cy"] and _names(unserved) == ["Ben", "Di"]
+
+
+def test_a_b2c_money_study_one_full_kind_sends_everyone():
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    people = [_P("Harriet Coleman", "PRIMARY"), _P("Naomi Adler", "PRIMARY")]
+    assert cs.people_to_send(people, {"PRIMARY": "Diner"}) == (people, [])
+
+
+class _Step:
+    def __init__(self, log):
+        self.log = log
+
+    def record_assert(self, want, got):
+        self.log.append(("assert", want, got))
+
+
+def _journey(monkeypatch, entry, labels_people=None):
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    log: list = []
+
+    @contextlib.contextmanager
+    def step(_j, name, **_k):
+        log.append(("step", name))
+        yield _Step(log)
+
+    monkeypatch.setattr(cs, "_step", step)
+    people = labels_people if labels_people is not None else vs.person_inputs(entry)
+    return cs, type("J", (), {"entry": entry, "people": people})(), log
+
+
+def test_leg_invite_records_the_primary_people_as_not_on_this_study(monkeypatch):
+    money = _scoped(_bt("17-expanse"), "COMMERCIAL")
+    cs, j, log = _journey(monkeypatch, money)
+    sending = cs.not_on_this_study(j, ONE_KIND)
+    assert sending == j.people and {p.link for p in sending} == {vs.LINK_B2B}
+    names = [entry[1] for entry in log if entry[0] == "step"]
+    assert len(names) == 1 and "13 of the entry's people not on this study" in names[0]
+    assert "decision-maker's link only" in names[0]
+    _, want, got = next(entry for entry in log if entry[0] == "assert")
+    assert want["unserved"] == [] and got["unserved"] == [] and got["register kinds"] == ["COMMERCIAL_B2B"]
+    assert "Priyanka Raghunathan" in got["not on this study"]
+
+
+def test_a_kind_the_register_does_not_serve_is_a_named_fault_not_a_key_error(monkeypatch):
+    """The old stop, reproduced: everyone on a register serving the decision-maker's kind alone."""
+    expanse = _bt("17-expanse")
+    cs, j, log = _journey(monkeypatch, _scoped(expanse, "ALL"))
+    with pytest.raises(AssertionError, match="no kind for") as raised:
+        cs.not_on_this_study(j, ONE_KIND)
+    assert "Priyanka Raghunathan" in str(raised.value)
+
+
+@pytest.mark.parametrize("scope, labels", [("ALL", TWO_KINDS), ("SOLUTION_COMMERCIAL", TWO_KINDS),
+                                           ("PROBLEM", {"PRIMARY": "Researcher"}),
+                                           ("SOLUTION", {"PRIMARY": "Researcher"})])
+def test_no_new_step_where_nothing_is_left_out_on_money_alone(monkeypatch, scope, labels):
+    """FR-3: the whole study, the solution and the money, and the problem and solution studies (082's) record nothing
+    new."""
+    cs, j, log = _journey(monkeypatch, _scoped(_bt("17-expanse"), scope))
+    assert cs.not_on_this_study(j, labels) == j.people and log == []
+
+
+def test_a_b2c_money_study_records_nothing_new(monkeypatch):
+    cs, j, log = _journey(monkeypatch, _scoped(_bt("13-aircaps"), "COMMERCIAL"))
+    assert cs.not_on_this_study(j, {"PRIMARY": "Diner"}) == j.people and log == []
+
+
+def test_leg_invite_sends_on_the_study_and_the_register():
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    leg = inspect.getsource(cs.leg_invite)
+    assert "sending = not_on_this_study(j, labels)" in leg
+    assert "for person in sending:" in leg and "for person in j.people:" not in leg
+    assert "labels[kind]" in leg and leg.index("not_on_this_study") < leg.index("labels[kind]")

@@ -48,12 +48,16 @@ def test_08_fresco_under_problem_and_solution_is_its_primary_people_alone(fresco
         assert {p.link for p in people} == {vs.LINK_PRIMARY}, scope
 
 
-def test_08_fresco_under_all_and_commercial_is_every_person_in_the_file(fresco):
-    """FR-1: the money study and the whole study send every person, as before."""
+def test_08_fresco_under_all_is_every_person_in_the_file(fresco):
+    """FR-1: the whole study and the solution with the money send every person, as before. Spec 101 FR-2 re-pinned
+    money alone (was *every person* here): on a B2B entry it sends the decision-makers alone
+    (`tests/test_money_study_people_101.py`)."""
     everyone = [p.person for p in fresco.people()]
-    for entry in (fresco, _scoped(fresco, "ALL"), _scoped(fresco, "COMMERCIAL")):
+    for entry in (fresco, _scoped(fresco, "ALL")):
         assert [p.person for p in vs.person_inputs(entry)] == everyone, vs.scope_of(entry)
     assert vs.study_people(_scoped(fresco, "SOLUTION_COMMERCIAL")) == list(fresco.people())
+    deciders = [p.person for p in fresco.people() if p.link == vs.LINK_B2B]
+    assert [p.person for p in vs.person_inputs(_scoped(fresco, "COMMERCIAL"))] == deciders
 
 
 def test_a_b2b_entry_under_a_scope_names_nobody_downstream_who_was_not_sent():

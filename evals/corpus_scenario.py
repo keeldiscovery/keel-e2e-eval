@@ -2638,9 +2638,14 @@ def leg_invite(j: Journey) -> None:
     arrives, then each kind's *Send the questions* / *Send more* -- Text, *People I know by name* (keel-web 130; *Someone
     I know* before), the person's name, *Make
     their link* -- for the specialist and, on a B2B entry, the decision-maker (one `POST invitations/batch` for both,
-    068 call 11). The register is then held to the wire: newest link first, one row a person, Text, not opened."""
+    068 call 11). The register is then held to the wire: newest link first, one row a person, Text, not opened.
+
+    Spec 101 FR-2: the people are the study's (`vs.study_people`) -- on money alone on a B2B entry the decision-makers
+    alone, the register serving their kind only (keel-cloud 133); the people left out are recorded as not on this study
+    (`not_on_this_study`), and a person whose kind the register does not serve is a named fault, never a KeyError."""
     register = j.get(j.project("/invitations")) or {}
     labels = {k.get("respondentType"): k.get("label") for k in register.get("kinds") or []}
+    sending = not_on_this_study(j, labels)
     persona = j.get(j.project("/persona")) or {}
     primary = next((t for t in persona.get("respondentTypes") or [] if not t.get("commercialLink")), {})
     sent = iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
@@ -2665,8 +2670,8 @@ def leg_invite(j: Journey) -> None:
         if walked is not None:
             assert walked["title"] == iv_screens.WALKTHROUGH_TITLE and walked["patch"]["status"] == 200, walked
         assert me_after.get("walkthroughSeenAt"), me_after
-    for person in j.people:
-        kind = vs.LINK_B2B if person.link == vs.LINK_B2B else vs.LINK_PRIMARY
+    for person in sending:
+        kind = link_kind(person)
         made = sent.send_someone(j.project_id, labels[kind], person.person)
         link = ((made["batch"] or {}).get("links") or [{}])[0]
         with _step(j, f"{person.person}: one link on the {kind} kind, handed back once and drawn as it came -- Someone I "
@@ -2708,6 +2713,38 @@ def leg_invite(j: Journey) -> None:
     if j.scope == "ALL":            # spec 071: a scoped study's Overview is `evals/scope_journey.py`'s to read
         report_sheet(j)
         _too_few(j, "before anyone answered")
+
+
+def link_kind(person) -> str:
+    """The register's kind a person is sent on: the decision-maker's (COMMERCIAL_B2B) or the person's own (PRIMARY)."""
+    return vs.LINK_B2B if person.link == vs.LINK_B2B else vs.LINK_PRIMARY
+
+
+def people_to_send(people: list, kinds) -> tuple[list, list]:
+    """Spec 101 FR-2: `people` split by whether the register serves their kind (`kinds`: the register's `kinds[]`
+    respondent types, or a `{type: label}`) -- (sent, unserved), each in the order given."""
+    served = set(kinds)
+    sent = [p for p in people if link_kind(p) in served]
+    return sent, [p for p in people if link_kind(p) not in served]
+
+
+def not_on_this_study(j: Journey, labels: dict) -> list:
+    """Spec 101 FR-2: the people `leg_invite` sends. Where the study leaves the entry's people out on money alone (a B2B
+    entry: the decision-maker's link only, keel-cloud 133) one step records them as not on this study, beside the
+    register's kinds; a person of the study whose kind the register does not serve fails that step by name. The
+    problem and solution studies (spec 082) record nothing new."""
+    left, why = vs.not_on_study(j.entry)
+    sending, unserved = people_to_send(j.people, labels)
+    if not unserved and not (left and vs.scope_of(j.entry) in vs.DECIDERS_ONLY_SCOPES):
+        return sending
+    with _step(j, f"{len(left)} of the entry's people not on this study ({why or 'the study sends everyone'}); the "
+                  f"study's {len(j.people)} sent on the kinds the register serves", party="founder") as h:
+        h.record_assert({"not on this study": left, "kinds": sorted({link_kind(p) for p in j.people}), "unserved": []},
+                        {"not on this study": left, "register kinds": sorted(labels),
+                         "unserved": [{"person": p.person, "kind": link_kind(p)} for p in unserved]})
+        assert not unserved, (f"the register serves {sorted(labels)}; no kind for "
+                              f"{[(p.person, link_kind(p)) for p in unserved]}")
+    return sending
 
 
 # ----------------------------------------------------------------------------- leg 6: interview
