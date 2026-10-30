@@ -164,7 +164,8 @@ def test_the_golden_walk_is_unchanged_under_all(countly):
                                                  "CALIBRATION_QUESTIONS", "ASKED", "RESPONDENT_QUESTIONS",
                                                  "INTERPRET", "THEMES"}
     assert all(vs.serves_part(countly, part, vs.LINK_PRIMARY) for part in (1, 2, 3))
-    assert vs.read_back(countly).endswith(", counting the last 4 weeks.")
+    # re-pinned by spec 103: keel-cloud 168 says the window as its own sentence
+    assert vs.read_back(countly).endswith(". We'll ask about the last 4 weeks.")
     assert cs.before_counters() == ["1 of 2", "2 of 2"]                  # spec 073 FR-2: the word hidden
     assert [vs_screens.stage_exit(v) for v in vs.VECTORS] == [vs_screens.STAGE_EXIT[v] for v in vs.VECTORS]
     assert vs.chained_out_of_scope(countly) == ()

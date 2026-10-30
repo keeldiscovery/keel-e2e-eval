@@ -623,14 +623,15 @@ def test_the_read_back_is_keel_clouds_assembled_sentence():
     """FR-8c (keel-cloud 122 `ReadBack.sentence`): with no condition scripted the golden read-backs are 122's table word
     for word (06, 07); with the condition (FR-4) it follows the core after *, who*. Spec 077 (keel-cloud 146 FR-2): 07's
     condition, drawn by code on the confirm, is said in the core already, so the confirmed sentence is the card's. Spec
-    085 (keel-cloud 149 FR-2): two sentences, the segment its own, the job after *they want to*."""
+    085 (keel-cloud 149 FR-2): two sentences, the segment its own, the job after *they want to*. Re-pinned by spec 103:
+    keel-cloud 168 says the window as its own sentence."""
     assert vs.read_back(_entry("07-mulchrun")) == (
         "Landscaping crew leads in the Dallas-Fort Worth suburbs, spring season. When a job needs mulch and the crew has "
-        "to fetch it from the supply yard, they want to get the mulch onto the beds and the crew onto the next job, "
-        "counting the last 2 weeks.") == vs.read_back(_entry("07-mulchrun"), confirmed=True)
+        "to fetch it from the supply yard, they want to get the mulch onto the beds and the crew onto the next job. "
+        "We'll ask about the last 2 weeks.") == vs.read_back(_entry("07-mulchrun"), confirmed=True)
     assert vs.read_back(_entry("01-countly")) == (
         "Independent restaurant managers in the US, who run one or two sites. When a delivery does not match its "
-        "invoice, they want to keep the stock records matching what is on the shelves, counting the last 4 weeks.")
+        "invoice, they want to keep the stock records matching what is on the shelves. We'll ask about the last 4 weeks.")
     assert vs.segment_line(_entry("05-paidly")) == "freelance translators in the US, who work mostly for agencies"
 
 

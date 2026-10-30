@@ -151,7 +151,8 @@ def test_money_alone_s_read_back_drops_the_clause_the_whole_study_keeps_it(count
     seed = _seed(countly, "COMMERCIAL")
     assert not vs.serves_gate(seed) and vs.serves_gate(countly)
     assert vs.read_back(seed, window=False).endswith("matching what is on the shelves.")
-    assert vs.read_back(countly).endswith(", counting the last 4 weeks.")
+    # re-pinned by spec 103: keel-cloud 168 says the window as its own sentence
+    assert vs.read_back(countly).endswith(". We'll ask about the last 4 weeks.")
 
 
 # ------------------------------------------------------------------------------------------------ FR-3: #97

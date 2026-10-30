@@ -19,14 +19,15 @@ CONFIG = load_config(validate=False)
 SEVEN_NIGHTS = vs.Window(7, "NIGHTS")            # keel-cloud `RecallWindow.DEFAULT`
 SEVEN_DAYS = vs.Window(7, "DAYS")
 
-#: 149's 08-fresco slots (`ReadBackReadsOnceApplierTest.Fresco`) and the sentence it pins.
+#: 149's 08-fresco slots (`ReadBackReadsOnceApplierTest.Fresco`) and the sentence it pins. Re-pinned by spec 103: the
+#: window is its own sentence since keel-cloud 168 (`ReadBackTest`'s 08-fresco).
 FRESCO_CORE = "construction superintendents at US general contractors"
 FRESCO_WHEN = "the day's site walks are done and the photos and notes still have to go into the daily log"
 FRESCO_WHAT = "keep an accurate record of the day's work on site"
 FRESCO_WHICH_PEOPLE = "superintendents at US general contractors whose jobs run on Procore or ACC"
 FRESCO_SENTENCE = ("Construction superintendents at US general contractors, who have jobs that run on Procore or ACC. "
                    "When the day's site walks are done and the photos and notes still have to go into the daily log, "
-                   "they want to keep an accurate record of the day's work on site, counting the last 5 working days.")
+                   "they want to keep an accurate record of the day's work on site. We'll ask about the last 5 working days.")
 
 #: 149's 10-palus words (`ReadBackReadsOnceApplierTest.Palus`).
 PALUS_WHICH_PEOPLE = ("venture-backed startups in the US within two years of a raise, banking with Mercury, Brex or "
@@ -55,31 +56,34 @@ def _entry(corpus, entry_id: str):
 
 
 def test_lullaby_reads_in_two_sentences():
-    """149 `ReadBackReadsOnceTest.lullabyReadsInTwoSentences`, word for word."""
+    """149 `ReadBackReadsOnceTest.lullabyReadsInTwoSentences`, word for word. Re-pinned by spec 103: keel-cloud 168
+    says the window as its own sentence."""
     assert vs.sentence("first-time parents in the US", "have a baby under six months",
                        "the baby cries during the night", "work out what the baby needs and settle the baby",
                        SEVEN_NIGHTS) == (
         "First-time parents in the US, who have a baby under six months. When the baby cries during the night, they "
-        "want to work out what the baby needs and settle the baby, counting the last 7 nights.")
+        "want to work out what the baby needs and settle the baby. We'll ask about the last 7 nights.")
 
 
 def test_the_journeys_lullaby_and_149s_fresco(corpus):
     """03-lullaby as the journeys script it (`SEGMENTS`' core and condition, the corpus's circumstance and job); 08-fresco
-    on 149's slots and its condition (`ReadBackReadsOnceApplierTest.Fresco.SENTENCE`)."""
+    on 149's slots and its condition (`ReadBackReadsOnceApplierTest.Fresco.SENTENCE`). Re-pinned by spec 103: keel-cloud
+    168 says the window as its own sentence."""
     assert vs.read_back(_entry(corpus, "03-lullaby")) == (
         "First-time parents in the US, who have a baby under six months. When the baby cries in the night, they want "
-        "to work out what the baby needs and settle them, counting the last 7 nights.")
+        "to work out what the baby needs and settle them. We'll ask about the last 7 nights.")
     assert vs.sentence(FRESCO_CORE, "have jobs that run on Procore or ACC", FRESCO_WHEN, FRESCO_WHAT,
                        vs.Window(5, "WORKING_DAYS")) == FRESCO_SENTENCE
 
 
 def test_aircaps_reads_the_job_on_its_own_verb():
+    """Re-pinned by spec 103: keel-cloud 168 says the window as its own sentence."""
     assert vs.sentence("deaf and hard-of-hearing adults in the US", "talk with hearing people every week",
                        "a conversation with hearing people is too fast or too noisy to follow",
                        "follow and join a face-to-face conversation", SEVEN_DAYS) == (
         "Deaf and hard-of-hearing adults in the US, who talk with hearing people every week. When a conversation with "
-        "hearing people is too fast or too noisy to follow, they want to follow and join a face-to-face conversation, "
-        "counting the last 7 days.")
+        "hearing people is too fast or too noisy to follow, they want to follow and join a face-to-face conversation. "
+        "We'll ask about the last 7 days.")
 
 
 def test_a_job_with_a_want_of_its_own_takes_they_alone():
@@ -128,9 +132,14 @@ def test_the_segment_keeps_a_conditions_own_pronoun():
 
 
 def test_the_sentence_mirror_reads_the_clouds_read_back():
-    """FR-1's patterns and joins are 149's, held to `ReadBack.java`."""
+    """FR-1's patterns and joins are 149's, held to `ReadBack.java`. Re-pinned by spec 103: keel-cloud 168 closes the
+    job with its full stop and says the window as its own sentence."""
     source = _cloud("src/main/java/com/keeldiscovery/cloud/domain/vectors/ReadBack.java")
-    assert 'out.append(". ").append(upperFirst(withWhen(when))).append(", ").append(they(what));' in source
+    assert ('out.append(". ").append(upperFirst(withWhen(when))).append(", ").append(they(what)).append(\'.\');'
+            in source)
+    assert 'out.append(" We\'ll ask about ").append(window.words()).append(\'.\');' in source
+    assert ", counting" not in source.split("public static String sentence(String segmentCore", 2)[-1].split(
+        "static String they(", 1)[0]
     assert '"(?i)^(?:(?:want|need|try|have)\\\\s+to|must)\\\\s.*"' in source
     assert '"(?i)^(wants|needs|tries|has)\\\\s+to\\\\s+(.*)$"' in source
     assert '"(?i)^(?:are\\\\s+)?trying\\\\s+to\\\\s+(.*)$"' in source
@@ -190,13 +199,14 @@ def test_an_organisations_qualifier_draws_on_its_head_noun():
 
 def test_palus_says_its_condition_once():
     """149 `Palus`: the core as typed already says code's draw (a participle is its verb, `bare`), so the sentence is
-    the core alone; the core that dropped the bank clause takes it after *, who*."""
+    the core alone; the core that dropped the bank clause takes it after *, who*. Re-pinned by spec 103: keel-cloud
+    168 says the window as its own sentence."""
     assert q.in_core(PALUS_AS_TYPED, PALUS_BANKS)
     assert q.segment_line(PALUS_AS_TYPED, PALUS_BANKS) == PALUS_AS_TYPED
     assert vs.sentence(PALUS_AS_TYPED, PALUS_BANKS, PALUS_WHEN, PALUS_WHAT, vs.Window(3, "MONTHS")) == (
         "Finance leads at venture-backed startups in the US within two years of a raise, banking with Mercury, Brex or "
         "similar. When the company decides where cash from a raise sits until it is needed, they want to keep the money "
-        "from a raise safe and earning until the company spends it, counting the last 3 months.")
+        "from a raise safe and earning until the company spends it. We'll ask about the last 3 months.")
     assert vs.sentence("finance leads at venture-backed startups in the US", PALUS_BANKS, PALUS_WHEN, PALUS_WHAT,
                        vs.Window(3, "MONTHS")).startswith(
         "Finance leads at venture-backed startups in the US, who work at a startup that banks with Mercury, Brex or "

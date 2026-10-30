@@ -58,13 +58,14 @@ def test_mulchrun_carries_the_place_code_draws_and_the_fake_writes_none(corpus):
 def test_mulchrun_sentence_after_confirm_is_the_cards(corpus):
     """146 FR-2 on S-007: the core keeps the place, so the confirmed sentence is the card's word for word -- no *, who
     are based in ...* (the thorough pass's red at the confirm step); the segment line is the core alone. Re-pinned by
-    spec 085 to keel-cloud 149's two sentences (the job after *they want to*): the rule pinned here did not move."""
+    spec 085 to keel-cloud 149's two sentences (the job after *they want to*): the rule pinned here did not move.
+    Re-pinned by spec 103: keel-cloud 168 says the window as its own sentence."""
     mulch = _entry(corpus, "07-mulchrun")
     card = vs.read_back(mulch)
     assert card == vs.read_back(mulch, confirmed=True) == (
         "Landscaping crew leads in the Dallas-Fort Worth suburbs, spring season. When a job needs mulch and the crew has "
-        "to fetch it from the supply yard, they want to get the mulch onto the beds and the crew onto the next job, "
-        "counting the last 2 weeks.")
+        "to fetch it from the supply yard, they want to get the mulch onto the beds and the crew onto the next job. "
+        "We'll ask about the last 2 weeks.")
     assert "who are based" not in card
     assert vs.segment_line(mulch) == DFW
 
@@ -100,10 +101,10 @@ def test_in_core_holds_146s_own_pins():
     assert vs.sentence("payroll practitioners who run payroll for at least 50 employees",
                        "run payroll for at least 50 employees", "they run payroll", "run payroll without errors",
                        window) == ("Payroll practitioners who run payroll for at least 50 employees. When they run "
-                                   "payroll, they want to run payroll without errors, counting the last 3 months.")
+                                   "payroll, they want to run payroll without errors. We'll ask about the last 3 months.")
     assert vs.sentence("Freelance translators in the US", "work mostly for agencies", "a job comes in", "quote for it",
                        window) == ("Freelance translators in the US, who work mostly for agencies. When a job comes "
-                                   "in, they want to quote for it, counting the last 3 months.")
+                                   "in, they want to quote for it. We'll ask about the last 3 months.")
     assert vs.sentence("people in Pakistan who earn in rupees", "have no foreign currency account", "the rupee falls",
                        "move their savings", window).startswith(
         "People in Pakistan who earn in rupees and have no foreign currency account. When")
