@@ -299,3 +299,45 @@ def test_the_leg_passes_the_view_read_before_the_walk():
     assert 'drawn_rate=view.get("hourlyRate")' in leg
     assert leg.index("view = _wait_calibration(j, vector)") < leg.index("for question in questions:")
     assert "_hold_the_cost_fill(j, cost, seen[\"filled\"], drawn_rate)" in inspect.getsource(cs._hold_the_chain_screen)
+
+
+# ------------------------------------------------------------------- FR-3: the decision-maker's line is named
+
+def _refusal(line: str, word: str = "mortgage bonds") -> dict:
+    """keel-cloud 165's `TEXT_REFUSED` problem for each line it names."""
+    return {"rule": "lock", "code": "TEXT_REFUSED",
+            "problem": f"the idea card's {line} line still says '{word}', which a stranger may not follow: M5: "
+                       f"'{word}' is a trade word a stranger may not know",
+            "remedy": "edit that line on the idea card in plain words (or mark the word as the audience's own), then "
+                      "lock"}
+
+
+@pytest.mark.parametrize("named, line", [
+    ("decision-maker's how", "howDecider"),
+    ("how", "how"),
+    ("belief", "belief"),
+])
+def test_lock_refusal_reads_the_three_wordings(named, line):
+    refused = cs.lock_refusal(422, _refusal(named))
+    assert refused["line"] == line and refused["word"] == "mortgage bonds"
+
+
+def test_the_deciders_how_is_never_read_as_how():
+    """The 10-palus SOLUTION stop (`runs/20261030T143848Z-backtest-10-palus`): before 096 the pattern read *how* out of
+    *decision-maker's how* only by luck of the wording; 165's name is read whole."""
+    problem = _refusal("decision-maker's how")["problem"]
+    assert cs._LOCK_LINE.search(problem).group(1) == "decision-maker's how"
+    assert cs.lock_refusal(422, _refusal("decision-maker's how"))["line"] != "how"
+
+
+def test_lock_edits_one_line_each():
+    assert cs.LOCK_EDITS == {"how": ("how",), "howDecider": ("howDecider",), "belief": ("belief",)}
+    assert set(cs.LOCK_EDITS) <= set(vs_screens.Corridor.IDEA_BOXES)
+
+
+def test_a_line_the_card_does_not_draw_is_the_stop_it_is_with_the_line_named():
+    """FR-3: a refusal naming the decider's line where the card draws none (a solution-only study) stops, named."""
+    with pytest.raises(AssertionError, match="howDecider line"):
+        cs.answer_refused_lock(cs.lock_refusal(422, _refusal("decision-maker's how")), entry=None,
+                               read_lines=lambda: {"how": "plain", "howDecider": None, "belief": "plain"},
+                               edit=lambda e: pytest.fail("nothing to edit"), relock=lambda: pytest.fail("no relock"))

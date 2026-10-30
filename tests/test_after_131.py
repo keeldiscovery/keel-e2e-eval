@@ -164,21 +164,38 @@ class _Card:
 
 
 def test_a_stubbed_422_then_a_second_pass_200():
-    """Codyco: the lock refused on *PMS*, the how line edited once (the decider's how too, which the cloud names *how*),
-    the second lock 200 -- one `lock_refused` finding with the words before and after."""
+    """Codyco: the lock refused on *PMS*, the how line edited once, the second lock 200 -- one `lock_refused` finding
+    with the words before and after. Re-pinned by spec 096 FR-3 (keel-cloud 165 names each line): *how* edits `how`
+    alone; the decision-maker's how line is its own refusal (`test_the_deciders_line_is_its_own_refusal_096`)."""
     entry = _backtest("21-codyco")
-    decider = "Your agents forward the calls nobody picks up; Codyco writes each booking into the PMS."
-    card = _Card({"how": CODYCO_HOW, "howDecider": decider, "belief": FRAME + "book the calls that ring out."},
+    card = _Card({"how": CODYCO_HOW, "howDecider": None, "belief": FRAME + "book the calls that ring out."},
                  [{"status": 200, "receipt": {"version": 1, "questions": {"interactionIds": ["i-1"]}}}])
     out = cs.answer_refused_lock(cs.lock_refusal(422, _refusal_body("how", "PMS")), entry=entry, read_lines=card.read,
                                  edit=card.edit, relock=card.relock)
     assert out["status"] == 200 and out["passes"] == 1 and out["receipt"]["version"] == 1
-    assert list(card.edits[0]) == ["how", "howDecider"]
-    assert corpus_mod.m5_faults(card.lines) == []
+    assert list(card.edits[0]) == ["how"]
+    assert corpus_mod.m5_faults({k: v for k, v in card.lines.items() if v}) == []
     [finding] = out["findings"]
     assert finding["what"] == "lock_refused" and finding["rule"] == "lock" and finding["code"] == "TEXT_REFUSED"
     assert finding["line"] == "how" and finding["word"] == "PMS" and finding["edited"] is True
     assert finding["before"]["how"] == CODYCO_HOW and "the hotel's booking system" in finding["after"]["how"]
+
+
+def test_the_deciders_line_is_its_own_refusal_096():
+    """Spec 096 FR-3 (keel-cloud 165): the how line refused and edited alone, then *the idea card's decision-maker's how
+    line* refused -- read as `howDecider` and edited alone -- then 200; two findings, one line each."""
+    entry = _backtest("21-codyco")
+    decider = "Your agents forward the calls nobody picks up; Codyco writes each booking into the PMS."
+    card = _Card({"how": CODYCO_HOW, "howDecider": decider, "belief": FRAME + "book the calls that ring out."},
+                 [{"status": 422, "receipt": _refusal_body("decision-maker's how", "PMS")},
+                  {"status": 200, "receipt": {"version": 1}}])
+    out = cs.answer_refused_lock(cs.lock_refusal(422, _refusal_body("how", "PMS")), entry=entry, read_lines=card.read,
+                                 edit=card.edit, relock=card.relock)
+    assert out["status"] == 200 and out["passes"] == 2
+    assert [list(e) for e in card.edits] == [["how"], ["howDecider"]]
+    assert [f["line"] for f in out["findings"]] == ["how", "howDecider"]
+    assert out["findings"][1]["before"] == {"howDecider": decider}
+    assert "PMS" not in card.lines["howDecider"] and corpus_mod.m5_faults(card.lines) == []
 
 
 def test_two_lines_refused_one_after_the_other():

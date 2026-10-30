@@ -2343,27 +2343,32 @@ def leg_lock(j: Journey) -> None:
 
 # ------------------------------------------------- spec 070 FR-1: a refused lock, answered on the idea card
 
-_LOCK_LINE = re.compile(r"the idea card's (how|belief) line")
+#: Spec 096 FR-3 (keel-cloud 165): the cloud names the decision-maker's line *the idea card's decision-maker's how
+#: line*, read as `howDecider`; *how* and *belief* as before.
+_LOCK_LINE = re.compile(r"the idea card's (decision-maker's how|how|belief) line")
+_LOCK_LINE_NAMES = {"decision-maker's how": "howDecider"}
 _LOCK_WORD = re.compile(r"still says '(.+?)', which")
 
 
 def lock_refusal(status: int | None, body) -> dict | None:
     """Spec 070 FR-1 (keel-cloud 131 FR-5, `Project.lock`): a refused lock read off its 422 -- `{code, rule, problem,
     fix, line, word}`, the fix the wire's `remedy` (or a `fix`), the line and the word named in the problem (*the idea
-    card's how line still says 'PMS', which ...*); None for any other answer. A decision-maker's how line is named *how*
-    by the cloud too."""
+    card's how line still says 'PMS', which ...*); None for any other answer. Spec 096 FR-3 (keel-cloud 165): *the idea
+    card's decision-maker's how line* is the line `howDecider`."""
     body = body if isinstance(body, dict) else {}
     if status != 422 or body.get("code") != "TEXT_REFUSED":
         return None
     problem = str(body.get("problem") or "")
     line, word = _LOCK_LINE.search(problem), _LOCK_WORD.search(problem)
     return {"code": body.get("code"), "rule": body.get("rule"), "problem": problem,
-            "fix": body.get("fix") or body.get("remedy"), "line": line.group(1) if line else None,
+            "fix": body.get("fix") or body.get("remedy"),
+            "line": _LOCK_LINE_NAMES.get(line.group(1), line.group(1)) if line else None,
             "word": word.group(1) if word else None}
 
 
-#: Spec 070 FR-1: the lines the founder edits for a refusal that names one -- *how* is the decision-maker's how line too.
-LOCK_EDITS = {"how": ("how", "howDecider"), "belief": ("belief",)}
+#: Spec 070 FR-1: the lines the founder edits for a refusal that names one. Spec 096 FR-3 (keel-cloud 165 names each):
+#: *how* edits `how` alone, the decision-maker's how line `howDecider` alone.
+LOCK_EDITS = {"how": ("how",), "howDecider": ("howDecider",), "belief": ("belief",)}
 
 
 def answer_refused_lock(refused: dict, *, entry, read_lines: Callable[[], dict], edit: Callable[[dict], dict],
