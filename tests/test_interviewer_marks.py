@@ -247,7 +247,9 @@ def good() -> dict:
                           "Lock and record Daphne",
                     "S1": "Saskia asks your questions. Recording now, usually ready in about five minutes. 3 of 19 clips",
                     "S2": "Recorded today at 16:02. Change who asks · 400 AI credits",
-                    "S3": "AI interviewer · Saskia Text only Let them choose The interviewer is already recorded."},
+                    # spec 094 FR-1a (IM2 v16): S3 carries keel-web 131's one credits note, the screen's own words
+                    "S3": "AI interviewer · Saskia Text only Let them choose Each person who answers uses 30 credits, "
+                          "whichever way they answer. The interviewer is already recorded."},
         "wire_views": [{"face": {"code": "SASKIA"}, "status": "READY", "progress": {"done": 19, "total": 19},
                         "changePrice": 400, "faces": [{"code": "DAPHNE"}]},
                        {"interviewer": {"face": "SASKIA", "status": "RECORDING"}, "revision": 40}],
@@ -469,6 +471,10 @@ SEEDED = [
     # spec 094 FR-1 (IM2 v16): staging's switch is L1's own, once, at the served price -- a second, or another number
     ("IM2", ["screens", "L1"], lambda t: "Record Daphne at lock · 400 credits" + t + " Record Saskia at lock · 400 credits"),
     ("IM2", ["screens", "L1"], lambda t: "Record Daphne at lock · 900 credits" + t),
+    # spec 094 FR-1a: Send more's credits note is S3's own, once, at 30, no currency -- a second line, another number
+    ("IM2", ["screens", "S3"], lambda t: t + " Each person who answers uses 30 credits, whichever way they answer."),
+    ("IM2", ["screens", "S3"], lambda t: t.replace("uses 30 credits", "uses 45 credits")),
+    ("IM2", ["screens", "S3"], lambda t: t + " About $0.12 each."),
     ("IM2", ["screens", "S1"], "Saskia asks your questions. Recording now ($1.43)."),
     ("IM2", ["screens", "S3"], "AI interviewer · Saskia · 400 credits"),
     ("IM2", ["screens", "S2"], "Recorded today at 16:02. Change who asks"),              # the one action missing

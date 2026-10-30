@@ -149,7 +149,66 @@ def test_the_version_moved_with_its_note():
     """FR-1: `INTERVIEWER_MARKS_VERSION` 15 -> 16 with its note."""
     assert im.INTERVIEWER_MARKS_VERSION == 16
     source = inspect.getsource(im)
-    assert "#: v16 (spec 094 FR-1" in source and "#: v15 (spec 091 FR-3" in source
+    assert "#: v16 (spec 094 FR-1" in source and "#: v15 (spec 091 FR-3" in source and "spec 094 FR-1a" in source
+
+
+# ------------------------------------------------------------------------- FR-1a: Send more's credits note
+
+#: S3 as journey s006 read it on 2026-10-30 (bundle `runs/20261030T125356Z-s006-paidly`, `screens.S3`): the popup's
+#: `textContent`, the elements glued, keel-web 131's note between the rows and the state line.
+S3_AS_READ = ("Send more · Freelance translators working for agenciesHow should they answer?1 How they answer2 Who3 Their "
+              "linksAI interviewer · SaskiaSaskia asks each question aloud on video. They answer by talking, typing or "
+              "tapping.Every answer in a quiet room. More than 9 in 10 where it is loud: a building site, a busy road, a "
+              "café. Hear itText onlyThey read each question and tap or type their answer.Let them chooseBoth are "
+              "offered; they pick Saskia or text when they open the link.Each person who answers uses 30 credits, "
+              "whichever way they answer.The interviewer is already recorded for this project.CancelContinue · AI "
+              "interviewer")
+
+
+def test_the_credits_note_is_keel_webs_words_and_the_interview_price():
+    """keel-web 131 `FORMAT_CREDITS_NOTE`, read off the checkout and the harness's copy, is the note IM2 reads; its
+    number is the interview's price (`interview_charge.INTERVIEW_CREDITS`, 30)."""
+    from harness import interview_charge as charge                          # noqa: PLC0415
+    from harness import interviewer_screens as ivs                          # noqa: PLC0415
+    translate = _web_source("src/lib/translate.ts")
+    assert f'export const FORMAT_CREDITS_NOTE = "{ivs.FORMAT_CREDITS_NOTE}";' in translate
+    m = im.FORMAT_CREDITS_NOTE.fullmatch(ivs.FORMAT_CREDITS_NOTE)
+    assert m and int(m.group("credits")) == charge.INTERVIEW_CREDITS == 30
+
+
+def test_im2_reads_s3_as_s006_drew_it():
+    """FR-1a: the s006 fault of 2026-10-30 -- S3's *credits* was the note -- reads clean; IM2 names the note it read."""
+    assert im.PRICE_WORD.search(S3_AS_READ), "the word IM2 v15 caught"
+    assert im.price_words_on("S3", S3_AS_READ) == []
+    record = _record(_lock())
+    record["screens"]["S3"] = S3_AS_READ
+    ok, detail = im.no_price_shown(record)
+    assert ok, detail
+    assert detail["S3 credits note"] == "Each person who answers uses 30 credits, whichever way they answer."
+
+
+def test_s3_without_the_note_reads_as_before():
+    """A Send more drawn before keel-web 131 (no note): nothing to take away, nothing priced."""
+    assert im.price_words_on("S3", "AI interviewer · Saskia Text only Let them choose") == []
+    assert im.no_price_shown(_record(_lock()))[1]["S3 credits note"] is None
+
+
+def test_a_second_credits_line_or_another_price_on_s3_faults():
+    """FR-1a: a second note, a note at another number, a currency, any other price word on S3."""
+    note = "Each person who answers uses 30 credits, whichever way they answer."
+    assert im.price_words_on("S3", S3_AS_READ + note)[0] == f"a second credits note: {note!r}"
+    assert im.price_words_on("S3", S3_AS_READ.replace("uses 30", "uses 45")) == [
+        "45 credits is not the interview's price [30]"]
+    assert "$" in im.price_words_on("S3", S3_AS_READ + " About $0.12 each.")
+    assert im.price_words_on("S3", S3_AS_READ + " AI interviewer · 400 credits") == ["credits"]
+    assert im.price_words_on("S3", S3_AS_READ + " The price is set.") == ["price"]
+
+
+def test_the_note_is_read_on_s3_alone():
+    """S1 and L1 do not take the note: there it is a price word."""
+    note = "Each person who answers uses 30 credits, whichever way they answer."
+    assert im.price_words_on("S1", note) == ["credits"]
+    assert im.price_words_on("L1", _lock() + " " + note) == ["credits"]
 
 
 # ------------------------------------------------------------------------- FR-2: the lock step leaves it on
