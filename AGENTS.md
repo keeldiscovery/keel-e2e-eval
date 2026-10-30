@@ -502,7 +502,8 @@ unchanged.
 
 **The read-back in two sentences** (spec `085-read-back-mirror`, 2026-10-29; keel-cloud 149, merged `73426a67`,
 contract 44 unchanged). `vectors_script.sentence` mirrors 149's `ReadBack.sentence`: *{Segment}. When {when}, they want
-to {what}, counting the last {window}.* -- the segment whole (`qualifiers.segment`, 148's own *whose* / *that* /
+to {what}. We'll ask about the last {window}.* (since spec 103 / keel-cloud 168 the window its own sentence; 149 wrote
+*, counting the last {window}.* on the job) -- the segment whole (`qualifiers.segment`, 148's own *whose* / *that* /
 *which* kept, said once by `in_core`), a full stop, the circumstance with its first letter raised, and the job on the
 people's verb (`qualifiers.they`: *they {job}* where it already opens *want to* / *need to* / *try to* / *have to* /
 *must*, *they are trying to* on *trying to*). The harness's draw (`vectors_script.condition_from(part, before)`,
@@ -684,6 +685,19 @@ every consumer entry has two to five gate Noes (13-aircaps: 17 of 20 answer, `_a
 gated body and the B2B body unchanged; no mark moves. `quality/decisions.py` lists `condition` (the walk's screener) among
 the respondent screens, the stop `083fc9a`'s score files left on master. `make unit` 4,076 / 0 / 53 (master `374694d`
 4,047 / 1 / 53); the paid walk (`ENTRIES=13-aircaps SCOPES=COMMERCIAL DOOR=host`) owed after the merge.
+
+**The window is its own sentence** (spec `103-the-window-sentence-in-the-mirror`, 2026-10-30; keel-cloud 168, merged
+`9ba42382`, contract 49 unchanged). `vectors_script.sentence` closes the job with its full stop and says the window as a
+third sentence, *... they want to {job}. We'll ask about the last {window}.*; with no window (none stored, or money
+alone, spec 135) the two sentences as before, byte for byte. Every pin of the old *, counting the last {window}.* moved
+with why (168), and `test_read_back_mirror_085` holds the new joins and the window line to `ReadBack.java`.
+`_drift_96_guard`'s non-strict money-alone check now asks for no *we'll ask about* (*counting the last* could no longer
+be drawn, so it tested nothing). Not moved: the web's muted *Counting the last {window}.* under the card
+(`corpus_scenario.py:679`, `test_drifts_95_97_closed.py:150`) -- keel-web 147 drops it, its pins move with it. A project
+confirmed before 168 keeps the old sentence in its stored `understands`; the walk and every journey make fresh projects.
+`test_founder_walk_076` re-pinned to keel-cloud 166's reworded `Interview.condition` description (master's other
+failure). `make unit` 4,077 / 0 / 53 (master `a2c76e0` 4,074 / 2 / 53 against keel-cloud-docs at 168+); no paid walk owed
+by this spec.
 
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
