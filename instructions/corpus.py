@@ -2,6 +2,14 @@
 spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78; spec 042 call 110;
 spec 053 FR-1; spec 064 FR-1).
 
+**Revision 19 read through keel-cloud 174's escape** (spec 115 FR-0; keel-cloud-docs `e68c0de4`): no corpus revision.
+keel-cloud 174 FR-2 gave `commercial.purchase_friction` the one escape `cant_tell` (*I can't tell*: the question is about
+a purchase not yet made), where revision 19 records `cant_recall` on that row and on Transload's one chip. The record is
+never rewritten: the reader reads a recorded `cant_recall` there as `cant_tell` through **one rule**, `spec174_escape`,
+wherever it holds the record to the registry (rules R and A) and wherever the walk reads a pick
+(`vectors_script._pick`); the walk then sends the code served (`vectors_script.served_escape_picks`). A corpus revision
+is the cloud's and the founder's call.
+
 **Revision 19 read through keel-cloud 173** (spec 113 FR-1; keel-cloud-docs `1acc3791`): no corpus revision. The engine
 writes Relative advantage's belief *For most, their last {occasion} would have gone better with it: {value}.* -- the
 first benefit whole, its leading capital dropped, a typed full stop dropped (`BeliefSentence.benefit`); *the last time*
@@ -123,7 +131,7 @@ from . import text as text_mod
 from .registry import (RECORDED_CONTROLS, ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTROL, BENEFIT_KEY,
                        BENEFIT_MAX_TICKS, COMMITMENT_KEY, COST_MODES, COST_TOTAL_CONTROL,
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
-                       PRICE_PERIODS, SACRIFICE_KEY, VECTORS, RecallWindow, words)
+                       PRICE_PERIODS, PURCHASE_FRICTION_KEY, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
 REVISION = 19
 
@@ -1406,7 +1414,7 @@ def _check_row(entry: Entry, registry, key: str, row: dict) -> None:
     if row.get("control") not in RECORDED_CONTROLS.get(control, (control,)):
         raise _refuse(entry.id, f"respondent_questions[{key}].control is {row.get('control')!r}; the registry's is "
                                 f"{control!r}", entry.path)
-    if row.get("escape") != escape:
+    if not recorded_escape_is(key, row.get("escape"), escape):
         raise _refuse(entry.id, f"respondent_questions[{key}].escape is {row.get('escape')!r}; the registry's one "
                                 f"escape is {escape!r}", entry.path)
     codes = list(row.get("codes") or [])
@@ -1459,7 +1467,7 @@ def _check_pick(entry: Entry, registry, person: dict, key: str, pick) -> None:
         return                                   # rule C held it (`_check_chain`)
     if isinstance(pick, dict) and "chip" in pick:
         _, escape = _registry_row(entry, registry.by_key(key))
-        if escape is None or pick.get("chip") != escape or set(pick) != {"chip"}:
+        if escape is None or not recorded_escape_is(key, pick.get("chip"), escape) or set(pick) != {"chip"}:
             raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}; its one escape is {escape!r}"
                                     + (" (Commitment has none)" if key == COMMITMENT_KEY else ""), entry.path)
         return
@@ -1675,6 +1683,33 @@ def _entry(raw: dict, path: Path, digest: str, *, backtest: bool = False) -> Ent
         idea_name=(raw.get("idea_name").strip() if backtest else None),
         backtest=backtest,
     )
+
+
+# ------------------------------------------------- spec 115 FR-0: revision 19's escape read through keel-cloud 174's rule
+
+#: keel-cloud 174 FR-2 (T006): Purchase friction's escape moved `cant_recall` -> `cant_tell` (the registry's row, served
+#: through `CommercialChain.side`); revision 19 records the code before it. `{key: {recorded: read}}`, and no other.
+SPEC174_ESCAPES = {PURCHASE_FRICTION_KEY: {"cant_recall": "cant_tell"}}
+
+
+def spec174_escape(key: str, recorded):
+    """Spec 115 FR-0 (keel-cloud 174 FR-2): an escape code revision 19 records, read as the registry writes it since
+    174 -- `cant_recall` on `commercial.purchase_friction` is `cant_tell`; any other code, on any other row, is returned
+    as it is (None stays None). The record is never rewritten. Case is kept: the walk's `CANT_RECALL` reads
+    `CANT_TELL`."""
+    if not isinstance(recorded, str):
+        return recorded
+    read = (SPEC174_ESCAPES.get(key) or {}).get(recorded.lower())
+    if read is None:
+        return recorded
+    return read.upper() if recorded.isupper() else read
+
+
+def recorded_escape_is(key: str, recorded, escape) -> bool:
+    """Whether the recorded escape `recorded` is the registry's `escape` for `key`: the same code, or the code the one
+    rule reads it as (`spec174_escape`) -- so revision 19 reads the same under a registry before 174 (its own
+    `cant_recall`) and after (`cant_tell`), and a recorded `cant_tell` under a registry before 174 is still refused."""
+    return recorded == escape or spec174_escape(key, recorded) == escape
 
 
 # ------------------------------------------------- spec 113 FR-1: revision 19 read through keel-cloud 173's one rule

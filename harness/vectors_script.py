@@ -2270,21 +2270,39 @@ ESCAPE_SENT_AS_SERVED = ("{person}: Current solution's escape is served as {labe
                          "served (spec 112's addendum)")
 
 
+#: Spec 115 FR-0 (keel-cloud 174 FR-2): Purchase friction's two codes -- *I can't tell* since 174, *I can't recall* on a
+#: build before it (and in revision 19's record, read as *I can't tell* by `corpus.spec174_escape`). keel-cloud refuses
+#: the one not served (*not this question's way out*).
+PURCHASE_FRICTION_KEY = "commercial.purchase_friction"
+PURCHASE_FRICTION_ESCAPES = ("CANT_TELL", "CANT_RECALL")
+FRICTION_SENT_AS_SERVED = ("{person}: Purchase friction's escape is served as {label!r} (a build {when} keel-cloud 174); "
+                           "the walk's {was} is sent as {code}, the code served (spec 115 FR-0)")
+
+
 def served_escape_picks(person: "PersonInputs", items: dict) -> tuple["PersonInputs", list[str]]:
     """Spec 112's addendum (keel-cloud 172): the walk sends the code served. A person's Current solution escape that is
     not the served item's (`items[dimension].escape.code`) is sent as the served one, and each re-expression is named
-    (`ESCAPE_SENT_AS_SERVED`); with nothing served, or the served code the file's, the person is unchanged."""
+    (`ESCAPE_SENT_AS_SERVED`); with nothing served, or the served code the file's, the person is unchanged. Spec 115
+    FR-0 (keel-cloud 174): Purchase friction's the same way (`PURCHASE_FRICTION_ESCAPES`, `FRICTION_SENT_AS_SERVED`) --
+    the person carries `CANT_TELL` (the record read through `corpus.spec174_escape`), sent as `CANT_RECALL` only where a
+    build before 174 serves it."""
     import dataclasses                                                 # noqa: PLC0415
-    served = (items.get(CURRENT_SOLUTION_KEY) or {}).get("escape") or {}
-    code = str(served.get("code") or "").upper()
-    if code not in CURRENT_SOLUTION_ESCAPES:
-        return person, []
+    ways = {CURRENT_SOLUTION_KEY: CURRENT_SOLUTION_ESCAPES, PURCHASE_FRICTION_KEY: PURCHASE_FRICTION_ESCAPES}
+    served = {key: (items.get(key) or {}).get("escape") or {} for key in ways}
+    codes = {key: str(served[key].get("code") or "").upper() for key in ways}
     picks, notes = [], []
     for pick in person.picks:
-        if pick.dimension == CURRENT_SOLUTION_KEY and pick.chip in CURRENT_SOLUTION_ESCAPES and pick.chip != code:
-            notes.append(ESCAPE_SENT_AS_SERVED.format(person=person.person, label=served.get("label"),
-                                                      can="cannot" if code == "CANT_RECALL" else "can",
-                                                      was=pick.chip.lower(), code=code.lower()))
+        code = codes.get(pick.dimension)
+        if code in ways.get(pick.dimension, ()) and pick.chip in ways[pick.dimension] and pick.chip != code:
+            label = served[pick.dimension].get("label")
+            if pick.dimension == CURRENT_SOLUTION_KEY:
+                notes.append(ESCAPE_SENT_AS_SERVED.format(person=person.person, label=label,
+                                                          can="cannot" if code == "CANT_RECALL" else "can",
+                                                          was=pick.chip.lower(), code=code.lower()))
+            else:
+                notes.append(FRICTION_SENT_AS_SERVED.format(person=person.person, label=label,
+                                                            when="before" if code == "CANT_RECALL" else "after",
+                                                            was=pick.chip.lower(), code=code.lower()))
             pick = dataclasses.replace(pick, chip=code)
         picks.append(pick)
     return (dataclasses.replace(person, picks=picks), notes) if notes else (person, [])
@@ -2299,7 +2317,9 @@ def _pick(entry, key: str, raw) -> Pick:
         chip = str(raw["chip"])
         if chip not in ESCAPES:
             raise VectorsScriptError(f"{entry.id}: {key}'s chip {chip!r} is not an escape at contract 14")
-        return Pick(dimension=key, chip=chip.upper())
+        # spec 115 FR-0 (keel-cloud 174 FR-2): revision 19's Purchase friction `cant_recall` is read as `cant_tell`
+        # through the reader's one rule; `served_escape_picks` then sends the code served
+        return Pick(dimension=key, chip=corpus_reader.spec174_escape(key, chip).upper())
     if key == "commercial.existing_sacrifice" and entry.chain():
         # spec 064 FR-3 (keel-cloud 115 FR-2): the value box, in the founder's unit and period as the r13 pick is
         if not isinstance(raw, dict):
