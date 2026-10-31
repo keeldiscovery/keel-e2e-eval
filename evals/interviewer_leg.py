@@ -2605,6 +2605,7 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
                 h.add_screenshot(player.screenshot("ai-mic-off"))
                 beats, starts = player.beats(), player.starts()
                 events, statuses = player.timeline(), player.statuses()
+                heard_lines = player.heard_lines()              # spec 099: the heard line's states, every window
                 saw = player.saw_thats_my_answer()
                 record["ai_flow"] = j.feedback["ai_flow"] = {
                     "events": events, "next_presses": sum(1 for e in events if e.get("kind") == "next"
@@ -2695,7 +2696,7 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
 
         # spec 049: the read-aloud step (IM19) and the pick-two by taps (IM20), held to what the response carried
         record["hear_out"] = {**(walk.hear_out or {"never": "no question carried the read-aloud step"}),
-                              "hearing": player.hearing}
+                              "hearing": player.hearing, "heard_lines": heard_lines}
         if walk.hear_out:
             record["hear_out"]["sent"] = sent_labels(walk.hear_out["item"])
         if walk.taps:

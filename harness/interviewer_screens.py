@@ -176,6 +176,16 @@ SPEAK_HEARD = "Heard you. Fix anything that’s wrong."
 #: keel-web 082 FR-3 (D35, `HEARING_YOU`): the recorded path's status once a sound came in -- the AI sheet's heard line
 #: (`ai-heard`) and the box's listening card (`iv-mic-say`); *Nothing heard yet* only while nothing has.
 HEARING_YOU = "Hearing you…"
+#: keel-web 143 (spec 099 FR-1): the AI sheet's heard line (`ai-heard`) carries its state, `data-heard` --
+#: `listening` (*Listening…*, `AI_HEARD_LISTENING`: a window open, nothing heard), `hearing` (*Hearing you…*), `writing`
+#: (*Writing down what you said…*, `AI_HEARD_WRITING_DOWN`: from the send to the transcript), `words` (the tag and the
+#: words), `nothing` (*Heard so far: nothing yet*, `AI_HEARD_NOTHING`: only after an empty transcript). The status
+#: line's `WRITING_DOWN` (*Writing it down…*, `AI_WRITING_DOWN`) is another string and unchanged. *Test your mic*'s
+#: writing line (`ai-mic-writing-line`) says the same `AI_HEARD_WRITING_DOWN`.
+HEARD_LISTENING = "Listening…"
+HEARD_WRITING_DOWN = "Writing down what you said…"
+HEARD_NOTHING = "Heard so far: nothing yet"
+HEARD_STATES = ("listening", "hearing", "writing", "words", "nothing")
 SPEAK_MIC_OFF = "The microphone is off, so it’s typing on this one."
 #: keel-web 126 FR-4 (spec 075 FR-5): the box's `asking` state while the microphone is asked for (`SPEAK_ASKING`, the
 #: card `iv-mic-asking`: the line and *Cancel*, no waveform, no clock), before *listening*.
@@ -217,11 +227,15 @@ def back_to(question: int) -> str:
 #: takes (`performance.now()`), every `play` of a clip on the stage's `<video>`, and every press of `ai-next` with the
 #: words it carried (spec 074: and every clip's `ended`). `window.__keelFlow()` hands it back. Spec 048 (keel-web 072): every change of the sheet's status
 #: words (`ai-status`) in order, `window.__keelPhases()`; every press of a button on the sheet with its words; and
-#: whether *That's my answer* (`ai-answer`) was ever in the DOM, `window.__keelSawAnswer()`.
+#: whether *That's my answer* (`ai-answer`) was ever in the DOM, `window.__keelSawAnswer()`. Spec 099 (keel-web 143):
+#: every change of the sheet's heard line (`ai-heard`: its `data-heard` state and words, under its question),
+#: `window.__keelHeard()` -- the line sampled through the send as the status is.
 FLOW_TIMELINE = r"""
 (() => {
   const events = [];
   const statuses = [];
+  const heards = [];
+  let heardKey;
   let phase = null;
   let status = null;
   let sawAnswer = false;
@@ -262,6 +276,18 @@ FLOW_TIMELINE = r"""
       const q = document.querySelector('[data-testid=ai-sheet] .iv-q');
       statuses.push({ t: performance.now(), status: words, question: q ? (q.textContent || '').trim() : null });
     }
+    // spec 099 (keel-web 143): every change of the heard line -- its state (`data-heard`, null when it is not drawn)
+    // and its words -- with the question it stood under, so the marks can read each recorded window's states
+    const heard = document.querySelector('[data-testid=ai-sheet] [data-testid=ai-heard]');
+    const heardState = heard ? heard.getAttribute('data-heard') : null;
+    const heardWords = heard ? (heard.textContent || '').replace(/\s+/g, ' ').trim() : null;
+    const key = JSON.stringify([heardState, heardWords]);
+    if (key !== heardKey) {
+      heardKey = key;
+      const q = document.querySelector('[data-testid=ai-sheet] .iv-q');
+      heards.push({ t: performance.now(), state: heardState, words: heardWords,
+                    question: q ? (q.textContent || '').trim() : null });
+    }
     if (!sawAnswer && document.querySelector('[data-testid=ai-answer]')) sawAnswer = true;
   };
   new MutationObserver(read).observe(document, { subtree: true, childList: true, attributes: true,
@@ -287,6 +313,7 @@ FLOW_TIMELINE = r"""
   }, true);
   window.__keelFlow = () => events.slice();
   window.__keelPhases = () => statuses.slice();
+  window.__keelHeard = () => heards.slice();
   window.__keelSawAnswer = () => sawAnswer;
   window.__keelBeats = () => beats.map((b) => Object.assign({}, b));
 })();
@@ -816,7 +843,12 @@ class Player:
 
     def mic_test(self, heard: str = "hello", *, timeout_s: float = 20) -> dict:
         """keel-web 072 FR-7: *Test your mic* -> the seam's microphone (always granted) -> *Say hello* -> `heard` said
-        -> *Heard: hello* with its tick, and *Start the interview* enabled. What the intro drew before and after."""
+        -> *Heard: hello* with its tick, and *Start the interview* enabled. What the intro drew before and after.
+
+        Spec 099 (keel-web 143 FR-3): what the block drew while it listened (`listening`: the sheet's wave in the
+        meter's place) and while the hello was written down (`writing`) -- the recorder's stop is held
+        (`__holdStop()`) before the hello and let go (`__releaseStop()`) once the writing state is read, well inside the
+        page's 8 s fallback."""
         before = self.intro()
         made = self.recorder()["count"]
         self.page.get_by_test_id("ai-mic-test").click()
@@ -824,11 +856,46 @@ class Player:
         # keel-web 115 FR-2: the hello is recorded (a recording begun by the press, after the microphone is granted) and
         # written down through `transcribe`: speak once it records
         self.wait_listening(newer_than=made, timeout_s=timeout_s)
-        said = self.say(heard, True)
+        self.page.locator("[data-testid=ai-mic][data-state=listening] [data-testid=ai-mic-wave]").wait_for(
+            state="attached", timeout=deadline)
+        listening = self.mic_block()
+        self.page.evaluate("() => window.__holdStop()")
+        try:
+            said = self.say(heard, True)
+            self.page.locator("[data-testid=ai-mic][data-state=writing]").wait_for(state="attached", timeout=deadline)
+            writing = self.mic_block()
+        finally:
+            self.page.evaluate("() => window.__releaseStop()")
         line = self.page.get_by_test_id("ai-mic-heard")
         line.wait_for(state="visible", timeout=deadline)
         self.page.locator("[data-testid=start-talking]:not([disabled])").wait_for(timeout=deadline)
-        return {"before": before, "said": said, "after": self.intro()}
+        return {"before": before, "listening": listening, "said": said, "writing": writing, "after": self.intro()}
+
+    def mic_block(self) -> dict:
+        """Spec 099 (keel-web 143 FR-3): *Test your mic*'s block as drawn now, read in one evaluate -- its state
+        (`ai-mic[data-state]`), the wave inside `ai-mic-level` (`ai-mic-wave` listening, `ai-mic-writing` held; its bars
+        and `data-level`), the retired meter (`.aiv__level`), any `ai-mic-on` on the intro, the writing line
+        (`ai-mic-writing-line`), *Say hello*, the heard line and whether *Start the interview* is enabled."""
+        return self.page.evaluate("""() => {
+            const words = (el) => el ? (el.textContent || '').replace(/\\s+/g, ' ').trim() : null;
+            const block = document.querySelector('[data-testid=ai-mic]');
+            const level = document.querySelector('[data-testid=ai-mic-level]');
+            const wave = level ? level.querySelector('[data-testid=ai-mic-wave], [data-testid=ai-mic-writing]') : null;
+            const intro = document.querySelector('[data-testid=ai-intro]');
+            const say = block ? block.querySelector('.aiv-mic__say') : null;
+            const start = document.querySelector('[data-testid=start-talking]');
+            return { state: block ? block.getAttribute('data-state') : null,
+                     wave: wave ? wave.getAttribute('data-testid') : null,
+                     wave_state: wave ? wave.getAttribute('data-state') : null,
+                     bars: wave ? wave.querySelectorAll('i').length : 0,
+                     level: wave ? wave.getAttribute('data-level') : null,
+                     meter: document.querySelectorAll('.aiv__level').length,
+                     mic_on: intro ? intro.querySelectorAll('[data-testid=ai-mic-on]').length : 0,
+                     writing_line: words(document.querySelector('[data-testid=ai-mic-writing-line]')),
+                     say: words(say),
+                     mic_heard: words(document.querySelector('[data-testid=ai-mic-heard]')),
+                     start_enabled: start ? !start.disabled : null };
+        }""")
 
     def start(self, testid: str = "start-talking") -> None:
         """The intro's button -- pressed again while the page is still the intro: a press that lands before the app
@@ -896,7 +963,8 @@ class Player:
         free text) and Keel writes it down and reads it; nothing is pressed after it. On a question's or a
         confirmation's window (`listening` / `confirming`) a final is looked at inside that quiet (`look`): what was
         ticked, filled and previewed before the words and 250 ms after them, kept on `hearing` -- `still` when the page
-        is still recording (*Recording your answer.*) and says *Hearing you…*, nothing read yet."""
+        is still recording (*Recording your answer.*) and says *Hearing you…* (or, once the pause has sent it, keel-web
+        143's *Writing down what you said…*), nothing read yet."""
         phase = self.phase() if final and look else None
         before = self._drawn() if phase in ("listening", "confirming") else None
         said = bool(self.page.evaluate("([t, f]) => window.__say(t, f)", [text, final]))
@@ -905,7 +973,7 @@ class Player:
             after = self._drawn()
             self.hearing.append({"said": text, "phase": phase, "before": before, "after": after,
                                  "still": self.phase() == phase and after["status"] == RECORDING
-                                 and after["heard"] == HEARING_YOU})
+                                 and after["heard"] in (HEARING_YOU, HEARD_WRITING_DOWN)})
         return said
 
     def _drawn(self) -> dict:
@@ -1077,6 +1145,14 @@ class Player:
         try:
             return list(self.page.evaluate("() => window.__keelPhases ? window.__keelPhases() : []") or [])
         except Exception:  # noqa: BLE001
+            return []
+
+    def heard_lines(self) -> list[dict]:
+        """Spec 099 (keel-web 143): `FLOW_TIMELINE`'s heard line, every change in order (`window.__keelHeard`) --
+        `{t, state, words, question}`, `state` the line's `data-heard` (None while it is not drawn)."""
+        try:
+            return list(self.page.evaluate("() => window.__keelHeard ? window.__keelHeard() : []") or [])
+        except Exception:  # noqa: BLE001 - a page that has gone
             return []
 
     def saw_thats_my_answer(self) -> bool | None:
