@@ -19,6 +19,14 @@ persona, never typed; `no_claim_words` retires with `BAR_SET` and `NOT_TESTED_BY
 is read from keel-cloud's canon and nowhere else; and `rescore.py` refuses every v8 and v9 bundle
 by name. v10 has no run of record; it is history from v11.
 
+**`MARKS_VERSION` 24** (spec 112, 2026-10-30): `option_validity` reads keel-cloud 171's Adoption friction (call 129):
+`K2` measures a face in *To use it, you'd {step}. Would you do that, or not?* (three words more than 123's *You'd*), `L5`
+admits one suggested Adoption friction step with its `suggested_why` (a missing why a fault), `L1` counts the founder's
+efforts beside it. The reading moved both ways, so the version moves; no number in `[marks]` moved, the corpus stays
+**revision 19** (five of its seven golden Adoption friction faces, written to 163's 12 words, are now `K2`s:
+`spoken_form` reads 104 of 109 at zero spend), and a v20 to v23 bundle re-scores at v24 (call 130). **There is no v24
+run of record until `WHY=marks:24` is spent -- the founder's word only.** v23's paragraph below is history.
+
 **`MARKS_VERSION` 23** (spec 091, 2026-10-30): a drafted list is held to the draft's rule, not the save's (call 127).
 `option_validity`'s `L1` counts Importance's draft (`rival_list`) as `founder-lists.md` asks it written: with the job's
 `answers` `{}` the problem itself alone (one item), with the founder's Answer the problem itself and the N difficulties
@@ -1154,7 +1162,7 @@ Calls 91-109 are spec 041's (the journey on corpus revision 10): they read no ma
     friction too -- a one-time step the actor takes, last -- and there its missing `suggested_why` **is** a fault (171's
     breach: *the suggested step carries suggested_why -- what in the Answer or the idea calls for it, in one
     sentence*; Compatibility's stays the note above); `L1` on Adoption friction counts the founder's efforts, the one
-    suggested step outside the 1 to 4 (*... besides the one suggested step*).
+    suggested step outside the 1 to 4 (*... besides the one suggested step*). At v24 (call 129).
 125. **v22**: **`rescore.py` re-scores a v20 or v21 bundle at v22.** The rules above read the produced draft the bundle
     already holds, so `OLDEST` stays 20: a v21 scorecard re-scored at v22 moves only where a draft carried a suggested
     Compatibility condition (now met) or a phrase in Keel's old words (now an `L1`). Every bundle below 20 is refused as
@@ -1175,7 +1183,7 @@ Calls 91-109 are spec 041's (the journey on corpus revision 10): they read no ma
     leading clause moved to the end in the present, a clause's own *to ..., you'd* purpose dropped), no give-way; 123's
     *You'd ...* and *you had to* -> *you would have to* are retired. `K3` reads the step after the frame's *you'd*.
     171's clause is at most 10 words (the option rule's, `spoken.ADOPTION_CLAUSE_MAX_WORDS`, not restated as a fault):
-    an 11-word clause is 21 framed, a `K2`.
+    an 11-word clause is 21 framed, a `K2`. At v24 (call 129).
 127. **v23**: **a drafted list is held to the draft's rule, not the save's** (spec 091 FR-1). `L1` on Importance's
     draft (`rival_list`) reads the job's `answers` slot: `{}` (the seed-time job, every screen this eval runs) is the
     problem itself alone -- exactly one item; the founder's Answer for it is the problem itself and the difficulties the
@@ -1191,6 +1199,18 @@ Calls 91-109 are spec 041's (the journey on corpus revision 10): they read no ma
     `answers` the bundle already holds (the case's sent context, else the seed-time job's `{}`), so `OLDEST` stays 20: a
     v22 scorecard re-scored at v23 moves only where Importance's draft count moved (a one-item seed-time draft is now
     valid; a draft that added rivals with no Answer is now an `L1`). Every bundle below 20 is refused as before.
+129. **v24**: **an Adoption friction face and draft are read as keel-cloud 171 writes them** (spec 112 FR-1, FR-2).
+    `K2` frames a face as `ItemFrames.adoptionFrame` does -- *To use it, you'd {step}. Would you do that, or not?*
+    around the whole step in base form (`spoken.step`, call 126's amendment) -- so a clause of 11 words is 21 framed
+    and a fault (171's option rule: at most 10); `K3` reads the step after the frame's *you'd*. `L5` admits one
+    `suggested` item on Adoption friction (a one-time step the actor takes, last) and faults one without
+    `suggested_why`; `L1` counts Adoption friction's items less that one (call 124's amendment). The corpus did not
+    move: five golden faces (01, 02, 03, 04, 06) are 11 or 12 words and now `K2`s -- the cloud never refuses a stored
+    row, so these are the corpus's age, a revision owed by keel-cloud, never softened here.
+130. **v24**: **`rescore.py` re-scores a v20 to v23 bundle at v24.** Call 129 reads the faces and the drafts' flags the
+    bundle already holds, so `OLDEST` stays 20: a v23 scorecard re-scored at v24 moves only where an Adoption friction
+    face is 11 words or more (now a `K2`) or a draft marked an Adoption friction step (now valid with its why, an `L5`
+    without). Every bundle below 20 is refused as before.
 """
 
 from __future__ import annotations
@@ -1198,7 +1218,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-MARKS_VERSION = 23
+MARKS_VERSION = 24
 
 DEFAULT_MARKS_PATH = Path(__file__).parent / "marks.toml"
 

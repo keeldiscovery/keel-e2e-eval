@@ -268,7 +268,7 @@ def test_the_paid_command_is_documented_and_marks_version_is_23():
     `L5` say keel-cloud's rules); the back-test moved nothing."""
     agents = (REPO / "AGENTS.md").read_text(encoding="utf-8")
     assert "make backtest" in agents and "spec 062" in agents
-    assert instruction_marks.MARKS_VERSION == 23                  # spec 091: Importance's draft count
+    assert instruction_marks.MARKS_VERSION == 24                  # spec 091: Importance's draft count; 112: 171's adoption
 
 
 # ------------------------------------------------------------------- spec 064 FR-2 / FR-3: the chain on the wire

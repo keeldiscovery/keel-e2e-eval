@@ -142,7 +142,7 @@ def test_the_marks_version_moved_with_its_note():
     127-128) and the marks file's header; `OLDEST` stays 20."""
     from instructions import marks as marks_mod                             # noqa: PLC0415
     from instructions import rescore as rescore_mod                         # noqa: PLC0415
-    assert marks_mod.MARKS_VERSION == 23 and rescore_mod.OLDEST == 20
+    assert marks_mod.MARKS_VERSION == 24 and rescore_mod.OLDEST == 20   # spec 112 moved it on (calls 129-130)
     assert "127. **v23**" in marks_mod.__doc__ and "128. **v23**" in marks_mod.__doc__
     assert "**`MARKS_VERSION` 23** (spec 091" in marks_mod.__doc__
     assert "MARKS_VERSION 23 (judgement calls 127-128" in marks_mod.DEFAULT_MARKS_PATH.read_text(encoding="utf-8")

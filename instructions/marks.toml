@@ -6,6 +6,15 @@
 # evals/policy.py states for POLICY_VERSION, and a separate constant so the two can never be
 # confused.
 
+# MARKS_VERSION 24 (judgement calls 129-130, 2026-10-30; spec 112-the-harness-reads-the-adoption-steps, the mirror of
+# keel-cloud 171). option_validity reads Adoption friction as 171 writes it: K2 frames a face as "To use it, you'd
+# {step}. Would you do that, or not?" (an 11-word clause is 21 framed), L5 admits one suggested step with its
+# suggested_why (a missing why faults), L1 counts the founder's efforts beside it. No key of [marks] below moved;
+# corpus revision 19 (five golden adoption faces are now K2s: spoken_form 104 of 109 at zero spend).
+# **Scores before and after this bump are not comparable** where an adoption face is 11 words or more or a draft
+# marked an adoption step; a v20 to v23 bundle re-scores at v24 (call 130).
+# **Run of record: none yet** -- there is none until `WHY=marks:24` is spent, on the founder's word only.
+#
 # MARKS_VERSION 23 (judgement calls 127-128, 2026-10-30; spec 091-the-draft-list-minimum). option_validity's L1 holds a
 # drafted list to the draft's rule, not the save's: Importance (rival_list) is the problem itself alone with the job's
 # `answers` {} and the problem itself plus the N difficulties the founder's Answer names with one (1 + N, at most

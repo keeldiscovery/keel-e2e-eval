@@ -300,4 +300,4 @@ def test_s006_takes_the_export_only_when_asked():
 def test_marks_version_is_23():
     """Spec 078 moved MARKS_VERSION 20 -> 21 (the `read` mark kind, reported, never gating); spec 093 21 -> 22 (`L1`,
     `L5`); the export moved nothing."""
-    assert instruction_marks.MARKS_VERSION == 23                  # spec 091: Importance's draft count
+    assert instruction_marks.MARKS_VERSION == 24                  # spec 091: Importance's draft count; 112: 171's adoption

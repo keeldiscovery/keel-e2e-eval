@@ -125,8 +125,8 @@ def test_l5_admits_compatibility_never_elsewhere():
 
 def test_the_marks_version_moved_with_its_note():
     """FR-3: the reading of `option_validity` moved both ways, so MARKS_VERSION moved (calls 124-125)."""
-    # spec 091 moved it on (22 -> 23, calls 127-128); 093's calls stand
-    assert marks_mod.MARKS_VERSION == 23 and "124. **v22**" in marks_mod.__doc__ and "125. **v22**" in marks_mod.__doc__
+    # spec 091 moved it on (22 -> 23, calls 127-128), spec 112 (23 -> 24, calls 129-130); 093's calls stand
+    assert marks_mod.MARKS_VERSION == 24 and "124. **v22**" in marks_mod.__doc__ and "125. **v22**" in marks_mod.__doc__
 
 
 # ------------------------------------------------------------------------ FR-4: the adoption-friction frame is the cloud's
