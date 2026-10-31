@@ -1,0 +1,262 @@
+{
+  "entry": "21-codyco",
+  "scope": "COMMERCIAL",
+  "bundle": "20261031T120415Z-backtest-21-codyco",
+  "cloud_sha": "2f147fe7",
+  "web_sha": "7243de7",
+  "routing_version": "15",
+  "rubric_version": 3,
+  "persona": {
+    "founder": "Your own public material (you are the founder it describes):\n\n# 21-codyco: sources\n\nBack-test entry `21-codyco.yaml`. Codyco, YC Fall 2025 (\"The AI Reservation Team for Hotel Groups\"). Read 2026-10-22.\nThe founder's numbers are pinned to the launch era (the founder's gap-11 rule): the YC company page as captured on\n2025-10-16, the partnership terms page of 2025-10-15 and the Launch YC post of 2025-10-19. Anything later is under\n*Status today*.\n\nSources (short names used below):\n\n- **YC-C**: YC company page. https://www.ycombinator.com/companies/codyco (live page read 2026-10-22); launch-era\n  capture https://web.archive.org/web/20251016205157/https://www.ycombinator.com/companies/codyco (2025-10-16).\n- **YC-L**: Launch YC, \"Codyco: AI Receptionists for Hotel Groups\".\n  https://www.ycombinator.com/launches/Oe7-codyco-ai-receptionists-for-hotel-groups (created 2025-10-19T21:45:53Z).\n- **TERMS**: \"AI Ambassador Partnership Terms\" (Notion page linked from YC-L).\n  https://www.notion.so/AI-Ambassador-Partnership-Terms-28d0ec9f0e6d80b0b6cedcd4d23628be (blocks created and edited\n  2025-10-15, page last edited 2025-10-19; read through Notion's public page API, the page being client-rendered).\n- **SITE**: https://www.codyco.ai/ , https://www.codyco.ai/faq , https://www.codyco.ai/company (read 2026-10-22).\n- **HN**: no Launch HN thread exists (https://hn.algolia.com/api/v1/search?query=Codyco&tags=story, 2026-10-22).\n\n## Every figure, with its launch-era source\n\n| Figure in the entry | Where it is used | Source, date |\n|---|---|---|\n| \"miss 5% of their calls\" | statements.problem; cost RATE 5% of the reservation calls | YC-L 2025-10-19: \"even the best central reservation offices and call centers miss 5% of their calls\" |\n| \"After hours. During peak hours. On holidays.\" | context.circumstance; lossPhrase | YC-L 2025-10-19 |\n| \"seven-figure rounding error\" | statements.problem | YC-L 2025-10-19 (\"a seven-figure 'rounding error'\" for a mid-sized hotel group). The YC-C wording \"a seven figure revenue leak\" is on the live page only, not in the 2025-10-16 capture |\n| €5,000 in 4 weeks, 53-room hotel | statements.problem | YC-C capture 2025-10-16: \"€5,000 in additional bookings. In 4 weeks. For a 53-room hotel.\" (YC-L 2025-10-19 says \"$5,000\" for the same hotel; see Open) |\n| €3,000 up front, pilot at one location, up to 8 weeks, money-back, credited on roll-out | price upfrontLow/High 3000; statements.commercial; Commitment step | TERMS 2025-10-15: \"Fee. €3,000 upfront (excl. taxes/third-party costs).\"; YC-L 2025-10-19: \"Zero Risk Pilot\" with a money-back guarantee, the pilot fee credited to the account if happy |\n| €1,000 to €1,500 per hotel a month (licence) | price low/high | **Not public.** TERMS names \"Codyco Phone AI license fees\" per hotel with no amount. The operator's reading: the €3,000 pilot for up to 8 weeks is about €1,500 a month, taken as the top; two thirds of it as the bottom |\n| 7 hotel groups | header only | YC-L 2025-10-19: \"already work with 7 hotel groups\" |\n| OPERA Cloud, Sihot, Apaleo | statements.solution | SITE (2026-10-22) lists the PMS integrations; the launch era says only \"bookings appeared in the hotel's PMS\" (YC-L). Product names kept as the founder's own words |\n| hourly_rate €18 | B2B shape only | The author's stand-in for a German hotel reservation agent's hour; no source |\n\n## Verbatim quotes\n\n- \"Even with call centers and central reservation departments they are still losing 5% of calls.\" -- YC-C,\n  https://www.ycombinator.com/companies/codyco\n- \"We started Codyco after a friend told us how much money he was losing from missed calls.\" -- YC-C,\n  https://www.ycombinator.com/companies/codyco\n- \"even the best central reservation offices and call centers miss 5% of their calls\" -- YC-L,\n  https://www.ycombinator.com/launches/Oe7-codyco-ai-receptionists-for-hotel-groups\n- \"After hours. During peak hours. On holidays.\" -- YC-L, same URL\n- \"We made $5,000 in additional bookings. For a tiny 53-room hotel. In just 4 weeks.\" -- YC-L, same URL\n- \"€5,000 in additional bookings. In 4 weeks. For a 53-room hotel.\" -- YC-C capture of 2025-10-16,\n  https://web.archive.org/web/20251016205157/https://www.ycombinator.com/companies/codyco\n- \"Fee. €3,000 upfront (excl. taxes/third-party costs).\" -- TERMS,\n  https://www.notion.so/AI-Ambassador-Partnership-Terms-28d0ec9f0e6d80b0b6cedcd4d23628be\n- \"You could feel the relief across the whole team from day one.\" -- SITE (a hotel's testimonial, today's page),\n  https://www.codyco.ai/\n\n## The founder-emulation items\n\n1. **Who (practitioner `agent`).** YC-C names hotel groups with \"call centers and central reservation departments\";\n   YC-L's video features front-desk staff at a Munich hotel. *My choice:* the reservation agent, central office or\n   front desk, who sees the missed-call list. Segment: hotel groups in Germany with a central office or call center.\n2. **When (circumstance, occasion, window).** YC-L's \"After hours. During peak hours. On holidays.\" *My choice:* the\n   occasion \"reservation shift\", window the last 7 days (calls come in on every shift; spec 120's \"every shift\" -> 7\n   DAYS), Frequency 5 to 7 days out of 7.\n3. **Who pays (decision-maker `director`, Buyer and payer, Purchase friction).** TERMS addresses the hotel group;\n   YC-L asks to \"book a 10-minute call if you lead a hotel group\". *My choice:* the revenue or reservations director\n   decides, the hotel's owner has to agree. Purchase friction tests \"A data protection review of guest calls\" (German\n   hotels handle guests' card and personal data on the call); my choice, no source names it.\n4. **Mechanism.** YC-C: missed calls forwarded to Codyco, the AI answers, bookings appear in the PMS. Compatibility\n   tests call forwarding (the mechanism needs it); Adoption friction tests letting the AI answer in the hotel's voice.\n5. **Cost, price, ability.** As in the table. Reading `budget` by the engine (a percent of calls against euros).\n6. **Commitment.** TERMS and YC-L: the paid, money-back pilot at one location. The step carries its number (\"pay\n   €3,000 for a money-back pilot at one hotel\"), the gap-8 check.\n\n## The respondents\n\nNo first-person account by a German reservation agent or revenue director was found in public (no HN thread; the\nsite's quotes are curated testimonials). **Every person is the author's invention**, no real person's name is used,\nand each is built on the public facts named here.\n\nReservation agents (Parts 1 and 2):\n- Lena Hoffmann: a trade-fair Saturday in a Munich central office; built on YC-L (\"During peak hours\") and the Munich\n  hotel YC-L features.\n- Murat Yilmaz: a check-in rush at the desk; YC-L's \"peak hours\".\n- Chiara Russo: a group whose call center already answers after hours (YC-C: \"Even with call centers...\"); her pain is\n  group emails, so Importance and Current solution go against the founder.\n- Jonas Weber: alone on a Sunday desk; YC-L's \"On holidays\" / after hours.\n- Aylin Demir: an old phone system that cannot forward (Compatibility only_with_help); the author's.\n- Tobias Brandl: the sceptic who will not hand guests to an AI (Relative advantage negative, Adoption no); the author's.\n- Elif Kaya: weekend abandoned calls seen on Monday; YC-L's \"After hours\".\n- Daniel Okonkwo: rates pushed wrong to agencies matter more (Importance against); the author's.\n- Mehmet Arslan: a vague story, GUESSED. Katarina Novak: a story chip, GUESSED.\n- Florian Gruber, Nadia Haddad: gate No (no unanswered booking call in the 7 days).\n\nRevenue directors (COMMERCIAL_B2B link, Part 3): Stefanie Wagner (6%), Andreas Keller (4%, below the founder's 5%),\nRoberto Bianchi (8%), Ingrid Lindholm (2%, a call center covers after hours), Karim Benali (does not know his rate;\nYC-L's \"Free AI Strategy Workshop\" and SITE's free test number as his ask), Petra Vogel (5%), Hannes Moser (nothing,\nwould not pay), Joanna Wiśniewska (10% at resort hotels in high season). The value boxes are percents of the calls, in\nthe founder's unit and period; the price picks are two codes, the pilot's rung and the licence's rung, each placed\nagainst the founder's €3,000 and €1,000.\n\n## Status today\n\nSame idea (SITE, 2026-10-22): \"Turn missed hotel calls into paid bookings.\", widened to payments, invoices and\nhandovers; \"Running at 15+ hotel groups\" (the launch said 7); \"€10k+ bookings written directly into the PMS\". **No\npublic price today** (SITE and /faq show none); the €3,000 pilot terms remain the only priced source.\n\n## Open (what could not be sourced, and the workarounds)\n\n- **The licence amount** was never public. €1,000 to €1,500 per hotel a month is the operator's reading of the pilot's\n  monthly rate (above). Treat the plan step's reading as a reading of that derivation.\n- **Dollars or euros.** YC-L says \"$5,000\", YC-C \"€5,000\" for the same hotel; the pilot fee is in euros and the company\n  is in Munich, so the entry is in euros. The market is DE, and the golden corpus's rule U (US only) is a note.\n- **The \"> 8 hotels\" / \"10 hotels\" roll-out threshold** in TERMS and YC-L disagree; the entry does not use it.\n- **Job titles.** Neither the agent nor the director is named in public; both are my choices (items 1 and 3).\n- **The 5% is the founders' claim** for \"the best\" offices; no independent figure was sought.\n- **UPFRONT_THEN has no \"credited\" or \"money-back\" flag**; the fee is a plain up-front amount (header).\n\nThe study you typed into Keel, as its context fields say it (your trade's words are plain to you; judge from inside your trade, your place and your time):\n  actor: reservation agent\n  actor_plural: reservation agents at hotel groups\n  job: turn every guest who calls into a booking\n  circumstance: booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered\n  segment: reservation agents at hotel groups in Germany that run a central reservations office or call center\n  window: the last 7 days\n  where: DE",
+    "respondent": {
+      "COMMERCIAL_B2B": "Your name is Stefanie Wagner.\nAbout you: ...Revenue directors (COMMERCIAL_B2B link, Part 3): Stefanie Wagner (6%), Andreas Keller (4%, below the founder's 5%), Roberto Bianchi (8%), Ingrid Lindholm (2%, a call center covers after hours), Karim Benali (does not know his rate; YC-L's \"Free AI Strategy Workshop\" and SITE's free test number as his ask), Petra Vogel (5%), Hannes Moser (nothing, ...\nYour role: Revenue directors at hotel groups -- the revenue or reservations director who chooses and pays for a hotel group's booking tools.\nYour title: Hotel group revenue director. You decide on, and pay for, tools like the one in this study.\nThe project's what, where and when, in the founder's own words for your situation (given so you know your trade, your place and your time; they are not words you would necessarily use):\n  actor: reservation agent\n  actor_plural: reservation agents at hotel groups\n  job: turn every guest who calls into a booking\n  circumstance: booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered\n  segment: reservation agents at hotel groups in Germany that run a central reservations office or call center\n  window: the last 7 days\n  where: DE"
+    }
+  },
+  "spoken_guidelines": {
+    "source": "keel-cloud 2f147fe7 (the bundle's)",
+    "sections": [
+      "2",
+      "3",
+      "5"
+    ],
+    "sha256": "485aefbf36d5ab1dbd86166bf3d39773a9963ae9f5b848ddb4b3a985c8693def"
+  },
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 0.2634,
+  "probe_cost_usd": 0.0132,
+  "seconds": 21.6,
+  "scored_at": "2026-10-31T12:15:57+00:00",
+  "calls": 5,
+  "partial": false,
+  "selection": null,
+  "entry_yaml": {
+    "sha256": "af354b8cd0f4105af8a5a3ae95b7f34e4ed19e66c4189ed73834fdee710c1c75",
+    "matches_bundle": true
+  },
+  "read_fraction": 1.0,
+  "unread": [],
+  "summary": {
+    "founder": {
+      "screens": 3,
+      "means": {
+        "r1": 2.0,
+        "r2": 1.667,
+        "r3": 2.0,
+        "r4": 2.0,
+        "r5": 2.0,
+        "r6": null,
+        "b1": null,
+        "b2": null,
+        "b3": null,
+        "b4": null,
+        "b5": null,
+        "b6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0,
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 0,
+        "b6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": 0.0,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "after_pct": null,
+      "score_pct": 96.4
+    },
+    "respondent": {
+      "screens": 0,
+      "means": {
+        "r1": null,
+        "r2": null,
+        "r3": null,
+        "r4": null,
+        "r5": null,
+        "r6": null,
+        "b1": null,
+        "b2": null,
+        "b3": null,
+        "b4": null,
+        "b5": null,
+        "b6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0,
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 0,
+        "b6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": null,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "after_pct": null,
+      "insight_lines": 0,
+      "insight_means": {
+        "g1": null,
+        "g2": null
+      },
+      "insight_zeros": {
+        "g1": 0,
+        "g2": 0
+      },
+      "insights_pct": null,
+      "score_pct": null
+    },
+    "overall": {
+      "screens": 3,
+      "means": {
+        "r1": 2.0,
+        "r2": 1.667,
+        "r3": 2.0,
+        "r4": 2.0,
+        "r5": 2.0,
+        "r6": null,
+        "b1": null,
+        "b2": null,
+        "b3": null,
+        "b4": null,
+        "b5": null,
+        "b6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0,
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 0,
+        "b6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": 0.0,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "after_pct": null,
+      "insight_lines": 0,
+      "insight_means": {
+        "g1": null,
+        "g2": null
+      },
+      "insight_zeros": {
+        "g1": 0,
+        "g2": 0
+      },
+      "insights_pct": null,
+      "score_pct": 96.4
+    }
+  },
+  "insights": [],
+  "insights_note": "no grouping to read (no follow-up line with two answers)",
+  "after_note": "no screen after the answers in the bundle (walked before spec 109, or the leg shot none)",
+  "flow": {
+    "founder": {
+      "order": 2,
+      "order_why": "Naming the project, choosing the market and then defining the context runs from simple to specific, and knowing I sell in Germany first frames who and when the context applies to.",
+      "asked_twice": "",
+      "missing": "The flow I was shown stops at step 1 of 5, so these never came up: the problem and what missed calls cost (5% of reservation calls), how the AI works (call forwarding, bookings written into the PMS), the revenue or reservations director who pays as distinct from the reservation agent who uses it, the hotel owner's sign-off and the data protection review of guest calls, the price (€3,000 money-back pilot at one hotel, then a per-hotel monthly licence), and the commitment I want to test."
+    },
+    "respondent": {}
+  },
+  "screens": [
+    {
+      "n": 1,
+      "screen": "name",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "name",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": null,
+      "r5": 2,
+      "r6": null,
+      "why1": "Naming the project is the obvious first step when I start a study, and nothing has been asked before it.",
+      "why2": "\"What should we call this project?\" is plain to any founder and I can answer it on first reading.",
+      "why3": "It is my own company and idea, so I know exactly what to call it.",
+      "why4": "The screen is a box to type in and shows no options, rows, chips or value box.",
+      "why5": "The name holds what I typed, Codyco and the calls a hotel group misses, booked by an AI agent, with nothing changed.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 2,
+      "screen": "market",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "market",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": 2,
+      "r5": 2,
+      "r6": null,
+      "why1": "Right after naming the project, asking where I sell first is the obvious next thing, because it sets who gets recruited and which currency and words the study uses.",
+      "why2": "Short and plain; as a Munich founder selling to German hotel groups I answer it on first reading without thinking.",
+      "why3": "I know exactly where I sell first: Germany, where my pilots and hotel groups are.",
+      "why4": "A country pick with an optional region holds my true answer, DE, with no region needed, and nothing on it is odd or overlapping.",
+      "why5": "The kicker's calls a hotel group misses, booked by an AI agent, is my idea, and DE with no region is what I picked.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 3,
+      "screen": "context",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "context",
+      "r1": 2,
+      "r2": 1,
+      "r3": 2,
+      "r4": 2,
+      "r5": 2,
+      "r6": null,
+      "why1": "After naming the project and picking the market, it makes sense to pin down who has the problem and when before anything gets tested.",
+      "why2": "The reservation terms and my own wording are plain to me, but \"recall window\" is researcher's language rather than hotel language, and I need a second read to see that it means how far back respondents are asked to think.",
+      "why3": "I know who handles these calls, when they get missed and which hotel groups I sell to, so I can answer all of it from my own work.",
+      "why4": "The only bounded input is the recall window's number and unit, and 7 days fits because booking calls come in on every shift.",
+      "why5": "The agent, the job, the after-hours, peak and holiday circumstance, and the German hotel groups with a central office or call center all remain exactly as I typed them.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Keep the screen, but relabel \"recall window\" as: How far back should we ask them to think? [7] [days]"
+    }
+  ]
+}
