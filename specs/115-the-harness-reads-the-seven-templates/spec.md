@@ -11,6 +11,14 @@ number from 1 to N* above five, the two-word unit said once; price's `offer_name
 
 ## Rules
 
+- **FR-0 FIRST: the corpus reads purchase friction's `cant_recall` as `cant_tell`.** 174 FR-2 moved the registry's escape for
+  `commercial.purchase_friction` to `cant_tell`; the golden corpus and the back-test entries (05-paidly, 10-palus,
+  17-expanse, 21-codyco at least) still record `cant_recall` on that item, so `instructions.corpus` refuses them and 11
+  tests are red on master (`test_corpus_r11_shape`, `test_lock_frontier_110` x5, `test_instruction_spoken` x5 errors).
+  The reader maps a recorded `cant_recall` on `commercial.purchase_friction` to `cant_tell` through one rule (the r19
+  pattern: `spec174Reads`), never rewriting the corpus; the walk sends the served code. A corpus revision is the cloud's
+  and the founder's call later. Without this, cycle 4 stops on four entries.
+
 - **FR-1 The slice and the mirrors.** `tests/fixtures/registry/slice.yaml` :61, :126, :212, :593, :607 (`cant_tell`), :645
   (`belief_template_decider`); `instructions/corpus.py:26-28`; `instructions/marks.py:152-154`; `evals/scope_journey.py:80`;
   `evals/corpus_scenario.py:2111-2112`; `instructions/spoken.py:80, :139` (`FACT_ANSWERS` = the registry's four), `:245`;
