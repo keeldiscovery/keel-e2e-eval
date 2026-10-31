@@ -608,26 +608,40 @@ def _safe_slug(slug: str) -> str:
 
 # ------------------------------------------------------------------------- 3b. after the answers (spec 109 FR-1)
 #
-# keel-web's stage page (`DimensionStagePage`, `/p/{id}/s/{STAGE}`) draws no test id of its own; the leg reads it by the
-# classes the golden journeys already read it by (`vectors_screens.Answers.vector_page`: `.dimrow[id=<key>]`,
-# `button.dimrow__head`, `.dimrow__body`, `span.status`) and the chart's own (`.dimrow__drawing`, `.achart[data-chart]`)
-# -- the test ids it owes are listed in spec 109's tasks.md. The Insights screen's are keel-web 077 / 095's
-# (`report-insights`, `section.rp-ibox[data-dim]`, `insights-more` the fold, `insights-not-asked`).
+# keel-web's stage page (`DimensionStagePage`, `/p/{id}/s/{STAGE}`). Spec 117 FR-4: since keel-web 154 it names its
+# parts, and the leg reads them by those ids first -- `stage-page` (`data-stage`), `stage-verdict`,
+# `stage-dimension[data-dim][data-opens]`, `stage-dimension-open`, `dimension-chart`, `dimension-verdict`,
+# `dimension-count` -- with the classes it read before 154 (`vectors_screens.Answers.vector_page`: `.corridor.answers`,
+# `p.answers__headline`, `.dimrow[id=<key>]`, `button.dimrow__head`, `.dimrow__drawing`, `span.status`, `.sub`) as the
+# fallback where an id is not drawn (a keel-web before 154). The rest has no id and keeps its class (`.dimrow__body`,
+# the kicker, the title, the chart's own `.achart[data-chart]` / `ul.dimbars`, inside `dimension-chart`). Every read
+# records `by_ids`, whether the page drew 154's ids. The Insights screen's are keel-web 077 / 095's (`report-insights`,
+# `section.rp-ibox[data-dim]`, `insights-more` the fold, `insights-not-asked`).
 
 #: The stage page as drawn: the kicker, the title, the verdict line, Keel's statement, the count line, the banner, one
 #: row per dimension card (its number, name, belief, status word with its line, whether it opens), *What it measures*.
 STAGE_JS = """() => {
   const t = (e) => e ? (e.innerText || e.textContent || "").replace(/\\s+/g, " ").trim() : "";
   const one = (sel, root) => t((root || document).querySelector(sel));
+  const either = (id, cls, root) => (root || document).querySelector(`[data-testid=${id}]`)
+      || (root || document).querySelector(cls);
   const main = document.querySelector("main") || document.body;
-  const rows = Array.from(document.querySelectorAll(".dimrow")).map((row) => ({
-      dimension: row.getAttribute("id"), n: one(".dimrow__n", row), name: one(".dimrow__name", row),
-      belief: one(".dimrow__belief", row), status: one("span.status", row),
-      opens: !!row.querySelector("button.dimrow__head"), open: row.getAttribute("data-open") === "true"}));
-  return {page: {kicker: one(".answers .corridor__kicker"), title: one(".answers .ccard__title"),
-                 headline: one(".answers p.answers__headline"), statement: one(".answers .ccard__sub"),
-                 foot: one(".answers .rfoot"), decider: one(".answers p.decider-banner"),
-                 measures: one(".answers .calib__belief .corridor__intro"), rows: rows},
+  const root = either("stage-page", ".corridor.answers");
+  const named = Array.from(document.querySelectorAll("[data-testid=stage-dimension]"));
+  const rows = (named.length ? named : Array.from(document.querySelectorAll(".dimrow"))).map((row) => ({
+      dimension: row.getAttribute("data-dim") || row.getAttribute("id"), n: one(".dimrow__n", row),
+      name: one(".dimrow__name", row), belief: one(".dimrow__belief", row),
+      status: t(either("dimension-verdict", "span.status", row)),
+      opens: row.hasAttribute("data-opens") ? row.getAttribute("data-opens") === "true"
+          : !!row.querySelector("button.dimrow__head"),
+      open: row.getAttribute("data-open") === "true"}));
+  const within = (sel) => one(sel, root || undefined);
+  return {page: {kicker: within(".corridor__kicker"), title: within(".ccard__title"),
+                 headline: t(either("stage-verdict", ".answers p.answers__headline")),
+                 statement: within(".ccard__sub"), foot: within(".rfoot"), decider: within("p.decider-banner"),
+                 measures: within(".calib__belief .corridor__intro"), rows: rows,
+                 stage: root ? root.getAttribute("data-stage") : null,
+                 by_ids: !!document.querySelector("[data-testid=stage-page]")},
           text: (main.innerText || "").slice(0, 6000)};
 }"""
 
@@ -635,21 +649,27 @@ STAGE_JS = """() => {
 #: it), *Asked:*, the bar line, the chart's kind, caption, legend and words, everyone who answered -- and its own text.
 CARD_JS = """(key) => {
   const t = (e) => e ? (e.innerText || e.textContent || "").replace(/\\s+/g, " ").trim() : "";
-  const row = Array.from(document.querySelectorAll(".dimrow")).find((r) => r.getAttribute("id") === key);
+  const row = Array.from(document.querySelectorAll("[data-testid=stage-dimension]"))
+      .find((r) => r.getAttribute("data-dim") === key)
+      || Array.from(document.querySelectorAll(".dimrow")).find((r) => r.getAttribute("id") === key);
   if (!row) return {chart: null, text: ""};
   const one = (sel) => t(row.querySelector(sel));
-  const drawing = row.querySelector(".dimrow__drawing");
-  const chart = row.querySelector(".dimrow__drawing .achart");
+  const either = (id, cls) => row.querySelector(`[data-testid=${id}]`) || row.querySelector(cls);
+  const drawing = either("dimension-chart", ".dimrow__drawing");
+  const verdict = either("dimension-verdict", "span.status");
+  const chart = drawing && drawing.querySelector(".achart");
   const kind = chart ? (chart.getAttribute("data-chart") || "chart")
-      : row.querySelector(".dimrow__drawing ul.dimbars") ? "bars" : (drawing && drawing.children.length ? "strip" : null);
-  return {chart: {title: one(".dimrow__name"), belief: one(".dimrow__belief"), verdict: one("span.status"),
-                  insight: one("span.status .status__insight"), count: one("span.status .sub"),
+      : drawing && drawing.querySelector("ul.dimbars") ? "bars" : (drawing && drawing.children.length ? "strip" : null);
+  return {chart: {title: one(".dimrow__name"), belief: one(".dimrow__belief"), verdict: t(verdict),
+                  insight: t(verdict && verdict.querySelector(".status__insight")),
+                  count: t(either("dimension-count", "span.status .sub")),
                   asked: one(".dimrow__asked"), bar: one(".dimrow__said"), chart: kind,
                   caption: one(".achart__caption"), legend: one(".achart__legend"), line: one(".achart__linelabel"),
                   drawing: t(drawing),
                   people: Array.from(row.querySelectorAll("ul.dimpeople li")).map((li) => ({
                       name: t(li.querySelector("span")), read: t(li.querySelector(".dimpeople__read"))}))},
-          open: !!row.querySelector(".dimrow__body"), text: t(row).slice(0, 6000)};
+          open: !!row.querySelector(".dimrow__body"), by_ids: row.getAttribute("data-testid") === "stage-dimension",
+          text: t(row).slice(0, 6000)};
 }"""
 
 #: The Insights screen: per box its line, status, state, head, the question asked, its groups with their counts, how
@@ -682,7 +702,11 @@ FOLD_JS = """() => {
   return box ? (box.getAttribute("data-dim") || "") : "";
 }"""
 
-STAGE_ROW = ".dimrow"
+#: Spec 117 FR-4 (keel-web 154): a dimension card by its id, the class as the fallback (a CSS selector list: either).
+STAGE_ROW = "[data-testid=stage-dimension], .dimrow"
+#: The card's head button and its body: 154's id, then the class; the body has no id (the class alone).
+CARD_OPEN = ("[data-testid=stage-dimension-open]", "button.dimrow__head")
+CARD_BODY = ".dimrow__body"
 INSIGHTS_VIEW = "[data-testid=report-insights]"
 INSIGHTS_TAB = "[data-testid=report-views] button[role=tab][data-view=insights]"
 FOLD_BUTTON = "[data-testid=report-insights] [data-testid=insights-more] >> nth=0"
@@ -693,9 +717,13 @@ AFTER_SLUG = {"stage": "stage", "dimension": "dimension-{key}", "insights-screen
               "fold": "insights-more-{key}"}
 
 
-def card_selector(key: str, part: str = "") -> str:
-    """One dimension card's selector on the stage page (keel-web `DimensionRow`: `.dimrow[id=<key>]`), and a part."""
-    return f".dimrow[id='{key}']" + (f" {part}" if part else "")
+def card_selector(key: str, part: str | tuple[str, str] = "") -> str:
+    """One dimension card's selector on the stage page, and a part: keel-web 154's `stage-dimension[data-dim=<key>]`
+    first, then the class `DimensionRow` drew before it (`.dimrow[id=<key>]`), as one CSS selector list (spec 117
+    FR-4). A part given as `(id selector, class selector)` (`CARD_OPEN`) is read the same way."""
+    by_id, by_class = (part, part) if isinstance(part, str) else part
+    return ", ".join(sel + (f" {inner}" if inner else "") for sel, inner in (
+        (f"[data-testid=stage-dimension][data-dim='{key}']", by_id), (f".dimrow[id='{key}']", by_class)))
 
 
 @dataclass
@@ -831,9 +859,9 @@ def answers_leg(j, cam: "Camera", *, stages: list[str] | None = None, pass_sheet
                                            "why": "the card does not open (keel-web: a LEFT_OUT row has no body)"})
                 continue
             try:
-                body = card_selector(key, ".dimrow__body")
+                body = card_selector(key, CARD_BODY)
                 if not page.evaluate("(sel) => !!document.querySelector(sel)", body):
-                    page.click(card_selector(key, "button.dimrow__head"))
+                    page.click(card_selector(key, CARD_OPEN))
                 page.wait_for_selector(body, state="visible", timeout=10_000)
             except Exception as missed:  # noqa: BLE001
                 done["errors"].append({"stage": stage, "dimension": key, "at": "opening the card",

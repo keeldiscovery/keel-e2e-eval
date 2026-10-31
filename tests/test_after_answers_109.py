@@ -102,7 +102,8 @@ class FakePage:
             return
         if selector == bt.INSIGHTS_VIEW and self.view == "insights":
             return
-        body = re.fullmatch(r"\.dimrow\[id='(.+)'\] \.dimrow__body", selector)
+        # spec 117 FR-4: the card is found by keel-web 154's id, then its class -- one selector list, the class half last
+        body = re.search(r", \.dimrow\[id='([^']+)'\] \.dimrow__body$", selector)
         if body and body.group(1) == self.open_row:
             return
         raise TimeoutError(f"no {selector} on {self.url}")
@@ -124,7 +125,7 @@ class FakePage:
 
     def click(self, selector):
         self.seen.append(("click", selector))
-        head = re.fullmatch(r"\.dimrow\[id='(.+)'\] button\.dimrow__head", selector)
+        head = re.search(r", \.dimrow\[id='([^']+)'\] button\.dimrow__head$", selector)
         if head:
             self.open_row = head.group(1)
         elif selector == bt.FOLD_BUTTON:
@@ -182,8 +183,8 @@ def test_the_leg_shoots_the_stage_page_each_card_that_opens_and_the_insights_scr
     gone = [u for k, u in page.seen if k == "goto"]
     assert gone == [f"{BASE}/p/{PID}/s/PROBLEM", f"{BASE}/p/{PID}#insights"], "the stage page, then the Insights"
     clicks = [u for k, u in page.seen if k == "click"]
-    assert clicks == [bt.card_selector("problem.prevalence", "button.dimrow__head"),
-                      bt.card_selector("problem.importance", "button.dimrow__head"), bt.FOLD_BUTTON]
+    assert clicks == [bt.card_selector("problem.prevalence", bt.CARD_OPEN),
+                      bt.card_selector("problem.importance", bt.CARD_OPEN), bt.FOLD_BUTTON]
     assert not any("pilot" in u.lower() or "people" in u.lower() for u in gone + clicks), "FR-1(c): nothing else"
 
 
