@@ -770,6 +770,24 @@ made* (`GROUP_LINK_MADE`) and every other S-017 read are unchanged. `make unit` 
 the same three plus the 092 pin against keel-cloud-docs `8c53497f`: keel-cloud 170, price version 14 and *I can't
 recall*, merged during the build -- eval 110's, not built); `make eval K=s017` is the coordinator's acceptance.
 
+**The harness reads keel-cloud 170: price version 14, the gate's No, the chips, the cost frame, the screen** (spec
+`110-the-harness-reads-the-lock-jobs-frontier-tier`, 2026-10-30; keel-cloud-docs `8c53497f`). `PRICE_VERSION` 14 in the
+mirror and both fakes (`RESPONDENT_QUESTIONS` 70, the lock's job on the frontier tier). The gate's No: the attempt's *I
+didn't get to* is retired, so `corpus_scenario.gate_no_faults` wants the served want's *I didn't* or the page's own
+*No*, and a served retired label is a fault; `interviewer_fake.story_escape` says the two chips as served, in order.
+S6 already read the registry: master's two spoken failures were keel-cloud's `build/spoken-corpus.txt` written before
+170 (*I don't know* against the registry's *I can't recall*), skipped by name (`fx.skip_a_spoken_record_before_170`)
+and proved clean with the one moved line -- the coordinator reruns `SpokenGuidelinesCorpusTest`. `wording.gate()` and
+the Frequency frames frame through `subject_led` (`WindowFrame.subjectLed`, *any* / *some* since 170). The stranger's
+cost item had no mirror: `harness/loss_line.py` ports `LossLine` and `vectors_script.cost_question` /
+`stranger_cost_label` / `value_box_answer_line` / `cost_item` port `CommercialChain`, held to keel-cloud's seventeen
+worked cases and the Palus, Expanse and Codyco lines; a served value box's chip words (*None*, *I can't recall*) are a
+screen fault and a cost item that parts from the mirror a finding. The screen reader: back-test entries gain
+`<id>/RESPONDENT_PART1`, a probe may carry `job_context` (170's `170-judgement-verb`, marked by
+`respondent_probe_mark`: COMPLETED, part 1, no verdict word, the object kept), `build_respondent` hands `problem` and
+`condition` as `ScreenContextBuilder` does (never before), and an extra is never scored. `make unit` 4,238 / 0 / 56
+(master `20ac3e8` 4,186 / 3 / 53); the 170 screens are the coordinator's, paid, on the founder's word.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
