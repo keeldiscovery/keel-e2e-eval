@@ -936,6 +936,33 @@ keel-cloud-docs' checkout has a fresh spoken record and no `build/brief-facts`, 
 (`v9_fixtures.skip_without_brief_facts`) -- with both files, `test_the_corpus_record_keeps_every_rule_...` fails on spec
 112's five Adoption `K2`s (104 of 109), not 174's (tasks.md).
 
+**After everyone has answered, the reader judges the stage page and the Insights screen** (spec
+`109-the-reader-judges-the-stage-page-and-insights`, 2026-10-31; the founder: *"after everyone has answered, go back to
+the problem screen and the insight screen, per project, and ask: does it make sense?"*). **The answers leg** (FR-1):
+`Backtest.after`, once the THEMES jobs have settled and before the export, runs `backtest.answers_leg` -- per stage of
+the study's scope `/p/{id}/s/{STAGE}` shot `founder-after-NN-stage.png`, every card that opens pressed and shot
+`founder-after-NN-dimension-<key>.png` with the chart's own words (`STAGE_JS`, `CARD_JS`: title, verdict, the count,
+the bar line, the chart's kind and words, the people), then `/p/{id}#insights` shot once and once more per fold pressed
+(`insights-more`; `insights-open` is an example drawer's link, never a fold) -- nothing else; never raises. The bundle
+carries `after_screens` (kinds `stage`, `dimension`, `insights-screen`; the folds nested) and `answers_leg`. **The
+rubric is at `RUBRIC_VERSION` 3** (FR-2): §B (`quality/RUBRIC.md`'s `prompt-b` part) -- B1 I know the answer and why, B2
+the chart reads at a glance, B3 about my belief in my words, B4 I know what to do next, B5 nothing misleads on the stage
+page and each card; B1, B3, B4, B5 and B6 teaches me something I did not type on the Insights screen -- read by the
+founder-reader (`readers.after_screens`, `checked_beliefs`, `readers/founder.md`'s `after` / `after-insights`), a §B
+score `b1`..`b6` with no R (`AFTER_SCORE_KEYS`), B1 0 out of place, B2 or B5 0 looks stupid, folded into the founder's
+`score_pct` with `after_pct` beside. Version 2 is set aside, never refused and never compared: cycles 1-3 stay of
+record, cycle 4 is the first at 3 (a previous cycle at another version is named and not compared; the committed
+`TABLE.md` stays cycle 3's until cycle 4 rebuilds it; the `read` mark kind reads *not measured* until then). `TABLE.md`
+rows per (scope, kind, dimension) under the three kinds (`table.AFTER_FIX`: the stage page's and chart's words and
+keel-cloud's BriefFacts / verdict lines; themes.md and the Insights tab); `decisions.FOUNDER_SCREENS` gains the three;
+`quality/CYCLE.md` says the cost (about 4 to 6 more screens a study, +40% of its reading). The stage page draws no test
+id: the leg reads the golden journeys' classes and tasks.md lists six ids keel-web owes. Re-pinned in its own commit:
+`test_instruction_spoken.py::test_the_corpus_record_keeps_every_rule_...` names spec 112's five Adoption `K2`s (104 of
+109). `MARKS_VERSION` 24 stands. `make unit` 4,718 passed / 0 failed / 0 errors / 53 skipped (+26 tests, `tests/test_after_answers_109.py`; master
+`5d6963c` read 4,691 / 1 / 0 / 53 against the fresh keel-cloud-docs `build/`, the one red the re-pin) against
+keel-cloud-docs `ab5b15ef` and keel-web `7a3105f`; the acceptance
+walk (one back-test, about $0.50) is the coordinator's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
