@@ -1,0 +1,78 @@
+{
+  "source": "runs/20261030T150723Z-backtest-13-aircaps (13-aircaps, SCOPE SOLUTION, 2026-10-30): `typed` is inputs.json's founder.calibration.SOLUTION answer (its list.items and pickedIndex), `drafted` the list Keel drafted and the founder saved untouched on the Check screen (transcript.jsonl seq 59, the review's stored answer: labels and faces, codes dropped); `picked_on_screen` the label the walk picked on Choose (transcript seq 48 and 55)",
+  "entry": "13-aircaps",
+  "dimensions": {
+    "solution.compatibility": {
+      "typed": {
+        "dimension": "solution.compatibility",
+        "list": {
+          "items": [
+            {
+              "label": "Their phone was with them and online",
+              "asked": "was your phone with you and connected to the internet"
+            },
+            {
+              "label": "They could wear glasses the whole time",
+              "asked": "could you have worn a pair of glasses for the whole conversation"
+            },
+            {
+              "label": "They could read captions and still watch faces",
+              "asked": "could you have read captions and still watched people's faces"
+            }
+          ],
+          "pickedIndex": 0
+        }
+      },
+      "text": "Their phone was with them and online; They could wear glasses the whole time; They could read captions and still watch faces",
+      "drafted": [
+        {
+          "label": "Their phone was with them and online",
+          "asked": "could you have had your phone with you and online"
+        },
+        {
+          "label": "They could wear glasses the whole time",
+          "asked": "could you have worn glasses the whole time"
+        },
+        {
+          "label": "They could read captions and still watch faces",
+          "asked": "could you have read captions and still watched faces"
+        }
+      ],
+      "picked_on_screen": "Their phone was with them and online"
+    },
+    "solution.adoption_friction": {
+      "typed": {
+        "dimension": "solution.adoption_friction",
+        "list": {
+          "items": [
+            {
+              "label": "Wear the glasses, paired to the phone",
+              "asked": "you'd wear the caption glasses and keep them paired to your phone"
+            },
+            {
+              "label": "Charge the glasses every day",
+              "asked": "you'd charge the glasses every day"
+            }
+          ],
+          "pickedIndex": 0
+        }
+      },
+      "text": "Wear the glasses, paired to the phone; Charge the glasses every day",
+      "drafted": [
+        {
+          "label": "Pair the glasses to their phone",
+          "asked": "pair the glasses to your phone"
+        },
+        {
+          "label": "Wear the glasses in conversations",
+          "asked": "wear the glasses whenever you talk with hearing people"
+        },
+        {
+          "label": "Charge the glasses every day",
+          "asked": "charge the glasses every day"
+        }
+      ],
+      "picked_on_screen": "Pair the glasses to their phone"
+    }
+  }
+}

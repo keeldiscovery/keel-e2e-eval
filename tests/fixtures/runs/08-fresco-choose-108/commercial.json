@@ -1,0 +1,70 @@
+{
+  "source": "runs/20261030T173645Z-backtest-08-fresco (08-fresco, SCOPE COMMERCIAL, 2026-10-30): `typed` is inputs.json's founder.calibration.COMMERCIAL answer (its list.items and pickedIndex), `drafted` the list Keel drafted and the founder saved untouched on the Check screen (transcript.jsonl seq 67, the review's stored answer: labels and faces, codes dropped); `picked_on_screen` the label the walk picked on Choose (transcript seq 55 and 59)",
+  "entry": "08-fresco",
+  "dimensions": {
+    "commercial.buyer_payer_alignment": {
+      "typed": {
+        "dimension": "commercial.buyer_payer_alignment",
+        "list": {
+          "items": [
+            {
+              "label": "Nobody else"
+            },
+            {
+              "label": "The CFO"
+            },
+            {
+              "label": "The project executive"
+            }
+          ],
+          "pickedIndex": 1
+        }
+      },
+      "text": "Nobody else; The CFO; The project executive",
+      "drafted": [
+        {
+          "label": "Nobody else"
+        },
+        {
+          "label": "The CFO"
+        },
+        {
+          "label": "The project executive"
+        }
+      ],
+      "picked_on_screen": "The CFO"
+    },
+    "commercial.purchase_friction": {
+      "typed": {
+        "dimension": "commercial.purchase_friction",
+        "list": {
+          "items": [
+            {
+              "label": "A trial on one live job"
+            },
+            {
+              "label": "A check that it works with Procore"
+            },
+            {
+              "label": "A security review"
+            }
+          ],
+          "pickedIndex": 0
+        }
+      },
+      "text": "A trial on one live job; A check that it works with Procore; A security review",
+      "drafted": [
+        {
+          "label": "A check that it works with Procore"
+        },
+        {
+          "label": "A security review"
+        },
+        {
+          "label": "A budget approval"
+        }
+      ],
+      "picked_on_screen": "A check that it works with Procore"
+    }
+  }
+}
