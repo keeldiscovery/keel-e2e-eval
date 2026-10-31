@@ -405,6 +405,61 @@ def _capture_state(h: StepHandle, project_id: str, state_reader: StateReader | N
         pass          # the scenario, only leave GUI-U1/CLA-U3 unresolvable for this visit.
 
 
+# ------------------------------------------------------------- spec 095: a landing on the issuer is a refusal
+
+class SignInRefused(AssertionError):
+    """The sign-in ended on the **issuer's** own page, not on keel-web (spec 095 FR-2). On the remote profile the stub is
+    served under keel-web's own origin (`<web>/oidc`), so its plain-text 403 -- M6's *'harness' may not sign in as
+    'founder-a'* (`stack/stub_oidc/server.py`) -- starts with the web base and carries no `/login`: the old predicate
+    read it as signed in (S-003 and S-010 on staging, 2026-10-30). `line` is the page's one line, `url` where it was."""
+
+    def __init__(self, line: str, url: str, who: str = ""):
+        self.line = line
+        self.url = url
+        self.who = who
+        super().__init__(f"the issuer refused the sign-in{f' as {who!r}' if who else ''}: {line!r} (at {url})")
+
+
+def issuer_base_of(authorize_url: str) -> str:
+    """The issuer's base, read off the URL its picker is served at. The stub's discovery names exactly one
+    `authorization_endpoint`, `{issuer}/authorize`, and keel-cloud sends the browser there, so the picker's own URL less
+    `/authorize` is the profile's `config.oidc_base_url` (`<web>/oidc` on remote, `localhost:<oidc_port>` elsewhere) --
+    without `Auth`, which is handed a web base and never a config, having to carry one."""
+    parts = urlsplit(authorize_url)
+    path = parts.path.rstrip("/")
+    if path.endswith("/authorize"):
+        path = path[: -len("/authorize")]
+    return f"{parts.scheme}://{parts.netloc}{path}".rstrip("/")
+
+
+def under_issuer(url: str, issuer_base: str) -> bool:
+    """Whether `url` is one of the issuer's own pages: the base itself, or a path or query under it. `False` when no
+    issuer base is known."""
+    base = (issuer_base or "").rstrip("/")
+    if not base:
+        return False
+    return url == base or url.startswith(base + "/") or url.startswith(base + "?")
+
+
+def signed_in_at(url: str, base_url: str, issuer_base: str) -> bool:
+    """**The success predicate** (spec 095 FR-2): back on keel-web, off `/login`, and NOT under the issuer -- the
+    issuer's base may share keel-web's origin (the remote profile's `<web>/oidc`)."""
+    return url.startswith(base_url) and "/login" not in url and not under_issuer(url, issuer_base)
+
+
+def refused_at_issuer(url: str, issuer_base: str, picker_url: str) -> bool:
+    """The click on the picker left the browser on an issuer page that is not the picker it was clicked on: a refusal
+    the stub answers in plain text where it stands (M6's 403, an unknown identity's 404, the gate's 403). A successful
+    pick is a 302 the browser never commits on the issuer."""
+    return under_issuer(url, issuer_base) and url != picker_url
+
+
+def page_one_line(page) -> str:
+    """The first non-empty line of what the page says -- the stub's plain-text refusals are one line."""
+    text = _safe_text(lambda: page.locator("body").inner_text())
+    return next((line.strip() for line in text.splitlines() if line.strip()), "")
+
+
 # ---------------------------------------------------------------------------------- base plumbing
 
 class _BrowserStep:
@@ -640,6 +695,10 @@ class Auth:
                 self.page.goto(f"{self.page.url}&stub_break={stub_break}", wait_until="load")
                 self._wait_for_picker()
             h.add_screenshot(self._bstep.screenshot("stub-picker"))
+            # Spec 095 FR-2: where the picker stands is where the issuer is, so every wait below can tell keel-web's
+            # pages from the issuer's even where the two share an origin (the remote profile's `<web>/oidc`).
+            picker_url = self.page.url
+            issuer = issuer_base_of(picker_url)
             if cancel:
                 self.page.get_by_role("link", name="Cancel").click()
             else:
@@ -651,14 +710,19 @@ class Auth:
             if expect == "home":
                 _wait_for_url_change(
                     self.page,
-                    lambda url: url.startswith(self.base_url) and "/login" not in url,
+                    lambda url: (signed_in_at(url, self.base_url, issuer)
+                                 or refused_at_issuer(url, issuer, picker_url)),
                     timeout_ms=20_000)
+                self._raise_if_refused_at_issuer(h, issuer, picker_url, label, founder)
                 result = {"landed": self.page.url}
             else:
                 _wait_for_url_change(
                     self.page,
-                    lambda url: url.startswith(self.base_url) and "/login" in url,
+                    lambda url: ((url.startswith(self.base_url) and "/login" in url
+                                  and not under_issuer(url, issuer))
+                                 or refused_at_issuer(url, issuer, picker_url)),
                     timeout_ms=20_000)
+                self._raise_if_refused_at_issuer(h, issuer, picker_url, label, founder)
                 self.page.locator(".auth-title").wait_for(state="visible", timeout=15_000)
                 result = {"landed": self.page.url, **self._read_login(),
                           "line": self.auth_error_text()}
@@ -668,6 +732,22 @@ class Auth:
             h.add_screenshot(self._bstep.screenshot(
                 "signed-in" if expect == "home" else "sign-in-refused"))
         return result
+
+    def _raise_if_refused_at_issuer(self, h, issuer: str, picker_url: str, label: str, founder) -> None:
+        """Spec 095 FR-2: a final URL under the issuer's base is a failed sign-in. The page's one line is recorded and
+        raised, so the step records `ok: false` with the issuer's own words -- never `ok: true` on its 403."""
+        url = self.page.url
+        if not refused_at_issuer(url, issuer, picker_url):
+            return
+        try:
+            self.page.wait_for_load_state("load", timeout=10_000)
+        except Exception:  # noqa: BLE001 - the refusal is raised whatever the load state; the line is best-effort
+            pass
+        line = page_one_line(self.page)
+        h.record_wire(None, {"founder": label, "refused_by_issuer": True, "issuer": issuer,
+                             "landed": url, "line": line})
+        h.add_screenshot(self._bstep.screenshot("sign-in-refused-by-the-issuer"))
+        raise SignInRefused(line, url, getattr(founder, "id", "") or label)
 
     def _goto_door(self, return_to: str, door: str | None = None) -> None:
         """keel-web computes `return_to` itself and never reads it off the address bar (spec 014
