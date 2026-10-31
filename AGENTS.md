@@ -981,6 +981,21 @@ old title or bar pin existed to move (tasks.md). `make unit` 4,741 passed / 0 fa
 `tests/test_reworded_founder_screens_116.py`; master `f893808` 4,718 / 0 / 0 / 53) against keel-cloud-docs `ab5b15ef`
 and keel-web `7a3105f`.
 
+**S-003 and S-010 on the remote profile** (spec `095-every-door-and-two-founders-on-the-remote-profile`, 2026-10-31).
+**FR-1**: S-003 signs in as `remote.identity_to_sign_in_as(stack, <cell · every-door · day>, fallback=founder_one)` and
+S-010 as two founders it registers on remote (labels *two-founders A* / *B*, names `founder_name(builtin)`: the
+built-in's first word, the day and the cell, so the greeting's word and the participant page's name still tell them
+apart); the built-ins with no I/O on the local profiles, as before. The other browser-path callers of the built-ins
+(S-001, S-002, S-004, S-008, S-009, S-011, `curated_proof_run`, `Auth.log_in`) are listed in tasks.md, not moved.
+**FR-2**: `Auth.sign_in` (so `sign_in_with_code` and `sign_up`) reads the issuer's base off the URL the stub's picker is
+served at (`{issuer}/authorize`, i.e. `config.oidc_base_url`; `Auth` carries no config) and treats a final URL under it
+as a refusal: `signed_in_at` is *under the web base, off `/login`, and not under the issuer*, and an issuer page other
+than the picker raises `SignInRefused` with the page's one line (M6's *'harness' may not sign in as 'founder-a'*), the
+step `ok: false`. The stub, the local profiles and the corpus journeys are untouched. `make unit` 4,755 passed / 0
+failed / 0 errors / 53 skipped (+14, `tests/test_sign_in_on_the_issuer_095.py`; master `78497a0` 4,741 / 0 / 0 / 53)
+against keel-cloud-docs `ab5b15ef` and keel-web `7a3105f`; the remote acceptance (`make eval K=s003|s010
+PROFILE=remote`) is the coordinator's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
