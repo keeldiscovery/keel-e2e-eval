@@ -852,11 +852,16 @@ def _score_probe(case, answer, diff, state) -> dict | None:
         diff["source"] = source
     plant = screen_mod.plant_of(case)
     steps = screen_mod.steps_row_of(case)
-    if plant is None and steps is None:
+    benefits = screen_mod.benefits_row_of(case)
+    if plant is None and steps is None and benefits is None:
         return None
     if steps is not None:
         # spec 112 FR-3: a back-test Adoption friction redraft, held to keel-cloud 171's acceptance off its first turn
         mark = screen_mod.steps_mark(case.entry_id, steps, outcome=answer.outcome, result=answer.result)
+    elif benefits is not None:
+        # spec 113 FR-4: a back-test Relative advantage redraft, held to keel-cloud 173 FR-3's acceptance (one row per
+        # typed benefit, as typed, never split, none added) off its first turn
+        mark = screen_mod.benefits_mark(case.entry_id, benefits, outcome=answer.outcome, result=answer.result)
     else:
         mark = screen_mod.mark_for(case.entry_id, plant, outcome=answer.outcome, questions=answer.questions,
                                    result=answer.result)

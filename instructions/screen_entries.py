@@ -56,6 +56,12 @@ BACKTEST_SCREENS = (contract_mod.SCREEN_CONTEXT_INTERPRET, contract_mod.SCREEN_P
 #: Spec 112 FR-3: the mark a back-test entry's Adoption friction redraft is held to (keel-cloud 171 FR-6's acceptance).
 STEPS_MARK = "171"
 STEPS_KEY = "solution.adoption_friction"
+#: Spec 113 FR-4: the mark a back-test entry's Relative advantage redraft is held to (keel-cloud 173 FR-3's acceptance:
+#: one row per benefit the Answer names, as typed, never split; Keel adds none).
+BENEFITS_MARK = "173"
+BENEFITS_KEY = "solution.relative_advantage"
+#: The registry's `saves.max_words` for the benefit list (keel-cloud 173: *tidied to the limits only*).
+BENEFIT_MAX_WORDS = 9
 #: The respondent part a back-test entry and a respondent probe are screened on (`<id>/RESPONDENT_PART1`).
 RESPONDENT_PART = 1
 #: The screens a probe may name (keel-cloud 169: the frame class; keel-cloud 170: the respondent job).
@@ -357,6 +363,8 @@ def respondent_probe_mark(probe_id: str, plant: RespondentPlant, *, outcome, res
 
 def probe_line(mark: dict) -> str:
     """The console's line beside a probe case (and, spec 112 FR-3, a back-test case's 171 mark)."""
+    if mark["held"] and mark.get("mark") == BENEFITS_MARK:
+        return f"  173 held: one row per typed benefit ({len(mark['typed'])}), as typed, none added"
     if mark["held"] and mark.get("mark") == STEPS_MARK:
         tail = f"; Keel suggested {mark['suggested'][0]['label']!r}" if mark.get("suggested") else ", none suggested"
         return f"  171 held: the founder's {len(mark['typed'])} efforts first, as typed{tail}"
@@ -535,7 +543,9 @@ def backtest_calibration_cases(entry, exported, instructions_by_screen, executor
     dimension it typed an Answer for (the walk's own words, `vectors_script.calibration_answers`' `text`), one case a
     dimension -- `<id>/CALIBRATION_<VECTOR>/<DIMENSION>/run<N>`, so `-k 21-codyco/CALIBRATION_SOLUTION` names the
     vector's and `.../ADOPTION_FRICTION` the one. Adoption friction's carries its 171 mark row (`meta["steps"]`): the
-    typed efforts in their order and the names no `asked` may say. Rendered and validated, never scored."""
+    typed efforts in their order and the names no `asked` may say; since spec 113 FR-4 Relative advantage's carries its
+    173 mark row (`meta["benefits"]`): the typed benefits, each one row as typed. Rendered and validated, never
+    scored."""
     from harness import vectors_script as vs                               # noqa: PLC0415
     registry = getattr(exported, "registry", None) or entry.registry
     keys = exported.keys_for(contract_mod.SCREEN_CALIBRATION)
@@ -558,6 +568,9 @@ def backtest_calibration_cases(entry, exported, instructions_by_screen, executor
             if key == STEPS_KEY:
                 meta["steps"] = {"mark": STEPS_MARK, "dimension": key, "typed": answer.text.split("; "),
                                  "names": brand_names(entry)}
+            if key == BENEFITS_KEY:
+                # spec 113 FR-4 (keel-cloud 173 FR-3): the typed benefits, each one row as typed
+                meta["benefits"] = {"mark": BENEFITS_MARK, "dimension": key, "typed": answer.text.split("; ")}
             payload = prompts_mod.payload_for(instructions_by_screen.get(screen), context,
                                               exported.for_screen(screen))
             for run_index in range(1, n_runs + 1):
@@ -619,6 +632,61 @@ def steps_mark(entry_id: str, row: dict, *, outcome, result) -> dict:
             "dimension": STEPS_KEY, "typed": typed, "drafted": [i.get("label") for i in items],
             "suggested": suggested, "names": names,
             "clause_words": [spoken_mod.words(i.get("asked")) for i in items],
+            "outcome": outcome, "held": not faults, "faults": faults}
+
+
+def _said(text) -> list[str]:
+    """A row's words as the mark compares them: case folded, punctuation at either end of a word dropped."""
+    return [w for w in (re.sub(r"^\W+|\W+$", "", t) for t in str(text or "").lower().split()) if w]
+
+
+def _as_typed(drafted: str, typed: str) -> bool:
+    """keel-cloud 173's *as typed (tidied to the limits only)*: the row is the typed benefit word for word (case and
+    end punctuation aside), or, where the typed benefit is past `BENEFIT_MAX_WORDS`, its own words in their order with
+    some left out, within the limit -- never a word the founder did not type."""
+    row, said = _said(drafted), _said(typed)
+    if row == said:
+        return True
+    if len(said) <= BENEFIT_MAX_WORDS or not row or len(row) > BENEFIT_MAX_WORDS:
+        return False
+    rest = iter(said)
+    return all(word in rest for word in row)
+
+
+def benefits_mark(entry_id: str, row: dict, *, outcome, result) -> dict:
+    """Spec 113 FR-4, keel-cloud 173 FR-3's acceptance on one back-test Relative advantage redraft's first turn:
+    COMPLETED, one `solution.relative_advantage` question, its draft **one row per benefit the Answer names, as typed**
+    (tidied to the limits only, `_as_typed`), in the typed order, **never split** (a *without* or *while keeping* clause
+    stays in its row: more rows than typed benefits is a fault) and **Keel adds none** (no `suggested` row, 173 T009).
+    10-palus's *Higher yield without hiring for treasury* is one row. Mechanical; the `outcome_not_difference` mark, if
+    any, is the validator's, and each row's words are recorded for a reader (`row_words`)."""
+    typed = list(row.get("typed") or [])
+    faults, items = [], []
+    if outcome != "COMPLETED":
+        faults.append(f"the first turn is {outcome or 'no outcome'}, not COMPLETED")
+    else:
+        result = result if isinstance(result, dict) else {}
+        drafted = [q for q in result.get("questions") or [] if isinstance(q, dict) and q.get("key") == BENEFITS_KEY]
+        if len(drafted) != 1:
+            faults.append(f"{len(drafted)} {BENEFITS_KEY} questions, not one")
+        else:
+            items = [i for i in ((drafted[0].get("list") or {}).get("items") or []) if isinstance(i, dict)]
+            labels = [str(i.get("label") or "") for i in items]
+            if len(labels) > len(typed):
+                faults.append(f"{len(labels)} rows for {len(typed)} typed benefits: one row per benefit, never split "
+                              f"and none added -- drafted {labels!r}, typed {typed!r}")
+            elif len(labels) < len(typed):
+                faults.append(f"{len(labels)} rows for {len(typed)} typed benefits: a typed benefit is missing or "
+                              f"merged -- drafted {labels!r}, typed {typed!r}")
+            for n, (label, said) in enumerate(zip(labels, typed)):
+                if not _as_typed(label, said):
+                    faults.append(f"row {n + 1} {label!r} is not the typed benefit {said!r} as typed")
+            added = [str(i.get("label") or "") for i in items if i.get("suggested")]
+            if added:
+                faults.append(f"Keel adds no benefit: {added!r} is marked suggested")
+    return {"entry": entry_id, "screen": contract_mod.SCREEN_CALIBRATION, "mark": BENEFITS_MARK,
+            "dimension": BENEFITS_KEY, "typed": typed, "drafted": [i.get("label") for i in items],
+            "row_words": [len(_said(i.get("label"))) for i in items],
             "outcome": outcome, "held": not faults, "faults": faults}
 
 
@@ -694,3 +762,9 @@ def steps_row_of(case):
     """Spec 112 FR-3: a back-test Adoption friction redraft's 171 mark row, else None."""
     meta = getattr(case, "meta", None) or {}
     return meta.get("steps") if meta.get("source") == SOURCE_BACKTEST else None
+
+
+def benefits_row_of(case):
+    """Spec 113 FR-4: a back-test Relative advantage redraft's 173 mark row, else None."""
+    meta = getattr(case, "meta", None) or {}
+    return meta.get("benefits") if meta.get("source") == SOURCE_BACKTEST else None

@@ -5,7 +5,8 @@
 # respondent.b2b_link_only (Ability to pay); the lullaby worked objects, the checks block and the common prose dropped.
 # No weight anywhere (D3: all thirteen decide). Passes all eight invariants. Not a corpus entry. Spec 086 (keel-cloud
 # 152, keel-cloud-docs 21395ab0): the five moved belief templates in 152's words -- Relative advantage's now carries
-# {value} once, as invariant 4 reads every template since 152 -- nothing else re-exported.
+# {value} once, as invariant 4 reads every template since 152 -- nothing else re-exported. Spec 113 (keel-cloud 173,
+# keel-cloud-docs 1acc3791): Relative advantage's belief template and respondent guidance in 173's words.
 version: 4
 common:
   left_out:
@@ -261,7 +262,7 @@ dimensions:
       kind: saved_list
     option_rule: 1 to 4 benefits, each at most 9 words, a noun phrase naming the improvement; no number the founder did not
       write.
-    belief_template: For most, it would have {value} on their last {occasion}.
+    belief_template: 'For most, their last {occasion} would have gone better with it: {value}.'
     unsure_allowed: true
     saves:
       min_items: 1
@@ -272,8 +273,8 @@ dimensions:
     part: 2
     anchor: the_reveal
     control: scale_four
-    guidance: '''On your last {occasion}, would'' your idea, by its short name, ''have made it go better for you, or not?''
-      One thing asked, how much better or not; no benefit of yours named in the question or the options.'
+    guidance: '''Would'' your idea, by its short name, ''have made your last {occasion} go better for you, or not?'' One
+      thing asked, how much better or not; no benefit of yours named in the question or the options.'
     option_rule: 'The registry''s fixed four, in order and in these words, code''s whole: A lot better · A little better ·
       No difference · Worse. No benefit shown or stored with the answer. Escape ''I can''t tell'', apart.'
     escape:
