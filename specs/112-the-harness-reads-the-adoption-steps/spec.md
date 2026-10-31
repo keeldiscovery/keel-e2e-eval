@@ -35,3 +35,13 @@ the founder's efforts.
 ## Acceptance
 
 `make unit` ZERO failed. Build after 097, before 100; one builder at a time in this repo.
+
+## Addendum 2026-10-30 -- keel-cloud 172's pins (merged after 171; small, taken here or by the next eval builder)
+
+- `instructions/spoken.py:181` `served_escape` (and `item_escape` :169): Current solution's escape is read from the
+  SERVED item (`{code, label}`), *I can't recall* (`cant_recall`, spoken *Or say you can't recall.*) where the list's
+  `handed_off` call was false, *Someone else did it* otherwise -- the call never reaches the founder wire.
+- Walks send the code served (a `someone_else_checks` where the served escape is `cant_recall` is refused *not this
+  question's way out*); `tests/test_follow_up_ladder.py:172` and `tests/fixtures/corpus/10-fixture-b2b.yaml:212,381` stand
+  for lists with no call. No price/contract pin moves.
+- `tests/fixtures/gallery/expected-interview-fresco.json:78` is stale either way; re-record after the next screen.
