@@ -3613,6 +3613,34 @@ def name_alone_faults(made: dict, person: str) -> list:
     return faults
 
 
+#: keel-cloud 170 (spec 110 FR-2): the only `noLabel`s a gate is served -- the want's *I didn't*
+#: (`OccasionStem.WANT_NO`), or none, when the page draws its own *No*. Spec 120's *I didn't get to* is retired.
+GATE_WANT_NO = "I didn't"
+GATE_RETIRED_NO = "I didn't get to"
+GATE_SERVED_NO_LABELS = (None, GATE_WANT_NO)
+
+
+def gate_no_label(served_gate: dict) -> str:
+    """The No the gate's page draws: the served `noLabel` (the want's *I didn't*), else the page's own *No*."""
+    return (served_gate or {}).get("noLabel") or vs_screens.IV_NO
+
+
+def gate_no_faults(gate: dict | None, served_gate: dict) -> list[dict]:
+    """Spec 110 FR-2 (keel-cloud 170, `OccasionStem.noLabel`): a gate drawn with a question is served no `noLabel` but
+    the want's *I didn't* (the attempt's *I didn't get to* retired), and draws as its No the served label, else the
+    page's own *No*. The gate's screen as `vectors_screens` read it (`options` the radios drawn); none when not drawn."""
+    if gate is None or gate.get("question") is None:
+        return []
+    faults = []
+    served_no = (served_gate or {}).get("noLabel")
+    if served_no not in GATE_SERVED_NO_LABELS:
+        faults.append({"gate noLabel": served_no, "served only": [x for x in GATE_SERVED_NO_LABELS if x],
+                       "retired": served_no == GATE_RETIRED_NO})
+    if gate_no_label(served_gate) not in [o.strip() for o in gate.get("options") or []]:
+        faults.append({"gate No": gate.get("options"), "served noLabel": served_no, "want": gate_no_label(served_gate)})
+    return faults
+
+
 def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None:
     """keel-web 064, held to the wire on every journey: the decision-maker's link opens with the idea's
     three lines under the served kicker (D9); the gate's story chip is *I can't recall one particular
@@ -3652,11 +3680,11 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
                 [vs_screens.GATE_RATHER_NOT_SAY] if "RATHER_NOT_SAY" in (served_gate.get("chips") or []) else [])
             if [c.strip() for c in gate["chips"]] != want:
                 faults.append({"gate chips": gate["chips"], "want": want})
-        # keel-web 106 / keel-cloud 129 FR-1 (spec 068 FR-4): the gate's No is the served `noLabel` -- *I didn't* where
-        # the gate asks a want, *I didn't get to* where it asks the attempt -- and the page draws it as the No
-        if gate is not None and gate.get("question") is not None and served_gate.get("noLabel") \
-                and served_gate["noLabel"] not in [o.strip() for o in gate.get("options") or []]:
-            faults.append({"gate No": gate.get("options"), "served noLabel": served_gate.get("noLabel")})
+        # keel-web 106 / keel-cloud 129 FR-1 (spec 068 FR-4): the gate's No is the served `noLabel` where one is served
+        # and the page draws it as the No. Since keel-cloud 170 (spec 110 FR-2; `OccasionStem.noLabel`) the attempt's
+        # *I didn't get to* is retired: only the want's *I didn't* is ever served, and every other gate is served no
+        # `noLabel` and the page draws its own *No* (`IV_NO`)
+        faults += gate_no_faults(gate, served_gate)
         if gate is not None and served_gate.get("noLabel") and hasattr(j, "changed"):
             j.changed.setdefault("gate_no", {})[interview.get("kind") or "FULL"] = served_gate.get("noLabel")
         condition = served_gate.get("condition")

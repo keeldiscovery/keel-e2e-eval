@@ -263,3 +263,30 @@ def skip_a_spoken_record_before_159(keel_cloud) -> None:
         pytest.skip("keel-cloud's build/spoken-corpus.txt predates keel-cloud 158 / 159 (a count line says '; pick two', "
                     "an item transforms 'yes_no_per_benefit') -- rerun `./gradlew test --tests "
                     "'*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout to compare")
+
+
+#: keel-cloud 170 FR-5 (spec 110 FR-2): Existing sacrifice's registry escape, *I don't know* before 170.
+SACRIFICE_ESCAPE_BEFORE_170 = "I don't know"
+
+
+def skip_a_spoken_record_before_170(keel_cloud, registry) -> None:
+    """Spec 110 FR-2: keel-cloud 170 moved Existing sacrifice's registry escape to *I can't recall* (the code
+    `dont_know` unmoved). `build/spoken-corpus.txt` writes the escape the registry named when its Gradle run ran, so a
+    record written before 170 against the registry of record after it reads *I don't know* where the registry says *I
+    can't recall* -- the record's age, not a fault of the record or of S6. Such a record is skipped by name (rerun its
+    SpokenGuidelinesCorpusTest to compare)."""
+    import pytest                                                     # noqa: PLC0415
+    from instructions import cloud_corpus as cloud_mod                # noqa: PLC0415
+    from instructions import spoken as spoken_mod                     # noqa: PLC0415
+    from instructions.registry import SACRIFICE_KEY                   # noqa: PLC0415
+    path = Path(keel_cloud) / cloud_mod.SPOKEN_FILE
+    record = path.read_text(encoding="utf-8") if path.is_file() else ""
+    stale = f"{SACRIFICE_KEY} [part 3]\n  Q: " in record and any(
+        block.split("\n  escape: ", 1)[-1].split("\n", 1)[0] == SACRIFICE_ESCAPE_BEFORE_170
+        for block in record.split(f"{SACRIFICE_KEY} [part 3]\n")[1:])
+    if stale and registry is not None and registry.has(SACRIFICE_KEY) \
+            and spoken_mod.registry_escape(registry, SACRIFICE_KEY) != SACRIFICE_ESCAPE_BEFORE_170:
+        pytest.skip("keel-cloud's build/spoken-corpus.txt predates keel-cloud 170 (Existing sacrifice's escape reads "
+                    f"{SACRIFICE_ESCAPE_BEFORE_170!r}; the registry of record names "
+                    f"{spoken_mod.registry_escape(registry, SACRIFICE_KEY)!r}) -- rerun `./gradlew test --tests "
+                    "'*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout to compare")

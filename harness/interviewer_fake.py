@@ -203,6 +203,31 @@ MORE = "And one more?"
 #: keel-cloud 099 FR-6 (contract 18): the generic "Is that right?" line, one a role, asked when the classifier is unsure.
 IS_THAT_RIGHT = "Is that right?"
 
+#: keel-cloud 170 FR-4 (`PassageComposer.storyEscape`, `PassageComposer.RATHER_NOT_SAY`; spec 110 FR-2): the gate
+#: story's clip says the chips the gate serves, in the served order, as the screen prints them -- `CANT_RECALL` as
+#: keel-web's `gateChipWord` (the occasion, *time* where none), `RATHER_NOT_SAY` as *I'd rather not say*. Before 170
+#: it said *Or say you can't recall one particular ...* and left the second chip unsaid.
+STORY_RATHER_NOT_SAY = "I'd rather not say"
+#: keel-cloud 170 FR-4 (`InterviewComposer`, the gate's ITEM clip): with no served `noLabel` the voice says the No the
+#: page draws -- *Yes or no.* -- never spec 120's *or you didn't get to*, which is retired.
+GATE_YES_OR_NO = "Yes or no."
+
+
+def story_chip_word(chip: str, occasion: str | None) -> str | None:
+    """One served gate chip as the screen prints it and the story clip says it (`None` for a code neither knows)."""
+    if chip == "CANT_RECALL":
+        return f"I can't recall one particular {(occasion or '').strip() or 'time'}"
+    if chip == "RATHER_NOT_SAY":
+        return STORY_RATHER_NOT_SAY
+    return None
+
+
+def story_escape(chips, occasion: str | None) -> str | None:
+    """`PassageComposer.storyEscape`: *Or say: I can't recall one particular payroll run, or I'd rather not say.* --
+    the served chips in the served order; one chip says one, none says nothing (`None`)."""
+    said = [w for w in (story_chip_word(c, occasion) for c in chips or []) if w]
+    return f"Or say: {', or '.join(said)}." if said else None
+
 #: `ClipKind`, and the spoken order of one role's set (design §2.4; `ClipKind`'s own javadoc): the opening, then per
 #: part its passage and its items (an item's follow-up right after it), the pilot ask, thanks. DIDNT_CATCH and, since
 #: keel-cloud 099 (contract 18), IS_THAT_RIGHT have no place in the order; the composer writes them last.

@@ -58,10 +58,12 @@ keel-cloud changed them on purpose the guard counted 34 faults on a record that 
 changes, all on purpose, all keel-cloud's (registry revision 13 at keel-cloud-docs master):
 
 1. Current solution's escape reads *Someone else did it*, not *Someone else does the checking* (123 FR-3);
-2. Existing sacrifice's registry escape is *I don't know*, not *I can't recall* (115 / 123's escapes, registry
-   decision 24's value box) -- while a cost stated before the chain, every golden entry's, is still **served** spec
-   077's cost total and its *I can't recall* (`CommercialChain.side`, mirrored by `served_escape`), which is what the
-   record says aloud;
+2. Existing sacrifice's registry escape is *I can't recall* since keel-cloud 170 (spec 110 FR-2; the value box's chips
+   read *None* and *I can't recall*, the wire's codes `NOTHING` / `DONT_KNOW` and the stored `dont_know` unmoved). From
+   115 / 123's escapes (registry decision 24's value box) to 169 it was *I don't know*, while a cost stated before the
+   chain, every golden entry's, was **served** spec 077's cost total and its *I can't recall* (`CommercialChain.side`,
+   mirrored by `served_escape` as `OFF_CHAIN_COST_ESCAPE`); so on and off the chain the item now names and says one
+   escape, *I can't recall*, and the spoken line is *Or say you can't recall.*;
 3. Compatibility's four are drafted to the condition's verb: an ability reads *Yes, easily · Yes, mostly · Only
    sometimes · No* on the registry's four codes (123 FR-8, `ABILITY_ANSWERS`), a permission keeps the registry's;
 4. Buyer and payer's four are the registry's revised four (*Someone else had to agree instead* · *No, someone else
@@ -111,8 +113,9 @@ FOUNDER_WORDED = (IMPORTANCE_KEY, CURRENT_SOLUTION_KEY)
 NUMERIC = (FREQUENCY_KEY, SACRIFICE_KEY)
 
 #: keel-cloud `CommercialChain.side`: the escape an item is served with where its side is not the registry's row --
-#: Existing sacrifice on a cost stated before the chain keeps spec 077's cost total (registry decision 24), Ability to
-#: pay on a consumer link is the consumer budget item.
+#: Existing sacrifice on a cost stated before the chain keeps spec 077's cost total (registry decision 24; since
+#: keel-cloud 170 the registry's row says the same *I can't recall*, spec 110 FR-2), Ability to pay on a consumer link
+#: is the consumer budget item.
 OFF_CHAIN_COST_ESCAPE = "I can't recall"
 CONSUMER_BUDGET_ESCAPE = "I can't say"
 

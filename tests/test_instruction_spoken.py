@@ -11,7 +11,9 @@ of record are read from the keel-cloud checkout `stack.toml` names (skipped by n
 change moves the record and this test together. Five changes the guard counted as 34 faults on master were keel-cloud's
 own, on purpose, and are now read from the registry rather than a fixed table: Current solution's escape *Someone
 else did it* (123 FR-3); Existing sacrifice's registry escape *I don't know* (115 / 123's escapes), said *I can't
-recall* on a cost stated before the chain (spec 077's cost total, `CommercialChain.side`); Compatibility's four to the
+recall* on a cost stated before the chain (spec 077's cost total, `CommercialChain.side`) -- and since keel-cloud 170
+(spec 110 FR-2) the registry's own *I can't recall* (a record written before 170 is skipped by name,
+`fx.skip_a_spoken_record_before_170`); Compatibility's four to the
 condition's verb, *Yes, easily · Yes, mostly · Only sometimes · No* on an ability (123 FR-8); Buyer and payer's revised
 four (123 FR-5); Commitment's options from the founder's step, three bands on a free step (118 FR-1 / FR-2), held to
 nine words, counted whole (129 FR-15, spec 068 FR-2). `spoken.KNOWN` stays empty.
@@ -430,10 +432,14 @@ def test_a_cloud_that_wrote_nothing_is_a_refusal_naming_the_prerequisite(tmp_pat
 
 # ------------------------------------------------------------------- the real record (calls 79-81)
 
+def _keel_cloud():
+    from stack.config import load_config                              # noqa: PLC0415
+    return load_config(validate=False).keel_cloud
+
+
 @pytest.fixture(scope="module")
 def real():
-    from stack.config import load_config                              # noqa: PLC0415
-    keel_cloud = load_config(validate=False).keel_cloud
+    keel_cloud = _keel_cloud()
     if not (keel_cloud / cloud_mod.SPOKEN_FILE).is_file():
         pytest.skip("keel-cloud's SpokenGuidelinesCorpusTest has not written build/spoken-corpus.txt -- run "
                     "`./gradlew test --tests '*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout")
@@ -452,6 +458,7 @@ def test_the_corpus_record_keeps_every_rule_and_nothing_is_known_apart(real):
     held to the fixture registry and the fixed §5 table was 75 of 109: 34 faults, every one keel-cloud 118 / 123's own
     change (the module docstring's five), none a fault of the record."""
     corpus, cloud = real
+    fx.skip_a_spoken_record_before_170(_keel_cloud(), corpus.entries[0].registry)    # spec 110 FR-2
     score = spoken_mod.score(cloud, corpus)
     assert score.faults == [], score.faults
     assert (score.units, score.clean, score.spoken_form) == (109, 109, 1.0)
@@ -468,7 +475,11 @@ def test_the_record_follows_registry_revision_13s_five_changes(real):
     assert spoken_mod.registry_escape(registry, "problem.current_solution_satisfaction") == "Someone else did it"
     assert lullaby("problem.current_solution_satisfaction").escape_line == "Or say someone else did it."
     sacrifice = lullaby("commercial.existing_sacrifice")
-    assert (sacrifice.escape, sacrifice.escape_line) == ("I don't know", "Or say you can't recall.")
+    # keel-cloud 170 (spec 110 FR-2): the registry's row names *I can't recall* (was *I don't know*), the off-chain
+    # escape it was already said with
+    fx.skip_a_spoken_record_before_170(_keel_cloud(), registry)
+    assert spoken_mod.registry_escape(registry, sacrifice.key) == spoken_mod.OFF_CHAIN_COST_ESCAPE == "I can't recall"
+    assert (sacrifice.escape, sacrifice.escape_line) == ("I can't recall", "Or say you can't recall.")
     assert spoken_mod.served_escape(registry, sacrifice.key, corpus.by_id("03-lullaby")) == "I can't recall"
     # keel-cloud 128 FR-13b (corpus revision 15): Lullaby's *your phone was within reach* is a fact, so a fact's four
     assert lullaby("solution.compatibility").options == tuple(spoken_mod.FACT_ANSWERS.values())

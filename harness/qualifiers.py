@@ -178,7 +178,9 @@ _IRREGULAR = frozenset((
     "are", "is", "have", "has", "do", "does", "go", "get", "make", "take", "see", "come", "know", "find", "give", "tell",
     "feel", "leave", "keep", "begin", "run", "sit", "stand", "lose", "pay", "send", "spend", "buy", "bring", "think",
     "hold", "can", "will", "may", "must", "put", "set", "cut", "let", "read", "write", "speak", "meet", "sell", "wake",
-    "eat", "fall", "drive", "ride", "build", "hear", "mean", "say", "become", "choose", "win", "fly", "grow", "wear"))
+    "eat", "fall", "drive", "ride", "build", "hear", "mean", "say", "become", "choose", "win", "fly", "grow", "wear",
+    # keel-cloud 170 FR-5 (spec 110): a founder's loss line said in the past (*rang*, *caught*)
+    "ring", "catch"))
 
 
 def present_verb(word: str | None) -> bool:

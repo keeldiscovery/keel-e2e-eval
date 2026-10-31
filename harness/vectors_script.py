@@ -2627,7 +2627,8 @@ def circumstance_event(circumstance: str | None) -> str | None:
     return first_verb_phrase(f"{thing} {base}" + (f" {rest}" if rest else ""), len(thing.split()) + 1)
 
 
-_SUBJECT_LED = ("the", "a", "an", "their", "our", "its", "every", "each", "your")
+#: keel-cloud 170 FR-3b (spec 110 FR-2): *any* and *some* open a subject of their own too.
+_SUBJECT_LED = ("the", "a", "an", "their", "our", "its", "every", "each", "your", "any", "some")
 
 
 def subject_led(clause: str) -> str:

@@ -365,8 +365,10 @@ def test_the_occasion_field_is_read_off_the_card():
 
 def test_the_gates_no_is_the_served_no_label():
     """keel-cloud 129 FR-1 (`OccasionStem.noLabel`): where the gate asks a want the No reads *I didn't*; a gate drawn
-    without the served No is a screen fault."""
+    without the served No is a screen fault. Since keel-cloud 170 (spec 110 FR-2) the check is `gate_no_faults`, and a
+    gate served no `noLabel` draws the page's own *No*."""
     import inspect                                                      # noqa: PLC0415
     from evals import corpus_scenario as cs                             # noqa: PLC0415
-    source = inspect.getsource(cs._hold_the_screens)
-    assert 'served_gate.get("noLabel")' in source and '"gate No"' in source
+    assert "gate_no_faults(gate, served_gate)" in inspect.getsource(cs._hold_the_screens)
+    source = inspect.getsource(cs.gate_no_faults)
+    assert 'get("noLabel")' in source and '"gate No"' in source

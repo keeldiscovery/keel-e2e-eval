@@ -14,7 +14,10 @@ from -- the same arrangement the v9 checks have with C2-C4:
   (W10) went with the model's Existing sacrifice question (keel-cloud 077, call 67); nothing here mirrors it.
 
 - `gate`, `frequency_respondent` and `framed_fault` are `WindowFrame.gate` / `frequencyRespondent` and keel-cloud
-  088's `E4`: the framed gate and Frequency question at most 20 words each.
+  088's `E4`: the framed gate and Frequency question at most 20 words each. Each frames its clause as
+  `WindowFrame.subjectLed` does (`subject_led`, spec 110 FR-2): *did you {clause}*, or *did {clause}* where the clause
+  names its own subject -- *you* / *your* (116), a subject before a present verb (129, 130), a determiner (131) and,
+  since keel-cloud 170, *any* / *some* (*did any of the cash from your raise stay in ...?*, never *did you any of*).
 
 The reported wording counts of call 56 (W1 / W2 / W5 / W6 / S1 over the model's question text) retired at v18 with the
 text they counted (call 83): since keel-cloud 087 / 088 the model writes no question at all -- the founder's Answer
@@ -24,6 +27,8 @@ prompts and every respondent word are code's.
 from __future__ import annotations
 
 import re
+
+from harness.qualifiers import present_verb
 
 # -------------------------------------------------------------------------- Vocabulary (mirrored)
 
@@ -161,9 +166,42 @@ def recall_words(period) -> str:
 SPOKEN_STEM_MAX_WORDS = 20
 
 
+#: `WindowFrame.subjectLed`'s determiners (spec 131 FR-1; *any* and *some* since keel-cloud 170 FR-3b): a clause of
+#: three words or more opening on one names its own subject.
+SUBJECT_DETERMINERS = ("the", "a", "an", "their", "our", "its", "every", "each", "any", "some")
+#: ... and the articles a subject may open on before its noun (129 FR-1), and the words that open no subject.
+_ARTICLES = ("the", "a", "an", "their", "our", "its")
+_NO_SUBJECT = ("already", "still", "just", "also", "often", "always", "never", "usually", "only", "really", "ever",
+               "not")
+
+
+def subject_led(event) -> str:
+    """`WindowFrame.subjectLed`: the clause as it follows *did* -- unchanged where it names its own subject, else with
+    *you* before it. Its own subject: *you* / *your ...* (116); a determiner and two words more (131, and *any* /
+    *some* since keel-cloud 170: *any of the cash from your raise stay in your bank's money market fund*); a first word
+    no verb before a present verb, after an article where there is one (129: *freight cross the dock*); a plural noun
+    then a present verb (130: *booking calls come in on every shift*)."""
+    text = clause(event)
+    lower = text.lower()
+    if lower == "you" or lower.startswith("you ") or lower.startswith("your "):
+        return text
+    words = lower.split()
+    if len(words) > 2 and words[0] in SUBJECT_DETERMINERS:
+        return text
+    at = 2 if len(words) > 2 and words[0] in _ARTICLES else 1
+    if len(words) > at and not present_verb(words[0]) and not words[0].endswith("ing") \
+            and words[0] not in _NO_SUBJECT and present_verb(words[at]):
+        return text
+    if len(words) > at + 1 and words[at].endswith("s") and not words[at].endswith("ss") \
+            and not present_verb(words[at - 1]) and present_verb(words[at + 1]) and words[0] not in _NO_SUBJECT:
+        return text
+    return f"you {text}"
+
+
 def gate(window, event) -> str:
-    """`WindowFrame.gate`: the respondent's gate around the model's clause."""
-    return f"In {window.words()}, did you {clause(event)}?"
+    """`WindowFrame.gate`: the respondent's gate around the model's clause -- *did {subjectLed(clause)}* (spec 110
+    FR-2: it always wrote *did you*, so a subject-led clause was measured as *did you any of the cash ...*)."""
+    return f"In {window.words()}, did {subject_led(event)}?"
 
 
 def frequency_respondent(window, event) -> str:
@@ -175,7 +213,7 @@ def frequency_respondent(window, event) -> str:
     lead = f"In {window.words()}, on how many {window.plural} did "
     if not text.strip():
         return f"{lead}that happen?"
-    return f"{lead}you {text}?"
+    return f"{lead}{subject_led(text)}?"
 
 
 def frequency_measured(window, event) -> str:
@@ -185,7 +223,7 @@ def frequency_measured(window, event) -> str:
     text = clause(event)
     if not text.strip():
         return f"On how many of those {window.count} {window.plural} did that happen?"
-    return f"On how many of those {window.count} {window.plural} did you {text}?"
+    return f"On how many of those {window.count} {window.plural} did {subject_led(text)}?"
 
 
 def framed_fault(event, window) -> str | None:
