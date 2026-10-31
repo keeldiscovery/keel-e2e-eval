@@ -1637,25 +1637,101 @@ def _drafted_labels(question: dict) -> list[str]:
     return [row.get("label") for row in (question.get("draft") or {}).get("items") or []]
 
 
+#: Spec 108 FR-1: the modals folded to one word -- a reworded tense (*could be forwarded* / *can be forwarded*).
+_MODALS = frozenset({"could", "can", "would", "will"})
+#: The words a label's content is read without: articles, prepositions, pronouns, the verb *to be*, the modals and
+#: the *s* of a possessive. *No* / *not* / *nobody* are kept -- a negation is content.
+_NOT_CONTENT = frozenset("""a an the to of on in at by for with from into onto over up out off as and or but if so
+    that this these those it its they them their theirs there he him his she her we us our you your my me i
+    is are was were be been being am s""".split()) | _MODALS
+
+
+def _fold(word: str) -> str:
+    """One word folded (spec 108 FR-1): a modal to *can*; the inflections *-s / -ed / -ing* taken off, then a last
+    *e* (so *pair* / *paired*, *charge* / *charging*, *glasses* / *glass* fold alike). Short words are kept."""
+    if word in _MODALS:
+        return "can"
+    for suffix in ("ing", "ed", "s"):
+        if word.endswith(suffix) and len(word) - len(suffix) >= 3 and not word.endswith("ss"):
+            word = word[:-len(suffix)]
+            break
+    return word[:-1] if word.endswith("e") and len(word) > 3 else word
+
+
+def _folded_words(label: str) -> list[str]:
+    """A label's words, lowercased, punctuation dropped (an apostrophe splits), each folded."""
+    return [_fold(w) for w in re.findall(r"[a-z0-9]+", (label or "").lower())]
+
+
+def _content_words(label: str) -> frozenset[str]:
+    return frozenset(w for w in _folded_words(label) if w not in _NOT_CONTENT)
+
+
+def nearest_rows(want: str, rows: list[str], typed: list[str]) -> list[str]:
+    """Spec 108 FR-1: the drafted rows nearest a typed label that no row equals, by the nearest tier that has any:
+    (1) the same words once folded (`_folded_words`); (2) a row carrying every content word of the typed label;
+    (3) a row whose content words are all the typed label's and at least half of them (13-aircaps 2026-10-30 drafted
+    *Wear the glasses, paired to the phone* as *Pair the glasses to their phone*, which drops *wear*). A row that is
+    another of the founder's typed labels word for word is the founder's own, never a candidate. One row back is the
+    pick; none or more than one, the stop of spec 104 stands."""
+    others = [row for row in rows if row != want and row not in typed]
+    folded, content = _folded_words(want), _content_words(want)
+    tiers = (
+        lambda row: _folded_words(row) == folded,
+        lambda row: bool(content) and content <= _content_words(row),
+        lambda row: bool(content) and bool(_content_words(row)) and _content_words(row) <= content
+        and 2 * len(_content_words(row)) >= len(content),
+    )
+    for near in tiers:
+        found = [row for row in others if near(row)]
+        if found:
+            return found
+    return []
+
+
+def keel_left_out(question: dict, answer: vs.CalibrationAnswer) -> list[str]:
+    """Spec 108 FR-2: the typed rows the draft left out -- no drafted row of that label and none near it -- in the
+    entry's order."""
+    typed, rows = _typed_labels(answer), _drafted_labels(question)
+    return [label for label in typed if label not in rows and not nearest_rows(label, rows, typed)]
+
+
 def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> tuple[str, int]:
     """The one item Choose picks, and its row on the drafted list: the entry's own (its `pickedIndex`, which
     indexes the entry's TYPED items). Spec 104 FR-1: on a live journey Keel's list writer may draft rows of its own
     beside the founder's (21-codyco 2026-10-30 prepended *Forward unanswered calls to Codyco*), so the row is found
-    by its label -- the drafted list keeps the founder's labels word for word (spec 081) -- never by the index; a
-    drafted list with no row of that label (21-codyco's compatibility draft moved *could* to *can* the same day) stops
-    the walk by name, never a fall-back to row 0. The golden walk
-    (`strict`) is unchanged: the scripted list is the entry's own, the index is its row."""
+    by its label, never by the index. Spec 108 FR-1: the drafted list should keep the founder's labels word for word
+    (spec 081) but sometimes rewords one (21-codyco's compatibility draft moved *could* to *can* the same day), so
+    where no row equals the typed label the one nearest row (`nearest_rows`) is picked and a DRIFT finding names the
+    rewording; where no row or more than one is that near the walk stops by name, never a fall-back to row 0 -- and
+    where none is (FR-2), a finding names the typed rows the draft left out. The golden walk (`strict`) is
+    unchanged: the scripted list is the entry's own, the index is its row."""
     typed = _typed_labels(answer)
     index = (answer.listed or {}).get("pickedIndex") or 0
     if j.strict:
         return typed[index], index
     want = typed[index]
     rows = _drafted_labels(question)
-    if want not in rows:
-        raise vs.VectorsScriptError(
-            f"{question.get('dimension')}: the founder's picked item {want!r} is not on the drafted list (spec 104 "
-            f"FR-1); Keel drafted {rows!r}, the founder typed {typed!r}")
-    return want, rows.index(want)
+    if want in rows:
+        return want, rows.index(want)
+    key = question.get("dimension")
+    near = nearest_rows(want, rows, typed)
+    if len(near) == 1:
+        j.findings.append({"what": f"DRIFT: Keel reworded the founder's row '{want}' as '{near[0]}' (spec 081)",
+                           "served": {"dimension": key, "typed": want, "drafted": near[0], "rows": rows}})
+        return near[0], rows.index(near[0])
+    said = f"Keel drafted {rows!r}, the founder typed {typed!r}"
+    if near:
+        said += f"; {len(near)} rows are as near ({near!r}, spec 108 FR-1)"
+    else:
+        left_out = keel_left_out(question, answer)
+        if left_out:
+            j.findings.append({"what": f"{vs.NAMES.get(key, key)}: Keel left out: "
+                                       + ", ".join(f"'{label}'" for label in left_out),
+                               "served": {"dimension": key, "drafted": rows, "typed": typed, "left out": left_out}})
+            said += f"; Keel left out {left_out!r} (spec 108 FR-2)"
+    raise vs.VectorsScriptError(
+        f"{key}: the founder's picked item {want!r} is not on the drafted list (spec 104 FR-1); {said}")
 
 
 def keel_added(question: dict, answer: vs.CalibrationAnswer) -> list[str]:

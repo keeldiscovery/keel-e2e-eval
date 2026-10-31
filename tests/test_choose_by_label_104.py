@@ -138,16 +138,20 @@ def test_21_codyco_adoption_friction_picks_the_ai_voice_not_keels_forwarding():
         "Adoption friction: Keel added: 'Forward unanswered calls to Codyco', 'Connect Codyco to the hotel's PMS'"]
 
 
-def test_21_codyco_compatibility_was_reworded_so_the_walk_stops_by_name():
-    """Not foreseen by the spec, from the same bundle: Keel's compatibility draft moved the founder's tense (*could be
+def test_21_codyco_compatibility_was_reworded_so_the_walk_picks_it_and_names_the_drift():
+    """Not foreseen by spec 104, from the same bundle: Keel's compatibility draft moved the founder's tense (*could be
     forwarded* -> *can be forwarded*, *took* -> *takes*, *were* -> *are*), so the drafted list does not keep the
-    founder's labels word for word here; FR-1 stops the walk by name at compatibility, before adoption friction, and
-    FR-3 names all three rows as Keel's. (The earlier re-walk `runs/20261030T161100Z-backtest-21-codyco` drafted
-    them word for word.)"""
+    founder's labels word for word here. Spec 104 stopped the walk by name; spec 108 FR-1 picks the one row the tense
+    fold finds and writes the DRIFT finding instead (`tests/test_reworded_row_108.py`). FR-3 still names all three
+    rows as Keel's, by exact label. (The earlier re-walk `runs/20261030T161100Z-backtest-21-codyco` drafted them word
+    for word.)"""
     key = "solution.compatibility"
     question, answer = _codyco(key)
-    typed = "'Unanswered calls could be forwarded to another number' is not on"
-    with pytest.raises(vs.VectorsScriptError, match=typed):
-        corpus_scenario._choose_label(_J(), question, answer)
+    j = _J()
+    assert corpus_scenario._choose_label(j, question, answer) == (
+        "Unanswered calls can be forwarded to another number", 0)
+    assert [f["what"] for f in j.findings] == [
+        "DRIFT: Keel reworded the founder's row 'Unanswered calls could be forwarded to another number' as "
+        "'Unanswered calls can be forwarded to another number' (spec 081)"]
     drafted = [row["label"] for row in CODYCO["dimensions"][key]["drafted"]]
     assert corpus_scenario.keel_added(question, answer) == drafted
