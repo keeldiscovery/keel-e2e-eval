@@ -12,7 +12,9 @@ Per composed item (§2, §3, §4, §5):
 - `S1` the stem is one question of at most **20** words, every dimension's (keel-cloud 091 FR-E shortened the
   two frames 088 judgement call 12 had left at 21-24 -- Relative advantage *On your last {occasion}, would {name}
   have made things better, or not?*, Existing sacrifice stepping down until it fits -- so spec 042 call 111 drops
-  spec 040's 25-word allowance);
+  spec 040's 25-word allowance; since keel-cloud 173, spec 113 FR-3, Relative advantage is *Would {name} have made your
+  last {occasion} go better for you, or not?*, and past 20 words *Would it have made your last {occasion} ...* -- the
+  short form keeps the occasion);
 - `S2` the anchor, where there is one, and the stem are the screen's question, and a part sets one anchor at most;
 - `S3` at most **five** options (Price's ladder **six**); none on a number (Frequency, Existing sacrifice);
 - `S4` every option at most **nine** words, Commitment's counted whole (*Yes, I'd* and the step together are the

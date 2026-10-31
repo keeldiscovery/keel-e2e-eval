@@ -1608,8 +1608,8 @@ def _now(player) -> float:
 
 def _question_words(question: str) -> str:
     """The question read aloud as a recogniser writes it down (no punctuation): up to its question mark, its closing
-    "or not" left off -- "On your last delivery would an alert on mismatched deliveries have made it go better for you"
-    (keel-cloud 159's frame) --
+    "or not" left off -- "Would an alert on mismatched deliveries have made your last delivery go better for you"
+    (keel-cloud 173's frame, spec 113) --
     which on the relative-advantage ask holds an option's own words (keel-web 072 lit that row as they arrived)."""
     head = re.split(r"[?]", question or "", maxsplit=1)[0]
     words = re.findall(r"[\w'’]+", head)

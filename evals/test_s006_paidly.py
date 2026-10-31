@@ -16,9 +16,9 @@ survives of it is the floor itself, which is now the wire's to say: every dimens
 **The founder names the idea** (spec 042, keel-cloud 090 D14). Paidly's founder types *Invoice payout service* over
 S2's what line instead of saving Keel's *payment within seven days*: the wire's idea and short name become *invoice
 payout service* (sentence case read mid-sentence), every translator's reveal and idea card and every decision-maker's
-opening screen read *Imagine invoice payout service.*, and the Relative advantage question is *On your last invoice,
-would invoice payout service have made it go better for you, or not?* (keel-cloud 159's frame). The other two journeys
-keep Keel's draft name.
+opening screen read *Imagine invoice payout service.*, and the Relative advantage question is *Would invoice payout
+service have made your last invoice go better for you, or not?* (keel-cloud 173's frame, spec 113). The other two
+journeys keep Keel's draft name.
 
 **Frequency is asked** since revision 11 (keel-cloud 091 FR-G): the founder's *2 to 3 months out of 3* fits the
 `{3, MONTHS}` window, so spec 041's D-1 left-out Frequency is gone here -- asked of every translator, holding up (n 9,

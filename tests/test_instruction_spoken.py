@@ -108,8 +108,9 @@ def test_each_spoken_rule_fails_once_for_its_own_reason(change, rule):
 def test_every_stem_is_held_to_twenty_words_the_two_frames_too():
     """Call 111 (keel-cloud 091 FR-E): Relative advantage's and Existing sacrifice's frames were shortened, so spec
     040's 25-word allowance (call 79) is gone -- a 21-word stem is an S1 fault on every dimension."""
-    # spec 089 FR-4 (keel-cloud 159): the scale's frame and four options, no transform (`yes_no_per_benefit` retired)
-    stem = ("On your last busy morning before work, would a tag that beeps have made it go better for you, or "
+    # spec 089 FR-4 (keel-cloud 159): the scale's frame and four options, no transform (`yes_no_per_benefit` retired);
+    # spec 113 FR-3 (keel-cloud 173): in 173's frame, the occasion inside the question
+    stem = ("Would a key tag that beeps loudly have made your last busy morning before work go better for you, or "
             "not?")
     assert len(stem.split()) == 21
     benefit = _item(key="solution.relative_advantage", question=stem, stem=stem,
@@ -118,8 +119,9 @@ def test_every_stem_is_held_to_twenty_words_the_two_frames_too():
                     options_line="A lot better; a little better; no difference; or worse.", transform="none")
     assert _rules(benefit) == ["S1"]
     assert _rules(dataclasses.replace(benefit, transform="yes_no_per_benefit")) == ["S1", "S9"]
-    short = "Would a tag that beeps back have made it go better for you, or not?"
-    assert len(short.split()) <= 20
+    # the short form over the cap (`ScaleFour.shortened`) says the idea *it* and keeps the occasion
+    short = "Would it have made your last busy morning before work go better for you, or not?"
+    assert len(short.split()) <= 20 and "busy morning before work" in short
     assert _faults(dataclasses.replace(benefit, question=short, stem=short)) == []
     assert {spoken_mod.stem_limit(k) for k in ("commercial.existing_sacrifice", "solution.relative_advantage",
                                                 "problem.importance")} == {20}
