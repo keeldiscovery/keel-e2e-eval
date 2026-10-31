@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from contextlib import contextmanager
 from typing import Any, Callable
 
 from playwright.sync_api import Page
@@ -115,6 +116,101 @@ UNSURE_CHIP = "I'm not sure"
 PRICE_NONE_CHIP = "No price yet"
 LEAVE_OUT_CHIP = "Leave this out of the study"
 LIST_DRAFTING = "Keel is writing this from your answer."
+
+# ------------------------------------------------------------- spec 116: keel-web 149's Choose and 150's two boxes
+
+#: Spec 116 FR-1 (keel-web 149 FR-1, `LIST_CHOOSE_PROMPT`): Buyer and payer's Choose title (was *Who has to agree?*).
+BUYER_PAYER_CHOOSE_PROMPT = "Which one do you want to test?"
+#: keel-web 149 FR-3 (`BUYER_PAYER_UNPICKED`, `BUYER_PAYER_NOBODY`): who the bar names before a pick and on Nobody else.
+BUYER_PAYER_UNPICKED = "the one you pick"
+BUYER_PAYER_NOBODY = "nobody else"
+#: keel-web 149 FR-3 (`buyerPayerBar`): *Holds if at least 2 in 3 {deciders} say {who} had to agree the last time they
+#: bought {offer}.* -- the deciders where the page has a plural, the offer where one is stored (*... the last time.*).
+BUYER_PAYER_BAR = re.compile(r"^Holds if at least 2 in 3(?: (?P<deciders>.+?))? say (?P<who>.+?) had to agree "
+                             r"the last time(?: they bought (?P<offer>.+?))?\.$")
+#: keel-web 149 FR-1 / FR-2: the recall line under the title and the belief under each radio.
+CHOOSE_RECALL_TESTID = "choose-recall"
+CHOOSE_BELIEF_TESTID = "choose-belief"
+#: The two calibration writes the walk keeps: Choose's `PUT calibration/{vector}` (the list with its `pickedIndex`) and
+#: an Answer's `POST calibration/{vector}/draft` (`{dimension, answer}`).
+CALIBRATION_PUT = re.compile(r"/v2/projects/[^/?#]+/calibration/(?:PROBLEM|SOLUTION|COMMERCIAL)$")
+CALIBRATION_DRAFT = re.compile(r"/v2/projects/[^/?#]+/calibration/(?:PROBLEM|SOLUTION|COMMERCIAL)/draft$")
+#: Spec 116 FR-2 (keel-web 150 FR-2): Current solution's two boxes -- what they do (the one `.calib__answerbox`, test id
+#: `answer-what`) and, under its own heading, how well it goes (`.calib__howbox`, `answer-how`, may be empty).
+ANSWER_WHAT_TESTID = "answer-what"
+ANSWER_HOW_TESTID = "answer-how"
+ANSWER_HOW_Q_TESTID = "answer-how-q"
+CURRENT_SOLUTION_HOW_QUESTION = "And how well does that usually go?"
+CURRENT_SOLUTION_HOW_HINT = "Where it falls short, in a sentence. Up to 25 words."
+#: keel-web 150 FR-1 (`currentSolutionQuestion`): *How do {actor_plural} {job} today?*.
+CURRENT_SOLUTION_ASKED = re.compile(r"^How do \S.* \S.* today\?$")
+#: keel-web 150 FR-3 (`splitAnswer`): a full stop followed by a space ends the first box's sentence.
+_FIRST_STOP = re.compile(r"\.\s+")
+
+
+def buyer_payer_bar(text: str | None) -> dict | None:
+    """Spec 116 FR-1: Buyer and payer's bar read into its case -- `unpicked` (*the one you pick*), `nobody` (*nobody
+    else*) or `role` (a role in a sentence) -- with the deciders and the offer named, or None where the line is not 149's
+    (the old *... say they had to agree last time.* / *... say they decided on their own.* read None)."""
+    found = BUYER_PAYER_BAR.match(" ".join((text or "").split()))
+    if not found:
+        return None
+    who = found["who"]
+    case = "unpicked" if who == BUYER_PAYER_UNPICKED else "nobody" if who == BUYER_PAYER_NOBODY else "role"
+    return {"case": case, "who": who, "deciders": found["deciders"], "offer": found["offer"]}
+
+
+def role_in_sentence(label: str) -> str:
+    """keel-web `founderLists.lowerFirst`: a role inside the bar loses its leading capital unless it opens on an acronym
+    (*The CFO* -> *the CFO*, *HR director* kept)."""
+    label = (label or "").strip()
+    if len(label) < 2:
+        return label.lower()
+    return label if re.match(r"^[A-Z][A-Z]", label) else label[0].lower() + label[1:]
+
+
+def split_answer(text: str) -> tuple[str, str]:
+    """keel-web 150 FR-3 (`splitAnswer`): the Answer at its first full stop followed by a space -- the first box keeps
+    the stop, the rest is the second; no such stop, the whole is the first."""
+    said = (text or "").strip()
+    stop = _FIRST_STOP.search(said)
+    if not stop:
+        return said, ""
+    return said[:stop.start() + 1], said[stop.end():].strip()
+
+
+def join_answer(what: str, how: str) -> str:
+    """keel-web 150 FR-3 (`joinAnswer`): the two boxes as the one Answer text -- the first, a full stop (none added where
+    the first already ends a sentence), the second; the first alone where the second is empty."""
+    first, second = (what or "").strip(), (how or "").strip()
+    if not second:
+        return first
+    if not first:
+        return second
+    return f"{first} {second}" if re.search(r"[.!?]$", first) else f"{first}. {second}"
+
+
+def served_picked_index(writes: list[dict], dimension: str | None) -> int | None:
+    """Spec 116 FR-1: the `pickedIndex` Choose sent for `dimension` -- read off the last 2xx `PUT calibration/{vector}`
+    the press kept (the last one where none was answered 2xx), never off the drawn list's position. None where no write
+    carried it."""
+    ok = [w for w in writes if isinstance(w.get("status"), int) and 200 <= w["status"] < 300]
+    for write in reversed(ok or writes):
+        body = write.get("body") if isinstance(write.get("body"), dict) else {}
+        for answer in body.get("answers") or []:
+            if isinstance(answer, dict) and answer.get("dimension") == dimension:
+                return (answer.get("list") or {}).get("pickedIndex")
+    return None
+
+
+def sent_answer(writes: list[dict]) -> str | None:
+    """Spec 116 FR-2: the one Answer text the Answer screen's Continue sent (`POST calibration/{vector}/draft`'s
+    `answer`), the last such write's; None where none was kept."""
+    for write in reversed(writes):
+        body = write.get("body")
+        if isinstance(body, dict) and "answer" in body:
+            return body.get("answer")
+    return None
 COST_MODE_GROUP = "Measured as"
 #: keel-web 094 FR-1 (spec 064 FR-2): the chain's cost step -- the three ways, by their pills. Spec 090 FR-1 (keel-web
 #: 134 FR-1, `CHAIN_COST_MODE_WORD`): RATE is *A share they lose* (was *A rate they lose*), and the modes are asked first
@@ -1871,7 +1967,12 @@ class Corridor:
     def list_answer(self, question: dict, text: str | None) -> dict:
         """A list dimension's *Answer* (keel-web 063 FR-004): the founder's words typed and Continue --
         which posts `calibration/{vector}/draft` and opens Check -- or, `text` None, *Leave this out of the
-        study* and on past this question. Returns the frame and the prompt drawn."""
+        study* and on past this question. Returns the frame and the prompt drawn.
+
+        Spec 116 FR-2 (keel-web 150 FR-2, FR-3): where the screen draws Current solution's second box (`answer-how`), the
+        Answer is typed as 150 splits a stored one (`split_answer`: the first box up to its first full stop, the second
+        the rest, left empty where there is none) and both boxes are read back (`boxes`), with the second's heading. On
+        every typed Answer the draft POST the press sent is kept (`sent`) and its one text read (`sent_answer`)."""
         name = question.get("dimension")
         with self._b.step(f"founder answers {name} in their own words" if text else
                           f"founder leaves {name} out of the study") as h:
@@ -1880,17 +1981,49 @@ class Corridor:
             seen = {"screen": "answer", "frame": self.frame(), "question": _first_text(self.page, "h1.calib__q"),
                     "hint": _first_text(self.page, ".calib__hint"),
                     "derived": _first_text(self.page, ".calib__derived")}
+            how_box = self.page.get_by_test_id(ANSWER_HOW_TESTID)
+            two = how_box.count() > 0
+            if two:
+                seen["hints"] = [" ".join(t.split()) for t in self.page.locator(".calib__hint").all_inner_texts()]
+                seen["how_question"] = _first_text(self.page, f"[data-testid={ANSWER_HOW_Q_TESTID}]")
             if text:
-                self.page.locator("textarea.calib__answerbox").first.fill(text)
+                first = self.page.locator("textarea.calib__answerbox").first
+                if two:
+                    what, how = split_answer(text)
+                    first.fill(what)
+                    if how:
+                        how_box.first.fill(how)
+                    seen["boxes"] = {"what": _value(first), "how": _value(how_box.first)}
+                else:
+                    first.fill(text)
                 seen["counter"] = _first_text(self.page, ".calib__wc")
             else:
                 self.page.locator("button.calib__chip", has_text=LEAVE_OUT_CHIP).first.click()
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(f"answer-{name}"))
-            seen["primary"] = self._press_primary(CONTINUE)
+            with self._keeping("POST", CALIBRATION_DRAFT) as sent:
+                seen["primary"] = self._press_primary(CONTINUE)
+                if text:
+                    _wait_url(self.page, r"/check")
             if text:
-                _wait_url(self.page, r"/check")
+                seen["sent"] = [_request_row(r) for r in sent]
+                seen["sent_answer"] = sent_answer(seen["sent"])
             return seen
+
+    @contextmanager
+    def _keeping(self, method: str, path: re.Pattern):
+        """Spec 116: every request of `method` to `path` the page sends inside the block, kept for the record."""
+        kept: list = []
+
+        def keep(request) -> None:
+            if request.method == method and path.search(request.url.split("?")[0]):
+                kept.append(request)
+
+        self.page.on("request", keep)
+        try:
+            yield kept
+        finally:
+            self.page.remove_listener("request", keep)
 
     def _list_rows(self) -> dict:
         rows = []
@@ -2069,7 +2202,13 @@ class Corridor:
 
     def list_choose(self, question: dict, label: str) -> dict:
         """*Choose* (FR-006): none pre-picked; the radio named `label` picked; the *Keel will test* box
-        read with the pick; the primary (*Continue*, or the stage's exit). Returns what it read."""
+        read with the pick; the primary (*Continue*, or the stage's exit). Returns what it read.
+
+        Spec 116 FR-1 (keel-web 149): the pick is by label (spec 104), and since Buyer and payer draws *Nobody else*
+        LAST (the roles first) a position in `options` is not the served `pickedIndex` -- the drawn position is kept as
+        `drawn_index` and the served one is read off the `PUT calibration/{vector}` the press sent (`served_index`,
+        `writes`); the recall line (`choose-recall`) and the belief under each radio (`choose-belief`, drawn order) are
+        read."""
         name = question.get("dimension")
         with self._b.step(f"founder picks the one item strangers are asked about: {label!r} ({name})") as h:
             _wait_url(self.page, r"/choose")
@@ -2081,13 +2220,20 @@ class Corridor:
             options = [_safe_text(lambda r=radios.nth(i): r.inner_text()).strip() for i in range(radios.count())]
             empty = self._keel_test()
             group.get_by_role("radio", name=label, exact=True).click()
-            seen = {"screen": "choose", "frame": self.frame(), "options": options,
+            seen = {"screen": "choose", "frame": self.frame(), "options": options, "label": label,
+                    "drawn_index": options.index(label) if label in options else None,
                     "picked_before": [i for i, c in enumerate(before) if c == "true"],
                     "test_before": empty, "test": self._keel_test(),
-                    "prompt": _first_text(self.page, ".listcheck__title")}
+                    "prompt": _first_text(self.page, ".listcheck__title"),
+                    "recall": " ".join(_first_text(self.page, f"[data-testid={CHOOSE_RECALL_TESTID}]").split()),
+                    "beliefs": [" ".join(t.split()) for t in
+                                self.page.locator(f"[data-testid={CHOOSE_BELIEF_TESTID}]").all_inner_texts()]}
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(f"choose-{name}"))
-            seen["primary"] = self._press_primary()
+            with self._keeping("PUT", CALIBRATION_PUT) as writes:
+                seen["primary"] = self._press_primary()
+            seen["writes"] = [_request_row(r) for r in writes]
+            seen["served_index"] = served_picked_index(seen["writes"], name)
             return seen
 
     # --------------------------------------------------------------------------------- persona
