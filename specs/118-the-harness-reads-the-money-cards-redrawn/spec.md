@@ -1,4 +1,4 @@
-# Spec 118 -- The harness reads the cards redrawn (keel-cloud 180-184, keel-web 155)
+# Spec 118 -- The harness reads the cards redrawn and the question screens (keel-cloud 180-185, keel-web 155-156)
 
 The founder's decisions of 2026-10-31 on the six COMMERCIAL cards, the stage header and the Insights tab (keel-cloud
 180 the words and the wire, 181 Ability to pay's chain question, 182 Purchase friction's duration item, 183 the why's
@@ -31,6 +31,21 @@ change the after-answers leg's reading. Corpus revision 20.
   served labels, Adoption friction's plain conditional label, the new footer sentence, the Insights headings); the
   Adoption friction and Compatibility corpus answers follow the option labels of revision 20; the leg reads the
   Prevalence people-axis strip and the Current solution line.
+- **FR-4c The question screens (keel-cloud 185, keel-web 156; the founder's decisions of 2026-10-31).** (a) **The reader
+  sees the spoken form.** On every respondent item screen the reader's `{{screen}}` carries the served `spoken` (anchor,
+  stem, count line, options line, escape line, and Price's two second-step lines), so R6 is scored on what the voice
+  says, not on the written list (cycle 4: Price's R6 was judged from the six written rungs while the code served a
+  four-option first step; the gate's *Yes or no.* was reported unread). (b) **Price in two steps.** The eval
+  respondents answer the ladder on the AI link as the voice asks it: step one, then the side's two bands; the corpus
+  entries' Price answers are read through the two steps; the harness's spoken mirror (`instructions/spoken.py`) reads
+  the second-step lines and the amount-only labels (*to under* / *or more*). (c) **Compatibility's three** on a fact:
+  the readers and the corpus answer three where three are served; the mirrors read the ability scale's *most of the
+  time*. (d) **The idea card.** The walk types the project name as the name and accepts Keel's plain words for *what it
+  is*; the mirrors read the composed line *Imagine {name}, {what}.* (e) **The screener.** The mirrors read the writer's
+  decider clause (no *you decide for*); the Palus condition's one-sentence test; *any* on a set. (f) **The interviewer
+  screens.** Mirrors for the lock and send screens' sentences (156 FR-1, FR-2) and the format's new name *Read and tap*
+  wherever the harness reads it (the send dialog, the Sent list, the link's choice screen). Corpus revision 20 with
+  FR-2.
 - **FR-5 The quality readers.** `quality/readers/*.md` for section B are unchanged in criteria; the stage/dimension
   screen descriptions name the strip and the lines so the reader scores them, not their absence.
 - **FR-6 Tests.** Each moved mirror pinned with why; the two items answered on a fixture study; the leg's reader on
@@ -38,7 +53,7 @@ change the after-answers leg's reading. Corpus revision 20.
 
 ## Acceptance
 
-`make unit` ZERO failed against keel-cloud 180-183 and keel-web 155 merged; a `make backtest ENTRY=08-fresco
+`make unit` ZERO failed against keel-cloud 180-185 and keel-web 155-156 merged; a `make backtest ENTRY=08-fresco
 SCOPE=COMMERCIAL` on the local stack reaches its end (paid: the coordinator runs it on the founder's word, inside
 cycle 5). `tests/fixtures/sample/s006-reads.json` is re-recorded by `make sample` (the coordinator's step) rather than
 hand-edited.
