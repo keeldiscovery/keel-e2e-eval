@@ -1280,7 +1280,14 @@ def founder_answer(j, slug: str) -> Any:
         return "left out of the study (the founder is unsure)"
     if kind == "q":
         return {k: v for k, v in answer.as_wire().items() if k != "dimension"}
+    seen = ((getattr(j, "framing", None) or {}).get(key)) or []
     if kind == "answer":
+        # spec 116 FR-2 (keel-web 150): Current solution's two boxes, as the walk typed them, and the one text sent
+        typed = next((s for s in seen if s.get("screen") == "answer"), {})
+        boxes = typed.get("boxes")
+        if boxes:
+            return {"what they do (first box)": boxes.get("what"), "how well it goes (second box)": boxes.get("how"),
+                    "sent as one Answer": typed.get("sent_answer")}
         return answer.text
     if kind == "check":
         return "saved as Keel drafted it"
@@ -1288,8 +1295,12 @@ def founder_answer(j, slug: str) -> Any:
         listed = answer.listed or {}
         index = listed.get("pickedIndex") or 0
         items = listed.get("items") or []
+        # spec 116 FR-1 (keel-web 149): the row picked by its label (spec 104), where it was drawn (Buyer and payer's
+        # Nobody else last) and the pickedIndex the press sent, off the wire
+        picked = next((s for s in seen if s.get("screen") == "choose"), {})
         return {"pickedIndex": index, "the file's item": (items[index] or {}).get("label") if index < len(items) else None,
-                "picked on screen": "the served list's item at that index (or its last)"}
+                "picked on screen (by label)": picked.get("label"), "drawn at": picked.get("drawn_index"),
+                "served pickedIndex (the wire)": picked.get("served_index")}
     return None
 
 
@@ -1324,6 +1335,11 @@ def read_back(j, slug: str, wire: dict) -> Any:
     for name, field_ in (("equation", "equation"), ("per", "per"), ("locked words", "locked")):
         if drawn.get(field_):
             out[name] = drawn.get(field_)
+    # spec 116 FR-1 (keel-web 149): Buyer and payer's recall line and the belief under each radio, in drawn order
+    if drawn.get("recall"):
+        out["recall"] = drawn.get("recall")
+    if drawn.get("beliefs"):
+        out["beliefs on screen"] = drawn.get("beliefs")
     test = drawn.get("test_after") or drawn.get("test")
     if test:
         out["keel will test"] = test.get("belief")
