@@ -1,15 +1,15 @@
 {
- "entry": "bb-beta",
+ "entry": "aa-alpha",
  "scope": "PROBLEM",
- "bundle": "20261028T000000Z-backtest-bb-beta",
- "cloud_sha": "abcdef1",
+ "bundle": "20261029T000000Z-backtest-aa-alpha",
+ "cloud_sha": "bcdef12",
  "web_sha": "1234567",
  "routing_version": "13",
- "rubric_version": 2,
+ "rubric_version": 3,
  "persona": {
-  "founder": "(fixture) bb-beta's sources and context",
+  "founder": "(fixture) aa-alpha's sources and context",
   "respondent": {
-   "PRIMARY": "(fixture) bb-beta's person on PRIMARY"
+   "PRIMARY": "(fixture) aa-alpha's person on PRIMARY"
   }
  },
  "spoken_guidelines": {
@@ -30,7 +30,7 @@
  "cost_usd": 0.5,
  "probe_cost_usd": 0.01,
  "seconds": 60.0,
- "scored_at": "2026-10-28T12:00:00+00:00",
+ "scored_at": "2026-10-29T12:00:00+00:00",
  "calls": 5,
  "partial": false,
  "selection": null,
@@ -46,7 +46,7 @@
    "means": {
     "r1": 2.0,
     "r2": 2.0,
-    "r3": 2.0,
+    "r3": 1.0,
     "r4": 2.0,
     "r5": 2.0,
     "r6": null
@@ -64,7 +64,7 @@
    "out_of_place": 0,
    "looks_stupid": 0,
    "spoken_pct": null,
-   "score_pct": 100.0
+   "score_pct": 90.0
   },
   "respondent": {
    "screens": 2,
@@ -89,24 +89,24 @@
    "out_of_place": 0,
    "looks_stupid": 1,
    "spoken_pct": 100.0,
-   "insight_lines": 0,
+   "insight_lines": 1,
    "insight_means": {
-    "g1": null,
-    "g2": null
+    "g1": 1.0,
+    "g2": 2.0
    },
    "insight_zeros": {
     "g1": 0,
     "g2": 0
    },
-   "insights_pct": null,
-   "score_pct": 90.9
+   "insights_pct": 75.0,
+   "score_pct": 88.5
   },
   "overall": {
    "screens": 3,
    "means": {
     "r1": 2.0,
     "r2": 2.0,
-    "r3": 2.0,
+    "r3": 1.667,
     "r4": 1.0,
     "r5": 2.0,
     "r6": 2.0
@@ -124,21 +124,33 @@
    "out_of_place": 0,
    "looks_stupid": 1,
    "spoken_pct": 100.0,
-   "insight_lines": 0,
+   "insight_lines": 1,
    "insight_means": {
-    "g1": null,
-    "g2": null
+    "g1": 1.0,
+    "g2": 2.0
    },
    "insight_zeros": {
     "g1": 0,
     "g2": 0
    },
-   "insights_pct": null,
-   "score_pct": 93.8
+   "insights_pct": 75.0,
+   "score_pct": 88.9
   }
  },
- "insights": [],
- "insights_note": "no grouping to read (no follow-up line with two answers)",
+ "insights": [
+  {
+   "line": "Why other things come first",
+   "dimension": "problem.importance",
+   "link": "PRIMARY",
+   "g1": 1,
+   "g2": 2,
+   "whys": {
+    "g1": "w",
+    "g2": "w"
+   }
+  }
+ ],
+ "insights_note": null,
  "flow": {
   "founder": {
    "order": 2,
@@ -158,7 +170,7 @@
    "kind": "q",
    "r1": 2,
    "r2": 2,
-   "r3": 2,
+   "r3": 1,
    "r4": 2,
    "r5": 2,
    "r6": null,

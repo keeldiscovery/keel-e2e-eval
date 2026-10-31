@@ -27,9 +27,16 @@ follow-up line's grouping once -- G1 (every answer in a group a person in this j
 G2 (junk kept out) -- recorded as `insights: [{line, dimension, link, g1, g2, whys}]` and folded into the
 respondent's and the overall `score_pct`, with `insights_pct` beside.
 
-**The score as one number** (the coordinator's decision 2): `score_pct` = the sum of every r1..r6 given over 2 x their
-count x 100 (a `None` R4 or R6 is in neither); `spoken_pct` = the same over R6 alone, beside it (spec 081 FR-4);
-`flagged_pct` = the screens with any 0 over the screens x 100.
+**Version 3** (spec 109, the founder 2026-10-30: *"after everyone has answered, go back to the problem screen and the
+insight screen ... and ask: does it make sense?"*): **§B, after the answers** -- the founder-reader scores the study's
+stage page and each dimension card on B1-B5 and the Insights screen on B1, B3, B4, B5 and B6 (`B_OF_KIND`; kinds
+`AFTER_KINDS`). A §B screen's score carries `b1`..`b6` and `why_b1`..`why_b6` and no R (`AFTER_SCORE_KEYS`); code
+derives `out_of_place` = B1 is 0 and `looks_stupid` = B2 or B5 is 0. A version-2 file is set aside by the table and the
+cycle, never refused (cycles 1-3 stay of record) and never compared with a version-3 one.
+
+**The score as one number** (the coordinator's decision 2): `score_pct` = the sum of every r1..r6 and b1..b6 given over
+2 x their count x 100 (a `None` R4, R6, B2 or B6 is in neither); `spoken_pct` = the same over R6 alone, beside it (spec
+081 FR-4); `after_pct` the same over B alone (spec 109); `flagged_pct` = the screens with any 0 over the screens x 100.
 """
 
 from __future__ import annotations
@@ -38,7 +45,7 @@ import json
 import re
 from pathlib import Path
 
-RUBRIC_VERSION = 2
+RUBRIC_VERSION = 3
 
 #: The rubric versions a score file is refused at, by name (spec 081 FR-1) -- never set aside, never read.
 RETIRED = {1: "before spec 081: R2 judged against the general public, no R6 said aloud, no persona block"}
@@ -53,6 +60,18 @@ SHARED = CRITERIA[:5]
 SPOKEN = "r6"
 AUDIENCES = ("founder", "respondent")
 
+#: §B (spec 109): the founder-reader's six criteria on the screens after the answers -- the stage page, each dimension
+#: card opened with its chart, the Insights screen -- and which of them each kind is scored on (the Insights screen draws
+#: no chart, so no B2; B6, teaches me something I did not type, is its alone).
+B_CRITERIA = ("b1", "b2", "b3", "b4", "b5", "b6")
+B_WHYS = ("why_b1", "why_b2", "why_b3", "why_b4", "why_b5", "why_b6")
+AFTER_KINDS = ("stage", "dimension", "insights-screen")
+B_OF_KIND = {"stage": B_CRITERIA[:5], "dimension": B_CRITERIA[:5],
+             "insights-screen": ("b1", "b3", "b4", "b5", "b6")}
+#: Every criterion a screen can carry, R then B, and each one's why key.
+ALL_CRITERIA = (*CRITERIA, *B_CRITERIA)
+WHY_OF = {**dict(zip(CRITERIA, WHYS)), **dict(zip(B_CRITERIA, B_WHYS))}
+
 #: §G (the founder, 2026-10-28): the respondent-reader's two criteria on the Insights grouping of a follow-up line.
 G_CRITERIA = ("g1", "g2")
 INSIGHT_KEYS = ("line", "dimension", "link", "g1", "g2", "whys")
@@ -66,11 +85,21 @@ WEAK_MEAN = 1.5
 #: The keys of one screen's score, in the order a score file writes them.
 SCORE_KEYS = ("n", "screen", "audience", "link", "dimension", "kind", *CRITERIA, *WHYS,
               "out_of_place", "looks_stupid", "instead")
+#: Spec 109: the keys of one §B screen's score -- the B criteria in place of the R.
+AFTER_SCORE_KEYS = ("n", "screen", "audience", "link", "dimension", "kind", *B_CRITERIA, *B_WHYS,
+                    "out_of_place", "looks_stupid", "instead")
+
+
+def is_after(kind: str | None) -> bool:
+    """Whether a screen kind is one of §B's, read after the answers (spec 109)."""
+    return kind in AFTER_KINDS
 
 _BEGIN = "<!-- prompt:begin -->"
 _END = "<!-- prompt:end -->"
 _R6_BEGIN = "<!-- prompt-r6:begin -->"
 _R6_END = "<!-- prompt-r6:end -->"
+_B_BEGIN = "<!-- prompt-b:begin -->"
+_B_END = "<!-- prompt-b:end -->"
 
 
 class RubricError(ValueError):
@@ -121,6 +150,29 @@ def prompt_insights(text: str | None = None) -> str:
     if text.count(begin) != 1 or text.count(end) != 1:
         raise RubricError("RUBRIC.md must carry one `prompt-g:begin` marker and one `prompt-g:end` marker")
     return text.split(begin, 1)[1].split(end, 1)[0].strip()
+
+
+def prompt_after(text: str | None = None) -> str:
+    """§B, the part the founder-reader is sent with every screen after the answers (spec 109): everything between the
+    `prompt-b` markers."""
+    text = text if text is not None else rubric_text()
+    if text.count(_B_BEGIN) != 1 or text.count(_B_END) != 1 or text.index(_B_BEGIN) > text.index(_B_END):
+        raise RubricError("RUBRIC.md must carry one `prompt-b:begin` marker and one `prompt-b:end` marker after it")
+    return text.split(_B_BEGIN, 1)[1].split(_B_END, 1)[0].strip()
+
+
+def b_criteria(text: str | None = None) -> list[dict]:
+    """§B's six criteria with their anchors, in order (spec 109)."""
+    rows = []
+    for line in prompt_after(text).splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) == 5 and re.fullmatch(r"B[1-6]", cells[0]):
+            name = re.match(r"\*\*(.+?)\*\*", cells[1])
+            rows.append({"id": cells[0].lower(), "name": name.group(1).rstrip(".") if name else cells[1],
+                         "question": cells[1], "2": cells[2], "1": cells[3], "0": cells[4]})
+    if [r["id"] for r in rows] != list(B_CRITERIA):
+        raise RubricError(f"RUBRIC.md's §B must carry B1..B6 in order; found {[r['id'] for r in rows]}")
+    return rows
 
 
 def g_criteria(text: str | None = None) -> list[dict]:
@@ -207,6 +259,27 @@ def parse_answer(raw: str, *, has_options: bool, audience: str) -> dict:
     return out
 
 
+def parse_after(raw: str, *, kind: str) -> dict:
+    """The founder-reader's reply on one §B screen (spec 109): the criteria its kind is scored on (`B_OF_KIND`), their
+    whys and the instead line -- or `RubricError`. A score on a criterion the kind is not scored on (B2 on the
+    Insights screen, B6 on the stage page or a card) is refused, as an R6 on a founder screen is."""
+    if not is_after(kind):
+        raise RubricError(f"kind {kind!r} is not read after the answers (spec 109: {', '.join(AFTER_KINDS)})")
+    body = extract_json(raw)
+    out = {}
+    for crit, why in zip(B_CRITERIA, B_WHYS):
+        if crit in B_OF_KIND[kind]:
+            out[crit] = _mark(body.get(crit), crit, nullable=False)
+            out[why] = str(body.get(why) or "").strip()
+        elif body.get(crit) is not None:
+            raise RubricError(f"{crit} on a {kind} screen: it is scored on {', '.join(B_OF_KIND[kind])} alone "
+                              "(spec 109 FR-2)")
+        else:
+            out[crit], out[why] = None, ""
+    out["instead"] = str(body.get("instead") or "").strip()
+    return out
+
+
 def parse_insight(raw: str) -> dict:
     """A reader's reply on one follow-up line's grouping (§G): `{g1, g2, whys: {g1, g2}}` -- or `RubricError`."""
     body = extract_json(raw)
@@ -223,8 +296,17 @@ def parse_flow(raw: str) -> dict:
 
 
 def screen_score(meta: dict, answer: dict) -> dict:
-    """One screen's score object: the screen's identity, the reader's answer, the two booleans code derives."""
+    """One screen's score object: the screen's identity, the reader's answer, the two booleans code derives. A §B
+    screen (spec 109) carries the B criteria in place of the R: `out_of_place` = B1 is 0, `looks_stupid` = B2 or B5 is
+    0."""
     score = {key: meta.get(key) for key in ("n", "screen", "audience", "link", "dimension", "kind")}
+    if is_after(meta.get("kind")):
+        for key in (*B_CRITERIA, *B_WHYS):
+            score[key] = answer.get(key)
+        score["out_of_place"] = score["b1"] == 0
+        score["looks_stupid"] = score["b2"] == 0 or score["b5"] == 0
+        score["instead"] = answer.get("instead", "")
+        return {key: score[key] for key in AFTER_SCORE_KEYS}
     for key in (*CRITERIA, *WHYS):
         score[key] = answer.get(key)
     score["out_of_place"] = score["r1"] == 0
@@ -234,31 +316,33 @@ def screen_score(meta: dict, answer: dict) -> dict:
 
 
 def flagged(score: dict) -> bool:
-    return any(score.get(c) == 0 for c in CRITERIA)
+    return any(score.get(c) == 0 for c in ALL_CRITERIA)
 
 
 # --------------------------------------------------------------------------------------------- summaries
 
 def summary(scores: list[dict], insights: list[dict] | None = None) -> dict:
-    """The six means, the zeros per criterion, `score_pct`, `spoken_pct` (R6 alone, spec 081 FR-4; `None` where no
-    respondent screen is given) and `flagged_pct` over the given screen scores -- and,
-    when insight readings are given (§G), their two means and `insights_pct`, **folded into `score_pct`** by the same
-    2 x count arithmetic."""
+    """The twelve means (R1-R6, then §B's B1-B6, spec 109), the zeros per criterion, `score_pct`, `spoken_pct` (R6 alone,
+    spec 081 FR-4; `None` where no respondent screen is given), `after_pct` (B alone; `None` where no §B screen is given)
+    and `flagged_pct` over the given screen scores -- and, when insight readings are given (§G), their two means and
+    `insights_pct`, **folded into `score_pct`** by the same 2 x count arithmetic."""
     means, zeros, total, count = {}, {}, 0, 0
-    for crit in CRITERIA:
+    for crit in ALL_CRITERIA:
         given = [s[crit] for s in scores if s.get(crit) is not None]
         means[crit] = round(sum(given) / len(given), 3) if given else None
         zeros[crit] = sum(1 for v in given if v == 0)
         total += sum(given)
         count += len(given)
     spoken = [s[SPOKEN] for s in scores if s.get(SPOKEN) is not None]
+    after = [s[c] for s in scores for c in B_CRITERIA if s.get(c) is not None]
     screens = len(scores)
     flags = sum(1 for s in scores if flagged(s))
     out = {"screens": screens, "means": means, "zeros": zeros,
            "flagged": flags, "flagged_pct": round(100.0 * flags / screens, 1) if screens else None,
            "out_of_place": sum(1 for s in scores if s.get("out_of_place")),
            "looks_stupid": sum(1 for s in scores if s.get("looks_stupid")),
-           "spoken_pct": round(100.0 * sum(spoken) / (2 * len(spoken)), 1) if spoken else None}
+           "spoken_pct": round(100.0 * sum(spoken) / (2 * len(spoken)), 1) if spoken else None,
+           "after_pct": round(100.0 * sum(after) / (2 * len(after)), 1) if after else None}
     if insights is not None:
         g_total, g_count, g_means, g_zeros = 0, 0, {}, {}
         for crit in G_CRITERIA:
@@ -276,7 +360,8 @@ def summary(scores: list[dict], insights: list[dict] | None = None) -> dict:
 
 def summaries(scores: list[dict], insights: list[dict] | None = None) -> dict:
     """`summary` per audience and overall -- the block every score file carries. The insight readings (§G) are the
-    respondent-reader's, so they fold into the respondent's and the overall `score_pct`, never the founder's."""
+    respondent-reader's, so they fold into the respondent's and the overall `score_pct`, never the founder's; the §B
+    screens (spec 109) are founder screens, so theirs fold into the founder's and the overall."""
     insights = list(insights or [])
     return {"founder": summary([s for s in scores if s.get("audience") == "founder"]),
             "respondent": summary([s for s in scores if s.get("audience") == "respondent"], insights),
@@ -326,6 +411,9 @@ def validate_file(obj: dict, *, name: str | None = None) -> dict:
     if absent:
         raise RubricError(f"a version-{RUBRIC_VERSION} score file without {absent} (spec 081 FR-3 / FR-4)")
     for score in obj["screens"]:
+        if is_after(score.get("kind")):
+            _validate_after(score)
+            continue
         absent = [k for k in SCORE_KEYS if k not in score]
         if absent:
             raise RubricError(f"screen {score.get('screen')!r} has no {absent}")
@@ -347,6 +435,22 @@ def validate_file(obj: dict, *, name: str | None = None) -> dict:
         for crit in G_CRITERIA:
             _mark(reading[crit], crit, nullable=False)
     return obj
+
+
+def _validate_after(score: dict) -> None:
+    """One §B screen of a version-3 file (spec 109): the founder's, its kind's B criteria each 0-2 and no other."""
+    absent = [k for k in AFTER_SCORE_KEYS if k not in score]
+    if absent:
+        raise RubricError(f"§B screen {score.get('screen')!r} has no {absent} (spec 109)")
+    if score["audience"] != "founder":
+        raise RubricError(f"§B screen {score['screen']!r}: audience {score['audience']!r} -- the founder-reader reads "
+                          "the screens after the answers (spec 109)")
+    for crit in B_CRITERIA:
+        if crit in B_OF_KIND[score["kind"]]:
+            _mark(score[crit], crit, nullable=False)
+        elif score[crit] is not None:
+            raise RubricError(f"§B screen {score['screen']!r} ({score['kind']}) carries {crit}, which it is not scored "
+                              "on (spec 109 FR-2)")
 
 
 def load_file(path: Path) -> dict:

@@ -209,7 +209,7 @@ def test_the_record_names_the_people_only_when_the_walk_capped():
 
 FRESCO_RUN = REPO / "tests" / "fixtures" / "gallery" / "20261022T164045Z-backtest-08-fresco"
 BASE_SCORE = (REPO / "tests" / "fixtures" / "quality" / "cycle" / "scores" / "08-fresco" /
-              "20261101-SOLUTION-r2-abcdef1-v13-claude-opus-5-5.json")
+              "20261101-SOLUTION-r3-abcdef1-v13-claude-opus-5-5.json")
 AT = "2026-10-31T09:00:00Z"
 LATER = "2026-11-07T09:00:00Z"
 DECISIONS = {"problem": "BUILD", "solution": "NOT_YET", "money": "KEEP_INTERVIEWING"}

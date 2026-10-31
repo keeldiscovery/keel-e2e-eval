@@ -95,12 +95,14 @@ The question-quality readers (keel-cloud-docs `canon/designs/question-quality-ru
 every screen a founder and a stranger are served in a back-test bundle -- the founder-reader (the entry's `.sources.md`)
 and the respondent-reader (the person the walk took on each link), one call a screen through the `claude` CLI as
 `instructions/judge.py` calls it, Opus 5.5 at medium (`quality/readers.toml`) -- against `quality/RUBRIC.md`
-(`RUBRIC_VERSION` 2 since spec 081: R1 fits here, R2 plain to this person -- the persona block handed before any
-screen, the trade's own words plain to the trade --, R3 about their life, R4 the options, R5 the founder's words kept,
-R6 said aloud on every respondent screen against keel-cloud's spoken-question guidelines §2, §3 and §5 with
-`spoken_pct` beside; §G, the Insights grouping of each follow-up line). `make read-screens RUN=<bundle> [DRY=1]
+(`RUBRIC_VERSION` 3 since spec 109, 2 since spec 081: R1 fits here, R2 plain to this person -- the persona block handed
+before any screen, the trade's own words plain to the trade --, R3 about their life, R4 the options, R5 the founder's
+words kept, R6 said aloud on every respondent screen against keel-cloud's spoken-question guidelines §2, §3 and §5 with
+`spoken_pct` beside; §G, the Insights grouping of each follow-up line; §B, after the answers -- the study's stage page,
+each dimension card opened with its chart and the Insights screen, shot by the back-test walk once the answers settle
+and read by the founder-reader on B1-B6, `after_pct` beside). `make read-screens RUN=<bundle> [DRY=1]
 [LIMIT=n] [ONLY=text]` (paid) writes the committed score file
-`quality/scores/<entry>/<yyyymmdd>-<scope>-r2-<cloud7>-v<routing>-<reader>.json`;
+`quality/scores/<entry>/<yyyymmdd>-<scope>-r<RUBRIC_VERSION>-<cloud7>-v<routing>-<reader>.json`;
 `make read-table [BASELINE=1]` (free) writes `quality/TABLE.md` -- the overall `score_pct` against the founder's bar of
 **90%**, weak rows with their fix location, the trend -- and the comparison with `quality/BASELINE.md`. `read` joins the
 marks as a kind beside `no_leak` (calls 121-123): reported in every scorecard from the latest committed score file at

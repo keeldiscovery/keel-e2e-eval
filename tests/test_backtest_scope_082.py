@@ -338,11 +338,15 @@ def test_a_whole_cycle_says_so_and_names_no_move(tmp_path):
     assert data["walks"]["moved"] == [] and "moved mid-cycle" not in text
 
 
-def test_cycle_1_is_read_from_its_studies_and_score_files_and_never_rewritten():
+def test_cycle_1_is_read_from_its_studies_and_score_files_and_never_rewritten(monkeypatch):
     """FR-3: the record of cycle 1 is not rewritten (it carries no `walks`); TABLE.md's head reads the same facts from
     its studies and its score files' headers -- 2 of 15 walks, 13 stopped, keel-cloud 88bfce8 -> f7b0e05 at 10-palus
-    COMMERCIAL."""
+    COMMERCIAL. Spec 109: cycle 1 was read at rubric version 2 and the rubric is at 3, so its table is rendered at its
+    own version (a version-2 file is set aside at 3, never compared)."""
+    from quality import rubric                                         # noqa: PLC0415
     record = cycle.load_record(CYCLE_1)
+    assert record["rubric_version"] == 2
+    monkeypatch.setattr(rubric, "RUBRIC_VERSION", 2)
     assert "walks" not in record and "moved mid-cycle" not in CYCLE_1.read_text(encoding="utf-8")
     walks = cycle.table_head(record)["walks"]
     assert (walks["walks"], walks["ended"], len(walks["stopped"])) == (15, 2, 13)

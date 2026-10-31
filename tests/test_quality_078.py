@@ -4,8 +4,9 @@ baseline, the refusals and the `read` mark kind -- with no model, no stack and n
 Every reader call here goes to a fake runner standing where `subprocess.run` would be; the fixtures are a hand-sized
 bundle and entry (`tests/fixtures/quality/bundle`, `entries/99-fixture.*`) and four score files over two entries and
 two rubric versions (`tests/fixtures/quality/scores/`): `aa-alpha` has two files (the trend), `bb-beta` one at rubric
-version 2 and one at version 3 -- set aside by the table, and refused when anything asks to average it with the rest.
-Spec 081 moved every fixture to rubric version 2 (R6 2 on every respondent screen, the persona and guidelines header);
+version 3 and one at version 2 -- set aside by the table, and refused when anything asks to average it with the rest.
+Spec 081 moved every fixture to rubric version 2 (R6 2 on every respondent screen, the persona and guidelines header),
+and spec 109 to version 3 (its §B screens are `tests/fixtures/quality/after-screens.json`'s, merged in by its tests);
 the runner reads the guidelines from `tests/fixtures/quality/keel-cloud/` here, never the sibling checkout.
 """
 
@@ -89,7 +90,7 @@ def _run(w, *extra):
 # --------------------------------------------------------------------------------------- FR-1 the rubric
 
 def test_the_rubric_file_says_its_version_and_the_constant_agrees():
-    assert rubric.RUBRIC_VERSION == 2 == rubric.file_version()
+    assert rubric.RUBRIC_VERSION == 3 == rubric.file_version()           # spec 109 (was 2, spec 081)
     assert rubric.RETIRED == {1: rubric.RETIRED[1]} and "R6" in rubric.RETIRED[1]
 
 
@@ -252,9 +253,9 @@ def test_a_run_writes_one_score_file_named_by_scope_and_it_round_trips(wired, ca
     files = list(wired.scores.glob("99-fixture/*.json"))
     assert len(files) == 1
     name = files[0].name
-    assert re.fullmatch(r"\d{8}-PROBLEM-r2-abcdef1-v13-claude-opus-5-5\.json", name), name
+    assert re.fullmatch(r"\d{8}-PROBLEM-r3-abcdef1-v13-claude-opus-5-5\.json", name), name
     obj = rubric.load_file(files[0])
-    assert obj["entry"] == "99-fixture" and obj["scope"] == "PROBLEM" and obj["rubric_version"] == 2
+    assert obj["entry"] == "99-fixture" and obj["scope"] == "PROBLEM" and obj["rubric_version"] == 3
     assert obj["cloud_sha"] == "abcdef12" and obj["web_sha"] == "1234567" and obj["routing_version"] == "13"
     assert obj["reader"] == {"model": "claude-opus-5-5", "effort": "medium", "vendor": "anthropic",
                              "door": "claude CLI"}
@@ -367,7 +368,7 @@ def test_the_runner_reads_no_key():
 def test_the_table_reads_the_latest_file_per_study_and_sets_the_other_version_aside():
     files = table.load_scores(SCORES)
     current, aside = table.split_by_version(files)
-    assert [Path(f["_path"]).name for f in aside] == ["20261030-PROBLEM-r3-abcdef1-v13-claude-opus-5-5.json"]
+    assert [Path(f["_path"]).name for f in aside] == ["20261030-PROBLEM-r2-abcdef1-v13-claude-opus-5-5.json"]
     latest = table.latest_per_entry(current)
     assert list(latest) == ["aa-alpha · PROBLEM", "bb-beta · PROBLEM"]
     assert latest["aa-alpha · PROBLEM"]["cloud_sha"] == "bcdef12", "the newer of aa-alpha's two"
@@ -433,7 +434,7 @@ def test_a_baseline_cut_compares_same_with_itself_and_worse_when_a_row_turns_wea
     table.cut_baseline(table.load_scores(root), None, path=base, archive_dir=tmp_path / "baselines",
                        today="2026-10-28")
     data = table.read_baseline(base)
-    assert data["studies"] == ["aa-alpha · PROBLEM", "bb-beta · PROBLEM"] and data["rubric_version"] == 2
+    assert data["studies"] == ["aa-alpha · PROBLEM", "bb-beta · PROBLEM"] and data["rubric_version"] == 3
     current, _ = table.split_by_version(table.load_scores(root))
     assert table.compare(data, table.latest_per_entry(current))["verdict"] == "same"
     # a later file for bb-beta where the founder's prevalence screen falls to 0 twice over: worse
@@ -442,7 +443,7 @@ def test_a_baseline_cut_compares_same_with_itself_and_worse_when_a_row_turns_wea
         if s["audience"] == "founder":
             s.update(r2=0, r3=0)
     newer["scored_at"] = "2026-10-31T12:00:00+00:00"
-    (root / "bb-beta" / "20261031-PROBLEM-r2-abcdef1-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
+    (root / "bb-beta" / "20261031-PROBLEM-r3-abcdef1-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
     current, _ = table.split_by_version(table.load_scores(root))
     result = table.compare(data, table.latest_per_entry(current))
     assert result["verdict"] == "worse" and "PROBLEM · founder · problem.prevalence · q" in result["why"]
@@ -459,7 +460,7 @@ def test_a_baseline_compares_like_with_like_and_better_when_a_weak_row_mends(tmp
         s.update({c: 2 for c in rubric.CRITERIA if s[c] is not None})
     newer["insights"][0].update(g1=2)
     newer["scored_at"] = "2026-10-31T12:00:00+00:00"
-    (root / "aa-alpha" / "20261031-PROBLEM-r2-bcdef12-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
+    (root / "aa-alpha" / "20261031-PROBLEM-r3-bcdef12-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
     current, _ = table.split_by_version(table.load_scores(root))
     result = table.compare(data, table.latest_per_entry(current))
     assert result["verdict"] == "better"
@@ -478,7 +479,7 @@ def test_a_new_cut_keeps_the_old_baseline(tmp_path):
 def test_a_baseline_at_another_rubric_version_is_refused(tmp_path):
     base = tmp_path / "BASELINE.md"
     table.cut_baseline(table.load_scores(SCORES), None, path=base, today="2026-10-28")
-    base.write_text(base.read_text().replace('"rubric_version": 2', '"rubric_version": 3'))
+    base.write_text(base.read_text().replace('"rubric_version": 3', '"rubric_version": 2'))
     with pytest.raises(table.TableRefused, match="never compared"):
         table.read_baseline(base)
 
@@ -490,15 +491,15 @@ def test_read_is_reported_from_the_latest_score_file_and_not_measured_otherwise(
     assert got["aa-alpha"]["measured"] and got["aa-alpha"]["file"].startswith("20261029-PROBLEM")
     assert got["aa-alpha"]["flagged"] == 1 and got["aa-alpha"]["means"]["r4"] == 1.0
     assert got["aa-alpha"]["insights_pct"] == 75.0 and got["aa-alpha"]["scope"] == "PROBLEM"
-    assert got["bb-beta"]["measured"] and got["bb-beta"]["file"].startswith("20261028-PROBLEM-r2")
+    assert got["bb-beta"]["measured"] and got["bb-beta"]["file"].startswith("20261028-PROBLEM-r3")
     assert got["01-countly"] == {"measured": False, "why": "not measured: no score file for this entry"}
 
 
 def test_read_names_a_score_file_at_another_rubric_version_as_not_measured(tmp_path):
     (tmp_path / "cc-gamma").mkdir()
-    shutil.copy(next(SCORES.glob("bb-beta/*-r3-*.json")), tmp_path / "cc-gamma" / "x.json")
+    shutil.copy(next(SCORES.glob("bb-beta/*-r2-*.json")), tmp_path / "cc-gamma" / "x.json")
     assert marks_mod.read_rows(["cc-gamma"], tmp_path)["cc-gamma"] == {
-        "measured": False, "why": "not measured: rubric version [3], not 2"}
+        "measured": False, "why": "not measured: rubric version [2], not 3"}
 
 
 # ---------------------------------------------------------------------------------- FR-8 nothing else moves

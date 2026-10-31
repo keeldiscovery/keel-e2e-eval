@@ -1,11 +1,12 @@
 # The question-quality rubric
 
-**RUBRIC_VERSION 2** (spec 081, 2026-10-28; version 1 was spec 078's). The design of record is keel-cloud-docs
-`canon/designs/question-quality-rubric-2026-10-28.md` §3 as amended 2026-10-28 (the criteria and their anchors: R2 plain
-to *this* person, R6 said aloud) and §4 (the weak rule); this file is the one source of the criteria --
-`quality/rubric.py` pastes the part between the two `prompt` markers below into both readers' prompts, and the part
-between the two `prompt-r6` markers into the respondent-reader's alone, so a reader can never be scoring a different
-rubric from the one written here.
+**RUBRIC_VERSION 3** (spec 109, 2026-10-31; version 2 was spec 081's, version 1 spec 078's). The design of record is
+keel-cloud-docs `canon/designs/question-quality-rubric-2026-10-28.md` §3 as amended 2026-10-28 (the criteria and their
+anchors: R2 plain to *this* person, R6 said aloud) and §4 (the weak rule), and spec 109 for §B (the screens after the
+answers); this file is the one source of the criteria -- `quality/rubric.py` pastes the part between the two `prompt`
+markers below into both readers' prompts, the part between the two `prompt-r6` markers into the respondent-reader's
+alone, and the part between the two `prompt-b` markers into the founder-reader's prompts for the screens after the
+answers, so a reader can never be scoring a different rubric from the one written here.
 
 **A change to a criterion, an anchor, the booleans, the weak rule or `score_pct` bumps `RUBRIC_VERSION`** (in
 `quality/rubric.py`), and this file says under *Versions* what changed and why -- the pattern of `MARKS_VERSION`.
@@ -78,13 +79,45 @@ the overall) by the same 2 x count arithmetic, with `insights_pct` beside. A bun
 answers records *no grouping to read* (`insights_note`) and is not penalised. In `TABLE.md` the readings are rows of
 their own, one per (scope, dimension), under the *insights* kind, held to the same weak rule.
 
+## §B After the answers (the founder-reader, once per study, after everyone has answered)
+
+The founder, 2026-10-30: *"After everyone has answered, go back to the problem screen and the insight screen, per
+project, and ask: does it make sense?"* Once the last person's answers are in and the standings have settled, the
+back-test walk opens the study's stage page (`/p/{id}/s/{STAGE}`: the verdict and one card per dimension), opens each
+dimension's card in turn (the card with its chart), and opens the Insights screen (`/p/{id}#insights`) -- the kinds
+`stage`, `dimension` and `insights-screen` (spec 109 FR-1). The founder-reader reads each as the founder who typed the
+project: the persona block it already has, and the beliefs it checked on the way in.
+
+<!-- prompt-b:begin -->
+| # | Criterion | 2 | 1 | 0 |
+|---|---|---|---|---|
+| B1 | **I know the answer and why.** The verdict (held / did not hold / insight) is stated, and the number that decides it is on the screen beside it. | both | one, or the number is there but not tied to the verdict | neither, or they disagree |
+| B2 | **The chart reads at a glance.** What is counted, over how many people, and where the bar sits are plain on first look. | all three | one needs a second look | I cannot tell what the chart counts |
+| B3 | **It is about my belief, in my words.** The dimension's name and the belief line are the ones I checked on the way in. | yes | reworded but recognisable | not mine |
+| B4 | **I know what to do next.** The screen says what this result means for the idea, concretely. | yes | a generic line | nothing, or wrong |
+| B5 | **Nothing misleads.** No claim beyond the people who answered (n stays visible; a low n is said; a held belief with 3 of 7 is not called strong). | none | one soft overstatement | a claim the data cannot carry |
+| B6 | **Teaches me something I did not type.** The themes and quotes add to what I wrote. | they add to what I wrote | they restate it | noise |
+
+The stage page and each dimension card are scored on B1 to B5. The Insights screen is scored on B1, B3, B4, B5 and
+B6: it draws no chart, so B2 is not scored there, and how the answers were grouped is not read again (the
+respondent-reader's G1 already reads it). Every criterion a screen is scored on is always scored.
+
+`instead`: one line, *what I would have this screen say instead*, in my own words. Empty when I would change
+nothing.
+<!-- prompt-b:end -->
+
+Recorded on the screen's own score, `b1`..`b6` with `why_b1`..`why_b6` (a §B screen carries no `r1`..`r6`; B2 is
+`null` on the Insights screen, B6 on the stage page and the cards), audience `founder`, and **folded into the founder's
+and the overall `score_pct`** by the same 2 x count arithmetic, `after_pct` beside. In `TABLE.md` the screens are rows
+of their own, one per (scope, kind, dimension) under the three kinds, held to the same weak rule.
+
 ## The two booleans (code's, never the reader's)
 
 The founder asked for two flags by name. They are **derived by code** from the reader's scores, so they can never
 disagree with them:
 
-- `out_of_place` = R1 is 0.
-- `looks_stupid` = R2 is 0, R4 is 0 or R6 is 0 (R6 since version 2).
+- `out_of_place` = R1 is 0; on a §B screen, B1 is 0 (version 3).
+- `looks_stupid` = R2 is 0, R4 is 0 or R6 is 0 (R6 since version 2); on a §B screen, B2 or B5 is 0 (version 3).
 
 ## The three whole-flow questions
 
@@ -98,13 +131,16 @@ scored, the reader is shown the whole walk as a compact list and answers:
 
 ## The score as one number
 
-- `score_pct` = (the sum of every r1..r6 given over the screens, plus every g1 and g2 of the insight lines) / (2 x the
-  count of those scores) x 100 -- a `null` R4 (nothing to pick) or R6 (a founder screen) is not a score and is in
-  neither sum; R6 and the insight readings are the respondent-reader's, so they count in the respondent's and the
-  overall `score_pct`, never the founder's.
+- `score_pct` = (the sum of every r1..r6 and b1..b6 given over the screens, plus every g1 and g2 of the insight lines)
+  / (2 x the count of those scores) x 100 -- a `null` R4 (nothing to pick), R6 (a founder screen), B2 (the Insights
+  screen) or B6 (the stage page, a card) is not a score and is in neither sum; R6 and the insight readings are the
+  respondent-reader's, so they count in the respondent's and the overall `score_pct`, never the founder's; B1-B6 are
+  the founder-reader's, so they count in the founder's and the overall, never the respondent's.
 - `spoken_pct` = the same over R6 alone, beside it (version 2), per audience where there is an R6 and overall; the
   head of `TABLE.md` shows it beside `insights_pct`.
 - `insights_pct` = the same over the g1 and g2 alone, beside it. Per audience and overall, on every score file and in `TABLE.md`.
+- `after_pct` = the same over b1..b6 alone, beside it (version 3), per audience where there is a §B screen and overall;
+  the head of `TABLE.md` shows it on the founder's line.
 - `flagged_pct` = the screens with any 0 / the screens scored x 100.
 - **The bar is 90%** (the founder, 2026-10-28): the overall `score_pct` over the latest file of every entry, before
   the remaining entries are walked.
@@ -117,13 +153,14 @@ when, on any one criterion,
 - a 0 was given in **two or more entries**, or
 - the **mean is under 1.5**.
 
-R6 is a criterion like the others under this rule (version 2 did not move the rule). The weak rule is a first guess
-(the design's open item 4) and moves only with a version bump.
+R6 is a criterion like the others under this rule (version 2 did not move the rule), and so is each of B1-B6 on a §B
+row (version 3 did not move it either). The weak rule is a first guess (the design's open item 4) and moves only with a
+version bump.
 
 ## The verdict against the baseline
 
 `make read-table BASELINE=1` compares each row with `BASELINE.md`'s: the deltas (the six criteria; G1 and G2 on an
-insights row), and one verdict line --
+insights row; B1-B6 on a §B row), and one verdict line --
 
 - **worse** when any row is weak now that was not weak in the baseline, or the overall `score_pct` fell by a point or more;
 - **better** when no row became weak and either a weak row stopped being weak or the overall `score_pct` rose by a point
@@ -132,6 +169,17 @@ insights row), and one verdict line --
 
 ## Versions
 
+- **3** (spec 109, 2026-10-31; the founder, 2026-10-30: *"till now we have only been judging the respondent and the
+  founder screens ... we have not been judging the problem and solution screens ... After everyone has answered, go
+  back to the problem screen and the insight screen, per project, and ask: does it make sense?"*):
+  - **§B, after the answers**: the founder-reader scores the study's stage page and each dimension card (B1-B5) and
+    the Insights screen (B1, B3, B4, B5 and B6), read as the founder who typed the project, with the instead line;
+    `out_of_place` gains B1 = 0 and `looks_stupid` B2 or B5 = 0; the B scores fold into the founder's and the overall
+    `score_pct` by the same arithmetic, `after_pct` beside; the weak rule unmoved. Why: the screens the founder reads
+    after the answers -- the verdict, the chart, the Insights -- were never read at all.
+  - **Version-2 files are set aside, never compared and never refused** (cycles 1 to 3 are version 2's, and stay of
+    record): the table, the baseline and the cycle record compare within one version, and cycle 4 is the first at 3.
+    Nothing is re-scored.
 - **2** (spec 081, 2026-10-28; the founder: *"if a question says nautical miles and the person is a mariner, that's
   perfectly fine ... and the rubric should check whether our questions and options are AI-avatar friendly"*), before any
   score file was committed, so nothing is re-scored:

@@ -36,10 +36,12 @@ def _work(**over):
 
 # ------------------------------------------------------------------------------------------ FR-1 the version
 
-def test_the_rubric_is_at_version_2_and_says_what_changed_and_why():
-    assert rubric.RUBRIC_VERSION == 2 == rubric.file_version()
+def test_the_rubric_says_what_version_2_changed_and_why():
+    """Spec 109 moved the rubric to version 3 (its own test, `test_quality_after_109`); version 2's account stands."""
+    assert rubric.RUBRIC_VERSION == 3 == rubric.file_version()
     versions = rubric.rubric_text().split("## Versions", 1)[1]
-    two = versions.split("- **1**", 1)[0]
+    two = versions.split("- **2**", 1)[1].split("- **1**", 1)[0]
+    two = "- **2**" + two
     assert "- **2** (spec 081" in two and "R2 is judged from inside the persona" in two
     assert "R6, said aloud" in two and "persona block is handed before any screen" in two
     assert "nothing is re-scored" in two and "refused by name" in two
@@ -62,14 +64,15 @@ def test_a_score_file_at_version_1_is_refused_by_name_and_the_table_names_its_pa
 def test_a_file_at_another_unretired_version_is_still_set_aside_not_refused():
     files = table.load_scores(SCORES)
     _, aside = table.split_by_version(files)
-    assert [f["rubric_version"] for f in aside] == [3]
+    assert [f["rubric_version"] for f in aside] == [2], "spec 109: version 2 is set aside, never refused"
 
 
-def test_the_fixtures_are_at_version_2_with_r6_on_every_respondent_screen():
+def test_the_fixtures_are_at_the_current_version_with_r6_on_every_respondent_screen():
+    """Spec 081 moved the fixtures to version 2, spec 109 to version 3 (no screen of theirs moved)."""
     paths = sorted(SCORES.glob("*/*.json")) + sorted((Path(__file__).parent / "fixtures" / "quality" / "cycle" /
                                                       "scores").glob("*/*.json"))
-    current = [json.loads(p.read_text()) for p in paths if "-r2-" in p.name]
-    assert len(current) == 7 and all(f["rubric_version"] == 2 for f in current)
+    current = [json.loads(p.read_text()) for p in paths if "-r3-" in p.name]
+    assert len(current) == 7 and all(f["rubric_version"] == 3 for f in current)
     for f in current:
         assert set(f["persona"]) == {"founder", "respondent"} and f["spoken_guidelines"]["sections"] == ["2", "3", "5"]
         for s in f["screens"]:
@@ -261,7 +264,7 @@ def test_the_dry_run_prints_each_persona_block_once_and_r6_in_every_respondent_p
 def _weak_on_r6(tmp_path):
     root = tmp_path / "scores"
     for entry in ("aa-alpha", "bb-beta"):
-        src = next(SCORES.glob(f"{entry}/*-r2-*.json"))
+        src = next(SCORES.glob(f"{entry}/*-r3-*.json"))
         obj = json.loads(src.read_text())
         for s in obj["screens"]:
             if s["audience"] == "respondent" and s["kind"] == "reveal":
@@ -289,6 +292,8 @@ def test_r6_is_a_column_on_respondent_rows_and_a_weak_r6_names_where_it_is_fixed
 
 
 def test_the_committed_table_is_built_at_version_2():
+    """Spec 109: the committed table is cycle 3's, at version 2, until cycle 4 -- the first at version 3 -- commits its
+    score files and builds it again (TABLE.md is never edited by hand)."""
     text = (Path(table.__file__).parent / "TABLE.md").read_text(encoding="utf-8")
     assert "at RUBRIC_VERSION 2." in text and "| R5 | R6 | 0s |" in text
 

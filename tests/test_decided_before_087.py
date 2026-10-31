@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from quality import cycle, decisions as dec, table
+from quality import cycle, decisions as dec, rubric, table
 from tests import test_quality_cycle_079 as c079
 
 REPO = Path(__file__).resolve().parent.parent
@@ -351,7 +351,16 @@ def test_a_proposal_that_does_not_say_what_it_reopens_is_not_read_when_a_decline
 
 # ------------------------------------------------------------------------------------------------ the acceptance
 
-def test_the_dry_advise_on_cycle_f48f256_snoozes_every_weak_row_and_sends_nothing(capsys, tmp_path):
+@pytest.fixture
+def at_the_records_version(monkeypatch):
+    """Spec 109: cycle 20261028-f48f256 was read at rubric version 2, and the rubric is at 3 -- a cycle is advised at
+    the version it was read at (`cycle.cycle_files` refuses a mix), so its decisions are read at 2 here."""
+    assert cycle.load_record(F48)["rubric_version"] == 2
+    monkeypatch.setattr(rubric, "RUBRIC_VERSION", 2)
+
+
+def test_the_dry_advise_on_cycle_f48f256_snoozes_every_weak_row_and_sends_nothing(capsys, tmp_path,
+                                                                                    at_the_records_version):
     """The acceptance: every weak row of cycle 20261028-f48f256 is snoozed under a decision of 2026-10-29 (the whole
     page was decided), each by a decision that names its advice number, and nothing is sent. Spec 085 FR-4: read on the
     file as it was written (no `merged` mark yet); the file of record, with eight marked since, is the next test's."""
@@ -373,7 +382,7 @@ def test_the_dry_advise_on_cycle_f48f256_snoozes_every_weak_row_and_sends_nothin
     assert "cycle 20261028-f48f256: 62 weak row(s), every one decided before" in said and "[1/" not in said
 
 
-def test_a_merged_decision_ends_its_snooze_on_the_file_of_record(capsys):
+def test_a_merged_decision_ends_its_snooze_on_the_file_of_record(capsys, at_the_records_version):
     """Spec 085 FR-4 (087 FR-2's `until = "spec-merged"`): with the eight `merged` marks of master, the rows decided only
     by a merged spec are sent to the adviser again (45 prompts, none made on a dry run) and the 17 decided by a
     declined, held or unmerged entry stay snoozed -- each listed by an entry still active. Re-pinned 2026-10-30: the

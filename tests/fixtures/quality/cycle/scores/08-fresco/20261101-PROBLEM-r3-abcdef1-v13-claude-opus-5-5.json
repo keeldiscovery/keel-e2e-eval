@@ -5,7 +5,7 @@
   "cloud_sha": "abcdef1",
   "web_sha": "1234567",
   "routing_version": "13",
-  "rubric_version": 2,
+  "rubric_version": 3,
   "persona": {
     "founder": "(fixture) 08-fresco's sources and context",
     "respondent": {
