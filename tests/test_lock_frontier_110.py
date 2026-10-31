@@ -565,7 +565,8 @@ def test_a_golden_entrys_problem_is_its_own_prevalence_clause():
 
 def test_a_backtest_entry_is_screened_on_respondent_part_one(tmp_path):
     root = _checkout_110(tmp_path)
-    assert screen_mod.BACKTEST_SCREENS[-1] == "RESPONDENT_QUESTIONS"
+    # spec 112 FR-3: the founder-lists redrafts joined after it (was the last of the four)
+    assert screen_mod.BACKTEST_SCREENS[-2:] == ("RESPONDENT_QUESTIONS", "CALIBRATION_QUESTIONS")
     extras = screen_mod.load(root, "08-fixture-bt/RESPONDENT")
     cases = screen_mod.build_cases(extras, fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime,
                                    needle="08-fixture-bt/RESPONDENT", n_runs=2)

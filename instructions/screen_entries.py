@@ -47,10 +47,15 @@ from . import prompts as prompts_mod
 SOURCE_BACKTEST = "backtest"
 SOURCE_PROBE = "probe"
 
-#: The screens a back-test entry is screened on: the three that read the founder's typed context and seeds, and since
-#: spec 110 (keel-cloud 170 FR-7) the respondent job's part 1 -- the gate, written from the founder's `problem`.
+#: The screens a back-test entry is screened on: the three that read the founder's typed context and seeds, since
+#: spec 110 (keel-cloud 170 FR-7) the respondent job's part 1 -- the gate, written from the founder's `problem` -- and
+#: since spec 112 (keel-cloud 171 FR-6) the founder-lists job's redraft of each list the entry typed, handed its Answer.
 BACKTEST_SCREENS = (contract_mod.SCREEN_CONTEXT_INTERPRET, contract_mod.SCREEN_PROBLEM_INTERPRET,
-                    contract_mod.SCREEN_SOLUTION_MECHANISM, contract_mod.SCREEN_RESPONDENT)
+                    contract_mod.SCREEN_SOLUTION_MECHANISM, contract_mod.SCREEN_RESPONDENT,
+                    contract_mod.SCREEN_CALIBRATION)
+#: Spec 112 FR-3: the mark a back-test entry's Adoption friction redraft is held to (keel-cloud 171 FR-6's acceptance).
+STEPS_MARK = "171"
+STEPS_KEY = "solution.adoption_friction"
 #: The respondent part a back-test entry and a respondent probe are screened on (`<id>/RESPONDENT_PART1`).
 RESPONDENT_PART = 1
 #: The screens a probe may name (keel-cloud 169: the frame class; keel-cloud 170: the respondent job).
@@ -351,7 +356,10 @@ def respondent_probe_mark(probe_id: str, plant: RespondentPlant, *, outcome, res
 
 
 def probe_line(mark: dict) -> str:
-    """The console's line beside a probe case."""
+    """The console's line beside a probe case (and, spec 112 FR-3, a back-test case's 171 mark)."""
+    if mark["held"] and mark.get("mark") == STEPS_MARK:
+        tail = f"; Keel suggested {mark['suggested'][0]['label']!r}" if mark.get("suggested") else ", none suggested"
+        return f"  171 held: the founder's {len(mark['typed'])} efforts first, as typed{tail}"
     if mark["held"] and "event" in mark:
         return f"  probe held: the gate's event says no verdict and keeps the object -- {mark['framed'] or mark['event']}"
     if mark["held"]:
@@ -495,6 +503,125 @@ def backtest_respondent_cases(entry, exported, instructions_by_screen, executor_
                              instructions_by_screen, executor_module, n_runs=n_runs, host=host)
 
 
+def redraft_context(entry, vector: str, key: str, answer: str, registry, keys) -> dict:
+    """Spec 112 FR-3 (keel-cloud 087 judgement call 8, `ScreenContextBuilder`'s CALIBRATION_QUESTIONS): the redraft job
+    of one list dimension -- the seed-time job (`context.build_calibration`) with `dimensions` cut to that one and
+    `answers` the founder's typed Answer for it, `{key: answer}`. Before this spec no screen handed the writer an
+    Answer (`answers` was always `{}`), so keel-cloud 171's *the founder's efforts first* could not be screened."""
+    context = context_mod.build_calibration(entry, vector, registry, keys)
+    if "dimensions" in context:
+        context["dimensions"] = [d for d in context.get("dimensions") or [] if d.get("key") == key]
+    if "answers" in context:
+        context["answers"] = {key: answer}
+    return context
+
+
+def brand_names(entry) -> list[str]:
+    """Spec 112 FR-3: the names an `asked` clause must never carry (keel-cloud 171 FR-4: *no idea, company or product
+    name*) -- the entry's own name (its title before the dash, *Codyco*), the idea's short name and the offer's name
+    where the entry records them."""
+    title = str(getattr(entry, "title", "") or "")
+    names = [title.split(" \u2014 ")[0].strip()] if " \u2014 " in title else []
+    names += [n for n in (context_mod.short_name_of(entry), context_mod.offer_name_of(entry)) if n]
+    out = []
+    for name in names:
+        if name and name.lower() not in [o.lower() for o in out]:
+            out.append(name)
+    return out
+
+
+def backtest_calibration_cases(entry, exported, instructions_by_screen, executor_module, *, n_runs, host) -> list:
+    """Spec 112 FR-3 (keel-cloud 171 FR-6): a back-test entry's `CALIBRATION_QUESTIONS` redraft of every list
+    dimension it typed an Answer for (the walk's own words, `vectors_script.calibration_answers`' `text`), one case a
+    dimension -- `<id>/CALIBRATION_<VECTOR>/<DIMENSION>/run<N>`, so `-k 21-codyco/CALIBRATION_SOLUTION` names the
+    vector's and `.../ADOPTION_FRICTION` the one. Adoption friction's carries its 171 mark row (`meta["steps"]`): the
+    typed efforts in their order and the names no `asked` may say. Rendered and validated, never scored."""
+    from harness import vectors_script as vs                               # noqa: PLC0415
+    registry = getattr(exported, "registry", None) or entry.registry
+    keys = exported.keys_for(contract_mod.SCREEN_CALIBRATION)
+    screen = contract_mod.SCREEN_CALIBRATION
+    cases = []
+    for vector in context_mod.VECTORS:
+        if vector not in vs.scope_vectors(entry):
+            continue
+        for answer in vs.calibration_answers(entry, vector):
+            key = answer.dimension
+            if not vs.is_list(key) or answer.unsure or not (answer.text or "").strip():
+                continue
+            context = redraft_context(entry, vector, key, answer.text, registry, keys)
+            subject = key.split(".", 1)[-1].upper()
+            meta = {"source": SOURCE_BACKTEST, "vector": vector, "dimension": key, "registry_slice": [key],
+                    "answer": answer.text, "short_name": context_mod.short_name_of(entry),
+                    "offer_name": context_mod.offer_name_of(entry),
+                    "validation_mechanism": context_mod.validation_mechanism(entry),
+                    "validation_problem_statement": context_mod.problem_statement(entry)}
+            if key == STEPS_KEY:
+                meta["steps"] = {"mark": STEPS_MARK, "dimension": key, "typed": answer.text.split("; "),
+                                 "names": brand_names(entry)}
+            payload = prompts_mod.payload_for(instructions_by_screen.get(screen), context,
+                                              exported.for_screen(screen))
+            for run_index in range(1, n_runs + 1):
+                case = prompts_mod.Case(case_id=f"{entry.id}/CALIBRATION_{vector}/{subject}/run{run_index}",
+                                        kind="CALIBRATION", entry_id=entry.id, screen=screen,
+                                        subject=f"{vector}/{subject}", run_index=run_index, payload=payload,
+                                        meta=dict(meta))
+                case.prompt = prompts_mod.render(executor_module, payload, job_id=prompts_mod._slug(case.case_id),
+                                                 host=host)
+                cases.append(case)
+    return cases
+
+
+def _named(name: str, text: str) -> bool:
+    return bool(re.search(r"(?<![\w'])" + re.escape(name) + r"(?![\w])", text or "", re.IGNORECASE))
+
+
+def steps_mark(entry_id: str, row: dict, *, outcome, result) -> dict:
+    """Spec 112 FR-3, keel-cloud 171 FR-6's acceptance on one back-test Adoption friction redraft's first turn:
+    COMPLETED, one `solution.adoption_friction` question, its draft **the founder's efforts first and as typed** (the
+    first rows the typed labels word for word, in their order, and no other unmarked row), **at most one `suggested`
+    row, last, with a `suggested_why`**, and **no brand in any `asked`** (`row["names"]`, whole words, any case).
+    Mechanical: whether the suggestion fits this actor (another role's step, one the idea removes, one with no footing)
+    is recorded for a reader -- `suggested`, each clause's words -- never judged here; the 10-word clause is the
+    registry's option rule, recorded (`clause_words`), the frame's `K2` the validator's."""
+    from . import spoken as spoken_mod                                      # noqa: PLC0415
+    typed, names = list(row.get("typed") or []), list(row.get("names") or [])
+    faults, items = [], []
+    if outcome != "COMPLETED":
+        faults.append(f"the first turn is {outcome or 'no outcome'}, not COMPLETED")
+    else:
+        result = result if isinstance(result, dict) else {}
+        drafted = [q for q in result.get("questions") or [] if isinstance(q, dict) and q.get("key") == STEPS_KEY]
+        if len(drafted) != 1:
+            faults.append(f"{len(drafted)} {STEPS_KEY} questions, not one")
+        else:
+            items = [i for i in ((drafted[0].get("list") or {}).get("items") or []) if isinstance(i, dict)]
+            labels = [str(i.get("label") or "") for i in items]
+            if labels[:len(typed)] != typed:
+                faults.append(f"the founder's efforts are not first and as typed: drafted {labels!r}, typed {typed!r}")
+            unmarked = [str(i.get("label") or "") for i in items if not i.get("suggested")
+                        and str(i.get("label") or "") not in typed]
+            if unmarked:
+                faults.append(f"a row the founder did not type is not marked suggested: {unmarked!r}")
+            marked = [n for n, i in enumerate(items) if i.get("suggested")]
+            if len(marked) > 1:
+                faults.append(f"{len(marked)} suggested rows; at most one")
+            if marked and marked[-1] != len(items) - 1:
+                faults.append(f"the suggested row {labels[marked[-1]]!r} is not last")
+            for n in marked:
+                if not str(items[n].get("suggested_why") or "").strip():
+                    faults.append(f"the suggested row {labels[n]!r} carries no suggested_why")
+            for n, item in enumerate(items):
+                said = [name for name in names if _named(name, str(item.get("asked") or ""))]
+                if said:
+                    faults.append(f"item {n + 1}'s asked {item.get('asked')!r} names {said!r}")
+    suggested = [{"label": i.get("label"), "why": i.get("suggested_why")} for i in items if i.get("suggested")]
+    return {"entry": entry_id, "screen": contract_mod.SCREEN_CALIBRATION, "mark": STEPS_MARK,
+            "dimension": STEPS_KEY, "typed": typed, "drafted": [i.get("label") for i in items],
+            "suggested": suggested, "names": names,
+            "clause_words": [spoken_mod.words(i.get("asked")) for i in items],
+            "outcome": outcome, "held": not faults, "faults": faults}
+
+
 def respondent_probe_context(probe: Probe, registry, keys) -> dict:
     """A respondent probe's `job_context` as the job is handed it: the export's keys in their order, each item filled
     with the registry's respondent fields and the window the way `context.respondent_item` / `fill_window` fill them; a
@@ -527,11 +654,14 @@ def build_cases(entries: ScreenEntries, exported, instructions_by_screen, execut
     carries its plant (`meta["probe"]`), which `probe_mark` reads."""
     cases = []
     for entry in entries.backtest:
-        frames = [s for s in BACKTEST_SCREENS if s != contract_mod.SCREEN_RESPONDENT]
+        frames = [s for s in BACKTEST_SCREENS
+                  if s not in (contract_mod.SCREEN_RESPONDENT, contract_mod.SCREEN_CALIBRATION)]
         cases += _frame_cases(entry, frames, exported, instructions_by_screen, executor_module,
                               n_runs=n_runs, host=host, meta_for=lambda screen: {"source": SOURCE_BACKTEST})
         cases += backtest_respondent_cases(entry, exported, instructions_by_screen, executor_module,
                                            n_runs=n_runs, host=host)
+        cases += backtest_calibration_cases(entry, exported, instructions_by_screen, executor_module,
+                                            n_runs=n_runs, host=host)
     for probe in entries.probes:
         if probe.respondent():
             cases += probe_respondent_cases(probe, exported, instructions_by_screen, executor_module,
@@ -558,3 +688,9 @@ def plant_of(case):
         return RespondentPlant(**{**row, "planted": tuple(row["planted"]), "verdict_words": tuple(row["verdict_words"]),
                                   "keeps": tuple(row["keeps"])})
     return Plant(**row)
+
+
+def steps_row_of(case):
+    """Spec 112 FR-3: a back-test Adoption friction redraft's 171 mark row, else None."""
+    meta = getattr(case, "meta", None) or {}
+    return meta.get("steps") if meta.get("source") == SOURCE_BACKTEST else None

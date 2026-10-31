@@ -238,12 +238,18 @@ def test_the_needle_names_a_backtest_entry_and_builds_its_three_interpretation_s
                                    needle="08-fixture-bt", n_runs=2)
     # spec 110 FR-4 (keel-cloud 170 FR-7): the respondent job's part 1 joins the three, named as the golden corpus
     # names it (`<id>/RESPONDENT_PART1`), its meta the validator's (part, link, plan) beside the source
-    frames = [s for s in screen_mod.BACKTEST_SCREENS if s != "RESPONDENT_QUESTIONS"]
-    assert [c.case_id for c in cases] == [f"08-fixture-bt/{s}/run{n}" for s in frames for n in (1, 2)] + [
+    frames = [s for s in screen_mod.BACKTEST_SCREENS if s not in ("RESPONDENT_QUESTIONS", "CALIBRATION_QUESTIONS")]
+    # spec 112 FR-3 (keel-cloud 171 FR-6): then each list the entry typed, redrafted with its Answer
+    # (`<id>/CALIBRATION_<VECTOR>/<DIMENSION>/run<N>`, `tests/test_adoption_steps_112.py`) -- was the four alone
+    redrafts = [c for c in cases if c.kind == "CALIBRATION"]
+    assert [c.case_id for c in cases if c.kind != "CALIBRATION"] == [
+        f"08-fixture-bt/{s}/run{n}" for s in frames for n in (1, 2)] + [
         f"08-fixture-bt/RESPONDENT_PART1/run{n}" for n in (1, 2)]
-    assert {c.kind for c in cases} == {"CONTEXT", "FRAME", "RESPONDENT"}
+    assert redrafts and cases[-len(redrafts):] == redrafts
+    assert all(c.case_id.startswith("08-fixture-bt/CALIBRATION_") for c in redrafts)
+    assert {c.kind for c in cases} == {"CONTEXT", "FRAME", "RESPONDENT", "CALIBRATION"}
     assert all(c.meta["source"] == "backtest" and screen_mod.is_extra(c) for c in cases)
-    assert all(c.meta == {"source": "backtest"} for c in cases if c.kind != "RESPONDENT")
+    assert all(c.meta == {"source": "backtest"} for c in cases if c.kind not in ("RESPONDENT", "CALIBRATION"))
     problem = next(c for c in cases if c.screen == "PROBLEM_INTERPRET")
     assert problem.payload["input"]["content"] == str(fx.raw_entry()["statements"]["problem"])
     only = screen_mod.build_cases(extras, fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime,

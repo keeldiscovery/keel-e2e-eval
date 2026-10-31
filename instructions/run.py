@@ -851,10 +851,15 @@ def _score_probe(case, answer, diff, state) -> dict | None:
     if source:
         diff["source"] = source
     plant = screen_mod.plant_of(case)
-    if plant is None:
+    steps = screen_mod.steps_row_of(case)
+    if plant is None and steps is None:
         return None
-    mark = screen_mod.mark_for(case.entry_id, plant, outcome=answer.outcome, questions=answer.questions,
-                               result=answer.result)
+    if steps is not None:
+        # spec 112 FR-3: a back-test Adoption friction redraft, held to keel-cloud 171's acceptance off its first turn
+        mark = screen_mod.steps_mark(case.entry_id, steps, outcome=answer.outcome, result=answer.result)
+    else:
+        mark = screen_mod.mark_for(case.entry_id, plant, outcome=answer.outcome, questions=answer.questions,
+                                   result=answer.result)
     mark = {"case_id": case.case_id, "run_index": case.run_index, **mark}
     diff["probe"] = mark
     diff["failed"] = diff.get("failed") or (None if mark["held"] else "probe: " + "; ".join(mark["faults"]))
