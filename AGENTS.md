@@ -913,6 +913,29 @@ pin). Money alone's no-line guard stands either way. `make unit` 4,604 passed / 
 (+31 tests, all `tests/test_lock_walk_pilot_114.py`). The 11 are keel-cloud-docs 174's (the registry's Purchase friction
 escape `cant_tell` against the corpus's `cant_recall`), the same on master, not this spec's.
 
+**The harness reads keel-cloud 174's seven template and frame rules** (spec `115-the-harness-reads-the-seven-templates`,
+2026-10-31; keel-cloud-docs `e68c0de4`). **FR-0 first**: 174 gave Purchase friction the escape `cant_tell`; revision 19
+records `cant_recall` there (19 entries, Transload's one chip) and is never rewritten -- the reader reads it through
+**one rule**, `corpus.spec174_escape` (`recorded_escape_is` holds rules R and A; a registry before 174 still reads its
+own `cant_recall`), the walk reads its chip through it and `vectors_script.served_escape_picks` sends the code served
+(172's pattern, named where a build before 174 serves `CANT_RECALL`). The slice says 174's words (Frequency's *a typical
+{actor}*, the Importance / Compatibility / Purchase friction templates, the escape, Commitment's
+`belief_template_decider`, held to one `{value}`); `corpus.spec174_reads` is `VectorCorpusFixture.spec174Reads` after
+173's rule (*In most cases the {role} would {step} now.* where someone else decides, Importance's two sentences, *For
+most {actor_plural}, ...*, *... can slow or stop the purchase.*) and `engine_belief` reads every row through it -- the
+Keel-will-test box, the review rows and Importance's own list saved again; the box counts *have {n} things that are
+hard*. A fact is served the registry's four (`spoken.FACT_ANSWERS`; 128's `FACT_ANSWERS_128` on stored items) and said
+back by its condition (`spoken.is_fact`, `ItemFrames.fact`): *You said only with help or approval: {fact}.* Frequency
+keeps its unit (`window_first`: *in how many* weeks and months, a two-word unit said short; `frequency_held` never drops
+it) and the voice says *Say a number from 1 to N.* past five (`spoken.count_answer_line`); Adoption friction's *Only
+if* yes is said back *... What would have to happen for that to be true?* (`interviewer_fake.only_if_said_back`, read by
+`follow_up_question`). The gallery's Fresco run stays in its recorded frame. `MARKS_VERSION` 24 stands. `make unit`
+4,682 passed / 0 failed / 0 errors / 63 skipped (master `6549dfb` 4,604 / 6 / 5 / 54, the eleven 174's; +76, all
+`tests/test_seven_templates_115.py`) against keel-cloud-docs `ab5b15ef` (177 merged) and keel-web `7ac4d71` (148);
+keel-cloud-docs' checkout has a fresh spoken record and no `build/brief-facts`, so the record's tests skip by name
+(`v9_fixtures.skip_without_brief_facts`) -- with both files, `test_the_corpus_record_keeps_every_rule_...` fails on spec
+112's five Adoption `K2`s (104 of 109), not 174's (tasks.md).
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
