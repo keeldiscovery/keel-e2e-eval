@@ -5,6 +5,8 @@ quoted here is 131's own (its tasks.md, `AfterTheRerunsOn130Test`) or the 2026-1
 
 from __future__ import annotations
 
+import dataclasses
+import re
 from pathlib import Path
 
 import pytest
@@ -30,6 +32,26 @@ def _backtest(entry_id: str):
     return corpus_mod.load_file(path, registry=fx.registry(), backtest=True)
 
 
+def keels_words(entry, *words):
+    """Spec 107 FR-3 (keel-cloud 175): the entry with `words` cut from the founder's own texts (the context's typed
+    fields, the two seeds), so the walk meets them as Keel's words -- the only words the lock still refuses for M5.
+    keel-cloud's own re-pin of spec 121's Karsa case walks *a Karsa seed without the two trade words* the same way."""
+    def cut(text):
+        if not isinstance(text, str):
+            return text
+        for word in words:
+            text = re.sub(r"(?i)(?<![\w-])" + re.escape(word) + r"(?![\w-])", "", text)
+        return text
+    out = dataclasses.replace(entry, statements={k: cut(v) for k, v in (entry.statements or {}).items()},
+                              context={k: cut(v) for k, v in (entry.context or {}).items()})
+    assert not any(corpus_mod.typed_in(w, corpus_mod.founder_texts(out)) for w in words), words
+    return out
+
+
+def _keels(entry_id: str, *words):
+    return keels_words(_backtest(entry_id), *words)
+
+
 def _refusal_body(line: str, word: str, fault: str = "M5: a trade word") -> dict:
     """`Project.lock`'s refusal as `ProtocolErrorAdvice` serves it (`VectorRefusalBody`: rule, problem, remedy, code)."""
     return {"rule": "lock", "code": "TEXT_REFUSED",
@@ -46,6 +68,8 @@ TRANSLOAD_HOW = ("You and your crew scan barcodes as usual. The software links e
                  "terminal's security camera video, fits a 3D box to it, and compares it with the paperwork.")
 TRANSLOAD_BELIEF = FRAME + "need no change to the dock workflow."
 CODE_FOUR_HOW = "Code Four ties each fact to its clip and adds check words for you to catch. You review and sign."
+#: Spec 107: the M5 words 10-palus's own seeds carry (keel-cloud 175's *eval pins to move*).
+PALUS_WORDS = ("short-duration", "floating-rate", "mortgage bonds", "money market")
 PALUS_HOW = ("The tool puts your long-term reserve into a managed portfolio of short-duration, floating-rate, "
              "government-backed mortgage bonds, held in your company's name at a regulated firm.")
 
@@ -75,20 +99,24 @@ def test_the_m5_mirror_reads_the_cloud_order():
 
 def test_codyco_the_pms_and_its_names_go_in_one_edit():
     """Codyco's *PMS* -> *the hotel's booking system* (the judge's words) and the parenthesised list dropped in the same
-    edit, so the second M5 fault on the line is not a second refusal."""
-    after = corpus_mod.plain_line(_backtest("21-codyco"), "how", CODYCO_HOW, "PMS")
+    edit, so the second M5 fault on the line is not a second refusal. Re-pinned by spec 107 FR-3: Codyco's own seed
+    types *PMS*, which keel-cloud 175 never refuses, so the row is walked where the word is Keel's (`keels_words`)."""
+    after = corpus_mod.plain_line(_keels("21-codyco", "PMS"), "how", CODYCO_HOW, "PMS")
     assert after.endswith("writes the confirmed booking into the hotel's booking system.")
     assert corpus_mod.m5_faults({"how": after}) == []
 
 
 def test_the_entries_own_plain_words():
-    """Transload's *3D box*, Code Four's coined *check words*, Palus's bond phrase: each entry's own plain phrase."""
-    transload = corpus_mod.plain_line(_backtest("12-transload"), "how", TRANSLOAD_HOW, "3D box")
+    """Transload's *3D box*, Code Four's coined *check words*, Palus's bond phrase: each entry's own plain phrase.
+    Re-pinned by spec 107 FR-3: each is its own seed's word, never refused since keel-cloud 175, so the rows are walked
+    where Keel brought the word in (`keels_words`); `test_founders_own_words_107` holds the seeds' own words kept."""
+    transload = corpus_mod.plain_line(_keels("12-transload", "3D box"), "how", TRANSLOAD_HOW, "3D box")
     assert "measures the freight from the video" in transload and "3D" not in transload
-    code_four = corpus_mod.plain_line(_backtest("14-code-four"), "how", CODE_FOUR_HOW, "check words")
+    code_four = corpus_mod.plain_line(_keels("14-code-four", "check words"), "how", CODE_FOUR_HOW,
+                                     "check words")
     assert code_four == ("Code Four ties each fact to its clip and adds a few planted mistakes for you to catch. "
                          "You review and sign.")
-    palus = corpus_mod.plain_line(_backtest("10-palus"), "how", PALUS_HOW, "short-duration")
+    palus = corpus_mod.plain_line(_keels("10-palus", *PALUS_WORDS), "how", PALUS_HOW, "short-duration")
     assert "a managed portfolio of short-term government-backed bonds, held in" in palus
     for after in (transload, code_four, palus):
         assert corpus_mod.m5_faults({"how": after}) == [], after
@@ -166,8 +194,9 @@ class _Card:
 def test_a_stubbed_422_then_a_second_pass_200():
     """Codyco: the lock refused on *PMS*, the how line edited once, the second lock 200 -- one `lock_refused` finding
     with the words before and after. Re-pinned by spec 096 FR-3 (keel-cloud 165 names each line): *how* edits `how`
-    alone; the decision-maker's how line is its own refusal (`test_the_deciders_line_is_its_own_refusal_096`)."""
-    entry = _backtest("21-codyco")
+    alone; the decision-maker's how line is its own refusal (`test_the_deciders_line_is_its_own_refusal_096`).
+    Spec 107 FR-3: on a Codyco seed without *PMS* -- keel-cloud 175 refuses only a word Keel brought in."""
+    entry = _keels("21-codyco", "PMS")
     card = _Card({"how": CODYCO_HOW, "howDecider": None, "belief": FRAME + "book the calls that ring out."},
                  [{"status": 200, "receipt": {"version": 1, "questions": {"interactionIds": ["i-1"]}}}])
     out = cs.answer_refused_lock(cs.lock_refusal(422, _refusal_body("how", "PMS")), entry=entry, read_lines=card.read,
@@ -183,8 +212,9 @@ def test_a_stubbed_422_then_a_second_pass_200():
 
 def test_the_deciders_line_is_its_own_refusal_096():
     """Spec 096 FR-3 (keel-cloud 165): the how line refused and edited alone, then *the idea card's decision-maker's how
-    line* refused -- read as `howDecider` and edited alone -- then 200; two findings, one line each."""
-    entry = _backtest("21-codyco")
+    line* refused -- read as `howDecider` and edited alone -- then 200; two findings, one line each. Spec 107 FR-3: on a
+    Codyco seed without *PMS*."""
+    entry = _keels("21-codyco", "PMS")
     decider = "Your agents forward the calls nobody picks up; Codyco writes each booking into the PMS."
     card = _Card({"how": CODYCO_HOW, "howDecider": decider, "belief": FRAME + "book the calls that ring out."},
                  [{"status": 422, "receipt": _refusal_body("decision-maker's how", "PMS")},
@@ -199,8 +229,9 @@ def test_the_deciders_line_is_its_own_refusal_096():
 
 
 def test_two_lines_refused_one_after_the_other():
-    """Transload: *3D box* on how, then the design-note belief -- two refusals on two lines, each edited once."""
-    entry = _backtest("12-transload")
+    """Transload: *3D box* on how, then the design-note belief -- two refusals on two lines, each edited once. Spec 107
+    FR-3: on a Transload seed without *3D box* and *workflow*, the words Keel's."""
+    entry = _keels("12-transload", "3D box", "workflow")
     card = _Card({"how": TRANSLOAD_HOW, "belief": TRANSLOAD_BELIEF},
                  [{"status": 422, "receipt": _refusal_body("belief", "workflow")}, {"status": 200, "receipt": {}}])
     out = cs.answer_refused_lock(cs.lock_refusal(422, _refusal_body("how", "3D box")), entry=entry,

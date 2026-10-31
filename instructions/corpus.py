@@ -1696,10 +1696,38 @@ def _word_pattern(word: str) -> re.Pattern:
     return re.compile(r"(?<![\w-])" + re.escape(word.lower()) + r"(?![\w-])")
 
 
-def m5_faults(lines: dict, audience_words=()) -> list[dict]:
+#: keel-cloud 175 `VectorCorridor.founderTexts()`: the context's TYPED fields -- the four keel-web's context form takes
+#: (`vectors_screens.Corridor.context`; the cloud's `ContextFields.occasion` is never typed by the walk) -- never the
+#: slots CONTEXT_INTERPRET wrote, which are Keel's.
+FOUNDER_CONTEXT_FIELDS = ("actor", "job", "circumstance", "segment")
+
+
+def founder_texts(entry, audience_words=()) -> tuple[str, ...]:
+    """Spec 107 (keel-cloud 175 `VectorCorridor.founderTexts()`): the founder's own texts -- the context's typed fields,
+    the problem seed and the solution seed as the walk types them (`vectors_script.founder_inputs`: whitespace folded),
+    and the idea's audience words. Nothing Keel wrote is here. An object with no `context` / `statements` has none."""
+    ctx = getattr(entry, "context", None) or {}
+    statements = getattr(entry, "statements", None) or {}
+    texts = [ctx.get(k) for k in FOUNDER_CONTEXT_FIELDS] + [statements.get("problem"), statements.get("solution")]
+    texts += list(audience_words or ())
+    return tuple(" ".join(str(t).split()) for t in texts if t is not None and str(t).strip())
+
+
+def typed_in(word: str | None, texts) -> bool:
+    """Spec 107 (keel-cloud 175 `Vocabulary.typedIn`): whether a list's word or phrase stands whole in one of the
+    founder's texts, case aside, with the lists' own boundary (a letter, a digit or a hyphen either side is none): *api*
+    is not typed in *rapid*, *rate* not in *floating-rate*, *floating-rate* not in *floating rate*. No stemming."""
+    if not word or not str(word).strip() or not texts:
+        return False
+    pattern = _word_pattern(str(word).strip())
+    return any(pattern.search(str(t).lower()) for t in texts if t)
+
+
+def m5_faults(lines: dict, audience_words=(), founder_texts=()) -> list[dict]:
     """keel-cloud 131 `RevealWords.m5`, mirrored: per line (how, howDecider, belief, in that order) each M5 word it
-    carries (the founder's audience words exempt), a parenthesis of names, and on the belief a design note -- `{line,
-    word, fault}` in the cloud's order, whose first the lock's `TEXT_REFUSED` names."""
+    carries (the founder's audience words exempt, and since keel-cloud 175 every word typed in `founder_texts`,
+    `typed_in`), a parenthesis of names, and on the belief a design note -- `{line, word, fault}` in the cloud's order,
+    whose first the lock's `TEXT_REFUSED` names. The parenthesis and the design note read the line alone (175 T003)."""
     exempt = {str(w).strip().lower() for w in audience_words or () if w}
     out = []
     for line in _IDEA_LINES:
@@ -1709,7 +1737,7 @@ def m5_faults(lines: dict, audience_words=()) -> list[dict]:
         lower = text.lower()
         for word in M5_WORDS:
             m = _word_pattern(word).search(lower)
-            if m and word not in exempt:
+            if m and word not in exempt and not typed_in(word, founder_texts):
                 out.append({"line": line, "word": text[m.start():m.end()], "fault": "trade word"})
         names = NAMES_IN_PARENTHESES.search(text)
         if names:
@@ -1744,6 +1772,18 @@ LOCK_PLAIN_WORDS: dict[str, tuple[tuple[str, str], ...]] = {
                   ("SAP, Maximo or SharePoint", "the maintenance system"),
                   ("CMMS", "the maintenance system"), ("ERP", "the plant's business system")),
 }
+
+#: Spec 107 (keel-cloud 175): since the lock and the repair turn exempt the founder's own words, most rows above are
+#: their entries' own seeds' words (10-palus's bond phrases, 11-issen's, 12-transload's *3D box*, 14-code-four's *check
+#: words*, 21-codyco's *PMS*) and fire only where Keel brought the word in (`_row_fires`); 16-pairio's *CMMS* / *ERP*
+#: are not in its seed, and its list rows carry no M5 word -- the list of names is a spoken-form rule and stays M5's.
+
+
+def _row_fires(phrase: str, typed) -> bool:
+    """Spec 107 FR-2: a `LOCK_PLAIN_WORDS` row fires unless an M5 word it carries is one the founder typed (`typed_in`):
+    the edit never moves the founder's own word. A row with no M5 word (16-pairio's names) always fires."""
+    lower = phrase.lower()
+    return not any(typed_in(w, typed) for w in M5_WORDS if _word_pattern(w).search(lower))
 
 #: keel-cloud 132 FR-3 (`RevealWords.NAMES_IN_A_LIST`): three or more capitalised names joined by commas and *or* / *and*
 #: on a how or belief line (*SAP, Maximo or SharePoint*). The lock's own remedy offers "keep one name", so the generic
@@ -1794,23 +1834,26 @@ def _tidy(text: str) -> str:
 def plain_line(entry, line: str, text: str | None, word: str | None = None, fix: str | None = None,
                audience_words=()) -> str | None:
     """Spec 070 FR-1 (keel-cloud 131 FR-5): the idea card's line as the founder edits it after the lock refused it --
-    every M5 fault the line carries moved in one edit: the entry's own plain words (`LOCK_PLAIN_WORDS`), then the
+    every M5 fault the line carries moved in one edit -- never a word the founder typed (spec 107, keel-cloud 175:
+    `founder_texts(entry, audience_words)`, `typed_in`) -- the entry's own plain words (`LOCK_PLAIN_WORDS`), then the
     refusal's own suggestion for its word where the fix offers one, a parenthesised list of names dropped, a bare
     list of three or more names cut to its first (keel-cloud 132 FR-3), any M5
     word left by `PLAIN_FALLBACK`, and a design-note belief replaced by the entry's first benefit (*get {benefit}*)
     under the belief's frame. None where the edit would not move the line."""
     before = str(text or "")
     out = before
+    typed = founder_texts(entry, audience_words)
     for phrase, plain in LOCK_PLAIN_WORDS.get(getattr(entry, "id", None) or "", ()):
-        out = _replace(out, phrase, plain)
+        if _row_fires(phrase, typed):
+            out = _replace(out, phrase, plain)
     offered = fix_suggestion(fix, word)
-    if offered and word and _word_pattern(str(word)).search(out.lower()):
+    if offered and word and not typed_in(word, typed) and _word_pattern(str(word)).search(out.lower()):
         out = _replace(out, str(word), offered)
     out = NAMES_IN_PARENTHESES.sub("", out)
     out = NAMES_IN_A_LIST.sub(lambda m: m.group(1), out)
     exempt = {str(w).strip().lower() for w in audience_words or () if w}
     for m5 in M5_WORDS:
-        if m5 not in exempt and _word_pattern(m5).search(out.lower()):
+        if m5 not in exempt and not typed_in(m5, typed) and _word_pattern(m5).search(out.lower()):
             out = _replace(out, m5, PLAIN_FALLBACK.get(m5, ""))
     out = _tidy(out)
     if line == "belief" and DESIGN_NOTE.search(out):
