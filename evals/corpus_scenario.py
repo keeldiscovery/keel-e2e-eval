@@ -1644,6 +1644,8 @@ _MODALS = frozenset({"could", "can", "would", "will"})
 _NOT_CONTENT = frozenset("""a an the to of on in at by for with from into onto over up out off as and or but if so
     that this these those it its they them their theirs there he him his she her we us our you your my me i
     is are was were be been being am s""".split()) | _MODALS
+#: A negation is never folded away: two labels are near only where they carry the same ones (*can't* reads *not*).
+_NEGATIONS = frozenset({"no", "not", "never", "nobody", "none", "nothing", "without"})
 
 
 def _fold(word: str) -> str:
@@ -1651,6 +1653,8 @@ def _fold(word: str) -> str:
     *e* (so *pair* / *paired*, *charge* / *charging*, *glasses* / *glass* fold alike). Short words are kept."""
     if word in _MODALS:
         return "can"
+    if word == "t":
+        return "not"
     for suffix in ("ing", "ed", "s"):
         if word.endswith(suffix) and len(word) - len(suffix) >= 3 and not word.endswith("ss"):
             word = word[:-len(suffix)]
@@ -1659,8 +1663,10 @@ def _fold(word: str) -> str:
 
 
 def _folded_words(label: str) -> list[str]:
-    """A label's words, lowercased, punctuation dropped (an apostrophe splits), each folded."""
-    return [_fold(w) for w in re.findall(r"[a-z0-9]+", (label or "").lower())]
+    """A label's words, lowercased, a possessive *'s* and punctuation dropped (any other apostrophe splits), each
+    folded."""
+    text = re.sub(r"['\u2019]s\b", "", (label or "").lower())
+    return [_fold(w) for w in re.findall(r"[a-z0-9]+", text)]
 
 
 def _content_words(label: str) -> frozenset[str]:
@@ -1672,10 +1678,11 @@ def nearest_rows(want: str, rows: list[str], typed: list[str]) -> list[str]:
     (1) the same words once folded (`_folded_words`); (2) a row carrying every content word of the typed label;
     (3) a row whose content words are all the typed label's and at least half of them (13-aircaps 2026-10-30 drafted
     *Wear the glasses, paired to the phone* as *Pair the glasses to their phone*, which drops *wear*). A row that is
-    another of the founder's typed labels word for word is the founder's own, never a candidate. One row back is the
-    pick; none or more than one, the stop of spec 104 stands."""
-    others = [row for row in rows if row != want and row not in typed]
+    another of the founder's typed labels word for word is the founder's own, never a candidate, nor is a row whose
+    negations differ (*not*, *no*, *never* ...). One row back is the pick; none or more than one, the stop of spec 104 stands."""
     folded, content = _folded_words(want), _content_words(want)
+    others = [row for row in rows if row != want and row not in typed
+              and _content_words(row) & _NEGATIONS == content & _NEGATIONS]
     tiers = (
         lambda row: _folded_words(row) == folded,
         lambda row: bool(content) and content <= _content_words(row),
