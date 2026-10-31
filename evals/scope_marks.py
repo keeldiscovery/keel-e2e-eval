@@ -74,9 +74,11 @@ def decision_by_rule(scope: str, verdicts: dict) -> str:
     return "BUILD_BUT_CHANGE"
 
 
-def sentence_faults(text: str | None) -> list[str]:
+def sentence_faults(text: str | None, founder_texts=()) -> list[str]:
     """The spoken-form rules keel-cloud 133 FR-6 holds the problem's sentence to (`ProblemSentence`; the founder's rule
-    of 2026-10-23): one sentence, six to `spoken.STEM_MAX_WORDS` (20) words, no M5 word."""
+    of 2026-10-23): one sentence, six to `spoken.STEM_MAX_WORDS` (20) words, no M5 word -- since spec 107 (keel-cloud
+    175 `ProblemSentence.of(statement, audienceWords, founderTexts)`) none the founder typed (`corpus.founder_texts`,
+    `corpus.typed_in`): a statement that keeps Palus's *money market fund* is still said."""
     text = " ".join(str(text or "").split())
     if not text:
         return ["no sentence"]
@@ -89,7 +91,8 @@ def sentence_faults(text: str | None) -> list[str]:
     if not text.endswith((".", "?")) or re.search(r"[.?!;:]\s+\S", text):
         faults.append("not one sentence")
     lowered = text.lower()
-    faults += [f"M5 word {w!r}" for w in corpus_mod.M5_WORDS if re.search(rf"(?<![\w-]){re.escape(w)}(?![\w-])", lowered)]
+    faults += [f"M5 word {w!r}" for w in corpus_mod.M5_WORDS
+               if re.search(rf"(?<![\w-]){re.escape(w)}(?![\w-])", lowered) and not corpus_mod.typed_in(w, founder_texts)]
     return faults
 
 
@@ -190,7 +193,7 @@ def sc4(record: dict) -> dict:
             if [str(k or "").rsplit("· ", 1)[-1] for k in kickers] != [f"{n} of {len(kickers)}"
                                                                      for n in range(1, len(kickers) + 1)]:
                 faults.append({person: "kickers", "served": kickers})
-            said = sentence_faults(idea.get("problem"))
+            said = sentence_faults(idea.get("problem"), record.get("founder_texts") or ())
             if said:
                 faults.append({person: "the problem's sentence", "served": idea.get("problem"), "faults": said})
             if record.get("problem_sentence") and idea.get("problem") != record["problem_sentence"]:

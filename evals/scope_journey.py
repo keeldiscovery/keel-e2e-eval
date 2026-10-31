@@ -40,6 +40,7 @@ from harness import vectors_script as vs
 from harness.evidence import finalize_run, write_generated
 from harness.steps import Recorder
 from instructions import contract as contract_mod
+from instructions import corpus as corpus_mod
 from stack import remote
 
 SCOPED_FROM = "01-countly"
@@ -228,6 +229,8 @@ def record_of(j: cs.Journey, overview: dict) -> dict:
         if first is not None:
             idea_screens[person] = first
     statement = ((j.get(j.project("/review/PROBLEM")) or {}).get("statement"))
+    # spec 107 (keel-cloud 175): the founder's own texts, which the problem's sentence may keep (SC4)
+    audience = (j.get(j.project("/idea")) or {}).get("audienceWords") or () if j.scope != "PROBLEM" else ()
     return {"scope": j.scope, "b2b": vs.is_b2b(j.entry), "choose": chose,
             "created": (chose.get("create") or {}).get("sent"),
             "served_scope": (j.get(j.project("/overview")) or {}).get("scope"),
@@ -241,6 +244,7 @@ def record_of(j: cs.Journey, overview: dict) -> dict:
             "done": {p: w.get("done") for p, w in j.walked.items()},
             "idea_screens": idea_screens,
             "problem_sentence": problem_sentence(statement) if j.scope != "PROBLEM" else None,
+            "founder_texts": list(corpus_mod.founder_texts(j.entry, audience)),
             "standings": j.standings, "overview": overview}
 
 
