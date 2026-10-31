@@ -665,11 +665,18 @@ def jargon(text: str) -> list[str]:
     return out
 
 
-def expected_j1(entry) -> list[str]:
-    """Spec 064 FR-5b (keel-cloud 121): the J1 notes the scripted idea's how and belief draw -- 05-paidly's
-    *platform* -- the words, in order (the idea's `notes[].word`)."""
+def expected_j1(entry, audience_words=()) -> list[str]:
+    """Spec 064 FR-5b (keel-cloud 121): the J1 notes the scripted idea's how and belief draw, the words, in order (the
+    idea's `notes[].word`) -- less, since spec 107 (keel-cloud 175 `Vocabulary.jargon(text, exempt, founderTexts)`),
+    every word typed in the founder's own texts (`corpus.founder_texts`: the context's typed fields, the two seeds, the
+    audience words; `corpus.typed_in`: whole, case aside, a hyphen joins). 05-paidly's scripted how says *platform* and
+    so does its own solution seed (*A platform that pays the translator ...*), so it draws none."""
     lines = idea_lines(entry)
-    return jargon(lines["how"]) + [w for w in jargon(lines["belief"]) if w not in jargon(lines["how"])]
+    typed = corpus_reader.founder_texts(entry, audience_words)
+    exempt = {str(w).strip().lower() for w in audience_words or () if w}
+    how = jargon(lines["how"])
+    words = how + [w for w in jargon(lines["belief"]) if w not in how]
+    return [w for w in words if w.lower() not in exempt and not corpus_reader.typed_in(w, typed)]
 
 
 def mechanism_result(entry) -> dict:

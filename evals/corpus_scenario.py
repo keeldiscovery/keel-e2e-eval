@@ -1518,12 +1518,13 @@ def leg_interpret_solution(j: Journey) -> None:
             assert idea.get("shortName") == vs.idea_name(j.entry), (idea, vs.idea_name(j.entry))
         j.idea_name = str(idea.get("shortName") or "")
         # spec 064 FR-5b (keel-cloud 121 J1, keel-web 097): the idea's notes are recomputed on every read and never
-        # refuse -- 05-paidly's scripted how says *platform*, so its card carries the J1 note; every other none
+        # refuse. Spec 107 (keel-cloud 175): a word the founder typed is never noted -- 05-paidly's scripted how says
+        # *platform*, but so does its own solution seed, so its card carries no J1 note, like every other golden card
         j.feedback.setdefault("idea_notes", idea.get("notes"))
         if j.strict:
             words = [n.get("word") for n in idea.get("notes") or [] if n.get("rule") == "J1"]
-            assert [w.lower() for w in words] == [w.lower() for w in vs.expected_j1(j.entry)], (
-                idea.get("notes"), vs.expected_j1(j.entry))
+            owed = vs.expected_j1(j.entry, idea.get("audienceWords") or ())
+            assert [w.lower() for w in words] == [w.lower() for w in owed], (idea.get("notes"), owed)
         named = j.feedback.setdefault("idea", {})
         named.update({"stored": idea.get("what"), "approved": idea.get("approved"), "typed_name": name})
         if not NAME_ON_THE_WIRE:
