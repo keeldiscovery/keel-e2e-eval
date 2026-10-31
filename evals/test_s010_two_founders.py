@@ -11,7 +11,9 @@ here, and the runtime it connects runs keel-runtime's own **scripted** executor.
 call, and no second password. Founder A is *Eval Founder* and founder B is *Nour Haddad*; each
 clicks their own name on the stub issuer's account picker, and keel-cloud creates the account off
 the `sub` in the ID token it verified. The first founder gets no special treatment (decision 3),
-and this scenario is the only place that is observable.
+and this scenario is the only place that is observable. On the remote profile the two are founders
+this cell registers (`remote.identity_to_sign_in_as`, spec 095): the gated twin lets the harness
+be only identities it registered (M6), never the built-ins.
 
 **What is measured**, in the design's own order:
 
@@ -55,6 +57,7 @@ from harness.browser import Auth, Connect, Landing, People
 from harness.connect import start_runtime_via_skill
 from harness.evidence import finalize_run
 from harness.steps import Recorder
+from stack import remote
 
 #: A well-formed project id that exists nowhere -- step 6's other side. It has to be *well formed*
 #: for the comparison to mean anything: a malformed id could be refused by a different code path
@@ -91,6 +94,13 @@ def _first(payload, wrapper: str | None, id_key: str):
     return rows[0].get(id_key) if rows else None
 
 
+def founder_name(builtin) -> str:
+    """The name a founder is registered under on the twin (spec 095 FR-1): the built-in's own first word (*Eval*,
+    *Nour*), the day and the cell -- so the two founders differ in the word the landing greets them by and neither
+    name is inside the other, which steps 3 and 7 read (`name.split()[0] in greeting`, `name not in asked_by`)."""
+    return f"{builtin.name.split()[0]} {time.strftime('%m%d', time.gmtime())} {remote.cell_name()}"
+
+
 #: The one person S-010 invites when it has to mint an invitation of its own. Not a corpus name:
 #: nothing about this scenario reads an answer, and a name from a fixture would suggest otherwise.
 INVITED = "Sam Okonjo"
@@ -124,6 +134,13 @@ def test_s010_two_founders(stack, founder_one, founder_two, browser, run_dir):
     recorder = Recorder(run_dir)
     web_base = stack.web_base_url
     cloud_base = stack.cloud_base_url
+    # Spec 095 FR-1: on `remote` two founders this cell registers (the gated twin refuses the `harness` gate user both
+    # built-ins, M6); on the local profiles the built-in *Eval Founder* and *Nour Haddad* with no I/O, as before.
+    day = time.strftime('%Y-%m-%d', time.gmtime())
+    founder_one = remote.identity_to_sign_in_as(stack, f"{remote.cell_name()} · two-founders A · {day}",
+                                                fallback=founder_one, name=founder_name(founder_one))
+    founder_two = remote.identity_to_sign_in_as(stack, f"{remote.cell_name()} · two-founders B · {day}",
+                                                fallback=founder_two, name=founder_name(founder_two))
     started = time.monotonic()
     passed = False
 

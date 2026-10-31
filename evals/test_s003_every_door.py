@@ -42,6 +42,7 @@ from harness.browser import (AnswersModal, Auth, Connect, Landing, OpenedCard, O
 from harness.connect import start_runtime_via_skill
 from harness.evidence import finalize_run
 from harness.steps import Recorder
+from stack import remote
 
 WALK_PARTICIPANT = "Walker Test"
 
@@ -66,6 +67,10 @@ def _connect_agent(page, stack, recorder) -> None:
 def test_s003_every_door(stack, founder_one, browser, run_dir):
     recorder = Recorder(run_dir)
     web_base = stack.web_base_url
+    # Spec 095 FR-1: this cell's own registered founder on `remote` (the gated twin refuses the `harness` gate user the
+    # built-in founder-a, M6), the built-in *Eval Founder* with no I/O on the local profiles, as before.
+    cell_label = f"{remote.cell_name()} · every-door · {time.strftime('%Y-%m-%d', time.gmtime())}"
+    founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one)
     started = time.monotonic()
     passed = False
     context = browser.new_context()
