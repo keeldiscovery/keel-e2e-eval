@@ -21,7 +21,7 @@ import pytest
 
 from evals import backtest as bt
 from quality import cycle, decisions as dec, readers, rubric, table
-from tests.test_quality_078 import BUNDLE, ENTRIES, GUIDE, FakeCli, SCREEN_ANSWER
+from tests.test_quality_078 import BUNDLE, ENTRIES, GUIDE, FakeCli
 
 REPO = Path(__file__).resolve().parent.parent
 AFTER = Path(__file__).parent / "fixtures" / "quality" / "after-screens.json"
