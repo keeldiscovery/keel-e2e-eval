@@ -1,4 +1,4 @@
-# Spec 118 -- The harness reads the money cards redrawn (keel-cloud 180-183, keel-web 155)
+# Spec 118 -- The harness reads the cards redrawn (keel-cloud 180-184, keel-web 155)
 
 The founder's decisions of 2026-10-31 on the six COMMERCIAL cards, the stage header and the Insights tab (keel-cloud
 180 the words and the wire, 181 Ability to pay's chain question, 182 Purchase friction's duration item, 183 the why's
@@ -26,6 +26,11 @@ change the after-answers leg's reading. Corpus revision 20.
   tally line, and on Insights the box header (belief, status word, status line) and `countLine`; the reader's screens
   carry them so section B reads what the page says. The DRY compare (`evals/corpus_scenario.py:4843`) reads the new
   lines through `brief_facts.py`.
+- **FR-4b The problem and solution cards (keel-cloud 184).** Mirrors for the seven cards' words (the belief from the
+  gate / question clause, the Importance caption and both questions, the Current solution sentence, Compatibility's
+  served labels, Adoption friction's plain conditional label, the new footer sentence, the Insights headings); the
+  Adoption friction and Compatibility corpus answers follow the option labels of revision 20; the leg reads the
+  Prevalence people-axis strip and the Current solution line.
 - **FR-5 The quality readers.** `quality/readers/*.md` for section B are unchanged in criteria; the stage/dimension
   screen descriptions name the strip and the lines so the reader scores them, not their absence.
 - **FR-6 Tests.** Each moved mirror pinned with why; the two items answered on a fixture study; the leg's reader on
