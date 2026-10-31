@@ -788,6 +788,21 @@ screen fault and a cost item that parts from the mirror a finding. The screen re
 `condition` as `ScreenContextBuilder` does (never before), and an extra is never scored. `make unit` 4,238 / 0 / 56
 (master `20ac3e8` 4,186 / 3 / 53); the 170 screens are the coordinator's, paid, on the founder's word.
 
+**The harness's M5 mirror lets the parenthesis, list and design note yield to the seed** (spec
+`111-the-harness-mirrors-m5s-other-rules`, 2026-10-30; keel-cloud 176, keel-cloud-docs `2edd98bf`). `instructions/corpus.py`
+`m5_faults(..., founder_texts=...)` reads every parenthesis of a line and skips one whose every name (`names_of`: commas,
+*or* / *and*) is `typed_in` the founder's texts -- Codyco's *(OPERA Cloud, Sihot, Apaleo)* -- and skips a design note
+whose phrase to its clause's end (`to_clause_end`) is typed (Karsa's *no jargon*, Careforce's *without an integration
+project*; a lone *use* never); the mirror still carries no list rule. `plain_line` keeps a typed parenthesis, list or
+note, and `_row_fires` stands 16-pairio's three list rows down on its own *SAP, Maximo or SharePoint* (its *CMMS* / *ERP*
+fire). The reveal said aloud: `instructions/spoken.py` `reveal_aloud` ports `RevealWords.aloud` (a parenthesis of names
+*, such as A, B or C,*; past `SPOKEN_NAMES_MAX` = `MAX_OPTIONS` = 5, *A, B and others*), read by the fake's SOLUTION
+mirror (`reveal_said`, `idea_passage`, the problem sentence in `solution_opening`), IM4 and the quality readers' reveal
+screen; the written card keeps the founder's punctuation. 107's Codyco pin is `["design note"]` only and Pairio's fires
+`["CMMS", "ERP"]`; five `test_after_131` walks re-pinned with why. Fewer `lock_refused` findings (Codyco, Pairio,
+Careforce) are the spec working. `make unit` 4,255 / 1 / 56 (master `6fd5c7f` 4,238 / 0 / 56); the one failure is
+`test_interviewer_screens`' `ai-mic-on` pin against keel-web 143 (`31b7a13`, merged during the build), not this spec's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
