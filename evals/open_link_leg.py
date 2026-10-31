@@ -24,7 +24,7 @@ the fake renderer). Then, through keel-web 136's screens:
 6. **B opens it again**, signs in in the same browser: the same token, the intro, *Answer in writing* -- and the written
    interview resumes on part 1's first question, past the gate (keel-web's kept draft, by token); no second row.
 7. **The founder's Sent**: the study line, *By group · 1* open (the latest answer is a group person's), the group's
-   section (its name as typed, *1 of 20 answered*, the link, Copy link, Close link) and its three rows -- A answered with
+   section (its name as typed, *1 of 20 answered*, its url, Copy link, Close link) and its three rows -- A answered with
    *See answers*, B opened not finished, C as the wire has them -- each with the stranger's email under the name and
    *Group · opened the link*; the wire's GroupRow (2 begun, 1 answered, 20 places, open).
 8. **Close**: *Close link*, and a fourth stranger, D, is served the inactive line (the page, the wire, and start's 410).
@@ -507,9 +507,9 @@ def the_register(j, sent, ctx: dict, record: dict) -> None:
     planned = sum(int(k.get("linksMade") or 0) for k in kinds)
     named = [r for r in register.get("invitations") or [] if not r.get("groupId")]
     with cs._step(j, "the founder's Sent (keel-web 136 FR-2): the study line, By group · 1 open (the latest answer is "
-                     "a group person's), the group's section -- its name as typed, 1 of 20 answered, the link, Copy "
-                     "link, Close link -- and three rows, each with the email under the name, *Group · opened the "
-                     "link*, *See answers* on A's", party="founder") as h:
+                     "a group person's), the group's section -- its name as typed, 1 of 20 answered, its url (the "
+                     "section's data-url, eval 098), Copy link, Close link -- and three rows, each with the email "
+                     "under the name, *Group · opened the link*, *See answers* on A's", party="founder") as h:
         want_line = iv_screens.sent_study_line(answered, planned)
         h.record_assert({"tabs": {"name": iv_screens.sent_tab_by_name(len(named)),
                                   "group": iv_screens.sent_tab_by_group(1), "open": "group"},

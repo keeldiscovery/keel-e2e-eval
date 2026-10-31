@@ -156,10 +156,11 @@ SEND_GROUP_HINT = ("Post it where the people already are. Each person who opens 
 SENT_STUDY_LINE = "[data-testid='sent-study-line']"
 SENT_TABS_LABEL = "Links by name or by group"
 SENT_TAB = {"name": "[data-testid='sent-tab-name']", "group": "[data-testid='sent-tab-group']"}
+#: `SENT_GROUP`: one group's section on *By group*; its root carries `data-group`, `data-closed` and `data-url` (the
+#: whole served `/i/<token>` url, open or closed -- keel-web 142 FR-1 draws no shortened `group-link` any more; eval 098).
 SENT_GROUP = "[data-testid='sent-group']"
 GROUP_NAME = "[data-testid='group-name']"
 GROUP_COUNT = "[data-testid='group-count']"
-GROUP_LINK = "[data-testid='group-link']"
 GROUP_CLOSE = "[data-testid='group-close']"
 GROUP_REOPEN = "[data-testid='group-reopen']"
 GROUP_EMPTY = "[data-testid='group-empty']"
@@ -795,11 +796,11 @@ class Interviews:
 
     def groups(self) -> list[dict]:
         """136 FR-2, the open *By group* tab: one record a `sent-group` section -- its id, closed or not, the name
-        (`group-name`'s DOM text, as typed: CSS uppercases it), the counter, the short link and its full url (`title`),
-        *Copy link*'s accessible name, *Close link* / *Reopen*, the empty line, and its rows (`group_rows`)."""
+        (`group-name`'s DOM text, as typed: CSS uppercases it), the counter, its url (the section's `data-url`, open or
+        closed: keel-web 142 draws no link, eval 098 FR-1), *Copy link*'s accessible name, *Close link* / *Reopen*, the
+        empty line, and its rows (`group_rows`)."""
         out = []
         for section in self.page.locator(SENT_GROUP).all():
-            link = section.locator(GROUP_LINK)
             copy = section.get_by_role("button", name=re.compile(r"^Copy link"))
             out.append({"id": section.get_attribute("data-group"), "closed": section.get_attribute("data-closed"),
                         "aria_label": section.get_attribute("aria-label"),
@@ -808,7 +809,7 @@ class Interviews:
                         "name_tag": section.locator(GROUP_NAME).first.evaluate("(e) => e.tagName")
                         if section.locator(GROUP_NAME).count() else None,
                         "count": _words(section.locator(GROUP_COUNT)),
-                        "link": _words(link) or None, "url": link.first.get_attribute("title") if link.count() else None,
+                        "url": section.get_attribute("data-url") or None,
                         "copy": copy.first.get_attribute("aria-label") if copy.count() else None,
                         "copy_words": _words(copy) or None,
                         "close": _words(section.locator(GROUP_CLOSE)) or None,
