@@ -897,6 +897,22 @@ accepted, examples: [{slug, entry, cycle, studies: {study: {scope, run, cloud, w
 4,543 / 0 / 56); cycle 4's walk and `make quality-accept` are the founder's word (read through 106's gate, cycle 3
 would have published Fresco alone: tasks.md).
 
+**The lock walk picks Yes or No on the pilot screen** (spec `114-the-lock-walk-picks-the-pilot`, 2026-10-31; keel-web 146
+FR-2 made the pilot screen a pick, so a plain *Continue* there is disabled). `Corridor.word_pilot_and_lock(pilot_yes=,
+step=)` reads the screen as it opens (`_pilot_opened`: the quoted *Your first step: {step}* where the money is in scope,
+the `pilot-yes` / `pilot-no` radio cards both `aria-checked="false"`, `before-continue` *Continue* and disabled, no text
+box, no checkbox), shoots `ready-pilot`, then `_pilot_pick` taps *Yes, ask them* (`vectors_script.founder_pilot`: Yes on
+every entry, since no entry records a founder opt-out) or *No pilot*, keeps the `PUT /word` it sent and presses
+*Continue · Yes* / *Continue · No*. `corpus_scenario.pilot_pick_faults` holds all of it in `leg_lock`, with the PUT
+asserted on *No* only (`pilotEnabled: false`) and the step held to the stored Commitment step (`commitment_step`, 146's
+`commitmentStep`). The back-test's `ready-pilot` founder answer is `{pilot: {step, picked}, pressed}`. **The window line
+(FR-2):** keel-web 147 merged during the build (web `d6dc5a9`), so `WEB_147_BUILT = True`: the context card owes no
+*Counting the last ...* line under a sentence ending *We'll ask about the last ...* (`vs.read_back_says_window`, 147's
+regex), and the line on an old sentence (`window_line_owed` / `window_line_faults`; `KEEL_WEB_147=0` restores the old
+pin). Money alone's no-line guard stands either way. `make unit` 4,604 passed / 6 failed / 5 errors / 54 skipped
+(+31 tests, all `tests/test_lock_walk_pilot_114.py`). The 11 are keel-cloud-docs 174's (the registry's Purchase friction
+escape `cant_tell` against the corpus's `cant_recall`), the same on master, not this spec's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
