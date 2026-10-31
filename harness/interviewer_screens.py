@@ -952,6 +952,9 @@ class Player:
                             for o in options.all()],
                 "field": field.input_value() if field.count() else None,
                 "chip": _words(sheet.locator(".iv-chips .chip").first) or None,
+                # spec 117 FR-4 (keel-web 152 FR-1): the story's sheet draws every chip the gate serves, in the served
+                # order -- *I can't recall one particular {occasion}* still first (`chip`), then *I'd rather not say*
+                "chips": [_words(c) for c in sheet.locator(".iv-chips .chip").all()],
                 "preview": _words(sheet.get_by_test_id("ai-preview")),
                 "heard": _words(sheet.get_by_test_id("ai-heard")),
                 "status": _words(sheet.get_by_test_id("ai-status")),
@@ -1228,7 +1231,8 @@ class Player:
 
     def tap_chip_named(self, label: str) -> None:
         """A chip by its words -- Importance's second ask draws *Nothing else* in *None of these*' place (keel-cloud 158
-        T010, keel-web 135 FR-2)."""
+        T010, keel-web 135 FR-2); the story's *I'd rather not say*, its second chip since keel-web 152 (spec 117 FR-4),
+        which ends the interview as the first does (`anchorChip: RATHER_NOT_SAY`, the same chip-only body)."""
         self.page.get_by_test_id("ai-sheet").locator(".iv-chips .chip", has_text=re.compile(
             rf"^\s*{re.escape(label)}\s*$")).first.click()
 

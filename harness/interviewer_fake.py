@@ -242,6 +242,58 @@ def story_chip_word(chip: str, occasion: str | None) -> str | None:
     return None
 
 
+# --------------------------------------------- spec 117 FR-4: keel-web 152's spoken refusal (`spokenAnswers.chipSaid`)
+
+#: keel-web `spokenAnswers.STOP`: the words a label's key words (`sig`) leave out.
+_SAID_STOP = frozenset("the a an of in on to it and or from again their your my was were did does under with that this "
+                       "had have put took its still never where came into down out up would made been before less more "
+                       "any".split())
+#: keel-web 152 `AROUND_A_CHIP`: the courtesy around a refusal -- every other word said must be the chip's own.
+AROUND_A_CHIP = frozenset("i i'd id i'm im i'll would prefer rather not to say do want no sorry thanks thank you honestly "
+                          "um umm uh erm er hmm oh well so yeah ok okay actually really just afraid that it it's that's "
+                          "this one if mind please about anything more any of the question answer talk share keep myself "
+                          "personal private pass on is fine".split())
+_ANSWER_COMMAND = re.compile(r"\b(that['\u2019]?s|that is)\s+(my|the)\s+answer\b[.!]?", re.I)
+_BACK_COMMAND = re.compile(r"\b(go\s+back|previous\s+question|change\s+my\s+(last\s+)?answer)\b[.!]?", re.I)
+
+
+def _said_norm(text: str) -> str:
+    """keel-web `spokenAnswers.norm`, the words half (the currency and number folds touch no chip's words)."""
+    t = (text or "").lower().replace("\u2019", "'")
+    t = t.replace("can't", "cannot").replace("won't", "will not")
+    t = re.sub(r"n't\b", " not", t)
+    t = re.sub(r"[^a-z0-9'. ]+", " ", t)
+    t = re.sub(r"\.(?!\d)", " ", t)
+    return " ".join(t.split())
+
+
+def _said_words(text: str) -> list[str]:
+    return _said_norm(text).split()
+
+
+def story_chip_said(label: str, spoken: str) -> bool:
+    """keel-web 152 FR-1 (`chipSaid`): whether a story's spoken words ARE the chip -- its words, or a near form the item
+    escape's match folds (*I would rather not say*, *I'd prefer not to say*, *I don't want to say*, *rather not*), with
+    nothing else said but the courtesy around it (`AROUND_A_CHIP`). Then the page takes the chip as a tap would and the
+    interview ends (no story, no items, no pilot ask). A story that only carries the words stays a story (*It was for
+    my work account. I'd rather not say what it was.*). Typed words are never read so (keel-web 072)."""
+    text = " ".join(_BACK_COMMAND.sub(" ", _ANSWER_COMMAND.sub(" ", spoken or "")).split())
+    t, ws = _said_norm(text), _said_words(text)
+    if not t:
+        return False
+    tw = set(ws)
+    escape = _said_norm(label)
+    key = {w for w in _said_words(label) if len(w) >= 3 and w not in _SAID_STOP}
+    neg = bool(tw & {"not", "cannot", "none", "else", "nothing"})
+    hit = len(key & tw)
+    said = escape in t \
+        or ("recall" in key and neg and bool(tw & {"recall", "remember", "know", "idea"})) \
+        or ("tell" in key and neg and bool(tw & {"tell", "say", "know", "sure"})) \
+        or (bool(key) and hit >= min(2, len(key)) and (neg or hit == len(key)))
+    own = set(_said_words(label))
+    return said and all(w in own or w in AROUND_A_CHIP for w in ws)
+
+
 def story_escape(chips, occasion: str | None) -> str | None:
     """`PassageComposer.storyEscape`: *Or say: I can't recall one particular payroll run, or I'd rather not say.* --
     the served chips in the served order; one chip says one, none says nothing (`None`)."""

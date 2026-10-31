@@ -1314,7 +1314,8 @@ def _chip_ends_it(j, wire: _Wire, record: dict) -> None:
                     player.wait_phase("listening", "held", "confirming", timeout_s=40)
                     player.wait_phase("listening", timeout_s=40)
                     sheet = player.sheet()
-                    entry = {"question": sheet["question"], "chip": sheet.get("chip"), "did": []}
+                    entry = {"question": sheet["question"], "chip": sheet.get("chip"), "chips": sheet.get("chips"),
+                             "did": []}
                     walked.append(entry)
                     if condition and sheet["question"] == condition.get("question"):
                         walk.held(entry, "yes" if (condition.get("inCodes") or ["YES"])[0] == "YES" else "no")
@@ -1850,11 +1851,23 @@ class _Walk:
         the gap runs, nothing pressed) or by Save (it is read at once) -- held either way, then on (IM22)."""
         p = self.player
         if self.expected.get("anchorChip"):
-            p.tap_chip()
+            # spec 117 FR-4 (keel-web 152 FR-1): the sheet draws both served chips, *I can't recall ...* first; any other
+            # chip is tapped by its words (`fake.story_chip_word`: RATHER_NOT_SAY *I'd rather not say*)
+            if self.expected["anchorChip"] == "CANT_RECALL":
+                p.tap_chip()
+            else:
+                p.tap_chip_named(fake.story_chip_word(self.expected["anchorChip"], None))
             entry["did"].append("tap the story's chip")
             _wait_next(p, entry["question"])
             return
         story = self.expected.get("story") or ""
+        if "RATHER_NOT_SAY" in (self.gate.get("chips") or []) and fake.story_chip_said(fake.STORY_RATHER_NOT_SAY,
+                                                                                        story):
+            # spec 117 FR-4 (keel-web 152 FR-1): a story that IS the refusal, said, is taken as the chip -- the interview
+            # ends with no story and no items, which this person's expected body does not say. Stop by name: script it
+            # as the chip (`rather_not_say`), never as a story (no corpus story is one today; a test holds it)
+            raise AssertionError({"the scripted story is the refusal said aloud (keel-web 152 ends the interview on "
+                                  "it): script the chip instead": story})
         p.wait_listening()
         try:
             status_before = p.wait_status(ivs.STORY, timeout_s=5)
