@@ -357,6 +357,24 @@ ALSO: dict[str, tuple[tuple[str, ...], str, str, str]] = {
                               "What would {smaller_step} have to show you?",
                               "What would the first step have to show?"),
 }
+#: Keel-cloud 155 FR-2 (amended; `SavedList.ONLY_IF`): Adoption friction's conditional yes as served where the lock's
+#: item carries a condition -- *Only if {condition}* (else the registry's fixed *Yes, if it was clearly worth it*).
+ONLY_IF = "Only if "
+#: Keel-cloud 174 FR-7 (`FollowUpComposer.onlyIfSaidBack`, spec 115 FR-3; 13-aircaps R2: *"'look like' is vague for
+#: something as practical as connecting glasses to a phone"*): the follow-up asks for the event. It asked *What would
+#: that need to look like?* from 155 to 173 (`ONLY_IF_ASK_BEFORE_174`); the clip recorded at the lock for the rung keeps
+#: 154's words, and the line is spoken as it reads.
+ONLY_IF_ASK = "What would have to happen for that to be true?"
+ONLY_IF_ASK_BEFORE_174 = "What would that need to look like?"
+
+
+def only_if_said_back(condition: str) -> str:
+    """keel-cloud `FollowUpComposer.onlyIfSaidBack` (155 FR-2, 174 FR-7): the conditional yes said back as the person's
+    own condition, as served -- *You said only if I could try it on one site first. What would have to happen for that
+    to be true?*."""
+    return f"You said only if {condition}. {ONLY_IF_ASK}"
+
+
 #: Design §2's rungs with no question since keel-cloud 118 (a gate No ends the interview; a number has no why; derived).
 NO_FOLLOW_UP = ("problem.prevalence", "problem.frequency", "commercial.existing_sacrifice", "commercial.ability_to_pay")
 #: `PassageComposer.ONE_MORE_THING` (keel-cloud 144 FR-2, spec 075 FR-5): every FOLLOW_UP clip opens on it, first or
