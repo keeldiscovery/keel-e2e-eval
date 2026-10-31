@@ -16,10 +16,11 @@
   text at that location** read from the keel-cloud checkout; the proposals go to `quality/cycles/<record>-advice.md`,
   **never applied**. A weak row the founder has already decided (`quality/decisions.toml`, spec 087) is snoozed:
   listed under *Decided before* with the decision's word and why, not sent; the adviser is told what he declined.
-- **`accept`** -- `make quality-accept CYCLE=<record>` (free, FR-6): `quality/BASELINE.md` rewritten from that cycle's
-  score files (the old one kept under `quality/baselines/<date>.md`), then the gallery built from that cycle's bundles
-  behind the readers' gate (`evals/gallery.py --scores`), what changed in the snapshot, and the sentence the keel-web
-  refresh spec starts from.
+- **`accept`** -- `make quality-accept CYCLE=<record>` (free, FR-6): spec 106 FR-3's gate first (the cycle's score_pct
+  below the gallery's last accepted one refuses: nothing cut, nothing written), then `quality/BASELINE.md` rewritten
+  from that cycle's score files (the old one kept under `quality/baselines/<date>.md`), then the gallery built from
+  that cycle's bundles behind the readers' gate (`evals/gallery.py --scores`, no bar), three studies per example, what
+  changed in the snapshot, and the sentence the keel-web refresh spec starts from.
 - **`due`** -- `make quality-due` (free, FR-7): whether a cycle is due, and why; it runs nothing else.
 
 No key is ever read, named or passed: the presence of `KEEL_ANTHROPIC_API_KEY` is checked for DOOR=keel (as `make
@@ -129,10 +130,11 @@ def load_config(path: Path | None = None, *, readers_toml: Path | None = None) -
         if str(cfg["reader"].get(key)) != str(pinned.get(key)):
             raise Refused(f"{path.name} names the reader's {key} {cfg['reader'].get(key)!r} and quality/readers.toml "
                           f"{pinned.get(key)!r} -- two files must never name two readers")
-    g = cfg["gallery"]
-    g.setdefault("refuse_flagged", True)
-    g.setdefault("refuse_under_bar", True)
-    g.setdefault("scope_order", ["SOLUTION", "PROBLEM", "COMMERCIAL", "SOLUTION_COMMERCIAL", "ALL"])
+    retired = sorted(set(cfg["gallery"]) & {"refuse_flagged", "refuse_under_bar", "scope_order"})
+    if retired:
+        raise Refused(f"{path.name} [gallery] still says {retired} -- spec 106 retired them: the gallery's gate is the "
+                      "readers' (a flagged screen always refuses) and the gallery's own last accepted score, never the "
+                      "bar, and an example is three studies, not one scope picked by an order")
     cfg["cadence"].setdefault("days", 7)
     return cfg
 
@@ -1163,9 +1165,14 @@ def bundle_dir(study: dict, runs_dir: Path) -> Path | None:
 
 
 def accept(argv=None) -> int:
+    """FR-6 as spec 106 leaves it: the gate first (FR-3 -- the cycle's score_pct below the gallery's last accepted one
+    refuses the acceptance: no baseline cut, nothing written), then the baseline cut from the cycle's score files, then
+    the gallery from the cycle's bundles through `evals.gallery.promote` with the readers' gate alone (`--scores`: a
+    study with no score file or a flagged screen refused by name, no bar), three studies per entry (an entry lacking
+    one set aside by name), the score recorded in the gallery's provenance as the one the next cycle is held to."""
     from evals import gallery                                            # noqa: PLC0415
 
-    p = argparse.ArgumentParser(prog="make quality-accept", description="Spec 079 FR-6: the acceptance.")
+    p = argparse.ArgumentParser(prog="make quality-accept", description="Spec 079 FR-6 / 106: the acceptance.")
     p.add_argument("--cycle", default="")
     p.add_argument("--out", default="", help="the gallery snapshot (default keel-web's public/sample)")
     p.add_argument("--runs-dir", default=str(RUNS_DIR), help="where the cycle's bundles are, by name")
@@ -1174,7 +1181,7 @@ def accept(argv=None) -> int:
     p.add_argument("--today", default="", help=argparse.SUPPRESS)
     a = p.parse_args(argv)
     try:
-        cfg = load_config()
+        load_config()                                  # refused, naming both files, when it disagrees with its homes
         record = load_record(a.cycle)
         files = cycle_files(record)
         out = Path(a.out) if a.out else checkouts()[1] / "public" / "sample"
@@ -1182,6 +1189,14 @@ def accept(argv=None) -> int:
         print(f"make quality-accept refuses: {reason}", file=sys.stderr)
         return 2
     stem = record["record"]
+    provenance_dir = Path(a.provenance_dir)
+    score = (_head_of(files) or {}).get("score_pct")
+    # spec 106 FR-3: the gallery's own last score is the gate -- below it the cycle is not accepted at all
+    refusal, compared = gallery.gate(score, gallery.last_accepted(provenance_dir))
+    if refusal:
+        print(f"make quality-accept refuses: {refusal} -- the baseline is not cut and the gallery is left as it is",
+              file=sys.stderr)
+        return 1
     quality_out = Path(a.quality_out)
     baseline_path = quality_out / "BASELINE.md"
     today = a.today or dt.date.today().isoformat()
@@ -1192,11 +1207,10 @@ def accept(argv=None) -> int:
     except table.TableRefused as reason:
         print(f"make quality-accept refuses: {reason}", file=sys.stderr)
         return 2
-    head = record.get("head") or {}
-    print(f"baseline: {baseline_path} cut {today} from cycle {stem} (score_pct {head.get('score_pct')}%)"
+    print(f"baseline: {baseline_path} cut {today} from cycle {stem} (score_pct {score}%)"
           + (f"; the old one kept under {quality_out / 'baselines'}/" if had else "; the first baseline"))
 
-    # the gallery, from this cycle's bundles, behind the readers' gate
+    # the gallery, from this cycle's bundles, behind the readers' gate: three studies an example (spec 106)
     names = gallery.load_names()
     named = {n.entry: n for n in names}
     runs, set_aside = [], []
@@ -1213,49 +1227,44 @@ def accept(argv=None) -> int:
                              "instructions/gallery_names.toml -- add its attribution first")
         else:
             runs.append(d)
-    g = cfg["gallery"]
     scores_dir = _abs(record.get("scores_dir") or SCORES_REL)
-    passing, refused = gallery.score_gate(runs, scores_dir, bar_pct=cfg["bar_pct"], refuse_flagged=g["refuse_flagged"],
-                                          refuse_under_bar=g["refuse_under_bar"])
     for line in set_aside:
         print(f"gallery: set aside {line}")
-    for line in refused:
-        print(f"gallery: refused {line}")
-    if not passing:
-        print("gallery: no bundle of this cycle passes the readers' gate -- the gallery is left as it is")
-        return 0
-    picked, notes = gallery.one_per_entry(passing, list(g["scope_order"]))
-    for note in notes:
-        print(f"gallery: {note}")
     before = _snapshot_slugs(out)
-    covers = {slug: (out / slug / "cover.jpg").read_bytes() for slug in before if (out / slug / "cover.jpg").is_file()}
-    print(f"gallery: as `make gallery RUNS={','.join(str(r) for r in picked)} SCORES={_rel(scores_dir)} "
-          f"SCOPE_ORDER={','.join(g['scope_order'])} OUT={out}`")
+    print(f"gallery: as `make gallery RUNS={','.join(str(r) for r in runs)} SCORES={_rel(scores_dir)} OUT={out}`")
     try:
-        result = gallery.export(picked, out, names=names, provenance_dir=Path(a.provenance_dir))
+        result = gallery.promote(runs, out, names=names, scores_dir=scores_dir, cycle=stem, score_pct=score,
+                                 provenance_dir=provenance_dir, say=lambda line: print(f"gallery: {line}"))
+    except gallery.NothingToBuild as nothing:
+        print(f"gallery: {'; '.join(nothing.reasons)} -- the gallery is left as it is")
+        return 0
     except gallery.GalleryRefused as refusal:
         print(f"gallery: {refusal}", file=sys.stderr)
         print("the baseline is cut; the gallery is left as it is -- fix the refusal above and run `make quality-accept` "
               "again (it re-cuts the same baseline)")
         return 1
     after = [row["slug"] for row in result["index"]]
-    for slug, data in covers.items():                                  # 063 replaces a slug's folder whole: the cover
-        if slug in after and not (out / slug / "cover.jpg").is_file():  # (keel-web spec 103) is the snapshot's, kept
-            (out / slug / "cover.jpg").write_bytes(data)
     refreshed = [s for s in after if s in before]
     added = [s for s in after if s not in before]
+    dropped = [s for s in before if s not in after]
     no_cover = [s for s in after if not (out / s / "cover.jpg").is_file()]
     for row in result["index"]:
-        print(f"gallery: {row['slug']:<14} {row.get('scope', 'ALL'):<11} (cloud {row.get('cloud')}, web {row.get('web')})")
+        studies = " · ".join(f"{k} {v['decision']} ({v['answered']} of {v['invited']})"
+                             for k, v in (row.get("studies") or {}).items())
+        print(f"gallery: {row['slug']:<14} {studies} (cloud {row.get('cloud')}, web {row.get('web')})")
     print(f"snapshot {out}: refreshed {', '.join(refreshed) or 'none'}; added {', '.join(added) or 'none'}; "
-          f"missing a cover.jpg {', '.join(no_cover) or 'none'}; still missing a gallery_names.toml row: "
+          f"left out of the index (their folders stay under OUT) {', '.join(dropped) or 'none'}; missing a cover.jpg "
+          f"{', '.join(no_cover) or 'none'}; still missing a gallery_names.toml row: "
           + (", ".join(sorted({line.split(':')[0] for line in set_aside if 'gallery_names' in line})) or "none"))
-    print(f"provenance: {result['provenance']} (outside the snapshot, not committed)")
+    print(f"provenance: {result['provenance']} (outside the snapshot, not committed) -- score_pct {score}% recorded "
+          "as the gallery's last accepted, the next cycle's gate")
     sentence = (f"keel-web spec: refresh the example gallery from keel-e2e-eval quality cycle {stem} (accepted {today}; "
-                f"score_pct {head.get('score_pct')}% at RUBRIC_VERSION {rubric.RUBRIC_VERSION} against the bar of "
-                f"{cfg['bar_pct']:.0f}%, keel-cloud {record.get('cloud_sha')}) -- commit public/sample as `make "
-                f"quality-accept` wrote it ({len(refreshed)} slug(s) refreshed: {', '.join(refreshed) or 'none'}; "
-                f"{len(added)} added: {', '.join(added) or 'none'}"
+                f"score_pct {score}% at RUBRIC_VERSION {rubric.RUBRIC_VERSION}, {compared}; keel-cloud "
+                f"{record.get('cloud_sha')}) -- commit public/sample as `make quality-accept` wrote it (three studies an "
+                f"example, public/sample/<slug>/<problem|solution|money>/, the index row's studies read by keel-web "
+                f"151; {len(refreshed)} slug(s) refreshed: {', '.join(refreshed) or 'none'}; {len(added)} added: "
+                f"{', '.join(added) or 'none'}"
+                + (f"; {len(dropped)} left out of the index: {', '.join(dropped)}" if dropped else "")
                 + (f"; a 1200x800 cover.jpg still to add for {', '.join(no_cover)}" if no_cover else "")
                 + "), re-pin the example frames (light, dark, phone) and the example pages' copy pins, light gate; "
                   "deploy on the founder's word.")

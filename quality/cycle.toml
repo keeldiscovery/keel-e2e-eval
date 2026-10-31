@@ -51,15 +51,12 @@ screener = "The condition"
 gate = "The gate"
 
 [gallery]
-# Spec 079 FR-6 (spec 063 amended): `make gallery --scores` refuses a bundle, by name, whose latest score file at the
-# current rubric version has a flagged screen (`refuse_flagged`) or a score_pct under the bar (`refuse_under_bar`), or
-# that has no score file at all; the gallery is built from the rest.
-refuse_flagged = true
-refuse_under_bar = true
-# The gallery has one example per entry (its slug); a cycle walks three studies per entry. Of an entry's passing
-# bundles the homepage shows the first scope in this order (the builder's call, for the founder to overturn: the
-# solution study reads the problem and the idea, the nearest to the whole-study examples of today).
-scope_order = ["SOLUTION", "PROBLEM", "COMMERCIAL", "SOLUTION_COMMERCIAL", "ALL"]
+# Spec 106 FR-3 (the founder, 2026-10-30: "we don't have to wait till 90 ... the only time we should not do it is if the
+# next rating comes below what we already have"): `make quality-accept` builds the gallery behind the readers' gate
+# alone -- a bundle with no score file at the current rubric version, or with a flagged screen, is refused by name --
+# and the cycle's score_pct is held to the gallery's own last accepted one (recorded in its provenance), never to the
+# bar above. Every study of an entry is exported (FR-1: problem, solution, money); spec 079's refuse_flagged,
+# refuse_under_bar and scope_order are retired, and `make quality-*` refuses this file should one come back.
 
 [cadence]
 # Spec 079 FR-7: a cycle is DUE after a registry or instruction change merged in keel-cloud, a routing table or model

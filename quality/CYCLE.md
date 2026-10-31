@@ -7,8 +7,8 @@ change happens -- we run it, compare the score with the previous one, have an AI
 rerun it, and once we are satisfied that output becomes the homepage examples. Seamlessly. It should not come from
 your memory: the framework should support all this."*
 
-Everything the commands below read is committed under `quality/`: the entries, the scopes, the door, the bar, the weak
-rule, the reader and the adviser (`quality/cycle.toml`); the rubric (`quality/RUBRIC.md`, `RUBRIC_VERSION`); the reader
+Everything the commands below read is committed under `quality/`: the entries, the scopes, the door, the people a
+study sends (seven, spec 106), the bar, the weak rule, the reader and the adviser (`quality/cycle.toml`); the rubric (`quality/RUBRIC.md`, `RUBRIC_VERSION`); the reader
 and adviser prompts (`quality/readers/`); and **the founder's decisions** on what earlier cycles found
 (`quality/decisions.toml`, spec 087 -- step 2). Run every command from the keel-e2e-eval checkout's root (the main checkout,
 whose `runs/` holds the bundles), with `export DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` in the shell.
@@ -23,7 +23,7 @@ from `make eval`, `make unit`, the matrix, a checker or a schedule.
 | What changed? | the latest record's *Against the baseline* and *Against the previous cycle*; `TABLE.md`'s *Moved since the baseline* |
 | What is proposed? | `quality/cycles/<record>-advice.md` beside that record (absent until step 3 is run) |
 | What has the founder already decided? | `quality/decisions.toml`; the record's and the advice's *Decided before* |
-| What is on the homepage? | `quality/BASELINE.md` (the cycle accepted last, its studies and score files) and keel-web `public/sample/index.json` |
+| What is on the homepage? | `quality/BASELINE.md` (the cycle accepted last, its studies and score files), keel-web `public/sample/index.json` (three studies an example, spec 106) and the newest `runs/gallery/provenance-*.json` (the cycle and the score_pct the gallery was promoted on: the next cycle's gate) |
 
 `make quality-due` (free) says whether a cycle is due, and why (step 6).
 
@@ -37,9 +37,13 @@ make quality-walk DRY=1 ENTRIES=21-codyco SCOPES=PROBLEM WHY="dry"   # the plan 
 
 - **What it does**: for each entry (`ENTRIES=default` is `cycle.toml`'s `entries`; or `ENTRIES=21-codyco,08-fresco`) and
   each scope (`SCOPES=`, default `PROBLEM,SOLUTION,COMMERCIAL` -- one entry is three studies, each judged on its own):
-  `make down`, `make backtest ENTRY= SCOPE= DOOR=` (spec 062 / 066 / 071) on the keel-cloud and keel-web checkouts
-  stack.toml names, as they stand, then `make read-screens RUN=<the new bundle>` (spec 078); at the end `make read-table
-  BASELINE=1 CYCLE=<record>`. `BUILD=<cloud7>` refuses unless keel-cloud is checked out at that sha.
+  `make down`, `make backtest ENTRY= SCOPE= DOOR= PEOPLE=` (spec 062 / 066 / 071 / 106) on the keel-cloud and keel-web
+  checkouts stack.toml names, as they stand, then `make read-screens RUN=<the new bundle>` (spec 078); at the end `make
+  read-table BASELINE=1 CYCLE=<record>`. `BUILD=<cloud7>` refuses unless keel-cloud is checked out at that sha.
+- **Seven people a study** (spec 106 FR-2, the founder 2026-10-30: *"instead of twenty, seven agents answer it"*):
+  `cycle.toml`'s `people = 7` rides on every back-test as `PEOPLE=7` -- the entry's first seven in corpus order of the
+  people the study's scope sends on the person's own link; a B2B money study sends its decision-makers whole (eight on
+  08-fresco, 10-palus and 21-codyco, seven on 17-expanse). `PEOPLE=<n>` overrides it for one walk; the record says it.
 - **It refuses** (one sentence, exit 2, nothing run) without ENTRIES, without WHY, with a dirty keel-cloud checkout (a
   sha must name what was measured), on DOOR=keel without `KEEL_ANTHROPIC_API_KEY` in the shell, without the `claude`
   CLI (the readers' door, and DOOR=host's), on an entry keel-cloud has no back-test file for, or an unknown scope.
@@ -125,16 +129,26 @@ make quality-advise CYCLE=quality/cycles/<record>.md
 make quality-accept CYCLE=quality/cycles/<record>.md
 ```
 
-- **What it does**: rewrites `quality/BASELINE.md` from that cycle's score files (the old one kept under
-  `quality/baselines/<date>.md`), then builds the gallery from that cycle's bundles behind the readers' gate (`make
-  gallery SCORES=quality/scores`, spec 063 amended): a bundle whose latest score file at the current rubric version has a
-  flagged screen, or a score_pct under the bar, or no score file, is **refused by name**; the rest are built, one
-  example per entry (the first passing scope in `cycle.toml`'s `[gallery] scope_order`), into keel-web's
-  `public/sample` (`OUT=` elsewhere). A slug's `cover.jpg` is kept across the refresh.
-- **What it prints**: the slugs refreshed, the slugs added and still missing a `gallery_names.toml` row or a cover, and
-  **the sentence the keel-web refresh spec starts from**.
+- **The gate first** (spec 106 FR-3, the founder 2026-10-30: *"we don't have to wait till 90 ... the only time we should
+  not do it is if the next rating comes below what we already have"*): the cycle's overall score_pct is held to **the
+  gallery's own last accepted one** -- the newest `runs/gallery/provenance-*.json` that records one. Below it, the
+  acceptance is **refused by name: no baseline cut, nothing written**. Equal or above passes, whatever the 90% bar says;
+  with none recorded yet (or one at another rubric version) the first acceptance passes.
+- **What it does then**: rewrites `quality/BASELINE.md` from that cycle's score files (the old one kept under
+  `quality/baselines/<date>.md`), then builds the gallery from that cycle's bundles behind the readers' gate alone (`make
+  gallery SCORES=quality/scores`, no bar): a bundle whose latest score file at the current rubric version has a flagged
+  screen, or that has no score file, is **refused by name**; **every entry is its three studies** -- problem, solution and
+  money, each its own walk -- written under keel-web's `public/sample/<slug>/<problem|solution|money>/` (`OUT=`
+  elsewhere), the index row's top-level fields the problem study's and `studies` each study's own decision, how sure,
+  pilot, price, answered and invited; an entry lacking a study is **refused by name** and nothing is written for it. The
+  disclaimer says each study's people in words (*seven people answered, all simulated*). A slug's `cover.jpg`, and the
+  row's `title`, `image` and `tests`, are kept across the refresh. The cycle and its score_pct are recorded in the
+  provenance: the next cycle's gate.
+- **What it prints**: the gate's comparison, the slugs refreshed, added and left out of the index, those still missing a
+  `gallery_names.toml` row or a cover, and **the sentence the keel-web refresh spec starts from**.
 - **What it writes**: `quality/BASELINE.md` and `quality/baselines/` here (**commit them**); the snapshot in keel-web
-  (committed there, by the keel-web spec below); the provenance file under `runs/gallery/` (never committed).
+  (committed there, by the keel-web spec below); the provenance file under `runs/gallery/` (never committed -- and the
+  gate's memory: run the acceptance on the checkout whose `runs/` holds it).
 - **The keel-web side** is a keel-web spec per acceptance, light gate, in this shape -- never invented: (1) commit
   `public/sample` as `make quality-accept` wrote it; (2) for an added slug, its `instructions/gallery_names.toml` row (in
   keel-e2e-eval, attribution, launch-era words, today's status) and a 1200x800 `cover.jpg` (keel-web spec 103); (3)

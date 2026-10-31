@@ -1,18 +1,20 @@
-"""Spec 063: the example gallery export -- the six back-test ideas' briefs into the sample snapshot, each a simulated
-study inspired by a named company (amendment of record, 2026-10-23).
+"""Spec 063: the example gallery export -- the back-test ideas' briefs into the sample snapshot, each a simulated study
+inspired by a named company (amendment of record, 2026-10-23). **Spec 106**: each example is three studies.
 
 `make gallery RUNS=<dir>[,<dir>...] OUT=<dir>` (FR-1) reads finished `make backtest` run directories (spec 062) and
-writes, for each, the 060 file set under `<OUT>/<slug>/` plus `<slug>/interview.json` (FR-3a) and `<slug>/manifest.json`
-(FR-3), then one `<OUT>/index.json`. No stack, no model, no paid run: everything is read from the run directory.
+writes, for each entry, its three studies -- `<OUT>/<slug>/<study>/` for `problem`, `solution` and `money`, each the 060
+file set plus `interview.json` (FR-3a) and `manifest.json` (FR-3) -- then one `<OUT>/index.json`. No stack, no model, no
+paid run: everything is read from the run directories.
 
 What a run directory gives, and what is read from where (tasks.md, judgement calls 1-3):
 
 - `export/` -- spec 062 FR-3's ungated 060/061 snapshot of the founder's reads (names kept, emails, the founder and
   tokens withheld), its `manifest.json` listing every file. That IS the 060 file set; it is read back, withheld again
   (a no-op on a good run, a guard on a bad one).
-- `backtest.json` -- the entry (`id`, `b2b`, `idea_name`), the stack's SHAs (`stack`), and per link
-  `respondents[link].served` (the interview the stranger's page fetched, spec 062 FR-4.2) and `.drawn` (what the
-  page drew for the run's one watched person: the kickers, the gate's chip labels, the follow-up screen).
+- `backtest.json` -- the entry (`id`, `b2b`, `idea_name`), the study's `scope` (spec 071 FR-4), the stack's SHAs
+  (`stack`), and per link `respondents[link].served` (the interview the stranger's page fetched, spec 062 FR-4.2) and
+  `.drawn` (what the page drew for the run's one watched person: the kickers, the gate's chip labels, the follow-up
+  screen).
 - `transcript.jsonl` -- the follow-up stems the run's people were asked (`<person>: the one follow-up -- owed on ...`,
   the route's 200 `text`).
 - `inputs.json` -- what the founder entered (`founder`: the project name, the four context fields, the window, the
@@ -22,25 +24,49 @@ The back-test entries themselves are NOT loaded through `instructions.corpus.loa
 keel-cloud now, and this eval's loader reads revision 12 until spec 064 (judgement call 1).
 
 Attribution (the amendment of record, 2026-10-23, over FR-2 and FR-3): the real company name is the example's
-attribution, everywhere, so nothing is renamed. Each index row and `<slug>/manifest.json` carry `inspiredBy {name,
-batch, ycUrl}`, `publicDescription {text, url, date}` -- the launch-era words for the studied idea -- and, where today's
-one-liner differs, `statusToday {text, url, date}` (from `instructions/gallery_names.toml`), `assumptions[]` (the
-founder's belief sentences the run tested, as the standings served them), `simulated: true` and the fixed
-`disclaimer`. The attribution check refuses a slug missing any of them, or whose disclaimer is not the fixed sentence.
+attribution, everywhere, so nothing is renamed. Each index row and every study's `manifest.json` carry `inspiredBy
+{name, batch, ycUrl}`, `publicDescription {text, url, date}` -- the launch-era words for the studied idea -- and, where
+today's one-liner differs, `statusToday {text, url, date}` (from `instructions/gallery_names.toml`), `assumptions[]`
+(the founder's belief sentences the study tested, as the standings served them), `simulated: true` and the
+`disclaimer`. The attribution check refuses a slug missing any of them, or whose disclaimer is not the sentence.
 
 **Spec 071 FR-5** (keel-cloud 133, design §9: *each example carries its configuration*): every index row carries
-`scope`, the run's own (`backtest.json`'s, spec 071 FR-4), ALL for every run recorded before a back-test could be walked
-under one -- the fourteen; the attribution check accepts the five contract-38 values and refuses anything else.
+`scope`, the run's own (`backtest.json`'s, spec 071 FR-4); the attribution check accepts the five contract-38 values
+and refuses anything else. Since spec 106 it is the problem study's, PROBLEM.
 
 **Spec 079 FR-6** (the quality cycle's acceptance; the design's §8, *the homepage examples follow the baseline*):
 `--scores quality/scores` puts the readers' gate in front of the export -- a run is an example only when its latest
-score file (spec 078, matched by the file's `bundle` header, at the current `RUBRIC_VERSION`) has no flagged screen and
-a score_pct at or over the bar; a run refused is named with its reason and the gallery is built from the rest.
-`--scope-order` keeps one run per entry (a cycle walks three studies of each). Without `--scores` nothing changes.
+score file (spec 078, matched by the file's `bundle` header, at the current `RUBRIC_VERSION`) has no flagged screen; a
+run refused is named with its reason. Spec 106 FR-3 replaced its bar with the gallery's own last accepted score and
+retired `--scope-order`. Without `--scores` there is no gate.
 
-Provenance stays private (FR-3, amended 2026-10-22): no entry id, run name or source path is written under OUT -- the
-check greps every byte under OUT for them -- and the slug -> entry / run link goes once to
-`runs/gallery/provenance-<exportedAt>.json` (`[{slug, entry, run, cloud, web, renamed: {from, to}}]`), outside OUT.
+**Spec 106** (the founder, 2026-10-30: *"reduce it to three toggles -- problem, solution and commercial -- so the output
+of each can be printed there; and instead of twenty, seven agents answer it"*):
+
+- **FR-1 Three studies per example.** A cycle walks each entry as three studies (`quality/cycle.toml`: PROBLEM,
+  SOLUTION, COMMERCIAL); the export writes all three, `problem` / `solution` / `money` (`STUDIES`). The index row
+  carries `studies: {problem, solution, money}`, each with its own `decision`, `howSure`, `pilot`, `price`, `answered`
+  and `invited`; the row's top-level fields are the problem study's (`TOP_STUDY`), so a reader of the one-study index
+  still works (`scope` reads PROBLEM). An entry lacking one of the three, or given one twice, is refused by name and
+  nothing is written for it (`three_studies`); a run of another scope (ALL, SOLUTION_COMMERCIAL) is no study of the
+  gallery's. Spec 079's `--scope-order` and `one_per_entry` (one run per entry) are retired.
+- **FR-2 The number of people, in words.** The disclaimer says the study's own count (`people_words`: *seven people
+  answered, all simulated*; *six of the seven people invited answered* where one did not), read from the study's
+  invitation register -- never a fixed twenty. Each study's manifest says its own; the row says the problem study's.
+- **FR-3 The gate is the gallery's own last score** (the founder: *"the only time we should not do it is if the next
+  rating comes below what we already have"*). With `--scores`, a study with no score file at the current rubric
+  version, or with a flagged screen, is refused by name (spec 079 FR-6, kept); then the cycle's overall score_pct (the
+  cycle record's head, or the runs' latest score files read as one) is held to the last accepted one, which every gated
+  export records in its provenance file (`accepted`): **below it, the export is refused by name and nothing is
+  written**; equal or above passes, whatever the 90% bar says, and with no accepted score yet (or one at another rubric
+  version) the export passes. `--bar <pct>` is an optional stricter gate (a study under it is refused), off by default.
+- **FR-4 Provenance and privacy as today.** The slug -> entry / study / run link goes once to
+  `runs/gallery/provenance-<exportedAt>.json` (`{exportedAt, accepted, examples: [{slug, entry, cycle, studies: {study:
+  {scope, run, cloud, web}}, renamed}]}`), outside OUT; no entry id, run name or source path is written under OUT --
+  the check greps every byte under OUT for them.
+
+A slug's directory is replaced whole; what keel-web adds to the snapshot by hand is kept across the refresh: the slug's
+`cover.jpg` (keel-web spec 103) and the index row's `title`, `image` and `tests` (keel-web 103 / 104 / 107; `KEPT_KEYS`).
 """
 
 from __future__ import annotations
@@ -68,8 +94,26 @@ INDEX = "index.json"
 INTERVIEW = "interview"            # the read key; written as interview.json beside the 060 files
 LINK_ORDER = ("PRIMARY", "COMMERCIAL_B2B")
 
+#: Spec 106 FR-1: the gallery's three studies, in the index's order, and the back-test scope each is walked under
+#: (keel-cloud 133's StudyScope; the money study is COMMERCIAL, *money alone*).
+STUDIES = ("problem", "solution", "money")
+STUDY_SCOPE = {"problem": "PROBLEM", "solution": "SOLUTION", "money": "COMMERCIAL"}
+SCOPE_STUDY = {scope: study for study, scope in STUDY_SCOPE.items()}
+#: FR-1: the index row's top-level fields are this study's, so a reader of the one-study index still works.
+TOP_STUDY = "problem"
+#: FR-1: what `studies[<study>]` carries on the index row, each the study's own.
+STUDY_FIGURES = ("decision", "howSure", "pilot", "price", "answered", "invited")
+
 #: The amendment of record's attribution, alike in every index row and its slug's manifest.
 ATTRIBUTION = ("inspiredBy", "publicDescription", "statusToday", "simulated", "disclaimer", "assumptions")
+#: The attribution that is the example's, not a study's: alike in the row and all three manifests (the disclaimer
+#: names each study's own people and the assumptions are each study's own beliefs).
+SHARED_ATTRIBUTION = ("inspiredBy", "publicDescription", "statusToday", "simulated")
+
+#: What keel-web writes into the snapshot by hand and a refresh keeps: the index row's keys (keel-web 103's `image`,
+#: 104's `tests`, 107's `title`) and the slug's own files beside its studies (103's cover).
+KEPT_KEYS = ("title", "image", "tests")
+KEPT_FILES = ("cover.jpg",)
 
 #: FR-1's seven gallery words, in the spec's order.
 AXES = ("whoHasIt", "whoPays", "rhythm", "costMode", "priceShape", "firstStep", "kind")
@@ -77,6 +121,7 @@ AXES = ("whoHasIt", "whoPays", "rhythm", "costMode", "priceShape", "firstStep", 
 #: FR-3 (amended 2026-10-22): the slug -> entry / run link is written here, once an export, and never under OUT
 #: (`runs/` is ignored by git, as every run file is).
 PROVENANCE_DIR = RUNS_DIR / "gallery"
+PROVENANCE_GLOB = "provenance-*.json"
 
 #: Keys never written into interview.json (FR-3a: tokens and ids withheld; the AI interviewer's forms are a later spec).
 _DROPPED = frozenset({"itemId", "optionId", "id", "token", "costItemId", "advantagesWhen", "spoken", "clip", "clips"})
@@ -88,12 +133,16 @@ _SLUG = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _YC = "https://www.ycombinator.com/companies/"
 
-#: The amendment of record's fixed sentence, `name` and `batch` filled from `inspiredBy`.
-DISCLAIMER = ("A simulated study inspired by {name} (Y Combinator {batch}). The founder's answers, the twenty "
-              "participants and everything they said are fictional, written from {name}'s public material to show "
-              "what Keel does. Not customer research about {name}; not affiliated with {name} or Y Combinator.")
-#: The disclaimer says "the twenty participants": a run with another number is refused rather than mis-described.
-PARTICIPANTS = 20
+#: The amendment of record's sentence, `name` and `batch` filled from `inspiredBy` and, since spec 106 FR-2, `people`
+#: from the study's own invitation register (`people_words`) -- never a fixed number.
+DISCLAIMER = ("A simulated study inspired by {name} (Y Combinator {batch}): {people}, all simulated. The founder's "
+              "answers, the people and everything they said are fictional, written from {name}'s public material to "
+              "show what Keel does. Not customer research about {name}; not affiliated with {name} or Y Combinator.")
+#: Spec 106 FR-2: the numbers the disclaimer spells (keel-web's `COUNT_WORDS`, one to twenty); past twenty, digits.
+NUMBER_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+                "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty")
+#: Invitation status keel-cloud's register says of a link whose person answered (`FounderViewAssembler.status`).
+ANSWERED = "ANSWERED"
 
 
 class GalleryRefused(AssertionError):
@@ -102,6 +151,25 @@ class GalleryRefused(AssertionError):
     def __init__(self, reasons: list[str]):
         self.reasons = list(reasons)
         super().__init__("the gallery export refuses: " + "; ".join(self.reasons))
+
+
+class NothingToBuild(GalleryRefused):
+    """Every study was refused by the readers' gate, or no entry has its three studies: the gallery is left as it is."""
+
+
+def number_words(n: int) -> str:
+    """Spec 106 FR-2: *seven*; past twenty the digits."""
+    return NUMBER_WORDS[n] if 0 <= n < len(NUMBER_WORDS) else str(n)
+
+
+def people_words(invited: int, answered: int | None = None) -> str:
+    """Spec 106 FR-2: who answered, in words -- *seven people answered*; where fewer answered than the study invited
+    (a gate No walked nowhere on money alone, spec 102), *six of the seven people invited answered*."""
+    answered = invited if answered is None else answered
+    noun = "person" if invited == 1 else "people"
+    if answered == invited:
+        return f"{number_words(invited)} {noun} answered"
+    return f"{'none' if answered == 0 else number_words(answered)} of the {number_words(invited)} {noun} invited answered"
 
 
 # ------------------------------------------------------------------------------------------------ FR-2 the map
@@ -119,9 +187,12 @@ class GalleryName:
     keywords: tuple[str, ...] = ()                     # optional: overrides the derived keywords
     axes: dict = field(default_factory=dict, hash=False, compare=False)
 
-    def disclaimer(self) -> str | None:
+    def disclaimer(self, invited: int, answered: int | None = None) -> str | None:
+        """The sentence for one study of this example: its people in words (spec 106 FR-2)."""
         name, batch = (self.inspired_by or {}).get("name"), (self.inspired_by or {}).get("batch")
-        return DISCLAIMER.format(name=name, batch=batch) if name and batch else None
+        if not (name and batch):
+            return None
+        return DISCLAIMER.format(name=name, batch=batch, people=people_words(invited, answered))
 
 
 def load_names(path: Path = NAMES_FILE) -> list[GalleryName]:
@@ -182,6 +253,16 @@ class Run:
     def b2b(self) -> bool:
         return bool((self.record.get("entry") or {}).get("b2b"))
 
+    @property
+    def scope(self) -> str:
+        """Spec 071 FR-4: the study's scope the run was walked under; ALL for a run recorded before scopes."""
+        return str(self.record.get("scope") or bt.DEFAULT_SCOPE)
+
+    @property
+    def study(self) -> str | None:
+        """Spec 106 FR-1: which of the gallery's three studies the run is (`problem`, `solution`, `money`), or None."""
+        return SCOPE_STUDY.get(self.scope)
+
 
 def _json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -233,22 +314,40 @@ def read_run(run_dir: Path) -> Run:
                reads=reads, corpus=manifest.get("corpus"), follow_ups=read_follow_ups(run_dir / "transcript.jsonl"))
 
 
-def newest_runs(names: list[GalleryName], runs_dir: Path = RUNS_DIR) -> list[Path]:
-    """FR-1's default: for each entry of the map, the newest `*-backtest-<entry>` directory that finished with an
-    export (the stamp prefix sorts by time). Refuses an entry with none."""
+def _finished(path: Path) -> dict | None:
+    """A run directory's record when the back-test finished with an export, else None."""
+    if not (path.is_dir() and (path / bt.EXPORT_DIR / se.MANIFEST).is_file() and (path / bt.RECORD).is_file()):
+        return None
+    try:
+        record = _json(path / bt.RECORD)
+    except (OSError, ValueError):
+        return None
+    return record if record.get("passed") else None
+
+
+def newest_runs(names: list[GalleryName], runs_dir: Path = RUNS_DIR) -> tuple[list[Path], list[str]]:
+    """FR-1's default: for each entry of the map and each of the three studies (spec 106), the newest
+    `*-backtest-<entry>` directory walked under that study's scope that finished with an export (the stamp prefix sorts
+    by time) -- `(the runs, one reason per entry lacking a study)`; such an entry is refused by name, never built from
+    what it has."""
     runs_dir = Path(runs_dir)
-    out, problems = [], []
+    out, missing = [], []
     for n in names:
-        found = sorted(p for p in runs_dir.glob(f"*-backtest-{n.entry}") if p.is_dir()
-                       and (p / bt.EXPORT_DIR / se.MANIFEST).is_file() and (p / bt.RECORD).is_file()
-                       and _json(p / bt.RECORD).get("passed"))
-        if found:
-            out.append(found[-1])
-        else:
-            problems.append(f"no finished back-test run of {n.entry} under {runs_dir}")
-    if problems:
-        raise GalleryRefused(problems)
-    return out
+        found: dict[str, Path] = {}
+        for p in sorted(runs_dir.glob(f"*-backtest-{n.entry}")):
+            record = _finished(p)
+            study = SCOPE_STUDY.get(str((record or {}).get("scope") or bt.DEFAULT_SCOPE)) if record else None
+            if study:
+                found[study] = p                                          # sorted: the newest wins
+        lacking = [s for s in STUDIES if s not in found]
+        if lacking:
+            missing.append(f"{n.entry}: no finished back-test run of its {', '.join(lacking)} "
+                           f"stud{'y' if len(lacking) == 1 else 'ies'} "
+                           f"({', '.join(STUDY_SCOPE[s] for s in lacking)}) under {runs_dir} -- an example is three "
+                           "studies; nothing is written for it")
+            continue
+        out.extend(found[s] for s in STUDIES)
+    return out, missing
 
 
 def resolve_runs(spec: str, runs_dir: Path = RUNS_DIR) -> list[Path]:
@@ -262,6 +361,56 @@ def resolve_runs(spec: str, runs_dir: Path = RUNS_DIR) -> list[Path]:
             path = Path(runs_dir) / part
         out.append(path)
     return out
+
+
+def _record_of(run_dir: Path) -> dict:
+    try:
+        return _json(Path(run_dir) / bt.RECORD)
+    except (OSError, ValueError):
+        return {}
+
+
+def _not_a_study(name: str, scope: str) -> str:
+    return (f"{name}: a {scope} run is not one of the gallery's three studies ("
+            + ", ".join(f"{s} = {STUDY_SCOPE[s]}" for s in STUDIES) + ") -- spec 106 FR-1")
+
+
+def _lacks(entry: str, studies: Iterable[str]) -> str:
+    lacking = [s for s in STUDIES if s not in set(studies)]
+    return (f"{entry}: no {' and no '.join(f'{s} study ({STUDY_SCOPE[s]})' for s in lacking)} -- an example is three "
+            "studies (problem, solution, money), never a partial one; nothing is written for it")
+
+
+def three_studies(run_dirs: list[Path]) -> tuple[list[Path], list[str]]:
+    """Spec 106 FR-1: the runs of every entry that has its three studies, each once, in the order given -- and one
+    reason per run or entry set aside, by name: a run of another scope (ALL, SOLUTION_COMMERCIAL), an entry given one
+    study twice, an entry lacking one. What is set aside is never written; the rest are."""
+    by_entry: dict[str, dict[str, list[Path]]] = {}
+    order: list[str] = []
+    reasons = []
+    for run_dir in run_dirs:
+        run_dir = Path(run_dir)
+        record = _record_of(run_dir)
+        entry = (record.get("entry") or {}).get("id") or run_dir.name
+        scope = str(record.get("scope") or bt.DEFAULT_SCOPE)
+        if scope not in SCOPE_STUDY:
+            reasons.append(_not_a_study(run_dir.name, scope))
+            continue
+        if entry not in by_entry:
+            order.append(entry)
+        by_entry.setdefault(entry, {}).setdefault(SCOPE_STUDY[scope], []).append(run_dir)
+    kept = []
+    for entry in order:
+        studies = by_entry[entry]
+        twice = {s: runs for s, runs in studies.items() if len(runs) > 1}
+        if twice:
+            reasons.append(f"{entry}: " + "; ".join(f"the {s} study given {len(r)} times ({', '.join(p.name for p in r)})"
+                                                    for s, r in twice.items()) + " -- nothing is written for it")
+        elif set(studies) != set(STUDIES):
+            reasons.append(_lacks(entry, studies))
+        else:
+            kept.extend(studies[s][0] for s in STUDIES)
+    return kept, reasons
 
 
 # ------------------------------------------------------------------------------------------ FR-3a the interview
@@ -492,13 +641,30 @@ def gallery_order(rows: list[dict]) -> list[dict]:
 # --------------------------------------------------------------------------------------------- the one export
 
 @dataclass
-class Slug:
-    name: GalleryName
+class Study:
+    """One of an example's three studies (spec 106 FR-1): what goes under `OUT/<slug>/<key>/`."""
+    key: str                           # problem | solution | money
     run: Run
     reads: dict[str, Any]              # withheld, interview included -- what is written
-    manifest: dict                     # cloud, web, exportedAt and the attribution
+    manifest: dict                     # cloud, web, exportedAt and the attribution (the disclaimer the study's own)
+    figures: dict                      # the index row's studies[key]: decision, howSure, pilot, price, answered, invited
+
+
+@dataclass
+class Slug:
+    name: GalleryName
+    studies: dict[str, Study]          # the three, in STUDIES order
     row: dict                          # the index row
     provenance: dict                   # the slug's row of runs/gallery/provenance-<exportedAt>.json, never under OUT
+
+    @property
+    def top(self) -> Study:
+        """FR-1: the study whose fields are the row's own (the problem study)."""
+        return self.studies[TOP_STUDY]
+
+    @property
+    def run(self) -> Run:
+        return self.top.run
 
 
 def assumptions(reads: dict[str, Any]) -> list[str]:
@@ -514,52 +680,76 @@ def assumptions(reads: dict[str, Any]) -> list[str]:
 
 
 def participants(reads: dict[str, Any]) -> int:
-    """The people the run invited (the founder's invitation register)."""
+    """The people the study invited (the founder's invitation register): spec 106 FR-2's `invited`."""
     return len(se.invitation_ids(reads.get("invitations")))
 
 
-def attribution(name: GalleryName, reads: dict[str, Any]) -> dict:
+def answered(reads: dict[str, Any]) -> int:
+    """Spec 106 FR-2's `answered`: the study's links whose person answered (the register's `status` ANSWERED)."""
+    register = reads.get("invitations")
+    rows = ((register or {}).get("invitations") or []) if isinstance(register, dict) else (register or [])
+    return sum(1 for r in rows if isinstance(r, dict) and r.get("status") == ANSWERED)
+
+
+def attribution(name: GalleryName, reads: dict[str, Any], *, invited: int, answered_n: int) -> dict:
     """The amendment of record's fields, in the order written: `statusToday` only where the map has one (the company's
-    current one-liner, where it differs from the launch-era `publicDescription`)."""
+    current one-liner, where it differs from the launch-era `publicDescription`); the disclaimer names the study's own
+    people (spec 106 FR-2)."""
     out = {"inspiredBy": {k: (name.inspired_by or {}).get(k) for k in ("name", "batch", "ycUrl")},
            "publicDescription": {k: (name.public_description or {}).get(k) for k in ("text", "url", "date")}}
     if name.status_today:
         out["statusToday"] = {k: name.status_today.get(k) for k in ("text", "url", "date")}
     return {**out,
             "simulated": True,
-            "disclaimer": name.disclaimer(),
+            "disclaimer": name.disclaimer(invited, answered_n),
             "assumptions": assumptions(reads)}
 
 
-def prepare(name: GalleryName, run: Run, *, exported_at: str) -> Slug:
-    """One slug in memory: withhold again (060), the interview (FR-3a), the attribution (the amendment of record), the
-    index row (FR-1), and the provenance row that is never written under OUT. Nothing is renamed (2026-10-23)."""
+def prepare_study(name: GalleryName, key: str, run: Run, *, exported_at: str) -> Study:
+    """One study in memory: withhold again (060), the interview (FR-3a), the attribution, the study's figures."""
     reads = se.withhold(run.reads, founder_name=bt.IDENTITY_NAME, founder_email=bt.IDENTITY_EMAIL).reads
-    iv = interview(run)
-    reads[INTERVIEW] = iv
-    figures = se.card(reads)
+    reads[INTERVIEW] = interview(run)
+    card = se.card(reads)
+    invited, answered_n = participants(reads), answered(reads)
     stack = run.record.get("stack") or {}
-    entry = run.record.get("entry") or {}
     shas = {"cloud": stack.get("keel-cloud"), "web": stack.get("keel-web")}
-    credit = attribution(name, reads)
-    row = {"slug": name.slug, "name": name.name, **{k: v for k, v in credit.items() if k != "assumptions"},
+    figures = {"decision": card["decision"], "howSure": card["howSure"], "pilot": card["pilot"], "price": card["price"],
+               "answered": answered_n, "invited": invited}
+    return Study(key=key, run=run, reads=reads,
+                 manifest={**shas, "exportedAt": exported_at,
+                           **attribution(name, reads, invited=invited, answered_n=answered_n)},
+                 figures=figures)
+
+
+def prepare(name: GalleryName, runs: dict[str, Run], *, exported_at: str, cycle: str | None = None) -> Slug:
+    """One slug in memory: its three studies (spec 106 FR-1), the index row (FR-1: the problem study's fields at the
+    top, `studies` beside them), and the provenance row that is never written under OUT. Nothing is renamed
+    (2026-10-23)."""
+    studies = {key: prepare_study(name, key, runs[key], exported_at=exported_at) for key in STUDIES}
+    top = studies[TOP_STUDY]
+    run, iv, credit = top.run, top.reads[INTERVIEW], top.manifest
+    entry = run.record.get("entry") or {}
+    shas = {"cloud": credit["cloud"], "web": credit["web"]}
+    row = {"slug": name.slug, "name": name.name, **{k: credit[k] for k in ATTRIBUTION if k in credit and
+                                                     k != "assumptions"},
            "oneLine": one_line(run.founder.get("project_name") or entry.get("title")),
            "problem": one_sentence(run.founder.get("problem_seed")),
            "assumptions": credit["assumptions"],
-           "decision": figures["decision"], "howSure": figures["howSure"],
-           "pilot": figures["pilot"], "price": figures["price"], "b2b": run.b2b,
-           # spec 071 FR-5 (keel-cloud 133, design §5 / §9): which study the example is -- the run's own scope, ALL
-           # (the whole study) for every run recorded before a back-test could be walked under one
-           "scope": run.record.get("scope") or bt.DEFAULT_SCOPE, **shas,
+           **{k: top.figures[k] for k in ("decision", "howSure", "pilot", "price")}, "b2b": run.b2b,
+           # spec 071 FR-5: which study the row's own fields are -- since spec 106 the problem study's (PROBLEM)
+           "scope": run.scope, **shas,
            "axes": axes(run, name.axes),
            "cluster": {k: (name.cluster or {}).get(k) for k in ("id", "label")},
            "keywords": keywords(run, name, occasion=(iv["links"][0] if iv["links"] else {}).get("occasion")),
            "interview": {"links": [{"role": l["role"], "label": l["label"], "items": item_count(l)}
-                                   for l in iv["links"]]}}
-    provenance = {"slug": name.slug, "entry": run.entry, "run": run.dir.name, **shas,
+                                   for l in iv["links"]]},
+           # spec 106 FR-1: the three studies, each its own decision, how sure, pilot, price and people
+           "studies": {key: dict(s.figures) for key, s in studies.items()}}
+    provenance = {"slug": name.slug, "entry": run.entry, "cycle": cycle,
+                  "studies": {key: {"scope": s.run.scope, "run": s.run.dir.name, "cloud": s.manifest["cloud"],
+                                    "web": s.manifest["web"]} for key, s in studies.items()},
                   "renamed": {"from": list(name.replaces), "to": name.name}}
-    return Slug(name=name, run=run, reads=reads, manifest={**shas, "exportedAt": exported_at, **credit}, row=row,
-                provenance=provenance)
+    return Slug(name=name, studies=studies, row=row, provenance=provenance)
 
 
 def index_file(examples: list[dict], generated_at: str) -> dict:
@@ -567,37 +757,59 @@ def index_file(examples: list[dict], generated_at: str) -> dict:
     return {"generatedAt": generated_at, "count": len(examples), "examples": examples}
 
 
+def _attribution_block(where: str, block: dict, s: Slug) -> list[str]:
+    why = []
+    inspired = block.get("inspiredBy") or {}
+    if not all(isinstance(inspired.get(k), str) and inspired[k].strip() for k in ("name", "batch", "ycUrl")):
+        why.append(f"{where}: inspiredBy needs name, batch and ycUrl ({inspired})")
+    elif not inspired["ycUrl"].startswith(_YC):
+        why.append(f"{where}: inspiredBy.ycUrl {inspired['ycUrl']!r} is not a YC company page")
+    elif inspired["name"] != s.name.name:
+        why.append(f"{where}: inspiredBy.name {inspired['name']!r} is not the example's name {s.name.name!r}")
+    for key in ("publicDescription", "statusToday"):
+        if key == "statusToday" and key not in block:
+            continue                                 # optional: only where today's words differ
+        described = block.get(key) or {}
+        if not all(isinstance(described.get(k), str) and described[k].strip() for k in ("text", "url", "date")):
+            why.append(f"{where}: {key} needs text, url and date ({described})")
+        elif not described["url"].startswith("https://") or not _DATE.match(described["date"]):
+            why.append(f"{where}: {key} url {described['url']!r} / date {described['date']!r}")
+    if block.get("simulated") is not True:
+        why.append(f"{where}: simulated is not true")
+    if not block.get("assumptions"):
+        why.append(f"{where}: no assumptions")
+    return why
+
+
 def attribution_reasons(s: Slug) -> list[str]:
     """The attribution check (replaces FR-2's survivors grep): `inspiredBy` (name, batch, a YC company page),
     `publicDescription` (text, an https URL, an ISO date; the launch-era words), `statusToday` when present (the same
-    shape), `simulated`, the fixed disclaimer filled with this name
-    and batch, at least one assumption -- each present, alike in the index row and the manifest; and the run's
-    people the twenty the disclaimer says."""
-    why = []
-    for where, block in (("index", s.row), ("manifest", s.manifest)):
-        inspired = block.get("inspiredBy") or {}
-        if not all(isinstance(inspired.get(k), str) and inspired[k].strip() for k in ("name", "batch", "ycUrl")):
-            why.append(f"{where}: inspiredBy needs name, batch and ycUrl ({inspired})")
-        elif not inspired["ycUrl"].startswith(_YC):
-            why.append(f"{where}: inspiredBy.ycUrl {inspired['ycUrl']!r} is not a YC company page")
-        elif inspired["name"] != s.name.name:
-            why.append(f"{where}: inspiredBy.name {inspired['name']!r} is not the example's name {s.name.name!r}")
-        for key in ("publicDescription", "statusToday"):
-            if key == "statusToday" and key not in block:
-                continue                             # optional: only where today's words differ
-            described = block.get(key) or {}
-            if not all(isinstance(described.get(k), str) and described[k].strip() for k in ("text", "url", "date")):
-                why.append(f"{where}: {key} needs text, url and date ({described})")
-            elif not described["url"].startswith("https://") or not _DATE.match(described["date"]):
-                why.append(f"{where}: {key} url {described['url']!r} / date {described['date']!r}")
-        if block.get("simulated") is not True:
-            why.append(f"{where}: simulated is not true")
-        if not block.get("disclaimer") or block.get("disclaimer") != s.name.disclaimer():
-            why.append(f"{where}: the disclaimer is missing or not the fixed sentence")
-        if not block.get("assumptions"):
-            why.append(f"{where}: no assumptions")
-    if {k: s.row.get(k) for k in ATTRIBUTION} != {k: s.manifest.get(k) for k in ATTRIBUTION}:
-        why.append("the index row and the manifest attribute it differently")
+    shape), `simulated`, at least one assumption -- each present in the index row and in every study's manifest, the
+    row attributing it as the problem study's manifest does and the example's own attribution alike in all three; and
+    (spec 106 FR-2) the disclaimer the sentence filled with this name, batch and **the study's own people** -- the
+    row's the problem study's -- every study having invited someone."""
+    why = _attribution_block("index", s.row, s)
+    for key, study in s.studies.items():
+        why += _attribution_block(f"{key}/manifest", study.manifest, s)
+        invited, answered_n = study.figures["invited"], study.figures["answered"]
+        if invited < 1:
+            why.append(f"the {key} study invited nobody")
+        elif not (0 <= answered_n <= invited):
+            why.append(f"the {key} study says {answered_n} answered of {invited} invited")
+        elif study.manifest.get("disclaimer") != s.name.disclaimer(invited, answered_n):
+            why.append(f"{key}/manifest: the disclaimer is missing or not the sentence for the {key} study's people "
+                       f"({people_words(invited, answered_n)})")
+    top = s.top.figures
+    if not s.row.get("disclaimer") or s.row.get("disclaimer") != s.name.disclaimer(top["invited"], top["answered"]):
+        why.append(f"index: the disclaimer is missing or not the sentence for the {TOP_STUDY} study's people")
+    if {k: s.row.get(k) for k in ATTRIBUTION} != {k: s.top.manifest.get(k) for k in ATTRIBUTION}:
+        why.append(f"the index row and the {TOP_STUDY} study's manifest attribute it differently")
+    if any({k: st.manifest.get(k) for k in SHARED_ATTRIBUTION} != {k: s.top.manifest.get(k) for k in SHARED_ATTRIBUTION}
+           for st in s.studies.values()):
+        why.append("the three studies' manifests attribute the example differently")
+    studies = s.row.get("studies") or {}
+    if list(studies) != list(STUDIES) or any(list(v) != list(STUDY_FIGURES) for v in studies.values()):
+        why.append(f"index: studies must be {list(STUDIES)}, each {list(STUDY_FIGURES)} ({studies})")
     cluster = s.row.get("cluster") or {}
     if not (isinstance(cluster.get("id"), int) and isinstance(cluster.get("label"), str) and cluster["label"].strip()):
         why.append(f"index: cluster needs an integer id and a label ({cluster})")
@@ -610,27 +822,31 @@ def attribution_reasons(s: Slug) -> list[str]:
         why.append(f"index: a keyword names the company ({words})")
     if s.row.get("scope") not in bt.SCOPES:
         why.append(f"index: scope {s.row.get('scope')!r} is not one of {', '.join(bt.SCOPES)}")
-    people = participants(s.reads)
-    if people != PARTICIPANTS:
-        why.append(f"the run invited {people} people; the disclaimer says twenty")
     return [f"{s.name.slug}: {w}" for w in why]
+
+
+def _written(s: Slug) -> str:
+    """Every byte the slug would put under OUT: its studies' reads and manifests and its index row."""
+    return ("".join(se._dumps(v) for st in s.studies.values() for v in st.reads.values())
+            + "".join(se._dumps(st.manifest) for st in s.studies.values()) + se._dumps(s.row))
 
 
 def check(slugs: list[Slug]) -> list[str]:
     """Every refusal reason over the whole output as it would be written: the attribution check, 060's grep (an
-    email, the back-test founder, a link), an id in interview.json, and any provenance (an entry id, a run name, a
-    source path) in what is about to go under OUT."""
+    email, the back-test founder, a link), an id in any study's interview.json, and any provenance (an entry id, a run
+    name, a source path) in what is about to go under OUT."""
     reasons = []
     needles = provenance_needles(slugs)
     for s in slugs:
         reasons += attribution_reasons(s)
-        written = "".join(se._dumps(v) for v in s.reads.values()) + se._dumps(s.manifest) + se._dumps(s.row)
+        written = _written(s)
         held = se.survivors(written, founder_name=bt.IDENTITY_NAME, founder_email=bt.IDENTITY_EMAIL)
         if held:
             reasons.append(f"{s.name.slug}: {held} survive the withholding")
-        ids = sorted({k for k in _keys(s.reads[INTERVIEW]) if k in _DROPPED})
-        if ids:
-            reasons.append(f"{s.name.slug}: interview.json carries {ids}")
+        for key, study in s.studies.items():
+            ids = sorted({k for k in _keys(study.reads[INTERVIEW]) if k in _DROPPED})
+            if ids:
+                reasons.append(f"{s.name.slug}: {key}/interview.json carries {ids}")
         found = sorted(n for n in needles if n.lower() in written.lower())
         if found:
             reasons.append(f"{s.name.slug}: provenance in the public files: {found}")
@@ -638,8 +854,9 @@ def check(slugs: list[Slug]) -> list[str]:
 
 
 def provenance_needles(slugs: list[Slug]) -> list[str]:
-    """What must never be written under OUT: each run's entry id and directory name, and the run-file words."""
-    return sorted({x for s in slugs for x in (s.run.entry, s.run.dir.name)} | {"-backtest-", "/Users/"})
+    """What must never be written under OUT: each study's entry id and run directory name, and the run-file words."""
+    return sorted({x for s in slugs for st in s.studies.values() for x in (st.run.entry, st.run.dir.name)}
+                  | {"-backtest-", "/Users/"})
 
 
 def provenance_under(out_dir: Path, needles: Iterable[str], *, skip: Iterable[Path] = ()) -> list[str]:
@@ -672,13 +889,48 @@ def _keys(value: Any) -> Iterable[str]:
             yield from _keys(v)
 
 
+def kept_rows(out_dir: Path) -> dict[str, dict]:
+    """What keel-web wrote by hand on the snapshot's index rows (`KEPT_KEYS`), by slug -- kept across the refresh, as
+    the slug's cover is. An index that is not there, or not JSON, keeps nothing."""
+    path = Path(out_dir) / INDEX
+    try:
+        raw = _json(path) if path.is_file() else {}
+    except (OSError, ValueError):
+        return {}
+    rows = raw if isinstance(raw, list) else (raw or {}).get("examples") or []
+    return {r["slug"]: {k: copy.deepcopy(r[k]) for k in KEPT_KEYS if k in r}
+            for r in rows if isinstance(r, dict) and isinstance(r.get("slug"), str)}
+
+
+def _grouped(runs: list[Run], by_entry: dict[str, GalleryName]) -> tuple[dict[str, dict[str, Run]], list[str]]:
+    """The runs by entry and study, strictly: every reason the set is not three studies per known entry, each once."""
+    groups: dict[str, dict[str, Run]] = {}
+    reasons = []
+    for r in runs:
+        if r.study is None:
+            reasons.append(_not_a_study(r.dir.name, r.scope))
+        elif r.entry not in by_entry:
+            reasons.append(f"{r.dir.name}: entry {r.entry!r} is not in {NAMES_FILE.name}")
+        elif r.study in groups.get(r.entry, {}):
+            reasons.append(f"{r.entry}: the {r.study} study given twice ({groups[r.entry][r.study].dir.name}, "
+                           f"{r.dir.name})")
+        else:
+            groups.setdefault(r.entry, {})[r.study] = r
+    reasons += [_lacks(entry, studies) for entry, studies in groups.items() if set(studies) != set(STUDIES)]
+    return groups, reasons
+
+
 def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | None = None,
-           exported_at: str | None = None, provenance_dir: Path = PROVENANCE_DIR) -> dict:
-    """FR-1 to FR-3a: read every run, prepare every slug, check the whole output and whatever else already sits under
-    `out_dir`, and only then write `<out_dir>/<slug>/...` (each slug's directory replaced whole) and
-    `<out_dir>/index.json`, then grep every byte under `out_dir` once more. The slug -> entry / run link goes to
-    `<provenance_dir>/provenance-<exportedAt>.json`, never under `out_dir`. Returns `{index, slugs: {slug: manifest +
-    written}, dir, provenance}`."""
+           exported_at: str | None = None, provenance_dir: Path = PROVENANCE_DIR,
+           accepted: dict | None = None) -> dict:
+    """FR-1 to FR-3a, three studies per entry (spec 106 FR-1): read every run, group them by entry and study (an entry
+    lacking one, or given one twice, or a run of another scope refuses the export -- `three_studies` sets such entries
+    aside first), prepare every slug, check the whole output and whatever else already sits under `out_dir`, and only
+    then write `<out_dir>/<slug>/<study>/...` (each slug's directory replaced whole, its `cover.jpg` kept) and
+    `<out_dir>/index.json` (keel-web's `title`, `image` and `tests` kept on a refreshed row), then grep every byte under
+    `out_dir` once more. The slug -> entry / study / run link and `accepted` (FR-3: the cycle and the score_pct the
+    gallery was promoted on, when gated) go to `<provenance_dir>/provenance-<exportedAt>.json`, never under `out_dir`.
+    Returns `{index, slugs: {slug: {study: manifest + written}}, dir, provenance, accepted}`."""
     names = load_names() if names is None else names
     by_entry = {n.entry: n for n in names}
     exported_at = exported_at or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -691,16 +943,18 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
             runs.append(read_run(d))
         except GalleryRefused as refusal:
             reasons.extend(refusal.reasons)
-    seen: dict[str, str] = {}
-    for r in runs:
-        if r.entry not in by_entry:
-            reasons.append(f"{r.dir.name}: entry {r.entry!r} is not in {NAMES_FILE.name}")
-        elif r.entry in seen:
-            reasons.append(f"{r.entry} given twice ({seen[r.entry]}, {r.dir.name})")
-        seen.setdefault(r.entry, r.dir.name)
+    groups, grouping = _grouped(runs, by_entry)
+    reasons += grouping
+    if not runs and not reasons:
+        reasons.append("no run given: nothing to build")
     if reasons:
         raise GalleryRefused(reasons)
-    slugs = [prepare(by_entry[r.entry], r, exported_at=exported_at) for r in runs]
+    cycle = (accepted or {}).get("cycle")
+    slugs = [prepare(by_entry[entry], studies, exported_at=exported_at, cycle=cycle)
+             for entry, studies in groups.items()]
+    kept = kept_rows(out_dir)
+    for s in slugs:
+        s.row.update(kept.get(s.name.slug) or {})
     reasons = check(slugs)
     needles = provenance_needles(slugs)
     replaced = [out_dir / s.name.slug for s in slugs] + [out_dir / INDEX]
@@ -710,11 +964,18 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
     manifests = {}
     for s in slugs:
         target = out_dir / s.name.slug
+        keep = {f: (target / f).read_bytes() for f in KEPT_FILES if (target / f).is_file()}
         if target.is_dir():
-            shutil.rmtree(target)                    # the slug is the export's own: nothing stale survives
-        written = se.write(target, s.reads, entry_id="", corpus_revision=0, cloud=None, exported_at=exported_at)
-        (target / se.MANIFEST).write_text(se._dumps(s.manifest), encoding="utf-8")   # replaces 060's own
-        manifests[s.name.slug] = {**s.manifest, "written": written["files"]}
+            shutil.rmtree(target)                    # the slug is the export's own: nothing stale survives ...
+        target.mkdir(parents=True)
+        for f, data in keep.items():                 # ... but what keel-web put beside it (the cover, keel-web 103)
+            (target / f).write_bytes(data)
+        manifests[s.name.slug] = {}
+        for key, study in s.studies.items():
+            written = se.write(target / key, study.reads, entry_id="", corpus_revision=0, cloud=None,
+                               exported_at=exported_at)
+            (target / key / se.MANIFEST).write_text(se._dumps(study.manifest), encoding="utf-8")  # replaces 060's own
+            manifests[s.name.slug][key] = {**study.manifest, "written": written["files"]}
     index = gallery_order([s.row for s in slugs])
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / INDEX).write_text(se._dumps(index_file(index, exported_at)), encoding="utf-8")
@@ -724,22 +985,19 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
     provenance_dir.mkdir(parents=True, exist_ok=True)
     provenance = provenance_dir / f"provenance-{exported_at}.json"
     by_slug = {s.name.slug: s.provenance for s in slugs}
-    provenance.write_text(se._dumps([by_slug[r["slug"]] for r in index]), encoding="utf-8")
-    return {"index": index, "slugs": manifests, "dir": str(out_dir), "provenance": str(provenance)}
+    provenance.write_text(se._dumps({"exportedAt": exported_at, "accepted": accepted,
+                                     "examples": [by_slug[r["slug"]] for r in index]}), encoding="utf-8")
+    return {"index": index, "slugs": manifests, "dir": str(out_dir), "provenance": str(provenance),
+            "accepted": accepted}
 
 
-# ------------------------------------------------------------------------- spec 079 FR-6: the readers' gate
+# ----------------------------------------------------- spec 079 FR-6 / spec 106 FR-3: the readers' gate
 
-#: Spec 079 FR-6 (spec 063 amended): with `--scores`, a run is an example only when the readers passed it.
-SCORE_GATE = ("a bundle whose latest score file at the current rubric version has a flagged screen, or a score_pct "
-              "under the bar, or that has no score file, is refused by name; the gallery is built from the rest")
-
-
-def _record_of(run_dir: Path) -> dict:
-    try:
-        return _json(Path(run_dir) / bt.RECORD)
-    except (OSError, ValueError):
-        return {}
+#: Spec 106 FR-3 (spec 079 FR-6 amended): with `--scores`, a study is an example only when the readers passed it, and
+#: the gallery is promoted only when the cycle scores at or above the gallery's own last accepted score.
+SCORE_GATE = ("a bundle with no score file at the current rubric version, or whose latest has a flagged screen, is "
+              "refused by name; the cycle's overall score_pct below the gallery's last accepted one (its provenance) "
+              "refuses the export; equal or above passes, whatever the bar")
 
 
 def latest_score_file(run_dir: Path, scores_dir: Path) -> tuple[dict | None, list[str]]:
@@ -769,14 +1027,14 @@ def latest_score_file(run_dir: Path, scores_dir: Path) -> tuple[dict | None, lis
     return (found[-1] if found else None), aside
 
 
-def score_gate(run_dirs: list[Path], scores_dir: Path, *, bar_pct: float | None = None, refuse_flagged: bool = True,
-               refuse_under_bar: bool = True) -> tuple[list[Path], list[str]]:
-    """Spec 079 FR-6: `(the runs the readers passed, one reason per refused run, naming it)`. A run is refused when it
-    has no score file at the current rubric version, when that file's latest has a flagged screen (`refuse_flagged`),
-    or when its overall score_pct is under the bar (`refuse_under_bar`)."""
+def score_gate(run_dirs: list[Path], scores_dir: Path, *, bar_pct: float | None = None,
+               refuse_flagged: bool = True) -> tuple[list[Path], list[str]]:
+    """Spec 079 FR-6 as spec 106 FR-3 leaves it: `(the runs the readers passed, one reason per refused run, naming
+    it)`. A run is refused when it has no score file at the current rubric version or when that file's latest has a
+    flagged screen (a screen the reader marked out of place or leaking is never published); with `bar_pct` (`--bar`,
+    off by default) also when its overall score_pct is under it."""
     from quality import rubric                                       # noqa: PLC0415
 
-    bar = rubric.BAR_PCT if bar_pct is None else float(bar_pct)
     passing, refused = [], []
     for run_dir in run_dirs:
         run_dir = Path(run_dir)
@@ -793,8 +1051,8 @@ def score_gate(run_dirs: list[Path], scores_dir: Path, *, bar_pct: float | None 
         why = []
         if refuse_flagged and flagged:
             why.append(f"{flagged} flagged screen(s)")
-        if refuse_under_bar and (pct is None or pct < bar):
-            why.append(f"score_pct {pct}% under the bar of {bar:.0f}%")
+        if bar_pct is not None and (pct is None or pct < float(bar_pct)):
+            why.append(f"score_pct {pct}% under the bar of {float(bar_pct):.0f}%")
         if why:
             refused.append(f"{run_dir.name} ({study}): {Path(latest['_path']).name} has {' and '.join(why)}")
         else:
@@ -802,69 +1060,129 @@ def score_gate(run_dirs: list[Path], scores_dir: Path, *, bar_pct: float | None 
     return passing, refused
 
 
-def one_per_entry(run_dirs: list[Path], scope_order: list[str]) -> tuple[list[Path], list[str]]:
-    """The gallery has one example per entry (its slug); a quality cycle walks several studies of one entry. Of an
-    entry's runs, the first in `scope_order` (then the newest) is the example; the others are named, never dropped
-    silently."""
-    rank = {s: i for i, s in enumerate(scope_order)}
-    by_entry: dict[str, list[tuple[Path, str]]] = {}
-    for run_dir in run_dirs:
-        record = _record_of(run_dir)
-        by_entry.setdefault((record.get("entry") or {}).get("id") or Path(run_dir).name, []).append(
-            (Path(run_dir), str(record.get("scope") or "ALL")))
-    picked, notes = [], []
-    for entry, runs in by_entry.items():
-        runs.sort(key=lambda r: r[0].name, reverse=True)                     # the newest first (the stamp) ...
-        runs.sort(key=lambda r: rank.get(r[1], len(rank)))                   # ... within the scope order (stable)
-        picked.append(runs[0][0])
-        if len(runs) > 1:
-            notes.append(f"{entry}: the {runs[0][1]} study ({runs[0][0].name}) is the example; also passing: "
-                         + ", ".join(f"{s} ({d.name})" for d, s in runs[1:]))
-    return picked, notes
+def cycle_score(run_dirs: list[Path], scores_dir: Path) -> float | None:
+    """Spec 106 FR-3: the overall score_pct of the runs read as one cycle -- the latest score file of each study at the
+    current rubric version, read together as the cycle record's head reads them (`quality.table.head`); None with
+    none."""
+    from quality import table                                        # noqa: PLC0415
+
+    files = [f for f in (latest_score_file(d, scores_dir)[0] for d in run_dirs) if f]
+    return table.head(table.latest_per_entry(files))["score_pct"] if files else None
+
+
+def last_accepted(provenance_dir: Path = PROVENANCE_DIR) -> dict | None:
+    """Spec 106 FR-3: the gallery's own last score -- the newest provenance file that records one (`accepted`: the
+    cycle, its score_pct, the rubric version), with the file's name; None when no gated export was ever recorded (an
+    export without `--scores`, and every provenance file before spec 106, records none)."""
+    for path in sorted(Path(provenance_dir).glob(PROVENANCE_GLOB), reverse=True):
+        try:
+            data = _json(path)
+        except (OSError, ValueError):
+            continue
+        got = data.get("accepted") if isinstance(data, dict) else None
+        if isinstance(got, dict) and isinstance(got.get("score_pct"), (int, float)):
+            return {**got, "file": path.name}
+    return None
+
+
+def gate(score_pct: float | None, last: dict | None) -> tuple[str | None, str]:
+    """Spec 106 FR-3 (the founder, 2026-10-30): `(refusal, what was compared)` -- a refusal only when the cycle's
+    score_pct is below the gallery's last accepted one at the same rubric version; equal or above passes, whatever the
+    90% bar says; no accepted score yet passes (the first acceptance), and so does one at another rubric version (two
+    rubric versions are never compared, spec 078 FR-1)."""
+    from quality import rubric                                       # noqa: PLC0415
+
+    if last is None:
+        return None, f"no accepted score yet: the first acceptance passes (score_pct {score_pct}%)"
+    then = f"{last['score_pct']}% (cycle {last.get('cycle') or 'not named'}, {last['file']})"
+    if last.get("rubric_version") != rubric.RUBRIC_VERSION:
+        return None, (f"the last accepted score {then} is at rubric version {last.get('rubric_version')}, the scores at "
+                      f"{rubric.RUBRIC_VERSION}: never compared -- the first acceptance at this version passes")
+    if score_pct is None:
+        return (f"the cycle has no score_pct to hold to the gallery's last accepted {then} (no score file at rubric "
+                f"version {rubric.RUBRIC_VERSION}) -- not promoted; nothing is written"), then
+    if score_pct < last["score_pct"]:
+        return (f"the cycle's score_pct {score_pct}% is below the gallery's last accepted {then} -- not promoted "
+                "(spec 106 FR-3: the gate is the gallery's own last score); nothing is written"), then
+    return None, f"score_pct {score_pct}% against the last accepted {then}: at or above, promoted"
+
+
+def promote(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | None = None,
+            scores_dir: Path | None = None, bar_pct: float | None = None, cycle: str | None = None,
+            score_pct: float | None = None, provenance_dir: Path = PROVENANCE_DIR, exported_at: str | None = None,
+            say=print) -> dict:
+    """`make gallery` and `make quality-accept`'s one path (spec 106): behind the readers' gate when `scores_dir` is
+    given (every study refused named through `say`; the cycle's score_pct -- `score_pct`, else `cycle_score` of the
+    runs -- held to the gallery's last accepted one, a refusal of the whole), then three studies per entry (an entry
+    set aside named through `say`), then `export`, the score recorded as `accepted` in the provenance. Raises
+    `NothingToBuild` when every study or entry was set aside, `GalleryRefused` on any other refusal; nothing is
+    written then."""
+    names = load_names() if names is None else names
+    run_dirs = [Path(d) for d in run_dirs]
+    if not run_dirs:
+        raise NothingToBuild(["no run to build from: nothing to build"])
+    accepted = None
+    if scores_dir is not None:
+        from quality import rubric                                   # noqa: PLC0415
+
+        scored = cycle_score(run_dirs, scores_dir) if score_pct is None else score_pct
+        passing, refused = score_gate(run_dirs, Path(scores_dir), bar_pct=bar_pct)
+        for reason in refused:
+            say(f"refused {reason}")
+        refusal, compared = gate(scored, last_accepted(provenance_dir))
+        if refusal:
+            raise GalleryRefused([refusal])
+        say(f"the gate: {compared}")
+        if not passing:
+            raise NothingToBuild(["every run was refused by the readers' gate (--scores): nothing to build"])
+        run_dirs = passing
+        accepted = {"cycle": cycle, "score_pct": scored, "rubric_version": rubric.RUBRIC_VERSION}
+    complete, set_aside = three_studies(run_dirs)
+    for reason in set_aside:
+        say(f"refused {reason}")
+    if not complete:
+        raise NothingToBuild(["no entry has its three studies (problem, solution, money): nothing to build"])
+    return export(complete, out_dir, names=names, exported_at=exported_at, provenance_dir=provenance_dir,
+                  accepted=accepted)
 
 
 # ------------------------------------------------------------------------------------------------ make gallery
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="make gallery", description="Spec 063: the example gallery export.")
+    p = argparse.ArgumentParser(prog="make gallery", description="Spec 063 / 106: the example gallery export.")
     p.add_argument("--out", required=True, help="where the slugs and index.json go (keel-web's public/sample/)")
-    p.add_argument("--runs", default="", help="back-test run directories, comma-separated (default: newest per entry)")
+    p.add_argument("--runs", default="", help="back-test run directories, comma-separated, three studies an entry "
+                                              "(default: the newest of each study per entry)")
     p.add_argument("--runs-dir", default=str(RUNS_DIR), help="where the default (and bare-named) runs are found")
     p.add_argument("--provenance-dir", default=str(PROVENANCE_DIR),
                    help="where provenance-<exportedAt>.json goes (never under --out)")
-    p.add_argument("--scores", default="", help="spec 079 FR-6: quality/scores -- " + SCORE_GATE)
-    p.add_argument("--bar", type=float, default=None, help="with --scores: the bar (default quality.rubric.BAR_PCT)")
-    p.add_argument("--keep-flagged", action="store_true", help="with --scores: a flagged screen does not refuse")
-    p.add_argument("--keep-under-bar", action="store_true", help="with --scores: a score_pct under the bar does not "
-                                                                 "refuse")
-    p.add_argument("--scope-order", default="", help="one example per entry: of an entry's runs, the first scope in "
-                                                      "this comma-separated order (else an entry given twice refuses)")
+    p.add_argument("--scores", default="", help="spec 079 FR-6 / 106 FR-3: quality/scores -- " + SCORE_GATE)
+    p.add_argument("--bar", type=float, default=None, help="with --scores: an optional stricter gate -- a study whose "
+                                                           "score_pct is under it is refused (off by default)")
+    p.add_argument("--cycle", default="", help="with --scores: the cycle record's name, recorded in the provenance")
     a = p.parse_args(argv)
     try:
         names = load_names()
-        run_dirs = resolve_runs(a.runs, Path(a.runs_dir)) if a.runs.strip() else newest_runs(names, Path(a.runs_dir))
-        if a.scores:
-            run_dirs, refused = score_gate(run_dirs, Path(a.scores), bar_pct=a.bar, refuse_flagged=not a.keep_flagged,
-                                           refuse_under_bar=not a.keep_under_bar)
-            for reason in refused:
+        if a.runs.strip():
+            run_dirs = resolve_runs(a.runs, Path(a.runs_dir))
+        else:
+            run_dirs, missing = newest_runs(names, Path(a.runs_dir))
+            for reason in missing:
                 print(f"gallery: refused {reason}")
-            if not run_dirs:
-                raise GalleryRefused(["every run was refused by the readers' gate (--scores): nothing to build"])
-        if a.scope_order.strip():
-            run_dirs, notes = one_per_entry(run_dirs, [s.strip() for s in a.scope_order.split(",") if s.strip()])
-            for note in notes:
-                print(f"gallery: {note}")
-        result = export(run_dirs, Path(a.out), names=names, provenance_dir=Path(a.provenance_dir))
+        result = promote(run_dirs, Path(a.out), names=names, scores_dir=Path(a.scores) if a.scores else None,
+                         bar_pct=a.bar, cycle=a.cycle or None, provenance_dir=Path(a.provenance_dir),
+                         say=lambda line: print(f"gallery: {line}"))
     except GalleryRefused as refusal:
         print(str(refusal), file=sys.stderr)
         return 1
     for row in result["index"]:
-        m = result["slugs"][row["slug"]]
-        print(f"gallery: {row['slug']:<13} {row['name']:<13} {'B2B' if row['b2b'] else 'B2C'}  {row['decision']:<17} "
-              f"{len(m['written'])} files  (cloud {row['cloud']}, web {row['web']})")
-    print(f"gallery: {len(result['index'])} slugs and {INDEX} under {result['dir']}; attributed, simulated, no provenance; "
-          f"nothing committed anywhere")
-    print(f"gallery: which run made which slug -> {result['provenance']} (outside OUT, not committed)")
+        files = sum(len(m["written"]) for m in result["slugs"][row["slug"]].values())
+        decisions = " · ".join(f"{k} {v['decision']}" for k, v in row["studies"].items())
+        print(f"gallery: {row['slug']:<13} {row['name']:<13} {'B2B' if row['b2b'] else 'B2C'}  {decisions}  "
+              f"{files} files  (cloud {row['cloud']}, web {row['web']})")
+    print(f"gallery: {len(result['index'])} slugs of three studies each and {INDEX} under {result['dir']}; attributed, "
+          "simulated, no provenance; nothing committed anywhere")
+    print(f"gallery: which run made which study -> {result['provenance']} (outside OUT, not committed)")
     return 0
 
 

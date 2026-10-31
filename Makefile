@@ -50,33 +50,41 @@ sample: venv
 	KEEL_SAMPLE_EXPORT="$(if $(KEEL_SAMPLE_EXPORT),$(KEEL_SAMPLE_EXPORT),$$($(PY) -c 'from stack.config import load_config; print(load_config(validate=False).keel_web / "public" / "sample")'))" \
 	$(PY) -m pytest evals -q -m "not live" -k s006
 
-# make gallery (spec 063) exports the example gallery: for each back-test run directory (RUNS=<dir>[,<dir>...], each a
-# path or a name under RUNS_DIR; default the newest finished `runs/*-backtest-<id>` of every entry in
-# instructions/gallery_names.toml), the 060 file set the run's export/ holds, plus interview.json (the served interview
-# per link, text only) and manifest.json, into OUT/<slug>/, and one OUT/index.json, B2B and B2C alternating. Since the
-# amendment of record (2026-10-23) each example is a SIMULATED study attributed to the real company: nothing is renamed,
-# and every index row and manifest carry inspiredBy, publicDescription (with URL and date), assumptions, simulated and
-# the fixed disclaimer -- a slug missing any of them is refused, nothing written. Which run made which slug is written
-# once OUTSIDE OUT, to runs/gallery/provenance-<exportedAt>.json (PROVENANCE_DIR= overrides; never under OUT), and no
-# entry id or run name may appear in any byte under OUT. No stack, no model, no money.
+# make gallery (spec 063; spec 106: three studies an example) exports the example gallery: for each entry, its three
+# back-test run directories -- the problem, solution and money studies (SCOPE=PROBLEM, SOLUTION, COMMERCIAL), RUNS=<dir>[,
+# <dir>...], each a path or a name under RUNS_DIR; default the newest finished `runs/*-backtest-<id>` of each study of
+# every entry in instructions/gallery_names.toml -- the 060 file set each run's export/ holds, plus interview.json (the
+# served interview per link, text only) and manifest.json, into OUT/<slug>/<problem|solution|money>/, and one
+# OUT/index.json, B2B and B2C alternating, each row's top-level fields the problem study's and `studies: {problem,
+# solution, money}` each study's own decision, howSure, pilot, price, answered and invited. An entry lacking one of
+# the three studies (or given one twice, or a run of another scope) is refused by name and nothing is written for it.
+# Since the amendment of record (2026-10-23) each example is a SIMULATED study attributed to the real company: nothing
+# is renamed, and every index row and manifest carry inspiredBy, publicDescription (with URL and date), assumptions,
+# simulated and the disclaimer, which says the study's own people in words (spec 106 FR-2: "seven people answered, all
+# simulated") -- a slug missing any of them is refused, nothing written. Which run made which study is written once
+# OUTSIDE OUT, to runs/gallery/provenance-<exportedAt>.json (PROVENANCE_DIR= overrides; never under OUT), and no entry id
+# or run name may appear in any byte under OUT. A slug's cover.jpg and the row's title, image and tests (keel-web's own)
+# are kept across the refresh. No stack, no model, no money.
 # **It writes into a sibling checkout** when OUT is left out (keel-web's public/sample/, the checkout stack.toml names)
 # and commits nothing there: committing the snapshot is the operator's step, with keel-web 100. The root
 # public/sample/*.json of `make sample` is left as it is.
 #
 #   make gallery                                                  newest runs, into keel-web/public/sample/
-#   make gallery RUNS=runs/<a>,runs/<b> OUT=/tmp/sample           those runs, anywhere else
+#   make gallery RUNS=runs/<a>,runs/<b>,runs/<c> OUT=/tmp/sample  those runs (one entry's three studies), elsewhere
 #   make gallery RUNS_DIR=/path/to/keel-e2e-eval/runs OUT=...      the newest runs of another checkout
-# Spec 079 FR-6: SCORES=quality/scores puts the readers' gate in front: a run whose latest score file at the current
-# rubric version has a flagged screen or a score_pct under the bar (or that has no score file) is refused by name, and
-# the gallery is built from the rest; SCOPE_ORDER=SOLUTION,PROBLEM,... keeps one run per entry. `make quality-accept`
-# runs it so, from one cycle's bundles.
-#   make gallery RUNS=runs/<a>,runs/<b> SCORES=quality/scores SCOPE_ORDER=SOLUTION,PROBLEM,COMMERCIAL OUT=/tmp/sample
+# Spec 079 FR-6 / 106 FR-3: SCORES=quality/scores puts the readers' gate in front: a run whose latest score file at the
+# current rubric version has a flagged screen (or that has no score file) is refused by name, and the runs' overall
+# score_pct is held to the gallery's own last accepted one (the newest provenance file that records one): below it the
+# export is refused and nothing is written; at or above, or with none yet, it is built and the score recorded. BAR=<pct>
+# is an optional stricter gate (a run under it is refused), off by default; CYCLE=<record name> is recorded in the
+# provenance. `make quality-accept` runs it so, from one cycle's bundles, with SCORES alone.
+#   make gallery RUNS=runs/<a>,runs/<b>,runs/<c> SCORES=quality/scores OUT=/tmp/sample
 gallery: venv
 	PYTHONPATH=. $(PY) -m evals.gallery \
 	  --out "$(if $(OUT),$(OUT),$$($(PY) -c 'from stack.config import load_config; print(load_config(validate=False).keel_web / "public" / "sample")'))" \
 	  $(if $(RUNS),--runs "$(RUNS)",) $(if $(RUNS_DIR),--runs-dir "$(RUNS_DIR)",) \
 	  $(if $(PROVENANCE_DIR),--provenance-dir "$(PROVENANCE_DIR)",) \
-	  $(if $(SCORES),--scores "$(SCORES)",) $(if $(SCOPE_ORDER),--scope-order "$(SCOPE_ORDER)",)
+	  $(if $(SCORES),--scores "$(SCORES)",) $(if $(BAR),--bar "$(BAR)",) $(if $(CYCLE),--cycle "$(CYCLE)",)
 
 # make backtest (spec 062) walks ONE BACK-TEST ENTRY -- a real founder's idea, written from public material in the
 # corpus schema with no golden expectations, in keel-cloud's `canon/designs/measured-beliefs/backtest/<ENTRY>.yaml` --
@@ -200,11 +208,14 @@ quality-advise: venv
 	@if [ -z "$(CYCLE)" ]; then echo "make quality-advise refuses: no CYCLE -- name a cycle record, \`CYCLE=quality/cycles/<yyyymmdd>-<cloud7>.md\` (spec 079 FR-4)"; exit 2; fi
 	PYTHONPATH=. $(PY) -m quality.cycle advise --cycle "$(CYCLE)" $(if $(DRY),--dry-run,)
 
-# make quality-accept (FREE, on the founder's word only) cuts quality/BASELINE.md from the cycle's score files (the old
-# one kept under quality/baselines/<date>.md), builds the gallery from the cycle's bundles behind the readers' gate
-# (`make gallery SCORES=quality/scores`) into keel-web's public/sample (OUT= elsewhere), prints what changed in the
-# snapshot and the sentence the keel-web refresh spec starts from. It commits nothing anywhere. RUNS_DIR= says where
-# the bundles are by name; QUALITY_OUT= writes the baseline elsewhere (a dry rehearsal).
+# make quality-accept (FREE, on the founder's word only) holds the cycle's score_pct to the gallery's own last accepted
+# one first (spec 106 FR-3: below it, refused -- nothing cut, nothing written; the first acceptance passes), then cuts
+# quality/BASELINE.md from the cycle's score files (the old one kept under quality/baselines/<date>.md), builds the
+# gallery from the cycle's bundles behind the readers' gate alone (`make gallery SCORES=quality/scores`, no bar: three
+# studies an example, a flagged screen refused) into keel-web's public/sample (OUT= elsewhere), records the score in
+# the provenance, prints what changed in the snapshot and the sentence the keel-web refresh spec starts from. It
+# commits nothing anywhere. RUNS_DIR= says where the bundles are by name; QUALITY_OUT= writes the baseline elsewhere
+# and PROVENANCE_DIR= the provenance (a dry rehearsal: both, with OUT=).
 #   make quality-accept CYCLE=quality/cycles/<record>.md
 quality-accept: venv
 	@if [ -z "$(CYCLE)" ]; then echo "make quality-accept refuses: no CYCLE -- name a cycle record, \`CYCLE=quality/cycles/<yyyymmdd>-<cloud7>.md\` (spec 079 FR-6)"; exit 2; fi

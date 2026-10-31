@@ -1,5 +1,10 @@
 """Spec 063: the example gallery export (`evals/gallery.py`) -- stackless, over a trimmed copy of one back-test run.
 
+Spec 106 FR-1: an example is three studies, so every export here is of the run of record copied as one cycle's three
+studies of 08-fresco (`three_studies`: the record's `scope` and `run` rewritten, nothing else), written under
+`OUT/fresco/<problem|solution|money>/`; the row's top-level fields are the problem study's. Spec 106's own cases are
+`tests/test_gallery_106.py`.
+
 `tests/fixtures/gallery/20261022T164045Z-backtest-08-fresco/` is the run of record for 08-fresco (spec 062's
 `runs/20261022T164045Z-backtest-08-fresco`), cut down to what the export reads: `backtest.json`'s `spec`, `run`,
 `passed`, `failed_step`, `entry`, `stack` and `respondents`; `inputs.json`'s `founder`; `export/` with the seven top
@@ -32,10 +37,27 @@ FIXTURES = REPO / "tests" / "fixtures" / "gallery"
 RUN = FIXTURES / "20261022T164045Z-backtest-08-fresco"
 PINNED = FIXTURES / "expected-interview-fresco.json"
 AT = "2026-10-22T20:00:00Z"
-FRESCO_DISCLAIMER = ("A simulated study inspired by Fresco (Y Combinator Fall 2024). The founder's answers, the twenty "
-                     "participants and everything they said are fictional, written from Fresco's public material to "
-                     "show what Keel does. Not customer research about Fresco; not affiliated with Fresco or Y "
-                     "Combinator.")
+#: Spec 106 FR-2: the sentence names the study's own people -- the run of record invited twenty, all answered.
+FRESCO_DISCLAIMER = ("A simulated study inspired by Fresco (Y Combinator Fall 2024): twenty people answered, all "
+                     "simulated. The founder's answers, the people and everything they said are fictional, written from "
+                     "Fresco's public material to show what Keel does. Not customer research about Fresco; not "
+                     "affiliated with Fresco or Y Combinator.")
+#: Spec 106 FR-1: one cycle's three studies of 08-fresco, each its own run directory (the stamp tells them apart).
+STAMPS = {"problem": "20261022T164045Z", "solution": "20261022T174045Z", "money": "20261022T184045Z"}
+
+
+def three_studies(root: Path, run: Path = RUN) -> list[Path]:
+    """`run` copied under `root` as the problem, solution and money studies of one cycle (spec 106 FR-1): its record's
+    `scope` and `run` rewritten, nothing else; the problem study first."""
+    out = []
+    for study in g.STUDIES:
+        d = Path(root) / f"{STAMPS[study]}-backtest-08-fresco"
+        shutil.copytree(run, d)
+        record = json.loads((d / bt.RECORD).read_text(encoding="utf-8"))
+        record.update(scope=g.STUDY_SCOPE[study], run=d.name)
+        (d / bt.RECORD).write_text(json.dumps(record), encoding="utf-8")
+        out.append(d)
+    return out
 
 
 @pytest.fixture(scope="module")
@@ -44,9 +66,14 @@ def names():
 
 
 @pytest.fixture()
-def exported(tmp_path, names):
+def runs(tmp_path):
+    return three_studies(tmp_path / "runs")
+
+
+@pytest.fixture()
+def exported(tmp_path, names, runs):
     out = tmp_path / "sample"
-    result = g.export([RUN], out, names=names, exported_at=AT, provenance_dir=tmp_path / "runs" / "gallery")
+    result = g.export(runs, out, names=names, exported_at=AT, provenance_dir=tmp_path / "runs" / "gallery")
     return out, result
 
 
@@ -104,11 +131,12 @@ def test_a_malformed_map_is_refused_by_name(tmp_path):
     assert "entry repeated" in said and "name repeated" in said
 
 
-def test_the_disclaimer_is_the_fixed_sentence(names):
-    assert names[0].disclaimer() == FRESCO_DISCLAIMER
+def test_the_disclaimer_is_the_sentence_with_the_studys_people(names):
+    assert names[0].disclaimer(20) == FRESCO_DISCLAIMER == names[0].disclaimer(20, 20)
     palus = next(n for n in names if n.entry == "10-palus")
-    assert palus.disclaimer().startswith("A simulated study inspired by Palus Finance (Y Combinator Winter 2026).")
-    assert "written from Palus Finance's public material" in palus.disclaimer()
+    assert palus.disclaimer(7).startswith("A simulated study inspired by Palus Finance (Y Combinator Winter 2026): "
+                                          "seven people answered, all simulated.")
+    assert "written from Palus Finance's public material" in palus.disclaimer(7)
 
 
 # ---------------------------------------------------------------------------------- the attribution check
@@ -116,7 +144,7 @@ def test_the_disclaimer_is_the_fixed_sentence(names):
 def test_the_attribution_in_the_index_and_the_manifest(exported):
     out, _ = exported
     row = json.loads((out / g.INDEX).read_text(encoding="utf-8"))["examples"][0]
-    manifest = json.loads((out / "fresco" / se.MANIFEST).read_text(encoding="utf-8"))
+    manifests = [json.loads((out / "fresco" / study / se.MANIFEST).read_text(encoding="utf-8")) for study in g.STUDIES]
     want = {"inspiredBy": {"name": "Fresco", "batch": "Fall 2024", "ycUrl": "https://www.ycombinator.com/companies/fresco"},
             "publicDescription": {"text": "Fresco: The scribe for construction",
                                   "url": "https://www.ycombinator.com/launches/M73-fresco-the-scribe-for-construction",
@@ -124,7 +152,7 @@ def test_the_attribution_in_the_index_and_the_manifest(exported):
             "statusToday": {"text": "AI copilot for construction estimators",
                             "url": "https://www.ycombinator.com/companies/fresco", "date": "2026-10-22"},
             "simulated": True, "disclaimer": FRESCO_DISCLAIMER}
-    for block in (row, manifest):
+    for block in (row, *manifests):
         assert {k: block[k] for k in want} == want
         assert block["assumptions"][0] == ("Nearly all of these construction superintendents had this at least once "
                                            "in the last 5 working days.")
@@ -149,10 +177,10 @@ def test_the_attribution_in_the_index_and_the_manifest(exported):
     ({"status_today": {"text": "x", "url": "https://www.ycombinator.com/companies/fresco", "date": "today"}},
      "statusToday url"),
 ])
-def test_a_slug_missing_its_attribution_is_refused_and_nothing_is_written(tmp_path, names, change, said):
+def test_a_slug_missing_its_attribution_is_refused_and_nothing_is_written(tmp_path, names, runs, change, said):
     out = tmp_path / "sample"
     with pytest.raises(g.GalleryRefused) as refused:
-        g.export([RUN], out, names=_with(names, "08-fresco", **change), exported_at=AT,
+        g.export(runs, out, names=_with(names, "08-fresco", **change), exported_at=AT,
                  provenance_dir=tmp_path / "prov")
     assert any(said in r for r in refused.value.reasons), refused.value.reasons
     assert all(r.startswith("fresco: ") for r in refused.value.reasons)
@@ -198,29 +226,30 @@ def test_keywords_are_derived_when_the_map_writes_none(names):
     ({"keywords": (" ", "photos", "logs", "trailer", "dispute")}, "not plain lower-case"),
     ({"keywords": ("fresco app", "photos", "logs", "trailer", "dispute")}, "a keyword names the company"),
 ])
-def test_a_slug_without_its_cluster_or_keywords_is_refused(tmp_path, names, change, said):
+def test_a_slug_without_its_cluster_or_keywords_is_refused(tmp_path, names, runs, change, said):
     with pytest.raises(g.GalleryRefused) as refused:
-        g.export([RUN], tmp_path / "sample", names=_with(names, "08-fresco", **change), exported_at=AT,
+        g.export(runs, tmp_path / "sample", names=_with(names, "08-fresco", **change), exported_at=AT,
                  provenance_dir=tmp_path / "prov")
     assert any(said in r for r in refused.value.reasons), refused.value.reasons
     assert not (tmp_path / "sample").exists()
 
 
-def test_status_today_is_optional(tmp_path, names):
+def test_status_today_is_optional(tmp_path, names, runs):
     out = tmp_path / "sample"
-    g.export([RUN], out, names=_with(names, "08-fresco", status_today={}), exported_at=AT,
+    g.export(runs, out, names=_with(names, "08-fresco", status_today={}), exported_at=AT,
              provenance_dir=tmp_path / "prov")
     row = json.loads((out / g.INDEX).read_text(encoding="utf-8"))["examples"][0]
-    manifest = json.loads((out / "fresco" / se.MANIFEST).read_text(encoding="utf-8"))
-    assert "statusToday" not in row and "statusToday" not in manifest and row["publicDescription"]["text"]
+    for study in g.STUDIES:
+        manifest = json.loads((out / "fresco" / study / se.MANIFEST).read_text(encoding="utf-8"))
+        assert "statusToday" not in manifest, study
+    assert "statusToday" not in row and row["publicDescription"]["text"]
 
 
-def test_a_missing_disclaimer_simulated_or_assumptions_is_refused(names):
-    run = g.read_run(RUN)
-    s = g.prepare(names[0], run, exported_at=AT)
+def test_a_missing_disclaimer_simulated_or_assumptions_is_refused(names, runs):
+    s = g.prepare(names[0], {study: g.read_run(d) for study, d in zip(g.STUDIES, runs)}, exported_at=AT)
     assert g.attribution_reasons(s) == []
     for key, value, said in (("disclaimer", None, "the disclaimer is missing"),
-                             ("disclaimer", "A simulated study.", "not the fixed sentence"),
+                             ("disclaimer", "A simulated study.", "not the sentence for the problem study's people"),
                              ("simulated", False, "simulated is not true"),
                              ("assumptions", [], "no assumptions")):
         broken = dataclasses.replace(s, row={**s.row, key: value})
@@ -228,15 +257,8 @@ def test_a_missing_disclaimer_simulated_or_assumptions_is_refused(names):
         assert any(said in r for r in reasons) and any("differently" in r for r in reasons), reasons
 
 
-def test_a_run_without_twenty_people_is_refused(tmp_path, names):
-    run = tmp_path / RUN.name
-    shutil.copytree(RUN, run)
-    path = run / "export" / "invitations.json"
-    register = json.loads(path.read_text(encoding="utf-8"))
-    register["invitations"] = register["invitations"][:19]
-    path.write_text(json.dumps(register), encoding="utf-8")
-    with pytest.raises(g.GalleryRefused, match="invited 19 people; the disclaimer says twenty"):
-        g.export([run], tmp_path / "sample", names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
+# spec 106 FR-2 retired 063's *a run without twenty people is refused*: the disclaimer says each study's own people
+# (`tests/test_gallery_106.py`, the number in words)
 
 
 def test_the_060_withholding_still_refuses(tmp_path, names):
@@ -247,16 +269,18 @@ def test_the_060_withholding_still_refuses(tmp_path, names):
     payload["Backtest Founder"] = 1                                     # the founder, where withholding can't reach
     people.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(g.GalleryRefused) as refused:
-        g.export([run], tmp_path / "sample", names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
+        g.export(three_studies(tmp_path / "runs", run), tmp_path / "sample", names=names, exported_at=AT,
+                 provenance_dir=tmp_path / "prov")
     assert any("survive the withholding" in r for r in refused.value.reasons)
 
 
 def test_nothing_is_renamed(exported):
     out, _ = exported
     run = g.read_run(RUN)
-    for key, payload in run.reads.items():
-        assert json.loads((out / "fresco" / f"{key}.json").read_text(encoding="utf-8")) == payload
-    assert "Fresco" in (out / "fresco" / "overview.json").read_text(encoding="utf-8")
+    for study in g.STUDIES:
+        for key, payload in run.reads.items():
+            assert json.loads((out / "fresco" / study / f"{key}.json").read_text(encoding="utf-8")) == payload
+        assert "Fresco" in (out / "fresco" / study / "overview.json").read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------------------------- FR-1 the index
@@ -269,9 +293,9 @@ def test_the_index_shape(exported):
     assert list(row) == ["slug", "name", "inspiredBy", "publicDescription", "statusToday", "simulated", "disclaimer",
                          "oneLine",
                          "problem", "assumptions", "decision", "howSure", "pilot", "price", "b2b", "scope", "cloud",
-                         "web", "axes", "cluster", "keywords", "interview"]
+                         "web", "axes", "cluster", "keywords", "interview", "studies"]       # spec 106: + studies
     assert row["slug"] == "fresco" and row["name"] == "Fresco" and row["b2b"] is True
-    assert row["scope"] == "ALL"                  # spec 071 FR-5: the run of record predates scopes -- the whole study
+    assert row["scope"] == "PROBLEM"              # spec 106 FR-1: the row's own fields are the problem study's
     assert row["oneLine"] == "The scribe for construction superintendents"
     assert row["problem"].startswith("Construction superintendents spend up to 3 hours a day on documents")
     assert row["problem"].endswith("a dispute with the owner.") and "based on" not in row["problem"]
@@ -288,7 +312,7 @@ def test_the_index_shape(exported):
     assert row["cluster"] == {"id": 4, "label": "Construction and real estate"}
     assert row["keywords"] == ["construction superintendent", "site walks", "daily logs", "photos", "punch lists",
                                "documents", "trailer", "liability", "dispute", "general contractors"]
-    roles = json.loads((out / "fresco" / "roles.json").read_text(encoding="utf-8"))["roles"]
+    roles = json.loads((out / "fresco" / "problem" / "roles.json").read_text(encoding="utf-8"))["roles"]
     assert [l["items"] for l in row["interview"]["links"]] == [r["questionCount"] for r in roles]
 
 
@@ -318,54 +342,63 @@ def test_one_sentence_and_one_line():
 def test_the_file_set_per_slug(exported):
     out, result = exported
     listed = json.loads((RUN / "export" / se.MANIFEST).read_text(encoding="utf-8"))["files"]
-    on_disk = sorted(str(p.relative_to(out / "fresco")) for p in (out / "fresco").rglob("*") if p.is_file())
-    assert on_disk == sorted([*listed, "interview.json", se.MANIFEST])
     assert sorted(p.name for p in out.iterdir()) == ["fresco", "index.json"]
-    assert result["slugs"]["fresco"]["written"] == [*listed, "interview.json"]
+    assert sorted(p.name for p in (out / "fresco").iterdir()) == sorted(g.STUDIES)     # spec 106: one folder a study
+    for study in g.STUDIES:
+        here = out / "fresco" / study
+        on_disk = sorted(str(p.relative_to(here)) for p in here.rglob("*") if p.is_file())
+        assert on_disk == sorted([*listed, "interview.json", se.MANIFEST]), study
+        assert result["slugs"]["fresco"][study]["written"] == [*listed, "interview.json"]
 
 
 def test_the_manifest_shape(exported):
     out, _ = exported
-    manifest = json.loads((out / "fresco" / se.MANIFEST).read_text(encoding="utf-8"))
-    assert list(manifest) == ["cloud", "web", "exportedAt", "inspiredBy", "publicDescription", "statusToday",
-                              "simulated", "disclaimer", "assumptions"]
-    assert (manifest["cloud"], manifest["web"], manifest["exportedAt"]) == ("b2cf168", "9f3845a", AT)
+    for study in g.STUDIES:
+        manifest = json.loads((out / "fresco" / study / se.MANIFEST).read_text(encoding="utf-8"))
+        assert list(manifest) == ["cloud", "web", "exportedAt", "inspiredBy", "publicDescription", "statusToday",
+                                  "simulated", "disclaimer", "assumptions"]
+        assert (manifest["cloud"], manifest["web"], manifest["exportedAt"]) == ("b2cf168", "9f3845a", AT)
 
 
-def test_the_provenance_is_written_once_outside_out(exported, tmp_path):
+def test_the_provenance_is_written_once_outside_out(exported, tmp_path, runs):
     out, result = exported
     path = tmp_path / "runs" / "gallery" / f"provenance-{AT}.json"
     assert result["provenance"] == str(path) and out not in path.parents
-    assert json.loads(path.read_text(encoding="utf-8")) == [{
-        "slug": "fresco", "entry": "08-fresco", "run": RUN.name, "cloud": "b2cf168", "web": "9f3845a",
-        "renamed": {"from": [], "to": "Fresco"}}]
+    # spec 106 FR-4: cycle, entry, study and run per slug; `accepted` is null on an export without --scores
+    assert json.loads(path.read_text(encoding="utf-8")) == {"exportedAt": AT, "accepted": None, "examples": [{
+        "slug": "fresco", "entry": "08-fresco", "cycle": None,
+        "studies": {study: {"scope": g.STUDY_SCOPE[study], "run": run.name, "cloud": "b2cf168", "web": "9f3845a"}
+                    for study, run in zip(g.STUDIES, runs)},
+        "renamed": {"from": [], "to": "Fresco"}}]}
     assert (REPO / ".gitignore").read_text(encoding="utf-8").splitlines().count("runs/") == 1
 
 
-def test_no_byte_under_out_carries_provenance(exported, names):
+def test_no_byte_under_out_carries_provenance(exported, names, runs):
     out, _ = exported
     everything = b"".join(p.read_bytes() for p in sorted(out.rglob("*")) if p.is_file()).decode("utf-8").lower()
-    for needle in ("08-fresco", RUN.name.lower(), "backtest", "/users/", "renamed"):
+    for needle in ("08-fresco", *(r.name.lower() for r in runs), "backtest", "/users/", "renamed"):
         assert needle not in everything, needle
-    assert g.provenance_under(out, ["08-fresco", RUN.name, "-backtest-"]) == []
+    assert g.provenance_under(out, ["08-fresco", *(r.name for r in runs), "-backtest-"]) == []
 
 
-def test_provenance_already_under_out_refuses_and_nothing_is_written(tmp_path, names):
+def test_provenance_already_under_out_refuses_and_nothing_is_written(tmp_path, names, runs):
     out = tmp_path / "sample"
     out.mkdir()
     (out / "notes.txt").write_text("made from 08-fresco", encoding="utf-8")
     with pytest.raises(g.GalleryRefused) as refused:
-        g.export([RUN], out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
+        g.export(runs, out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
     assert refused.value.reasons == ["already under OUT: notes.txt: ['08-fresco']"]
     assert sorted(p.name for p in out.iterdir()) == ["notes.txt"] and not (tmp_path / "prov").exists()
     with pytest.raises(g.GalleryRefused, match="is under OUT"):
-        g.export([RUN], out, names=names, exported_at=AT, provenance_dir=out / "gallery")
+        g.export(runs, out, names=names, exported_at=AT, provenance_dir=out / "gallery")
 
 
 def test_the_interview_is_pinned_on_one_run(exported):
     out, _ = exported
-    written = json.loads((out / "fresco" / "interview.json").read_text(encoding="utf-8"))
-    assert written == json.loads(PINNED.read_text(encoding="utf-8"))
+    for study in g.STUDIES:                         # spec 106: each study's own (here three copies of one run)
+        assert json.loads((out / "fresco" / study / "interview.json").read_text(encoding="utf-8")) == \
+            json.loads(PINNED.read_text(encoding="utf-8")), study
+    written = json.loads((out / "fresco" / "problem" / "interview.json").read_text(encoding="utf-8"))
     primary, decider = written["links"]
     assert list(primary) == ["role", "label", "kind", "occasion", "idea", "gate", "storyPrompt", "storyHint", "parts",
                              "reveal", "followUp"]
@@ -383,62 +416,75 @@ def test_the_interview_is_pinned_on_one_run(exported):
 
 def test_the_interview_withholds_ids_tokens_and_media(exported):
     out, _ = exported
-    text = (out / "fresco" / "interview.json").read_text(encoding="utf-8")
-    keys = set(g._keys(json.loads(text)))
-    assert not keys & g._DROPPED
-    assert "withheld" not in text and "/i/" not in text and "@" not in text
-    assert not any(w in text.lower() for w in (".mp4", ".webm", "clip", "face", "recording"))
+    for study in g.STUDIES:
+        text = (out / "fresco" / study / "interview.json").read_text(encoding="utf-8")
+        keys = set(g._keys(json.loads(text)))
+        assert not keys & g._DROPPED
+        assert "withheld" not in text and "/i/" not in text and "@" not in text
+        assert not any(w in text.lower() for w in (".mp4", ".webm", "clip", "face", "recording"))
 
 
-def test_a_rerun_replaces_the_slug_and_keeps_the_root_files(tmp_path, names):
+def test_a_rerun_replaces_the_slug_and_keeps_the_root_files(tmp_path, names, runs):
     out = tmp_path / "sample"
     out.mkdir()
     (out / "standings.json").write_text("{}", encoding="utf-8")     # `make sample`'s root files stay (FR-1)
-    g.export([RUN], out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
-    stale = out / "fresco" / "readings" / "gone.json"
+    g.export(runs, out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
+    stale = out / "fresco" / "problem" / "readings" / "gone.json"
     stale.write_text("{}", encoding="utf-8")
-    g.export([RUN], out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
+    (out / "fresco" / "overview.json").write_text("{}", encoding="utf-8")    # the one-study layout's, before 106
+    g.export(runs, out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
     assert not stale.exists() and (out / "standings.json").read_text(encoding="utf-8") == "{}"
+    assert not (out / "fresco" / "overview.json").exists()
 
 
 # ------------------------------------------------------------------------------------------------- the runs
 
-def _fake_run(root: Path, name: str, passed: bool = True) -> Path:
+def _fake_run(root: Path, name: str, passed: bool = True, scope: str | None = None) -> Path:
     d = root / name
     (d / "export").mkdir(parents=True)
-    (d / bt.RECORD).write_text(json.dumps({"passed": passed}), encoding="utf-8")
+    (d / bt.RECORD).write_text(json.dumps({"passed": passed, **({"scope": scope} if scope else {})}),
+                               encoding="utf-8")
     (d / "export" / se.MANIFEST).write_text("{}", encoding="utf-8")
     return d
 
 
-def test_the_default_is_the_newest_finished_run_per_entry(tmp_path, names):
+def test_the_default_is_the_newest_finished_run_of_each_study_per_entry(tmp_path, names):
     for n in names:
-        _fake_run(tmp_path, f"20261022T100000Z-backtest-{n.entry}")
-    newest = _fake_run(tmp_path, "20261022T120000Z-backtest-08-fresco")
-    _fake_run(tmp_path, "20261022T130000Z-backtest-08-fresco", passed=False)
-    picked = g.newest_runs(names, tmp_path)
-    assert picked[0] == newest and len(picked) == len(names) == 14
-    shutil.rmtree(tmp_path / "20261022T100000Z-backtest-13-aircaps")
-    with pytest.raises(g.GalleryRefused, match="no finished back-test run of 13-aircaps"):
-        g.newest_runs(names, tmp_path)
+        for i, scope in enumerate(("PROBLEM", "SOLUTION", "COMMERCIAL")):
+            _fake_run(tmp_path, f"20261022T10000{i}Z-backtest-{n.entry}", scope=scope)
+    newest = _fake_run(tmp_path, "20261022T120000Z-backtest-08-fresco", scope="PROBLEM")
+    _fake_run(tmp_path, "20261022T130000Z-backtest-08-fresco", passed=False, scope="PROBLEM")
+    _fake_run(tmp_path, "20261022T140000Z-backtest-08-fresco")                  # ALL: no study of the gallery's
+    picked, missing = g.newest_runs(names, tmp_path)
+    assert picked[0] == newest and len(picked) == 3 * len(names) == 42 and missing == []
+    assert [p.name for p in picked[1:3]] == ["20261022T100001Z-backtest-08-fresco", "20261022T100002Z-backtest-08-fresco"]
+    shutil.rmtree(tmp_path / "20261022T100002Z-backtest-13-aircaps")
+    picked, missing = g.newest_runs(names, tmp_path)
+    assert len(picked) == 39 and not any("13-aircaps" in p.name for p in picked)
+    assert missing == [f"13-aircaps: no finished back-test run of its money study (COMMERCIAL) under {tmp_path} -- an "
+                       "example is three studies; nothing is written for it"]
 
 
-def test_an_unknown_entry_or_a_twice_given_one_is_refused(tmp_path, names):
-    with pytest.raises(g.GalleryRefused, match="given twice"):
-        g.export([RUN, RUN], tmp_path / "out", names=names, provenance_dir=tmp_path / "prov")
+def test_an_unknown_entry_or_a_twice_given_study_is_refused(tmp_path, names, runs):
+    with pytest.raises(g.GalleryRefused, match="the problem study given twice"):
+        g.export([*runs, runs[0]], tmp_path / "out", names=names, provenance_dir=tmp_path / "prov")
     with pytest.raises(g.GalleryRefused, match="is not in gallery_names.toml"):
-        g.export([RUN], tmp_path / "out", names=[n for n in names if n.entry != "08-fresco"],
+        g.export(runs, tmp_path / "out", names=[n for n in names if n.entry != "08-fresco"],
                  provenance_dir=tmp_path / "prov")
     assert not (tmp_path / "out").exists()
 
 
-def test_the_command_line(tmp_path, capsys):
-    assert g.main(["--out", str(tmp_path / "out"), "--runs", str(RUN), "--provenance-dir", str(tmp_path / "p")]) == 0
+def test_the_command_line(tmp_path, capsys, runs):
+    assert g.main(["--out", str(tmp_path / "out"), "--runs", ",".join(str(r) for r in runs),
+                   "--provenance-dir", str(tmp_path / "p")]) == 0
     said = capsys.readouterr().out
     assert "fresco" in said and "08-fresco" not in said and (tmp_path / "out" / "index.json").is_file()
+    assert "problem NOT_YET · solution NOT_YET · money NOT_YET" in said
     assert len(list((tmp_path / "p").glob("provenance-*.json"))) == 1
-    assert g.main(["--out", str(tmp_path / "out2"), "--runs-dir", str(tmp_path)]) == 1
-    assert "no finished back-test run" in capsys.readouterr().err
+    assert g.main(["--out", str(tmp_path / "out2"), "--runs-dir", str(tmp_path / "none")]) == 1
+    captured = capsys.readouterr()
+    assert "gallery: refused 08-fresco: no finished back-test run of its problem, solution, money studies" in captured.out
+    assert "no run to build from: nothing to build" in captured.err
 
 
 def test_served_items_keeps_the_item_kicker_and_spec_115s_extras():
@@ -464,31 +510,26 @@ def test_make_gallery_and_make_sample():
     assert "gallery" in makefile.split(".PHONY:", 1)[1].split("\n\n", 1)[0]
 
 
-# ---------------------------------------------------------------------------------------- spec 071 FR-5: the scope
+# --------------------------------------------------------------------- spec 071 FR-5 as spec 106 leaves it: the scope
 
-def _run_with_scope(tmp_path, scope):
-    run = tmp_path / "runs" / RUN.name
-    shutil.copytree(RUN, run)
-    record = json.loads((run / bt.RECORD).read_text(encoding="utf-8"))
+def test_the_row_carries_the_problem_studys_scope(exported):
+    """Spec 071 FR-5 (*each example carries its configuration*) on a three-study row: `scope` is the problem study's,
+    whose fields the row's top level are; `studies` carries the three (spec 106 FR-1)."""
+    out, result = exported
+    row = json.loads((out / g.INDEX).read_text(encoding="utf-8"))["examples"][0]
+    assert row["scope"] == "PROBLEM" and result["index"][0]["scope"] == "PROBLEM"
+    assert list(row["studies"]) == ["problem", "solution", "money"]
+
+
+@pytest.mark.parametrize("scope", ["ALL", "SOLUTION_COMMERCIAL", "MONEY"])
+def test_a_run_of_another_scope_is_refused_and_nothing_is_written(tmp_path, names, runs, scope):
+    record = json.loads((runs[2] / bt.RECORD).read_text(encoding="utf-8"))
     record["scope"] = scope
-    (run / bt.RECORD).write_text(json.dumps(record), encoding="utf-8")
-    return run
-
-
-@pytest.mark.parametrize("scope", ["PROBLEM", "SOLUTION", "SOLUTION_COMMERCIAL", "COMMERCIAL", "ALL"])
-def test_each_row_carries_the_run_s_own_scope(tmp_path, names, scope):
-    out = tmp_path / "sample"
-    result = g.export([_run_with_scope(tmp_path, scope)], out, names=names, exported_at=AT,
-                      provenance_dir=tmp_path / "prov")
-    assert [row["scope"] for row in result["index"]] == [scope]
-    assert json.loads((out / g.INDEX).read_text(encoding="utf-8"))["examples"][0]["scope"] == scope
-
-
-def test_a_scope_the_contract_does_not_name_is_refused_and_nothing_is_written(tmp_path, names):
+    (runs[2] / bt.RECORD).write_text(json.dumps(record), encoding="utf-8")
     out = tmp_path / "sample"
     with pytest.raises(g.GalleryRefused) as refused:
-        g.export([_run_with_scope(tmp_path, "MONEY")], out, names=names, exported_at=AT,
-                 provenance_dir=tmp_path / "prov")
-    assert any("index: scope 'MONEY' is not one of PROBLEM, SOLUTION, SOLUTION_COMMERCIAL, COMMERCIAL, ALL" in r
-               for r in refused.value.reasons), refused.value.reasons
+        g.export(runs, out, names=names, exported_at=AT, provenance_dir=tmp_path / "prov")
+    assert f"{runs[2].name}: a {scope} run is not one of the gallery's three studies (problem = PROBLEM, solution = " \
+           "SOLUTION, money = COMMERCIAL) -- spec 106 FR-1" in refused.value.reasons
+    assert any("08-fresco: no money study (COMMERCIAL)" in r for r in refused.value.reasons)
     assert not out.exists() and not (tmp_path / "prov").exists()

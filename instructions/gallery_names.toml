@@ -3,6 +3,9 @@
 # attribution, everywhere -- "it's okay to give the actual company name, in fact reference it, but we should be very
 # careful to say that this is a simulated report". So nothing is renamed any more (`replaces = []`), and every entry
 # carries what the public files attribute it with. `evals/gallery.py` refuses a slug missing any of it.
+# Spec 106 FR-2: the disclaimer is not a row's to write -- it is `evals/gallery.py`'s DISCLAIMER, filled for each of an
+# example's three studies with the name, the batch and that study's own people in words ("seven people answered, all
+# simulated"), never a fixed twenty.
 #
 #   entry              -- the back-test entry id (keel-cloud `canon/designs/measured-beliefs/backtest/<entry>.yaml`)
 #   slug               -- the directory under public/sample/ (lowercase letters, digits and hyphens, from the name)

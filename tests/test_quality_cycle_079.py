@@ -130,8 +130,9 @@ def test_the_settings_are_a_committed_file_held_to_the_rubric_and_the_readers():
         {k: readers.load_reader_config()[k] for k in ("model", "effort")}
     assert cfg["adviser"]["model"] == "claude-opus-5-5" and cfg["door"] == "keel"
     assert len(cfg["entries"]) == 5 and all(re.fullmatch(r"\d\d-[a-z0-9-]+", e) for e in cfg["entries"])
-    assert cfg["gallery"]["refuse_flagged"] and cfg["gallery"]["refuse_under_bar"]
-    assert cfg["gallery"]["scope_order"][0] == "SOLUTION" and cfg["cadence"]["days"] == 7
+    # spec 106 FR-3 retired [gallery]'s refuse_flagged, refuse_under_bar and scope_order (a flagged screen always
+    # refuses; the gate is the gallery's own last score; an example is three studies), and FR-2 added people
+    assert cfg["gallery"] == {} and cfg["people"] == 7 and cfg["cadence"]["days"] == 7
     assert "quality/cycle.toml" in (REPO / "quality" / "CYCLE.md").read_text(encoding="utf-8")
 
 
@@ -528,6 +529,10 @@ def _accept(tmp_path, *extra):
 
 
 def test_accept_cuts_the_baseline_refuses_the_failing_bundles_by_name_and_builds_the_rest(tmp_path, capsys):
+    """Spec 106 moved the half after the baseline: the fixture cycle walks 08-fresco's three studies and 09-karsa's
+    money study alone. Fresco's problem study has a flagged screen and its money study no score file, so neither entry
+    has its three studies -- each refused by name, the snapshot left as it is (an example is three studies, never one
+    picked by a scope order). The build is `tests/test_gallery_106.py`'s, on a cycle whose entry is whole."""
     (tmp_path / "quality").mkdir()
     shutil.copy(BASELINE, tmp_path / "quality" / "BASELINE.md")
     (tmp_path / "sample" / "fresco").mkdir(parents=True)
@@ -541,28 +546,30 @@ def test_accept_cuts_the_baseline_refuses_the_failing_bundles_by_name_and_builds
     assert data["cut"] == "2026-11-02" and sorted(data["studies"]) == ["08-fresco · PROBLEM", "08-fresco · SOLUTION",
                                                                        "09-karsa · COMMERCIAL"]
     assert (quality_out / "baselines" / "2026-10-25.md").read_text() == BASELINE.read_text()
-    # the readers' gate: refused by name, with the reason
+    # the readers' gate: refused by name, with the reason -- the flag alone (spec 106: no bar)
     assert ("gallery: refused 20261101T100000Z-backtest-08-fresco (08-fresco · PROBLEM): "
-            "20261101-PROBLEM-r2-abcdef1-v13-claude-opus-5-5.json has 1 flagged screen(s) and score_pct 88.2% under "
-            "the bar of 90%") in said
+            "20261101-PROBLEM-r2-abcdef1-v13-claude-opus-5-5.json has 1 flagged screen(s)\n") in said
     assert ("gallery: refused 20261101T130000Z-backtest-08-fresco (08-fresco · COMMERCIAL): no score file at rubric "
             "version 2") in said
-    # built from the rest: one example per entry, the solution study for fresco
-    index = json.loads((out / gallery.INDEX).read_text(encoding="utf-8"))
-    assert sorted((r["slug"], r["scope"]) for r in index["examples"]) == [("fresco", "SOLUTION"), ("karsa", "COMMERCIAL")]
-    assert (out / "fresco" / "cover.jpg").read_bytes() == b"JPEG", "the snapshot's cover is kept"
-    assert "refreshed fresco; added karsa; missing a cover.jpg karsa" in said
-    assert "keel-web spec: refresh the example gallery from keel-e2e-eval quality cycle 20261101-abcdef1" in said
-    assert "re-pin the example frames (light, dark, phone)" in said
+    assert "gallery: the gate: no accepted score yet: the first acceptance passes (score_pct 95.6%)" in said
+    # spec 106 FR-1: neither entry has its three studies -- refused by name, nothing written
+    assert ("gallery: refused 08-fresco: no problem study (PROBLEM) and no money study (COMMERCIAL) -- an example is "
+            "three studies (problem, solution, money), never a partial one; nothing is written for it") in said
+    assert "gallery: refused 09-karsa: no problem study (PROBLEM) and no solution study (SOLUTION)" in said
+    assert "no entry has its three studies (problem, solution, money): nothing to build -- the gallery is left" in said
+    assert json.loads((out / gallery.INDEX).read_text(encoding="utf-8")) == {"examples": [{"slug": "fresco"}]}
+    assert (out / "fresco" / "cover.jpg").read_bytes() == b"JPEG" and not (tmp_path / "prov").exists()
 
 
-def test_accept_with_nothing_passing_cuts_the_baseline_and_leaves_the_gallery(tmp_path, capsys, monkeypatch):
-    cfg = {**cycle.load_config(), "bar_pct": 101.0}
-    monkeypatch.setattr(cycle, "load_config", lambda *a, **k: cfg)
-    code, out, quality_out = _accept(tmp_path)
+def test_accept_with_no_bundle_on_this_machine_cuts_the_baseline_and_leaves_the_gallery(tmp_path, capsys):
+    out, quality_out = tmp_path / "sample", tmp_path / "quality"
+    code = cycle.accept(["--cycle", str(RECORD), "--runs-dir", str(tmp_path / "elsewhere"), "--out", str(out),
+                         "--quality-out", str(quality_out), "--provenance-dir", str(tmp_path / "prov"),
+                         "--today", "2026-11-02"])
     said = capsys.readouterr().out
     assert code == 0 and (quality_out / "BASELINE.md").is_file() and not out.exists()
-    assert "no bundle of this cycle passes the readers' gate -- the gallery is left as it is" in said
+    assert said.count("the bundle folder is not on this machine") == 4, "every bundle the cycle names"
+    assert "gallery: no run to build from: nothing to build -- the gallery is left as it is" in said
 
 
 def test_accept_refuses_without_a_cycle_or_an_unknown_one(capsys, tmp_path):
@@ -591,25 +598,28 @@ def test_the_gallery_gate_by_itself(tmp_path):
     assert "set aside at another rubric version: x-r3.json" in refused[0]
 
 
-def test_make_gallery_with_scores_and_a_scope_order(tmp_path, capsys):
+def test_make_gallery_with_scores_refuses_by_name_and_retires_the_scope_order(tmp_path, capsys):
+    """Spec 106: `--scope-order`, `--keep-flagged` and `--keep-under-bar` are retired (an example is three studies; a
+    flagged screen is never published; the bar is off unless `--bar` names one); the fixture cycle has no entry whole."""
     runs = build_runs(tmp_path / "runs")
     names = ",".join(str(p) for p in sorted(runs.iterdir()))
     base = ["--runs", names, "--out", str(tmp_path / "out"), "--provenance-dir", str(tmp_path / "prov"),
             "--scores", str(SCORES)]
-    assert gallery.main(base) == 0
-    said = capsys.readouterr().out
-    assert said.count("gallery: refused ") == 2 and "gallery: 2 slugs" in said
-    lenient = base + ["--keep-flagged", "--bar", "80"]
-    assert gallery.main(lenient) == 1, "fresco passes twice without a scope order: given twice"
-    assert "08-fresco given twice" in capsys.readouterr().err
-    assert gallery.main(lenient + ["--scope-order", "SOLUTION,PROBLEM,COMMERCIAL"]) == 0
-    said = capsys.readouterr().out
-    assert said.count("gallery: refused ") == 1, "only the bundle with no score file"
-    assert ("gallery: 08-fresco: the SOLUTION study (20261101T110000Z-backtest-08-fresco) is the example; also "
-            "passing: PROBLEM (20261101T100000Z-backtest-08-fresco)") in said
+    assert gallery.main(base) == 1
+    captured = capsys.readouterr()
+    assert captured.out.count("gallery: refused ") == 4, "two bundles by the readers, then both entries as partial"
+    assert "no entry has its three studies" in captured.err and not (tmp_path / "out").exists()
+    assert gallery.main(base + ["--bar", "80"]) == 1
+    assert "gallery: refused 20261101T100000Z-backtest-08-fresco (08-fresco · PROBLEM): " \
+           "20261101-PROBLEM-r2-abcdef1-v13-claude-opus-5-5.json has 1 flagged screen(s)\n" in capsys.readouterr().out
+    for retired in (["--scope-order", "SOLUTION,PROBLEM,COMMERCIAL"], ["--keep-flagged"], ["--keep-under-bar"]):
+        with pytest.raises(SystemExit):
+            gallery.main(base + retired)
+        assert "unrecognized arguments" in capsys.readouterr().err
     assert gallery.main(["--runs", names, "--out", str(tmp_path / "o2"), "--provenance-dir", str(tmp_path / "p"),
                          "--scores", str(tmp_path / "empty")]) == 1
     assert "every run was refused by the readers' gate" in capsys.readouterr().err
+    assert not hasattr(gallery, "one_per_entry")
 
 
 # ---------------------------------------------------------------------------------- FR-1 / FR-7 / FR-9
