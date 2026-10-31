@@ -6,7 +6,10 @@
 # No weight anywhere (D3: all thirteen decide). Passes all eight invariants. Not a corpus entry. Spec 086 (keel-cloud
 # 152, keel-cloud-docs 21395ab0): the five moved belief templates in 152's words -- Relative advantage's now carries
 # {value} once, as invariant 4 reads every template since 152 -- nothing else re-exported. Spec 113 (keel-cloud 173,
-# keel-cloud-docs 1acc3791): Relative advantage's belief template and respondent guidance in 173's words.
+# keel-cloud-docs 1acc3791): Relative advantage's belief template and respondent guidance in 173's words. Spec 115
+# (keel-cloud 174, keel-cloud-docs e68c0de4): Frequency's founder guidance (the founder asks of *a typical {actor}*), the
+# Importance, Compatibility and Purchase friction belief templates, Purchase friction's escape (cant_tell, *I can't tell*)
+# and its option rule, and Commitment's belief_template_decider in 174's words -- nothing else re-exported.
 version: 4
 common:
   left_out:
@@ -65,8 +68,11 @@ dimensions:
   meaning: How often an affected person experiences the problem.
   founder:
     control: numeric_interval
-    guidance: 'On how many {window_unit} an affected person faces it: a range on an axis from 0 to the window''s length, whole
-      units.'
+    guidance: 'On how many {window_unit} {actor_plural} face it, asked by code window first, in their words: ''In
+      {window}, on how many nights did a typical {actor} ...?'' (the window''s own unit), one plain event that happened
+      on a given one or did not, named -- with any tool, product or list in it -- as {actor_plural} name it, never the
+      founder''s paraphrase or the study''s term; never ''Think of one who ...'', never a back-pointing ''that person''
+      or ''they''; the question last. Answer: a range on an axis from 0 to the window''s length, whole units.'
     normalized:
       kind: interval
       unit_options:
@@ -123,8 +129,8 @@ dimensions:
       kind: saved_list
     option_rule: The own item and exactly four rivals, each at most 9 words, difficulties of the same circumstance in the
       same register; no number the founder did not write; never a fix or a product.
-    belief_template: Of these {list_size}, {value} is one of the two that {actor_plural} would most like made easier when
-      {circumstance}.
+    belief_template: '{actor_plural} have {list_size} things that are hard {stretch}. {value} is one of the two they
+      would most like made easier.'
     unsure_allowed: true
     saves:
       min_items: 5
@@ -209,7 +215,7 @@ dimensions:
       kind: saved_list
     option_rule: 2 to 4 conditions, each at most 9 words (third person) with its `asked` clause (second person, at most 20
       words, no question mark); no number the founder did not write.
-    belief_template: For most, {value}.
+    belief_template: 'For most {actor_plural}, {value}.'
     unsure_allowed: true
     saves:
       min_items: 2
@@ -590,7 +596,7 @@ dimensions:
       kind: saved_list
     option_rule: 1 to 4 steps, each at most 9 words, a noun phrase (a security review, the finance director's sign-off); at
       most one suggested by Keel.
-    belief_template: '{value} slows the purchase most.'
+    belief_template: '{value} can slow or stop the purchase.'
     unsure_allowed: true
     saves:
       min_items: 1
@@ -602,10 +608,11 @@ dimensions:
     anchor: last_purchase
     control: fixed_three
     guidance: '''For that tool, did it need'' the step you picked ''before it went through?'' The fixed three.'
-    option_rule: The registry's fixed three, in order. Escape 'I can't recall', apart.
+    option_rule: 'The registry''s fixed three, in order, read for this purchase by code on the registry''s codes (spec
+      128). Escape ''I can''t tell'', apart -- the question is about a purchase not yet made (spec 174).'
     escape:
-      code: cant_recall
-      label: I can't recall
+      code: cant_tell
+      label: I can't tell
       counts: apart
     fixed_answers:
     - code: yes_long
@@ -643,6 +650,7 @@ dimensions:
       kind: saved_list
     option_rule: Exactly one step, base form, at most 9 words; no number the founder did not write.
     belief_template: Most {actor_plural} would {value} now.
+    belief_template_decider: 'In most cases {decider} would {value} now.'
     unsure_allowed: true
     saves:
       min_items: 1

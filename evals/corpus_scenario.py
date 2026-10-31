@@ -2136,8 +2136,9 @@ def _hold_importance_check(j: Journey, seen: dict, typed: list[str]) -> None:
     one named the screen asks for one more in the founder's words and Save is disabled (071: the screen asks before
     the server's ONE_MORE_NEEDED); with two the ask is absent and Save on. The founder types the rest of their own
     list, the counter reads *yours + 4*, the ask is gone and Save is on. The *Keel will test* box's sentence counts the
-    list as it stands: *Of these two* / *three*, then *five* (keel-web 070 fills `{list_size}`; the count opens the
-    sentence since keel-cloud 152's template, corpus revision 18, spec 086 -- it closed it as *out of N.* before)."""
+    list as it stands: *... have two* / *three*, then *five things that are hard ...* (keel-web 070 fills `{list_size}`;
+    keel-cloud 174's two sentences, spec 115 FR-1 -- *Of these two, ...* from keel-cloud 152, spec 086, and *out of N.*
+    before; `importance_count`)."""
     named = len(vs.importance_named(j.entry))
     x = seen["importance"]
     one = named == 1
@@ -2149,19 +2150,33 @@ def _hold_importance_check(j: Journey, seen: dict, typed: list[str]) -> None:
         size = ["zero", "one", "two", "three", "four", "five"]
         want = {"counter": f"yours + {named}", "ask": ONE_MORE_ASK if one else "",
                 "save_enabled": not one, "added": typed, "counter_after": f"yours + {named + len(typed)}",
-                "ask_after": "", "save_enabled_after": True, "test": f"Of these {size[1 + named]},",
-                "test_after": f"Of these {size[1 + named + len(typed)]},"}
+                "ask_after": "", "save_enabled_after": True, "test": importance_count_words(size[1 + named]),
+                "test_after": importance_count_words(size[1 + named + len(typed)])}
         if one:
             want["save_disabled_below_three"] = True
         have = {k: x.get(k) for k in want if k not in ("test", "test_after")}
-        have["test"] = next((f"Of these {w}," for w in size
-                             if (seen["test"]["belief"] or "").startswith(f"Of these {w},")), seen["test"]["belief"])
-        have["test_after"] = next((f"Of these {w}," for w in size
-                                   if ((seen.get("test_after") or {}).get("belief") or "").startswith(f"Of these {w},")),
-                                  (seen.get("test_after") or {}).get("belief"))
+        have["test"] = importance_count(seen["test"]["belief"])
+        have["test_after"] = importance_count((seen.get("test_after") or {}).get("belief"))
         h.record_assert(want, have)
         assert have == want, json.dumps({"screen": have, "want": want}, indent=2)
         j.feedback["importance_typed"] = list(typed)
+
+
+#: keel-cloud 174 FR-4 (spec 115 FR-1): Importance's belief counts the list in its first sentence -- *{People} have
+#: {list_size} things that are hard {stretch}.* -- where 152's opened *Of these {list_size},*.
+IMPORTANCE_COUNT = re.compile(r"\bhave (\w+) things that are hard\b")
+
+
+def importance_count_words(size: str) -> str:
+    """The words the Importance belief counts its list with since keel-cloud 174: *have {size} things that are hard*."""
+    return f"have {size} things that are hard"
+
+
+def importance_count(belief: str | None) -> str | None:
+    """The count words of an Importance belief in 174's two sentences (`importance_count_words`), else the belief as it
+    reads (152's *Of these three, ...* on a build before 174, so the hold names what it saw)."""
+    m = IMPORTANCE_COUNT.search(belief or "")
+    return importance_count_words(m.group(1)) if m else belief
 
 
 #: keel-web 070 `listOneMore(1)`: the Check screen's ask below three in all.
@@ -2204,8 +2219,9 @@ def _importance_needs_three(j: Journey) -> None:
     """keel-cloud 097 F9 on the wire (spec 046 FR-003): strangers pick two, so Importance is saved with the own item
     and at least two others. The founder's saved list cut to the own item and one other is refused **422
     ONE_MORE_NEEDED** ("name one more difficulty") and writes nothing; cut to the own item and two it is saved (200)
-    and its belief reads "Of these three" (keel-cloud 152's template, spec 086; "out of three" before); the founder's
-    own list is then saved again and reads "Of these five". The page
+    and its belief reads "... have three things that are hard ..." (keel-cloud 174's two sentences, spec 115 FR-1; "Of
+    these three" from 152, spec 086, "out of three" before); the founder's own list is then saved again and reads as
+    the corpus records it, read through 174's rule (`corpus.engine_belief`). The page
     is reloaded after, as `_hourly_rate` does, so its next write is at the new revision."""
     key = "problem.importance"
     saved = vs.saved_list(j.entry, key)
@@ -2220,8 +2236,9 @@ def _importance_needs_three(j: Journey) -> None:
         return next((r.get("belief") or "" for r in (rows or {}).get("rows") or [] if r.get("dimension") == key), "")
 
     with _step(j, "Importance needs three on the wire (keel-cloud 097 F9): the own item and one other is refused 422 "
-                  "ONE_MORE_NEEDED and writes nothing; the own item and two others saves (200, \"Of these three\"); "
-                  "the founder's own list saves again (\"Of these five\")", party="founder", kind="protocol") as h:
+                  "ONE_MORE_NEEDED and writes nothing; the own item and two others saves (200, \"... have three "
+                  "things that are hard ...\"); the founder's own list saves again (\"... have five ...\")",
+                  party="founder", kind="protocol") as h:
         before = j.revision()
         one, one_body = put(labels[:2], (422,))
         after_one = j.revision()
@@ -2238,8 +2255,8 @@ def _importance_needs_three(j: Journey) -> None:
         assert (one, _refusal(one_body)) == (422, feedback_marks.ONE_MORE_NEEDED), one_body
         assert probe["own+1"]["remedy"] == "name one more difficulty", one_body
         assert not probe["own+1"]["revision moved"], probe
-        assert probe["own+2"]["belief"].startswith("Of these three,"), probe
-        want = (j.entry.founder_calibration.get(key) or {}).get("belief_sentence")
+        assert importance_count(probe["own+2"]["belief"]) == importance_count_words("three"), probe
+        want = corpus_mod.engine_belief(j.entry, key)
         assert not j.strict or probe["own+4"]["belief"] == want, (probe, want)
 
 

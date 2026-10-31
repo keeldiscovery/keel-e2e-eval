@@ -129,7 +129,9 @@ def test_existing_sacrifices_registry_escape_is_i_cant_recall():
 
 def _record_after_170(tmp_path):
     """keel-cloud's record, if any, with Existing sacrifice's escape as a run after 170 writes it (the one line the
-    registry moved) -- a stand-in for the rerun the coordinator owes."""
+    registry moved) -- a stand-in for the rerun the coordinator owes. Spec 115 FR-0: and Purchase friction's escape and
+    its spoken line as a run after keel-cloud 174 writes them (*I can't tell*), where the record predates 174; a record
+    written after 174 moves by neither."""
     source = KEEL_CLOUD / cloud_mod.SPOKEN_FILE
     if not source.is_file() or not (KEEL_CLOUD / cloud_mod.REGISTRY_FILE).is_file():
         pytest.skip("no keel-cloud spoken record or registry of record")
@@ -147,7 +149,12 @@ def _record_after_170(tmp_path):
     blocks = text.split(f"{SACRIFICE_KEY} [part 3]\n")
     moved = [blocks[0]] + [b.replace(f"\n  escape: {fx.SACRIFICE_ESCAPE_BEFORE_170}\n", "\n  escape: I can't recall\n", 1)
                            for b in blocks[1:]]
-    target.write_text(f"{SACRIFICE_KEY} [part 3]\n".join(moved), encoding="utf-8")
+    friction = "commercial.purchase_friction [part 3]\n"
+    blocks = f"{SACRIFICE_KEY} [part 3]\n".join(moved).split(friction)
+    moved = [blocks[0]] + [b.replace(f"\n  escape: {fx.FRICTION_ESCAPE_BEFORE_174}\n", "\n  escape: I can't tell\n", 1)
+                           .replace("| escape=Or say you can't recall. |", "| escape=Or say you can't tell. |", 1)
+                           for b in blocks[1:]]
+    target.write_text(friction.join(moved), encoding="utf-8")
     corpus = corpus_mod.load(KEEL_CLOUD).bind(registry)
     return registry, corpus, cloud_mod.read(tmp_path, corpus=corpus, registry=registry), source.read_text("utf-8") != \
         target.read_text("utf-8")

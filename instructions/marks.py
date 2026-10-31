@@ -124,6 +124,15 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Revision 19 read through keel-cloud 174 (2026-10-31; eval 115, the harness half)**: no corpus revision, no mark
+moved. The engine writes four belief rows in 174's words -- Commitment where someone else decides *In most cases
+{decider} would {value} now.*, Importance *{actor_plural} have {list_size} things that are hard {stretch}. {value} is one
+of the two they would most like made easier.*, Compatibility *For most {actor_plural}, {value}.*, Purchase friction
+*{value} can slow or stop the purchase.* -- and Purchase friction's escape is `cant_tell`; revision 19 keeps the words
+and the code before it (the templates quoted below as revision 18's), and the reader reads them through one rule each
+(`corpus.spec174_reads`, keel-cloud's `VectorCorpusFixture.spec174Reads`; `corpus.spec174_escape`). **v24 stands**: no
+mark scores a belief sentence, and `spoken_form` reads the escape the registry names.
+
 **Revision 19 read through keel-cloud 173 (2026-10-30; eval 113, the harness half)**: no corpus revision, no mark
 moved. The engine's Relative advantage belief is *For most, their last {occasion} would have gone better with it:
 {value}.* (the first benefit whole; *the last time* with no noun), its drift clause *you said it would have gone better:

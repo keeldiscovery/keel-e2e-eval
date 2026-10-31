@@ -77,8 +77,10 @@ changes, all on purpose, all keel-cloud's (registry revision 13 at keel-cloud-do
    it had been split at its comma and never measured).
 
 Spec 067 (keel-cloud 128, corpus revision 15) adds three more, all keel-cloud's code and none a registry change: a
-Compatibility condition read as a **fact** is answered *Yes · Mostly · Partly · No* on the same four codes (128 FR-13b,
-`FACT_ANSWERS`); Purchase friction is asked of **this** purchase, *Yes, and it would take a long time · Yes, but it would
+Compatibility condition read as a **fact** was answered *Yes · Mostly · Partly · No* on the same four codes (128 FR-13b,
+`FACT_ANSWERS_128`; since keel-cloud 174 FR-3, spec 115 FR-1, a fact is served the registry's own four, `FACT_ANSWERS`,
+as a permission is -- *Mostly and Partly blur together* -- and the 128 four are read only on an item a lock stored before
+174, whose labels are stored); Purchase friction is asked of **this** purchase, *Yes, and it would take a long time · Yes, but it would
 be quick · No, it wouldn't be needed* (128 FR-12, `PURCHASE_ANSWERS`); Buyer and payer's four are distinct answers, the
 consumer's past ones and the decision-maker's at the founder's price (128 FR-5, FR-18, FR-19, `buyer_answers`).
 
@@ -134,9 +136,14 @@ ABILITY_ANSWERS = {"yes_easily": "Yes, easily", "yes_with_steps": "Yes, mostly",
                    "no": "No"}
 
 
-#: keel-cloud 128 FR-13b (`ItemFrames.FACT_LABELS`, spec 067): a Compatibility condition read as a fact is answered as
-#: a fact, on the same four codes.
-FACT_ANSWERS = {"yes_easily": "Yes", "yes_with_steps": "Mostly", "only_with_help": "Partly", "no": "No"}
+#: keel-cloud 174 FR-3 (`ItemFrames.compatibilityLabel`, spec 115 FR-1): a Compatibility condition read as a fact is
+#: answered on the registry's own four, as a permission is -- never *Mostly* or *Partly*.
+FACT_ANSWERS = {"yes_easily": "Yes, easily", "yes_with_steps": "Yes, with some steps",
+                "only_with_help": "Only with help or approval", "no": "No"}
+#: keel-cloud 128 FR-13b (`ItemFrames.FACT_LABELS`, spec 067): the four a fact was answered on from 128 to 173, on the
+#: same codes -- retired by 174 FR-3 and read only on an item a lock stored before 174 (its labels are stored), as
+#: `FollowUpComposer`'s *Partly* reads it.
+FACT_ANSWERS_128 = {"yes_easily": "Yes", "yes_with_steps": "Mostly", "only_with_help": "Partly", "no": "No"}
 #: keel-cloud 128 FR-12 (`ItemFrames.PURCHASE_LABELS`): Purchase friction's three, reread for this purchase.
 PURCHASE_ANSWERS = {"yes_long": "Yes, and it would take a long time", "yes_quick": "Yes, but it would be quick",
                     "not_needed": "No, it wouldn't be needed"}
@@ -234,7 +241,8 @@ def served_escape(registry, key: str, entry=None, served=None):
 
 def served_labels(registry, key: str, entry=None) -> list:
     """Every label the registry says `key`'s item may be served with: its fixed answers; Compatibility's ability four
-    beside them (123 FR-8); Commitment's options written from the entry's step (118 FR-1)."""
+    beside them (123 FR-8), a fact's (the registry's four since keel-cloud 174, 128's on an item stored before it);
+    Commitment's options written from the entry's step (118 FR-1)."""
     if registry is None or not registry.has(key):
         return []
     dimension = registry.by_key(key)
@@ -243,6 +251,8 @@ def served_labels(registry, key: str, entry=None) -> list:
         fixed = list(labels)
         labels += [ABILITY_ANSWERS.get(code, label) for code, label in zip(dimension.fixed_answer_codes, fixed)]
         labels += [FACT_ANSWERS.get(code, label) for code, label in zip(dimension.fixed_answer_codes, fixed)]
+        # keel-cloud 174 FR-3: an item a lock stored before 174 keeps 128's fact four (its labels are stored)
+        labels += [FACT_ANSWERS_128.get(code, label) for code, label in zip(dimension.fixed_answer_codes, fixed)]
     if key == PURCHASE_FRICTION_KEY:
         labels += list(PURCHASE_ANSWERS.values())
     if key == BUYER_KEY:
@@ -540,6 +550,94 @@ def base_of_past_loose(past: str) -> str | None:
     if re.fullmatch(r".*(ored|ared|ured|ired|ated|ized|ised|uced|aded|oded|iked|aked|oked|aved|ived|oved|ased)", past):
         return past[:-1]
     return stem
+
+
+# ------------------------------------------------------- keel-cloud 174 FR-3 (spec 115 FR-1): a fact, read off both faces
+
+#: keel-cloud `ItemFrames.PERMISSION_WORDS` (spec 123 FR-8): the words of a condition someone else grants.
+PERMISSION_WORDS = (" allowed", " allow ", " allows ", " permitted", " permission", " approv", " sign off", " signed off",
+                    " signs off", " sign-off", " authoris", " authoriz", " let you ", " clearance", " consent")
+#: `ItemFrames.FACT_HEADS` (spec 129 FR-6): the head verbs of a condition that is so or is not.
+FACT_HEADS = frozenset(("have", "has", "had", "own", "owns", "owned", "use", "uses", "used", "be", "is", "are", "was",
+                        "were", "keep", "keeps", "kept"))
+#: `ItemFrames.MODALS` (spec 129 FR-6): the modals that make a condition's head an ability.
+MODALS = frozenset(("could", "can", "couldn't", "can't", "would", "will", "should", "might"))
+_MODAL_ANYWHERE = re.compile(r"\b(could|can|couldn't|can't|able|would|will|should|might)\b")
+_HEAD_DID = re.compile(r"^(?:did|do|does)\s+(?:you|they|we|i)\s+([a-z']+)")
+_HEAD_AUX = re.compile(r"^(could|can|would|will|should|might|was|were|is|are|had|have|has)\b")
+_HEAD_SUBJECT = re.compile(r"^(?:you|they|we|i|the [a-z]+|your [a-z]+|their [a-z]+)\s+(?:already\s+)?([a-z']+)")
+
+
+def permission(condition) -> bool:
+    """keel-cloud `ItemFrames.permission` (123 FR-8): someone has to allow it, read off the condition's words."""
+    if condition is None:
+        return False
+    text = " " + str(condition).lower() + " "
+    return any(word in text for word in PERMISSION_WORDS)
+
+
+def head_verb(condition) -> str | None:
+    """keel-cloud `ItemFrames.headVerb` (129 FR-6): the verb after the subject, or the auxiliary it opens on."""
+    text = _clause(str(condition or "")).lower()
+    for pattern in (_HEAD_DID, _HEAD_AUX, _HEAD_SUBJECT):
+        m = pattern.search(text)
+        if m:
+            return m.group(1)
+    return None
+
+
+def _has_modal(condition) -> bool:
+    """`ItemFrames.hasModal` (131 FR-3): a modal anywhere in the condition."""
+    return bool(_MODAL_ANYWHERE.search(" " + _clause(str(condition or "")).lower() + " "))
+
+
+def _label_verb(condition) -> str | None:
+    """`ItemFrames.labelVerb` (131 FR-3): the first verb past a subject of any length, in the first seven words."""
+    words = _clause(str(condition or "")).lower().split()
+    for i, raw in enumerate(words[:7]):
+        word = re.sub(r"[,.;:]$", "", raw)
+        if word in MODALS or word in ("was", "were", "is", "are", "had", "has", "have", "did", "do", "does"):
+            return word
+        if i > 0 and base_of_past(word) is not None:
+            return word
+    return None
+
+
+def past_fact(condition) -> bool:
+    """`ItemFrames.pastFact` (131 FR-3): no modal, and its first verb a past or a form of *be*, *have* or *do*."""
+    if condition is None or not str(condition).strip() or _has_modal(condition):
+        return False
+    verb = _label_verb(condition)
+    return verb is not None and verb not in MODALS
+
+
+def condition_fact(condition) -> bool:
+    """`ItemFrames.fact(String)` (128 FR-13b, 129 FR-6): a condition with no modal, or one whose head is a *have* / *be*
+    fact, and never a permission."""
+    if condition is None or not str(condition).strip() or permission(condition):
+        return False
+    head = head_verb(condition)
+    if head is not None and head in FACT_HEADS:
+        return True
+    if head is not None and head in MODALS:
+        return False
+    return not _MODAL_ANYWHERE.search(" " + _clause(str(condition)).lower() + " ")
+
+
+def is_fact(asked, label) -> bool:
+    """keel-cloud `ItemFrames.fact(asked, label)` (129 FR-6, 131 FR-3), what `FollowUpComposer.lockFact` reads since 174
+    FR-3: a Compatibility condition is a fact read off both its faces -- the stranger's `asked` and the founder's
+    `label` -- since a fact is served the registry's four and no *Partly* says so any more."""
+    both = f"{asked or ''} {label or ''}".strip()
+    if condition_fact(both):
+        return True
+    if label is None or not str(label).strip():
+        return False
+    if past_fact(label) and (not permission(label) or not _has_modal(both)):
+        return True
+    if permission(label):
+        return False
+    return head_verb(label) in ("was", "were", "is", "are")
 
 
 def _base_of_participle(participle: str) -> str | None:

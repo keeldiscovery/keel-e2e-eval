@@ -2,13 +2,19 @@
 spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78; spec 042 call 110;
 spec 053 FR-1; spec 064 FR-1).
 
-**Revision 19 read through keel-cloud 174's escape** (spec 115 FR-0; keel-cloud-docs `e68c0de4`): no corpus revision.
-keel-cloud 174 FR-2 gave `commercial.purchase_friction` the one escape `cant_tell` (*I can't tell*: the question is about
-a purchase not yet made), where revision 19 records `cant_recall` on that row and on Transload's one chip. The record is
-never rewritten: the reader reads a recorded `cant_recall` there as `cant_tell` through **one rule**, `spec174_escape`,
-wherever it holds the record to the registry (rules R and A) and wherever the walk reads a pick
-(`vectors_script._pick`); the walk then sends the code served (`vectors_script.served_escape_picks`). A corpus revision
-is the cloud's and the founder's call.
+**Revision 19 read through keel-cloud 174** (spec 115; keel-cloud-docs `e68c0de4`): no corpus revision. **The escape
+(FR-0)**: keel-cloud 174 FR-2 gave `commercial.purchase_friction` the one escape `cant_tell` (*I can't tell*: the
+question is about a purchase not yet made), where revision 19 records `cant_recall` on that row and on Transload's one
+chip. The record is never rewritten: the reader reads a recorded `cant_recall` there as `cant_tell` through **one rule**,
+`spec174_escape`, wherever it holds the record to the registry (rules R and A) and wherever the walk reads a pick
+(`vectors_script._pick`); the walk then sends the code served (`vectors_script.served_escape_picks`). **The beliefs
+(FR-1)**: the engine writes four rows in 174's words -- Commitment on an entry whose decision-maker is someone else *In
+most cases {decider} would {value} now.* (`belief_template_decider`), Purchase friction *{value} can slow or stop the
+purchase.*, Compatibility *For most {actor_plural}, {value}.*, Importance in two sentences *{actor_plural} have
+{list_size} things that are hard {stretch}. {value} is one of the two they would most like made easier.* (a recorded
+list carries no stretch: *when {circumstance}*) -- where revision 19 records 152's; a journey compares the wire with
+the recorded words read through `spec174_reads` (keel-cloud's `VectorCorpusFixture.spec174Reads`, after 173's
+`spec173_reads`; `engine_belief`). A corpus revision is the cloud's and the founder's call.
 
 **Revision 19 read through keel-cloud 173** (spec 113 FR-1; keel-cloud-docs `1acc3791`): no corpus revision. The engine
 writes Relative advantage's belief *For most, their last {occasion} would have gone better with it: {value}.* -- the
@@ -129,7 +135,7 @@ import yaml
 from . import chain as chain_mod
 from . import text as text_mod
 from .registry import (RECORDED_CONTROLS, ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTROL, BENEFIT_KEY,
-                       BENEFIT_MAX_TICKS, COMMITMENT_KEY, COST_MODES, COST_TOTAL_CONTROL,
+                       BENEFIT_MAX_TICKS, COMMITMENT_KEY, COMPATIBILITY_KEY, COST_MODES, COST_TOTAL_CONTROL,
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, PURCHASE_FRICTION_KEY, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
@@ -1781,9 +1787,72 @@ def advantage_drift_clause(founder, observed, n, a_lot) -> str:
 
 def engine_belief(entry, key: str):
     """The belief sentence the engine writes for `key`, as a journey holds the wire to it: the entry's recorded
-    `belief_sentence`, Relative advantage's read through `spec173_reads` (spec 113 FR-1); None where none is recorded."""
-    sentence = ((getattr(entry, "founder_calibration", None) or {}).get(key) or {}).get("belief_sentence")
-    return spec173_reads(sentence) if key == ADVANTAGE_KEY else sentence
+    `belief_sentence` read through 173's and 174's rules (`spec174_reads`; spec 113 FR-1, spec 115 FR-1); None where none
+    is recorded."""
+    return spec174_reads(entry, key)
+
+
+# ------------------------------------------------- spec 115 FR-1: revision 19 read through keel-cloud 174's belief rules
+
+#: keel-cloud 174's four moved templates (the registry, `FounderSide.beliefTemplate(boolean)`, `BeliefSentence.stretched`).
+COMMITMENT_DECIDER_TEMPLATE = "In most cases {decider} would {value} now."
+FRICTION_BELIEF_TEMPLATE = "{value} can slow or stop the purchase."
+COMPATIBILITY_BELIEF_TEMPLATE = "For most {actor_plural}, {value}."
+IMPORTANCE_BELIEF_TEMPLATE = ("{actor_plural} have {list_size} things that are hard {stretch}. {value} is one of the "
+                              "two they would most like made easier.")
+
+_MOST_152 = re.compile(r"^Most .+? would (.+) now\.$")
+_IMPORTANCE_152 = re.compile(r"^Of these (\w+), (.+) is one of the two that (.+) would most like made easier when (.+)\.$")
+_FRICTION_152 = " slows the purchase most."
+_COMPATIBILITY_152 = "For most, "
+#: `BeliefSentence.ACRONYM` (spec 145 FR-2): an all-caps token of two to four letters takes *the*.
+_ACRONYM = re.compile(r"^[A-Z]{2,4}s?$")
+
+
+def belief_the(role: str) -> str:
+    """keel-cloud `BeliefSentence.the`: the role with *the* -- kept as it is where it opens on *the*, *a*, *an*, *their*,
+    *your* or *my*, or reads as a person's name (capitalised, its first word no acronym, its second letter lower)."""
+    stripped = str(role or "").strip()
+    if stripped.lower().startswith(("the ", "a ", "an ", "their ", "your ", "my ")):
+        return stripped
+    first = stripped.split()[0] if stripped.split() else ""
+    name = len(stripped) > 1 and stripped[0].isupper() and not _ACRONYM.match(first) and not stripped[1].isupper()
+    return stripped if name else "the " + stripped
+
+
+def _upper_first(text: str) -> str:
+    return text[:1].upper() + text[1:] if text else text
+
+
+def spec174_reads(entry, key: str):
+    """keel-cloud `VectorCorpusFixture.spec174Reads` (spec 174; spec 115 FR-1): the recorded belief sentence of `key` on
+    `entry`, read by 173's rule (`spec173_reads`) and then by exactly 174's, and no other -- FR-1 Commitment on an entry
+    whose decision-maker is someone else, *Most {people} would {step} now.* -> *In most cases the {role} would {step}
+    now.*; FR-4 Importance's *Of these {n}, {item} is one of the two that {people} would most like made easier when {c}.*
+    -> *{People} have {n} things that are hard when {c}. {Item} is one of the two they would most like made easier.*;
+    FR-3 Compatibility's *For most, {c}.* -> *For most {actor_plural}, {c}.*; FR-2 Purchase friction's *{step} slows the
+    purchase most.* -> *{step} can slow or stop the purchase.*. Any other text as 173 reads it; None where none is
+    recorded. The record is never rewritten."""
+    node = (getattr(entry, "founder_calibration", None) or {}).get(key) or {}
+    recorded = spec173_reads(node.get("belief_sentence"))
+    if recorded is None:
+        return None
+    decision = (getattr(entry, "persona", None) or {}).get("decision_maker")
+    if key == COMMITMENT_KEY and isinstance(decision, dict):
+        most = _MOST_152.match(recorded)
+        if most:
+            return f"In most cases {belief_the(str(decision.get('role') or ''))} would {most.group(1)} now."
+    importance = _IMPORTANCE_152.match(recorded)
+    if key == IMPORTANCE_KEY and importance:
+        return (f"{_upper_first(importance.group(3))} have {importance.group(1)} things that are hard when "
+                f"{importance.group(4)}. {_upper_first(importance.group(2))} is one of the two they would most like "
+                "made easier.")
+    if key == COMPATIBILITY_KEY and recorded.startswith(_COMPATIBILITY_152):
+        actors = str(((getattr(entry, "context", None) or {}).get("actor_plural")) or "")
+        return f"For most {actors}, {recorded[len(_COMPATIBILITY_152):]}"
+    if key == PURCHASE_FRICTION_KEY and recorded.endswith(_FRICTION_152):
+        return recorded[:-len(_FRICTION_152)] + " can slow or stop the purchase."
+    return recorded
 
 
 # ------------------------------------------------------- spec 070 FR-1: a refused lock, answered on the idea card

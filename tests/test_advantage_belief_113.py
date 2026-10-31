@@ -136,15 +136,19 @@ def test_the_golden_record_stands_and_reads_as_the_engine_writes(entry_id):
     want = corpus_mod.advantage_belief(first, vs.occasion(entry))
     assert corpus_mod.engine_belief(entry, ADVANTAGE) == want
     assert corpus_mod.spec173_reads(recorded["belief_phrase"]) == corpus_mod.advantage_benefit(first)
-    other = "problem.importance"
+    # spec 115 FR-1 re-pin: keel-cloud 174 moved Importance's belief (two sentences, `spec174_reads`), so the row that
+    # stands as recorded is one 174 did not move -- Current solution's
+    other = "problem.current_solution_satisfaction"
     assert corpus_mod.engine_belief(entry, other) == entry.founder_calibration[other]["belief_sentence"]
 
 
 def test_the_journey_holds_the_wire_to_the_record_read_through_the_rule():
     """FR-1 wired: the Keel-will-test box and the review rows compare the wire with `engine_belief`, not the raw
-    record (else every strict journey would fail Relative advantage on 173's words)."""
+    record (else every strict journey would fail Relative advantage on 173's words). Spec 115 FR-1 re-pin: a third,
+    Importance's own list saved again (`_importance_needs_three`), compared the raw record and now reads through 174's
+    rule too."""
     source = inspect.getsource(corpus_scenario)
-    assert source.count("corpus_mod.engine_belief(j.entry, key)") == 2
+    assert source.count("corpus_mod.engine_belief(j.entry, key)") == 3
 
 
 # ------------------------------------------------------------------------------------------ FR-2: the question

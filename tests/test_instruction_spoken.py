@@ -463,6 +463,7 @@ def test_the_corpus_record_keeps_every_rule_and_nothing_is_known_apart(real):
     change (the module docstring's five), none a fault of the record."""
     corpus, cloud = real
     fx.skip_a_spoken_record_before_170(_keel_cloud(), corpus.entries[0].registry)    # spec 110 FR-2
+    fx.skip_a_spoken_record_before_174(_keel_cloud(), corpus.entries[0].registry)    # spec 115 FR-0
     score = spoken_mod.score(cloud, corpus)
     assert score.faults == [], score.faults
     assert (score.units, score.clean, score.spoken_form) == (109, 109, 1.0)
@@ -485,8 +486,11 @@ def test_the_record_follows_registry_revision_13s_five_changes(real):
     assert spoken_mod.registry_escape(registry, sacrifice.key) == spoken_mod.OFF_CHAIN_COST_ESCAPE == "I can't recall"
     assert (sacrifice.escape, sacrifice.escape_line) == ("I can't recall", "Or say you can't recall.")
     assert spoken_mod.served_escape(registry, sacrifice.key, corpus.by_id("03-lullaby")) == "I can't recall"
-    # keel-cloud 128 FR-13b (corpus revision 15): Lullaby's *your phone was within reach* is a fact, so a fact's four
-    assert lullaby("solution.compatibility").options == tuple(spoken_mod.FACT_ANSWERS.values())
+    # keel-cloud 128 FR-13b (corpus revision 15): Lullaby's *your phone was within reach* is a fact, so a fact's four --
+    # spec 115 FR-1 re-pin (keel-cloud 174 FR-3): since 174 the registry's own four (`FACT_ANSWERS`); a record written
+    # before 174 says 128's *Yes · Mostly · Partly · No* (`FACT_ANSWERS_128`)
+    fact_four = spoken_mod.FACT_ANSWERS_128 if fx.spoken_record_before_174(_keel_cloud()) else spoken_mod.FACT_ANSWERS
+    assert lullaby("solution.compatibility").options == tuple(fact_four.values())
     assert items[("05-paidly", "solution.compatibility")].options == tuple(
         a["label"] for a in registry.by_key("solution.compatibility").fixed_answers), "a permission keeps the four"
     # keel-cloud 128 FR-5 / FR-18: with no role named, the four are distinct answers
@@ -505,12 +509,17 @@ def test_the_record_follows_registry_revision_13s_five_changes(real):
 
 def test_the_ability_four_are_the_registrys_own_words(real):
     """Spec 065 FR-1 (123 FR-8): `ABILITY_ANSWERS` is the registry's Compatibility guidance and its worked example, on
-    the registry's four codes -- were keel-cloud to reword them, this fails beside the record."""
+    the registry's four codes -- were keel-cloud to reword them, this fails beside the record. Spec 115 FR-1 re-pin
+    (keel-cloud 174 FR-3, T009): the registry's Lullaby block showed the ability four for a fact; Lullaby's condition
+    (*their phone was within reach of the cot*) is a fact, so the block now shows the registry's own four, which are
+    `FACT_ANSWERS` and the row's fixed answers."""
     corpus, _ = real
     compatibility = corpus.entries[0].registry.by_key("solution.compatibility")
     assert list(spoken_mod.ABILITY_ANSWERS) == compatibility.fixed_answer_codes
     assert " · ".join(spoken_mod.ABILITY_ANSWERS.values()) in compatibility.respondent["guidance"]
-    assert compatibility.lullaby["respondent_options"][:4] == list(spoken_mod.ABILITY_ANSWERS.values())
+    registry_four = [a["label"] for a in compatibility.fixed_answers]
+    assert list(spoken_mod.FACT_ANSWERS.values()) == registry_four
+    assert compatibility.lullaby["respondent_options"][:4] == registry_four
 
 
 def test_a_known_item_no_longer_found_is_still_a_fault_were_one_named(real, monkeypatch):

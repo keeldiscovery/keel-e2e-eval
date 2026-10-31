@@ -72,20 +72,22 @@ def problem_entry(entry):
 OWNER_ROLE = {"id": "owner", "label": "Restaurant owners", "roleType": "BUYER",
               "about": "the owner of an independent restaurant who chooses and pays for its tools"}
 OWNER_TITLE = "Restaurant owner"
-#: Purchase friction, B2B only -- the founder's list (keel-cloud 087's item list, the tested item picked first).
+#: Purchase friction, B2B only -- the founder's list (keel-cloud 087's item list, the tested item picked first); its belief
+#: in keel-cloud 174's words (spec 115 FR-1: *{value} can slow or stop the purchase.*, was *... slows the purchase most.*).
 FRICTION = {"answer": {"items": [{"code": "pos_setup", "label": "Setting it up with the POS provider"},
                                  {"code": "partner_signoff", "label": "A business partner's sign-off"},
                                  {"code": "card_on_file", "label": "Putting a card on file"}],
                        "picked": 0},
-            "belief_sentence": "Setting it up with the POS provider slows the purchase most."}
+            "belief_sentence": "Setting it up with the POS provider can slow or stop the purchase."}
 BUYER_BELIEF = "The restaurant owner decides, and nobody else has to agree."
-#: The two B2B-only rows of the plan (05-paidly's own shapes).
+#: The two B2B-only rows of the plan (05-paidly's own shapes; Purchase friction's escape the registry's since keel-cloud
+#: 174, `cant_tell` -- spec 115 FR-1 -- where 05-paidly's record keeps `cant_recall`).
 B2B_QUESTIONS = {
     "commercial.ability_to_pay": {"part": 3, "control": "single_choice",
                                   "codes": ["existing_line", "new_line_signed_off", "taken_from_other_spend", "no_budget"],
                                   "escape": "cant_recall_one"},
     "commercial.purchase_friction": {"part": 3, "control": "fixed_three", "codes": ["yes_long", "yes_quick", "not_needed"],
-                                     "escape": "cant_recall"},
+                                     "escape": "cant_tell"},
 }
 #: Each owner's two added answers (Ability to pay, Purchase friction), in Countly's order of the ten.
 OWNER_PICKS = {

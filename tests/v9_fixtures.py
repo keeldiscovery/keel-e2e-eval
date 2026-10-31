@@ -267,6 +267,35 @@ def skip_a_spoken_record_before_159(keel_cloud) -> None:
 
 #: keel-cloud 170 FR-5 (spec 110 FR-2): Existing sacrifice's registry escape, *I don't know* before 170.
 SACRIFICE_ESCAPE_BEFORE_170 = "I don't know"
+#: keel-cloud 174 FR-2 (spec 115 FR-0): Purchase friction's registry escape, *I can't recall* before 174.
+FRICTION_ESCAPE_BEFORE_174 = "I can't recall"
+
+
+def spoken_record_before_174(keel_cloud) -> bool:
+    """Spec 115: whether keel-cloud's `build/spoken-corpus.txt` was written before keel-cloud 174 -- a Purchase
+    friction item said with *I can't recall* (174 serves *I can't tell*; its fact four are the registry's, where 128's
+    *Yes · Mostly · Partly · No* were served before it). A record with no Purchase friction item is not read as old."""
+    from instructions import cloud_corpus as cloud_mod                # noqa: PLC0415
+    from instructions.registry import PURCHASE_FRICTION_KEY            # noqa: PLC0415
+    path = Path(keel_cloud) / cloud_mod.SPOKEN_FILE
+    record = path.read_text(encoding="utf-8") if path.is_file() else ""
+    return any(block.split("\n  escape: ", 1)[-1].split("\n", 1)[0] == FRICTION_ESCAPE_BEFORE_174
+               for block in record.split(f"{PURCHASE_FRICTION_KEY} [part 3]\n")[1:])
+
+
+def skip_a_spoken_record_before_174(keel_cloud, registry) -> None:
+    """Spec 115 FR-0: keel-cloud 174 moved Purchase friction's escape to *I can't tell*; a record written before it,
+    read against the registry of record after it, names *I can't recall* there -- the record's age, not a fault of S6.
+    Such a record is skipped by name (rerun its SpokenGuidelinesCorpusTest to compare)."""
+    import pytest                                                     # noqa: PLC0415
+    from instructions import spoken as spoken_mod                     # noqa: PLC0415
+    from instructions.registry import PURCHASE_FRICTION_KEY            # noqa: PLC0415
+    if spoken_record_before_174(keel_cloud) and registry is not None and registry.has(PURCHASE_FRICTION_KEY) \
+            and spoken_mod.registry_escape(registry, PURCHASE_FRICTION_KEY) != FRICTION_ESCAPE_BEFORE_174:
+        pytest.skip("keel-cloud's build/spoken-corpus.txt predates keel-cloud 174 (Purchase friction's escape reads "
+                    f"{FRICTION_ESCAPE_BEFORE_174!r}; the registry of record names "
+                    f"{spoken_mod.registry_escape(registry, PURCHASE_FRICTION_KEY)!r}) -- rerun `./gradlew test --tests "
+                    "'*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout to compare")
 
 
 def skip_a_spoken_record_before_170(keel_cloud, registry) -> None:

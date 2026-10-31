@@ -683,6 +683,12 @@ def check_invariants(registry: Registry) -> list[str]:
         if template.count("{value}") != 1:
             faults.append(f"invariant 4 ({{value}} exactly once): "
                           f"{d.key}'s belief template carries it {template.count('{value}')} times")
+        # keel-cloud 174 FR-1 (spec 115 FR-1): Commitment's decider sentence, where the row carries one, is held the same
+        if "belief_template_decider" in d.founder:
+            decider = str(d.founder.get("belief_template_decider") or "")
+            if decider.count("{value}") != 1:
+                faults.append(f"invariant 4 ({{value}} exactly once): {d.key}'s decider template carries it "
+                              f"{decider.count('{value}')} times")
 
     # 5. Codes: the controls are keel-cloud 087's; Prevalence's fifths 4-6, unique, contiguous; a list
     #    control's `saves` bounds; fixed answers unique, their supports theirs; the price, cost, derived

@@ -2534,6 +2534,20 @@ def fact_said(label: str | None) -> str | None:
     return fake_lower(text)
 
 
+def fact_said_back(code: str | None, pick: str | None, said: str) -> str:
+    """keel-cloud 174 FR-3 (`FollowUpComposer`, spec 115 FR-1): a fact answered No or the third, said back as the fact --
+    *You said no to this: {fact}.*; the registry's third said as picked, held to the spoken cap, *You said only with help
+    or approval: {fact}.* (*... to this:* ran past 20 words on 13-aircaps); a stored *Partly* (an item locked before 174)
+    keeps 128's *You said only partly to this: {fact}.* -- each closing *What got in the way?*."""
+    if code != "only_with_help":
+        lead = "You said no to this: "
+    elif pick == "Partly" or pick is None:
+        lead = "You said only partly to this: "
+    else:
+        lead = f"You said {fake_lower(pick.strip())}: "
+    return f"{lead}{said}. What got in the way?"
+
+
 _HAD = re.compile(r"^(?:did you have|you had|you have|do you have)\s+(?:(?:a|an|any|the)\s+)?(.+)$")
 
 
@@ -2598,6 +2612,7 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
     own words -- or None. `stem` composes that one stem's question instead (`follow_up_plan`). The walk holds the
     route's answer and the screen to it."""
     from harness import interviewer_fake as fake                       # noqa: PLC0415
+    from instructions import spoken as spoken_mod                     # noqa: PLC0415
 
     served = {i.get("dimension"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
     if stem is None:
@@ -2640,15 +2655,17 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         values["{condition}"] = condition
         values["{would}"] = ("only work sometimes" if picked.startswith("only sometimes")
                              else "only work with help" if picked.startswith("only with help") else "not work")
-        # keel-cloud 128 FR-13b: a fact answered No or Partly is said back as the fact, never "you couldn't ..."
+        # keel-cloud 128 FR-13b: a fact answered No or Partly is said back as the fact, never "you couldn't ..."; 174
+        # FR-3 (spec 115 FR-1): a fact is served the registry's four since 174, so the item is a fact by its tested
+        # condition (`spoken.is_fact`, the lock's `ItemFrames.fact`) as well as by a stored *Partly*
         code = codes[0] if codes else None
-        if label(code) == "Partly" or (label(code) == "No" and label("only_with_help") == "Partly"):
-            said = fact_said(tested.get("label"))
-            if said:
-                values[WHOLE_TEXT] = ("You said only partly to this: " if code == "only_with_help"
-                                      else "You said no to this: ") + said + ". What got in the way?"
+        fact = label("only_with_help") == "Partly" or spoken_mod.is_fact(tested.get("asked") or tested.get("label"),
+                                                                          tested.get("label"))
+        said = fact_said(tested.get("label")) if fact and code in ("only_with_help", "no") else None
+        if said:
+            values[WHOLE_TEXT] = fact_said_back(code, label(code), said)
         # keel-cloud 129 FR-6: a have-fact answered No is said back as the fact (Karsa's bank account)
-        if label(code) == "No" and label("only_with_help") == "Partly":
+        if code == "no" and fact:
             had = had_no(tested.get("asked") or tested.get("label"))
             if had:
                 values[WHOLE_TEXT] = had

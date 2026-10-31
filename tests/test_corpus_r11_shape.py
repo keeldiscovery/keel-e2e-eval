@@ -238,7 +238,10 @@ def test_every_row_is_the_registrys_and_every_pick_its_rows(corpus, entry_id):
         # 158, read as its `segmented_1_to_n` / `pick_one_then_one` (the same integer, the same two codes)
         assert row["control"] in registry_mod.RECORDED_CONTROLS.get(dimension.respondent_control,
                                                                      (dimension.respondent_control,)), (entry_id, key)
-        assert row.get("escape") == (dimension.escape or {}).get("code"), (entry_id, key)
+        # spec 115 FR-0 (keel-cloud 174 FR-2): Purchase friction's recorded `cant_recall` is the registry's `cant_tell`,
+        # read through the one rule -- the record is never rewritten
+        assert corpus_mod.recorded_escape_is(key, row.get("escape"), (dimension.escape or {}).get("code")), \
+            (entry_id, key)
         if dimension.fixed_answers:
             assert row["codes"] == dimension.fixed_answer_codes, (entry_id, key)
     for person in entry.people():
@@ -247,6 +250,7 @@ def test_every_row_is_the_registrys_and_every_pick_its_rows(corpus, entry_id):
             assert not (isinstance(pick, dict) and "rough" in pick), (entry_id, person.person, key)
             if isinstance(pick, dict) and "chip" in pick:
                 assert pick["chip"] == row.get("escape") and key != "commercial.commitment"
+                assert corpus_mod.recorded_escape_is(key, pick["chip"], (registry.by_key(key).escape or {}).get("code"))
             elif row["control"] == "pick_two":
                 assert len(pick) == 2 and len(set(pick)) == 2 and set(pick) <= set(row["codes"])
             elif row["control"] in ("fixed_four", "fixed_three", "single_choice_5", "price_ladder", "scale_four"):
