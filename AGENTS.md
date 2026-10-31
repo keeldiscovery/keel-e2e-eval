@@ -713,6 +713,25 @@ friction were drafted without the founder's picked label too, on 2026-10-30. `ma
 `test_credits_at_begin_088`'s price version, keel-cloud 169's VERSION 13, spec 105 FR-2's); the paid re-walk is the
 coordinator's.
 
+**The harness reads the frontier tier, price version 13, and screens back-test and probe entries** (spec
+`105-the-harness-reads-the-frontier-tier`, 2026-10-30; keel-cloud 169: routing v14, `InferenceCharge.VERSION` 13).
+`instructions/models.py` mirrors `ModelRouting.FALLBACK`: a class on a tier a host has no row for stands one rung down
+(`frontier` on `standard`, nothing else), model and effort together (`ModelTable.standing_tier`), so on v14 a codex or
+copilot frame job is `gpt-5.6-terra` at `medium` and claude's is `claude-opus-5-5` at `medium`; the file is still read
+as the file, and S-012's per-job model check follows through `resolve_screen`. `PRICE_VERSION` is 13 in
+`harness/interview_charge.py` and both fakes (no row they mirror moved; no corridor sum is mirrored; the gate would be
+300). **A screen needle that names a back-test entry or a probe now screens it beside the golden corpus**
+(`instructions/screen_entries.py`): `K=08-fresco/PROBLEM_INTERPRET` reads keel-cloud's
+`canon/designs/measured-beliefs/backtest/08-fresco.yaml` (the three interpretation screens; no golden expectations, so
+nothing else) and `K=169-banking-gaming` reads `probes/169-banking-gaming.yaml` (its two frame screens), only the named
+files, hashed before and after; a kind word (`K=frame`), a screen word (`K=PROBLEM_INTERPRET`) and the full eval build
+what they built. A probe case is marked on its first turn: NEEDS_INPUT with one question that names the planted term (as
+typed or inflected) and offers two readings (an *or*), else a fault -- a COMPLETED statement or card named for keeping or
+rewriting the term; the marks sit in each case's `diff.json` and the scorecard's `probes`, the extras in its
+`screen_entries` (back-test apart from probes), and move no marks row. `make unit` 4,143 / 0 / 53 (master
+`8221cf8` 4,093 / 1 / 53; the one failure, the price version, cleared); the screens themselves are the coordinator's,
+paid, on the founder's word (`specs/105-.../tasks.md` lists the seven commands).
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
