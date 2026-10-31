@@ -1906,6 +1906,80 @@ def _name_keel_added(j: Journey, key: str, question: dict, answer: vs.Calibratio
                                       "typed": _typed_labels(answer), "added": added}})
 
 
+#: Spec 116 FR-2 (keel-web 150 FR-1): Current solution's question before 150 -- the served words, kept by 150 only where
+#: the context serves no job (never on a walk: step 1 always types one).
+CURRENT_SOLUTION_OLD_QUESTION = "How do they deal with it today?"
+CURRENT_SOLUTION_KEY = "problem.current_solution_satisfaction"
+BUYER_PAYER_KEY = "commercial.buyer_payer_alignment"
+
+
+def choose_faults(choose: dict | None, key: str, *, row: int | None) -> list[dict]:
+    """Spec 116 FR-1 (keel-web 149): one Choose as the walk read it -- the radio found by its label (spec 104) and the
+    `pickedIndex` the press PUT equal to `row`, the drafted row that label was found at (`_choose_label`), never the
+    drawn position; on Buyer and payer the title *Which one do you want to test?*, *Nobody else* drawn last, the recall
+    line naming the roles, a belief under each radio, and the bar's case -- *the one you pick* before a pick, the
+    picked role in a sentence, *nobody else* on Nobody else (`vs_screens.buyer_payer_bar`). Every miss is one fault
+    `{what, drawn, want}`."""
+    if not choose:
+        return [{"what": "no Choose screen was read", "drawn": choose, "want": "the pick"}]
+    faults: list[dict] = []
+
+    def fault(what: str, drawn, want) -> None:
+        if drawn != want:
+            faults.append({"what": what, "drawn": drawn, "want": want})
+
+    label, options = choose.get("label"), list(choose.get("options") or [])
+    fault("the pick by label", label in options, True)
+    fault("the served pickedIndex", choose.get("served_index"), row)
+    if key != BUYER_PAYER_KEY:
+        return faults
+    nobody = vs.NOBODY_ELSE[1]
+    fault("the Choose title", choose.get("prompt"), vs_screens.BUYER_PAYER_CHOOSE_PROMPT)
+    fault("Nobody else drawn last", options[-1:], [nobody])
+    roles = [o for o in options if o != nobody]
+    if roles:
+        tail = f"Who else has to agree: {', '.join(roles)}, from your last answer."
+        recall = choose.get("recall") or ""
+        if not recall.endswith(tail):
+            faults.append({"what": "the recall line", "drawn": recall, "want": f"... {tail}"})
+    fault("a belief under each row", len(choose.get("beliefs") or []), len(options))
+    before = vs_screens.buyer_payer_bar((choose.get("test_before") or {}).get("bar"))
+    fault("the bar before a pick", (before or {}).get("case"), "unpicked")
+    after = vs_screens.buyer_payer_bar((choose.get("test") or {}).get("bar"))
+    fault("the bar after the pick", ((after or {}).get("case"), (after or {}).get("who")),
+          ("nobody", vs_screens.BUYER_PAYER_NOBODY) if label == nobody
+          else ("role", vs_screens.role_in_sentence(label or "")))
+    return faults
+
+
+def answer_boxes_faults(seen: dict | None, key: str, text: str | None) -> list[dict]:
+    """Spec 116 FR-2 (keel-web 150): one typed Answer as the walk read it -- where the screen drew Current solution's two
+    boxes, each held to the corpus Answer split as 150 splits it (`vs_screens.split_answer`), the second box's heading,
+    and the question naming the people and the job (*How do {actor_plural} {job} today?*, never the old served words);
+    on every Answer the draft POST's one text, the boxes joined (`join_answer`) or the one box's text trimmed. Every
+    miss is one fault `{what, drawn, want}`."""
+    if not seen or not text:
+        return []
+    faults: list[dict] = []
+
+    def fault(what: str, drawn, want) -> None:
+        if drawn != want:
+            faults.append({"what": what, "drawn": drawn, "want": want})
+
+    two = "boxes" in seen
+    what, how = vs_screens.split_answer(text)
+    if two:
+        fault("the two boxes", seen.get("boxes"), {"what": what, "how": how})
+    fault("the draft's one Answer", seen.get("sent_answer"), vs_screens.join_answer(what, how) if two else text.strip())
+    if two and key == CURRENT_SOLUTION_KEY:
+        fault("the second box's heading", seen.get("how_question"), vs_screens.CURRENT_SOLUTION_HOW_QUESTION)
+        asked = seen.get("question") or ""
+        if not vs_screens.CURRENT_SOLUTION_ASKED.match(asked) or asked == CURRENT_SOLUTION_OLD_QUESTION:
+            faults.append({"what": "the question names the people and the job", "drawn": asked,
+                           "want": "How do {actor_plural} {job} today?"})
+    return faults
+
+
 def leg_calibrate(j: Journey, vector: str) -> None:
     """One stage, on its screens, one dimension a screen (keel-web 063): CALIBRATION_QUESTIONS READY; each
     single question answered the way the entry answers it; each list dimension's Answer typed (the
@@ -1964,7 +2038,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             if not j.strict:
                 _name_keel_added(j, key, question, answer)
             try:
-                label, _ = _choose_label(j, question, answer)
+                label, row = _choose_label(j, question, answer)
             except vs.VectorsScriptError:
                 # spec 104 FR-1: the walk stops here, by name, with what was drafted beside what was typed
                 with _step(j, f"{key}: the founder's picked row is on Keel's drafted list, found by its label "
@@ -1973,6 +2047,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                                     {"drafted": _drafted_labels(question)})
                     raise
             seen.append(j.corridor.list_choose(question, label))
+            seen[-1]["row"] = row       # spec 116 FR-1: the drafted row the label was found at
         j.framing[key] = seen
     refused = j.corridor.conflicts[conflicts:]
     if refused:
@@ -2037,6 +2112,22 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             h.record_assert({"server": [r["server"] for r in lower_case]},
                             {"screen": [r["keel will test"] for r in lower_case]})
             raise AssertionError(f"DRIFT #79 came back: {json.dumps(lower_case)}")
+
+    with _step(j, f"{vector.lower()}: each Answer sends its one text (Current solution's two boxes joined, keel-web "
+                  "150) and each Choose picks by label, the served pickedIndex on the wire (keel-web 149; spec 116)",
+               party="founder") as h:
+        faults = []
+        for key in keys:
+            if not vs.is_list(key) or answers[key].unsure:
+                continue
+            for screen in j.framing[key]:
+                if screen["screen"] == "answer":
+                    faults += [{"dimension": key, **f}
+                               for f in answer_boxes_faults(screen, key, answers[key].text)]
+                elif screen["screen"] == "choose":
+                    faults += [{"dimension": key, **f} for f in choose_faults(screen, key, row=screen.get("row"))]
+        h.record_assert([], faults)
+        assert not faults, json.dumps(faults, indent=2)
 
     cost = j.entry.cost() or {}
     if vector == "COMMERCIAL" and j.founder.hourly_rate is not None and (not j.entry.chain()
