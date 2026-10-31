@@ -5681,3 +5681,31 @@ back-test reads the chip as served. **For keel-cloud:** the chip composer should
 Seen, not fixed (keel-cloud 145's drawing, open): 08-fresco's drawn condition *run on Procore or ACC* comes from
 `conditionFrom` reading *whose jobs run on Procore or ACC* as a clause on the people, so the chip asks **"Do you run on
 Procore or ACC?"** -- it is the jobs that run on it, not the superintendent.
+
+## 101. Owed (keel-cloud, the founder's own rows): Keel's list writer rewords or leaves out a row the founder typed -- three of 2026-10-30's thirty Choose screens
+
+Found by spec `104-choose-picks-the-founders-own-row` (its tasks.md, *Not foreseen by the spec*) over the day's back-test
+bundles, filed by spec `108-a-reworded-row-is-a-finding-not-a-stop`. Spec 081 (founder-lists.md) says the drafted list
+keeps the founder's rows word for word; on three Choose screens the list Keel drafted, and the founder saved untouched
+on the Check screen, did not:
+
+- **21-codyco, compatibility** (`runs/20261030T183150Z-backtest-21-codyco`, transcript seq 60): every condition
+  re-tensed -- *Unanswered calls could be forwarded to another number* -> *... can be forwarded ...*, *The PMS took
+  bookings ...* -> *takes*, *Rates and room types were up to date* -> *are*. (The re-walk `20261030T161100Z` drafted
+  them word for word.)
+- **13-aircaps, adoption friction** (`runs/20261030T150723Z-backtest-13-aircaps`, seq 59): *Wear the glasses, paired to
+  the phone* drafted as *Pair the glasses to their phone*, with *Wear the glasses in conversations* split out beside it.
+- **08-fresco, purchase friction** (`runs/20261030T173645Z-backtest-08-fresco`, seq 67): *A trial on one live job* not
+  drafted at all; *A budget approval* drafted in its place.
+
+Before spec 104 the walk picked the drafted row at the founder's index, so the reworded row was tested under a label the
+founder never chose (08-fresco's walk picked *A check that it works with Procore*). **What the harness does** (spec
+108): where no drafted row equals the founder's typed label, `evals/corpus_scenario._choose_label` picks the one nearest
+row (`nearest_rows`: the same words with case, punctuation, *-s / -ed / -ing* and *could / can / would / will* folded;
+else a row carrying every content word of the typed label; else one whose content words are all the typed label's, at
+least half) and writes the finding **DRIFT: Keel reworded the founder's row '{typed}' as '{drafted}' (spec 081)** into the
+back-test record's `findings` (`backtest.json`, `backtest.md`), so each cycle counts them; no near row, or more than one,
+stops the walk by name as 104 does, with a finding *{Dimension}: Keel left out: '...'* beside 104's *Keel added*. On the
+three bundles: 21-codyco and 13-aircaps now walk on with one DRIFT line each; 08-fresco stops at purchase friction.
+**For keel-cloud:** keel-cloud-docs spec `177-a-founders-row-is-kept-as-typed` (written at `4d790648`, not built): a
+founder's row drafted byte for byte, tense and all, never left out, held by code in the saved-list check.
