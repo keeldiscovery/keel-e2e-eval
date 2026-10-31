@@ -508,8 +508,8 @@ def sentence(segment_core, condition, circumstance, job, window: "Window | None"
     return out + "." + (f" We'll ask about the last {window_words(window)}." if window else "")
 
 
-#: keel-web 147 FR-1 `readBackSaysWindow` (`lib/contextReach.ts`, on its branch `a4e8546`; not on keel-web master when
-#: spec 114 was built): the served sentence ends with keel-cloud 168's window sentence, *We'll ask about the last
+#: keel-web 147 FR-1 `readBackSaysWindow` (`lib/contextReach.ts`, web master `d6dc5a9`): the served sentence ends with
+#: keel-cloud 168's window sentence, *We'll ask about the last
 #: {window}.* -- straight or curly apostrophe, after a space or at the start, the sentence trimmed.
 READ_BACK_SAYS_WINDOW = re.compile(r"(?:^|\s)We['\u2019]ll ask about the last [^.]+\.$")
 

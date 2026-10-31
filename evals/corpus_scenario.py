@@ -374,20 +374,22 @@ def _hold_the_scope(j: Journey) -> None:
 
 #: Spec 114 FR-2: keel-web 147 (*the card says the window once*) leaves the context card's muted *Counting the last
 #: {window}.* line out where the served sentence ends *We'll ask about the last {window}.* (keel-cloud 168), and keeps it
-#: on an older sentence with no window. Not on keel-web master when 114 was built (master `23c7596`, 146; 147 on its
-#: branch `a4e8546`), so the pins stand: the line is owed on every windowed card. Whoever merges 147 sets this True
-#: (or `KEEL_WEB_147=1` in the environment for one run against a 147 build).
-WEB_147_BUILT = False
+#: on an older sentence with no window. keel-web 147 merged 2026-10-31 (web master `d6dc5a9`) while 114 was being built,
+#: so the line is owed only under a sentence that does not say its window. `KEEL_WEB_147=0` in the environment turns the
+#: old pin back on for one run against a build before 147.
+WEB_147_BUILT = True
 
 
 def web_147_built() -> bool:
-    return WEB_147_BUILT or os.environ.get("KEEL_WEB_147") == "1"
+    flag = os.environ.get("KEEL_WEB_147")
+    return flag == "1" if flag in ("0", "1") else WEB_147_BUILT
 
 
 def window_line_owed(understands: str | None, window, *, once: bool | None = None) -> str | None:
     """Spec 114 FR-2: the muted window line the windowed context card owes -- *Counting the last {window}.* -- or None
-    where keel-web 147 is built (`once`, default `web_147_built()`) and the served sentence already says the window
-    (`vs.read_back_says_window`). Before 147 the line is owed on every windowed card, whatever the sentence."""
+    where keel-web 147 is built (`once`, default `web_147_built()`: True since web master `d6dc5a9`) and the served
+    sentence already says the window (`vs.read_back_says_window`): on every fresh project since keel-cloud 168. Before
+    147 the line was owed on every windowed card, whatever the sentence."""
     once = web_147_built() if once is None else once
     if once and vs.read_back_says_window(understands):
         return None
@@ -447,7 +449,7 @@ def leg_context(j: Journey) -> None:
             assert lines.get("only_people_who") == want_lines["only_people_who"], lines
         assert j.corridor.window_drawn is windowed, j.corridor.window_drawn
         if windowed:
-            # spec 114 FR-2: the muted line is owed until keel-web 147, then only under a sentence with no window
+            # spec 114 FR-2 (keel-web 147): the muted line only under a sentence that does not say the window
             assert not window_line_faults(drawn, window_line, founder.window), \
                 window_line_faults(drawn, window_line, founder.window)
         j.screens["context_card"] = {"understands": drawn, "text": drawn, **lines}

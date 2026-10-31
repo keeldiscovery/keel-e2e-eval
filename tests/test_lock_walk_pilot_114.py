@@ -361,19 +361,11 @@ OLD = "Restaurant managers. When a delivery comes in, they want to check it, cou
 LINE = "Counting the last 7 nights."
 
 
-def test_keel_web_147_is_not_on_master_so_the_pins_stand():
-    """FR-2 as built: keel-web master `23c7596` (146) carries no `readBackSaysWindow`; 147 is on its branch. The line is
-    owed on every windowed card, whatever the sentence."""
-    assert cs.WEB_147_BUILT is False and not cs.web_147_built()
-    for sentence in (NEW, CURLY, OLD):
-        assert cs.window_line_owed(sentence, WINDOW) == LINE
-        assert cs.window_line_faults(sentence, LINE, WINDOW) == []
-        assert cs.window_line_faults(sentence, "", WINDOW)                  # the line missing
-
-
-def test_once_147_is_built_the_line_goes_under_168s_sentence_and_stays_on_an_old_one(monkeypatch):
-    monkeypatch.setenv("KEEL_WEB_147", "1")
-    assert cs.web_147_built()
+def test_keel_web_147_is_on_master_so_the_line_goes_under_168s_sentence_and_stays_on_an_old_one(monkeypatch):
+    """FR-2 as built: keel-web 147 merged on 2026-10-31 (web master `d6dc5a9`) while 114 was built -- the card draws no
+    *Counting the last ...* line where the sentence ends *We'll ask about the last ...*, and the line on an old one."""
+    monkeypatch.delenv("KEEL_WEB_147", raising=False)
+    assert cs.WEB_147_BUILT is True and cs.web_147_built()
     for sentence in (NEW, CURLY):
         assert cs.window_line_owed(sentence, WINDOW) is None
         assert cs.window_line_faults(sentence, "", WINDOW) == []
@@ -383,15 +375,27 @@ def test_once_147_is_built_the_line_goes_under_168s_sentence_and_stays_on_an_old
     assert cs.window_line_faults(OLD, "", WINDOW)                           # an old sentence lost its window
 
 
+def test_against_a_build_before_147_the_old_pin_stands(monkeypatch):
+    """`KEEL_WEB_147=0`: the line owed on every windowed card, whatever the sentence (the pin since spec 071)."""
+    monkeypatch.setenv("KEEL_WEB_147", "0")
+    assert not cs.web_147_built()
+    for sentence in (NEW, CURLY, OLD):
+        assert cs.window_line_owed(sentence, WINDOW) == LINE
+        assert cs.window_line_faults(sentence, LINE, WINDOW) == []
+        assert cs.window_line_faults(sentence, "", WINDOW)                  # the line missing
+    assert cs.window_line_owed(NEW, WINDOW, once=True) is None              # `once` given wins over the flag
+
+
 def test_the_window_sentence_mirror_is_147s():
     assert vs.read_back_says_window(NEW) and vs.read_back_says_window(CURLY) and vs.read_back_says_window(NEW + "  ")
     assert vs.read_back_says_window("We'll ask about the last 4 weeks.")
     assert not vs.read_back_says_window(OLD) and not vs.read_back_says_window(None)
     assert not vs.read_back_says_window(NEW + " More.") and not vs.read_back_says_window("SoWe'll ask about the last 7 nights.")
     path = Path(CONFIG.keel_web) / "src" / "lib" / "contextReach.ts"
-    source = path.read_text(encoding="utf-8") if path.is_file() else ""
-    if "readBackSaysWindow" not in source:
-        pytest.skip("keel-web 147 is not on keel-web master yet: the mirror is held to its branch's regex (a4e8546)")
+    if not path.is_file():
+        pytest.skip("keel-web is not beside this checkout")
+    source = path.read_text(encoding="utf-8")
+    assert "export function readBackSaysWindow" in source
     assert "/(?:^|\\s)We['\\u2019]ll ask about the last [^.]+\\.$/" in source
 
 
@@ -405,7 +409,7 @@ def test_money_alone_draws_no_window_line_either_way(tmp_path, countly, monkeypa
     """`tests/test_drifts_95_97_closed.py`'s money-alone case (the card's *Counting the last 7 nights.* fails) stands
     before and after 147: money alone serves no window to draw a line for."""
     seed = sj.money_entry(countly)
-    for flag in ("0", "1"):
+    for flag in ("0", "1"):                     # before 147 and since
         monkeypatch.setenv("KEEL_WEB_147", flag)
         j = cs.Journey(recorder=Recorder(tmp_path), page=None, context=None, web_base="", cloud_base="", entry=seed,
                        founder=None, people=[], project_id="p1", scope=seed.scope)
