@@ -157,7 +157,7 @@ SENT_STUDY_LINE = "[data-testid='sent-study-line']"
 SENT_TABS_LABEL = "Links by name or by group"
 SENT_TAB = {"name": "[data-testid='sent-tab-name']", "group": "[data-testid='sent-tab-group']"}
 #: `SENT_GROUP`: one group's section on *By group*; its root carries `data-group`, `data-closed` and `data-url` (the
-#: whole served `/i/<token>` url, open or closed -- keel-web 142 FR-1 draws no shortened `group-link` any more; eval 098).
+#: whole served `/i/<token>` url, open or closed -- keel-web 142 FR-1 draws no shortened `group-link`; eval 098).
 SENT_GROUP = "[data-testid='sent-group']"
 GROUP_NAME = "[data-testid='group-name']"
 GROUP_COUNT = "[data-testid='group-count']"

@@ -333,7 +333,7 @@ def test_send_mores_third_way_is_136s_words():
      ["send-who-${option}", "send-group", "send-group-cap", "group-link-made", 'id="send-group-name"']),
     ("src/components/interviews/SentPage.tsx", ["sent-study-line", "sent-tab-${key}"]),
     ("src/components/interviews/GroupSection.tsx",
-     ["sent-group", "data-group=", "data-closed=", "group-name", "group-count", "group-link", "group-close",
+     ["sent-group", "data-group=", "data-url=", "data-closed=", "group-name", "group-count", "group-close",
       "group-reopen", "group-empty"]),
     ("src/components/interviews/LinksTable.tsx", ["row-email"]),
     ("src/routes/participant/GroupArrivalCard.tsx",
@@ -348,6 +348,21 @@ def test_every_pin_the_harness_reads_is_in_136s_markup(relative, ids):
     source = _web_source(relative)
     missing = [i for i in ids if i not in source]
     assert not missing, (relative, missing)
+
+
+def test_the_group_section_draws_no_link_and_keeps_its_url_on_the_root():
+    """Eval 098 FR-1 (keel-web 142 FR-1): `GroupSection` draws no `group-link` span; the url is the root's `data-url`,
+    beside `data-group`, on every section (open or closed); *Copy link* copies the same `group.url`. The harness keeps
+    no `GROUP_LINK` pin and reads no shortened link; the Send-more popup's `group-link-made` read is unchanged."""
+    source = _web_source("src/components/interviews/GroupSection.tsx")
+    assert 'data-testid="group-link"' not in source, "keel-web draws the shortened group link again (eval 098)"
+    assert "data-url={group.url}" in source and "text={group.url}" in source
+    root = source[source.index("<section"):source.index(">", source.index("aria-label={group.name}"))]
+    assert "data-group={group.groupId}" in root and "data-url={group.url}" in root, root
+    assert not hasattr(iv, "GROUP_LINK")
+    harness = inspect.getsource(iv)
+    assert "group-link'" not in harness and "'group-link-made'" in harness
+    assert iv.GROUP_LINK_MADE == "[data-testid='group-link-made']"
 
 
 @pytest.fixture(scope="module")
@@ -375,10 +390,10 @@ SENT_HTML = f"""<!doctype html><html><body><main>
   <button type="button" role="tab" id="sent-tab-group" aria-selected="true" class="on" data-testid="sent-tab-group">By group · 1</button>
 </div>
 <div role="tabpanel" id="sent-panel-group" aria-labelledby="sent-tab-group">
- <section class="sent__group" data-testid="sent-group" data-group="g-1" data-closed="false" aria-label="Restaurant managers' forum">
+ <section class="sent__group" data-testid="sent-group" data-group="g-1" data-url="http://localhost:5173/i/gRoUp" data-closed="false" aria-label="Restaurant managers' forum">
   <div class="sent__group-top"><h3 class="lt-head sent__group-name" data-testid="group-name" style="text-transform: uppercase">Restaurant managers' forum</h3>
    <span class="sent__group-count" data-testid="group-count">1 of 20 answered</span></div>
-  <div class="sent__group-actions"><span class="linkshort" data-testid="group-link" title="http://localhost:5173/i/gRoUp">…/i/gRoU…up</span>
+  <div class="sent__group-actions">
    <button type="button" class="btn small" aria-label="Copy link · Restaurant managers' forum">Copy link</button>
    <button type="button" class="btn small" data-testid="group-close">Close link</button></div>
   <section class="sent__links" data-testid="links"><div class="sent__register"><table class="ppl ppl--sent"><tbody>
@@ -392,7 +407,7 @@ SENT_HTML = f"""<!doctype html><html><body><main>
 
 def test_the_by_group_tab_is_read_as_136_draws_it(tmp_path, chromium):
     """The study line, the two tabs, one group's section (its name as typed -- the DOM text, not the uppercased
-    render --, the counter, the short link with the full url as its title, *Copy link*'s name, *Close link*) and its
+    render --, the counter, the url off the section's `data-url` (eval 098), *Copy link*'s name, *Close link*) and its
     rows: the register's own cells, *Who* the name alone, the email under it, *Kind · from* folded from the footer."""
     page = chromium.new_page()
     try:
@@ -406,6 +421,7 @@ def test_the_by_group_tab_is_read_as_136_draws_it(tmp_path, chromium):
         assert group["id"] == "g-1" and group["closed"] == "false" and group["name_tag"] == "H3"
         assert group["name"] == "Restaurant managers' forum"
         assert group["count"] == iv.group_answered(1) and group["url"] == "http://localhost:5173/i/gRoUp"
+        assert "link" not in group, group
         assert group["copy"] == iv.group_link_label("Restaurant managers' forum")
         assert (group["close"], group["reopen"], group["empty"]) == (iv.GROUP_CLOSE_WORD, None, None)
         rows = {r["Who"]: r for r in group["rows"]}
@@ -415,6 +431,31 @@ def test_the_by_group_tab_is_read_as_136_draws_it(tmp_path, chromium):
         assert maya["Kind · from"] == iv.KIND_FROM_GROUP and maya["actions"] == ["See answers"]
         assert maya["Status"].startswith(iv.REGISTER_STATUS["ANSWERED"]) and maya["invitation"] == "inv-a"
         assert rows["Iris Calloway"]["actions"] == ["New link"]
+    finally:
+        page.close()
+
+
+CLOSED_SENT_HTML = """<!doctype html><html><body><main><div role="tabpanel" id="sent-panel-group">
+ <section class="sent__group is-closed" data-testid="sent-group" data-group="g-2" data-url="http://localhost:5173/i/cLoSeD"
+  data-closed="true" aria-label="The supers' group">
+  <div class="sent__group-top"><h3 class="lt-head sent__group-name" data-testid="group-name">The supers' group</h3>
+   <span class="sent__group-count" data-testid="group-count">0 of 20 answered · closed today</span></div>
+  <div class="sent__group-actions"><button type="button" class="btn small" data-testid="group-reopen">Reopen</button></div>
+  <p class="hint" data-testid="group-empty">Nobody has signed in on this link yet.</p>
+ </section>
+</div></main></body></html>"""
+
+
+def test_a_closed_groups_url_is_read_off_its_data_url(tmp_path, chromium):
+    """Eval 098 FR-1 / the addendum: keel-web 142 keeps `data-url` on a CLOSED section too (no *Copy link* drawn), so
+    `groups()` reads the url there as well -- never None for a closed group."""
+    page = chromium.new_page()
+    try:
+        page.set_content(CLOSED_SENT_HTML)
+        [group] = iv.Interviews(page, Recorder(tmp_path), "http://localhost:5173").groups()
+        assert (group["id"], group["closed"], group["url"]) == ("g-2", "true", "http://localhost:5173/i/cLoSeD")
+        assert (group["copy"], group["close"], group["reopen"]) == (None, None, iv.GROUP_REOPEN_WORD), group
+        assert group["empty"] == iv.GROUP_NOBODY_YET and group["rows"] == [] and "link" not in group, group
     finally:
         page.close()
 
