@@ -1980,6 +1980,58 @@ def answer_boxes_faults(seen: dict | None, key: str, text: str | None) -> list[d
     return faults
 
 
+IMPORTANCE_KEY = "problem.importance"
+COMPATIBILITY_KEY = "solution.compatibility"
+FREQUENCY_KEY = "problem.frequency"
+PURCHASE_FRICTION_KEY = "commercial.purchase_friction"
+COMMITMENT_KEY = "commercial.commitment"
+
+
+def said_faults(screen: dict | None, key: str, *, b2b: bool) -> list[dict]:
+    """Spec 117 FR-1 / FR-3 (keel-web 153, keel-cloud 179): what one founder screen says it tests, as the walk read it --
+    the Answer hint on Importance (`IMPORTANCE_ANSWER_HINT`) and Compatibility (`COMPATIBILITY_ANSWER_HINT`, the people
+    or none); Commitment's Check bar (153's naming the deciders on a B2B study, today's elsewhere); on the Choose
+    screens of Purchase friction and Compatibility the title *Which one do you want to test?* (`CHOOSE_PROMPT`; Buyer
+    and payer's is `choose_faults`'), Purchase friction's intro and its bar before and after the pick, and the box's
+    kept-conditions line on Compatibility alone (before and after the pick); Frequency's range hint under its boxes.
+    Every miss is one fault `{what, drawn, want}`."""
+    if not screen:
+        return []
+    faults: list[dict] = []
+
+    def fault(what: str, drawn, want) -> None:
+        if drawn != want:
+            faults.append({"what": what, "drawn": drawn, "want": want})
+
+    kind = screen.get("screen")
+    if kind == "answer":
+        hint = " ".join(str(screen.get("hint") or "").split())
+        if key == IMPORTANCE_KEY:
+            fault("the Answer hint", hint, vs_screens.IMPORTANCE_ANSWER_HINT)
+        elif key == COMPATIBILITY_KEY and not vs_screens.COMPATIBILITY_ANSWER_HINT.match(hint):
+            faults.append({"what": "the Answer hint", "drawn": hint,
+                           "want": "What must already be true[ at {segment}] for this to work? Tools they use, time "
+                                   "they can wait, rules they work under. Two to four things. Up to 25 words."})
+    elif kind == "check" and key == COMMITMENT_KEY:
+        bar = vs_screens.commitment_bar((screen.get("test") or {}).get("bar"))
+        fault("the Commitment bar", (bar or {}).get("case"), "decider" if b2b else "same")
+    elif kind == "choose":
+        if key in (PURCHASE_FRICTION_KEY, COMPATIBILITY_KEY):
+            fault("the Choose title", screen.get("prompt"), vs_screens.CHOOSE_PROMPT[key])
+        if key == PURCHASE_FRICTION_KEY:
+            fault("the Choose intro", screen.get("intro"), vs_screens.PURCHASE_FRICTION_CHOOSE_INTRO)
+            fault("the bar before a pick", (screen.get("test_before") or {}).get("bar"),
+                  vs_screens.PURCHASE_FRICTION_CHOOSE_BAR)
+            fault("the bar after the pick", (screen.get("test") or {}).get("bar"),
+                  vs_screens.PURCHASE_FRICTION_CHOOSE_BAR)
+        kept = vs_screens.COMPATIBILITY_KEPT_NOTE if key == COMPATIBILITY_KEY else ""
+        fault("the box's line before a pick", screen.get("note_before") or "", kept)
+        fault("the box's line after the pick", screen.get("note") or "", kept)
+    elif kind == "single" and key == FREQUENCY_KEY:
+        fault("the range hint", screen.get("range_hint"), vs_screens.FREQUENCY_RANGE_HINT)
+    return faults
+
+
 def leg_calibrate(j: Journey, vector: str) -> None:
     """One stage, on its screens, one dimension a screen (keel-web 063): CALIBRATION_QUESTIONS READY; each
     single question answered the way the entry answers it; each list dimension's Answer typed (the
@@ -2126,6 +2178,18 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                                for f in answer_boxes_faults(screen, key, answers[key].text)]
                 elif screen["screen"] == "choose":
                     faults += [{"dimension": key, **f} for f in choose_faults(screen, key, row=screen.get("row"))]
+        h.record_assert([], faults)
+        assert not faults, json.dumps(faults, indent=2)
+
+    with _step(j, f"{vector.lower()}: each screen says what it tests -- the Answer hints, the Choose titles, Purchase "
+                  "friction's intro and bar, Compatibility's kept line, Commitment's bar, Frequency's range hint "
+                  "(keel-web 153, keel-cloud 179; spec 117)", party="founder") as h:
+        faults = []
+        for key in keys:
+            if vs.is_list(key) and answers[key].unsure:
+                continue
+            for screen in j.framing.get(key) or []:
+                faults += [{"dimension": key, **f} for f in said_faults(screen, key, b2b=j.entry.b2b())]
         h.record_assert([], faults)
         assert not faults, json.dumps(faults, indent=2)
 
