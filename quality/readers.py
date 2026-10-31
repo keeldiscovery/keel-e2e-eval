@@ -14,6 +14,13 @@ runner (`spoken_guidelines`: at the bundle's cloud sha where that commit has it,
 only (the coordinator's decision 3); the screen being scored goes in full. After every screen, each reader answers the three whole-flow questions once
 (the founder once, the respondent once per link). The readers never drive the UI and never see a screenshot.
 
+**Spec 109 (rubric version 3)**: the bundle's `after_screens` -- what the walk shot after everyone had answered: the
+study's stage page, each dimension card opened with its chart, the Insights screen -- are founder screens of the kinds
+`stage`, `dimension` and `insights-screen` (`after_screens`), each read in one call on §B (`quality/RUBRIC.md`'s
+`prompt-b` part; `quality/readers/founder.md`'s `after` and `after-insights` prompts) with the beliefs the founder checked
+on the way in (`checked_beliefs`), and folded into the founder's `score_pct`. A bundle walked before spec 109 has none:
+its score file says so (`after_note`) and is not penalised.
+
 **The door is the `claude` CLI, exactly as `instructions/judge.py` calls it** (`_ARGV`, `judge_env`), plus `--model`
 and `--effort` from `quality/readers.toml` (the coordinator's decision 1). No key is read, named or passed. A run
 refuses before its first screen when the binary is missing or `claude -p` cannot answer a one-word probe. The calls are
@@ -198,12 +205,16 @@ class Screen:
     full: str
     compact: str
     said: str = ""
+    #: Spec 109: a screen read after everyone answered (§B), numbered on its own from 1.
+    after: bool = False
 
     def meta(self) -> dict:
         return {"n": self.n, "screen": self.screen, "audience": self.audience, "link": self.link,
                 "dimension": self.dimension, "kind": self.kind}
 
     def label(self) -> str:
+        if self.after:
+            return f"{self.audience}-after-{self.n:02d}-{self.screen}"
         return f"{self.audience}-{self.link + '-' if self.link else ''}{self.n:02d}-{self.screen}"
 
 
@@ -253,6 +264,117 @@ def founder_screens(bundle: dict) -> list[Screen]:
                           compact=_compact(int(s.get("n") or len(out) + 1), s.get("kicker"), s.get("question")
                                            or s.get("hint"), name)))
     return out
+
+
+# ------------------------------------------------------------------------- after the answers (§B, spec 109)
+
+_STAGE_WORD = {"PROBLEM": "problem", "SOLUTION": "solution", "COMMERCIAL": "money"}
+
+
+def _stage_words(stage: str | None) -> str:
+    return f"the {_STAGE_WORD.get(str(stage or '').upper(), str(stage or '').lower())} stage page" if stage else \
+        "the stage page"
+
+
+def _after_body(s: dict, total: int) -> tuple[list[str], str]:
+    """One §B screen as the founder-reader is handed it (FR-2): what each part of the screen is, then its words as drawn
+    -- and the compact line the later screens see."""
+    kind, n = s.get("kind"), int(s.get("n") or 0)
+    head = f"Screen {n} of {total} read after everyone answered"
+    if kind == "stage":
+        page = s.get("page") or {}
+        body = [f"{head}: {_stage_words(s.get('stage'))} ({s.get('url') or 's/' + str(s.get('stage'))}).",
+                f"Kicker: {page.get('kicker') or ''}", f"Title: {page.get('title') or ''}",
+                f"The verdict line under the title: {page.get('headline') or ''}"]
+        if page.get("statement"):
+            body.append(f"Keel's statement under it: {page['statement']}")
+        if page.get("foot"):
+            body.append(f"The count line: {page['foot']}")
+        if page.get("decider"):
+            body.append(f"The banner: {page['decider']}")
+        rows = page.get("rows") or []
+        if rows:
+            body.append("One card per dimension, as listed (its number and name, your belief, the status word with its "
+                        "line; a card that does not open is marked):")
+            body += ["  - " + " -- ".join(x for x in (f"{r.get('n') or ''} {r.get('name') or ''}".strip(), r.get("belief"),
+                                                      r.get("status")) if x)
+                     + ("" if r.get("opens", True) else " (does not open)") for r in rows]
+        if page.get("measures"):
+            body.append(f"What it measures: {page['measures']}")
+        compact = f"{n}. [{_stage_words(s.get('stage'))}] {page.get('headline') or page.get('title') or ''}"
+    elif kind == "dimension":
+        card = s.get("chart") or {}
+        body = [f"{head}: the {card.get('title') or s.get('dimension')} card on {_stage_words(s.get('stage'))}, "
+                "opened, its chart drawn.",
+                f"The card's title: {card.get('title') or ''}",
+                f"Your belief, as the card says it: {card.get('belief') or ''}",
+                f"The verdict (the status word, its line and the count under it): {card.get('verdict') or ''}"]
+        for label, key in (("Asked", "asked"), ("The bar line", "bar"), ("The chart's caption", "caption"),
+                           ("The chart's legend", "legend")):
+            if card.get(key):
+                body.append(f"{label}: {card[key]}")
+        if card.get("drawing"):
+            body.append(f"The chart ({card.get('chart') or 'drawn'}), its words: {card['drawing']}")
+        people = card.get("people") or []
+        if people:
+            body.append("Everyone who answered (name -- how Keel read the answer):")
+            body += [f"  - {p.get('name') or ''} -- {p.get('read') or ''}" for p in people]
+        compact = f"{n}. [the {card.get('title') or s.get('dimension')} card] {card.get('verdict') or ''}"
+    else:
+        ins = s.get("insights") or {}
+        body = [f"{head}: the Insights screen ({s.get('url') or '#insights'}), every fold opened."]
+        boxes = ins.get("boxes") or []
+        if boxes:
+            body.append("One box per line, as drawn (its name and status word, the question asked, the groups with "
+                        "their counts):")
+            for b in boxes:
+                groups = ", ".join(f"{t.get('label')} ({t.get('count')})" for t in b.get("themes") or [])
+                body.append(f"  - {b.get('head') or b.get('dimension')} -- {b.get('concern') or ''}"
+                            + (f" -- groups: {groups}" if groups else "")
+                            + (f" -- {b.get('quotes')} quote(s)" if b.get("quotes") is not None else ""))
+        if ins.get("empty"):
+            body.append(f"The screen says: {ins['empty']}")
+        for line in ins.get("not_asked") or []:
+            body.append(f"Under the boxes: {line}")
+        compact = f"{n}. [the Insights screen] {len(boxes)} box(es)"
+    if s.get("text"):
+        body.append("The screen's words, as drawn, in order:\n" + str(s["text"]).strip())
+    return body, compact
+
+
+def after_screens(bundle: dict) -> list[Screen]:
+    """Spec 109: the bundle's `after_screens` -- the stage page, each dimension card opened with its chart, the Insights
+    screen, as the walk shot them after everyone had answered -- as founder screens of their own kinds, in order."""
+    shots = [s for s in bundle.get("after_screens") or [] if rubric.is_after(s.get("kind"))]
+    out = []
+    for i, s in enumerate(shots, 1):
+        s = {**s, "n": int(s.get("n") or i)}
+        body, compact = _after_body(s, len(shots))
+        out.append(Screen(n=s["n"], screen=s.get("screen") or s["kind"], audience="founder", link=None,
+                          dimension=s.get("dimension"), kind=s["kind"], has_options=False, full="\n".join(body),
+                          compact=compact, after=True))
+    return out
+
+
+def checked_beliefs(bundle: dict) -> str:
+    """Spec 109 FR-2 (B3): the beliefs the founder checked on the way in -- every `check-` screen's belief line (as the
+    screen drew it, else the wire's), Keel will test and the bar, as the flow recorded them."""
+    lines = []
+    for s in bundle.get("founder_screens") or []:
+        name = str(s.get("screen") or "")
+        if not name.startswith("check-"):
+            continue
+        back = s.get("keel read back") if isinstance(s.get("keel read back"), dict) else {}
+        belief = back.get("belief line on screen") or back.get("belief")
+        if not belief:
+            continue
+        line = f"- {name.removeprefix('check-')} ({(s.get('kicker') or '').strip()}): {belief}"
+        if back.get("keel will test"):
+            line += f"; Keel will test: {back['keel will test']}"
+        if back.get("bar"):
+            line += f"; your bar: {_said(back['bar']).strip()}"
+        lines.append(line)
+    return "\n".join(lines) or "(the flow recorded no check screen with a belief line)"
 
 
 def _served_items(served: dict) -> dict:
@@ -655,10 +777,20 @@ def plan(bundle: dict, entry: dict, *, only: str | None = None, limit: int | Non
     founder_t, respondent_t = template("founder", "screen", readers_dir), template("respondent", "screen", readers_dir)
     jobs, flows = [], []
     founder = founder_screens(bundle)
+    after = after_screens(bundle)                                   # spec 109: §B, after everyone answered
     founder_block = founder_persona(entry)
     links = respondent_screens(bundle)
     blocks = {link: persona(entry, bundle, link) for link in links}
-    for screen in _select(founder, only, limit):
+    for screen in _select(founder + after, only, limit):
+        if screen.after:
+            earlier = "\n".join(s.compact for s in after if s.n < screen.n) or \
+                "(none: this is the first screen read after the answers)"
+            part = "after-insights" if screen.kind == "insights-screen" else "after"
+            jobs.append((screen, fill(template("founder", part, readers_dir),
+                                      {"persona": founder_block, "rubric_b": rubric.prompt_after(),
+                                       "beliefs": checked_beliefs(bundle), "earlier": earlier,
+                                       "screen": screen.full})))
+            continue
         earlier = "\n".join(s.compact for s in founder if s.n < screen.n) or "(none: this is the first screen)"
         jobs.append((screen, fill(founder_t, {"persona": founder_block, "rubric": rubric_part,
                                               "earlier": earlier, "screen": screen.full})))
@@ -686,7 +818,7 @@ def plan(bundle: dict, entry: dict, *, only: str | None = None, limit: int | Non
             block = blocks.get(line["link"]) or persona(entry, bundle, line["link"])
             insights.append((line, fill(insights_t, {"persona": block, "line": render_line(line),
                                                      "rubric_g": rubric_g})))
-    return {"screens": jobs, "flows": flows, "insights": insights,
+    return {"screens": jobs, "flows": flows, "insights": insights, "after": len(after),
             "persona": {"founder": founder_block, "respondent": blocks},
             "spoken_guidelines": {k: guidelines[k] for k in ("source", "sections", "sha256")},
             "_guidelines_text": guidelines["text"]}
@@ -770,7 +902,7 @@ def run(argv=None) -> int:
             print(named_in_place(prompt, work))
             (prompts / f"{i:03d}-{label}.prompt.txt").write_text(prompt, encoding="utf-8")
         print(f"dry run: {len(jobs)} prompts for {entry['id']}, scope {bundle_scope(bundle)} "
-              f"({len(work['screens'])} screens, "
+              f"({len(work['screens'])} screens, {work['after']} of them after the answers, "
               f"{len(work['flows'])} whole-flow, {len(work['insights'])} insight lines) written to {prompts}; no call made, no score written")
         return 0
 
@@ -787,7 +919,8 @@ def run(argv=None) -> int:
         try:
             if said["error"]:
                 raise rubric.RubricError(said["error"])
-            answer = rubric.parse_answer(said["answer"], has_options=screen.has_options, audience=screen.audience)
+            answer = (rubric.parse_after(said["answer"], kind=screen.kind) if screen.after else
+                      rubric.parse_answer(said["answer"], has_options=screen.has_options, audience=screen.audience))
             scores.append(rubric.screen_score(screen.meta(), answer))
             print(f"  {screen.label():<64} scored")
         except rubric.RubricError as reason:
@@ -843,6 +976,9 @@ def run(argv=None) -> int:
         "insights": readings,
         "insights_note": (None if work["insights"] else "partial run: no grouping read" if partial
                           else "no grouping to read (no follow-up line with two answers)"),
+        # spec 109: a bundle walked before the answers leg shot nothing after the answers -- said, not penalised
+        "after_note": (None if work["after"] else "no screen after the answers in the bundle (walked before spec 109, "
+                       "or the leg shot none)"),
         "flow": flow,
         "screens": scores,
     }

@@ -1,6 +1,11 @@
-# The founder-reader (spec 078 FR-2; spec 081 FR-2 / FR-3)
+# The founder-reader (spec 078 FR-2; spec 081 FR-2 / FR-3; spec 109 FR-2)
 
-The prompt the founder-reader is sent, once per founder screen and once for the whole flow. `quality/readers.py`
+The prompt the founder-reader is sent, once per founder screen and once for the whole flow -- and, from rubric version
+3 (spec 109), once per screen read after everyone has answered: the study's stage page and each dimension card opened
+with its chart (`after`), and the Insights screen (`after-insights`). Those two are filled with `{{persona}}` as below,
+`{{rubric_b}}` -- `quality/RUBRIC.md` between its `prompt-b` markers (§B) --, `{{beliefs}}` the beliefs the founder
+checked on the way in (each `check-` screen's belief line, Keel will test and the bar, as the flow recorded them), and
+`{{earlier}}` / `{{screen}}` the screens already read after the answers and the one to score. `quality/readers.py`
 fills every `{{name}}`: `{{persona}}` is the persona block, **sent first, before any screen** (spec 081 FR-3) -- the
 entry's `.sources.md` whole (the YC material) and the project's what / where / when as the entry's context fields say it
 (actor, actor_plural, job, circumstance, segment, window, the market's country); the score file records it once in its
@@ -73,3 +78,87 @@ Reply with ONE JSON object and nothing else -- no prose before or after it, no c
 
 {"order": 0|1|2, "order_why": "one sentence", "asked_twice": "the screens, or empty", "missing": "what, or empty"}
 <!-- flow:end -->
+
+<!-- after:begin -->
+## Who you are -- read this before the screen
+
+{{persona}}
+
+## Your task
+
+You are the founder of the company described above, at the time of its launch. You typed your idea into Keel, a tool
+that turns a founder's idea into a short study a founder sends to strangers, and checked every belief Keel would test.
+Everyone you sent the study to has now answered, and you are reading what Keel made of their answers: the study's stage
+page (the verdict and one card per dimension), or one dimension's card opened with its chart. Your job is to read ONE
+such screen, as you would read it now, and score it against the rubric. Be the founder: you know your customers, your
+numbers and your words, and you want to know whether your belief held and what to do about it.
+
+The yardstick is you -- your trade, your place, your time of life -- never the general public. Judge every criterion
+from inside that, and from what the screen itself says: nothing you know from elsewhere counts as on the screen.
+
+## The rubric (after the answers)
+
+{{rubric_b}}
+
+## The beliefs you checked on the way in
+
+{{beliefs}}
+
+## The screens you have already read after the answers, in order
+
+{{earlier}}
+
+## The screen to score
+
+{{screen}}
+
+## Your answer
+
+Score B1 to B5 (B6 is the Insights screen's alone). Reply with ONE JSON object and nothing else -- no prose before or
+after it, no code fence:
+
+{"b1": 0|1|2, "why_b1": "one sentence", "b2": 0|1|2, "why_b2": "one sentence", "b3": 0|1|2, "why_b3": "one sentence",
+ "b4": 0|1|2, "why_b4": "one sentence", "b5": 0|1|2, "why_b5": "one sentence", "instead": "one line, or empty"}
+<!-- after:end -->
+
+<!-- after-insights:begin -->
+## Who you are -- read this before the screen
+
+{{persona}}
+
+## Your task
+
+You are the founder of the company described above, at the time of its launch. You typed your idea into Keel, a tool
+that turns a founder's idea into a short study a founder sends to strangers, and checked every belief Keel would test.
+Everyone you sent the study to has now answered, and you are reading the Insights screen: what the people said in their
+own words, grouped by Keel, line by line. Your job is to read this ONE screen, as you would read it now, and score it
+against the rubric. Be the founder: you know your customers, your numbers and your words, and you want to learn
+something you did not already know.
+
+How Keel grouped the answers is read elsewhere: do not score whether each answer sits in the right group. Score what
+the screen tells you. The yardstick is you -- your trade, your place, your time of life -- never the general public.
+
+## The rubric (after the answers)
+
+{{rubric_b}}
+
+## The beliefs you checked on the way in
+
+{{beliefs}}
+
+## The screens you have already read after the answers, in order
+
+{{earlier}}
+
+## The screen to score
+
+{{screen}}
+
+## Your answer
+
+Score B1, B3, B4, B5 and B6 (the Insights screen draws no chart: no B2). Reply with ONE JSON object and nothing else --
+no prose before or after it, no code fence:
+
+{"b1": 0|1|2, "why_b1": "one sentence", "b3": 0|1|2, "why_b3": "one sentence", "b4": 0|1|2, "why_b4": "one sentence",
+ "b5": 0|1|2, "why_b5": "one sentence", "b6": 0|1|2, "why_b6": "one sentence", "instead": "one line, or empty"}
+<!-- after-insights:end -->
