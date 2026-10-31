@@ -1,0 +1,175 @@
+{
+ "check_screen": {
+  "n": 4,
+  "screen": "check-problem.prevalence",
+  "kicker": "STEP 2 OF 5 · THE PROBLEM · CHECK",
+  "question": "",
+  "hint": "",
+  "options": [],
+  "rows": [],
+  "chips": [],
+  "answer": "saved as Keel drafted it",
+  "keel read back": {
+   "belief": "Most night porters had a guest arrive after midnight in the last 7 days.",
+   "belief line on screen": "Most night porters had a guest arrive after midnight in the last 7 days.",
+   "keel will test": "Most night porters had a guest arrive after midnight",
+   "bar": "8 or more in 10"
+  }
+ },
+ "after_screens": [
+  {
+   "n": 1,
+   "kind": "stage",
+   "stage": "PROBLEM",
+   "dimension": null,
+   "file": "screens/founder-after-01-stage.png",
+   "url": "http://localhost:5173/p/p-109/s/PROBLEM",
+   "screen": "stage",
+   "page": {
+    "kicker": "Problem · 7 people answered",
+    "title": "Problem",
+    "headline": "The problem holds on 1 of 2.",
+    "statement": "Night porters at small hotels are alone at the desk when guests arrive after midnight.",
+    "foot": "1 held · 1 did not hold · 1 of 2 holding · 7 people answered",
+    "decider": "",
+    "measures": "",
+    "rows": [
+     {
+      "dimension": "problem.prevalence",
+      "n": "1.",
+      "name": "Prevalence",
+      "belief": "Most night porters had a guest arrive after midnight in the last 7 days.",
+      "status": "Held 6 of 7 had one",
+      "opens": true,
+      "open": false
+     },
+     {
+      "dimension": "problem.importance",
+      "n": "2.",
+      "name": "Importance",
+      "belief": "For most night porters, a late arrival is among the two things that matter most on a shift.",
+      "status": "Did not hold 3 of 7 put it in their two",
+      "opens": true,
+      "open": false
+     },
+     {
+      "dimension": "problem.frequency",
+      "n": "3.",
+      "name": "Frequency",
+      "belief": "",
+      "status": "Left out",
+      "opens": false,
+      "open": false
+     }
+    ]
+   },
+   "text": "Problem · 7 people answered\nProblem\nThe problem holds on 1 of 2.\nNight porters at small hotels are alone at the desk when guests arrive after midnight.\n1 held · 1 did not hold · 1 of 2 holding · 7 people answered\n1. Prevalence Most night porters had a guest arrive after midnight in the last 7 days. Held 6 of 7 had one\n2. Importance For most night porters, a late arrival is among the two things that matter most on a shift. Did not hold 3 of 7 put it in their two\n3. Frequency Left out"
+  },
+  {
+   "n": 2,
+   "kind": "dimension",
+   "stage": "PROBLEM",
+   "dimension": "problem.prevalence",
+   "file": "screens/founder-after-02-dimension-problem.prevalence.png",
+   "url": "http://localhost:5173/p/p-109/s/PROBLEM",
+   "screen": "dimension-problem.prevalence",
+   "chart": {
+    "title": "Prevalence",
+    "belief": "Most night porters had a guest arrive after midnight in the last 7 days.",
+    "verdict": "Held 6 of 7 had one",
+    "insight": "",
+    "count": "6 of 7 had one",
+    "asked": "Asked: \"In the last 7 days, did a guest arrive after midnight?\" — the last 7 days",
+    "bar": "You said 8 or more in 10",
+    "chart": "prevalence",
+    "caption": "6 of 7 people",
+    "legend": "One person",
+    "line": "",
+    "drawing": "6 of 7 people One person",
+    "people": [
+     {
+      "name": "Ada Lindqvist",
+      "read": "Yes, on Saturday"
+     },
+     {
+      "name": "Ben Okoro",
+      "read": "Yes, twice"
+     }
+    ]
+   },
+   "text": "1. Prevalence Most night porters had a guest arrive after midnight in the last 7 days. Held 6 of 7 had one The drawing Everyone who answered Asked: ..."
+  },
+  {
+   "n": 3,
+   "kind": "dimension",
+   "stage": "PROBLEM",
+   "dimension": "problem.importance",
+   "file": "screens/founder-after-03-dimension-problem.importance.png",
+   "url": "http://localhost:5173/p/p-109/s/PROBLEM",
+   "screen": "dimension-problem.importance",
+   "chart": {
+    "title": "Importance",
+    "belief": "For most night porters, a late arrival is among the two things that matter most on a shift.",
+    "verdict": "Did not hold 3 of 7 put it in their two",
+    "insight": "",
+    "count": "3 of 7 put it in their two",
+    "asked": "",
+    "bar": "",
+    "chart": "bars",
+    "caption": "",
+    "legend": "",
+    "line": "",
+    "drawing": "A late arrival 3 Noise 4 Check-out 0",
+    "people": [
+     {
+      "name": "Ada Lindqvist",
+      "read": "Noise came first"
+     }
+    ]
+   },
+   "text": "2. Importance For most night porters, a late arrival is among the two things that matter most on a shift. Did not hold 3 of 7 put it in their two A late arrival 3 Noise 4"
+  },
+  {
+   "n": 4,
+   "kind": "insights-screen",
+   "stage": null,
+   "dimension": null,
+   "file": "screens/founder-after-04-insights.png",
+   "url": "http://localhost:5173/p/p-109#insights",
+   "screen": "insights",
+   "insights": {
+    "boxes": [
+     {
+      "dimension": "problem.importance",
+      "status": "PEOPLE_DISAGREE",
+      "state": "GROUPED",
+      "head": "Importance Did not hold",
+      "concern": "Why other things come first",
+      "themes": [
+       {
+        "label": "Noise at night",
+        "count": "7"
+       }
+      ],
+      "quotes": 7,
+      "folds": 0
+     }
+    ],
+    "empty": null,
+    "not_asked": [
+     "Frequency was not asked: its window does not fit the study."
+    ],
+    "opens": 0,
+    "folds": 0
+   },
+   "folds": [
+    {
+     "n": 5,
+     "file": "screens/founder-after-05-insights-more-problem.importance.png",
+     "line": "problem.importance"
+    }
+   ],
+   "text": "Importance Did not hold\nWhy other things come first\nNoise at night (7)\n“Noise complaints eat my night.” — Ada Lindqvist\n“Drunk guests in the corridor.” — Ben Okoro"
+  }
+ ]
+}

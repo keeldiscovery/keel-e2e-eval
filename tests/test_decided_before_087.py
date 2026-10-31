@@ -110,6 +110,11 @@ def test_the_screens_are_the_ones_the_cycle_scores():
             kinds.add("insights")
     assert kinds and kinds <= set(dec.SCREENS), sorted(kinds - set(dec.SCREENS))
     assert set(table._FOUNDER_FILES) <= set(dec.SCREENS)
+    # spec 109 FR-3 re-pin: the three kinds read after the answers are founder screens the cycle scores -- the walk's
+    # record names them, and each has a fix location
+    after = json.loads((REPO / "tests" / "fixtures" / "quality" / "after-screens.json").read_text(encoding="utf-8"))
+    assert {s["kind"] for s in after["after_screens"]} == set(rubric.AFTER_KINDS) == set(table.AFTER_FIX)
+    assert dec.FOUNDER_SCREENS[-3:] == ("stage", "dimension", "insights-screen")
 
 
 @pytest.mark.parametrize("change, said", [

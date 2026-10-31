@@ -17,7 +17,10 @@ corpus-shaped file written from public material with no golden expectations. Wha
    served respondent screen on one person a link, into `runs/<run>/screens/` as `founder-NN-<slug>.png` /
    `respondent-<link>-NN-<slug>.png`, with what each screen drew (kicker, question, hint, the options as rendered).
 4. **The export** (FR-3): 060/061's at the last answer into `runs/<run>/export/`, names kept, no verdict gate (the
-   contract export moves to `runs/<run>/contract-export/` on this run alone).
+   contract export moves to `runs/<run>/contract-export/` on this run alone). **Spec 109, the answers leg**, first:
+   once the answers have settled, the founder opens the study's stage page, each dimension card in turn (its chart),
+   and the Insights screen, every one shot as `founder-after-NN-<slug>.png` with its words (`answers_leg`) -- the
+   founder-reader's §B screens (`after_screens` in `backtest.json`).
 5. **The transcript** (FR-4): `runs/<run>/backtest.md` (for reading) and `backtest.json` (for a judge), from the
    camera, the recorder's captures and the wire -- founder screens, respondent questions per link, the brief, the
    readings beside the file's anchoring, and cost and time. Nothing in either is asserted.
@@ -603,6 +606,98 @@ def _safe_slug(slug: str) -> str:
     return "".join(c if (c.isalnum() or c in "-_.") else "-" for c in slug).strip("-")[:70] or "screen"
 
 
+# ------------------------------------------------------------------------- 3b. after the answers (spec 109 FR-1)
+#
+# keel-web's stage page (`DimensionStagePage`, `/p/{id}/s/{STAGE}`) draws no test id of its own; the leg reads it by the
+# classes the golden journeys already read it by (`vectors_screens.Answers.vector_page`: `.dimrow[id=<key>]`,
+# `button.dimrow__head`, `.dimrow__body`, `span.status`) and the chart's own (`.dimrow__drawing`, `.achart[data-chart]`)
+# -- the test ids it owes are listed in spec 109's tasks.md. The Insights screen's are keel-web 077 / 095's
+# (`report-insights`, `section.rp-ibox[data-dim]`, `insights-more` the fold, `insights-not-asked`).
+
+#: The stage page as drawn: the kicker, the title, the verdict line, Keel's statement, the count line, the banner, one
+#: row per dimension card (its number, name, belief, status word with its line, whether it opens), *What it measures*.
+STAGE_JS = """() => {
+  const t = (e) => e ? (e.innerText || e.textContent || "").replace(/\\s+/g, " ").trim() : "";
+  const one = (sel, root) => t((root || document).querySelector(sel));
+  const main = document.querySelector("main") || document.body;
+  const rows = Array.from(document.querySelectorAll(".dimrow")).map((row) => ({
+      dimension: row.getAttribute("id"), n: one(".dimrow__n", row), name: one(".dimrow__name", row),
+      belief: one(".dimrow__belief", row), status: one("span.status", row),
+      opens: !!row.querySelector("button.dimrow__head"), open: row.getAttribute("data-open") === "true"}));
+  return {page: {kicker: one(".answers .corridor__kicker"), title: one(".answers .ccard__title"),
+                 headline: one(".answers p.answers__headline"), statement: one(".answers .ccard__sub"),
+                 foot: one(".answers .rfoot"), decider: one(".answers p.decider-banner"),
+                 measures: one(".answers .calib__belief .corridor__intro"), rows: rows},
+          text: (main.innerText || "").slice(0, 6000)};
+}"""
+
+#: One dimension card, opened: its title, the belief, the verdict (the status word, its insight line, the count under
+#: it), *Asked:*, the bar line, the chart's kind, caption, legend and words, everyone who answered -- and its own text.
+CARD_JS = """(key) => {
+  const t = (e) => e ? (e.innerText || e.textContent || "").replace(/\\s+/g, " ").trim() : "";
+  const row = Array.from(document.querySelectorAll(".dimrow")).find((r) => r.getAttribute("id") === key);
+  if (!row) return {chart: null, text: ""};
+  const one = (sel) => t(row.querySelector(sel));
+  const drawing = row.querySelector(".dimrow__drawing");
+  const chart = row.querySelector(".dimrow__drawing .achart");
+  const kind = chart ? (chart.getAttribute("data-chart") || "chart")
+      : row.querySelector(".dimrow__drawing ul.dimbars") ? "bars" : (drawing && drawing.children.length ? "strip" : null);
+  return {chart: {title: one(".dimrow__name"), belief: one(".dimrow__belief"), verdict: one("span.status"),
+                  insight: one("span.status .status__insight"), count: one("span.status .sub"),
+                  asked: one(".dimrow__asked"), bar: one(".dimrow__said"), chart: kind,
+                  caption: one(".achart__caption"), legend: one(".achart__legend"), line: one(".achart__linelabel"),
+                  drawing: t(drawing),
+                  people: Array.from(row.querySelectorAll("ul.dimpeople li")).map((li) => ({
+                      name: t(li.querySelector("span")), read: t(li.querySelector(".dimpeople__read"))}))},
+          open: !!row.querySelector(".dimrow__body"), text: t(row).slice(0, 6000)};
+}"""
+
+#: The Insights screen: per box its line, status, state, head, the question asked, its groups with their counts, how
+#: many quotes and folds; the empty state; the not-asked lines; how many `insights-open` links and folds -- and its text.
+INSIGHTS_JS = """() => {
+  const t = (e) => e ? (e.innerText || e.textContent || "").replace(/\\s+/g, " ").trim() : "";
+  const view = document.querySelector("[data-testid=report-insights]");
+  if (!view) return {insights: null, text: ""};
+  const boxes = Array.from(view.querySelectorAll("section.rp-ibox")).map((box) => ({
+      dimension: box.getAttribute("data-dim"), status: box.getAttribute("data-status"),
+      state: box.getAttribute("data-state"), head: t(box.querySelector(".rp-ihead")),
+      concern: t(box.querySelector(".rp-concern")),
+      themes: Array.from(box.querySelectorAll("ol.rp-themes > li")).map((li) => ({
+          label: t(li.querySelector(".rp-themes__label")),
+          count: t(li.querySelector(".rp-themes__n")).replace(/[()]/g, "")})),
+      quotes: box.querySelectorAll(".rp-quote").length,
+      folds: box.querySelectorAll("[data-testid=insights-more]").length}));
+  return {insights: {boxes: boxes, empty: t(view.querySelector(".rp-inone")) || null,
+                     not_asked: Array.from(view.querySelectorAll("[data-testid=insights-not-asked] li")).map(t),
+                     opens: view.querySelectorAll("[data-testid=insights-open]").length,
+                     folds: view.querySelectorAll("[data-testid=insights-more]").length},
+          text: (view.innerText || "").slice(0, 8000)};
+}"""
+
+#: The first fold still shut on the Insights screen: its box's line, or null when every fold is open.
+FOLD_JS = """() => {
+  const more = document.querySelector("[data-testid=report-insights] [data-testid=insights-more]");
+  if (!more) return null;
+  const box = more.closest("section.rp-ibox");
+  return box ? (box.getAttribute("data-dim") || "") : "";
+}"""
+
+STAGE_ROW = ".dimrow"
+INSIGHTS_VIEW = "[data-testid=report-insights]"
+INSIGHTS_TAB = "[data-testid=report-views] button[role=tab][data-view=insights]"
+FOLD_BUTTON = "[data-testid=report-insights] [data-testid=insights-more] >> nth=0"
+#: How many folds the leg presses at most (a fold that will not open is pressed no more than this).
+MAX_FOLDS = 12
+#: The slugs, and so the file names, of the three kinds (FR-1).
+AFTER_SLUG = {"stage": "stage", "dimension": "dimension-{key}", "insights-screen": "insights",
+              "fold": "insights-more-{key}"}
+
+
+def card_selector(key: str, part: str = "") -> str:
+    """One dimension card's selector on the stage page (keel-web `DimensionRow`: `.dimrow[id=<key>]`), and a part."""
+    return f".dimrow[id='{key}']" + (f" {part}" if part else "")
+
+
 @dataclass
 class Camera:
     """FR-3's screenshots. `founder` is handed to every founder page object (`Corridor.camera`, `Interviews.camera`,
@@ -613,6 +708,8 @@ class Camera:
     watched: dict                                  # link -> the person whose screens are taken
     founder_shots: list = field(default_factory=list)
     respondent_shots: dict = field(default_factory=dict)
+    #: Spec 109 FR-1: the screens after the answers, numbered on their own (`founder-after-NN-...`).
+    after_shots: list = field(default_factory=list)
     _taken: set = field(default_factory=set)
 
     @property
@@ -633,6 +730,25 @@ class Camera:
             page.screenshot(path=str(self.directory / name), full_page=True)
         except Exception as missed:  # noqa: BLE001 - recorded, never raised: the camera is evidence, not a step
             shot["error"] = repr(missed)[:300]
+        return shot
+
+    def after(self, slug: str, read: str, arg: Any = None) -> dict:
+        """Spec 109 FR-1: one screen after the answers -- `founder-after-NN-<slug>.png`, full page, with what `read` (a
+        `STAGE_JS` / `CARD_JS` / `INSIGHTS_JS`) drew. Recorded, never raised, as every shot."""
+        n = len(self.after_shots) + 1
+        shot: dict = {"n": n, "file": f"{SCREENS_DIR}/founder-after-{n:02d}-{_safe_slug(slug)}.png", "slug": slug,
+                      "url": None}
+        try:
+            try:
+                self.page.evaluate("document.fonts.ready")
+            except Exception:  # noqa: BLE001 - a font wait never blocks evidence
+                pass
+            shot["url"] = self.page.url
+            shot.update((self.page.evaluate(read, arg) if arg is not None else self.page.evaluate(read)) or {})
+            self.page.screenshot(path=str(self.directory / Path(shot["file"]).name), full_page=True)
+        except Exception as missed:  # noqa: BLE001 - recorded, never raised: the camera is evidence, not a step
+            shot["error"] = repr(missed)[:300]
+        self.after_shots.append(shot)
         return shot
 
     def founder(self, slug: str) -> None:
@@ -673,6 +789,119 @@ def watched_people(people: list) -> dict:
     return out
 
 
+def _after_stages(j) -> list[str]:
+    """The study's stages, in the ship's order (FR-1): money alone one, the three-study cycle one each, ALL three."""
+    from harness import vectors_script as vs                       # noqa: PLC0415
+    return list(vs.scope_vectors(j.entry))
+
+
+def _pass_report_sheet(j) -> None:
+    from harness import vectors_screens as vs_screens               # noqa: PLC0415
+    vs_screens.pass_teaching_sheet(j.page, j.recorder, j.web_base, "report")
+
+
+def answers_leg(j, cam: "Camera", *, stages: list[str] | None = None, pass_sheet: Callable | None = None,
+                timeout_s: float = 30.0) -> dict:
+    """Spec 109 FR-1, the answers leg: once per study, after the answers have settled, the founder opens (a) each of the
+    study's stage pages `/p/{id}/s/{STAGE}` and shoots it, then opens every dimension card that opens, in order, and
+    shoots each opened with its chart; (b) the Insights screen `/p/{id}#insights`, shot once, then once more per fold
+    pressed (`insights-more`, *and N more*). Nothing else (no Pilot tab, no People row). What it read is on the camera
+    (`cam.after_shots`); this returns what it did -- the stages, the cards not opened and why, the folds, the errors --
+    and never raises: the leg is evidence, never a step that fails the walk."""
+    page, base, pid = j.page, str(j.web_base).rstrip("/"), j.project_id
+    stages = _after_stages(j) if stages is None else list(stages)
+    passing = _pass_report_sheet if pass_sheet is None else pass_sheet
+    done: dict = {"stages": [], "not_opened": [], "folds": [], "errors": []}
+    for stage in stages:
+        try:
+            page.goto(f"{base}/p/{pid}/s/{stage}", wait_until="load")
+            page.wait_for_selector(STAGE_ROW, state="visible", timeout=timeout_s * 1000)
+        except Exception as missed:  # noqa: BLE001
+            done["errors"].append({"stage": stage, "at": "the stage page", "error": repr(missed)[:300]})
+            continue
+        shot = cam.after(AFTER_SLUG["stage"], STAGE_JS)
+        shot.update(kind="stage", stage=stage, dimension=None)
+        done["stages"].append(stage)
+        for row in ((shot.get("page") or {}).get("rows") or []):
+            key = row.get("dimension")
+            if not key:
+                continue
+            if not row.get("opens"):
+                done["not_opened"].append({"stage": stage, "dimension": key,
+                                           "why": "the card does not open (keel-web: a LEFT_OUT row has no body)"})
+                continue
+            try:
+                body = card_selector(key, ".dimrow__body")
+                if not page.evaluate("(sel) => !!document.querySelector(sel)", body):
+                    page.click(card_selector(key, "button.dimrow__head"))
+                page.wait_for_selector(body, state="visible", timeout=10_000)
+            except Exception as missed:  # noqa: BLE001
+                done["errors"].append({"stage": stage, "dimension": key, "at": "opening the card",
+                                       "error": repr(missed)[:300]})
+                continue
+            card = cam.after(AFTER_SLUG["dimension"].format(key=key), CARD_JS, key)
+            card.update(kind="dimension", stage=stage, dimension=key)
+    try:
+        page.goto(f"{base}/p/{pid}#insights", wait_until="load")
+        try:
+            passing(j)
+        except Exception as missed:  # noqa: BLE001 - a sheet not passed is read as it stands
+            done["errors"].append({"at": "the report's sheet", "error": repr(missed)[:300]})
+        try:
+            page.wait_for_selector(INSIGHTS_VIEW, state="visible", timeout=timeout_s * 1000)
+        except Exception:  # noqa: BLE001 - the hash did not pick the view: the tab, as a founder would press it
+            page.click(INSIGHTS_TAB)
+            page.wait_for_selector(INSIGHTS_VIEW, state="visible", timeout=timeout_s * 1000)
+    except Exception as missed:  # noqa: BLE001
+        done["errors"].append({"at": "the Insights screen", "error": repr(missed)[:300]})
+        return done
+    shot = cam.after(AFTER_SLUG["insights-screen"], INSIGHTS_JS)
+    shot.update(kind="insights-screen", stage=None, dimension=None)
+    for _ in range(MAX_FOLDS):
+        try:
+            key = page.evaluate(FOLD_JS)
+            if key is None:
+                break
+            page.click(FOLD_BUTTON)
+        except Exception as missed:  # noqa: BLE001
+            done["errors"].append({"at": "a fold of the Insights screen", "error": repr(missed)[:300]})
+            break
+        fold = cam.after(AFTER_SLUG["fold"].format(key=key or "line"), INSIGHTS_JS)
+        fold.update(kind="fold", stage=None, dimension=key or None)
+        done["folds"].append(key)
+    return done
+
+
+def after_screens(cam: "Camera | None") -> list[dict]:
+    """Spec 109 FR-1: `backtest.json`'s `after_screens` -- one record a §B screen (`stage`, `dimension`,
+    `insights-screen`), in the order shot; the Insights screen's folds nested under it (`folds`), its words and boxes
+    those of its last shot, every fold open."""
+    out: list[dict] = []
+    for shot in (cam.after_shots if cam else []):
+        kind = shot.get("kind")
+        record = {k: shot.get(k) for k in ("n", "kind", "stage", "dimension", "file", "url")}
+        record["screen"] = shot.get("slug")
+        if shot.get("error"):
+            record["camera error"] = shot["error"]
+        if kind == "fold" and out and out[-1]["kind"] == "insights-screen":
+            screen = out[-1]
+            screen["folds"].append({**{k: shot.get(k) for k in ("n", "file")}, "line": shot.get("dimension")})
+            if shot.get("insights") is not None:
+                screen["insights"], screen["text"] = shot.get("insights"), shot.get("text")
+            continue
+        if kind == "stage":
+            record["page"] = shot.get("page")
+        elif kind == "dimension":
+            record["chart"] = shot.get("chart")
+        elif kind == "insights-screen":
+            record.update(insights=shot.get("insights"), folds=[])
+        else:
+            continue
+        record["text"] = shot.get("text")
+        out.append(record)
+    return out
+
+
 # --------------------------------------------------------------------------------------------- the run's seam
 
 @dataclass
@@ -690,6 +919,8 @@ class Backtest:
     export: dict | None = None
     cam: Camera | None = None
     themes_settled: dict | None = None
+    #: Spec 109 FR-1: what the answers leg did (`answers_leg`): the stages, the cards not opened, the folds, the errors.
+    answers: dict | None = None
     #: Spec 066 FR-1: which door the founder came through -- `keel` (spec 062) or `host` (the founder's own CLI).
     door: str = DEFAULT_DOOR
     host: str | None = None
@@ -895,6 +1126,9 @@ class Backtest:
         grouping, which is the very classification the back-test judges. Up to `THEMES_WAIT_S`, never asserted."""
         from evals import sample_export                           # noqa: PLC0415
         self.themes_settled = _safe(lambda: themes_settle(j), None)
+        # spec 109 FR-1: the answers settled, the founder reads the stage page, each card and the Insights screen
+        if self.cam is not None:
+            self.answers = _safe(lambda: answers_leg(j, self.cam), None)
         if self.door == "host":
             self.check_the_host_answered(j)
         try:
@@ -1605,6 +1839,9 @@ def transcript(j, bt: Backtest) -> dict:
                     "credits now": (me or {}).get("creditsAvailable"), "project": j.project_id},
         **({"door": bt.door_facts} if bt.door == "host" else {}),
         "founder_screens": founder_screens(j, bt.cam, wire),
+        # spec 109 FR-1: the screens after the answers -- the founder-reader's §B
+        "after_screens": after_screens(bt.cam),
+        "answers_leg": bt.answers,
         "respondents": respondent_questions(j, bt.cam),
         "spoken_guard": _safe(lambda: spoken_guard(j)),
         "changed_screens": changed,
@@ -1616,6 +1853,7 @@ def transcript(j, bt: Backtest) -> dict:
         "themes_settled": bt.themes_settled,
         "findings": list(getattr(j, "findings", []) or []),
         "screenshots": {"founder": len(bt.cam.founder_shots) if bt.cam else 0,
+                        "after": len(bt.cam.after_shots) if bt.cam else 0,
                         "respondent": {link: len(v.get("shots") or [])
                                        for link, v in (bt.cam.respondent_shots if bt.cam else {}).items()}},
     }
@@ -1656,7 +1894,7 @@ def markdown(r: dict) -> str:
               f"- Cost: {('the CLI reported $' + str(cli.get('usd'))) if cli.get('usd') is not None else NOT_PRICED} "
               f"over {c.get('jobs')} jobs; models {_q(c.get('models'))}"),
              f"- Wall time: {r.get('wall_s')} s; screenshots: {shots.get('founder')} founder, "
-             f"{_q(shots.get('respondent'))} respondent",
+             f"{shots.get('after') or 0} after the answers, {_q(shots.get('respondent'))} respondent",
              f"- Export: {_q(r.get('export'))}",
              f"- THEMES settled before the export: {_q(r.get('themes_settled'))}",
              f"- Keel's AI refused and retried (findings): {len(r.get('findings') or [])}"
@@ -1695,6 +1933,28 @@ def markdown(r: dict) -> str:
             lines.append("- Chips: " + " | ".join(str(o) for o in s["chips"]))
         lines.append(f"- Founder (from the file): {_q(s.get('answer'))}")
         lines.append(f"- Keel read back: {_q(s.get('keel read back'))}")
+        lines.append("")
+    after = r.get("after_screens") or []
+    if after:
+        leg = r.get("answers_leg") or {}
+        lines += ["### After the answers (spec 109: the stage page, each dimension card opened, the Insights screen)", ""]
+        for s in after:
+            lines.append(f"- {s.get('n'):02d}. {s.get('kind')}{' · ' + s['stage'] if s.get('stage') else ''}"
+                         f"{' · ' + s['dimension'] if s.get('dimension') else ''} (`{s.get('file')}`)"
+                         + (f" -- camera error: {s['camera error']}" if s.get("camera error") else ""))
+            if s.get("kind") == "stage":
+                lines.append(f"  - verdict line: {_q((s.get('page') or {}).get('headline'))}")
+            elif s.get("kind") == "dimension":
+                chart = s.get("chart") or {}
+                lines.append(f"  - {_q(chart.get('title'))}: {_q(chart.get('verdict'))}; chart {_q(chart.get('chart'))}; "
+                             f"bar {_q(chart.get('bar'))}")
+            else:
+                lines.append(f"  - {len((s.get('insights') or {}).get('boxes') or [])} box(es); folds pressed: "
+                             + (", ".join(f"`{f.get('file')}`" for f in s.get("folds") or []) or "none"))
+        for row in leg.get("not_opened") or []:
+            lines.append(f"- not opened: {row.get('dimension')} -- {row.get('why')}")
+        for row in leg.get("errors") or []:
+            lines.append(f"- leg error at {row.get('at')}: {row.get('error')}")
         lines.append("")
     lines += ["## 2. Respondent questions, per link", ""]
     for link, v in (r.get("respondents") or {}).items():

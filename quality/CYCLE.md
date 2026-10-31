@@ -47,9 +47,17 @@ make quality-walk DRY=1 ENTRIES=21-codyco SCOPES=PROBLEM WHY="dry"   # the plan 
 - **It refuses** (one sentence, exit 2, nothing run) without ENTRIES, without WHY, with a dirty keel-cloud checkout (a
   sha must name what was measured), on DOOR=keel without `KEEL_ANTHROPIC_API_KEY` in the shell, without the `claude`
   CLI (the readers' door, and DOOR=host's), on an entry keel-cloud has no back-test file for, or an unknown scope.
+- **After the answers** (spec 109, RUBRIC_VERSION 3): once the study's answers have settled, the walk opens the
+  study's stage page, each dimension card in turn (its chart) and the Insights screen, and shoots each
+  (`founder-after-NN-stage.png`, `founder-after-NN-dimension-<key>.png`, `founder-after-NN-insights.png`, one more per
+  fold pressed); the founder-reader scores them on §B (RUBRIC.md) and they fold into the founder's score_pct. Version-2
+  score files (cycles 1 to 3) are set aside, never compared: **cycle 4 is the first at 3**, so its record compares with
+  no baseline and no previous cycle until one at 3 is accepted.
 - **What it costs**: per study, one back-test (about $0.50 of Keel's AI on DOOR=keel; the founder's plan on DOOR=host,
   6-10 minutes) and one reading (about 60 reader calls on the founder's plan, Opus 5.5 medium, about $4 list-price
-  equivalent by the 078 smoke's rate). Five entries x three scopes = fifteen studies, a few hours. The record says what it actually cost.
+  equivalent by the 078 smoke's rate). **Spec 109 adds about 4 to 6 more screens per study** for the founder-reader
+  (one stage page, three to five cards, one Insights screen) -- **roughly +40% of a study's reading** -- and a minute or
+  so of the walk. Five entries x three scopes = fifteen studies, a few hours. The record says what it actually cost.
 - **What it writes**: the bundles under `runs/` (ignored); one score file per study under `quality/scores/<entry>/`;
   `quality/TABLE.md`; and the **cycle record** `quality/cycles/<yyyymmdd>-<cloud7>.md` -- the why, the shas, the studies,
   the bundles, the score files, the head, the comparison with the baseline and with the previous cycle, the cost and the
