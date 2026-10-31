@@ -876,6 +876,27 @@ row per typed benefit, as typed, never split, none added; `K=10-palus/CALIBRATIO
 the one row *Higher yield without hiring for treasury*). `MARKS_VERSION` 24 stands. `make unit` 4,543 / 0 / 56 (master
 `ffbddfe` 4,480 / 1 / 56, the one failure 173's `ScaleFour.FRAME`, fixed); the paid 173 screen is the coordinator's.
 
+**The gallery holds three studies per example, with seven people** (spec `106-the-gallery-holds-three-studies-per-example`,
+2026-10-30; the founder: *"reduce it to three toggles -- problem, solution and commercial ... instead of twenty, seven
+agents answer it"*; keel-web 151 draws it). `evals/gallery.py` exports each entry's three studies of one cycle --
+`problem` / `solution` / `money` (PROBLEM, SOLUTION, COMMERCIAL) -- under `OUT/<slug>/<study>/` (the 060 file set,
+`interview.json`, `manifest.json`); the index row's top-level fields are the problem study's (`scope` PROBLEM) and
+`studies: {problem, solution, money}` carries each study's `decision`, `howSure`, `pilot`, `price`, `answered` and
+`invited`. An entry lacking a study, given one twice, or a run of another scope is refused by name and nothing is written
+for it (`three_studies`); 079's `--scope-order` / `one_per_entry` are retired. The disclaimer says the study's own people
+in words (`people_words`: *seven people answered, all simulated*), never twenty. **The gate is the gallery's own last
+score** (FR-3): `--scores` refuses a study with no score file or a flagged screen; the cycle's score_pct below the last
+accepted one (the newest `runs/gallery/provenance-*.json` recording `accepted`) refuses the export, nothing written;
+equal or above passes whatever the 90% bar says, the first passes, `--bar` is optional. `make quality-accept` holds that
+gate before it cuts the baseline and calls `gallery.promote` with the scores alone. Provenance is `{exportedAt,
+accepted, examples: [{slug, entry, cycle, studies: {study: {scope, run, cloud, web}}, renamed}]}`; keel-web's
+`cover.jpg` and the row's `title`, `image`, `tests` are kept. The walk sends seven people a study (`quality/cycle.toml`
+`people = 7`, `make quality-walk PEOPLE=`, `make backtest PEOPLE=` = `KEEL_BACKTEST_PEOPLE`, `Entry.people_cap`):
+`vectors_script.study_people` keeps the first seven on the person's own link in corpus order, the decision-makers whole
+(eight on 08-fresco, 10-palus, 21-codyco; seven on 17-expanse). No mark moves. `make unit` 4,582 / 0 / 56 (master `9f06e2f`
+4,543 / 0 / 56); cycle 4's walk and `make quality-accept` are the founder's word (read through 106's gate, cycle 3
+would have published Fresco alone: tasks.md).
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
