@@ -3170,6 +3170,12 @@ def _answer_one(j: Journey, person, token: str) -> None:
                                           if drawn else ""),
                                "served": {"gate": interview.get("gate")}})
             person = vs.inside_inputs(j.entry, person.person)
+        # spec 112's addendum (keel-cloud 172): Current solution's escape is the served item's -- the walk sends the code
+        # served (keel-cloud refuses the other way out), and each re-expression is named
+        person, sent_as = vs.served_escape_picks(person, items)
+        for note in sent_as:
+            j.findings.append({"what": note, "person": person.person,
+                               "served": (items.get(vs.CURRENT_SOLUTION_KEY) or {}).get("escape")})
         kind = "COMMERCIAL_LINK" if person.link == vs.LINK_B2B else "FULL"
         with _step(j, f"{person.person}: the {kind} interview carries every item this person "
                       "answers, and every option they pick", party="participant") as h:

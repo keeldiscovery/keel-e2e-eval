@@ -118,6 +118,13 @@ NUMERIC = (FREQUENCY_KEY, SACRIFICE_KEY)
 #: is the consumer budget item.
 OFF_CHAIN_COST_ESCAPE = "I can't recall"
 CONSUMER_BUDGET_ESCAPE = "I can't say"
+#: keel-cloud 172 (`ItemFrames.escapeFor`, `ItemFrames.CANT_RECALL`; spec 112's addendum): Current solution's escape
+#: where Keel's list writer called the act one that could not be handed off (`handed_off: false`) -- *I can't recall*,
+#: `cant_recall`, counted apart, said *Or say you can't recall.*; *Someone else did it* (the registry's
+#: `someone_else_checks`) where the call is true or the list carries none. The call is stored on the server and never
+#: reaches a wire, so the mirror reads it off the SERVED item's escape (`InterviewItem.escape`, `{code, label}`).
+CANT_RECALL_CODE = "cant_recall"
+CANT_RECALL_ESCAPE = "I can't recall"
 
 #: keel-cloud 123 FR-8 (`ItemFrames.ABILITY_LABELS`, the registry's Compatibility guidance): the four answers to a
 #: condition of ability, on the registry's own four codes; a condition of permission keeps the registry's labels.
@@ -166,22 +173,55 @@ def registry_escape(registry, key: str):
     return escape.get("label") if escape else None
 
 
-def item_escape(registry, key: str, entry=None):
+def handed_off_of(served) -> bool | None:
+    """keel-cloud 172: the list writer's call on Current solution as the served item shows it -- False where the item is
+    served the *I can't recall* escape (`cant_recall`, by its code or its label), True where it is served another,
+    None where nothing served is handed (a list with no call reads as the registry's row). `served` is the served item
+    (`{escape: {code, label}}`), its escape, or the escape's code or label."""
+    if served is None:
+        return None
+    escape = served.get("escape", served) if isinstance(served, dict) else served
+    if isinstance(escape, dict):
+        code, label = escape.get("code"), escape.get("label")
+    else:
+        code, label = escape, escape
+    if not code and not label:
+        return None
+    said = {str(code or "").strip().lower(), " ".join(str(label or "").split()).lower()}
+    return not ({CANT_RECALL_CODE, CANT_RECALL_ESCAPE.lower()} & said)
+
+
+def _current_solution_escape(registry, served):
+    """keel-cloud 172 `ItemFrames.escapeFor`: *I can't recall* where the call was false, the registry's otherwise."""
+    if handed_off_of(served) is False:
+        return CANT_RECALL_ESCAPE
+    return registry_escape(registry, CURRENT_SOLUTION_KEY)
+
+
+def item_escape(registry, key: str, entry=None, served=None):
     """The escape an item **names** (spec 068 FR-2, keel-cloud 129's owed list): the registry's row, except Ability to
     pay on a consumer link, which is served as the consumer budget item with its own escape, *I can't say* (the guard
     called Issen's clean run RED on the registry's *I can't recall one*). Commitment's is none (129 FR-9's escape open).
-    Existing sacrifice off the chain names the registry's and says spec 077's (`served_escape`), as the record does."""
+    Existing sacrifice off the chain names the registry's and says spec 077's (`served_escape`), as the record does.
+    Spec 112's addendum (keel-cloud 172): Current solution's is read off the SERVED item (`served`, `handed_off_of`) --
+    *I can't recall* where the list's `handed_off` call was false, the registry's *Someone else did it* otherwise (and
+    with nothing served: a list with no call)."""
     dimension = registry.by_key(key)
     if entry is not None and key == ABILITY_KEY and not entry.b2b():
         return CONSUMER_BUDGET_ESCAPE
+    if key == CURRENT_SOLUTION_KEY:
+        return _current_solution_escape(registry, served)
     escape = dimension.escape
     return escape.get("label") if escape else None
 
 
-def served_escape(registry, key: str, entry=None):
+def served_escape(registry, key: str, entry=None, served=None):
     """The escape the item is served (and said) with: the registry's, read by the side keel-cloud serves it by
-    (`CommercialChain.side`)."""
+    (`CommercialChain.side`). Spec 112's addendum (keel-cloud 172): Current solution's off the served item, as
+    `item_escape` -- said *Or say you can't recall.* where it is *I can't recall*."""
     dimension = registry.by_key(key)
+    if key == CURRENT_SOLUTION_KEY:
+        return _current_solution_escape(registry, served)
     if entry is not None:
         if key == SACRIFICE_KEY and dimension.respondent_control == VALUE_BOX_CONTROL and not entry.chain():
             return OFF_CHAIN_COST_ESCAPE
@@ -343,7 +383,9 @@ def item_faults(item, registry, entry=None) -> list:
     if registry is None or not registry.has(key):
         faults.append(f"S6: {key} is not in the registry, so it has no escape of record")
     else:
-        named, spoken = item_escape(registry, key, entry), served_escape(registry, key, entry)
+        # spec 112's addendum (keel-cloud 172): Current solution's escape is the served item's -- the record's label
+        served = {"label": item.escape} if key == CURRENT_SOLUTION_KEY else None
+        named, spoken = item_escape(registry, key, entry, served), served_escape(registry, key, entry, served)
         if item.escape != named:
             faults.append(f"S6: the escape is {item.escape!r}; the registry's is {named!r}"
                           + (" (served apart on this link)" if named != registry_escape(registry, key) else ""))

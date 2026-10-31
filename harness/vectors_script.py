@@ -2146,6 +2146,36 @@ def not_walked_off_the_gate(person, interview: dict) -> str | None:
     return None
 
 
+#: Spec 112's addendum (keel-cloud 172, `ItemFrames.escapeFor`): Current solution's two ways out on the wire -- the
+#: registry's *Someone else did it* where the list writer's `handed_off` call was true (or the list carries none), *I
+#: can't recall* where it was false. keel-cloud refuses the other one (*not this question's way out*).
+CURRENT_SOLUTION_KEY = "problem.current_solution_satisfaction"
+CURRENT_SOLUTION_ESCAPES = ("SOMEONE_ELSE_CHECKS", "CANT_RECALL")
+ESCAPE_SENT_AS_SERVED = ("{person}: Current solution's escape is served as {label!r} (keel-cloud 172: the list writer "
+                         "judged the act one that {can} be handed off); the file's {was} is sent as {code}, the code "
+                         "served (spec 112's addendum)")
+
+
+def served_escape_picks(person: "PersonInputs", items: dict) -> tuple["PersonInputs", list[str]]:
+    """Spec 112's addendum (keel-cloud 172): the walk sends the code served. A person's Current solution escape that is
+    not the served item's (`items[dimension].escape.code`) is sent as the served one, and each re-expression is named
+    (`ESCAPE_SENT_AS_SERVED`); with nothing served, or the served code the file's, the person is unchanged."""
+    import dataclasses                                                 # noqa: PLC0415
+    served = (items.get(CURRENT_SOLUTION_KEY) or {}).get("escape") or {}
+    code = str(served.get("code") or "").upper()
+    if code not in CURRENT_SOLUTION_ESCAPES:
+        return person, []
+    picks, notes = [], []
+    for pick in person.picks:
+        if pick.dimension == CURRENT_SOLUTION_KEY and pick.chip in CURRENT_SOLUTION_ESCAPES and pick.chip != code:
+            notes.append(ESCAPE_SENT_AS_SERVED.format(person=person.person, label=served.get("label"),
+                                                      can="cannot" if code == "CANT_RECALL" else "can",
+                                                      was=pick.chip.lower(), code=code.lower()))
+            pick = dataclasses.replace(pick, chip=code)
+        picks.append(pick)
+    return (dataclasses.replace(person, picks=picks), notes) if notes else (person, [])
+
+
 #: keel-cloud `Period`'s days, the one table a cost total is normalised by.
 PERIOD_DAYS = {"day": 1.0, "week": 7.0, "month": 30.4375, "quarter": 91.3125, "year": 365.25}
 
