@@ -411,6 +411,10 @@ class Entry:
     #: vectors, as every entry is written) on every golden entry and back-test; S-015 / S-016 derive a scoped seed
     #: (`evals/scope_journey.py`). Never read from a file: the corpus records no scope, and its revision stays 16.
     scope: str = "ALL"
+    #: Spec 106 FR-2: how many people the study sends on the person's own (FULL) link -- the first in corpus order of
+    #: those its scope sends (`harness/vectors_script.study_people`); the decision-makers' link is never narrowed. None
+    #: (every golden journey, and a back-test walked without `PEOPLE=`) sends every one. Never read from a file.
+    people_cap: int | None = None
 
     # ------------------------------------------------------------------ the people
 

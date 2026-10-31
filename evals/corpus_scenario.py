@@ -2976,10 +2976,11 @@ def not_on_this_study(j: Journey, labels: dict) -> list:
     """Spec 101 FR-2: the people `leg_invite` sends. Where the study leaves the entry's people out on money alone (a B2B
     entry: the decision-maker's link only, keel-cloud 133) one step records them as not on this study, beside the
     register's kinds; a person of the study whose kind the register does not serve fails that step by name. The
-    problem and solution studies (spec 082) record nothing new."""
+    problem and solution studies (spec 082) record nothing new. Spec 106 FR-2: a study walked with a cap (`PEOPLE=`)
+    records the people past it the same way, by name."""
     left, why = vs.not_on_study(j.entry)
     sending, unserved = people_to_send(j.people, labels)
-    if not unserved and not (left and vs.scope_of(j.entry) in vs.DECIDERS_ONLY_SCOPES):
+    if not unserved and not (left and vs.scope_of(j.entry) in vs.DECIDERS_ONLY_SCOPES) and not vs.capped(j.entry):
         return sending
     with _step(j, f"{len(left)} of the entry's people not on this study ({why or 'the study sends everyone'}); the "
                   f"study's {len(j.people)} sent on the kinds the register serves", party="founder") as h:
@@ -4941,6 +4942,11 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
     scope = getattr(backtest, "scope", None) or "ALL"
     if scope != "ALL":
         entry = dataclasses.replace(entry, scope=scope)
+    # spec 106 FR-2: a back-test walked with `PEOPLE=` (seven in a quality cycle) sends the first that many on the
+    # person's own link (`vs.study_people`); the decision-makers whole
+    people_cap = getattr(backtest, "people", None)
+    if people_cap:
+        entry = dataclasses.replace(entry, people_cap=int(people_cap))
     started = time.monotonic()
     passed = False
     context = browser.new_context()

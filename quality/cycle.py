@@ -2,8 +2,9 @@
 
 `quality/CYCLE.md` is the runbook; this module is its commands, and `quality/cycle.toml` is everything they read.
 
-- **`walk`** -- `make quality-walk ENTRIES=<ids|default> [SCOPES=] [DOOR=keel|host] [BUILD=<cloud7>] [DRY=1] WHY=...`
-  (paid, FR-2 / FR-5): per entry and per scope, `make backtest ENTRY= SCOPE= DOOR=` on the local stack, then `make
+- **`walk`** -- `make quality-walk ENTRIES=<ids|default> [SCOPES=] [DOOR=keel|host] [BUILD=<cloud7>] [PEOPLE=<n>]
+  [DRY=1] WHY=...` (paid, FR-2 / FR-5): per entry and per scope, `make backtest ENTRY= SCOPE= DOOR= PEOPLE=` (spec 106
+  FR-2: `cycle.toml`'s `people`, seven a study on the person's own link) on the local stack, then `make
   read-screens RUN=<the new bundle>`, then `make read-table BASELINE=1 CYCLE=<record>`; it writes the cycle record
   `quality/cycles/<yyyymmdd>-<cloud7>.md` (the why in the founder's words, the studies, the bundles, the score files, the
   head, the cost and the time, the comparison with the baseline and with the previous cycle). Refused without ENTRIES,
@@ -96,7 +97,7 @@ def load_config(path: Path | None = None, *, readers_toml: Path | None = None) -
     cyc, bar, weak = raw.get("cycle") or {}, raw.get("bar") or {}, raw.get("weak") or {}
     cfg = {
         "entries": list(cyc.get("entries") or []), "scopes": list(cyc.get("scopes") or []),
-        "door": str(cyc.get("door") or "keel"), "bar_pct": float(bar.get("bar_pct", -1)),
+        "door": str(cyc.get("door") or "keel"), "people": cyc.get("people"), "bar_pct": float(bar.get("bar_pct", -1)),
         "weak": {"zero_entries": int(weak.get("zero_entries", -1)), "mean_under": float(weak.get("mean_under", -1))},
         "reader": dict(raw.get("reader") or {}), "adviser": dict(raw.get("adviser") or {}),
         "gallery": dict(raw.get("gallery") or {}), "cadence": dict(raw.get("cadence") or {}),
@@ -109,6 +110,10 @@ def load_config(path: Path | None = None, *, readers_toml: Path | None = None) -
         raise Refused(f"{path.name}: scopes {cfg['scopes']} -- each one of {', '.join(SCOPES)}")
     if cfg["door"] not in DOORS:
         raise Refused(f"{path.name}: door {cfg['door']!r} is not one of {DOORS}")
+    if cfg["people"] is not None and (isinstance(cfg["people"], bool) or not isinstance(cfg["people"], int)
+                                      or cfg["people"] < 1):
+        raise Refused(f"{path.name}: people {cfg['people']!r} is not a number of people -- a whole number from 1, the "
+                      "people each study sends on the person's own link (spec 106 FR-2)")
     for key in ("model", "effort"):
         if not cfg["adviser"].get(key):
             raise Refused(f"{path.name} has no adviser.{key} (spec 079 FR-4)")
@@ -231,6 +236,18 @@ def resolve_scopes(raw: str | None, cfg: dict) -> list[str]:
     return scopes
 
 
+def resolve_people(raw: str | int | None, cfg: dict) -> int | None:
+    """Spec 106 FR-2: `PEOPLE=` (a whole number from 1), else quality/cycle.toml's `people` (seven); None sends every
+    person each study's scope sends."""
+    raw = str(raw if raw is not None else "").strip()
+    if not raw:
+        return cfg.get("people")
+    if not raw.isdigit() or int(raw) < 1:
+        raise Refused(f"make quality-walk refuses: PEOPLE={raw!r} is not a number of people -- a whole number from 1, "
+                      "the people each study sends on the person's own link (spec 106 FR-2)")
+    return int(raw)
+
+
 def preflight(*, entries: list[str], scopes: list[str], door: str, why: str | None, build: str | None, dry: bool,
               cloud: Path, env: dict | None = None, which=shutil.which) -> tuple[list[str], list[str]]:
     """Every refusal and every warning, before anything runs: `(refusals, warnings)`. On a dry run the refusals that
@@ -269,10 +286,12 @@ def preflight(*, entries: list[str], scopes: list[str], door: str, why: str | No
     return hard, soft
 
 
-def plan_steps(entries: list[str], scopes: list[str], door: str, work: Path) -> list[dict]:
+def plan_steps(entries: list[str], scopes: list[str], door: str, work: Path, people: int | None = None) -> list[dict]:
     """The walk as commands, in order: per entry per scope a `make down`, a `make backtest` and a `make read-screens`,
-    then one `make read-table`. `<bundle>` is filled after its back-test, from the run folder it wrote."""
+    then one `make read-table`. `<bundle>` is filled after its back-test, from the run folder it wrote. Spec 106 FR-2:
+    `people` (cycle.toml's seven, or `PEOPLE=`) rides on every back-test as `PEOPLE=`."""
     make = ["make", "-C", str(REPO), "--no-print-directory"]
+    sends = [f"PEOPLE={int(people)}"] if people else []
     steps = []
     for entry in entries:
         for scope in scopes:
@@ -280,7 +299,7 @@ def plan_steps(entries: list[str], scopes: list[str], door: str, work: Path) -> 
             steps += [
                 {"study": (entry, scope), "what": "down", "argv": [*make, "down"]},
                 {"study": (entry, scope), "what": "backtest", "log": str(work / f"{tag}.backtest.log"),
-                 "argv": [*make, "backtest", f"ENTRY={entry}", f"SCOPE={scope}", f"DOOR={door}"]},
+                 "argv": [*make, "backtest", f"ENTRY={entry}", f"SCOPE={scope}", f"DOOR={door}", *sends]},
                 {"study": (entry, scope), "what": "read", "log": str(work / f"{tag}.read.log"),
                  "out": str(work / f"read-{tag}"),
                  "argv": [*make, "read-screens", "RUN=<bundle>", f"OUT={work / f'read-{tag}'}"]},
@@ -482,9 +501,11 @@ def walks_of(record: dict, root: Path | None = None) -> dict:
 def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: str, web_sha: str, started: str,
             ended: str, seconds: float, cfg: dict, baseline_path: Path, cycles_dir: Path, root: Path | None = None,
             cloud_branch: str | None = None, web_dirty: bool = False, scores_dir: str = SCORES_REL,
-            entries_arg: str | None = None, decisions: list[dict] | None = None) -> tuple[str, dict]:
+            entries_arg: str | None = None, decisions: list[dict] | None = None,
+            people: int | None = None) -> tuple[str, dict]:
     """The cycle record (FR-2): markdown for the founder, and the same facts as a data block the other commands read.
-    Spec 087 FR-2: a weak row a decision covers is listed under *Decided before* (`decided_before`), not to advise."""
+    Spec 087 FR-2: a weak row a decision covers is listed under *Decided before* (`decided_before`), not to advise.
+    Spec 106 FR-2: `people`, the number each study sent on the person's own link, where the walk named one."""
     if decisions is None:
         decisions = load_decisions()
     scored = [s for s in studies if s.score_file]
@@ -547,6 +568,8 @@ def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: 
         "cost": {"walk_usd": walk_usd, "read_usd": read_usd, "total_usd": round(walk_usd + read_usd, 4)},
     }
     data["walks"] = walks_of(data, root)
+    if people:                                      # spec 106: absent on a walk that capped nobody, as a 079 record reads
+        data["people"] = int(people)
     if snoozed:                                     # spec 087: absent when nothing is decided, as a 079 record reads
         data["decided_before"] = snoozed
     return render_record(data), data
@@ -568,7 +591,9 @@ def render_record(d: dict) -> str:
              f"`{d['web_sha']}`{' (dirty)' if d.get('web_dirty') else ''}; routing v{', v'.join(d['routing_versions'])}; "
              f"RUBRIC_VERSION {d['rubric_version']}; reader {d['reader']['model']} ({d['reader']['effort']}); the bar "
              f"{bar:.0f}%; weak = a 0 in {d['weak_rule']['zero_entries']} entries or a mean under "
-             f"{d['weak_rule']['mean_under']} (quality/cycle.toml).", "",
+             f"{d['weak_rule']['mean_under']} (quality/cycle.toml)"
+             + (f"; {d['people']} people a study on the person's own link (spec 106)" if d.get("people") else "")
+             + ".", "",
              "## The head", "",
              f"- **This cycle**: score_pct **{_pct(head.get('score_pct'))}**, flagged {_pct(head.get('flagged_pct'))} of "
              f"{head.get('screens', 0)} screens (founder {_pct((head.get('founder') or {}).get('score_pct'))}, respondent "
@@ -637,7 +662,8 @@ def render_record(d: dict) -> str:
               "## What the founder decides now (quality/CYCLE.md)", "",
               f"1. **Advise** (paid, {advise_count}): `make quality-advise CYCLE={rel}`",
               f"2. **Rerun** after a keel-cloud change is merged: `make quality-walk ENTRIES={entries} SCOPES={scopes} "
-              f"DOOR={d['door']} WHY=\"<why, in his words>\"`",
+              f"DOOR={d['door']}" + (f" PEOPLE={d['people']}" if d.get("people") else "")
+              + " WHY=\"<why, in his words>\"`",
               f"3. **Accept** (free, on his word): `make quality-accept CYCLE={rel}`", "",
               _DATA, "```json", json.dumps(d, indent=1, ensure_ascii=False), "```", ""]
     return "\n".join(lines)
@@ -697,6 +723,7 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
     p.add_argument("--door", default="")
     p.add_argument("--build", default="")
     p.add_argument("--why", default="")
+    p.add_argument("--people", default="", help="spec 106 FR-2: people a study (default quality/cycle.toml's)")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--cycles-dir", default=str(CYCLES_DIR))
     p.add_argument("--decisions", default="", help=argparse.SUPPRESS)
@@ -707,6 +734,7 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
         entries = resolve_entries(a.entries, cfg)
         scopes = resolve_scopes(a.scopes, cfg)
         door = (a.door or cfg["door"]).strip().lower()
+        people = resolve_people(a.people, cfg)
         cloud, web = checkouts()
         hard, soft = preflight(entries=entries, scopes=scopes, door=door, why=a.why, build=a.build or None,
                                dry=a.dry_run, cloud=cloud, env=env, which=which)
@@ -720,13 +748,15 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
     cycles_dir = Path(a.cycles_dir)
     name = record_name(now.strftime("%Y%m%d"), cloud7, cycles_dir)
     work = RUNS_DIR / "quality-walk" / f"{now.strftime('%Y%m%dT%H%M%SZ')}-{name}"
-    steps = plan_steps(entries, scopes, door, work)
+    steps = plan_steps(entries, scopes, door, work, people)
     record_path = cycles_dir / f"{name}.md"
     if a.dry_run:
         print(f"quality-walk DRY RUN -- nothing runs, nothing is written. WHY: {a.why or '(none: a paid walk needs one)'}")
         print(f"keel-cloud {cloud} at {cloud7} ({git_branch(cloud)}); keel-web {web} at {web7}; DOOR={door}")
         print(f"studies: {len(entries) * len(scopes)} ({', '.join(entries)} x {', '.join(scopes)}); reader "
-              f"{cfg['reader']['model']} ({cfg['reader']['effort']}); the bar {cfg['bar_pct']:.0f}%")
+              f"{cfg['reader']['model']} ({cfg['reader']['effort']}); the bar {cfg['bar_pct']:.0f}%; "
+              + (f"{people} people a study on the person's own link, the decision-makers whole (spec 106)" if people
+                 else "every person each study's scope sends"))
         for warning in soft:
             print(f"  a paid walk would refuse: {warning}")
         for i, step in enumerate(steps, 1):
@@ -738,8 +768,8 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
               "under Decided before, not advised")
         print(f"then the record: {_rel(record_path)} (and TABLE.md's head); commit both with the score files")
         return 0
-    print(f"quality-walk: {len(entries) * len(scopes)} studies on keel-cloud {cloud7}, keel-web {web7}, DOOR={door}; "
-          f"logs under {work}")
+    print(f"quality-walk: {len(entries) * len(scopes)} studies on keel-cloud {cloud7}, keel-web {web7}, DOOR={door}"
+          + (f", {people} people a study" if people else "") + f"; logs under {work}")
     started, t0 = now.isoformat(timespec="seconds"), time.monotonic()
     studies = []
     by_study: dict = {}
@@ -764,7 +794,7 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
     text, data = compose(studies, name=name, why=a.why.strip(), door=door, cloud_sha=cloud7, web_sha=web7,
                          started=started, ended=ended, seconds=round(time.monotonic() - t0, 1), cfg=cfg,
                          baseline_path=table.BASELINE_PATH, cycles_dir=cycles_dir, cloud_branch=git_branch(cloud),
-                         web_dirty=bool(git_dirty(web)), entries_arg=a.entries, decisions=decisions)
+                         web_dirty=bool(git_dirty(web)), entries_arg=a.entries, decisions=decisions, people=people)
     cycles_dir.mkdir(parents=True, exist_ok=True)
     record_path.write_text(text, encoding="utf-8")
     table_argv = [x.replace("CYCLE=<record>", f"CYCLE={record_path}") for x in steps[-1]["argv"]]

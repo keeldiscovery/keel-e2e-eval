@@ -18,6 +18,10 @@ CLI's login `backtest.host_readiness`'s; the runtime is stopped however the jour
 **Spec 071 FR-4: `SCOPE=`** (`KEEL_BACKTEST_SCOPE`, `scripts/backtest-host.sh --scope`): the study's scope the project is
 created with on the choose screen (keel-cloud 133), ALL when unsaid; any other is walked by `evals/scope_journey.walk`
 with `strict=False` and recorded in `backtest.json` (`scope`) and the register row's Door cell.
+
+**Spec 106 FR-2: `PEOPLE=`** (`KEEL_BACKTEST_PEOPLE`; `make quality-walk` passes `quality/cycle.toml`'s seven): the
+study sends the first that many people on the person's own link, in corpus order (`vectors_script.study_people`), the
+decision-makers whole; recorded in `backtest.json` (`people`). Every person the scope sends when unsaid.
 """
 
 from __future__ import annotations
@@ -62,10 +66,12 @@ def stack(stack_config):
 def test_backtest(stack, browser, run_dir):
     if DOOR != "host":
         corpus_scenario.run(stack, None, browser, run_dir, entry_id=ENTRY_ID, slug=f"backtest-{ENTRY_ID}",
-                            backtest=backtest.Backtest(run_dir=run_dir, stack=stack, scope=backtest.scope()))
+                            backtest=backtest.Backtest(run_dir=run_dir, stack=stack, scope=backtest.scope(),
+                                                       people=backtest.people()))
         return
     # spec 066: the host door -- and the runtime stopped whatever happens (FR-5; `finish` stops it first)
-    bt = backtest.Backtest(run_dir=run_dir, stack=stack, door="host", host=backtest.host(), scope=backtest.scope())
+    bt = backtest.Backtest(run_dir=run_dir, stack=stack, door="host", host=backtest.host(), scope=backtest.scope(),
+                           people=backtest.people())
     try:
         corpus_scenario.run(stack, None, browser, run_dir, entry_id=ENTRY_ID, slug=f"backtest-{ENTRY_ID}",
                             backtest=bt)

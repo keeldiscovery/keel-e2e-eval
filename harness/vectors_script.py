@@ -3356,15 +3356,13 @@ DECIDERS_ONLY_SCOPES = ("COMMERCIAL",)
 NOT_ON_STUDY = {
     "PRIMARY_ONLY": "the money study's (keel-cloud 133): the project has no decision-maker's kind under this scope",
     "DECIDERS_ONLY": "money alone on a B2B entry: the decision-maker's link only (keel-cloud 133)",
+    # spec 106 FR-2: the walk sends seven people a study (quality/cycle.toml `people`, `make quality-walk PEOPLE=`)
+    "PAST_THE_CAP": "past the study's first {n} on the person's own link, in corpus order (spec 106 FR-2)",
 }
 
 
-def study_people(entry) -> list:
-    """Spec 082 FR-1: the entry's people the study under `entry.scope` sends a link to -- under PROBLEM or SOLUTION the
-    PRIMARY people alone (the B2B people are the money study's, keel-cloud 133, and the project has no kind to send them
-    on); under SOLUTION_COMMERCIAL and ALL every person, as before. Spec 101 FR-2: under COMMERCIAL on a B2B entry the
-    decision-makers alone (keel-cloud 133 FR-4: the person's own link is not offered where the money is the whole study
-    and someone else decides); under COMMERCIAL on a B2C entry every person, on the one FULL link."""
+def _scoped_people(entry) -> list:
+    """Spec 082 FR-1 / spec 101 FR-2: the people the study's scope sends, before spec 106's cap."""
     people = list(entry.people())
     if scope_of(entry) in PRIMARY_ONLY_SCOPES:
         return [p for p in people if p.link != LINK_B2B]
@@ -3373,14 +3371,45 @@ def study_people(entry) -> list:
     return people
 
 
+def study_people(entry) -> list:
+    """Spec 082 FR-1: the entry's people the study under `entry.scope` sends a link to -- under PROBLEM or SOLUTION the
+    PRIMARY people alone (the B2B people are the money study's, keel-cloud 133, and the project has no kind to send them
+    on); under SOLUTION_COMMERCIAL and ALL every person, as before. Spec 101 FR-2: under COMMERCIAL on a B2B entry the
+    decision-makers alone (keel-cloud 133 FR-4: the person's own link is not offered where the money is the whole study
+    and someone else decides); under COMMERCIAL on a B2C entry every person, on the one FULL link.
+
+    Spec 106 FR-2: with `entry.people_cap` (the walk's `PEOPLE=`, seven in a quality cycle) the people on the person's
+    own link are the first that many of those, in corpus order; the decision-makers are never narrowed (a B2B money
+    study sends all its deciders). No cap, everyone as before."""
+    people = _scoped_people(entry)
+    cap = getattr(entry, "people_cap", None)
+    if not cap:
+        return people
+    own = [p.person for p in people if p.link != LINK_B2B][:int(cap)]
+    return [p for p in people if p.link == LINK_B2B or p.person in own]
+
+
 def not_on_study(entry) -> tuple[list[str], str | None]:
     """Spec 101 FR-2: the entry's people `study_people` leaves out, in corpus order, and why (`NOT_ON_STUDY`); ([], None)
-    where the study sends everyone."""
+    where the study sends everyone. Spec 106 FR-2: the people past the cap are named with its own reason, after the
+    scope's where both leave someone out."""
+    scoped = {p.person for p in _scoped_people(entry)}
     sent = {p.person for p in study_people(entry)}
     left = [p.person for p in entry.people() if p.person not in sent]
     if not left:
         return [], None
-    return left, NOT_ON_STUDY["PRIMARY_ONLY" if scope_of(entry) in PRIMARY_ONLY_SCOPES else "DECIDERS_ONLY"]
+    why = []
+    if any(p.person not in scoped for p in entry.people()):
+        why.append(NOT_ON_STUDY["PRIMARY_ONLY" if scope_of(entry) in PRIMARY_ONLY_SCOPES else "DECIDERS_ONLY"])
+    if any(name in scoped for name in left):
+        why.append(NOT_ON_STUDY["PAST_THE_CAP"].format(n=entry.people_cap))
+    return left, "; ".join(why)
+
+
+def capped(entry) -> list[str]:
+    """Spec 106 FR-2: the people the study's scope would send and its cap leaves out, in corpus order."""
+    sent = {p.person for p in study_people(entry)}
+    return [p.person for p in _scoped_people(entry) if p.person not in sent]
 
 
 def person_inputs(entry) -> list[PersonInputs]:

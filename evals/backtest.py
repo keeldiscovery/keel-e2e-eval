@@ -141,6 +141,10 @@ MODEL_VAR = "KEEL_BACKTEST_MODEL"
 SCOPE_VAR = "KEEL_BACKTEST_SCOPE"
 SCOPES = ("PROBLEM", "SOLUTION", "SOLUTION_COMMERCIAL", "COMMERCIAL", "ALL")
 DEFAULT_SCOPE = "ALL"
+#: Spec 106 FR-2: `make backtest PEOPLE=` (`make quality-walk` passes `quality/cycle.toml`'s `people`, seven) -- how many
+#: people the study sends on the person's own link, the first in corpus order (`vectors_script.study_people`); the
+#: decision-makers whole. Every person the study's scope sends when unsaid.
+PEOPLE_VAR = "KEEL_BACKTEST_PEOPLE"
 
 #: FR-2: the runtime's home inside the run, and the log its stdout and stderr go to.
 KEEL_HOME_DIR = "keel_home"
@@ -204,12 +208,26 @@ def scope(env: dict | None = None) -> str:
     return raw
 
 
+def people(env: dict | None = None) -> int | None:
+    """Spec 106 FR-2: `PEOPLE=`, None when unsaid (every person the study sends); anything but a whole number from 1
+    refused by name, never a fallback (a typo that sent everyone would spend three times the walk)."""
+    env = os.environ if env is None else env
+    raw = (env.get(PEOPLE_VAR) or "").strip()
+    if not raw:
+        return None
+    if not raw.isdigit() or int(raw) < 1:
+        raise UnknownDoor(f"make backtest refuses: PEOPLE={raw!r} is not a number of people -- a whole number from 1, "
+                          "the first that many on the person's own link (spec 106 FR-2; every person when unsaid)")
+    return int(raw)
+
+
 def door_refusal(env: dict | None = None) -> str | None:
-    """FR-1 / FR-2: the one sentence for a door, host, model or (spec 071) scope the back-test will not run, else
-    `None`."""
+    """FR-1 / FR-2: the one sentence for a door, host, model, (spec 071) scope or (spec 106) number of people the
+    back-test will not run, else `None`."""
     env = os.environ if env is None else env
     try:
         scope(env)
+        people(env)
         if door(env) != "host":
             return None
         host(env)
@@ -677,6 +695,8 @@ class Backtest:
     host: str | None = None
     #: Spec 071 FR-4: the study's scope the entry is walked under -- ALL unless `--scope` / `SCOPE=` named another.
     scope: str = DEFAULT_SCOPE
+    #: Spec 106 FR-2: how many people the study sends on the person's own link (`PEOPLE=`); None sends every one.
+    people: int | None = None
     #: Spec 066 FR-2: the runtime the back-test started on the host door, and what the door read.
     runtime: HostRuntime | None = None
     door_facts: dict = field(default_factory=dict)
@@ -1569,6 +1589,8 @@ def transcript(j, bt: Backtest) -> dict:
                   "idea_name": getattr(entry, "idea_name", None), "b2b": entry.b2b()},
         # spec 071 FR-4: the scope the project was created with (keel-cloud 133), as the overview served it
         "scope": bt.scope,
+        # spec 106 FR-2: the walk's cap on the person's own link, where `PEOPLE=` named one
+        **({"people": bt.people} if bt.people else {}),
         "stack": {"keel-cloud": _sha(getattr(j.stack, "keel_cloud", None)),
                   "keel-web": _sha(getattr(j.stack, "keel_web", None))},
         "founder": {"identity": IDENTITY_EMAIL, "at sign-up": bt.me_at_signup,

@@ -16,6 +16,10 @@ entries = ["08-fresco", "10-palus", "13-aircaps", "17-expanse", "21-codyco"]
 scopes = ["PROBLEM", "SOLUTION", "COMMERCIAL"]
 # Spec 062 / 066: `keel` (Keel's AI, the key in the shell) or `host` (the founder's own Claude Code, no key).
 door = "keel"
+# Spec 106 FR-2 (the founder, 2026-10-30: "instead of twenty, seven agents answer it"): the people each study sends on
+# the person's own link -- the entry's first seven in corpus order of those its scope sends; a B2B money study sends
+# its decision-makers whole. `make quality-walk PEOPLE=<n>` overrides it for one walk.
+people = 7
 
 [bar]
 # The founder's bar (2026-10-28): the overall score_pct over the latest score file of every study.
