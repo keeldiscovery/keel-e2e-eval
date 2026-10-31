@@ -2,6 +2,14 @@
 spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78; spec 042 call 110;
 spec 053 FR-1; spec 064 FR-1).
 
+**Revision 19 read through keel-cloud 173** (spec 113 FR-1; keel-cloud-docs `1acc3791`): no corpus revision. The engine
+writes Relative advantage's belief *For most, their last {occasion} would have gone better with it: {value}.* -- the
+first benefit whole, its leading capital dropped, a typed full stop dropped (`BeliefSentence.benefit`); *the last time*
+with no noun of its own (`OccasionNoun.fill`) -- where revision 19 records 152's *For most, it would have given them
+{benefit} on their last {occasion}.* and the phrase *given them {benefit}*. The record is never rewritten: what a journey
+compares with the engine is the recorded words read through **one rule**, `spec173_reads` (keel-cloud's
+`VectorCorpusFixture.spec173Reads`, spec 141's pattern), until a corpus revision records the new sentence.
+
 **Revision 19 read** (spec 089 FR-1; keel-cloud 159, keel-cloud-docs `1cf2ebc3`): revision 18's rules with Relative
 advantage on one scale -- its row `control: scale_four` over `a_lot_better`, `a_little_better`, `no_difference`, `worse`
 (escape `cant_tell`, apart), a pick one of the four codes or the chip, never a benefit beside it; every recorded answer
@@ -1663,6 +1671,80 @@ def _entry(raw: dict, path: Path, digest: str, *, backtest: bool = False) -> Ent
         idea_name=(raw.get("idea_name").strip() if backtest else None),
         backtest=backtest,
     )
+
+
+# ------------------------------------------------- spec 113 FR-1: revision 19 read through keel-cloud 173's one rule
+
+#: keel-cloud 173 `solution.relative_advantage.founder.belief_template` (the registry, `BeliefSentence.benefit`).
+ADVANTAGE_BELIEF_TEMPLATE = "For most, their last {occasion} would have gone better with it: {value}."
+#: keel-cloud 173 T004 (`answers.drift_template`): the drift clause quotes the benefit bare, after *gone better:*.
+ADVANTAGE_DRIFT_TEMPLATE = ("you said it would have gone better: {founder} \u00b7 {observed} of {n} said better, "
+                            "{a_lot} of them a lot")
+ADVANTAGE_KEY = "solution.relative_advantage"
+
+_GIVEN_THEM = "given them "
+_NAMED_152 = re.compile(r"^For most, it would have given them (.+) on their last (.+)\.$")
+_UNNAMED_152 = re.compile(r"^For most, it would have given them (.+) the last time\.$")
+
+
+def spec173_reads(recorded):
+    """keel-cloud `VectorCorpusFixture.spec173Reads` (spec 173 FR-5): revision 19's Relative advantage words, recorded in
+    152's, read as the engine writes them since 173 -- the phrase *given them X* is *X*; the sentence *For most, it
+    would have given them X on their last O.* is *For most, their last O would have gone better with it: X.* (and *... X
+    the last time.* is *For most, the last time would have gone better with it: X.*). Any other text is returned as it
+    is; the record is never rewritten."""
+    if recorded is None:
+        return None
+    if recorded.startswith(_GIVEN_THEM):
+        return recorded[len(_GIVEN_THEM):]
+    named = _NAMED_152.match(recorded)
+    if named:
+        return f"For most, their last {named.group(2)} would have gone better with it: {named.group(1)}."
+    unnamed = _UNNAMED_152.match(recorded)
+    if unnamed:
+        return f"For most, the last time would have gone better with it: {unnamed.group(1)}."
+    return recorded
+
+
+def advantage_benefit(label) -> str:
+    """keel-cloud 173 `BeliefSentence.benefit`: the first benefit as saved, whole, stripped, any typed full stop at its
+    end dropped (the template ends on its own), its leading capital dropped unless it opens an acronym (*IT tickets*)."""
+    if label is None or not str(label).strip():
+        return ""
+    whole = str(label).strip()
+    while whole.endswith("."):
+        whole = whole[:-1].strip()
+    return _lower_first(whole)
+
+
+def _lower_first(label: str) -> str:
+    """`BeliefSentence.lower` (judgement call 3): the leading capital dropped -- not an acronym's (a second capital)."""
+    if len(label) > 1 and label[1].isupper():
+        return label
+    return label[:1].lower() + label[1:]
+
+
+def advantage_belief(benefit, occasion) -> str:
+    """keel-cloud 173's belief sentence: `ADVANTAGE_BELIEF_TEMPLATE` with the first benefit (`advantage_benefit`) and the
+    occasion filled as `OccasionNoun.fill` fills it -- *the last time* where the context names none (blank, *time*)."""
+    noun = (occasion or "").strip()
+    template = ADVANTAGE_BELIEF_TEMPLATE
+    if not noun or noun.lower() in ("time", "times"):
+        template = template.replace("their last {occasion}", "the last time")
+    return template.replace("{occasion}", noun).replace("{value}", advantage_benefit(benefit))
+
+
+def advantage_drift_clause(founder, observed, n, a_lot) -> str:
+    """keel-cloud 173 T004: Relative advantage's drift clause -- *you said it would have gone better: {founder} · ...*."""
+    return (ADVANTAGE_DRIFT_TEMPLATE.replace("{founder}", advantage_benefit(founder)).replace("{observed}", str(observed))
+            .replace("{n}", str(n)).replace("{a_lot}", str(a_lot)))
+
+
+def engine_belief(entry, key: str):
+    """The belief sentence the engine writes for `key`, as a journey holds the wire to it: the entry's recorded
+    `belief_sentence`, Relative advantage's read through `spec173_reads` (spec 113 FR-1); None where none is recorded."""
+    sentence = ((getattr(entry, "founder_calibration", None) or {}).get(key) or {}).get("belief_sentence")
+    return spec173_reads(sentence) if key == ADVANTAGE_KEY else sentence
 
 
 # ------------------------------------------------------- spec 070 FR-1: a refused lock, answered on the idea card

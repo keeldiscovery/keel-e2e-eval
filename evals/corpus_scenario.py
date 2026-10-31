@@ -86,6 +86,7 @@ from harness.steps import Recorder
 from instructions import chain as chain_mod
 from instructions import brief_facts as brief_facts_mod
 from instructions import contract as contract_mod
+from instructions import corpus as corpus_mod
 from instructions.registry import ADOPTION_KEY
 from stack import remote
 from stack import runtime as stack_runtime
@@ -1975,7 +1976,8 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             want = _corpus_list(j.entry, key)
             if drawn != want:
                 mismatches.append({"dimension": key, "screen": drawn, "corpus": want})
-            sentence = (j.entry.founder_calibration.get(key) or {}).get("belief_sentence")
+            # spec 113 FR-1: Relative advantage's recorded 152 words read through keel-cloud 173's one rule
+            sentence = corpus_mod.engine_belief(j.entry, key)
             box = (choose or check).get("test_after") or (choose or check)["test"] \
                 if (choose or key in KEEL_SET) else None
             if box is None or box["belief"] == sentence:
@@ -2045,9 +2047,10 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 if not (row.get("leftOut") or row.get("unsure")):
                     mismatches.append({"dimension": key, "want": "left out", "row": row})
                 continue
-            if j.strict and row.get("belief") != founder.get("belief_sentence"):
-                mismatches.append({"dimension": key, "wire": row.get("belief"),
-                                   "corpus": founder.get("belief_sentence")})
+            # spec 113 FR-1: the record read through keel-cloud 173's one rule (`spec173Reads`), never rewritten
+            want = corpus_mod.engine_belief(j.entry, key)
+            if j.strict and row.get("belief") != want:
+                mismatches.append({"dimension": key, "wire": row.get("belief"), "corpus": want})
         h.record_assert({"complete": True, "mismatches": []},
                         {"complete": review.get("complete"), "mismatches": mismatches,
                          "rows": review.get("rows")})

@@ -260,6 +260,11 @@ def test_revision_18_moved_no_standing_and_wrote_the_new_words_on_the_record():
         assert cal["solution.relative_advantage"]["belief_phrase"].startswith("given them "), after["id"]
         ra = cal["solution.relative_advantage"]["belief_sentence"]
         assert ra.startswith("For most, it would have given them ") and " on their last " in ra, ra
+        # spec 113 FR-1 (keel-cloud 173): the record stands in 152's words and is never rewritten; the engine's words
+        # are these read through one rule (`spec173_reads`, the cloud's `VectorCorpusFixture.spec173Reads`)
+        read = corpus_mod.spec173_reads(ra)
+        assert read.startswith("For most, their last ") and " would have gone better with it: " in read, read
+        assert corpus_mod.spec173_reads(cal["solution.relative_advantage"]["belief_phrase"]) in read, read
         assert cal["commercial.commitment"]["belief_sentence"].startswith("Most ") and \
             cal["commercial.commitment"]["belief_sentence"].endswith(" now."), after["id"]
         assert cal["problem.current_solution_satisfaction"]["belief_sentence"].endswith(" still falls short."), \

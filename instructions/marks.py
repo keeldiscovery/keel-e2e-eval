@@ -124,6 +124,13 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Revision 19 read through keel-cloud 173 (2026-10-30; eval 113, the harness half)**: no corpus revision, no mark
+moved. The engine's Relative advantage belief is *For most, their last {occasion} would have gone better with it:
+{value}.* (the first benefit whole; *the last time* with no noun), its drift clause *you said it would have gone better:
+{founder} · ...*; revision 19 keeps 152's *For most, it would have given them ... on their last ...* (quoted below as
+revision 18's), and a journey compares the wire with it read through one rule (`corpus.spec173_reads`, keel-cloud's
+`VectorCorpusFixture.spec173Reads`). **v24 stands**: no mark scores a belief sentence.
+
 **Corpus revision 19 (2026-10-30, keel-cloud 159; eval 089, the harness half)**: Relative advantage is one scale --
 the stranger answers *A lot better · A little better · No difference · Worse* (`scale_four`, *I can't tell* apart),
 every recorded answer moved by one rule (positive with a benefit ticked a lot better, positive with none a little
