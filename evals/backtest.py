@@ -979,7 +979,13 @@ def founder_answer(j, slug: str) -> Any:
     if slug == "market":
         return {"country": f.country, "region": f.region}
     if slug == "context":
+        # spec 097 FR-3 (keel-web 141): where the window had its own page, 1 of 2 took the four fields alone
+        if getattr(getattr(j, "corridor", None), "window_page", None) is not None:
+            return dict(f.context_fields)
         return {**f.context_fields, "recall window": f.window.as_wire()}
+    if slug == "context-window":
+        page = j.corridor.window_page or {}
+        return {"recall window": f.window.as_wire(), "picked with": page.get("via")}
     if slug in ("context-card",):
         return "Yes, that's it"
     if slug == "problem-seed":
@@ -1028,7 +1034,7 @@ def founder_answer(j, slug: str) -> Any:
 def read_back(j, slug: str, wire: dict) -> Any:
     """What Keel read back for one screen: the *Keel understands* card, the statement, the idea's lines, the belief
     sentence and the *Keel will test* box, the frame -- from the wire and what the screen drew."""
-    if slug in ("context", "context-card"):
+    if slug in ("context", "context-window", "context-card"):
         return {"understands": (wire.get("context") or {}).get("understands")}
     if slug in ("problem-seed", "problem-card"):
         return {"statement": (wire.get("review/PROBLEM") or {}).get("statement")}
