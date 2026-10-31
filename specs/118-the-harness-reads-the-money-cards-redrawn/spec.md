@@ -46,6 +46,10 @@ change the after-answers leg's reading. Corpus revision 20.
   screens.** Mirrors for the lock and send screens' sentences (156 FR-1, FR-2) and the format's new name *Read and tap*
   wherever the harness reads it (the send dialog, the Sent list, the link's choice screen). Corpus revision 20 with
   FR-2.
+- **FR-4d One scripted line per follow-up.** keel-cloud 180's builder found (tasks.md, not foreseen 3) that the
+  AirCaps walk typed the same scripted why into both of a person's two follow-ups (spec 142 allows two), which the
+  cycle read as a quote filed twice. The walk answers each follow-up with its own line from the corpus entry (the
+  entry carries one why per rung asked); a test that no person's two follow-ups receive the same text.
 - **FR-5 The quality readers.** `quality/readers/*.md` for section B are unchanged in criteria; the stage/dimension
   screen descriptions name the strip and the lines so the reader scores them, not their absence.
 - **FR-6 Tests.** Each moved mirror pinned with why; the two items answered on a fixture study; the leg's reader on
