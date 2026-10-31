@@ -147,6 +147,73 @@ CURRENT_SOLUTION_ASKED = re.compile(r"^How do \S.* \S.* today\?$")
 #: keel-web 150 FR-3 (`splitAnswer`): a full stop followed by a space ends the first box's sentence.
 _FIRST_STOP = re.compile(r"\.\s+")
 
+# ------------------------------------------------- spec 117: keel-web 153's belief screens, keel-cloud 179's prompt
+
+#: Spec 117 FR-3 (keel-web 153 FR-4, `ANSWER_HINT` + `answerHint`): Importance's Answer hint, the page's word limit after
+#: it (was *Name the other difficulties of the same moment. Up to 25 words.*).
+IMPORTANCE_ANSWER_HINT = "Name up to four other difficulties they meet around this. Up to 25 words."
+#: keel-web 153 FR-3 (`compatibilityHint`): *What must already be true at {segment} for this to work? Tools they use,
+#: time they can wait, rules they work under. Two to four things.* then *Up to 25 words.* -- `{segment}` the context's
+#: `segment.core` (else the typed segment) as a sentence takes it, and no *at ...* where the context gives none (was
+#: *What they already have or do that it plugs into. Up to 25 words.*).
+COMPATIBILITY_ANSWER_HINT = re.compile(r"^What must already be true(?: at (?P<segment>.+?))? for this to work\? Tools "
+                                       r"they use, time they can wait, rules they work under\. Two to four things\. "
+                                       r"Up to 25 words\.$")
+#: Spec 117 FR-1 / FR-3: the Choose title the walk reads (`.listcheck__title`) on the three Choose screens that moved --
+#: Buyer and payer (keel-web 149, spec 116), Purchase friction (keel-web 153 FR-2, was *Which one is most likely to slow
+#: it down?*) and Compatibility (keel-cloud 179 FR-1's served `choose.prompt`, `SavedList.COMPATIBILITY_CHOOSE_PROMPT`,
+#: which the page draws over its own; was the served *Which of these is most likely to be missing?*). Adoption
+#: friction's (*Which one is most likely to stop them?*) did not move and is not held.
+CHOOSE_PROMPT = {"commercial.buyer_payer_alignment": BUYER_PAYER_CHOOSE_PROMPT,
+                 "commercial.purchase_friction": "Which one do you want to test?",
+                 "solution.compatibility": "Which one do you want to test?"}
+#: keel-web 153 FR-2 (`LIST_CHOOSE_INTRO`, `.corridor__intro`): Purchase friction's Choose intro (was *..., about the last
+#: thing they paid for. Pick the one step; nothing is reworded here.*).
+PURCHASE_FRICTION_CHOOSE_INTRO = ("The person who decides gets one question for this: if they bought it, would this "
+                                  "step be needed, and how long would it take. Pick the one step.")
+#: keel-web 153 FR-2 (`HOLDS`, `.keeltest__b`): Purchase friction's Choose bar, before and after the pick (was *Holds if
+#: at least 2 in 3 say it was needed last time and took a long time.*). The brief's `keelBar` is keel-cloud 179's, the
+#: same words in the brief's shape (`instructions/brief_facts.KEEL_BAR`).
+PURCHASE_FRICTION_CHOOSE_BAR = "Holds if at least 2 in 3 say it would be needed and would take a long time."
+#: keel-web 153 FR-1 (`commitmentHolds`, `KEEL_TEST_SET_BY_KEEL`): Commitment's Check bar -- on a B2B study (the page's
+#: `hourlyRate`, keel-cloud's `isB2b()`) *Set by Keel. Holds if no more than 1 in 3 {deciders} say probably not or no.*,
+#: `{deciders}` the persona's title (else role) plural (149's `deciderPlural`; not held to a word, as 116 holds Buyer
+#: and payer's), *of them* where the persona gives none; on any other study today's bar, byte for byte.
+COMMITMENT_BAR = "Set by Keel. Holds if no more than 1 in 3 say probably not or no."
+COMMITMENT_DECIDER_BAR = re.compile(r"^Set by Keel\. Holds if no more than 1 in 3 (?P<deciders>\S.*?) say probably not "
+                                    r"or no\.$")
+#: keel-web 153 FR-3 (`KEEL_TEST_COMPATIBILITY_KEPT`, `p.keeltest__n[data-testid=keeltest-note]`): the box's last line on
+#: Compatibility's Choose, before and after a pick; on no other screen.
+KEEL_TEST_NOTE_TESTID = "keeltest-note"
+COMPATIBILITY_KEPT_NOTE = ("Your other conditions stay in the brief as what you believe must be true; only this one is "
+                           "asked.")
+#: keel-web 153 FR-5 (`FREQUENCY_RANGE_HINT`): under Frequency's two boxes -- a second `.calib__hint` where the screen
+#: had none, so a first-`.calib__hint` reader there (`evals/backtest.py`'s screen of record) now reads it.
+FREQUENCY_RANGE_HINT_TESTID = "frequency-range-hint"
+FREQUENCY_RANGE_HINT = "Your estimate from what you have seen and heard. A range is fine."
+#: keel-web 153 FR-4 (`countFreeSentence`): Importance's box before the list exists (the own item alone, or while Keel
+#: writes it) -- 174's second sentence alone, *{Item} is one of the two they would most like made easier.* (was the
+#: pending *Pick one and the test appears here.*). The walk reads the box once the list holds more, so a count-free box
+#: there is what the hold names (`evals/corpus_scenario.importance_count`).
+IMPORTANCE_COUNT_FREE = re.compile(r"^(?P<item>(?:(?!\.\s).)+?) is one of the two they would most like made "
+                                   r"easier\.$")
+
+
+def commitment_bar(text: str | None) -> dict | None:
+    """Spec 117 FR-3: Commitment's Check bar read into its case -- `decider` (153's, naming the deciders or *of them*),
+    `same` (today's bar) -- or None where it is neither."""
+    said = " ".join((text or "").split())
+    if said == COMMITMENT_BAR:
+        return {"case": "same", "deciders": None}
+    found = COMMITMENT_DECIDER_BAR.match(said)
+    return {"case": "decider", "deciders": found["deciders"]} if found else None
+
+
+def importance_count_free(belief: str | None) -> str | None:
+    """Spec 117 FR-3 (keel-web 153 FR-4): the own item where Importance's box reads the count-free sentence, else None."""
+    found = IMPORTANCE_COUNT_FREE.match(" ".join((belief or "").split()))
+    return found["item"] if found else None
+
 
 def buyer_payer_bar(text: str | None) -> dict | None:
     """Spec 116 FR-1: Buyer and payer's bar read into its case -- `unpicked` (*the one you pick*), `nobody` (*nobody
@@ -1816,6 +1883,9 @@ class Corridor:
             labels = {o.get("normalized"): o.get("label") for o in question.get("options") or []}
             seen_chain: dict = {}
             boxes: dict = {}
+            if control == "numeric_interval":
+                # spec 117 FR-3 (keel-web 153 FR-5): the range hint under the two boxes, read as the screen opens
+                boxes["range_hint"] = _first_text(self.page, f"[data-testid={FREQUENCY_RANGE_HINT_TESTID}]") or None
             if control == "price_range":
                 # spec 075 (keel-cloud 140, 141): as the screen opens, before anything is typed -- the cost box over the
                 # price (`priceCostBox`, the served `costEstimate.said`) and the chain's Ability to pay box (the served
@@ -2208,7 +2278,11 @@ class Corridor:
         LAST (the roles first) a position in `options` is not the served `pickedIndex` -- the drawn position is kept as
         `drawn_index` and the served one is read off the `PUT calibration/{vector}` the press sent (`served_index`,
         `writes`); the recall line (`choose-recall`) and the belief under each radio (`choose-belief`, drawn order) are
-        read."""
+        read.
+
+        Spec 117 FR-3 (keel-web 153): the intro over the list (`.corridor__intro`, `intro`) and the *Keel will test*
+        box's last line (`keeltest-note`, Compatibility's alone) before and after the pick (`note_before`, `note`) are
+        read; `_keel_test` itself is unchanged (the note is outside `.keeltest__t` and `.keeltest__b`)."""
         name = question.get("dimension")
         with self._b.step(f"founder picks the one item strangers are asked about: {label!r} ({name})") as h:
             _wait_url(self.page, r"/choose")
@@ -2219,6 +2293,7 @@ class Corridor:
             before = [radios.nth(i).get_attribute("aria-checked") for i in range(radios.count())]
             options = [_safe_text(lambda r=radios.nth(i): r.inner_text()).strip() for i in range(radios.count())]
             empty = self._keel_test()
+            note_before = _first_text(self.page, f"[data-testid={KEEL_TEST_NOTE_TESTID}]")
             group.get_by_role("radio", name=label, exact=True).click()
             seen = {"screen": "choose", "frame": self.frame(), "options": options, "label": label,
                     "drawn_index": options.index(label) if label in options else None,
@@ -2227,7 +2302,10 @@ class Corridor:
                     "prompt": _first_text(self.page, ".listcheck__title"),
                     "recall": " ".join(_first_text(self.page, f"[data-testid={CHOOSE_RECALL_TESTID}]").split()),
                     "beliefs": [" ".join(t.split()) for t in
-                                self.page.locator(f"[data-testid={CHOOSE_BELIEF_TESTID}]").all_inner_texts()]}
+                                self.page.locator(f"[data-testid={CHOOSE_BELIEF_TESTID}]").all_inner_texts()],
+                    "intro": " ".join(_first_text(self.page, ".corridor__intro").split()),
+                    "note_before": note_before,
+                    "note": _first_text(self.page, f"[data-testid={KEEL_TEST_NOTE_TESTID}]")}
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(f"choose-{name}"))
             with self._keeping("PUT", CALIBRATION_PUT) as writes:

@@ -984,6 +984,12 @@ ESCAPES = {"cant_recall", "cant_tell", "cant_say", "cant_recall_one", "none_of_t
 #: (spec 110 FR-3, `CommercialChain.NOTHING_LABEL` / `DONT_KNOW_LABEL`); the codes did not move.
 VALUE_BOX_CHIPS = {"nothing": "NOTHING", "dont_know": "DONT_KNOW", "rather_not_say": "RATHER_NOT_SAY"}
 VALUE_BOX_LABELS = {"NOTHING": "None", "DONT_KNOW": "I can't recall", "RATHER_NOT_SAY": "I'd rather not say"}
+#: Spec 117 FR-2 (keel-cloud 178, `InterviewAnswers.item` reading `CommercialChain.NOTHING_LABEL`): the founder's
+#: answers view (*See {name}'s answers*, the invitation's `interview.items[].answer`) and the Pilot tab
+#: (`answers[].words`) print a NOTHING value box or cost total as the stranger's chip says it -- *None*, where they read
+#: *Nothing* until 178 -- with `mode` / `chip` NOTHING and the value 0 beside it. The one word for both; no walk reads
+#: the view's word today, and a check that does reads this.
+ANSWERS_VIEW_NOTHING = VALUE_BOX_LABELS["NOTHING"]
 
 
 def value_box_escapes(consumer: bool) -> list[str]:
