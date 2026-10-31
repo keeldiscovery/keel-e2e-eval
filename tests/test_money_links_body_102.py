@@ -221,14 +221,15 @@ MONEY_LINK = {"kind": "FULL", "parts": [{"part": 3, "items": []}], "reveal": {"a
 
 
 def test_an_outside_person_off_the_gate_is_named_in_one_finding_and_not_walked():
-    """11-issen's Nikos Ferrante under COMMERCIAL: outside the segment, and the money link serves no screener yet."""
+    """11-issen's Nikos Ferrante under COMMERCIAL: outside the segment, on a money link that serves no screener (spec
+    100 moved the words: keel-cloud 166 serves one wherever the people carry a condition)."""
     money = _scoped(_bt("11-issen"), "COMMERCIAL")
     nikos = next(p for p in vs.person_inputs(money) if p.person == "Nikos Ferrante")
     assert not nikos.in_segment and not nikos.gate
     j, stranger = _walk_one(nikos, MONEY_LINK)
     assert [f["what"] for f in j.findings] == [
-        "Nikos Ferrante: outside the segment; the money link asks no screener yet (keel-cloud 166 / keel-web 145, "
-        "spec 100)"]
+        "Nikos Ferrante: outside the segment; the money link served no screener (keel-cloud 166 serves `condition` "
+        "there -- a project locked before it, or a condition past 20 words, has none), so they are not walked (spec 100)"]
     assert stranger.pages == 0 and stranger.closed
 
 

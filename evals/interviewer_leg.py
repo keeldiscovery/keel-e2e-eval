@@ -91,6 +91,7 @@ from harness import interview_charge as charge
 from harness import interviewer_fake as fake
 from harness import interviewer_screens as ivs
 from harness import interviews_screens as iv
+from harness import vectors_screens as vs_screens
 from harness import vectors_script as vs
 from stack import ledger as stack_ledger
 
@@ -1648,6 +1649,10 @@ class _Walk:
                  follow_up: dict | None = None, owes: Callable[[dict, str], bool] | None = None):
         self.player = player
         self.gate = interview.get("gate") or {}
+        #: Spec 100 (keel-web 145 FR-1, keel-cloud 166): the screener the AI flow asks on a FULL link -- the gate's chip,
+        #: or the money link's own `Interview.condition` (no gate) on a step of its own before the idea; the
+        #: decision-maker's AI walk asks none (keel-web 127 FR-2 / 145 FR-3).
+        self.screener = (vs_screens.screener_of(interview) if interview.get("kind") == "FULL" else None) or {}
         self.items = {i.get("question"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
         self.order = [i.get("itemId") for part in interview.get("parts") or [] for i in part.get("items") or []]
         self.by_id = {a["itemId"]: a for a in expected.get("answers") or []}
@@ -1817,10 +1822,11 @@ class _Walk:
             if _step_of(p) == "followUp" or stage["where"] == ivs.FOLLOW_UP_KICKER:
                 self.follow_up(entry)
                 continue
-            condition = (self.gate or {}).get("condition") or {}
+            condition = self.screener
             if condition and q == condition.get("question"):
                 # keel-cloud 120 (FR-2): the segment chip, asked before the gate question; the golden people are
-                # inside the segment, so the answer is the first code the study lets in (YES / NO)
+                # inside the segment, so the answer is the first code the study lets in (YES / NO). Spec 100: the money
+                # link's screener the same, before the idea's passages
                 self.held(entry, "yes" if (condition.get("inCodes") or ["YES"])[0] == "YES" else "no")
                 continue
             if self.gate and q == self.gate.get("question"):

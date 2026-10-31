@@ -165,6 +165,11 @@ GROUP_CLOSE = "[data-testid='group-close']"
 GROUP_REOPEN = "[data-testid='group-reopen']"
 GROUP_EMPTY = "[data-testid='group-empty']"
 ROW_EMAIL = "[data-testid='row-email']"
+#: keel-web 096 FR-4 `LinksTable`: the mark under a person's name who answered the screener outside (`outsideSegment`),
+#: drawn `OUTSIDE_SEGMENT_MARK` -- the words the web uses for anyone outside who the study is for, gate or money link.
+ROW_OUTSIDE = "[data-testid='outside-segment']"
+#: keel-web `translate.ts` `OUTSIDE_SEGMENT_MARK`.
+OUTSIDE_SEGMENT_MARK = "outside the people you described"
 GROUP_COPY_LINK = "Copy link"
 GROUP_CLOSE_WORD = "Close link"
 GROUP_REOPEN_WORD = "Reopen"
@@ -406,6 +411,15 @@ class Interviews:
             if row.count() or not self._turn(LINKS_NEXT):
                 break
         return row
+
+    def outside_mark(self, person: str) -> str | None:
+        """Spec 100: the outside mark drawn under `person`'s name on their row (`ROW_OUTSIDE`), or None where none is
+        drawn (or the row is not found)."""
+        row = self._row(person)
+        if not row.count():
+            return None
+        mark = row.locator(ROW_OUTSIDE)
+        return _words(mark) if mark.count() else None
 
     def kinds(self) -> list[dict]:
         """Each role card: its label, the primary's words and (keel-web 088 FR-3) its own count in the action row."""

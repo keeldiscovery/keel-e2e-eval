@@ -3148,13 +3148,16 @@ def _answer_one(j: Journey, person, token: str) -> None:
         unwalked = vs.not_walked_off_the_gate(person, interview)
         if unwalked:
             # spec 102 FR-2 / FR-4 (keel-cloud 133 FR-4): money alone serves no gate -- a gate No in the file has no money
-            # answers to send, and a person outside the segment meets no screener yet (keel-cloud 166 / keel-web 145);
-            # not walked, and named in one finding, never passed over in silence
+            # answers to send, and a person outside the segment on a link that serves no screener (spec 100: keel-cloud
+            # 166 serves one wherever the people carry a condition) cannot be asked it; not walked, and named in one
+            # finding, never passed over in silence
             j.findings.append({"what": unwalked, "person": person.person,
                                "served": {"kind": interview.get("kind"), "gate": interview.get("gate"),
                                           "condition": interview.get("condition")}})
             return
-        if not getattr(person, "in_segment", True) and not ((interview.get("gate") or {}).get("condition")) \
+        # spec 100 (keel-cloud 166, keel-web 145): the screener wherever the link serves it -- the gate's chip, or the
+        # money link's own `condition` (FULL, no gate), where an outside person is walked to the exit
+        if not getattr(person, "in_segment", True) and not vs_screens.screener_of(interview) \
                 and not j.strict:
             # spec 067 FR-6 (corpus revision 15): the entry answers the segment's chip NO, but the page serves no chip
             # (the model wrote no condition for the gate) -- the person is walked as the page can ask them, and named
@@ -3590,7 +3593,9 @@ def condition_screen_faults(interview: dict, screens: list, *, inside: bool = Tr
     """Spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): on a decision-maker's link that serves `condition`, the
     first screen is the screener -- the served question as its heading, Yes / No, no kicker, no Back, *Continue* off
     until answered and on after -- and the idea comes right after it (inside), or nothing does (outside: the exit). A
-    link with no `condition` opens on the idea, as before."""
+    link with no `condition` opens on the idea, as before. Spec 100 (keel-cloud 166, keel-web 145): the money study's
+    person link (FULL, no gate) the same, its reveal after the screener -- what follows it inside is
+    `vs_screens.first_screens`' next screen."""
     condition = interview.get("condition")
     first = screens[0] if screens else {}
     if not condition:
@@ -3603,8 +3608,9 @@ def condition_screen_faults(interview: dict, screens: list, *, inside: bool = Tr
     if have != want:
         faults.append({"screener": have, "want": want})
     after = [x.get("screen") for x in screens[1:2]]
-    if after != (["idea"] if inside and interview.get("idea") else []):
-        faults.append({"after the screener": after, "want": "idea" if inside else "nothing (the exit)"})
+    next_screen = vs_screens.first_screens(interview)[1:2] if inside else []
+    if after != next_screen:
+        faults.append({"after the screener": after, "want": next_screen[0] if next_screen else "nothing (the exit)"})
     return faults
 
 
@@ -3669,6 +3675,83 @@ def leg_outside_decider(j: Journey) -> dict:
         assert int(after.get("outsideSegment") or 0) == int(before.get("outsideSegment") or 0) + 1, record
         assert commercial(after) == commercial(before), record
     j.standings = after
+    return record
+
+
+#: keel-cloud 123 FR-4 / 166 FR-3 (`BriefFacts.pilot`, `BriefPilot.perLink[].notCounted`): the Pilot tile's line for
+#: the people outside who the study is for -- *Not counted: 1 outside who the study is for.* (keel-web draws no
+#: `notCounted` on the tile today, so it is held on the wire).
+NOT_COUNTED_OUTSIDE = re.compile(r"\b(\d+) outside who the study is for\b")
+
+
+def outside_people(walked: dict) -> list[str]:
+    """Spec 100: the people the walk sent outside who the study is for -- their page posted `outsideSegment: true`."""
+    return [name for name, w in walked.items() if ((w or {}).get("body") or {}).get("outsideSegment") is True]
+
+
+def outside_apart_faults(standings: dict, people_view: dict, outside: list[str], marks: dict | None = None) -> list:
+    """Spec 100 FR-1 / FR-2 (keel-cloud 166 FR-3, keel-web 145; 096 FR-4's words): every person who answered the screener
+    outside is counted apart -- `StandingsView.outsideSegment` is their number, `people.answered` leaves them out, their
+    People row carries `outsideSegment: true` (nobody else's does), the Pilot tile's served `notCounted` names them
+    (*N outside who the study is for*), and Sent's row draws keel-web's `OUTSIDE_SEGMENT_MARK` under their name where
+    the page was read (`marks`: name -> the drawn mark or None)."""
+    n = len(outside)
+    faults: list = []
+    if int(standings.get("outsideSegment") or 0) != n:
+        faults.append({"outsideSegment": standings.get("outsideSegment"), "want": n})
+    people = standings.get("people") or {}
+    if people.get("invited") is not None and int(people.get("answered") or 0) > int(people["invited"]) - n:
+        faults.append({"people": people, "want": f"answered at most invited less the {n} outside"})
+    rows = {r.get("personName"): r for role in (people_view or {}).get("roles") or []
+            for r in role.get("invitations") or []}
+    for name, row in rows.items():
+        if bool(row.get("outsideSegment")) != (name in outside):
+            faults.append({"people row": name, "outsideSegment": row.get("outsideSegment"), "want": name in outside})
+    missing = [name for name in outside if name not in rows]
+    if missing:
+        faults.append({"people rows missing": missing})
+    lines = [p.get("notCounted") for p in (standings.get("pilot") or {}).get("perLink") or []
+             if p.get("link") == vs.LINK_PRIMARY]
+    said = [int(m.group(1)) for line in lines if line for m in [NOT_COUNTED_OUTSIDE.search(line)] if m]
+    if n and said != [n]:
+        faults.append({"pilot notCounted": lines, "want": f"{n} outside who the study is for"})
+    if not n and said:
+        faults.append({"pilot notCounted": lines, "want": "nobody outside"})
+    for name, drawn in (marks or {}).items():
+        want = iv_screens.OUTSIDE_SEGMENT_MARK if name in outside else None
+        if drawn != want:
+            faults.append({"Sent row": name, "drawn": drawn, "want": want})
+    return faults
+
+
+def hold_outside_apart(j: Journey) -> dict | None:
+    """Spec 100 FR-1 / FR-2: once every link is answered, the people who answered a screener outside are counted apart
+    (`outside_apart_faults`) -- on the wire, and on Sent's rows (the outside one and one inside). Strict: an assertion;
+    a back-test: a finding, never a stop. None where nobody was walked outside."""
+    outside = outside_people(j.walked)
+    if not outside:
+        return None
+    standings = j.get(j.project("/standings")) or {}
+    people_view = j.get(j.project("/people")) or {}
+    marks: dict = {}
+    if getattr(j, "page", None) is not None:
+        inside = next((name for name, w in j.walked.items() if name not in outside
+                       and 200 <= int((w or {}).get("status") or 0) < 300), None)
+        sent = iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
+        sent.land(j.project_id)
+        marks = {name: sent.outside_mark(name) for name in outside + ([inside] if inside else [])}
+    faults = outside_apart_faults(standings, people_view, outside, marks)
+    record = {"outside": outside, "outsideSegment": standings.get("outsideSegment"), "people": standings.get("people"),
+              "notCounted": [p.get("notCounted") for p in (standings.get("pilot") or {}).get("perLink") or []],
+              "marks": marks, "faults": faults}
+    with _step(j, f"{', '.join(outside)}: outside who the study is for -- counted apart: outsideSegment {len(outside)}, "
+                  "not answered, the People row and Sent's mark (keel-cloud 166 FR-3, keel-web 096 FR-4)",
+               party="founder", kind="assert" if j.strict else "note") as h:
+        h.record_assert({"outsideSegment": len(outside), "faults": []}, record)
+        if j.strict:
+            assert not faults, faults
+    if faults and not j.strict:
+        _found(j, f"{', '.join(outside)}: outside who the study is for, not counted apart (spec 100)", faults)
     return record
 
 
@@ -3812,8 +3895,9 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
         faults = []
         screens = walked["screens"]
         idea = interview.get("idea")
-        if interview.get("kind") == "COMMERCIAL_LINK":
-            # spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): the screener first where served, before the idea
+        if interview.get("kind") == "COMMERCIAL_LINK" or not interview.get("gate"):
+            # spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): the screener first where served, before the idea;
+            # spec 100 (keel-cloud 166, keel-web 145): and on the money study's person link, before the reveal
             faults += condition_screen_faults(interview, screens, inside=getattr(person, "in_segment", True))
         if interview.get("kind") == "COMMERCIAL_LINK" and idea and getattr(person, "in_segment", True):
             first = next((s for s in screens if s.get("screen") == "idea"), {})
@@ -4183,10 +4267,14 @@ def hold_the_chip_people(j: Journey) -> None:
 
 def _await_standings(j: Journey) -> None:
     """The last answer settles a moment after its 2xx (keel-cloud 096: the brief on return): wait until the wire counts
-    every invited person as answered before anything is read, so the eyebrow's count is the final one."""
+    every invited person as answered before anything is read, so the eyebrow's count is the final one. Spec 100
+    (keel-cloud 166 FR-3): a person outside who the study is for is counted apart (`outsideSegment`), never in
+    `people.answered`, so the two together are the invited."""
     for _ in range(30):
-        people = (j.get(j.project("/standings")) or {}).get("people") or {}
-        if not people.get("invited") or people.get("answered") == people.get("invited"):
+        standings = j.get(j.project("/standings")) or {}
+        people = standings.get("people") or {}
+        if not people.get("invited") or people.get("answered") == people.get("invited") \
+                or (people.get("answered") or 0) + int(standings.get("outsideSegment") or 0) == people.get("invited"):
             break
         time.sleep(2)
     j.standings = j.get(j.project("/standings")) or {}

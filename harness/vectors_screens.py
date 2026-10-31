@@ -2376,6 +2376,17 @@ def first_screens(interview: dict) -> list[str]:
     return out
 
 
+def screener_of(interview: dict) -> dict | None:
+    """Spec 100 (keel-web 145 FR-1 `conditionOf`, keel-cloud 166 FR-1): the screener a link asks, `{question, inCodes}`
+    -- the gate's segment chip (`gate.condition`) where a gate is served, else the link's own `Interview.condition` (the
+    decision-maker's, keel-cloud 145 FR-4b; the money study's person link, a FULL link with no gate); one per link,
+    never two. None where the link asks none."""
+    gate = interview.get("gate")
+    if interview.get("kind") == "FULL" and gate:
+        return gate.get("condition") or None
+    return interview.get("condition") or None
+
+
 def reveal_opens(reveal: dict | None, part: int | None, *, revealed: bool) -> bool:
     """Spec 101 FR-1 (keel-web `screensOf`, spec 109 FR-5): the reveal is walked before `part` when it was not walked yet
     and `part` comes after the part it follows -- before part 3 on money alone (`afterPart` 0), before the first part
@@ -2483,7 +2494,8 @@ class Interview:
                 if "condition" in opening:
                     # spec 076 FR-4 (keel-cloud 145 FR-4b, keel-web 127 FR-2): the decision-maker's screener, its own
                     # screen before the idea; outside, Continue sends `outsideSegment` alone and lands on the exit.
-                    # Spec 101 FR-1 (keel-cloud 166, keel-web 145): the money study's person link asks it the same
+                    # Spec 101 FR-1 / spec 100 (keel-cloud 166, keel-web 145): the money study's person link (FULL, no
+                    # gate) asks it the same, before the reveal; outside, the exit and nothing else
                     inside = self._condition(person, interview["condition"])
                 if inside and "idea" in opening:
                     self._idea()

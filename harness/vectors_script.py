@@ -406,11 +406,7 @@ def decider_chip(condition: str | None, actor_plural: str | None) -> str | None:
     (20 words), None where it does not fit. Part 3 is code's at the lock, so this is what the link serves."""
     if not condition or not condition.strip():
         return None
-    text = " ".join(condition.split())
-    while text.endswith("."):
-        text = text[:-1].strip()
-    if len(text) > 1 and text[0].isupper() and not text[1].isupper():
-        text = text[0].lower() + text[1:]
+    text = _condition_clause(condition)
     org = re.match(r"(?i)^works?\s+at\s+(?:an?\s+)?(.+?)\s+with\s+(.+)$", text)
     be = re.match(r"(?i)^(?:are|is|am)\s+(.+)$", text)
     if org:
@@ -421,6 +417,42 @@ def decider_chip(condition: str | None, actor_plural: str | None) -> str | None:
         people = decider_people(text, actor_plural)
         asked = f"Are the {people} you decide for {be.group(1)}?" if be else f"Do the {people} you decide for {text}?"
     return asked if _words(asked) <= STEM_MAX_WORDS else None
+
+
+def _condition_clause(condition: str) -> str:
+    """keel-cloud `WindowFrame.clause` as the chips read the condition: runs of space as one, no closing full stop, a
+    leading capital lowered (not an acronym's)."""
+    text = " ".join(condition.split())
+    while text.endswith("."):
+        text = text[:-1].strip()
+    if len(text) > 1 and text[0].isupper() and not text[1].isupper():
+        text = text[0].lower() + text[1:]
+    return text
+
+
+def chip_from(condition: str | None) -> str | None:
+    """keel-cloud 131 FR-6 / 166 FR-1 (`RespondentQuestionsRules.chipFrom`, mirrored): the condition said to the person
+    in the second person -- *are past the beginner stage* -> *Are you past the beginner stage?*, *run one or two sites*
+    -> *Do you run one or two sites?* -- held to the spoken cap (20 words), None where it does not fit. Spec 100: what
+    the money study's person link serves as `Interview.condition` (part 3 is code's at the lock, so code asks it)."""
+    if not condition or not condition.strip():
+        return None
+    text = _condition_clause(condition)
+    be = re.match(r"(?i)^(?:are|is|am)\s+(.+)$", text)
+    asked = f"Are you {be.group(1)}?" if be else f"Do you {text}?"
+    return asked if _words(asked) <= STEM_MAX_WORDS else None
+
+
+def money_condition(entry) -> dict | None:
+    """Spec 100 (keel-cloud 166 FR-1, keel-web 145 FR-1; contract 49 `Interview.condition`): what the person's link of a
+    money-only consumer study serves at the top level -- kind FULL, no gate, the screener before the idea:
+    `{question, inCodes: [YES]}` from the confirmed context's condition (`chip_from`); None where the context carries
+    none (or it does not fit 20 words: E7), under any scope that serves the gate (its chip rides on `gate.condition`),
+    and on a B2B entry (money alone gives the person no link there; the decision-maker's is `decider_condition`)."""
+    if serves_gate(entry) or is_b2b(entry):
+        return None
+    question = chip_from(segment_of(entry)["condition"])
+    return {"question": question, "inCodes": ["YES"]} if question else None
 
 
 def decider_people(clause: str, actor_plural: str | None) -> str:
@@ -2089,17 +2121,22 @@ NO_ANSWERS_OFF_THE_GATE = ("{person}: the file records a gate No (recency: false
                            "(keel-cloud 133 FR-4) -- the page asks them part 3 and the file has no answers for it; a "
                            "revision would have to record their money picks (and a gate Yes, or no gate answer) for the "
                            "walk to send them (spec 102 FR-2)")
-#: Spec 102 FR-4: a person outside the segment on a study that serves no gate, until the money link asks a screener.
-OUTSIDE_OFF_THE_GATE = ("{person}: outside the segment; the money link asks no screener yet (keel-cloud 166 / keel-web "
-                        "145, spec 100)")
+#: Spec 102 FR-4: a person outside the segment on a study that serves no gate, where the money link asks no screener.
+#: Spec 100: keel-cloud 166 / keel-web 145 serve it as `Interview.condition` wherever the people carry a condition, so
+#: the link that still serves none is a project locked before 166 (its part 3 stored no chip, 166's *not foreseen* 4) or
+#: a condition past the spoken cap (E7: no chip stored).
+OUTSIDE_OFF_THE_GATE = ("{person}: outside the segment; the money link served no screener (keel-cloud 166 serves "
+                        "`condition` there -- a project locked before it, or a condition past 20 words, has none), so "
+                        "they are not walked (spec 100)")
 
 
 def not_walked_off_the_gate(person, interview: dict) -> str | None:
     """Spec 102 FR-2 / FR-4: why `person` is not walked on a study that serves no gate (money alone's FULL link), or
     None -- walked as everyone is. A gate No in the file has no money answers to give (`NO_ANSWERS_OFF_THE_GATE`, the
     words `PersonInputs.response` refuses with); a person outside the segment cannot be screened until the served
-    interview carries `condition` (keel-cloud 166 / keel-web 145; spec 100 owns that walk) -- once it does they are
-    walked to the screener's exit. Never on the decision-maker's link, never where the gate is served."""
+    interview carries `condition` (keel-cloud 166 / keel-web 145) -- where it does (spec 100) they are walked to the
+    screener's exit, `{outsideSegment: true, answers: []}` sent. Never on the decision-maker's link, never where the
+    gate is served."""
     if getattr(person, "gate", True) or person.link == LINK_B2B:
         return None
     if not getattr(person, "in_segment", True):
