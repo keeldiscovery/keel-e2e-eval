@@ -828,6 +828,22 @@ on 1 of 2 so one `form` row spans both screens (`fields_screen`, `window_screen`
 `context-window`; no mark or rubric read the form, so no version moved. `make unit` 4,327 / 0 / 56 (master `1fdad29`
 4,294 / 0 / 56); `make eval K=s005 / s015 / s016` at keel-web 141 are the coordinator's.
 
+**The harness reads the adoption steps** (spec `112-the-harness-reads-the-adoption-steps`, 2026-10-30; keel-cloud 171,
+keel-cloud-docs `f4ca175f`). Adoption friction's stranger frame is the cloud's *To use {name}, you'd {step}. Would you
+do that, or not?* (*To use it, ...*): `spoken.step` ports `SpokenCap.step` (the clause in base form after *you'd*),
+`spoken.adoption_friction` the lock's give-way (whole, without a comma phrase, a question's step; named, then *it*) and
+the *it* swap where the founder's row does not name the idea; `K2` measures the whole step in the unnamed frame
+(`AskedRules.framed`, so an 11-word clause is 21 and a fault) and the asked job is handed that frame;
+`vectors_script.adoption_statement` is the served stem, giving way to the founder's row in the same frame. Keel's one
+suggested Adoption friction step is admitted by `L5` with its `suggested_why` (a missing why faults), outside `L1`'s 1
+to 4; the walk names it off the `suggested` flag (*Keel suggested: '...' -- why*) and Choose never lands on it unless
+the entry picked it. A named back-test entry is now screened on the founder-lists redraft of every list it typed,
+handed its typed Answer (`answers` was always `{}`), `<id>/CALIBRATION_<VECTOR>/<DIMENSION>`; Adoption friction's is
+marked by 171 (the founder's efforts first and as typed, at most one suggested row, last, with a why, no brand in any
+`asked`). **`MARKS_VERSION` 24** (calls 129-130; no v24 run of record until `WHY=marks:24`, the founder's word only):
+the corpus did not move, so five golden adoption faces are now `K2`s and `spoken_form` reads 104 of 109 at zero spend.
+`make unit` 4,383 / 0 / 56 (master `0ee35ef` 4,327 / 0 / 56); the paid 171 screens are the founder's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
