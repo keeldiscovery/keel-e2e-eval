@@ -86,6 +86,7 @@ from harness.steps import Recorder
 from instructions import chain as chain_mod
 from instructions import brief_facts as brief_facts_mod
 from instructions import contract as contract_mod
+from instructions.registry import ADOPTION_KEY
 from stack import remote
 from stack import runtime as stack_runtime
 
@@ -1683,6 +1684,27 @@ def _drafted_labels(question: dict) -> list[str]:
     return [row.get("label") for row in (question.get("draft") or {}).get("items") or []]
 
 
+def _drafted_rows(question: dict) -> list[dict]:
+    return [row for row in (question.get("draft") or {}).get("items") or [] if isinstance(row, dict)]
+
+
+def keel_suggested(question: dict) -> list[dict]:
+    """Spec 112 FR-2 (keel-cloud 171 FR-2): the drafted rows served `suggested: true` on Adoption friction -- Keel's one
+    one-time step, last, with its why (`suggestedWhy` on the wire) -- as `{label, why}`, in the drafted order. Read off
+    the flag, never by diffing labels; `[]` on every other dimension (Compatibility's and Purchase friction's marks are
+    not this finding's)."""
+    if question.get("dimension") != ADOPTION_KEY:
+        return []
+    return [{"label": row.get("label"), "why": row.get("suggestedWhy") or row.get("suggested_why")}
+            for row in _drafted_rows(question) if row.get("suggested")]
+
+
+def _founders_rows(question: dict) -> list[str]:
+    """Spec 112 FR-2: the drafted rows a typed label may be found near -- every row but a `suggested` one, which is
+    Keel's (keel-cloud 171) and never the founder's reworded."""
+    return [row.get("label") for row in _drafted_rows(question) if not row.get("suggested")]
+
+
 #: Spec 108 FR-1: the modals folded to one word -- a reworded tense (*could be forwarded* / *can be forwarded*).
 _MODALS = frozenset({"could", "can", "would", "will"})
 #: The words a label's content is read without: articles, prepositions, pronouns, the verb *to be*, the modals and
@@ -1746,7 +1768,8 @@ def keel_left_out(question: dict, answer: vs.CalibrationAnswer) -> list[str]:
     """Spec 108 FR-2: the typed rows the draft left out -- no drafted row of that label and none near it -- in the
     entry's order."""
     typed, rows = _typed_labels(answer), _drafted_labels(question)
-    return [label for label in typed if label not in rows and not nearest_rows(label, rows, typed)]
+    # spec 112 FR-2: a suggested row (keel-cloud 171) is Keel's, never near a typed one
+    return [label for label in typed if label not in rows and not nearest_rows(label, _founders_rows(question), typed)]
 
 
 def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> tuple[str, int]:
@@ -1758,17 +1781,23 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
     where no row equals the typed label the one nearest row (`nearest_rows`) is picked and a DRIFT finding names the
     rewording; where no row or more than one is that near the walk stops by name, never a fall-back to row 0 -- and
     where none is (FR-2), a finding names the typed rows the draft left out. The golden walk (`strict`) is
-    unchanged: the scripted list is the entry's own, the index is its row."""
+    unchanged: the scripted list is the entry's own, the index is its row. Spec 112 FR-2 (keel-cloud 171 FR-2, FR-3):
+    the pick never lands on a row served `suggested` (Adoption friction's one-time step, Keel's) unless the entry's
+    typed pick is that row word for word -- a typed label found on both is the founder's row, and the near rows of
+    spec 108 are the founder's rows alone (`_founders_rows`)."""
     typed = _typed_labels(answer)
     index = (answer.listed or {}).get("pickedIndex") or 0
     if j.strict:
         return typed[index], index
     want = typed[index]
     rows = _drafted_labels(question)
+    founders = _founders_rows(question)
     if want in rows:
-        return want, rows.index(want)
+        flagged = [bool(row.get("suggested")) for row in _drafted_rows(question)]
+        at = next((i for i, label in enumerate(rows) if label == want and not flagged[i]), rows.index(want))
+        return want, at
     key = question.get("dimension")
-    near = nearest_rows(want, rows, typed)
+    near = nearest_rows(want, founders, typed)
     if len(near) == 1:
         j.findings.append({"what": f"DRIFT: Keel reworded the founder's row '{want}' as '{near[0]}' (spec 081)",
                            "served": {"dimension": key, "typed": want, "drafted": near[0], "rows": rows}})
@@ -1788,14 +1817,46 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
 
 
 def keel_added(question: dict, answer: vs.CalibrationAnswer) -> list[str]:
-    """Spec 104 FR-3: the drafted rows the entry did not type, in the drafted order -- what the product invented."""
+    """Spec 104 FR-3: the drafted rows the entry did not type, in the drafted order -- what the product invented. Spec
+    112 FR-2 (keel-cloud 171 FR-2): on Adoption friction the rows served `suggested: true` (`keel_suggested`), read off
+    the flag instead of diffing labels -- Keel's own step is marked, so a reworded founder row is never called Keel's."""
+    if question.get("dimension") == ADOPTION_KEY:
+        return [row["label"] for row in keel_suggested(question)]
     typed = set(_typed_labels(answer))
     return [label for label in _drafted_labels(question) if label not in typed]
 
 
+def keel_unmarked(question: dict, answer: vs.CalibrationAnswer) -> list[str]:
+    """Spec 112 FR-2, beyond its letter (tasks.md): on Adoption friction the drafted rows that are neither typed, nor
+    near a typed one (spec 108), nor marked `suggested` -- a row keel-cloud 171 FR-1 says the writer never drafts (the
+    founder's efforts only, Keel's one step marked). 104's *Keel added* signal for them is kept so an unmarked invention
+    is still named."""
+    if question.get("dimension") != ADOPTION_KEY:
+        return []
+    typed = _typed_labels(answer)
+    founders = _founders_rows(question)
+    near = {row for label in typed if label not in founders for row in nearest_rows(label, founders, typed)}
+    return [label for label in founders if label not in typed and label not in near]
+
+
 def _name_keel_added(j: Journey, key: str, question: dict, answer: vs.CalibrationAnswer) -> None:
     """Spec 104 FR-3: one finding per picked dimension whose drafted list carries rows the entry did not type. No
-    fault; the judge reads it."""
+    fault; the judge reads it. Spec 112 FR-2: on Adoption friction the finding names Keel's marked step and its why --
+    *Adoption friction: Keel suggested: '...' -- why* -- and, apart, any row drafted unmarked (`keel_unmarked`)."""
+    if key == ADOPTION_KEY:
+        suggested = keel_suggested(question)
+        if suggested:
+            j.findings.append({"what": f"{vs.NAMES[key]}: Keel suggested: " + ", ".join(
+                f"'{row['label']}' -- {row['why'] or '(no why served)'}" for row in suggested),
+                "served": {"dimension": key, "drafted": _drafted_labels(question), "typed": _typed_labels(answer),
+                           "suggested": suggested}})
+        unmarked = keel_unmarked(question, answer)
+        if unmarked:
+            j.findings.append({"what": f"{vs.NAMES[key]}: Keel added, unmarked: "
+                                       + ", ".join(f"'{label}'" for label in unmarked),
+                               "served": {"dimension": key, "drafted": _drafted_labels(question),
+                                          "typed": _typed_labels(answer), "added": unmarked}})
+        return
     added = keel_added(question, answer)
     if added:
         j.findings.append({"what": f"{vs.NAMES[key]}: Keel added: " + ", ".join(f"'{label}'" for label in added),

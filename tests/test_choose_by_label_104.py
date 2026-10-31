@@ -95,14 +95,15 @@ def test_the_golden_walk_keeps_the_typed_label_and_index():
 
 def test_the_rows_keel_added_are_named_in_one_finding():
     """FR-3: one finding per dimension listing the drafted rows the entry did not type, in the drafted order; none
-    where Keel drafted only the founder's."""
-    key = "solution.adoption_friction"
+    where Keel drafted only the founder's. Spec 112 FR-4: held on Compatibility (was Adoption friction, whose finding
+    since keel-cloud 171 reads the `suggested` flag -- `tests/test_adoption_steps_112.py`)."""
+    key = "solution.compatibility"
     answer = _answer(key, TYPED, 0)
     assert corpus_scenario.keel_added(_question(key, PREPENDED), answer) == PREPENDED[:2]
     j = _J()
     corpus_scenario._name_keel_added(j, key, _question(key, PREPENDED), answer)
     corpus_scenario._name_keel_added(j, key, _question(key, TYPED), answer)
-    what = "Adoption friction: Keel added: 'Forward unanswered calls to Codyco', 'Connect Codyco to the hotel's PMS'"
+    what = "Compatibility: Keel added: 'Forward unanswered calls to Codyco', 'Connect Codyco to the hotel's PMS'"
     assert j.findings == [{
         "what": what,
         "served": {"dimension": key, "drafted": PREPENDED, "typed": TYPED, "added": PREPENDED[:2]}}]
@@ -126,16 +127,20 @@ def _codyco(key: str) -> tuple[dict, vs.CalibrationAnswer]:
 def test_21_codyco_adoption_friction_picks_the_ai_voice_not_keels_forwarding():
     """The re-walk of 2026-10-30: the entry types two efforts, `pickedIndex` 0 the AI voice; Keel prepends the
     forwarding and the PMS rows. The walk picked *Forward unanswered calls to Codyco* (the bundle's Choose step); by
-    label it picks the founder's, row 2, and names Keel's two rows."""
+    label it picks the founder's, row 2, and names Keel's two rows. Spec 112 FR-2 / FR-4: the bundle predates keel-cloud
+    171, so its rows carry no `suggested` flag -- *Keel suggested* names none, and the two are named as rows drafted
+    unmarked (was *Keel added: ...*, by label)."""
     key = "solution.adoption_friction"
     question, answer = _codyco(key)
     case = CODYCO["dimensions"][key]
     assert _old_live_pick(question, answer) == (case["picked_on_screen"], 0)
     assert corpus_scenario._choose_label(_J(), question, answer) == ("Let an AI answer guests in the hotel's voice", 2)
+    assert corpus_scenario.keel_added(question, answer) == []
     j = _J()
     corpus_scenario._name_keel_added(j, key, question, answer)
     assert [f["what"] for f in j.findings] == [
-        "Adoption friction: Keel added: 'Forward unanswered calls to Codyco', 'Connect Codyco to the hotel's PMS'"]
+        "Adoption friction: Keel added, unmarked: 'Forward unanswered calls to Codyco', 'Connect Codyco to the hotel's "
+        "PMS'"]
 
 
 def test_21_codyco_compatibility_was_reworded_so_the_walk_picks_it_and_names_the_drift():

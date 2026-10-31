@@ -104,16 +104,23 @@ def test_l1_is_161s():
 
 
 def test_l5_admits_compatibility_never_elsewhere():
-    """keel-cloud 121 FR-3 / 161 FR-3: one `suggested` on Purchase friction or Compatibility; never on Adoption."""
-    assert score_mod.SUGGESTED_ON == ("commercial.purchase_friction", "solution.compatibility")
+    """keel-cloud 121 FR-3: one `suggested` on Purchase friction or Compatibility. Spec 112 FR-4 (keel-cloud 171 FR-2):
+    Adoption friction too -- one suggested step with its why (was *never on Adoption*, 161 FR-3); a missing why is an
+    `L5` breach (`tests/test_adoption_steps_112.py` holds the rest)."""
+    assert score_mod.SUGGESTED_ON == ("commercial.purchase_friction", "solution.compatibility",
+                                      "solution.adoption_friction")
     compat = "solution.compatibility"
     one = {**fx.GOOD_LISTS[compat], "items": [{**fx.GOOD_LISTS[compat]["items"][0], "suggested": True}]
            + fx.GOOD_LISTS[compat]["items"][1:]}
     assert not [f for f in _list_faults(compat, one) if f.startswith("L5")]
     adoption = "solution.adoption_friction"
-    tagged = {**fx.GOOD_LISTS[adoption], "items": [{**fx.GOOD_LISTS[adoption]["items"][0], "suggested": True}]
-              + fx.GOOD_LISTS[adoption]["items"][1:]}
-    assert [f for f in _list_faults(adoption, tagged) if f.startswith("L5")]
+    tagged = {**fx.GOOD_LISTS[adoption], "items": fx.GOOD_LISTS[adoption]["items"]
+              + [{"label": "Pair the tag with your phone", "asked": "pair the tag with your phone", "suggested": True}]}
+    assert [f for f in _list_faults(adoption, tagged) if f.startswith("L5")] == [
+        "L5: item 2: the suggested step carries suggested_why -- what in the Answer or the idea calls for it, in one "
+        "sentence"]
+    why = {**tagged, "items": tagged["items"][:-1] + [{**tagged["items"][-1], "suggested_why": "It needs the cot."}]}
+    assert not [f for f in _list_faults(adoption, why) if f.startswith("L5")]
 
 
 def test_the_marks_version_moved_with_its_note():

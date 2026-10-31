@@ -51,7 +51,7 @@ from . import context as context_mod
 from . import spoken as spoken_mod
 from . import text as text_mod
 from . import wording as wording_mod
-from .registry import COMPATIBILITY_KEY, DEFAULT_WINDOW, GATE_KEY, PURCHASE_FRICTION_KEY, words
+from .registry import ADOPTION_KEY, COMPATIBILITY_KEY, DEFAULT_WINDOW, GATE_KEY, PURCHASE_FRICTION_KEY, words
 
 
 # ------------------------------------------------------------------------------------ compare
@@ -290,7 +290,9 @@ _YOUR_WAY_OF = re.compile(r"^(?i:your\s+way\s+of)\s+")
 #: keel-cloud 121 FR-3 (`ScreenResultApplier`'s `L5`, the founder's "Agree." of 2026-10-22, contract 31): the two
 #: dimensions Keel may mark one item `suggested` on -- Purchase friction (a step it adds) and Compatibility (the condition
 #: most likely to be missing, the Choose screen's pre-pick). Spec 093 FR-3: the harness said *Purchase friction only*.
-SUGGESTED_ON = (PURCHASE_FRICTION_KEY, COMPATIBILITY_KEY)
+#: Spec 112 FR-2 (keel-cloud 171 FR-2): and Adoption friction -- one one-time step the founder did not type, last, with
+#: its `suggested_why`, outside the founder's 1 to 4 (`L1`) and never the default belief (`SavedList.tested()`).
+SUGGESTED_ON = (PURCHASE_FRICTION_KEY, COMPATIBILITY_KEY, ADOPTION_KEY)
 
 
 #: Spec 091 FR-1: the parts of a founder's Answer that name a difficulty each -- one a line, a bullet, a `;` or a `,`
@@ -361,10 +363,15 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
     fixed = 1 if saves.get("fixed_first") else 0
     low, high, why = _draft_count(dimension, answers)
     items = [i for i in draft["items"] if isinstance(i, dict)]
-    if not low <= len(items) <= high:
+    # spec 112 FR-2 (keel-cloud 171 FR-2, `ScreenResultApplier.draft`): Adoption friction's one suggested step is
+    # Keel's, outside the founder's 1 to 4 -- L1 counts the founder's efforts (a second suggested item is L5's)
+    keels = min(1, sum(1 for i in items if i.get("suggested"))) if dimension.key == ADOPTION_KEY else 0
+    counted = len(items) - keels
+    if not low <= counted <= high:
         faults.append(f"L1: {dimension.key} takes {'exactly ' + str(low) if low == high else f'{low} to {high}'} "
                       f"item{'' if high == 1 else 's'}{' besides Nobody else' if fixed else ''}"
-                      f"{f' ({why})' if why else ''}, and {len(items)} were written")
+                      f"{' besides the one suggested step' if keels else ''}"
+                      f"{f' ({why})' if why else ''}, and {counted} were written")
     phrase = str(draft.get("phrase") or "").strip()
     if saves.get("phrase") and not phrase:
         # spec 093 FR-3 (keel-cloud 161 T002): L1 in 161's words
@@ -398,10 +405,16 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
         if item.get("suggested"):
             suggested += 1
             if dimension.key not in SUGGESTED_ON or suggested > 1:
-                # spec 093 FR-3: the cloud's L5 since keel-cloud 121 -- Purchase friction and Compatibility, never
-                # elsewhere (Adoption friction included, keel-cloud 161 FR-3)
-                faults.append(f"L5: item {i + 1}: Keel suggests at most one item, on Purchase friction (a step it adds) "
-                              "and Compatibility (the condition most likely to be missing) only")
+                # spec 093 FR-3: the cloud's L5 since keel-cloud 121 -- Purchase friction and Compatibility; spec 112
+                # FR-2 (keel-cloud 171 FR-2): and Adoption friction's one one-time step, never elsewhere
+                faults.append(f"L5: item {i + 1}: Keel suggests at most one item, on Purchase friction (a step it "
+                              "adds), Compatibility (the condition most likely to be missing) and Adoption friction (a "
+                              "one-time step the actor takes, last) only")
+            elif dimension.key == ADOPTION_KEY and not str(item.get("suggested_why") or "").strip():
+                # keel-cloud 171 FR-2: a breach, the strict reading's refusal (Compatibility's missing why stays a
+                # note the harness does not count, call 124)
+                faults.append(f"L5: item {i + 1}: the suggested step carries suggested_why -- what in the Answer or "
+                              "the idea calls for it, in one sentence")
     hit = wording_mod.money(" ".join([str(draft.get("phrase") or "")] + [
         str(t) for i in items for t in (i.get("label"), i.get("asked")) if t]))
     if hit:

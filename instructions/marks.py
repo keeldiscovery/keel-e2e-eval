@@ -1150,6 +1150,11 @@ Calls 91-109 are spec 041's (the journey on corpus revision 10): they read no ma
     likely to be missing, keel-cloud 121 FR-3, the founder's *"Agree."* of 2026-10-22), never on any other dimension --
     Adoption friction included (keel-cloud 161 FR-3). keel-cloud's `suggested_why` note is not restated (it is a note,
     never a fault the harness counts). Both read the draft alone, so a bundle's own `cases/**/envelope.json` is enough.
+    **Amended by spec 112 FR-2 (keel-cloud 171 FR-2, 2026-10-30)**: `L5` admits one `suggested` item on Adoption
+    friction too -- a one-time step the actor takes, last -- and there its missing `suggested_why` **is** a fault (171's
+    breach: *the suggested step carries suggested_why -- what in the Answer or the idea calls for it, in one
+    sentence*; Compatibility's stays the note above); `L1` on Adoption friction counts the founder's efforts, the one
+    suggested step outside the 1 to 4 (*... besides the one suggested step*).
 125. **v22**: **`rescore.py` re-scores a v20 or v21 bundle at v22.** The rules above read the produced draft the bundle
     already holds, so `OLDEST` stays 20: a v21 scorecard re-scored at v22 moves only where a draft carried a suggested
     Compatibility condition (now met) or a phrase in Keel's old words (now an `L1`). Every bundle below 20 is refused as
