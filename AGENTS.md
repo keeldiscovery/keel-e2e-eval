@@ -732,6 +732,21 @@ rewriting the term; the marks sit in each case's `diff.json` and the scorecard's
 `8221cf8` 4,093 / 1 / 53; the one failure, the price version, cleared); the screens themselves are the coordinator's,
 paid, on the founder's word (`specs/105-.../tasks.md` lists the seven commands).
 
+**The harness reads the founder's own words as never jargon** (spec `107-the-harness-reads-the-founders-own-words`,
+2026-10-30; keel-cloud 175). `instructions/corpus.py` `founder_texts(entry, audience_words)` mirrors
+`VectorCorridor.founderTexts()` (the four typed context fields, the problem seed, the solution seed, the audience words;
+never Keel's interpretations) and `typed_in` mirrors `Vocabulary.typedIn` (whole, case aside, a hyphen joins, no
+stemming). J1: `vectors_script.expected_j1` leaves out every typed word, so 05-paidly -- whose own seed says *A platform
+that ...* -- owes no *platform* note and the golden walk's strict J1 check expects none. M5: `m5_faults(...,
+founder_texts=...)` skips a typed word (the parenthesis and design-note rules still read the line alone), `plain_line`
+never moves one, and a `LOCK_PLAIN_WORDS` row fires only where no M5 word it carries is typed (16-pairio's name-list
+rows carry none and stand); `scope_marks.sentence_faults` (SC4) the same over the record's `founder_texts`.
+`test_after_131`'s refusals of founder-typed words are re-pinned on seeds without them (the words Keel's); fewer
+`lock_refused` findings on a back-test walk are the point, not a regression. Not foreseen: 105's `8147930` tracked a
+`.venv` symlink that replaced the main checkout's venv on its fast-forward; 107 untracks it (`.gitignore` reads `.venv`)
+and the main checkout needs `make venv`. `make unit` 4,166 / 0 / 53 (master `a0ddf77` 4,143 / 0 / 53); the
+coordinator's `make eval K=s005` is the acceptance.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
