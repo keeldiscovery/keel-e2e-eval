@@ -449,8 +449,10 @@ def test_cloud_131_reads_the_served_words_beside_the_mirror_as_findings():
 
 # ------------------------------------------------------------------------------- FR-3: the fear-held head
 
-FEAR = ("Your fear was the agency owner's approval. 10 of 10 said it was quick or not needed. Not the blocker you "
-        "expected.")
+#: S-014's served words on the 130 build said *was quick*; spec 117 FR-1 re-words the stand-in as keel-cloud 179 serves
+#: it (*would be quick*, the question's tense) -- the test holds the pill to the card's served word, whatever its tense.
+FEAR = ("Your fear was the agency owner's approval. 10 of 10 said it would be quick or not needed. Not the blocker "
+        "you expected.")
 
 
 def _s014_standings() -> dict:

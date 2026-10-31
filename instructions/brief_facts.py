@@ -57,8 +57,10 @@ DERIVED_ABILITY_LINE = "derived from cost and price: already lose your price or 
 #: keel-cloud 091 FR-F1 (`BriefFacts.Card.keelBar`): Keel's bar where Keel sets it, the words after "Keel's bar: ".
 KEEL_BAR = {IMPORTANCE_KEY: "holds if at least 2 in 3 put it in their two",
             CURRENT_SOLUTION_KEY: "holds if at least 2 in 3 say today's way falls short (answers 3 to 5)",
-            # spec 064 FR-7 (keel-cloud 118 FR-3): the fear's bar
-            PURCHASE_FRICTION_KEY: "holds if at least 2 in 3 say it was needed last time and took a long time"}
+            # spec 064 FR-7 (keel-cloud 118 FR-3): the fear's bar; spec 117 FR-1 (keel-cloud 179 FR-2): in the tense of
+            # the question every lock since keel-cloud 128 asks -- the page's Choose bar (keel-web 153) in the brief's
+            # own shape (lower case, unstopped, after "Keel's bar: ")
+            PURCHASE_FRICTION_KEY: "holds if at least 2 in 3 say it would be needed and would take a long time"}
 
 
 def current_solution_bar(rung: str) -> str:
@@ -260,9 +262,10 @@ def bar_words(key: str, standing: dict) -> str:
 
 def friction_words(key: str, standing: dict, tested: str | None, words: str) -> str:
     """Spec 064 FR-7 (keel-cloud 118 FR-3, `BriefFacts.frictionWords`): a friction line's words -- Purchase friction (a
-    fear) held *Yes, {step} slows it. Plan for it.*, not held *Your fear was {step}. k of n said it was quick or not
-    needed. Not the blocker you expected.*; Adoption friction (an effort) not held *{Effort} is too much for k of n*;
-    a split and anything else keep the status words."""
+    fear) held *Yes, {step} would slow it. Plan for it.*, not held *Your fear was {step}. k of n said it would be quick
+    or not needed. Not the blocker you expected.* (spec 117 FR-1: keel-cloud 179's tense, the question's since
+    keel-cloud 128 -- *If you bought it, would it need ...?*); Adoption friction (an effort) not held *{Effort} is too
+    much for k of n*; a split and anything else keep the status words."""
     status = standing.get("status")
     n = int(standing.get("n") or 0)
     if status not in ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE") or not tested or not n:
@@ -272,10 +275,10 @@ def friction_words(key: str, standing: dict, tested: str | None, words: str) -> 
         held = _option_count(standing, "yes_long")
         belief = _split(held, n)
         if belief == "HOLDING_UP":
-            return f"Yes, {step} slows it. Plan for it."
+            return f"Yes, {step} would slow it. Plan for it."
         if belief == "NOT_HOLDING_UP":
-            return (f"Your fear was {step}. {n - held} of {n} said it was quick or not needed. Not the blocker you "
-                    "expected.")
+            return (f"Your fear was {step}. {n - held} of {n} said it would be quick or not needed. Not the "
+                    "blocker you expected.")
         return words
     against = _option_count(standing, "probably_not") + _option_count(standing, "no")
     if _split(n - against, n) == "NOT_HOLDING_UP":
@@ -338,10 +341,11 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
                   if tested.get("label") else "someone else had to agree, or they decided alone")
         out.update(number=_count(standing), line=line)
     elif key == PURCHASE_FRICTION_KEY:
-        # keel-cloud 118 FR-3: the fear's supporters -- needed, and it took a long time
+        # keel-cloud 118 FR-3: the fear's supporters -- needed, and it took a long time; spec 117 FR-1 (keel-cloud
+        # 179 FR-2): in the question's tense -- would need, and it would take a long time
         step = (entry.tested(key) or {}).get("label")
         out.update(number=f"{_option_count(standing, 'yes_long')} of {standing.get('n')}",
-                   line=f"needed {lower(step) if step else 'the step'}, and it took a long time")
+                   line=f"would need {lower(step) if step else 'the step'}, and it would take a long time")
     elif key == COMMITMENT_KEY:
         # keel-cloud 118 FR-2: the step as asked is the number; the second yes beside it, apart
         apart = _option_count(standing, "yes_after_trying")

@@ -317,7 +317,8 @@ def test_the_lead_lines_follow_the_stage_status():
     drawn = rm.expected_overview(st)["panels"]
     assert drawn["PROBLEM"]["lead"] == ["4 of 4 holding."]
     assert drawn["COMMERCIAL"]["lead"] == [
-        "Purchase friction · 2 of 5 needed the office manager's sign-off, and it took a long time",
+        # spec 117 FR-1 (keel-cloud 179): the card's line in the question's tense (was *needed ..., and it took ...*)
+        "Purchase friction · 2 of 5 would need the office manager's sign-off, and it would take a long time",
         "Commitment · 2 of 5 would install the app · 1 more after a look at it on a demo first"]  # the fixture's smaller step (r14)
     facts = copy.deepcopy(st["facts"])
     facts["vectors"][2]["verdict"] = "TOO_FEW_TO_CALL"
