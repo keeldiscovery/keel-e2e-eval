@@ -15,7 +15,8 @@ one leg and leave the others alone:
                       `guide-seen {what: WELCOME}` once, 204, the revision unmoved; the next open has none and the
                       wire says `welcomeSeen: true`; on S-005 local the twelve cues walked through the seam and *Play
                       the welcome again* twice, posting nothing. Scored by the guide marks (`evals/guide_marks.py`).
-2. `leg_context`   -- the four context fields and the entry's own recall window (D13: at least two);
+2. `leg_context`   -- the four context fields and the entry's own recall window (D13: at least two) -- since
+                      spec 097 (keel-web 141) two screens, the fields then the window's own page, nothing pre-filled;
                       CONTEXT_INTERPRET; *Yes, that's it*.
 3. `leg_interpret_problem` -- the problem seed and PROBLEM_INTERPRET's card.
 4. `leg_calibrate` -- one stage at a time, one dimension a screen (keel-web 063): Prevalence, Frequency,
@@ -372,7 +373,9 @@ def leg_context(j: Journey) -> None:
     """The context step: the four fields and the entry's own recall window, one CONTEXT_INTERPRET
     job, and *Yes, that's it*. Asserted on the card and on the wire: the sentence Keel understood
     (the entry's own `context.understood` on a scripted journey), and the four fields and the window
-    the founder typed -- a window of at least two units (D13)."""
+    the founder typed -- a window of at least two units (D13). Spec 097 (keel-web 141): where a gate is served the
+    fields are 1 of 2 and *Continue*, the window 2 of 2 at `define/context/window` (`_hold_the_window_page`); money
+    alone is one screen."""
     founder = j.founder
     asked: dict = {}
     # spec 071 (keel-web 109 FR-3, keel-cloud 133): the recall window only where the gate is served -- money alone has none
@@ -409,6 +412,8 @@ def leg_context(j: Journey) -> None:
         j.screens["context_card"] = {"understands": drawn, "text": drawn, **lines}
     if not windowed:
         _drift_96_guard(j, drawn, window_line)          # spec 072 FR-2: DRIFT #96 closed
+    else:
+        _hold_the_window_page(j)
     _hold_the_context_states(j, drawn)
     _hold_the_occasion_field(j)
     j.corridor.confirm_context()
@@ -491,6 +496,41 @@ def context_states_faults(states: list[dict], drawn: str) -> list:
     return faults
 
 
+def window_page_faults(page: dict | None, window: dict) -> list:
+    """Spec 097 FR-1 (keel-web 141 FR-1): 2 of 2 as the walk found it and left it -- *2 of 2*, its screen named
+    `window`, nothing pre-filled (no chip pressed, the count blank, the unit unpicked), and after the pick the count and
+    the unit the entry's window. `[]` when it was so."""
+    if not page:
+        return [{"window page": None, "want": "2 of 2 drawn at define/context/window"}]
+    drawn, picked = page.get("drawn") or {}, page.get("picked") or {}
+    faults = []
+    if drawn.get("screen") != "window" or drawn.get("counter") != "2 of 2":
+        faults.append({"screen": drawn.get("screen"), "counter": drawn.get("counter"), "want": ("window", "2 of 2")})
+    if drawn.get("count") or drawn.get("unit") or drawn.get("pressed"):
+        faults.append({"pre-filled": {k: drawn.get(k) for k in ("count", "unit", "pressed")},
+                       "want": "no chip pressed, the count blank, the unit unpicked"})
+    if (picked.get("count"), picked.get("unit")) != (str(window["count"]), window["unit"]):
+        faults.append({"picked": {k: picked.get(k) for k in ("count", "unit")}, "want": window})
+    return faults
+
+
+def _hold_the_window_page(j: Journey) -> None:
+    """Spec 097 FR-1: the recall window's own page (keel-web 141) -- drawn with nothing pre-filled, the entry's window
+    picked there (the chip that names it, else the count and the unit)."""
+    page = j.corridor.window_page
+    window = j.founder.window.as_wire()
+    faults = window_page_faults(page, window)
+    j.changed["context_window_page"] = page
+    with _step(j, "the recall window has its own page, 2 of 2 at define/context/window: nothing pre-filled, the "
+                  "entry's window picked there -- a chip where one names it, else the count and the unit -- and Save "
+                  "and continue (keel-web 141 FR-1)", party="founder", kind="assert" if j.strict else "note") as h:
+        h.record_assert({"window": window, "faults": []}, {"page": page, "faults": faults})
+        if j.strict:
+            assert not faults, faults
+    if faults and not j.strict:
+        _found(j, f"{j.entry.id}: the recall window's own page (keel-web 141 FR-1)", faults)
+
+
 def _hold_the_context_states(j: Journey, drawn: str) -> None:
     """Spec 073 FR-1: Save, the wait held in the form's place, and the card in the wait's place (keel-web 113 FR-1)."""
     states = (j.corridor.context_states or [[]])[-1]
@@ -509,7 +549,8 @@ def _hold_the_context_states(j: Journey, drawn: str) -> None:
 def context_reopened(j: Journey) -> None:
     """Spec 073 FR-1, the fourth state (S-005): the confirmed context re-opened -- its sentence the card's, *Continue to
     the problem* and *Edit*, no box -- and *Edit*: the form again, filled with what was confirmed (the four fields, the
-    window, the occasion). Nothing is saved: the next leg opens the problem from its own address."""
+    window, the occasion). Nothing is saved: the next leg opens the problem from its own address. Spec 097 FR-2
+    (keel-web 141): the form is 1 of 2 (`fields`) with *Continue*, and the window is read on 2 of 2."""
     founder = j.founder
     windowed = vs.serves_gate(j.entry)
     seen = j.changed["context_reopened"] = j.corridor.context_confirmed(j.project_id)
@@ -519,6 +560,9 @@ def context_reopened(j: Journey) -> None:
             "edited": {"state": "form", "fields": founder.context_fields,
                        "window": founder.window.as_wire() if windowed else None,
                        "occasion": None, "save": vs_screens.CONTEXT_SAVE}}
+    if windowed:
+        # spec 097 FR-2 (keel-web 141 FR-2): Edit opens 1 of 2 filled; Continue opens 2 of 2 with the saved window
+        want["edited"].update({"screen": "fields", "continue": vs_screens.CONTINUE})
     with _step(j, "the confirmed context re-opened: the sentence, Continue to the problem and Edit; Edit brings the "
                   "form back filled with what was confirmed, and nothing is saved (keel-web 113 FR-1)",
                party="founder") as h:
@@ -529,6 +573,8 @@ def context_reopened(j: Journey) -> None:
         assert edited.get("state") == "form" and edited.get("fields") == founder.context_fields, edited
         assert edited.get("window") == want["edited"]["window"], edited
         assert edited.get("save") == vs_screens.CONTEXT_SAVE, edited
+        if windowed:
+            assert (edited.get("screen"), edited.get("continue")) == ("fields", vs_screens.CONTINUE), edited
         # keel-web 117 FR-2 (spec 074): the form draws no occasion block any more -- the occasion is the card's line
         assert edited.get("occasion") is None, (edited, confirmed)
         view = j.get(j.project("/context")) or {}

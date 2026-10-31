@@ -58,6 +58,18 @@ KICKER_CONTEXT = "Keel understands"
 #: (*Keel understands*, *Edit* back to the form) and, re-opened once confirmed, the confirmed sentence.
 CONTEXT_STEP = "[data-testid=context-step]"
 CONTEXT_STATES = ("form", "wait", "card", "confirmed")
+#: Spec 097 (keel-web 141 FR-1): where a gate is served the form is two screens, named on the root while it is a form
+#: (`data-context-screen`) and counted *1 of 2* / *2 of 2* (`context-counter`): **1 of 2** at `define/context`, the four
+#: fields and *Continue* (`context-continue`, nothing sent); **2 of 2** at `define/context/window`
+#: (`context-window-page`), the recall window alone -- nothing pre-filled (no chip pressed, the count blank, the unit on
+#: a disabled *Choose*) -- with *Back* (`context-back`) and *Save and continue* (`context-save`), today's PUT. Money
+#: alone and a locked context stay one screen with `context-save`, no `context-continue`.
+CONTEXT_SCREENS = ("fields", "window")
+CONTEXT_CONTINUE_TESTID = "context-continue"
+CONTEXT_WINDOW_PAGE = "[data-testid=context-window-page]"
+CONTEXT_WINDOW_PATH = r"/define/context/window/?$"
+#: keel-web `RECALL_WINDOW_UNIT_PLACEHOLDER`: the unit pick's words until one is chosen.
+RECALL_UNIT_CHOOSE = "Choose"
 #: keel-web `CONTEXT_READING`, `CONTEXT_CONTINUE_LABEL` and `CARD_EDIT` (the card's and the confirmed state's *Edit*).
 CONTEXT_READING = "Keel is reading your four answers."
 CONTEXT_CONTINUE = "Continue to the problem"
@@ -1104,6 +1116,9 @@ def pass_teaching_sheet(page: Page, recorder: Recorder, base: str, kind: str, st
 #: boxes and Save. A MutationObserver, so a wait that lasts one render is still seen; a state's booleans and counts are
 #: merged over its whole stay (the counter mounts with the block) and its words are the last it drew (the card's first
 #: render reads *Save and continue* until its occasion field is pre-filled, then *Yes, that's it*).
+#: Spec 097 (keel-web 141): installed on 1 of 2, before *Continue*, so the one form row spans both screens (the client
+#: route keeps the document and the root) -- its four boxes 1 of 2's, its Save 2 of 2's, and `fields_screen` /
+#: `window_screen` say both were drawn.
 _CONTEXT_STATES_JS = """() => {
   const words = (el) => el ? (el.textContent || '').replace(/\\s+/g, ' ').trim() : null;
   const read = () => {
@@ -1128,6 +1143,11 @@ _CONTEXT_STATES_JS = """() => {
     } else {
       out.boxes = root.querySelectorAll('textarea.cfield__input').length;
       out.save = root.querySelectorAll('[data-testid=context-save]').length;
+      // spec 097 (keel-web 141): the form's two screens -- merged over the stay, so 1 of 2's four boxes and 2 of 2's
+      // Save are one form row; money alone names no screen and draws both on one
+      const screen = root.getAttribute('data-context-screen');
+      out.fields_screen = screen === 'fields';
+      out.window_screen = screen === 'window';
     }
     return out;
   };
@@ -1180,6 +1200,9 @@ class Corridor:
         self.resent = []
         #: Spec 071: whether the context step drew the recall window (none on money alone, keel-web 109 FR-3).
         self.window_drawn = None
+        #: Spec 097 (keel-web 141): what 2 of 2 drew before the pick (nothing pre-filled) and how the window was picked;
+        #: None on money alone's one screen.
+        self.window_page = None
         #: Spec 062 FR-3: the back-test's camera, called with a slug on every founder screen as it is about to be
         #: answered (`evals/backtest.Camera`); None on every other journey, where `_shot` does nothing.
         self.camera = None
@@ -1260,25 +1283,44 @@ class Corridor:
         """Types the four fields and the window, saves, and waits for the *Keel understands* card.
         Returns the card's sentence as drawn.
 
+        Spec 097 (keel-web 141 FR-1): where a gate is served (`window` given) step 1 is two screens -- the four fields on
+        1 of 2, *Continue* (`context-continue`, nothing sent), then 2 of 2 at `define/context/window`
+        (`context-window-page`): its text and a shot (`context-window`), the entry's window picked with nothing
+        pre-filled (`window_pick`: the chip that names it, else the count and the unit), and *Save and continue*
+        (`context-save`). Money alone (`window` None) is one screen and its *Save and continue*, as before.
+        `window_drawn` is whether the step drew the recall window: 1 of 2's *Continue* (a pre-141 page: the window on the
+        form).
+
         Spec 067 FR-5 (keel-cloud 128 FR-15): while the card is awaited, `on_wait(interaction_id)` is called every few
         seconds -- the CONTEXT_INTERPRET interaction the Save started, read off its response -- so the journey can see
         a `NEEDS_INPUT` the page draws no screen for (keel-web 106 FR-7 is unbuilt) and answer it, or stop, instead of
         waiting out the card's 660 s."""
-        with self._b.step("founder fills the context step: who, what, when, which people, and the "
-                          + (f"recall window ({window['count']} {window['unit']})" if window is not None
-                             else "no recall window (money alone)")) as h:
+        with self._b.step("founder fills the context step: who, what, when and which people, "
+                          + (f"Continue, then the recall window on its own page ({window['count']} {window['unit']}) "
+                             "and Save" if window is not None
+                             else "and Save on its one screen -- no recall window (money alone)")) as h:
             self.page.goto(f"{self.base}/p/{project_id}/define/context", wait_until="load")
             self.page.locator("#context-actor").wait_for(state="visible", timeout=20_000)
             self._shot("context")
             for key in ("actor", "job", "circumstance", "segment"):
                 self.page.locator(f"#context-{key}").fill(fields[key])
-            if window is not None:
-                self.page.locator("input.cwindow__count").fill(str(window["count"]))
-                self.page.locator("select.cwindow__unit").select_option(window["unit"])
-            # spec 071 (keel-web 109 FR-3): money alone draws no recall window -- `window` None, and none is typed
-            self.window_drawn = self.page.locator("input.cwindow__count").count() > 0
+            two_screens = self.page.get_by_test_id(CONTEXT_CONTINUE_TESTID).count() > 0
+            # spec 071 / 097: money alone draws no recall window -- no Continue, no window field (keel-web 109 FR-3)
+            self.window_drawn = two_screens or self.page.locator("input.cwindow__count").count() > 0
             h.add_screenshot(self._b.screenshot("context-filled"))
             self.page.evaluate(_CONTEXT_STATES_JS)
+            if two_screens and window is None:
+                # a window page on a study that serves no gate: nothing can be saved without a window -- recorded
+                h.capture_text("stage_screen", _screen_text(self.page, ".ccard"))
+                self.saves.append({"method": "PUT", "path": None, "status": None,
+                                   "error": "1 of 2 drew Continue to a recall window on a study with no gate"})
+                return ""
+            if two_screens:
+                self.window_page = self._context_window_page(window, h)
+            elif window is not None and self.window_drawn:
+                # before keel-web 141: the window is the form's fifth control, on the one screen
+                self.page.locator("input.cwindow__count").fill(str(window["count"]))
+                self.page.locator("select.cwindow__unit").select_option(window["unit"])
             saved = self._save_context()
             self.saves.append(saved)
             if isinstance(saved.get("status"), int) and saved["status"] >= 400:
@@ -1305,10 +1347,53 @@ class Corridor:
             self._shot("context-card")
             return _first_text(self.page, ".understands__big")
 
+    def _context_window_page(self, window: dict, h) -> dict:
+        """Spec 097 FR-1 (keel-web 141): *Continue* on 1 of 2, then 2 of 2 -- the recall window's own page, read as drawn
+        (the counter, its question, the chips and any pressed, the count and the unit: nothing pre-filled), shot, and
+        the entry's window picked: the chip whose words are the window's (keel-web `RECALL_WINDOW_WORDS`), else the
+        count typed and the unit chosen. What the pick left in the count and the unit is read back."""
+        self.page.get_by_test_id(CONTEXT_CONTINUE_TESTID).first.click()
+        _wait_url(self.page, CONTEXT_WINDOW_PATH)
+        screen = self.page.locator(CONTEXT_WINDOW_PAGE).first
+        screen.wait_for(state="visible", timeout=10_000)
+        self._shot("context-window")
+        drawn = self._window_controls()
+        drawn.update({"screen": self.page.locator(CONTEXT_STEP).first.get_attribute("data-context-screen"),
+                      "counter": _tc(self.page.get_by_test_id("context-counter")) or None,
+                      "question": _tc(screen.locator("#context-window-label")) or None,
+                      "back": _tc(self.page.get_by_test_id("context-back")) or None})
+        from harness.vectors_script import Window, window_words   # noqa: PLC0415 - the card's own words, mirrored
+        words = window_words(Window(count=int(window["count"]), unit=str(window["unit"])))
+        chips = self.page.locator("button.cwindow__chip")
+        chip = next((chips.nth(i) for i in range(chips.count()) if _tc(chips.nth(i)) == words), None)
+        if chip is not None:
+            chip.click()
+        else:
+            self.page.locator("input.cwindow__count").fill(str(window["count"]))
+            self.page.locator("select.cwindow__unit").select_option(window["unit"])
+        picked = self._window_controls()
+        h.capture_text("context_window", _screen_text(self.page, ".ccard"))
+        h.add_screenshot(self._b.screenshot("context-window"))
+        return {"drawn": drawn, "via": "chip" if chip is not None else "count and unit", "words": words,
+                "picked": picked}
+
+    def _window_controls(self) -> dict:
+        """The recall window's controls as they stand: the count's text, the unit's value (`""` while *Choose*), the
+        chips' words and the ones pressed."""
+        count = self.page.locator("input.cwindow__count")
+        unit = self.page.locator("select.cwindow__unit")
+        chips = self.page.locator("button.cwindow__chip")
+        words = [_tc(chips.nth(i)) for i in range(chips.count())]
+        return {"count": _value(count.first) if count.count() else None,
+                "unit": _value(unit.first) if unit.count() else None,
+                "chips": words,
+                "pressed": [w for i, w in enumerate(words) if chips.nth(i).get_attribute("aria-pressed") == "true"]}
+
     #: Every context Save's answer as the page received it (`PUT /v2/projects/{id}/context`): method, path, status.
     saves: list
 
     def _save_context(self) -> dict:
+        # spec 097 FR-2: on a gate's walk this is 2 of 2's *Save and continue* (`context-save`), the only one drawn
         try:
             with self.page.expect_response(lambda r: r.request.method == "PUT"
                                            and r.url.split("?")[0].endswith("/context"), timeout=20_000) as got:
@@ -1403,9 +1488,10 @@ class Corridor:
         """keel-web 113 FR-1 (spec 073 FR-1): the context step re-opened once confirmed -- the confirmed state (the
         sentence, the window line, *Continue to the problem* and *Edit*, no box) -- then *Edit*: the form again, its
         four boxes, the occasion and the window filled with what was confirmed. Nothing is saved; the walk goes on
-        from another address."""
-        with self._b.step("founder re-opens the confirmed context and presses Edit: the form comes back filled "
-                          "(keel-web 113 FR-1)") as h:
+        from another address. Spec 097 FR-2 (keel-web 141 FR-2): where a gate is served Edit opens 1 of 2 filled, and
+        *Continue* (`edited.continue`) opens 2 of 2, where the saved window and *Save and continue* are read."""
+        with self._b.step("founder re-opens the confirmed context and presses Edit: the form comes back filled -- the "
+                          "four fields, then Continue to the saved window (keel-web 113 FR-1, 141 FR-2)") as h:
             self.page.goto(f"{self.base}/p/{project_id}/define/context", wait_until="load")
             root = self.page.locator(f"{CONTEXT_STEP}[data-context-state=confirmed]").first
             root.wait_for(state="visible", timeout=20_000)
@@ -1421,20 +1507,29 @@ class Corridor:
             edit.first.click()
             form = self.page.locator(f"{CONTEXT_STEP}[data-context-state=form]").first
             form.wait_for(state="visible", timeout=10_000)
-            count = form.locator("input.cwindow__count")
-            unit = form.locator("select.cwindow__unit")
             # keel-web 117 FR-2: Edit's form draws no occasion block (the occasion is the card's); read for its absence
             occasion = form.locator("input#context-occasion")
-            raw = _value(count.first) if count.count() else None
             out["edited"] = {
                 "state": form.get_attribute("data-context-state"),
                 "fields": {k: _value(form.locator(f"textarea#context-{k}").first)
                            for k in ("actor", "job", "circumstance", "segment")},
-                "window": {"count": int(raw) if raw and raw.isdigit() else raw, "unit": _value(unit.first)}
-                if raw is not None else None,
-                "occasion": _value(occasion.first) if occasion.count() else None,
-                "save": _tc(self.page.get_by_test_id("context-save"))}
+                "occasion": _value(occasion.first) if occasion.count() else None}
             h.add_screenshot(self._b.screenshot("context-edit-filled"))
+            go_on = self.page.get_by_test_id(CONTEXT_CONTINUE_TESTID)
+            if go_on.count():
+                # spec 097 FR-2 (keel-web 141 FR-2): Edit opens 1 of 2 filled; Continue: 2 of 2 holds the saved window
+                out["edited"]["screen"] = form.get_attribute("data-context-screen")
+                out["edited"]["continue"] = _tc(go_on)
+                go_on.first.click()
+                _wait_url(self.page, CONTEXT_WINDOW_PATH)
+                self.page.locator(CONTEXT_WINDOW_PAGE).first.wait_for(state="visible", timeout=10_000)
+                h.add_screenshot(self._b.screenshot("context-edit-window"))
+            count = self.page.locator(f"{CONTEXT_STEP} input.cwindow__count")
+            unit = self.page.locator(f"{CONTEXT_STEP} select.cwindow__unit")
+            raw = _value(count.first) if count.count() else None
+            out["edited"]["window"] = {"count": int(raw) if raw and raw.isdigit() else raw, "unit": _value(unit.first)} \
+                if raw is not None else None
+            out["edited"]["save"] = _tc(self.page.get_by_test_id("context-save"))
             return out
 
     def confirm_context(self) -> None:
