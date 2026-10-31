@@ -37,8 +37,9 @@ EMAIL_COST_MICRO_USD = 60_000
 #: THEMES in; spec 052 -- no contacts price moved); **11** since keel-cloud 125 (EXAMPLE_MATCH added at 0, never held;
 #: no price moved -- S-006 met it on the 129 build, spec 068); 12 since keel-cloud 156 (spec 088: INTERVIEW 30 at
 #: Begin added, INTERPRET and THEMES priced 0; no contacts price moved); **13** since keel-cloud 169 (spec 105:
-#: PROBLEM_INTERPRET 26 and SOLUTION_MECHANISM 28, the frame class on frontier; no contacts price moved).
-PRICE_VERSION = 13
+#: PROBLEM_INTERPRET 26 and SOLUTION_MECHANISM 28, the frame class on frontier; no contacts price moved); **14** since
+#: keel-cloud 170 (spec 110: RESPONDENT_QUESTIONS 35 -> 70, the lock's job on frontier; no contacts price moved).
+PRICE_VERSION = 14
 
 _WORDS = re.compile(r"\W+", re.ASCII)
 

@@ -131,19 +131,21 @@ def test_s012s_per_job_check_reads_the_resolver_that_falls_back():
 
 # ------------------------------------------------------------------------------------ FR-2: the price version
 
-def test_price_version_13_is_pinned_in_the_mirror_and_both_fakes():
+def test_price_version_14_is_pinned_in_the_mirror_and_both_fakes():
+    # 13 at keel-cloud 169 (this spec); 14 since keel-cloud 170 (eval spec 110 FR-1: RESPONDENT_QUESTIONS 35 -> 70)
     from harness import contacts_fake, interviewer_fake                     # noqa: PLC0415
     from harness import interview_charge as charge                          # noqa: PLC0415
-    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == 13
-    # §6.3's classic five-participant figure moved no row at 13
+    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == 14
+    # §6.3's classic five-participant figure moved no row at 13 or 14
     assert charge.FIVE_PARTICIPANTS == charge.project_credits(5, version=12) == 1_355
 
 
 @pytest.mark.parametrize("rel", ["harness/interview_charge.py", "harness/interviewer_fake.py",
                                  "harness/contacts_fake.py", "evals/test_s012_journey_through_a_host.py"])
-def test_the_prose_beside_each_pin_names_13(rel):
+def test_the_prose_beside_each_pin_names_13_and_14(rel):
     text = (REPO / rel).read_text(encoding="utf-8")
     assert "13" in text and "169" in text, rel
+    assert "14" in text and "170" in text, rel                      # spec 110 FR-1
 
 
 # ------------------------------------------------------------- FR-3: the screen reads back-test and probe entries

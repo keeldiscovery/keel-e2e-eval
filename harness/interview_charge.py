@@ -1,7 +1,9 @@
 """keel-cloud spec 156 (contract 45, `InferenceCharge.VERSION` 12; `ai-credits-design.md`, amendment 2026-10-29): **one
 charge per interview, at Begin** -- mirrored for the referee (keel-e2e-eval spec 088). `InferenceCharge.VERSION` is
 **13** since keel-cloud 169 (keel-e2e-eval spec 105): `PROBLEM_INTERPRET` 13 -> 26 and `SOLUTION_MECHANISM` 14 -> 28
-(the frame class on frontier, Opus 5.5), the New-project gate 273 -> 300; no row this module mirrors moved.
+(the frame class on frontier, Opus 5.5), the New-project gate 273 -> 300; no row this module mirrors moved. **14** since
+keel-cloud 170 (keel-e2e-eval spec 110): `RESPONDENT_QUESTIONS` 35 -> 70 (the lock's job on frontier), the lock's gate
+70, or 470 with the recording; no row this module mirrors moved.
 
 One `INTERVIEW` row of 30 credits is written when a person presses Begin (`POST /v2/i/{token}/interview/begin`), once
 per invitation (`idempotency_key` `interview:<invitationId>`), never refused and never read against the balance; the
@@ -19,9 +21,13 @@ import os
 
 #: keel-cloud `InferenceCharge.VERSION` (the interviewer's and the contacts' fakes carry it as `PRICE_VERSION`): 12
 #: since spec 156, **13** since keel-cloud 169 (spec 105 FR-2: the two frame prices doubled; INTERVIEW, the readings
-#: and every founder-side row unmoved). No corridor sum is mirrored here; the gate those prices sum to is 300
-#: (3 + 26 + 28 + 3 x 81).
-PRICE_VERSION = 13
+#: and every founder-side row unmoved), **14** since keel-cloud 170 (spec 110 FR-1: `RESPONDENT_QUESTIONS` 35 -> 70, the
+#: lock's job on the frontier tier, routing v15). No corridor sum is mirrored here; the New-project gate those prices
+#: sum to is 300 (3 + 26 + 28 + 3 x 81), the lock's 70 (470 with the recording).
+PRICE_VERSION = 14
+#: `InferenceCharge.RESPONDENT_QUESTIONS` at version 14 (35 at 13): the lock's one job, and with it
+#: `CreditPolicy.LOCK_PRICE`.
+RESPONDENT_QUESTIONS_CREDITS = 70
 #: `InferenceCharge.INTERVIEW` -- the one row a person's Begin writes ($0.06 basis x 5).
 INTERVIEW = "INTERVIEW"
 INTERVIEW_CREDITS = 30
@@ -33,8 +39,8 @@ READ_PRICES_V11 = {"INTERPRET": 10, "THEMES": 8}
 
 #: `ai-credits-design.md` §6.3's five-participant row, re-summed at version 12: framing 540 (the six kinds), the brief
 #: 105 and the conversation 560 as they were; each person's reading 0 (was 9 in §6.3's table) and each person's Begin 30.
-#: Version 13 leaves it as it is: it is the classic walk's figure (the six framing kinds), recorded and asserted against
-#: nothing, and 13 moved only the corridor's two frame prices (spec 105 FR-2).
+#: Versions 13 and 14 leave it as it is: it is the classic walk's figure (the six framing kinds), recorded and asserted against
+#: nothing, 13 moved only the corridor's two frame prices (spec 105 FR-2) and 14 only the lock's job (spec 110 FR-1).
 FRAMING_CREDITS = 540
 BRIEF_CREDITS = 105
 CONVERSATION_CREDITS = 560
@@ -43,7 +49,7 @@ READING_CREDITS_V11 = 9
 
 def project_credits(people: int, *, version: int = PRICE_VERSION) -> int:
     """What §6.3 says a project of `people` participants costs: 1,250 at five on version 11, 1,355 on version 12 and
-    on 13 (which moved no row of this figure)."""
+    on 13 and 14 (which moved no row of this figure)."""
     if version >= 12:
         return FRAMING_CREDITS + BRIEF_CREDITS + CONVERSATION_CREDITS + people * INTERVIEW_CREDITS
     return FRAMING_CREDITS + BRIEF_CREDITS + CONVERSATION_CREDITS + people * READING_CREDITS_V11
@@ -86,7 +92,7 @@ def rows_for(ledger: list[dict], invitation_id: str) -> list[dict]:
 
 def row_faults(row: dict, *, invitation_id: str, project_id: str | None = None) -> list[str]:
     """What is wrong with one Begin's row against `CreditLedgerEntry.interview`: kind and action `INTERVIEW`, credits
-    -30, `price_credits` 30, `price_version` 13 (12 before keel-cloud 169), no job, no cost, `reason` `invitation:<id>`, the key, the project."""
+    -30, `price_credits` 30, `price_version` 14 (13 before keel-cloud 170, 12 before 169), no job, no cost, `reason` `invitation:<id>`, the key, the project."""
     want = {"kind": INTERVIEW, "action": INTERVIEW, "credits": -INTERVIEW_CREDITS, "price_credits": INTERVIEW_CREDITS,
             "price_version": PRICE_VERSION, "inference_job_id": None, "actual_cost_micro_usd": None,
             "reason": f"invitation:{invitation_id}", "idempotency_key": key(invitation_id)}

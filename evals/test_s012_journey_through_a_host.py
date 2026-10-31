@@ -34,7 +34,8 @@ It is also **the only run in this repository that spends the company's money** r
 founder's own plan -- about 1,355 credits, $13.55 at list price and about $2.44 of actual
 inference (design §6.3, re-summed at price version 12: readings 0, 30 at each person's Begin --
 keel-cloud 156, spec 088; price version 13, keel-cloud 169, doubled the corridor's two frame prices
-and moved no row of this classic figure, spec 105) -- which is why `matrix/cells.py` buys it once a Saturday and refuses it
+and moved no row of this classic figure, spec 105; 14, keel-cloud 170, doubled the lock's one job to 70 and moved none
+either, spec 110) -- which is why `matrix/cells.py` buys it once a Saturday and refuses it
 in `per_change` by name.
 
 Two legs, one runtime, and the runtime is what joins them -- on three of the four doors.
@@ -1243,7 +1244,7 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                      "what the design expects a five-participant journey to cost": (
                          f"{interview_charge.FIVE_PARTICIPANTS:,} credits (ai-credits-design.md §6.3 "
                          "at price version 12: readings 0, 30 a Begin; unmoved at 13, which doubled "
-                         "the corridor's two frame prices) -- a figure written for the classic walk; "
+                         "the corridor's two frame prices, and at 14, which doubled the lock's job) -- a figure written for the classic walk; "
                          "the corridor's own spend is the ledger's, recorded here"),
                      "what Keel actually paid, in micro-dollars": sum(
                          r["actual_cost_micro_usd"] or 0 for r in per_job),
@@ -1338,7 +1339,8 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             # for it, its screen mapped the way `InferenceScreen.jobClass()` maps it. Since routing v14
             # (keel-cloud 169, spec 105 FR-1) `resolve_screen` stands a frontier class on the host's
             # standard row where the host pins no frontier model (codex / copilot frame jobs on
-            # gpt-5.6-terra), as keel-cloud's `ModelRouting.FALLBACK` sends it. Not a loosened
+            # gpt-5.6-terra), as keel-cloud's `ModelRouting.FALLBACK` sends it; since v15 (keel-cloud 170, spec
+            # 110) the lock's RESPONDENT_QUESTIONS job is the frontier class too, and falls back the same way. Not a loosened
             # assertion: an older runtime, or a checkout with no table yet, is a note that says which,
             # never a pass.
             screen_by_job = {(i.get("job") or {}).get("job_id"): i.get("screen")

@@ -36,8 +36,10 @@ from pathlib import Path
 #: THEMES in; spec 052 -- the interviewer's two rows did not move), 11 since 125 (EXAMPLE_MATCH at 0, never held;
 #: no price moved), 12 since 156 (spec 088: INTERVIEW 30 at Begin added, INTERPRET 10 -> 0 and THEMES 8 -> 0; the
 #: interviewer's two rows did not move -- `harness/interview_charge.py`), **13** since 169 (spec 105: PROBLEM_INTERPRET
-#: 13 -> 26 and SOLUTION_MECHANISM 14 -> 28, the frame class on frontier; the interviewer's two rows did not move).
-PRICE_VERSION = 13
+#: 13 -> 26 and SOLUTION_MECHANISM 14 -> 28, the frame class on frontier; the interviewer's two rows did not move),
+#: **14** since 170 (spec 110: RESPONDENT_QUESTIONS 35 -> 70, the lock's job on frontier; the interviewer's two rows did
+#: not move).
+PRICE_VERSION = 14
 #: The first recording, written at lock (or, on a project with none, at the first face chosen) -- and the change.
 RECORDING = "INTERVIEWER_RECORDING"
 CHANGE = "INTERVIEWER_CHANGE"

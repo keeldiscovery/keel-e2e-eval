@@ -459,7 +459,7 @@ SEEDED = [
     ("IM1", ["ledger"], lambda rows: [r for r in rows if not (r["action"] == "INTERVIEWER_RECORDING"
                                                                and r["kind"] == "SPEND")]),  # half a pair
     ("IM1", ["ledger", 1, "price_version"], 8),                                          # the old charge table
-    ("IM1", ["ledger", 1, "credits"], -35),                                              # the lock's job price
+    ("IM1", ["ledger", 1, "credits"], -35),                    # the lock's job price at 13 (70 at 14): still not 400
     ("IM1", ["ledger", 2, "actual_cost_micro_usd"], 1_430_000),                         # the vendor's bill passed on
     ("IM1", ["ledger", 1, "inference_job_id"], str(uuid.uuid4())),                       # held on a job
     ("IM2", ["screens", "L1"], "Who asks the questions · 400 credits"),                  # a price on Lock
@@ -831,7 +831,7 @@ def test_the_price_word_finds_a_price_and_leaves_plain_words_alone():
 # ------------------------------------------------------------------------------- the fake and charge v9, restated
 
 def test_charge_v9_and_the_fixed_lines():
-    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (13, 400, 2_000_000, 400)
+    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (14, 400, 2_000_000, 400)
     # spec 083 (keel-cloud 143): the two studio faces, DAPHNE preselected; 110's four retired with 094's (less DAPHNE)
     assert fake.FACES == ("DAPHNE", "SASKIA") and fake.PRESELECTED == "DAPHNE"
     assert fake.FACE_NAMES == {"DAPHNE": "Daphne", "SASKIA": "Saskia"}
