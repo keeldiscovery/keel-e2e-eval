@@ -417,6 +417,12 @@ acceptance: venv
 #       -- MARKS_VERSION 18's own run of record (spec 040): none yet -- the certificate, on the founder's word only
 #   make instruction-screen HOST=claude WHY=instruction:asked.md K=asked MODELS=exported
 #       -- the eighth screen's instruction (keel-cloud 088), before routing v11's `asked: light` row is trusted
+#   make instruction-screen HOST=claude K=08-fresco/PROBLEM_INTERPRET N=3 MODELS=exported WHY=instruction:169
+#   make instruction-screen HOST=claude K=169-banking-gaming N=3 MODELS=exported WHY=instruction:169
+#       -- spec 105 FR-3: a needle naming a keel-cloud back-test entry (canon/designs/measured-beliefs/backtest/)
+#          screens its three interpretation screens, and one naming a probe (.../probes/, keel-cloud 169) its two
+#          frame screens, marked on the first turn (NEEDS_INPUT, one question naming the planted term, two readings);
+#          a kind word (K=frame) and the full eval read the golden corpus alone, as before
 instruction-screen: venv
 	$(PY) -m instructions.run --host $(if $(HOST),$(HOST),claude) \
 		$(if $(DRY),--dry-run,) -k "$(if $(K),$(K),01-countly)" -n $(if $(N),$(N),3) \

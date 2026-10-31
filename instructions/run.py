@@ -12,7 +12,10 @@
     -k NEEDLE        only cases whose case id contains it, case-insensitively (`-k 03-lullaby`,
                      `-k 03-lullaby/INTERPRET`), or one kind word: context, frame, calibration,
                      asked, respondent, reading, compare. A needle matching nothing says so
-                     and spends nothing.
+                     and spends nothing. Spec 105: a needle that names a keel-cloud back-test
+                     entry (`-k 08-fresco/PROBLEM_INTERPRET`) or a planted probe
+                     (`-k 169-banking-gaming`) screens it beside the golden corpus
+                     (`instructions/screen_entries.py`); a kind word and the full eval do not.
     -n N             runs per model case (default 3)
     --marks FILE     an alternative marks file
     --models FILE    a model-routing table pinning each job class -- context, frame, calibration,
@@ -53,6 +56,7 @@ from . import overview as overview_mod
 from . import prompts as prompts_mod
 from . import report as report_mod
 from . import runner as runner_mod
+from . import screen_entries as screen_mod
 from . import score as score_mod
 from . import spoken as spoken_mod
 from . import validate as validate_mod
@@ -168,12 +172,30 @@ def select(cases: list, needle: str | None) -> list:
     return [c for c in cases if word in c.case_id.lower()]
 
 
-def _all_cases(corpus, exported, instructions, executor_module, args) -> list:
+def _all_cases(corpus, exported, instructions, executor_module, args, extras=None) -> list:
+    """The golden corpus's cases, the needle applied -- and, spec 105 FR-3, the cases of the back-test entries and
+    probes the needle names (`extras`, `screen_entries.load`), after them."""
     cases = []
     for entry in corpus.entries:
         cases.extend(prompts_mod.build_cases(entry, exported, instructions, executor_module,
                                              n_runs=args.n_runs, host=args.host))
-    return select(cases, args.filter)
+    selected = select(cases, args.filter)
+    if extras:
+        selected += screen_mod.build_cases(extras, exported, instructions, executor_module, needle=args.filter,
+                                           n_runs=args.n_runs, host=args.host)
+    return selected
+
+
+def _golden(cases) -> list:
+    """The cases drawn from the golden corpus -- what the deterministic marks are read over (spec 105 FR-3: a
+    back-test entry or a probe has no golden expectations, and no corpus-test facts)."""
+    return [c for c in cases if not screen_mod.is_extra(c)]
+
+
+def _screen_entries_line(extras) -> str:
+    backtest = ", ".join(e.id for e in extras.backtest) or "none"
+    probes = ", ".join(p.id for p in extras.probes) or "none"
+    return f"screened beside the golden corpus (spec 105): back-test entries {backtest} · probes {probes}"
 
 
 def _cloud(config, corpus, registry, run_dir):
@@ -241,13 +263,15 @@ def _compare(config, corpus, cases, run_dir) -> list:
 
 def _prepare(config, corpus, executor_module, args, contracts_dir):
     """The export, the registry bound to the corpus, keel-cloud's corpus files, the cases selected -- or a
-    refusal by name."""
+    refusal by name. Spec 105 FR-3: the back-test entries and probes the needle names, read beside the corpus
+    (empty for the full eval and a kind word), their cases after the golden ones."""
     exported = contract_mod.export(config.keel_cloud, contracts_dir)
     corpus.bind(exported.registry)
+    extras = screen_mod.load(config.keel_cloud, args.filter, golden_ids=[e.id for e in corpus.entries])
     cloud, reason = _cloud(config, corpus, exported.registry, Path(contracts_dir).parent)
     instructions = _instructions_for(config)
-    cases = _all_cases(corpus, exported, instructions, executor_module, args)
-    return exported, instructions, cases, cloud, reason
+    cases = _all_cases(corpus, exported, instructions, executor_module, args, extras=extras)
+    return exported, instructions, cases, cloud, reason, extras
 
 
 def _counts(cases) -> dict:
@@ -308,7 +332,7 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
     which costs nothing, done for real."""
     run_dir = report_mod.start_bundle(config, baseline=args.baseline, host=args.host)
     try:
-        exported, instructions, cases, cloud, cloud_reason = _prepare(
+        exported, instructions, cases, cloud, cloud_reason, extras = _prepare(
             config, corpus, executor_module, args, run_dir / "contracts")
     except (contract_mod.ContractUnavailable, corpus_mod.CorpusError) as reason:
         print(f"instruction eval cannot start: {reason}", file=sys.stderr)
@@ -316,6 +340,8 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
     if not cases:
         print(f"no case matches -k {args.filter!r}; nothing was built and nothing was spent")
         return 2
+    if extras:
+        print(_screen_entries_line(extras))
     missing = _missing_instructions(config, cases, instructions)
     if missing:
         print("instruction eval cannot start: keel-cloud has no template yet for a selected "
@@ -356,7 +382,8 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
         print()
 
     compare_scores = _compare(config, corpus, cases, run_dir)
-    spoken, facts_scores, overview_scores = deterministic(corpus, exported.registry, cases, cloud, cloud_reason)
+    spoken, facts_scores, overview_scores = deterministic(corpus, exported.registry, _golden(cases), cloud,
+                                                          cloud_reason)
     marks = marks_mod.load(args.marks)
     totals = score_mod.totals(compare_scores=compare_scores, spoken_score=spoken,
                               facts_scores=facts_scores, overview_scores=overview_scores)
@@ -373,6 +400,8 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
         "denominators": denominators(cases),
         # MARKS_VERSION 21 (call 121): the readers' scores, reported from committed score files, never gating.
         "read": marks_mod.read_rows(e.id for e in corpus.entries),
+        # Spec 105 FR-3: what the screen read beside the golden corpus, the probes apart from the entries.
+        "screen_entries": extras.record(),
     }
     report_mod.write_scorecard(run_dir, scorecard)
     judged = marks_mod.judge(totals, marks)
@@ -421,7 +450,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     print(f"host: {args.host} ({facts.get('cli')} {facts.get('cli_version') or 'version unknown'})")
 
     try:
-        exported, instructions, cases, cloud, cloud_reason = _prepare(
+        exported, instructions, cases, cloud, cloud_reason, extras = _prepare(
             config, corpus, executor_module, args, run_dir / "contracts")
     except (contract_mod.ContractUnavailable, corpus_mod.CorpusError) as reason:
         print(f"instruction eval cannot start: {reason}", file=sys.stderr)
@@ -429,6 +458,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     if not cases:
         print(f"no case matches -k {args.filter!r}; nothing was built and nothing was spent")
         return 2
+    if extras:
+        print(_screen_entries_line(extras))
     missing = _missing_instructions(config, cases, instructions)
     if missing:
         print("instruction eval cannot start: keel-cloud has no template yet for a selected "
@@ -473,7 +504,8 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     # COMPARE first: it spends nothing, and a run whose engine cannot be asked should say so
     # before the first paid call rather than after the last. The two v18 deterministic marks likewise.
     compare_scores = _compare(config, corpus, cases, run_dir)
-    spoken, facts_scores, overview_scores = deterministic(corpus, exported.registry, cases, cloud, cloud_reason)
+    spoken, facts_scores, overview_scores = deterministic(corpus, exported.registry, _golden(cases), cloud,
+                                                          cloud_reason)
 
     state = _RunState()
     # Judgement call 41: the five screens keel-cloud redraws are judged as they are answered, so a
@@ -494,6 +526,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         scored = answer.scored
         failed = scored.error or (scored.schema_error if not scored.schema_valid else None)
         diff = _score(case, entry, scored, failed, state, judge)
+        _score_probe(case, answer, diff, state)
         state.record_verdicts(case, answer)
         report_mod.write_case(run_dir, case, answer, diff, host=args.host)
         state.prompts.append({"case_id": case.case_id, "screen": case.screen,
@@ -508,6 +541,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         print(f"[{index}/{len(model_cases)}] {case.case_id:<44} {status}{diff.get('line', '')}")
 
     corpus.verify_unchanged()
+    extras.verify_unchanged()
     report_mod.write_corpus_hashes(run_dir, corpus, when="after (unchanged)")
 
     # The aggregate's own verdict on every model answer, in one JVM start (FR-024). A kind the
@@ -581,6 +615,10 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
         "prompts": state.prompts,
         # MARKS_VERSION 21 (call 121): the readers' scores, reported from committed score files, never gating.
         "read": marks_mod.read_rows(e.id for e in corpus.entries),
+        # Spec 105 FR-3: what the screen read beside the golden corpus, and each probe case's mark, apart from the
+        # entries' marks -- a probe is no entry and its mark moves no row of the marks file.
+        "screen_entries": extras.record(),
+        "probes": state.probes,
     }
     report_mod.write_scorecard(run_dir, scorecard)
 
@@ -699,6 +737,7 @@ class _RunState:
         self.verdict_entries = []
         self.redraws = []
         self.produced = {}               # entry -> {screen-or-subject: (case_id, result)}
+        self.probes = []                 # spec 105 FR-3: one probe mark a probe case
         self.prompts = []
         self.errored = self.schema_invalid = 0
         self.total_cost = self.total_premium = 0.0
@@ -797,6 +836,27 @@ def _score(case, entry, answer, failed, state, judge) -> dict:
                     missing_ids=score.missing_ids, extra_ids=score.extra_ids)
         diff["line"] = (f"  {score.produced or 'no word'} (corpus {score.golden})")
     return diff
+
+
+def _score_probe(case, answer, diff, state) -> dict | None:
+    """Spec 105 FR-3: a probe case's mark, read off its FIRST turn (`answer`, never a redraw): NEEDS_INPUT with one
+    question naming the planted term and offering two readings, else a fault. Written into the case's `diff.json`
+    (`source`, `probe`, `failed`, the console `line`) and kept on `state.probes`; `None` on every other case (a
+    back-test case's diff only says where it came from)."""
+    source = (case.meta or {}).get("source")
+    if source:
+        diff["source"] = source
+    plant = screen_mod.plant_of(case)
+    if plant is None:
+        return None
+    mark = screen_mod.probe_mark(case.entry_id, plant, outcome=answer.outcome, questions=answer.questions,
+                                 result=answer.result)
+    mark = {"case_id": case.case_id, "run_index": case.run_index, **mark}
+    diff["probe"] = mark
+    diff["failed"] = diff.get("failed") or (None if mark["held"] else "probe: " + "; ".join(mark["faults"]))
+    diff["line"] = screen_mod.probe_line(mark)
+    state.probes.append(mark)
+    return mark
 
 
 def _chipped(corpus, cases) -> int:
