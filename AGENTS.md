@@ -760,6 +760,16 @@ one whose negations differ; it writes **DRIFT: Keel reworded the founder's row '
 cases of the day as keel-cloud's. Strict is unchanged. `make unit` 4,186 / 1 / 53 (master `554bb03` 4,166 / 0 / 53; the one failure is
 `test_open_link_092`'s `group-link` pin against keel-web 142, merged during the build -- eval 098's, not built).
 
+**The harness reads a group's url off the section's `data-url`** (spec `098-the-group-url-off-data-url`, 2026-10-30;
+keel-web 142). keel-web no longer draws the shortened `group-link` under a group's name on Sent's *By group*; the url
+(the whole served `/i/<token>`) stays on the `sent-group` section's root as `data-url`, open or closed. So
+`interviews_screens.GROUP_LINK` is gone, `Interviews.groups()` reads `"url"` off `data-url` and keeps no `"link"` key,
+and `test_open_link_092`'s GroupSection pins read `data-url=` (master's one failure, cleared), with two tests beside it:
+keel-web draws no `group-link` and keeps `data-url` on the root, and a closed section's url is read. Send more's *Link
+made* (`GROUP_LINK_MADE`) and every other S-017 read are unchanged. `make unit` 4,186 / 3 / 53 (master `075b9e1` fails
+the same three plus the 092 pin against keel-cloud-docs `8c53497f`: keel-cloud 170, price version 14 and *I can't
+recall*, merged during the build -- eval 110's, not built); `make eval K=s017` is the coordinator's acceptance.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
