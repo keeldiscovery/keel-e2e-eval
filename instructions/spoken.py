@@ -628,3 +628,53 @@ def score(cloud, corpus, *, entry_ids=None, registry=None) -> SpokenScore:
 
 def unmeasured(reason: str) -> SpokenScore:
     return SpokenScore(measured=False, reason=reason)
+
+
+# ------------------------------------------------------------------- spec 111: the reveal said aloud (keel-cloud 176)
+
+#: keel-cloud 176 FR-2 (`RevealWords.SPOKEN_NAMES_MAX = SpokenForm.MAX_OPTIONS`): the most names a spoken list holds --
+#: the most labelled points a listener holds, §2's cap on the options a voice reads.
+SPOKEN_NAMES_MAX = MAX_OPTIONS
+
+
+def _spoken_list(names: list, join: str = "or") -> str:
+    """`RevealWords.spokenList`: *A, B or C*; past `SPOKEN_NAMES_MAX` names, *A, B and others*."""
+    if len(names) > SPOKEN_NAMES_MAX:
+        return f"{names[0]}, {names[1]} and others"
+    if len(names) == 1:
+        return names[0]
+    return ", ".join(names[:-1]) + f" {join} {names[-1]}"
+
+
+def reveal_aloud(line):
+    """Spec 111 FR-3 (keel-cloud 176 `RevealWords.aloud`, line for line): a reveal line as the AI interviewer says it --
+    the founder's names are kept, the sound is held. A capitalised parenthesis of two or more names is said *, such as
+    A, B or C* (with a closing comma where the sentence goes on: *into the PMS (OPERA Cloud, Sihot, Apaleo), handing* ->
+    *into the PMS, such as OPERA Cloud, Sihot or Apaleo, handing*), another capitalised parenthesis as its words set off
+    by commas; a list of names past `SPOKEN_NAMES_MAX`, in a parenthesis or bare, is said by its first two and *and
+    others*. A lower-case parenthesis (*(or a front desk)*) is as typed; a line with neither is returned as it is. The
+    written card is never read through this."""
+    from .corpus import LIST_OF_NAMES, NAME, NAMES_IN_PARENTHESES, names_of  # noqa: PLC0415 (corpus is the M5 mirror)
+    if line is None or not str(line).strip():
+        return line
+    line = str(line)
+    out, last = [], 0
+    for p in NAMES_IN_PARENTHESES.finditer(line):
+        head = line[last:p.start()].rstrip()
+        content = p.group()[1:-1].strip()
+        listed = names_of(content)
+        of_names = len(listed) >= 2 and all(re.fullmatch(NAME, n) for n in listed)
+        out.append(head)
+        if head:
+            out.append(" " if head.endswith(",") else ", ")
+        out.append("such as " + _spoken_list(listed) if of_names else content)
+        rest = line[p.end():].lstrip()
+        if rest and rest[0].isalnum():
+            out.append(",")
+        last = p.end()
+    out.append(line[last:])
+
+    def cut(m):
+        listed = [m.group(1), *names_of(m.group(2)), m.group(3)]
+        return _spoken_list(listed) if len(listed) > SPOKEN_NAMES_MAX else m.group()
+    return LIST_OF_NAMES.sub(cut, "".join(out))

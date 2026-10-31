@@ -50,6 +50,7 @@ from pathlib import Path
 import yaml
 
 from instructions.judge import _ARGV as JUDGE_ARGV, judge_env
+from instructions.spoken import reveal_aloud
 from quality import rubric
 
 REPO = Path(__file__).resolve().parent.parent
@@ -372,8 +373,11 @@ def respondent_screens(bundle: dict) -> dict[str, list[Screen]]:
                 body = [f"Kicker: {d.get('kicker') or ''}", f"A card to read:\n{d.get('card') or ''}"]
                 if d.get("question"):
                     body.append(f"Question: {d['question']}")
+                # spec 111 (keel-cloud 176): the card said as the AI interviewer says the reveal -- a parenthesis
+                # of names *such as ...*, a list past five *and others* -- the card above it as typed
+                card = "\n".join(reveal_aloud(x) for x in str(d.get("card") or "").splitlines())
                 said, line = said_line(None, " ".join(" ".join(str(x or "").split())
-                                                      for x in (d.get("card"), d.get("question")) if x))
+                                                      for x in (card, d.get("question")) if x))
                 body.append(line)
                 add(what, what, None, False, body, d.get("kicker"), d.get("question") or "(the idea card)", said)
             elif what == "follow_up":

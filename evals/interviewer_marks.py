@@ -357,11 +357,12 @@ def spoken_order(r: dict) -> tuple[bool, Any]:
 
 def solution_three_facts(r: dict) -> tuple[bool, Any]:
     """IM4: the solution passage says the idea's **name**, what it **claims** (the first sentence of its how) and its
-    **benefit** (the belief line) -- on every role that hears it."""
+    **benefit** (the belief line) -- on every role that hears it. Spec 111 (keel-cloud 176): the how and the belief as
+    the clip says them (`fake.reveal_said`: a parenthesis of names *such as ...*, a list past five *and others*)."""
     idea = r["idea"]
     passages = [c for c in (r["recording"] or {}).get("clips") or [] if c.get("kind") == "SOLUTION"]
-    name, claim = idea.get("name") or "", fake.first_sentence(idea.get("how") or "")
-    belief = fake.benefit(idea.get("belief") or "")
+    name, claim = idea.get("name") or "", fake.first_sentence(fake.reveal_said(idea.get("how") or ""))
+    belief = fake.benefit(fake.reveal_said(idea.get("belief") or ""))
     out = []
     for c in passages:
         script = c.get("script") or ""

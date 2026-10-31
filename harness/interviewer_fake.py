@@ -163,11 +163,31 @@ def passage_said(text: str | None) -> str:
     return (text or "").replace(" -- ", ", ").replace("--", ",").strip()
 
 
+def reveal_said(text: str | None) -> str:
+    """Spec 111 (keel-cloud 176 `PassageComposer.aloud`): a reveal line as the SOLUTION clip says it -- its names as
+    `RevealWords.aloud` says them (`instructions.spoken.reveal_aloud`: a parenthesis of names *such as A, B or C*, a
+    list past five *A, B and others*), then `passage_said`. The written card keeps the founder's punctuation."""
+    from instructions.spoken import reveal_aloud  # noqa: PLC0415
+    return passage_said(reveal_aloud(text))
+
+
+def _sentence(line: str | None) -> str:
+    """`PassageComposer.sentence`: the line said, a closing stop added where it has none."""
+    text = passage_said(line)
+    return text if not text or text[-1] in ".?!" else text + "."
+
+
+def idea_passage(what: str | None, how: str | None, belief: str | None) -> str:
+    """`PassageComposer.idea`: the reveal's three lines between *Now the idea.* and the close, each said through
+    `reveal_said` since keel-cloud 176 (spec 111 FR-3)."""
+    return _join(_sentence(reveal_said(what)), _sentence(reveal_said(how)), _sentence(reveal_said(belief)))
+
+
 def solution_opening(problem: str | None = None) -> str:
     """The SOLUTION clip's opening: `Now the idea.` -- since keel-cloud 133 FR-6 (T018) after the problem in one sentence
     wherever the link serves one (`Idea.problem` on every decision-maker's link, ALL included; `Reveal.problem` on a
-    person's link that serves no part 1)."""
-    return _join(passage_said(problem), SOLUTION_OPENING)
+    person's link that serves no part 1). Since keel-cloud 176 (spec 111) the sentence is said through `reveal_said`."""
+    return _join(reveal_said(problem), SOLUTION_OPENING)
 
 
 def solution_close(count: int) -> str:
