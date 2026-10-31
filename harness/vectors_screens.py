@@ -203,6 +203,29 @@ BEFORE_INTERVIEWER_OWN = ("This account runs on its own AI, so people read the q
                           "interviewer needs Keel's credits.")
 #: keel-web 130 FR-3 (`BEFORE_SCREEN.pilot`): the pilot screen's title (was *The pilot*), read into the step's record.
 PILOT_TITLE = "Offer a pilot?"
+#: Spec 114 FR-1 (keel-web 146 FR-2, `BeforeStep`, `translate.ts`): the pilot screen is one question and two option
+#: cards -- `[data-testid=pilot-pick]` (`role=radiogroup`) holding `pilot-yes` *Yes, ask them* (`BEFORE_PILOT_YES`) and
+#: `pilot-no` *No pilot* (`BEFORE_PILOT_NO`), each `role=radio`, neither `aria-checked` on open; the step's
+#: `[data-testid=before-continue]` reads *Continue* and is disabled until a pick, then *Continue · Yes* / *Continue · No*
+#: (`beforePilotContinue`). Where the money is in scope and Commitment's step is stored, `pilot-first-step` reads *Your
+#: first step: {step}* (`beforePilotFirstStep`). No textbox, no checkbox.
+PILOT_PICK_TESTID = "pilot-pick"
+PILOT_CARDS = {"pilot-yes": "Yes, ask them", "pilot-no": "No pilot"}
+PILOT_FIRST_STEP = "Your first step: "
+BEFORE_CONTINUE_TESTID = "before-continue"
+#: The founder's word (`PUT /v2/projects/{id}/word`): a pilot pick that differs from the stored opt-in writes it at once.
+WORD_PATH = re.compile(r"/v2/projects/[^/]+/word$")
+#: How long a pick is given to send a write it should not send (*Yes* on a new project writes nothing).
+PILOT_SETTLE_MS = 1_500
+
+
+def pilot_continue(yes: bool) -> str:
+    """keel-web 146 `beforePilotContinue`: *Continue · Yes* / *Continue · No*."""
+    return f"{BEFORE_CONTINUE} · {'Yes' if yes else 'No'}"
+
+
+def pilot_testid(yes: bool) -> str:
+    return "pilot-yes" if yes else "pilot-no"
 
 
 def l1_title(people: str | None) -> str:
@@ -2097,7 +2120,8 @@ class Corridor:
 
     # ------------------------------------------------------------------- step 5: before people
 
-    def word_pilot_and_lock(self, face: str | None = None, *, pilot: bool = True) -> dict:
+    def word_pilot_and_lock(self, face: str | None = None, *, pilot: bool = True, pilot_yes: bool = True,
+                            step: bool = False) -> dict:
         """Step 5 since keel-web 113 FR-2 (spec 073 FR-2): *A word from you* is hidden (`READY_WORD_SCREEN` off), so the
         step starts on its first visible screen -- *Offer a pilot?* (1 of 2; *The pilot* before keel-web 130), then L1
         *Who should ask {people} your questions?* (2 of 2): the carousel of faces on Keel's door (`face` tapped when
@@ -2105,7 +2129,12 @@ class Corridor:
         asks alone, no counter. The word's own address is opened once and answers with that first screen
         (`ReadyRoute`'s redirect). Then *Lock and record {face}* / *Lock and write the questions*. Returns the counters,
         the landing and the redirect, the pilot's title, what L1 drew and the lock's receipt as keel-web received it
-        (`LockReceipt`). The method keeps its name (its callers and stubs)."""
+        (`LockReceipt`). The method keeps its name (its callers and stubs).
+
+        Spec 114 FR-1 (keel-web 146 FR-2): the pilot screen is a pick -- `ready["pilot"]` holds what it drew on open
+        (`_pilot_opened`; `step`: wait for the quoted first step, where the money is in scope and Commitment's step is
+        stored) and the founder's pick (`pilot_yes`: *Yes, ask them*, else *No pilot*), the PUT /word it sent and the
+        label Continue carried when pressed (`_pilot_pick`). Plain *Continue* is disabled there since 146."""
         with self._b.step("founder walks the last step from its first screen (no word), picks who asks, then locks") as h:
             first_screen = r"/define/ready/pilot" if pilot else r"/define/ready/interviewer"
             _wait_url(self.page, first_screen)
@@ -2127,10 +2156,12 @@ class Corridor:
                 first = (counter.text_content() or "").strip()
                 # spec 090 FR-4 (keel-web 130 FR-3): the pilot screen's title, recorded (*Offer a pilot?*)
                 ready["pilot_title"] = _first_text(self.page, "h1")
+                # spec 114 FR-1 (keel-web 146 FR-2): read as it opens -- the quoted step where drawn, two cards
+                # unticked, Continue held -- then the founder's pick, and *Continue · Yes* / *· No*
+                ready["pilot"] = self._pilot_opened(step)
                 h.add_screenshot(self._b.screenshot("pilot"))
                 self._shot("ready-pilot")
-                _button(self.page, BEFORE_CONTINUE).click()
-                _wait_url(self.page, r"/define/ready/interviewer")
+                ready["pilot"].update(self._pilot_pick(pilot_yes))
                 self.page.locator("[data-testid=before-counter]", has_text="2 of 2").wait_for(timeout=10_000)
                 counters = [first, (counter.text_content() or "").strip()]
                 self._shot("ready-interviewer")
@@ -2161,6 +2192,77 @@ class Corridor:
             _wait_url(self.page, r"/interviews/sent|/people", timeout_s=60)       # keel-web 068: Sent
             h.add_screenshot(self._b.screenshot("locked-people"))
             return {"counters": counters, "receipt": receipt, "l1": l1, "status": status, "ready": ready}
+
+    def _pilot_state(self) -> dict:
+        """The pilot screen's cards and Continue as drawn now: each card's testid, words and `aria-checked`, and
+        Continue's words and whether it is disabled."""
+        pick = self.page.get_by_test_id(PILOT_PICK_TESTID)
+        cards = [{"testid": b.get_attribute("data-testid"), "role": b.get_attribute("role"),
+                  "text": " ".join((b.text_content() or "").split()),
+                  "checked": b.get_attribute("aria-checked")}
+                 for b in pick.locator("[role=radio]").all()]
+        button = self.page.get_by_test_id(BEFORE_CONTINUE_TESTID)
+        return {"cards": cards, "continue": {"text": _tc(button) or None,
+                                             "disabled": button.first.is_disabled() if button.count() else None}}
+
+    def _pilot_opened(self, step: bool) -> dict:
+        """Spec 114 FR-1: the pilot screen as it opens (keel-web 146 FR-2) -- the radiogroup, the quoted first step
+        (`step`: waited for, as the page draws it once the COMMERCIAL calibration is read; None where it never came),
+        the two cards and Continue, and how many text boxes and checkboxes the screen draws (none since 146)."""
+        self.page.get_by_test_id(PILOT_PICK_TESTID).wait_for(state="visible", timeout=20_000)
+        first = self.page.get_by_test_id("pilot-first-step")
+        if step:
+            try:
+                first.first.wait_for(state="visible", timeout=10_000)
+            except Exception:  # noqa: BLE001 - a step the page never quoted is the leg's fault to name
+                pass
+        quoted = _tc(first) or None
+        # the screen's card: the one that holds the cards (`section.ccard.before__card`)
+        card = self.page.locator(".ccard", has=self.page.get_by_test_id(PILOT_PICK_TESTID)).last
+        return {"group": {"role": self.page.get_by_test_id(PILOT_PICK_TESTID).first.get_attribute("role"),
+                          "label": self.page.get_by_test_id(PILOT_PICK_TESTID).first.get_attribute("aria-label")},
+                "step_line": quoted,
+                "step": quoted[len(PILOT_FIRST_STEP):] if quoted and quoted.startswith(PILOT_FIRST_STEP) else None,
+                "opened": self._pilot_state(),
+                "textboxes": card.locator("textarea, input[type=text], input:not([type])").count(),
+                "checkboxes": card.locator("input[type=checkbox], [role=checkbox]").count()}
+
+    def _pilot_pick(self, yes: bool) -> dict:
+        """Spec 114 FR-1: taps *Yes, ask them* (`yes`) or *No pilot*, waits for the card to read checked, keeps every
+        `PUT /word` the pick sent (*No* waits for its answer; *Yes* is given `PILOT_SETTLE_MS` to send one it should
+        not), then presses Continue -- *Continue · Yes* / *Continue · No* -- and waits for who asks. Returns the pick,
+        the screen after it, the writes and the label pressed."""
+        testid = pilot_testid(yes)
+        writes: list = []
+
+        def keep(request) -> None:
+            if request.method == "PUT" and WORD_PATH.search(request.url.split("?")[0]):
+                writes.append(request)
+
+        self.page.on("request", keep)
+        try:
+            card = self.page.get_by_test_id(testid)
+            if yes:
+                card.click()
+            else:
+                try:
+                    with self.page.expect_response(lambda r: r.request.method == "PUT"
+                                                   and bool(WORD_PATH.search(r.url.split("?")[0])), timeout=15_000):
+                        card.click()
+                except Exception:  # noqa: BLE001 - a No that wrote nothing is the leg's fault to name
+                    pass
+            self.page.locator(f'[data-testid={testid}][aria-checked="true"]').wait_for(timeout=5_000)
+            self.page.wait_for_timeout(PILOT_SETTLE_MS)
+            after = self._pilot_state()
+            button = self.page.get_by_test_id(BEFORE_CONTINUE_TESTID).first
+            self.page.wait_for_function("(b) => !b.disabled", arg=button.element_handle(), timeout=10_000)
+            pressed = _tc(button)
+            button.click()
+            _wait_url(self.page, r"/define/ready/interviewer")
+        finally:
+            self.page.remove_listener("request", keep)
+        return {"picked": "Yes" if yes else "No", "after": after, "pressed": pressed,
+                "writes": [_request_row(r) for r in writes]}
 
     #: Spec 070 FR-1: the idea card's boxes on the Check screen (keel-web `IdeaCheck`: `idea-{line}`).
     IDEA_BOXES = {"how": "#idea-how", "howDecider": "#idea-howDecider", "belief": "#idea-belief"}

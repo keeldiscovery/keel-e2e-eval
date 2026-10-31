@@ -1020,8 +1020,16 @@ def founder_answer(j, slug: str) -> Any:
         return {"what (typed)": f.idea_name, "how / belief": "saved as Keel drafted them"}
     if slug == "persona":
         return f.decider
-    if slug in ("persona-who-answers", "ready-pilot"):
+    if slug == "persona-who-answers":
         return "Continue"
+    if slug == "ready-pilot":
+        # spec 114 FR-1 (keel-web 146 FR-2): a Yes / No pick, then *Continue · Yes* / *· No*; the step the screen quoted
+        from harness import vectors_screens as vs_screens          # noqa: PLC0415
+        from harness import vectors_script as vs                       # noqa: PLC0415
+        pilot = (getattr(j, "changed", None) or {}).get("pilot") or {}
+        yes = vs.founder_pilot(j.entry)
+        return {"pilot": {"step": pilot.get("step"), "picked": pilot.get("picked") or ("Yes" if yes else "No")},
+                "pressed": pilot.get("pressed") or vs_screens.pilot_continue(yes)}
     if slug == "ready-interviewer":
         # spec 090 FR-4 (keel-web 130 FR-2): the lock names the face it records
         return "Lock and record the face Keel preselects"

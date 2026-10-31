@@ -64,6 +64,7 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import os
 import re
 import time
 from dataclasses import dataclass, field
@@ -371,6 +372,41 @@ def _hold_the_scope(j: Journey) -> None:
             assert opened == ["problem"], chose.get("opened")
 
 
+#: Spec 114 FR-2: keel-web 147 (*the card says the window once*) leaves the context card's muted *Counting the last
+#: {window}.* line out where the served sentence ends *We'll ask about the last {window}.* (keel-cloud 168), and keeps it
+#: on an older sentence with no window. Not on keel-web master when 114 was built (master `23c7596`, 146; 147 on its
+#: branch `a4e8546`), so the pins stand: the line is owed on every windowed card. Whoever merges 147 sets this True
+#: (or `KEEL_WEB_147=1` in the environment for one run against a 147 build).
+WEB_147_BUILT = False
+
+
+def web_147_built() -> bool:
+    return WEB_147_BUILT or os.environ.get("KEEL_WEB_147") == "1"
+
+
+def window_line_owed(understands: str | None, window, *, once: bool | None = None) -> str | None:
+    """Spec 114 FR-2: the muted window line the windowed context card owes -- *Counting the last {window}.* -- or None
+    where keel-web 147 is built (`once`, default `web_147_built()`) and the served sentence already says the window
+    (`vs.read_back_says_window`). Before 147 the line is owed on every windowed card, whatever the sentence."""
+    once = web_147_built() if once is None else once
+    if once and vs.read_back_says_window(understands):
+        return None
+    return f"Counting the last {vs.window_words(window)}."
+
+
+def window_line_faults(understands: str | None, window_line: str | None, window, *,
+                       once: bool | None = None) -> list[dict]:
+    """Spec 114 FR-2: the drawn window line against `window_line_owed` -- none drawn where none is owed; where one is
+    owed, the line carries the founder's window words (the pin since spec 071)."""
+    owed = window_line_owed(understands, window, once=once)
+    line = " ".join((window_line or "").split())
+    if owed is None:
+        return [] if not line else [{"what": "a window line under a sentence that says the window (keel-web 147)",
+                                     "drawn": line, "want": None}]
+    return [] if vs.window_words(window) in line else [{"what": "the card's window line", "drawn": line,
+                                                        "want": owed}]
+
+
 def leg_context(j: Journey) -> None:
     """The context step: the four fields and the entry's own recall window, one CONTEXT_INTERPRET
     job, and *Yes, that's it*. Asserted on the card and on the wire: the sentence Keel understood
@@ -399,7 +435,8 @@ def leg_context(j: Journey) -> None:
         # the founder's WHICH PEOPLE (keel-cloud 146 FR-1), though the result writes none
         condition = vs.card_condition(j.entry)
         want_lines = {"only_people_who": f"Only people who: {condition}." if condition else None}
-        h.record_assert({"understands": want, "window": vs.window_words(founder.window) if windowed else None,
+        owed_words = windowed and window_line_owed(drawn, founder.window) is not None     # spec 114 FR-2
+        h.record_assert({"understands": want, "window": vs.window_words(founder.window) if owed_words else None,
                          "window drawn": windowed, **want_lines},
                         {"understands": drawn, "window": window_line, "window drawn": j.corridor.window_drawn,
                          **lines})
@@ -410,7 +447,9 @@ def leg_context(j: Journey) -> None:
             assert lines.get("only_people_who") == want_lines["only_people_who"], lines
         assert j.corridor.window_drawn is windowed, j.corridor.window_drawn
         if windowed:
-            assert vs.window_words(founder.window) in window_line, window_line
+            # spec 114 FR-2: the muted line is owed until keel-web 147, then only under a sentence with no window
+            assert not window_line_faults(drawn, window_line, founder.window), \
+                window_line_faults(drawn, window_line, founder.window)
         j.screens["context_card"] = {"understands": drawn, "text": drawn, **lines}
     if not windowed:
         _drift_96_guard(j, drawn, window_line)          # spec 072 FR-2: DRIFT #96 closed
@@ -2566,7 +2605,11 @@ def leg_lock(j: Journey) -> None:
     # spec 072 FR-1 (runs/DRIFT.md #95, closed by keel-cloud 134): the plan reads complete over the scope before the press
     plan_complete(j)
     # spec 071 (keel-web 109 FR-3, keel-cloud 133 FR-4): the problem study asks no pilot question -- no pilot screen
-    drawn = j.corridor.word_pilot_and_lock(pilot=j.scope != "PROBLEM")
+    pilot = j.scope != "PROBLEM"
+    # spec 114 FR-1 (keel-web 146 FR-2): the pilot is a Yes / No pick; the quoted first step where the money is in scope
+    step = stored_first_step(j) if pilot else None
+    yes = vs.founder_pilot(j.entry)
+    drawn = j.corridor.word_pilot_and_lock(pilot=pilot, pilot_yes=yes, step=step is not None)
     if drawn.get("disabled"):
         _drift_95_guard(j, drawn)
     if (drawn.get("status") or 200) >= 400:
@@ -2575,11 +2618,101 @@ def leg_lock(j: Journey) -> None:
     j.screens["L1"] = drawn.get("l1") or {}
     j.changed["before_counters"] = drawn.get("counters")       # spec 071: step 5's counters (not a page drawn)
     _hold_no_word(j, drawn)
+    if pilot:
+        _hold_the_pilot_pick(j, drawn, yes=yes, step=step)
     if getattr(j, "keels_door", False):
         _keels_door_l1(j, drawn)
     else:
         _own_door_l1(j, drawn)
     _lock_lands(j)
+
+
+# ----------------------------------------------------------------- spec 114 FR-1: the pilot screen is a pick
+
+def commitment_step(view: dict | None) -> str | None:
+    """keel-web 146 `commitmentStep` (`lib/founderLists.ts`): the founder's Commitment step as the COMMERCIAL calibration
+    stores it -- `commercial.commitment`'s `answer.list.items[pickedIndex ?? 0].label`, trimmed -- or None where it is
+    left out (*I'm not sure*), unsaved or empty. (The web falls back to the locked plan's lists, which are null before the
+    lock, where the pilot screen is.)"""
+    question = next((q for q in (view or {}).get("questions") or [] if q.get("dimension") == "commercial.commitment"),
+                    None)
+    answer = (question or {}).get("answer") or {}
+    if answer.get("unsure"):
+        return None
+    saved = answer.get("list") or {}
+    items = saved.get("items") or []
+    index = saved.get("pickedIndex") or 0
+    label = " ".join(str((items[index] or {}).get("label") or "").split()) if 0 <= index < len(items) else ""
+    return label or None
+
+
+def stored_first_step(j: Journey) -> str | None:
+    """The step the pilot screen quotes (keel-web 146 FR-2): where the money is in scope, the stored Commitment step;
+    None on a study without the money (SOLUTION: the page makes no calibration read)."""
+    if "COMMERCIAL" not in vs.scope_vectors(j.entry):
+        return None
+    return commitment_step(j.get(j.project("/calibration/COMMERCIAL")))
+
+
+def pilot_pick_faults(pilot: dict | None, *, yes: bool, step: str | None) -> list[dict]:
+    """Spec 114 FR-1 (keel-web 146 FR-2): the pilot screen as it opened and as it was picked, against what 146 draws --
+    the radiogroup with two radio cards, *Yes, ask them* and *No pilot*, neither checked on open; Continue *Continue*
+    and disabled; no text box, no checkbox; the quoted *Your first step: {step}* where a step is stored, none where not;
+    after the pick the picked card checked alone and Continue *Continue · Yes* / *Continue · No*, pressed with that label;
+    and the founder's word written on *No* only -- one `PUT /word` with `pilotEnabled: false`, answered 2xx; *Yes* on a
+    new project writes nothing (the stored default is true). Every miss is one fault `{what, drawn, want}`."""
+    if not pilot:
+        return [{"what": "no pilot screen was read", "drawn": pilot, "want": "the pilot pick"}]
+    faults: list[dict] = []
+
+    def fault(what: str, drawn, want) -> None:
+        if drawn != want:
+            faults.append({"what": what, "drawn": drawn, "want": want})
+
+    opened = pilot.get("opened") or {}
+    fault("the cards' group", (pilot.get("group") or {}).get("role"), "radiogroup")
+    fault("the cards on open", [(c.get("testid"), c.get("role"), c.get("text"), c.get("checked"))
+                                for c in opened.get("cards") or []],
+          [(t, "radio", words, "false") for t, words in vs_screens.PILOT_CARDS.items()])
+    fault("Continue on open", opened.get("continue"), {"text": vs_screens.BEFORE_CONTINUE, "disabled": True})
+    fault("text boxes on the screen", pilot.get("textboxes"), 0)
+    fault("checkboxes on the screen", pilot.get("checkboxes"), 0)
+    fault("the quoted first step", pilot.get("step_line"),
+          f"{vs_screens.PILOT_FIRST_STEP}{step}" if step else None)
+    picked = "Yes" if yes else "No"
+    fault("the pick", pilot.get("picked"), picked)
+    after = pilot.get("after") or {}
+    fault("the cards after the pick", [(c.get("testid"), c.get("checked")) for c in after.get("cards") or []],
+          [(t, "true" if t == vs_screens.pilot_testid(yes) else "false") for t in vs_screens.PILOT_CARDS])
+    label = vs_screens.pilot_continue(yes)
+    fault("Continue after the pick", after.get("continue"), {"text": label, "disabled": False})
+    fault("the label pressed", pilot.get("pressed"), label)
+    writes = pilot.get("writes") or []
+    if yes:
+        fault("PUT /word on Yes", writes, [])
+    else:
+        fault("PUT /word on No", [((w.get("body") or {}).get("pilotEnabled") if isinstance(w.get("body"), dict)
+                                   else w.get("body"), isinstance(w.get("status"), int) and 200 <= w["status"] < 300)
+                                  for w in writes], [(False, True)])
+    return faults
+
+
+def _hold_the_pilot_pick(j: Journey, drawn: dict, *, yes: bool, step: str | None) -> None:
+    """Spec 114 FR-1 (keel-web 146 FR-2): the walk picks on the pilot screen -- *Yes, ask them* (the corpus's
+    `pilot_opt_in` people expect the pilot line at the end, spec 067 FR-6), *No pilot* where the founder opts out -- and
+    the screen is held to 146 (`pilot_pick_faults`). The pick is the founder's answer on the `ready-pilot` screen of
+    record (`j.changed["pilot"]`: `{step, picked}`, read by the back-test's `founder_answer`)."""
+    pilot = (drawn.get("ready") or {}).get("pilot")
+    j.changed["pilot"] = {"step": (pilot or {}).get("step"), "picked": (pilot or {}).get("picked"),
+                          "pressed": (pilot or {}).get("pressed")}
+    faults = pilot_pick_faults(pilot, yes=yes, step=step)
+    with _step(j, f"the pilot screen opens with neither card picked and Continue held{', quoting the first step' if step else ''}; "
+                  f"the founder picks *{vs_screens.PILOT_CARDS[vs_screens.pilot_testid(yes)]}* and presses "
+                  f"*{vs_screens.pilot_continue(yes)}*; " + ("nothing is written (the stored opt-in is already yes)"
+                                                           if yes else "the word is written with pilotEnabled false")
+                  + " (keel-web 146 FR-2)", party="founder") as h:
+        h.record_assert({"faults": []}, {"faults": faults, "pilot": pilot})
+        assert not faults, faults
 
 
 # ------------------------------------------------- spec 070 FR-1: a refused lock, answered on the idea card

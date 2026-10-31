@@ -88,7 +88,7 @@ def test_leg_lock_holds_the_plan_then_presses_the_button(tmp_path, countly, monk
     j = _journey(tmp_path, seed, _plan(["PROBLEM"]), persona="NOT_SET")
 
     class _Corridor:
-        def word_pilot_and_lock(self, face=None, *, pilot=True):
+        def word_pilot_and_lock(self, face=None, *, pilot=True, **_):
             order.append(("pressed", pilot))
             # spec 073 FR-2: the problem study's who asks alone, no counter; the word's address redirected there
             return {"counters": [], "receipt": {"version": 1}, "l1": {}, "status": 201,

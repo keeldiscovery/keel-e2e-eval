@@ -508,6 +508,18 @@ def sentence(segment_core, condition, circumstance, job, window: "Window | None"
     return out + "." + (f" We'll ask about the last {window_words(window)}." if window else "")
 
 
+#: keel-web 147 FR-1 `readBackSaysWindow` (`lib/contextReach.ts`, on its branch `a4e8546`; not on keel-web master when
+#: spec 114 was built): the served sentence ends with keel-cloud 168's window sentence, *We'll ask about the last
+#: {window}.* -- straight or curly apostrophe, after a space or at the start, the sentence trimmed.
+READ_BACK_SAYS_WINDOW = re.compile(r"(?:^|\s)We['\u2019]ll ask about the last [^.]+\.$")
+
+
+def read_back_says_window(understands: str | None) -> bool:
+    """keel-web 147 `readBackSaysWindow`: True where the served sentence already says its window (keel-cloud 168), so
+    the card's muted *Counting the last {window}.* line would say it twice; False for a sentence with no window."""
+    return bool(READ_BACK_SAYS_WINDOW.search((understands or "").strip()))
+
+
 def read_back(entry, *, window=True, confirmed: bool = False) -> str | None:
     """keel-cloud 122 `ReadBack.sentence` over the scripted slots -- what the context card serves since 122; never the
     model's line. The card's is read off the result (`scripted_segment`); `confirmed` reads the stored context's
@@ -2083,6 +2095,14 @@ def founder_inputs(entry) -> FounderInputs:
         hourly_rate=hourly_rate(entry),
         idea_name=founder_idea_name(entry),
     )
+
+
+def founder_pilot(entry) -> bool:
+    """Spec 114 FR-1 (keel-web 146 FR-2): the founder's pick on the pilot screen -- True for *Yes, ask them*, False for
+    *No pilot*. Yes on every entry: the corpus's `pilot_opt_in` people expect the pilot line at the end (spec 067 FR-6),
+    and no entry, golden or back-test, records a founder who opts out (none carries a founder-side pilot answer). An
+    entry object that says `founder_pilot = False` (a test's) picks No."""
+    return getattr(entry, "founder_pilot", True) is not False
 
 
 @dataclass(frozen=True)
