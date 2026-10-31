@@ -449,6 +449,7 @@ def real():
     if not (keel_cloud / cloud_mod.SPOKEN_FILE).is_file():
         pytest.skip("keel-cloud's SpokenGuidelinesCorpusTest has not written build/spoken-corpus.txt -- run "
                     "`./gradlew test --tests '*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout")
+    fx.skip_without_brief_facts(keel_cloud)                           # spec 115: a record with no brief facts
     fx.canon_entry("01-countly.yaml")                                 # skips by name off revision 13
     fx.skip_a_spoken_record_before_159(keel_cloud)                    # spec 089: a record before 158 / 159
     if not (keel_cloud / cloud_mod.REGISTRY_FILE).is_file():

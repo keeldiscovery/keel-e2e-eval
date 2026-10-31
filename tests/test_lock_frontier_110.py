@@ -135,6 +135,7 @@ def _record_after_170(tmp_path):
     source = KEEL_CLOUD / cloud_mod.SPOKEN_FILE
     if not source.is_file() or not (KEEL_CLOUD / cloud_mod.REGISTRY_FILE).is_file():
         pytest.skip("no keel-cloud spoken record or registry of record")
+    fx.skip_without_brief_facts(KEEL_CLOUD)                           # spec 115: a record with no brief facts
     fx.canon_entry("01-countly.yaml")
     fx.skip_a_spoken_record_before_159(KEEL_CLOUD)
     registry = cloud_mod.registry_of_record(KEEL_CLOUD)
@@ -151,10 +152,14 @@ def _record_after_170(tmp_path):
                            for b in blocks[1:]]
     friction = "commercial.purchase_friction [part 3]\n"
     blocks = f"{SACRIFICE_KEY} [part 3]\n".join(moved).split(friction)
-    moved = [blocks[0]] + [b.replace(f"\n  escape: {fx.FRICTION_ESCAPE_BEFORE_174}\n", "\n  escape: I can't tell\n", 1)
-                           .replace("| escape=Or say you can't recall. |", "| escape=Or say you can't tell. |", 1)
-                           for b in blocks[1:]]
-    target.write_text(friction.join(moved), encoding="utf-8")
+
+    def told(block: str) -> str:
+        # the Purchase friction item alone -- its indented lines, up to the next item's or entry's header
+        item, rest = re.match(r"((?:  [^\n]*\n)*)(.*)\Z", block, re.S).groups()
+        item = item.replace(f"\n  escape: {fx.FRICTION_ESCAPE_BEFORE_174}\n", "\n  escape: I can't tell\n", 1) \
+            .replace("| escape=Or say you can't recall. |", "| escape=Or say you can't tell. |", 1)
+        return item + rest
+    target.write_text(friction.join([blocks[0]] + [told(b) for b in blocks[1:]]), encoding="utf-8")
     corpus = corpus_mod.load(KEEL_CLOUD).bind(registry)
     return registry, corpus, cloud_mod.read(tmp_path, corpus=corpus, registry=registry), source.read_text("utf-8") != \
         target.read_text("utf-8")

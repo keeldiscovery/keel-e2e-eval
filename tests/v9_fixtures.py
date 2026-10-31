@@ -267,6 +267,19 @@ def skip_a_spoken_record_before_159(keel_cloud) -> None:
 
 #: keel-cloud 170 FR-5 (spec 110 FR-2): Existing sacrifice's registry escape, *I don't know* before 170.
 SACRIFICE_ESCAPE_BEFORE_170 = "I don't know"
+def skip_without_brief_facts(keel_cloud) -> None:
+    """Spec 115: `instructions.cloud_corpus.read` takes keel-cloud's two corpus outputs together, and a Gradle run of
+    the SpokenGuidelinesCorpusTest alone (after a clean) leaves `build/spoken-corpus.txt` with no `build/brief-facts`.
+    The record's tests read the spoken record, so such a checkout is skipped by name, as one with no record is (rerun
+    both corpus tests in the keel-cloud checkout to compare) -- never an error of the record's tests."""
+    import pytest                                                     # noqa: PLC0415
+    from instructions import cloud_corpus as cloud_mod                # noqa: PLC0415
+    if not (Path(keel_cloud) / cloud_mod.FACTS_DIR).is_dir():
+        pytest.skip("keel-cloud's BriefFactsCorpusTest has not written build/brief-facts beside build/spoken-corpus.txt "
+                    "-- run `./gradlew test --tests '*SpokenGuidelinesCorpusTest' --tests '*BriefFactsCorpusTest'` in "
+                    "the keel-cloud checkout")
+
+
 #: keel-cloud 174 FR-2 (spec 115 FR-0): Purchase friction's registry escape, *I can't recall* before 174.
 FRICTION_ESCAPE_BEFORE_174 = "I can't recall"
 
