@@ -996,6 +996,25 @@ failed / 0 errors / 53 skipped (+14, `tests/test_sign_in_on_the_issuer_095.py`; 
 against keel-cloud-docs `ab5b15ef` and keel-web `7a3105f`; the remote acceptance (`make eval K=s003|s010
 PROFILE=remote`) is the coordinator's.
 
+**The mirrors follow keel-cloud 178/179 and keel-web 152/153/154** (spec `117-the-mirror-follows-178-179-and-153`,
+2026-10-31). **FR-1 (179)**: `instructions/brief_facts.py` says Purchase friction in the question's tense -- the bar
+*holds if at least 2 in 3 say it would be needed and would take a long time* (the page's Choose bar in the brief's
+shape), held *Yes, {step} would slow it. Plan for it.*, not held *... said it would be quick or not needed. Not the
+blocker you expected.*, the card *would need {step}, and it would take a long time*; Compare's lines have no mirror
+here. The DRY reader (`cloud_facts_at_104`) moves a `build/brief-facts/` written before 179 by 179's own table on the
+friction card alone (`retense_179`) until a fresh `BriefFactsCorpusTest` rewrites it; `s006-reads.json` stays as
+recorded (re-record it) and a test says its old tense still exports. **FR-2 (178)**: `vs.ANSWERS_VIEW_NOTHING` *None*.
+**FR-3 (153)**: `vs_screens` mirrors the Answer hints (Importance's words, Compatibility's pattern), the Choose titles
+(*Which one do you want to test?* on Purchase friction and Compatibility -- 179's served prompt -- beside 116's Buyer and
+payer), Purchase friction's intro and bar, Commitment's decider bar on B2B (`commitment_bar`), the box's
+`keeltest-note`, `frequency-range-hint` and the count-free Importance box; `list_choose` reads `intro`, `note_before`,
+`note`, `single` reads `range_hint`; one `leg_calibrate` step holds them (`said_faults`). **FR-4 (152 / 154)**: the
+story sheet's `chips` (the first still *can't recall*), a scripted `RATHER_NOT_SAY` tapped by its words, a story that
+IS the refusal said stops the walk by name (`fake.story_chip_said`, 152's `chipSaid`; no corpus story is one); the
+after-answers leg reads `stage-page`, `stage-verdict`, `stage-dimension[data-dim][data-opens]`, `stage-dimension-open`,
+`dimension-chart`, `dimension-verdict`, `dimension-count` first, 109's classes as the fallback (`by_ids` recorded).
+`make unit` 4,799 passed / 0 failed / 0 errors / 53 skipped (+44, 43 in `tests/test_mirror_follows_117.py`; master `88772e4` 4,755 / 0 / 0 / 53) against keel-cloud-docs `2f147fe7` and keel-web `7243de7`; the acceptance walk is the coordinator's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
