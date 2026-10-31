@@ -25,6 +25,12 @@ same / worse** (the rule in RUBRIC.md); refused when no baseline is cut or the b
 `--cut-baseline` writes `BASELINE.md` from the latest files (the old one kept under `quality/baselines/<date>.md`) --
 only on the founder's word, and so it is no make target.
 
+**Spec 109 (rubric version 3)**: the founder-reader's §B screens after the answers -- `stage`, `dimension`,
+`insights-screen` -- are rows of their own per (scope, kind, dimension), with B1-B6's means, under *After the answers*;
+the head's founder line carries `after_pct` (B alone) beside its `score_pct`, which folds them in. Their fix locations
+are the stage page's and the chart's words (keel-web) and the verdict lines keel-cloud serves (`BriefFacts`), and for
+the Insights screen themes.md and keel-web's Insights tab (`fix_location`).
+
 **Spec 079 FR-3** (the quality cycle): `--cycle <record>` (`make read-table CYCLE=`) tops the table with the three lines
 the founder reads after a walk -- *this cycle* (score_pct, flagged_pct), *the baseline* (the same), *the bar* -- and,
 with `--baseline`, a section of the rows that moved since the baseline (a mean by `MOVED_MEAN` or more, or turned weak,
@@ -127,8 +133,23 @@ _FOUNDER_FILES = {
 }
 
 
+#: Spec 109 FR-3: where a weak §B row is fixed -- the stage page and a dimension card are keel-web's words drawn over
+#: the verdict lines keel-cloud serves (no model writes either); the Insights screen's groups are the THEMES
+#: instruction's, drawn by keel-web's Insights tab.
+AFTER_FIX = {
+    "stage": ("no model", "keel-web's stage page and chart words (DimensionStagePage, AnswerChart), and keel-cloud's "
+                          "BriefFacts / verdict lines (the headline, the statusLine)"),
+    "dimension": ("no model", "keel-web's stage page and chart words (DimensionStagePage, AnswerChart), and keel-cloud's "
+                              "BriefFacts / verdict lines (the headline, the statusLine)"),
+    "insights-screen": ("shared file", "themes.md (the THEMES grouping instruction), and keel-web's Insights tab "
+                                       "(InsightsView)"),
+}
+
+
 def fix_location(audience: str, kind: str, dimension: str | None) -> tuple[str, str]:
     """Where a weak row is fixed, by the design's §1 table: (category, place)."""
+    if kind in AFTER_FIX:
+        return AFTER_FIX[kind]
     if audience == "founder":
         if kind in _FOUNDER_FILES:
             return _FOUNDER_FILES[kind]
@@ -179,16 +200,20 @@ def rows(latest: dict) -> list[dict]:
             grouped.items(), key=lambda kv: (kv[0][0], kv[0][2], kv[0][1], kv[0][3])):
         scores = [s for _, s in pairs]
         stats = rubric.summary(scores)
-        zero_entries = {c: sorted({e for e, s in pairs if s.get(c) == 0}) for c in rubric.CRITERIA}
-        weak_on = [c for c in rubric.CRITERIA
+        # spec 109: a §B row is read on B1-B6, every other on R1-R6
+        crits = rubric.B_CRITERIA if rubric.is_after(kind) else rubric.CRITERIA
+        means = {c: stats["means"][c] for c in crits}
+        zero_entries = {c: sorted({e for e, s in pairs if s.get(c) == 0}) for c in crits}
+        weak_on = [c for c in crits
                    if len(zero_entries[c]) >= rubric.WEAK_ZERO_ENTRIES
-                   or (stats["means"][c] is not None and stats["means"][c] < rubric.WEAK_MEAN)]
+                   or (means[c] is not None and means[c] < rubric.WEAK_MEAN)]
         category, place = fix_location(audience, kind, None if dimension == "-" else dimension)
         fix = {"category": category, "place": place}
         if criterion_fixes(weak_on):
             fix["also"] = criterion_fixes(weak_on)
         out.append({"scope": scope, "dimension": dimension, "audience": audience, "kind": kind, "screens": len(scores),
-                    "entries": sorted({e for e, _ in pairs}), "means": stats["means"], "zeros": stats["zeros"],
+                    "entries": sorted({e for e, _ in pairs}), "means": means,
+                    "zeros": {c: stats["zeros"][c] for c in crits},
                     "zero_entries": zero_entries, "score_pct": stats["score_pct"],
                     "spoken_pct": stats.get("spoken_pct"), "weak": bool(weak_on),
                     "weak_on": weak_on, "fix": fix,
@@ -332,7 +357,8 @@ def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | N
         lines += [f"**Overall score_pct {_num(top['score_pct'], 1)}%** over the latest file of each of "
                   f"{top['entries']} studies (entry · scope) -- {verdict} of **{rubric.BAR_PCT:.0f}%** the founder named before the "
                   "remaining entries are walked.", "",
-                  f"- founder: score_pct {_num(by['founder']['score_pct'], 1)}%, flagged "
+                  f"- founder: score_pct {_num(by['founder']['score_pct'], 1)}%, after_pct "
+                  f"{_num(by['founder'].get('after_pct'), 1)}%, flagged "
                   f"{_num(by['founder']['flagged_pct'], 1)}% of {by['founder']['screens']} screens",
                   f"- respondent: score_pct {_num(by['respondent']['score_pct'], 1)}%, spoken_pct "
                   f"{_num(by['respondent'].get('spoken_pct'), 1)}%, insights_pct "
@@ -352,13 +378,28 @@ def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | N
               "R6 (said aloud) is the respondent-reader's alone: a founder row shows –.", "",
               "| | scope | audience | dimension | kind | n | R1 | R2 | R3 | R4 | R5 | R6 | 0s | entries with a 0 | fix |",
               "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
-    for r in [r for r in table if r["kind"] != "insights"]:
+    for r in [r for r in table if r["kind"] != "insights" and not rubric.is_after(r["kind"])]:
         zeros = sum(r["zeros"].values())
         with_zero = sorted({e for c in rubric.CRITERIA for e in r["zero_entries"][c]})
         lines.append("| " + " | ".join([
             "**WEAK**" if r["weak"] else "", r["scope"], r["audience"], _cell(r["dimension"]), r["kind"], str(r["screens"]),
             *[_num(r["means"][c]) for c in rubric.CRITERIA], str(zeros), ", ".join(with_zero),
             _cell(_fix_text(r["fix"]))]) + " |")
+    after = [r for r in table if rubric.is_after(r["kind"])]
+    lines += ["", "## After the answers -- the stage page, each dimension card, the Insights screen (§B)", ""]
+    if not after:
+        lines.append("No screen after the answers read yet (spec 109: the founder-reader reads them from rubric "
+                     "version 3).")
+    else:
+        lines += ["B2 is not scored on the Insights screen, B6 on the stage page and the cards: those show –.", "",
+                  "| | scope | dimension | kind | n | B1 | B2 | B3 | B4 | B5 | B6 | after % | 0s | entries with a 0 | fix |",
+                  "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+        for r in after:
+            with_zero = sorted({e for c in rubric.B_CRITERIA for e in r["zero_entries"][c]})
+            lines.append("| " + " | ".join([
+                "**WEAK**" if r["weak"] else "", r["scope"], _cell(r["dimension"]), r["kind"], str(r["screens"]),
+                *[_num(r["means"][c]) for c in rubric.B_CRITERIA], _num(r["score_pct"], 1),
+                str(sum(r["zeros"].values())), ", ".join(with_zero), _cell(_fix_text(r["fix"]))]) + " |")
     grouped = [r for r in table if r["kind"] == "insights"]
     lines += ["", "## Insights -- the grouping of the follow-up lines (§G)", ""]
     if not grouped:
@@ -405,7 +446,8 @@ def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | N
                   f"{comparison['why']}", "",
                   f"Baseline: {comparison['baseline']['cut']} ({comparison['baseline']['score_pct']}%), now "
                   f"{comparison['score_pct']}%.", "",
-                  "| row | ΔR1 / ΔG1 | ΔR2 / ΔG2 | ΔR3 | ΔR4 | ΔR5 | ΔR6 | weak then | weak now |",
+                  "| row | ΔR1 / ΔG1 / ΔB1 | ΔR2 / ΔG2 / ΔB2 | ΔR3 / ΔB3 | ΔR4 / ΔB4 | ΔR5 / ΔB5 | ΔR6 / ΔB6 | weak then "
+                  "| weak now |",
                   "|---|---|---|---|---|---|---|---|---|"]
         for d in comparison["rows"]:
             deltas = list(d["delta"].values()) + [None] * (len(rubric.CRITERIA) - len(d["delta"]))
@@ -449,7 +491,8 @@ def render_baseline(data: dict) -> str:
              f"- score files: {', '.join(data['files'])}",
              f"- cloud sha(s): {', '.join(data['cloud_shas'])}; routing version(s): {', '.join(data['routing_versions'])}",
              f"- reader(s): {', '.join(data['readers'])}", "",
-             "| row | R1 / G1 | R2 / G2 | R3 | R4 | R5 | R6 | weak |", "|---|---|---|---|---|---|---|---|"]
+             "| row | R1 / G1 / B1 | R2 / G2 / B2 | R3 / B3 | R4 / B4 | R5 / B5 | R6 / B6 | weak |",
+             "|---|---|---|---|---|---|---|---|"]
     for key, row in data["rows"].items():
         means = list(row["means"].values()) + [None] * (len(rubric.CRITERIA) - len(row["means"]))
         lines.append("| " + " | ".join([_cell(key), *[_num(v) for v in means],

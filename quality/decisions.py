@@ -41,11 +41,13 @@ NO_DIMENSION = "-"
 #: kinds as the readers name them (a founder screen `q-<dimension>` is kind `q`; the rest are their own name), and the
 #: stranger's -- plus `insights`, the §G reading of a follow-up line. `make unit` holds this list to every kind the
 #: committed score files carry and to quality/table.py's founder files. `context-window` is keel-web 141's 2 of 2, the
-#: recall window's own page (spec 097 FR-3), the page's own words (`table.fix_location`'s *no model*).
+#: recall window's own page (spec 097 FR-3), the page's own words (`table.fix_location`'s *no model*). The last three
+#: are spec 109's, read after everyone has answered (`rubric.AFTER_KINDS`): the study's stage page, each dimension card
+#: opened with its chart, and the Insights screen -- `table.AFTER_FIX` names where each is fixed.
 FOUNDER_SCREENS = ("persona", "persona-who-answers", "name", "market", "context", "context-window", "context-card",
                    "problem-seed", "problem-card", "idea", "solution-seed", "solution-card",
                    "failed-solution-calibration", "q", "answer", "check", "choose", "ready-interviewer", "ready-pilot",
-                   "send-format", "send-who")
+                   "send-format", "send-who", "stage", "dimension", "insights-screen")
 #: `condition` is the link's own screener as the walk records it (`vectors_screens.Interview._condition`, spec 076 FR-4 /
 #: spec 101 FR-1: the decision-maker's, keel-web 127 FR-2), read as its own screen by the readers' catch-all -- the
 #: committed money-study score files of 2026-10-30 (`083fc9a`) carry it; `screener` is the gate's own chip question.

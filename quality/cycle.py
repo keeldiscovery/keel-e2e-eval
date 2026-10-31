@@ -539,6 +539,13 @@ def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: 
         prev = load_record(prev_path)
         previous = {"record": prev_path.stem, "score_pct": (prev.get("head") or {}).get("score_pct"),
                     "flagged_pct": (prev.get("head") or {}).get("flagged_pct"), "studies": {}}
+        if prev.get("rubric_version") not in (None, rubric.RUBRIC_VERSION):
+            # spec 109 FR-4: a cycle read at another rubric version is named and never compared -- no per-study delta,
+            # no verdict (cycle 4, the first at version 3, after cycle 3 at version 2)
+            previous.update(verdict="not compared",
+                            why=f"the previous cycle was read at rubric version {prev['rubric_version']} and this one "
+                                f"at {rubric.RUBRIC_VERSION}: two rubric versions are never compared")
+            prev = {}
         now_by = {s.key: s.score_pct for s in scored}
         for s in prev.get("studies") or []:
             key = f"{s['entry']} · {s['scope']}"
@@ -824,7 +831,9 @@ def adviser_template(path: Path | None = None) -> str:
 
 
 def _criteria_lines(row: dict) -> str:
-    anchors = {c["id"]: c for c in (rubric.g_criteria() if row["kind"] == "insights" else rubric.criteria())}
+    # spec 109: a §B row's anchors are §B's
+    anchors = {c["id"]: c for c in (rubric.g_criteria() if row["kind"] == "insights" else rubric.b_criteria()
+                                    if rubric.is_after(row["kind"]) else rubric.criteria())}
     out = []
     for c in row["weak_on"]:
         a = anchors.get(c, {})
@@ -856,7 +865,7 @@ def failing_screens(row: dict, files: list[dict], *, limit: int = 12) -> list[st
                 continue
             low = [c for c in row["weak_on"] if s.get(c) is not None and s[c] < 2]
             if low:
-                whys = "; ".join(f"{c.upper()} {s[c]} -- {s.get('why' + c[1:], '')}" for c in low)
+                whys = "; ".join(f"{c.upper()} {s[c]} -- {s.get(rubric.WHY_OF[c], '')}" for c in low)
                 out.append(f"- {f['entry']} · `{s['screen']}`" + (f" (link {s['link']})" if s.get("link") else "")
                            + f": {whys}" + (f". Instead: {s['instead']}" if s.get("instead") else ""))
     return out[:limit] or ["- (no screen under 2 on the weak criteria: the row is weak by its mean)"]
