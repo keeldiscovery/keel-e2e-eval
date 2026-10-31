@@ -747,6 +747,19 @@ rows carry none and stand); `scope_marks.sentence_faults` (SC4) the same over th
 and the main checkout needs `make venv`. `make unit` 4,166 / 0 / 53 (master `a0ddf77` 4,143 / 0 / 53); the
 coordinator's `make eval K=s005` is the acceptance.
 
+**A reworded founder row is picked by its nearest label and named as a drift** (spec
+`108-a-reworded-row-is-a-finding-not-a-stop`, 2026-10-30; keel-cloud-docs 177 written for the product's half). Off the
+golden walk, where no drafted row equals the founder's typed label, `corpus_scenario._choose_label` picks the one row
+`nearest_rows` finds in the nearest tier that has any -- the same words once case, punctuation, a possessive, *-s / -ed
+/ -ing* and *could / can / would / will* are folded; else a row carrying every content word of the typed label; else one
+whose content words are all the typed label's, at least half (13-aircaps's *Pair the glasses to their phone* for *Wear
+the glasses, paired to the phone* needs this third tier: the spec's two do not reach it) -- never another typed row, never
+one whose negations differ; it writes **DRIFT: Keel reworded the founder's row '{typed}' as '{drafted}' (spec 081)** into
+`findings` and walks on. None near, or more than one, is 104's stop by name; where none is, *{Dimension}: Keel left out:
+'...'* is written beside 104's *Keel added* (08-fresco's *A trial on one live job*). `runs/DRIFT.md` #101 files the three
+cases of the day as keel-cloud's. Strict is unchanged. `make unit` 4,186 / 1 / 53 (master `554bb03` 4,166 / 0 / 53; the one failure is
+`test_open_link_092`'s `group-link` pin against keel-web 142, merged during the build -- eval 098's, not built).
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
