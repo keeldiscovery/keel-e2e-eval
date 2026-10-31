@@ -58,6 +58,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
 from harness import interview_charge
+from harness import loss_line as ll
 from harness import qualifiers
 from instructions import chain as chain_mod
 from instructions import corpus as corpus_reader
@@ -807,9 +808,313 @@ NOBODY_ELSE = ("nobody_else", "Nobody else")
 #: Every escape the registry gives an item (registry 4 `respondent.escape.code`).
 ESCAPES = {"cant_recall", "cant_tell", "cant_say", "cant_recall_one", "none_of_these", "someone_else_checks",
            "dont_know", "rather_not_say"}
-#: keel-cloud 115's value box: *Nothing* (the number 0, counted), *I don't know* (the escape, apart), *I'd rather not
-#: say* (apart, a consumer link) -- sent as `chip`.
+#: keel-cloud 115's value box: *None* (the number 0, counted), *I can't recall* (the escape, apart), *I'd rather not
+#: say* (apart, a consumer link) -- sent as `chip`. The labels were *Nothing* and *I don't know* until keel-cloud 170
+#: (spec 110 FR-3, `CommercialChain.NOTHING_LABEL` / `DONT_KNOW_LABEL`); the codes did not move.
 VALUE_BOX_CHIPS = {"nothing": "NOTHING", "dont_know": "DONT_KNOW", "rather_not_say": "RATHER_NOT_SAY"}
+VALUE_BOX_LABELS = {"NOTHING": "None", "DONT_KNOW": "I can't recall", "RATHER_NOT_SAY": "I'd rather not say"}
+
+
+def value_box_escapes(consumer: bool) -> list[str]:
+    """`CommercialChain.valueBoxEscapes`: the chips recorded apart, as served codes -- *I can't recall*, and *I'd rather
+    not say* on a consumer link."""
+    return ["DONT_KNOW", "RATHER_NOT_SAY"] if consumer else ["DONT_KNOW"]
+
+
+# ------------------------------------------------------- the stranger's cost item (keel-cloud 170 FR-5, mirrored)
+# `CommercialChain.costQuestion` (the chain branch the lock stores), `strangerCostLabel`, `valueBoxAnswerLine`, over
+# `harness.loss_line`'s `LossLine` (spec 110 FR-3). A cost is the founder's chain answer as the corpus and the wire carry
+# it: `mode`, `measure`, `base`, `unit`, `period`, `lossPhrase`.
+
+_COST_OPENERS = {"day": "Yesterday", "week": "Last week", "month": "Last month", "quarter": "In the last three months",
+                 "year": "Last year", "each": "The last time"}
+_MONEY_MODES = ("MONEY", "AMOUNT")
+_COUNTLESS = frozenset(("rupees", "dollars", "euros", "pounds", "pesos", "funds", "savings", "earnings", "proceeds",
+                        "payments", "fees", "costs", "charges", "sales", "hours", "minutes", "days"))
+
+
+def _blank(text) -> bool:
+    return text is None or not str(text).strip()
+
+
+def cost_measure(cost: dict):
+    """`Cost.measureOrDefault`: the typed measure, else *hours* on HOURS and *$* on money, else `None`."""
+    if not _blank(cost.get("measure")):
+        return str(cost["measure"]).strip()
+    return "hours" if cost.get("mode") == "HOURS" else "$" if cost.get("mode") in _MONEY_MODES else None
+
+
+def _said(text: str, team: bool) -> str:
+    text = text.strip()
+    return text if team else ll.second_person(text, False)
+
+
+def _who(team: bool, pasted) -> str:
+    return "your team" if team and not ll.third_person(pasted) else "you"
+
+
+def _held(ladder: list[str]) -> str:
+    return next((stem for stem in ladder if ll.words(stem) <= STEM_MAX_WORDS), ladder[-1])
+
+
+def _in_their_past(text: str, team: bool) -> str:
+    now = any(ll.clean(w) == "now" for w in ll.java_split(text))
+    return text if team else ll.second_person(text, not now)
+
+
+def _subject_said(subject: str, team: bool) -> str:
+    return subject if team else ll.second_person(subject, False)
+
+
+def _much(thing: str) -> str:
+    first = ll.clean(thing.strip().split()[0])
+    if first in ll.DETERMINERS:
+        return "of " + thing
+    return "in " + thing if ll.is_plural(ll.clean(thing.strip().split()[-1])) else thing
+
+
+def _plural_head(base: str) -> bool:
+    return any(not ll.clean(w).endswith("'s") and ll.is_plural(ll.clean(w)) for w in base.strip().split()[:4])
+
+
+def _clauses(clause: str) -> list[str]:
+    cut = ll.without_its_clause(clause)
+    return [clause] + ([cut] if cut is not None and cut.strip() else [])
+
+
+def count_noun(base) -> bool:
+    """`CommercialChain.countNoun`: a base of things counted one by one (*the shipments*), never money or time."""
+    if _blank(base):
+        return False
+    parts = base.strip().lower().split()
+    at = 1 if parts[0] in ("the", "a", "an", "your", "their", "our", "its") else 0
+    lower = next((w for w in parts[at:at + 3] if w.endswith("s") and not w.endswith("ss")), None)
+    return lower is not None and lower not in _COUNTLESS
+
+
+def gone_without(base):
+    """`CommercialChain.goneWithout`: the thing a base names as time gone without, else `None`."""
+    if _blank(base):
+        return None
+    m = re.fullmatch(r"(?:the |their |your )?(.+?)\s+(?:that\s+)?(?:they|you|people|we)?\s*(?:go|goes|went|gone|going|do"
+                     r"|did)\s+without|(?:the |their |your )?(.+?)\s+(?:that\s+)?(?:they|you|people|we)\s+(?:miss|missed"
+                     r"|lose|lost)", base.strip(), re.IGNORECASE)
+    if not m:
+        return None
+    thing = (m.group(1) if m.group(1) is not None else m.group(2)).strip()
+    return thing or None
+
+
+def without_purpose(loss):
+    """`CommercialChain.withoutPurpose`: a loss without its purpose clause, where at least three words stay."""
+    if loss is None:
+        return None
+    m = re.fullmatch(r"(.+?)\s+(?:up\s+)?(?:in order\s+)?to\s+[a-z]+\b.*", loss)
+    if not m:
+        return None
+    kept = m.group(1).strip()
+    return kept if ll.words(kept) >= 3 and kept != loss else None
+
+
+def same_words(a, b) -> bool:
+    """`CommercialChain.sameWords`: case, articles and person aside, the same words (a loss that is only the base)."""
+    if a is None or b is None:
+        return False
+
+    def norm(t):
+        t = ll.second_person(t, False).lower()
+        t = re.sub(r"\b(the|a|an)\b", "", t)
+        return re.sub(r"[^a-z0-9%]+", " ", t).strip()
+    return norm(a) == norm(b)
+
+
+def _loss_count(ladder, opening, team, loss) -> None:
+    if loss is None or loss.shape == ll.NONE:
+        return
+    thing = _said(loss.thing, team)
+    for clause in _clauses(loss.clause):
+        if loss.shape == ll.DOES:
+            asked = thing + " " + _in_their_past(ll.past(clause), team)
+        elif loss.shape == ll.DONE:
+            asked = thing + " were " + _in_their_past(ll.past(clause), team)
+        else:
+            asked = thing + " did " + _subject_said(loss.subject, team) + " " + _in_their_past(ll.after_did(clause), team)
+        for about in (", about how many ", ", how many "):
+            ladder.append(opening + about + asked + "?")
+
+
+def _loss_share(ladder, opening, team, loss, base) -> None:
+    be = " were " if count_noun(base) or _plural_head(base) else " was "
+    for clause in _clauses(loss.clause):
+        if loss.shape == ll.DOES:
+            asked = base + " " + _in_their_past(ll.past(clause), team)
+        elif loss.shape == ll.DONE:
+            asked = base + be + _in_their_past(ll.past(clause), team)
+        else:
+            asked = base + " did " + _subject_said(loss.subject, team) + " " + _in_their_past(ll.after_did(clause), team)
+        for about in (", about what share of ", ", what share of "):
+            ladder.append(opening + about + asked + "?")
+
+
+def _loss_missed(ladder, opening, team, loss) -> None:
+    thing = _said(loss.thing, team)
+    rest = "" if not loss.clause.strip() else _in_their_past(ll.past(loss.clause), team)
+    forms = []
+    if loss.rest_is_a_place():
+        forms.append((thing, rest))
+        shorter = without_purpose(rest)
+        if shorter is not None:
+            forms.append((thing, shorter))
+        cut = ll.without_its_clause(rest)
+        if cut is not None:
+            forms.append((thing, cut))
+    else:
+        whole = (thing + " " + rest).strip()
+        forms.append((whole, ""))
+        shorter = without_purpose(whole)
+        if shorter is not None:
+            forms.append((shorter, ""))
+    for said, where in forms:
+        for about in (", about how much ", ", how much "):
+            whom = _who(team, said + " " + where)
+            for person in ([whom] if whom == "you" else [whom, "you"]):
+                ladder.append(opening + about + _much(said) + " did " + person + " miss"
+                              + ("" if not where.strip() else " " + where) + "?")
+
+
+def cost_question(team: bool, occasion, job, cost: dict) -> str:
+    """`CommercialChain.costQuestion(team, circumstance, occasion, job, period, cost)` on a chain cost (spec 110 FR-3,
+    keel-cloud 170 FR-5): the stranger's cost question in their own terms, held to the spoken cap by each frame's
+    give-way ladder. HOURS *spend on* the thing (or the time gone without, *miss*); RATE the founder's loss line's verb
+    and thing (`LossLine`) -- a share of the base, a count of the thing -- else the measure's neutral *miss*; MONEY
+    *what did ... cost*. No frame says *lose* by default. `team` is the decision-maker's link (`corridor.isB2b()`)."""
+    over = cost.get("period") if cost.get("period") in _COST_OPENERS else "month"
+    opening = _COST_OPENERS[over]
+    base = None if _blank(cost.get("base")) else _said(str(cost["base"]), team)
+    noun = ll.occasion_noun(occasion)
+    doing = None if _blank(job) else _said(str(job).strip(), team)
+    unit = str(cost["unit"]).strip() if team and not _blank(cost.get("unit")) else None
+    ladder: list[str] = []
+    if cost.get("mode") == "HOURS":
+        missed = None if cost.get("base") is None else gone_without(cost.get("base"))
+        if missed is not None:
+            ladder.append(f"{opening}, about how many hours of {_said(missed, team)} did {_who(team, missed)} miss?")
+        elif base is not None or noun is not None:
+            thing = base if base is not None else ll.plural(noun)
+            if unit is not None and ll.words(unit) <= 2:
+                ladder.append(f"{opening}, about how many hours per {unit} did {_who(team, thing)} spend on {thing}?")
+            ladder.append(f"{opening}, about how many hours did {_who(team, thing)} spend on {thing}?")
+        if doing is not None:
+            ladder.append(f"{opening}, about how many hours did it take {_who(team, doing)} to {doing}?")
+        ladder.append(f"{opening}, about how many hours did {_who(team, None)} spend on this?")
+        return _held(ladder)
+    if cost.get("mode") == "RATE":
+        measure = cost_measure(cost)
+        share = measure is None or measure.strip() == "%"
+        loss = ll.read(cost.get("lossPhrase"))
+        if loss is not None and same_words(cost.get("lossPhrase"), base):
+            loss = None
+        if not share:
+            _loss_count(ladder, opening, team, loss)
+            ladder.append(f"{opening}, about how many {measure.strip()} did {_who(team, None)} miss?")
+        else:
+            loss_open = f"On your last {noun}" if not team and noun is not None else opening
+            openings = [opening] if loss_open == opening else [loss_open, opening]
+            if loss is not None and loss.shape != ll.NONE and base is not None:
+                for each in openings:
+                    _loss_share(ladder, each, team, loss, base)
+            elif loss is not None and loss.shape == ll.NONE:
+                for each in openings:
+                    _loss_missed(ladder, each, team, loss)
+            if base is not None:
+                ladder.append(opening + (", about what share of " if count_noun(base) else ", about how much of ")
+                              + base + " did " + _who(team, base) + " miss?")
+        ladder.append(f"{opening}, about how much did {_who(team, None)} miss?")
+        return _held(ladder)
+    if over == "each" and noun is not None:
+        thing = base if base is not None else "it"
+        ladder.append(f"On your last {noun}, what did {thing} cost" + ("" if unit is None else f" per {unit}") + "?")
+    if base is not None:
+        ladder.append(f"{opening}, what did {base} cost {_who(team, base)}?")
+    if noun is not None:
+        ladder.append(f"{opening}, what did {ll.plural(noun)} cost {_who(team, None)}?")
+    if doing is not None:
+        ladder.append(f"{opening}, what did it cost {_who(team, doing)} to {doing}?")
+    ladder.append(f"{opening}, what did it cost {_who(team, None)}?")
+    return _held(ladder)
+
+
+def _label_time(period, unit) -> str:
+    over = period if period in _COST_OPENERS else "month"
+    per = "" if _blank(unit) else "per " + str(unit).strip()
+    if over == "each":
+        return per or "the last time"
+    opening = _COST_OPENERS[over]
+    time = opening[0].lower() + opening[1:]
+    return (per + " " if per else "") + time
+
+
+def _without_possessive(base: str) -> str:
+    m = re.fullmatch(r"(?:the|their|your|its|our)\s+\S+'s\s+(.+)", base.strip(), re.IGNORECASE)
+    return m.group(1) if m else base.strip()
+
+
+def stranger_cost_label(cost: dict, occasion, role_word, team: bool) -> str:
+    """`CommercialChain.strangerCostLabel` (keel-cloud 170 FR-5): the label after the stranger's value box, one plain
+    phrase -- *hours per site last month*, *conversations last month*, *% of GPU hours last month*, a consumer's share
+    *% of the rupees you move to dollars*, money *of the pole inspections per pole*."""
+    unit = (str(cost["unit"]).strip() if not _blank(cost.get("unit"))
+            else None if _blank(role_word) else str(role_word).strip()) if team else None
+    period = cost.get("period")
+    when = _label_time(period, unit)
+    if cost.get("mode") == "HOURS":
+        return ("hours " + when).strip()
+    if cost.get("mode") == "RATE":
+        measure = cost_measure(cost)
+        if measure is not None and measure.strip() != "%":
+            return (measure.strip() + " " + when).strip()
+        base = str(cost["base"]).strip() if not _blank(cost.get("base")) else ll.occasion_noun(occasion)
+        if not team:
+            return ("% " + ("" if base is None else "of " + _said(base, False))).strip()
+        return ("% " + ("" if base is None else "of " + _without_possessive(base) + " ") + _label_time(period, None)).strip()
+    base = None if _blank(cost.get("base")) or (period == "each" and unit is not None) else str(cost["base"]).strip()
+    return (("" if base is None else "of " + _said(base, team) + " ") + when).strip()
+
+
+def cost_item(entry) -> dict | None:
+    """The stranger's Existing sacrifice item as keel-cloud 170 composes it from an entry that states the chain
+    (`RespondentQuestionsRules.costItem`, `InterviewComposer.valueBoxItem`; spec 110 FR-3): the question, the label after
+    the box, the *None* chip, the chips recorded apart, the item's escape and the spoken answer and escape lines, on the
+    link that carries part 3 (the decision-maker's on a B2B study). `None` off the chain (a cost stated before it is
+    spec 077's, `CostEstimate.respondentQuestion`, and not mirrored here)."""
+    cost = entry.cost() if hasattr(entry, "cost") else None
+    if not entry.chain() or not cost:
+        return None
+    team = is_b2b(entry)
+    ctx = _ctx(entry)
+    role_word = (entry.decision_maker_role() if team else None) or ctx.get("actor")
+    label = stranger_cost_label(cost, entry.occasion(), role_word, team)
+    return {"question": cost_question(team, entry.occasion(), ctx.get("job"), cost), "label": label,
+            "nothing": {"code": "NOTHING", "label": VALUE_BOX_LABELS["NOTHING"]},
+            "chips": [{"code": c, "label": VALUE_BOX_LABELS[c]} for c in value_box_escapes(not team)],
+            "escape": {"code": "DONT_KNOW", "label": VALUE_BOX_LABELS["DONT_KNOW"]},
+            "optionsLine": value_box_answer_line(cost, label), "escapeLine": "Or say you can't recall."}
+
+
+def value_box_answer_line(cost: dict, label) -> str:
+    """`CommercialChain.valueBoxAnswerLine` (keel-cloud 170 FR-5): the value box's spoken answer line names the label --
+    *A percent of GPU hours last month, or a low and a high; none is 0.* -- where `SpokenForm.VALUE_BOX_ANSWER_LINE`
+    said *in the unit on the screen*."""
+    text = "" if label is None else str(label).strip()
+    if cost.get("mode") in _MONEY_MODES:
+        what = "An amount" + ("" if not text else " " + text)
+    elif text.startswith("% "):
+        what = "A percent " + text[2:].strip()
+    elif text == "%":
+        what = "A percent"
+    else:
+        what = "A number" + ("" if not text else " of " + text)
+    return what + ", or a low and a high; none is 0."
 #: The gate story's chips (spec 064 FR-4 / 6a: keel-cloud 123 FR-3 serves RATHER_NOT_SAY again beside CANT_RECALL).
 STORY_CHIPS = {"cant_recall": "CANT_RECALL", "rather_not_say": "RATHER_NOT_SAY"}
 #: Contract 33's `GateItem.chips`, in the order drawn.

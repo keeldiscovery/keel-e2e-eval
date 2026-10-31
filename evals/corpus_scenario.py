@@ -3641,6 +3641,48 @@ def gate_no_faults(gate: dict | None, served_gate: dict) -> list[dict]:
     return faults
 
 
+def value_box_word_faults(item: dict) -> list[dict]:
+    """Spec 110 FR-3 (keel-cloud 170 FR-5, `CommercialChain.NOTHING_LABEL` / `DONT_KNOW_LABEL`): a served value box's
+    chips read *None* (`NOTHING`), *I can't recall* (`DONT_KNOW`) and *I'd rather not say* (`RATHER_NOT_SAY`), and the
+    item's escape *I can't recall* -- the codes unmoved, the words code's."""
+    box = item.get("valueBox") or {}
+    served = [box.get("nothing") or {}] + list(box.get("chips") or []) + (
+        [item["escape"]] if (item.get("escape") or {}).get("code") in vs.VALUE_BOX_LABELS else [])
+    wrong = [{"code": c.get("code"), "label": c.get("label"), "want": vs.VALUE_BOX_LABELS[c.get("code")]}
+             for c in served if c.get("code") in vs.VALUE_BOX_LABELS and c.get("label") != vs.VALUE_BOX_LABELS[c["code"]]]
+    return [{"dimension": item.get("dimension"), "value box words": wrong}] if wrong else []
+
+
+def cost_item_faults(item: dict, owed: dict | None) -> dict:
+    """Spec 110 FR-3: the served cost item against `vectors_script.cost_item` (keel-cloud 170's `costQuestion`,
+    `strangerCostLabel`, `valueBoxAnswerLine`), field by field -- `{}` where they agree or nothing is owed (an entry off
+    the chain)."""
+    if not owed:
+        return {}
+    box, spoken = item.get("valueBox") or {}, item.get("spoken") or {}
+    got = {"question": item.get("question"), "label": box.get("label"), "optionsLine": spoken.get("optionsLine"),
+           "escapeLine": spoken.get("escapeLine")}
+    return {k: {"served": v, "mirror": owed[k]} for k, v in got.items()
+            if v is not None and v != owed[k]}
+
+
+def cost_item_drift(j: Journey, item: dict) -> None:
+    """A chain entry's served cost item that parts from the mirror is written into `findings` (a port to check against
+    keel-cloud's `CostQuestionInTheirWordsTest`, or a frame keel-cloud moved), never a stop: the mirror is held to the
+    seventeen worked cases and 170's lines in the unit tests, not to every entry's wording."""
+    if item.get("dimension") != "commercial.existing_sacrifice" or not hasattr(j, "findings"):
+        return
+    try:
+        owed = vs.cost_item(j.entry)
+    except Exception as why:                                            # noqa: BLE001
+        owed = None
+        j.findings.append({"what": f"the cost item mirror could not read {getattr(j.entry, 'id', '?')}: {why}"})
+    parted = cost_item_faults(item, owed)
+    if parted:
+        j.findings.append({"what": "DRIFT: the served cost item parts from the keel-cloud 170 mirror "
+                                   "(vectors_script.cost_item, spec 110 FR-3)", "parted": parted})
+
+
 def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None:
     """keel-web 064, held to the wire on every journey: the decision-maker's link opens with the idea's
     three lines under the served kicker (D9); the gate's story chip is *I can't recall one particular
@@ -3702,8 +3744,12 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
             want = {"kicker": item.get("kicker"), "chips": [escape["label"]] if escape else []}
             box = item.get("valueBox")
             if box:
-                # spec 064 FR-3 (keel-cloud 115): the value box draws its Nothing chip, then the chips recorded apart;
-                # the registry's one escape (I don't know) is among them, never drawn twice
+                # spec 110 FR-3 (keel-cloud 170 FR-5): the chips' words are *None* / *I can't recall* on the codes as
+                # they were; the question, label and spoken lines held to the mirror are a finding where they part
+                faults += value_box_word_faults(item)
+                cost_item_drift(j, item)
+                # spec 064 FR-3 (keel-cloud 115): the value box draws its None chip, then the chips recorded apart;
+                # the registry's one escape (I can't recall since keel-cloud 170) is among them, never drawn twice
                 want["chips"] = []
                 for c in [box.get("nothing")] + list(box.get("chips") or []) + ([escape] if escape else []):
                     if c and c.get("label") and c["label"] not in want["chips"]:

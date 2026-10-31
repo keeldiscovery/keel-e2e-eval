@@ -224,3 +224,242 @@ def test_subject_led_mirrors_window_frame():
     from harness import vectors_script as vs                            # noqa: PLC0415
     assert {"any", "some"} <= set(vs._SUBJECT_LED)
     assert vs.subject_led("any of the cash from your raise stay in the fund").startswith("any of")
+
+
+# ----------------------------------------------------------------------------- FR-3: the cost item, mirrored
+
+from harness import loss_line as ll                                         # noqa: E402
+from harness import vectors_script as vs                                    # noqa: E402
+
+CHAIN_FIXTURES = "src/test/resources/commercial-chain"
+BACKTEST = "canon/designs/measured-beliefs/backtest"
+
+
+def _rate(measure, base, unit, period, loss):
+    return {"mode": "RATE", "measure": measure, "base": base, "unit": unit, "period": period, "lossPhrase": loss}
+
+
+def _asked(team, occasion, cost):
+    question = vs.cost_question(team, occasion, None, cost if team else {**cost, "unit": None})
+    assert ll.words(question) <= vs.STEM_MAX_WORDS, question
+    low = question.lower()
+    assert " lose" not in low and "come to" not in low and "(" not in low and "/" not in low, question
+    return question
+
+
+#: keel-cloud 170's `CostQuestionInTheirWordsTest`, case for case: the founder's line gives the verb and the thing (the
+#: first four: Expanse word for word, Palus's *your team ... miss*, Codyco's share of the reservation calls, Lemma),
+#: then the counts, then the neutral verbs where no line (or no verb) was typed.
+FRAMES = [
+    (True, "job submission", _rate("%", "the cluster's GPU hours", "cluster", "month",
+                                   "GPU hours and memory that jobs reserve and never use"),
+     "Last month, about what share of the cluster's GPU hours did jobs reserve and never use?"),
+    (True, "cash decision", _rate("%", "the balance", "company", "year",
+                                  "Interest on cash that sits in the operating account"),
+     "Last year, about how much interest did your team miss on cash that sat in the operating account?"),
+    (True, "reservation shift", _rate("%", "the reservation calls", "hotel", "month",
+                                      "Bookings lost when a call rings out after hours, at peak or on a holiday"),
+     "Last month, about what share of the reservation calls were lost?"),
+    (True, "release", _rate("%", "the agent's runs in production", "agent", "month",
+                            "Runs that fail in front of customers before anyone notices"),
+     "Last month, about what share of the agent's runs in production failed in front of customers before anyone "
+     "noticed?"),
+    (False, "search", _rate("questions", "the questions they search", "person", "month",
+                            "Questions they give up on because search shows only sellers' pages"),
+     "Last month, about how many questions did you give up on because search showed only sellers' pages?"),
+    (True, "quote", _rate("deals", "the deals they quote", "sales team", "month",
+                          "Deals lost or signed on worse terms because the pricing was worked out by hand"),
+     "Last month, how many deals were lost or signed on worse terms because the pricing was worked out by hand?"),
+    (False, "reading session", _rate("days", "reading with no one listening", "child", "month",
+                                     "School days the child reads with no one listening"),
+     "Last month, about how many school days did the child read with no one listening?"),
+    (True, "daily log", {"mode": "HOURS", "measure": "hours", "base": "the daily log", "unit": "site", "period": "month"},
+     "Last month, about how many hours per site did your team spend on the daily log?"),
+    (False, "group conversation", _rate("conversations", "the conversations they are in", "person", "month",
+                                        "The thread of the conversation, and the moment with the people in it"),
+     "Last month, about how many conversations did you miss?"),
+    (True, "billing cycle", _rate("%", "the practice's collections", "practice", "month",
+                                  "What billing staff or a billing company costs, plus claims rejected and never paid"),
+     "Last month, about what share of the practice's collections did your team miss?"),
+    (True, "shipment", _rate("%", "the shipments", "terminal", "month", None),
+     "Last month, about what share of the shipments did your team miss?"),
+]
+
+
+@pytest.mark.parametrize("team, occasion, cost, question", FRAMES, ids=[f[1] for f in FRAMES])
+def test_the_cost_frame_is_keel_cloud_170s(team, occasion, cost, question):
+    assert _asked(team, occasion, cost) == question
+
+
+def test_with_no_loss_line_the_frame_says_the_measures_neutral_verb():
+    # a share and a count with no line: *miss*; hours: *spend on*; a line that says *now* keeps its present
+    assert _asked(True, "shipment", _rate("%", "the shipments", "terminal", "month", None)).endswith(
+        "did your team miss?")
+    assert _asked(False, "x", _rate("conversations", None, None, "month", None)) == \
+        "Last month, about how many conversations did you miss?"
+    assert _asked(True, "x", {"mode": "HOURS", "base": None, "unit": "site", "period": "month"}) == \
+        "Last month, about how many hours per site did your team spend on xes?", "the occasion's plural, as code makes it"
+    assert _asked(True, "time", {"mode": "HOURS", "base": None, "unit": None, "period": "week"}) == \
+        "Last week, about how many hours did your team spend on this?"
+    assert "the sites you sell on now" in _asked(False, "sale", _rate("%", "the sales", "seller", "month",
+                                                                      "Fees on every sale, on the sites they sell on now"))
+    assert ll.read(None) is None and ll.read("  ") is None
+    assert ll.read("What billing staff costs, plus claims never paid") is None, "a free relative names no thing"
+
+
+def test_the_loss_line_is_read_in_four_shapes():
+    assert ll.read("Runs that fail in front of customers before anyone notices").shape == ll.DOES
+    done_by = ll.read("GPU hours and memory that jobs reserve and never use")
+    assert (done_by.shape, done_by.thing, done_by.subject, done_by.clause) == (
+        ll.DONE_BY, "GPU hours and memory", "jobs", "reserve and never use"), "an acronym keeps its capitals"
+    assert ll.read("Bookings lost when a call rings out after hours").shape == ll.DONE
+    none = ll.read("Interest on cash that sits in the operating account")
+    assert (none.shape, none.thing, none.clause, none.rest_is_a_place()) == (
+        ll.NONE, "interest", "on cash that sits in the operating account", True)
+    assert ll.past("lost when a call rings out after hours") == "lost when a call rang out after hours"
+    assert ll.after_did("reserve and never use") == "reserve and never use"
+    assert ll.without_its_clause("lost when a call rings out") == "lost"
+
+
+@pytest.mark.parametrize("cost, occasion, role, team, label", [
+    (_rate("%", "the cluster's GPU hours", "cluster", "month", None), "job submission", "researcher", True,
+     "% of GPU hours last month"),
+    ({"mode": "HOURS", "measure": "hours", "base": "the daily log", "unit": "site", "period": "month"}, "daily log",
+     "superintendent", True, "hours per site last month"),
+    (_rate("conversations", "the conversations they are in", "person", "month", None), "group conversation", "wearer",
+     False, "conversations last month"),
+    (_rate("%", "the rupees they move to dollars", "person", "month", None), "conversion", "saver", False,
+     "% of the rupees you move to dollars"),
+    (_rate("weeks", "waiting for a first session", "referral", "each", None), "referral", "counsellor", True,
+     "weeks per referral"),
+])
+def test_the_label_is_one_plain_phrase(cost, occasion, role, team, label):
+    assert vs.stranger_cost_label(cost, occasion, role, team) == label
+    assert " a month" not in label and "(" not in label
+
+
+def test_the_value_boxs_spoken_line_names_the_label_and_its_chips_are_none_and_i_cant_recall():
+    assert vs.value_box_answer_line(_rate("%", "x", "y", "month", None), "% of GPU hours last month") == \
+        "A percent of GPU hours last month, or a low and a high; none is 0."
+    assert vs.value_box_answer_line({"mode": "HOURS"}, "hours per site last month") == \
+        "A number of hours per site last month, or a low and a high; none is 0."
+    assert vs.value_box_answer_line({"mode": "MONEY"}, "per call minute") == \
+        "An amount per call minute, or a low and a high; none is 0."
+    assert vs.value_box_answer_line(_rate("%", None, None, "month", None), "%") == \
+        "A percent, or a low and a high; none is 0."
+    assert vs.VALUE_BOX_LABELS == {"NOTHING": "None", "DONT_KNOW": "I can't recall",
+                                   "RATHER_NOT_SAY": "I'd rather not say"}
+    assert vs.VALUE_BOX_CHIPS == {"nothing": "NOTHING", "dont_know": "DONT_KNOW", "rather_not_say": "RATHER_NOT_SAY"}
+    assert vs.value_box_escapes(True) == ["DONT_KNOW", "RATHER_NOT_SAY"] and vs.value_box_escapes(False) == ["DONT_KNOW"]
+
+
+def test_the_chip_words_mirror_commercial_chain():
+    text = _cloud(VECTORS + "CommercialChain.java", "valueBoxAnswerLine")
+    for name, code in (("NOTHING_LABEL", "NOTHING"), ("DONT_KNOW_LABEL", "DONT_KNOW"),
+                       ("RATHER_NOT_SAY_LABEL", "RATHER_NOT_SAY")):
+        assert re.search(rf'{name} = "{re.escape(vs.VALUE_BOX_LABELS[code])}";', text), name
+    assert '", or a low and a high; none is 0."' in text and '"A percent "' in text
+
+
+def _java_set(text: str, name: str) -> set[str]:
+    at = text.index(f" {name} = Set.of(")
+    body = re.sub(r"//[^\n]*", "", text[at:text.index(");", at)])            # the comments' quoted examples aside
+    return set(re.findall(r'"([^"]+)"', body))
+
+
+def test_the_loss_line_port_carries_keel_clouds_word_lists():
+    text = _cloud(VECTORS + "LossLine.java", "enum Shape")
+    for name in ("RELATIVE", "PREPOSITIONS", "SUBJECTS", "DETERMINERS", "JOINERS", "SUBORDINATORS", "AUXILIARIES",
+                 "MORE_VERBS", "PARTICIPLES"):
+        assert _java_set(text, name) == set(getattr(ll, name)), name
+    grammar = _cloud(VECTORS + "StrangerGrammar.java", '"catch", "caught"')
+    at = grammar.index("IRREGULAR = Map.ofEntries(")
+    pairs = dict(re.findall(r'Map\.entry\("([^"]+)", "([^"]+)"\)', grammar[at:grammar.index(");", at)]))
+    assert pairs == ll.IRREGULAR
+    assert _java_set(grammar, "KEEP") == set(ll.KEEP)
+    assert _java_set(grammar, "VERBS") == set(ll.VERBS)
+
+
+def _fixtures():
+    import json                                                             # noqa: PLC0415
+    folder = KEEL_CLOUD / CHAIN_FIXTURES
+    if not folder.is_dir():
+        pytest.skip(f"keel-cloud has no {CHAIN_FIXTURES}")
+    found = sorted(folder.glob("*.json"))
+    out = [json.loads(f.read_text(encoding="utf-8")) for f in found]
+    item = next(i for i in out[0]["expected"]["stranger"]["items"] if i["dimension"] == SACRIFICE_KEY)
+    if item["valueBox"]["nothing"] != "None":
+        pytest.skip("keel-cloud's worked cases predate spec 170")
+    return [(f.stem, x) for f, x in zip(found, out)]
+
+
+#: `CommercialChainFixturesTest.project`: every worked case's context carries Lullaby's job.
+LULLABY_JOB = "work out what the baby needs and settle the baby"
+
+
+def test_the_mirror_is_keel_clouds_seventeen_worked_cases():
+    cases = _fixtures()
+    assert len(cases) == 17
+    for name, case in cases:
+        given = case["input"]
+        team = given["persona"].get("decider") == "SOMEONE_ELSE"
+        role = given["persona"].get("role") if team else given["context"].get("actor")
+        occasion = given["context"].get("occasion")
+        item = next(i for i in case["expected"]["stranger"]["items"] if i["dimension"] == SACRIFICE_KEY)
+        assert vs.cost_question(team, occasion, LULLABY_JOB, given["cost"]) == item["question"], name
+        box = item["valueBox"]
+        assert vs.stranger_cost_label(given["cost"], occasion, role, team) == box["label"], name
+        assert box["nothing"] == vs.VALUE_BOX_LABELS["NOTHING"], name
+        assert box["chips"] == [vs.VALUE_BOX_LABELS[c] for c in vs.value_box_escapes(not team)], name
+        assert item["escape"] == vs.VALUE_BOX_LABELS["DONT_KNOW"], name
+
+
+def _backtest(entry_id: str):
+    path = KEEL_CLOUD / BACKTEST / f"{entry_id}.yaml"
+    if not path.is_file() or not (KEEL_CLOUD / cloud_mod.REGISTRY_FILE).is_file():
+        pytest.skip(f"no keel-cloud back-test entry {entry_id}")
+    return corpus_mod.load_file(path, registry=cloud_mod.registry_of_record(KEEL_CLOUD), backtest=True)
+
+
+@pytest.mark.parametrize("entry_id, question, label", [
+    ("10-palus", "Last year, about how much interest did your team miss on cash that sat in the operating account?",
+     "% of the balance last year"),
+    ("17-expanse", "Last month, about what share of the cluster's GPU hours did jobs reserve and never use?",
+     "% of GPU hours last month"),
+    ("21-codyco", "Last month, about what share of the reservation calls were lost?",
+     "% of the reservation calls last month"),
+])
+def test_the_three_entries_cost_items_are_170s_lines(entry_id, question, label):
+    """170's tasks.md (FR-5 T014, not foreseen 6): Palus *your team* ... interest missed, Expanse word for word, Codyco
+    the share of the reservation calls lost -- each from the entry's own typed `lossPhrase`, on its decision-maker's
+    link."""
+    entry = _backtest(entry_id)
+    owed = vs.cost_item(entry)
+    assert entry.b2b() and owed["question"] == question and owed["label"] == label
+    assert owed["nothing"] == {"code": "NOTHING", "label": "None"}
+    assert owed["chips"] == [{"code": "DONT_KNOW", "label": "I can't recall"}]
+    assert owed["escape"]["label"] == "I can't recall" and owed["escapeLine"] == "Or say you can't recall."
+    assert owed["optionsLine"] == vs.value_box_answer_line(entry.cost(), label)
+    assert cs.cost_item_faults({"question": question, "valueBox": {"label": label},
+                                "spoken": {"optionsLine": owed["optionsLine"]}}, owed) == {}
+
+
+def test_the_screens_hold_reads_the_chip_words_and_writes_a_parted_question_as_a_finding():
+    item = {"dimension": SACRIFICE_KEY, "question": "Last month, what did it cost you?",
+            "escape": {"code": "DONT_KNOW", "label": "I can't recall"},
+            "valueBox": {"label": "% of GPU hours last month", "nothing": {"code": "NOTHING", "label": "None"},
+                         "chips": [{"code": "DONT_KNOW", "label": "I can't recall"}]}}
+    assert cs.value_box_word_faults(item) == []
+    old = {**item, "valueBox": {**item["valueBox"], "nothing": {"code": "NOTHING", "label": "Nothing"},
+                                "chips": [{"code": "DONT_KNOW", "label": "I don't know"}]}}
+    assert [w["want"] for w in cs.value_box_word_faults(old)[0]["value box words"]] == ["None", "I can't recall"]
+    owed = {"question": "Last month, about what share of the cluster's GPU hours did jobs reserve and never use?",
+            "label": "% of GPU hours last month", "optionsLine": "x", "escapeLine": "Or say you can't recall."}
+    assert set(cs.cost_item_faults(item, owed)) == {"question"} and cs.cost_item_faults(item, None) == {}
+    from types import SimpleNamespace                                       # noqa: PLC0415
+    j = SimpleNamespace(entry=SimpleNamespace(id="x", chain=lambda: False, cost=lambda: None), findings=[])
+    cs.cost_item_drift(j, item)
+    assert j.findings == [], "off the chain nothing is owed"
+    import inspect                                                          # noqa: PLC0415
+    held = inspect.getsource(cs._hold_the_screens)
+    assert "value_box_word_faults(item)" in held and "cost_item_drift(j, item)" in held

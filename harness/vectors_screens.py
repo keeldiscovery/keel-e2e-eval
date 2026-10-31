@@ -2923,7 +2923,7 @@ class Interview:
         plan = item.get("plan") or {}
         options.update({o.get("optionId"): o.get("label") for o in plan.get("options") or []})
         if answer.get("chip"):
-            # an item's one escape, or (keel-web 094) the value box's chips -- *Nothing*, *I don't know*, *I'd rather
+            # an item's one escape, or (keel-web 094) the value box's chips -- *None*, *I can't recall*, *I'd rather
             # not say* -- each by its served label
             box = item.get("valueBox") or {}
             served = [item.get("escape") or {}, box.get("nothing") or {}] + list(box.get("chips") or [])
