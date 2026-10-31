@@ -207,7 +207,7 @@ def test_the_ai_link_taps_one_hears_and_one_more_then_the_second():
     # spec 090 FR-2 (keel-web 135 H-1): *Nothing else* is the item's served `secondAsk.escape.label`, the registry's
     # label where none is served
     assert "p.tap_chip_named(nothing)" in src and "or vs.NOTHING_ELSE_LABEL" in src
-    assert im.INTERVIEWER_MARKS_VERSION == 16                   # spec 094 FR-1 moved it on (IM2: L1's switch)
+    assert im.INTERVIEWER_MARKS_VERSION == 17                   # 094 FR-1 (IM2: L1's switch); 099 (IM17 / IM19)
     record = {"taps": {"question": "Which one?", "want": ["A", "B"], "next": "Which fits?", "sent": ["B", "A"],
                        "sent_how": "TAPPED",
                        "one": {"question_same": True, "phase": "listening", "ring": False, "checked": ["A"],

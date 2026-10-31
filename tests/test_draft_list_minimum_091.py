@@ -195,7 +195,7 @@ def test_im2_passes_the_lock_screen_as_served_and_the_version_moved():
     ok, detail = im.no_price_shown(record)
     assert ok, detail
     assert detail["L1 credits sentence"] == "Keel records Daphne once for this project, which uses 400 credits."
-    assert im.INTERVIEWER_MARKS_VERSION == 16                               # spec 094 FR-1 moved it on (the switch)
+    assert im.INTERVIEWER_MARKS_VERSION == 17                               # 094 FR-1 (the switch); 099 (IM17 / IM19)
     import inspect                                                          # noqa: PLC0415
     assert "#: v15 (spec 091 FR-3" in inspect.getsource(im)
 

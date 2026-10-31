@@ -99,7 +99,19 @@ from harness import interviewer_fake as fake
 #: answers uses 30 credits, whichever way they answer.*, `data-testid=format-credits`, `FORMAT_CREDITS_NOTE`) as the
 #: screen's own words: at most once, its one number the interview's 30 credits (`interview_charge.INTERVIEW_CREDITS`),
 #: no currency anywhere on S3; a second credits line or any other price word on S3 still faults. No mark born or dropped.
-INTERVIEWER_MARKS_VERSION = 16
+#: v17 (spec 099 FR-1 / FR-2, keel-web 143: the heard line never says *nothing yet* once a sound was heard): re-pinned --
+#: the marks read moved lines. IM19 accepts the heard line's *Writing down what you said…* (`HEARD_WRITING_DOWN`,
+#: keel-web `AI_HEARD_WRITING_DOWN`) beside v9's *Hearing you…* after the first words, and reads every recorded window
+#: of the stranger's walk off the heard line's timeline (`data-heard`, `heard_windows`): a window that heard a sound
+#: and drew its words shows `writing` between the pause and the words and never *Heard so far: nothing yet* there;
+#: `nothing` only closes a window on an empty transcript; at least one such window was read. IM17 reads *Test your
+#: mic*'s wave (`ai-mic-level` holding `ai-mic-wave`: five bars, a `data-level` 0-4, no `.aiv__level` meter, no
+#: `ai-mic-on` on the intro) where the meter was, and the block's `writing` state before *Heard: hello* (the wave held
+#: as `ai-mic-writing`, *Writing down what you said…* on `ai-mic-writing-line`, *Say hello* kept, Start disabled);
+#: `start_enabled` and the fallback as before. The status line's *Writing it down…* (`WRITING_DOWN`) is another string
+#: and unchanged. No mark born or dropped; the tiers, the hold, the browser path's marks and the classifier guard read
+#: as v16. Live `make eval-live K=s012` re-scoring is the founder's call (paid).
+INTERVIEWER_MARKS_VERSION = 17
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -112,6 +124,16 @@ HEARING = "Listening. Pause when you’re done."
 #: came in -- nothing is heard before it is written down.
 RECORDING = "Recording your answer. Pause when you’re done."
 HEARING_YOU = "Hearing you…"
+#: keel-web 143 (spec 099 FR-1): the heard line's other states (`data-heard`) -- *Listening…* while a window is open and
+#: nothing was heard, *Writing down what you said…* from the send to the transcript (also *Test your mic*'s writing line),
+#: *Heard so far: nothing yet* only after an empty transcript. Spec 099 names the writing words `WRITING_DOWN`; that name
+#: is the status line's *Writing it down…* below (keel-web kept both strings: `AI_HEARD_WRITING_DOWN` / `AI_WRITING_DOWN`).
+LISTENING_LINE = "Listening…"
+HEARD_WRITING_DOWN = "Writing down what you said…"
+HEARD_NOTHING = "Heard so far: nothing yet"
+#: keel-web 143 FR-3: *Test your mic*'s wave is `MicWave`'s five bars, its level bucketed 0-4.
+MIC_WAVE_BARS = 5
+MIC_WAVE_LEVELS = {"0", "1", "2", "3", "4"}
 #: keel-web 115 FR-1 (spec 074, IM9 v9): the page's one way to take a spoken answer.
 SPOKEN_HOW = "RECORDED"
 ANSWERED = "Got it."
@@ -561,14 +583,35 @@ def went_back(r: dict) -> tuple[bool, Any]:
     return ok, x
 
 
+def _mic_listening_ok(v: dict) -> bool:
+    """keel-web 143 FR-3: *Say hello* over the sheet's wave -- `ai-mic-level` holds `ai-mic-wave` (five bars, a level
+    bucket 0-4) where the meter (`.aiv__level`) was, and no `ai-mic-on` on the intro."""
+    return (v.get("state") == "listening" and v.get("wave") == "ai-mic-wave" and v.get("wave_state") == "listening"
+            and v.get("bars") == MIC_WAVE_BARS and str(v.get("level")) in MIC_WAVE_LEVELS and v.get("meter") == 0
+            and v.get("mic_on") == 0 and v.get("start_enabled") is False)
+
+
+def _mic_writing_ok(v: dict) -> bool:
+    """keel-web 143 FR-3: the hello sent, not yet back -- the block `writing`, the wave held (`ai-mic-writing`, its
+    bars kept), *Writing down what you said…* under it, *Say hello* kept, nothing heard yet and Start still disabled."""
+    return (v.get("state") == "writing" and v.get("wave") == "ai-mic-writing" and v.get("wave_state") == "writing"
+            and v.get("bars") == MIC_WAVE_BARS and v.get("meter") == 0 and v.get("mic_on") == 0
+            and v.get("writing_line") == HEARD_WRITING_DOWN and v.get("say") == "Say hello"
+            and not v.get("mic_heard") and v.get("start_enabled") is False)
+
+
 def mic_tested(r: dict) -> tuple[bool, Any]:
     """IM17 (FR-7): the AI link's intro asks *Test your mic* before Start; "hello" said reads *Heard: hello*, and
-    *Start the interview* is enabled by it."""
+    *Start the interview* is enabled by it. v17 (spec 099 FR-2, keel-web 143): while it listens the block draws the
+    sheet's wave in the meter's place, and between the hello and *Heard: hello* its `writing` state."""
     x = r["mic_test"]
     before, after = x.get("before") or {}, x.get("after") or {}
+    listening, writing = x.get("listening") or {}, x.get("writing") or {}
     ok = (before.get("mic_test") is True and before.get("start_enabled") is False
+          and _mic_listening_ok(listening) and _mic_writing_ok(writing)
           and after.get("mic_heard") == "Heard: hello" and after.get("start_enabled") is True)
     return ok, {"before": {k: before.get(k) for k in ("mic_test", "start_enabled", "mic_heard")},
+                "listening": listening or None, "writing": writing or None,
                 "after": {k: after.get(k) for k in ("mic_test", "start_enabled", "mic_heard")}}
 
 
@@ -600,14 +643,66 @@ def _quiet(sample: dict) -> bool:
             and after.get("preview") in ("", None, before.get("preview")))
 
 
+def heard_windows(lines: list[dict]) -> tuple[list[list[str]], list[dict]]:
+    """Spec 099 FR-1 (keel-web 143): the heard line's timeline (`Player.heard_lines`: every change, its `data-heard`
+    state under its question) cut into recorded windows. A window opens at the first sound (`hearing`) and closes at
+    its words (`words`); the line leaving the sheet, falling back to `listening` or moving to another question closes it
+    unread. Returns the windows that drew their words (each its states in order) and the faults: words drawn with no
+    `writing` between the pause and them, or *nothing yet* there. `nothing` straight after `writing` is an empty
+    transcript and closes the window -- unless the words then follow with no new window between (the old line's
+    *nothing yet* through the send)."""
+    windows: list[list[str]] = []
+    faults: list[dict] = []
+    seen: list[str] | None = None
+    question = None
+    for entry in lines or []:
+        state, q = entry.get("state"), entry.get("question")
+        if seen is not None and q != question:
+            seen = None
+        if state == "hearing":
+            if seen is None or seen[-1] == "nothing":
+                seen, question = ["hearing"], q
+            elif seen[-1] != "hearing":
+                seen.append("hearing")
+            continue
+        if seen is None:
+            continue
+        if state == "writing":
+            if seen[-1] != "writing":
+                seen.append("writing")
+        elif state == "nothing":
+            if seen[-1] != "writing":
+                faults.append({"question": q, "states": seen + ["nothing"], "fault": "nothing yet after a sound"})
+                seen = None
+            else:
+                seen.append("nothing")
+        elif state == "words":
+            states = seen + ["words"]
+            if "nothing" in seen:
+                faults.append({"question": q, "states": states, "words": entry.get("words"),
+                               "fault": "nothing yet between the pause and the words"})
+            elif "writing" not in seen:
+                faults.append({"question": q, "states": states, "words": entry.get("words"),
+                               "fault": "no writing between the pause and the words"})
+            else:
+                windows.append(states)
+            seen = None
+        else:                                           # `listening`, the line gone: the window closed unread
+            seen = None
+    return windows, faults
+
+
 def hears_them_out(r: dict) -> tuple[bool, Any]:
     """IM19 (keel-web 073 FR-1 / FR-2, keel-cloud 100): nothing is lit before the utterance ends -- after a final, inside
     the quiet gap, no row newly ticked, no field filled, no preview, on every spoken answer -- and a question read
     aloud, then answered within a second, is ONE read: the first final leaves nothing ticked and the window recording
-    (v9, keel-web 115: the status *Recording your answer. Pause when you're done.* and the heard line *Hearing you…*),
-    no read in the gap, then one read (the recording's `answer`) whose words are both finals joined; the response
-    carries the answer meant."""
+    (v9, keel-web 115: the status *Recording your answer. Pause when you're done.* and the heard line *Hearing you…*;
+    v17, keel-web 143: or, after the pause, *Writing down what you said…*), no read in the gap, then one read (the
+    recording's `answer`) whose words are both finals joined; the response carries the answer meant. v17 (spec 099
+    FR-1): every recorded window of the walk read off the heard line (`heard_windows`) -- `writing` between the pause
+    and the words, never *nothing yet* there, and at least one window read."""
     x = r["hear_out"]
+    windows, line_faults = heard_windows(x.get("heard_lines") or [])
     hearing = x.get("hearing") or []
     loud = [s for s in hearing if not _quiet(s)]
     first = x.get("after_first") or {}
@@ -615,14 +710,16 @@ def hears_them_out(r: dict) -> tuple[bool, Any]:
     reads = x.get("reads") or []
     joined = _norm(f"{x.get('first')} {x.get('second')}")
     ok = (bool(hearing) and not loud and bool(first) and not after.get("lit") and not after.get("field")
-          and not after.get("preview") and after.get("status") == RECORDING and after.get("heard") == HEARING_YOU
-          and first.get("still") is True
+          and not after.get("preview") and after.get("status") == RECORDING
+          and after.get("heard") in (HEARING_YOU, HEARD_WRITING_DOWN)
+          and first.get("still") is True and bool(windows) and not line_faults
           and (x.get("between_ms") or 10 ** 9) <= WITHIN_MS and x.get("reads_in_gap") == 0
           and len(reads) == 1 and _norm(reads[0]) == joined and x.get("sent") == [x.get("meant")])
     return ok, {"question": x.get("question"), "first": x.get("first"), "second": x.get("second"),
                 "between_ms": x.get("between_ms"), "after first": after, "reads in gap": x.get("reads_in_gap"),
                 "reads": reads, "settled": x.get("settled"), "sent": x.get("sent"), "meant": x.get("meant"),
-                "finals looked at": len(hearing), "lit while hearing": loud}
+                "finals looked at": len(hearing), "lit while hearing": loud,
+                "windows read": len(windows), "heard line faults": line_faults}
 
 
 def taps_wait_for_save(r: dict) -> tuple[bool, Any]:

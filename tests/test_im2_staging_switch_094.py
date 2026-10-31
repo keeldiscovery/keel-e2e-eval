@@ -146,8 +146,8 @@ def test_the_switch_is_read_on_l1_alone():
 
 
 def test_the_version_moved_with_its_note():
-    """FR-1: `INTERVIEWER_MARKS_VERSION` 15 -> 16 with its note."""
-    assert im.INTERVIEWER_MARKS_VERSION == 16
+    """FR-1: `INTERVIEWER_MARKS_VERSION` 15 -> 16 with its note (spec 099 moved it on to 17: IM17 / IM19)."""
+    assert im.INTERVIEWER_MARKS_VERSION == 17
     source = inspect.getsource(im)
     assert "#: v16 (spec 094 FR-1" in source and "#: v15 (spec 091 FR-3" in source and "spec 094 FR-1a" in source
 

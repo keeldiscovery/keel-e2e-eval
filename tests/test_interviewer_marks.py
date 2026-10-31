@@ -311,7 +311,25 @@ def good() -> dict:
                                   "after": {"lit": [], "field": "", "preview": ""}, "still": True},
                                  {"said": "yes", "phase": "confirming",
                                   "before": {"lit": ["Agency C"], "field": None, "preview": ""},
-                                  "after": {"lit": ["Agency C"], "field": None, "preview": ""}, "still": True}]},
+                                  "after": {"lit": ["Agency C"], "field": None, "preview": ""}, "still": True}],
+                     # spec 099 (keel-web 143): the heard line through two recorded windows -- the read aloud, held;
+                     # then an empty transcript said again and heard
+                     "heard_lines": [
+                         {"t": 1.0, "state": "listening", "words": "Listening…", "question": "Would Agency ...?"},
+                         {"t": 2.0, "state": "hearing", "words": "Hearing you…", "question": "Would Agency ...?"},
+                         {"t": 4.0, "state": "writing", "words": "Writing down what you said…",
+                          "question": "Would Agency ...?"},
+                         {"t": 4.2, "state": "words", "words": "Heard No difference", "question": "Would Agency ...?"},
+                         {"t": 7.0, "state": None, "words": None, "question": "Which fits?"},
+                         {"t": 8.0, "state": "listening", "words": "Listening…", "question": "Which fits?"},
+                         {"t": 9.0, "state": "hearing", "words": "Hearing you…", "question": "Which fits?"},
+                         {"t": 11.0, "state": "writing", "words": "Writing down what you said…",
+                          "question": "Which fits?"},
+                         {"t": 11.2, "state": "nothing", "words": "Heard so far: nothing yet", "question": "Which fits?"},
+                         {"t": 12.0, "state": "hearing", "words": "Hearing you…", "question": "Which fits?"},
+                         {"t": 14.0, "state": "writing", "words": "Writing down what you said…",
+                          "question": "Which fits?"},
+                         {"t": 14.3, "state": "words", "words": "Heard Agency A", "question": "Which fits?"}]},
         # spec 049 (keel-web 073 FR-6); spec 089 FR-3 (keel-web 135 FR-2): one pick, *And one more?*, then the second
         "taps": {"question": "Which one?", "item": "p", "want": ["Agency A", "Agency C"],
                  "one": {"shown": False, "enabled": None, "words": None, "ring": False, "phase": "listening",
@@ -330,6 +348,13 @@ def good() -> dict:
                  "lit_on_return": ["Agency B"], "said_first": "Agency B", "changed_to": "Agency A", "forward": "Next?",
                  "sent": ["Agency A"], "sent_how": "TAPPED"},
         "mic_test": {"before": {"mic_test": True, "start_enabled": False, "mic_heard": None},
+                     # spec 099 (keel-web 143 FR-3): the wave while it listens, then the writing state held
+                     "listening": {"state": "listening", "wave": "ai-mic-wave", "wave_state": "listening", "bars": 5,
+                                   "level": "2", "meter": 0, "mic_on": 0, "writing_line": None, "say": "Say hello",
+                                   "mic_heard": None, "start_enabled": False},
+                     "writing": {"state": "writing", "wave": "ai-mic-writing", "wave_state": "writing", "bars": 5,
+                                 "level": "2", "meter": 0, "mic_on": 0, "writing_line": "Writing down what you said…",
+                                 "say": "Say hello", "mic_heard": None, "start_enabled": False},
                      "after": {"mic_test": True, "start_enabled": True, "mic_heard": "Heard: hello"}},
         "recorded": {"silence": {"status": 200, "heard": "", "unclear": True, "reason": "silence"},
                      "status": 201, "body": {"answers": [{"itemId": "a", "how": "RECORDED", "heard": "the first"}]},
@@ -384,7 +409,7 @@ def test_a_good_record_meets_every_mark():
     assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
     card = marks.scorecard(good())
     assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 16      # 086 FR-5: IM27; 089: IM20; 091 / 094: IM2
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 17      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -565,6 +590,20 @@ SEEDED = [
     ("IM17", ["mic_test", "after", "mic_heard"], None),                                  # nothing heard drawn
     ("IM17", ["mic_test", "before", "start_enabled"], True),                             # Start before the test
     ("IM17", ["mic_test", "after", "start_enabled"], False),
+    # spec 099 (keel-web 143 FR-3): Test your mic's wave and its writing state
+    ("IM17", ["mic_test", "listening"], None),                                           # the listening never read
+    ("IM17", ["mic_test", "listening", "wave"], None),                                   # no wave in the meter's place
+    ("IM17", ["mic_test", "listening", "meter"], 1),                                     # the retired meter drawn
+    ("IM17", ["mic_test", "listening", "mic_on"], 1),                                    # the sheet's id on the intro
+    ("IM17", ["mic_test", "listening", "bars"], 3),
+    ("IM17", ["mic_test", "listening", "level"], "7"),
+    ("IM17", ["mic_test", "writing"], None),                                             # straight to Heard: hello
+    ("IM17", ["mic_test", "writing", "writing_line"], None),                             # no writing line
+    ("IM17", ["mic_test", "writing", "writing_line"], "Writing it down…"),               # the status line's words
+    ("IM17", ["mic_test", "writing", "wave"], None),                                     # the wave gone while written
+    ("IM17", ["mic_test", "writing", "say"], None),                                      # Say hello dropped
+    ("IM17", ["mic_test", "writing", "start_enabled"], True),                            # Start before the words
+    ("IM17", ["mic_test", "writing", "mic_heard"], "Heard: hello"),
     ("IM18", ["recorded", "silence", "reason"], "vendor"),                               # silence sent on
     ("IM18", ["recorded", "silence", "heard"], "you"),                                   # Whisper's ghost
     ("IM18", ["recorded", "status"], 422),                                               # RECORDED refused
@@ -581,6 +620,12 @@ SEEDED = [
     ("IM19", ["hear_out", "between_ms"], 2_400),                                         # not within a second
     ("IM19", ["hear_out", "hearing", 0, "after", "field"], "3"),                         # filled while speaking
     ("IM19", ["hear_out", "sent"], ["It would have made things better"]),
+    # spec 099 (keel-web 143): the heard line's states through every recorded window
+    ("IM19", ["hear_out", "heard_lines"], []),                                           # never read
+    ("IM19", ["hear_out", "heard_lines", 2, "state"], "nothing"),                        # nothing yet through the send
+    ("IM19", ["hear_out", "heard_lines"], lambda h: h[:2] + h[3:]),                      # words with no writing
+    ("IM19", ["hear_out", "heard_lines"], lambda h: h[:3] + [{**h[2], "state": "nothing"}] + h[3:]),  # nothing, words
+    ("IM19", ["hear_out", "heard_lines"], lambda h: h[:7] + [{**h[8]}] + h[7:]),                     # nothing after a sound
     ("IM20", ["taps", "one", "question_same"], False),                                   # went on at one tap
     ("IM20", ["taps", "one", "ring"], True),                                             # a tap held
     ("IM20", ["taps", "one", "more_played"], False),                                     # no And one more?
