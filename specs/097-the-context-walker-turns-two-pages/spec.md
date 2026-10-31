@@ -28,3 +28,17 @@ founder-screen anchors name the context form.
 keel-web 141 and the current cloud, `make eval K=s005`, `K=s015` and `K=s016` (money alone, no window page) green;
 the context screenshots in a bundle show both pages. Build on the founder's word of 2026-10-30, after keel-web 141
 merges and after 096.
+
+## Addendum 2026-10-30 -- what keel-web 141 built (merged; read these, not the spec's guesses)
+
+- 1 of 2 at `/define/context`: `#context-actor/job/circumstance/segment` unchanged; no window field, no `context-save`;
+  the primary is `[data-testid=context-continue]` (*Continue*), disabled until the four are filled; `data-context-state`
+  = `form`, new `data-context-screen` = `fields`; `[data-testid=context-counter]` reads *1 of 2*.
+- 2 of 2 at `/define/context/window`: `[data-testid=context-window-page]`; `input.cwindow__count`, `select.cwindow__unit`
+  (starts at `""`, a disabled *Choose*), `button.cwindow__chip` keep their classes; **nothing pre-filled**: the walker
+  fills a count + unit or picks a chip, then presses `[data-testid=context-save]` (*Save and continue*); PUT body unchanged;
+  `[data-testid=context-back]`; `data-context-screen` = `window`.
+- The wait, the card, the read's question and the confirmed sentence draw at `/define/context`.
+- Money alone and a locked context: one screen, `context-save` as before (no `context-continue`).
+- `window_drawn` must test `context-continue` presence (gate served) / absence (money alone); `input.cwindow__count` is
+  never on 1 of 2. `context_confirmed()` after Edit must press `context-continue` to read the saved window.
