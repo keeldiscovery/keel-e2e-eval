@@ -4002,8 +4002,9 @@ RA_KEY = "solution.relative_advantage"
 
 def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> None:
     """keel-cloud 090 (D14) on every journey: the idea card strangers read is *Imagine {name}.* and the Relative
-    advantage question *On your last {occasion}, would {name} have made it go better for you, or not?* (keel-cloud 159;
-    the plain frame *Would {name} ...* past 20 words), both composed by code
+    advantage question *Would {name} have made your last {occasion} go better for you, or not?* (keel-cloud 173, spec
+    113 FR-2; past 20 words *Would it have made your last {occasion} ...*, the occasion never dropped), both composed by
+    code
     around the idea's **current** name -- the one the wire stored after S2 (`IdeaView.shortName`): Keel's short name
     where the founder saved the draft untouched, the founder's own where they renamed it. Held on the wire (the served
     reveal / idea and the item's question) and on the screens (the reveal's or idea screen's card, and the idea card
@@ -4027,7 +4028,10 @@ def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> No
         if advantage is not None and (served_q != want_question if j.strict else name not in served_q):
             # on the back-test the stem and the question are the model's (keel-cloud 120 opens the question with the
             # occasion stem); only the idea's current name is held there
-            faults.append({"question": served_q, "want": want_question if j.strict else f"names {name!r}"})
+            # spec 113 FR-2: the fault says which composition was served (173's, or 159's / 085's -- an item stored
+            # before 173, which a project locked on this run never carries)
+            faults.append({"question": served_q, "frame": vs.benefit_frame_of(served_q),
+                           "want": want_question if j.strict else f"names {name!r}"})
         if j.strict and occasion != vs.occasion(j.entry):
             faults.append({"occasion": occasion, "corpus": vs.occasion(j.entry)})
         for drawn in walked["screens"]:

@@ -655,17 +655,111 @@ def idea_card(name: str) -> str:
     return f"Imagine {name.strip()}."
 
 
-#: keel-cloud 159 `ScaleFour.FRAME`: Relative advantage's tail after the idea's name.
-BENEFIT_FRAME = "have made it go better for you, or not?"
+#: keel-cloud 173 `ScaleFour.FRAME`: Relative advantage's tail after the idea's name, the occasion inside it (spec 173
+#: FR-2: the occasion never leaves the stranger's question), filled by `benefit_frame` as `OccasionNoun.fill` fills it.
+BENEFIT_FRAME = "have made your last {occasion} go better for you, or not?"
+#: keel-cloud `ScaleFour.FRAME_159`: spec 159 to 172's tail, what an item stored before 173 carries after its *On your
+#: last {occasion}, would {name}* -- served as stored (`served_benefit_question`), never rewritten into 173's words.
+BENEFIT_FRAME_159 = "have made it go better for you, or not?"
+#: keel-cloud `ScaleFour.OLD_FRAME`: spec 091 to 158's tail, which an item stored before contract 47 carries.
+BENEFIT_FRAME_085 = "have made things better, or not?"
+#: keel-cloud 173 `SpokenCap.PLAIN[SOLUTION_RELATIVE_ADVANTAGE]`: the plain frame of an item stored before 173.
+BENEFIT_PLAIN_159 = f"Would it {BENEFIT_FRAME_159}"
+
+
+def fill_occasion(template: str, noun: str | None) -> str:
+    """keel-cloud `OccasionNoun.fill` (spec 129 FR-8): a template's `{occasion}` filled with the context's own noun; with
+    none (blank, the placeholder *time*) *your last {occasion}* reads *the last time*, never *your last time*."""
+    own = (noun or "").strip()
+    if own and own.lower() not in ("time", "times"):
+        return template.replace("{occasion}", own)
+    return (template.replace("on their last {occasion}", "the last time").replace("on your last {occasion}", "the last time")
+            .replace("their last {occasion}", "the last time").replace("your last {occasion}", "the last time")
+            .replace("that last {occasion}", "that time").replace("last {occasion}", "last time")
+            .replace("{occasion}", "time"))
+
+
+def benefit_frame(occasion_word: str | None) -> str:
+    """keel-cloud 173 `ScaleFour.frame`: `BENEFIT_FRAME` with the occasion in -- the context's own noun, else *the last
+    time*."""
+    return fill_occasion(BENEFIT_FRAME, occasion_word)
+
+
+def benefit_shortened(occasion_word: str | None) -> str:
+    """keel-cloud 173 `ScaleFour.shortened`: the question over the cap -- the idea said *it*, the occasion kept (the
+    frame is eleven words and an occasion at most eight, so it always fits)."""
+    return f"Would it {benefit_frame(occasion_word)}"
 
 
 def benefit_question(occasion_word: str, name: str) -> str:
-    """keel-cloud `ScaleFour.question` (spec 159 FR-1; 091 FR-E before it): Relative advantage's stem around the idea's
-    current name -- *On your last {occasion}, would {name} have made it go better for you, or not?*, or, past the 20-word
-    spoken cap, the plain frame *Would {name} have made it go better for you, or not?* (159 judgement call 2)."""
-    idea = name.strip() or "the idea"
-    asked = f"On your last {occasion_word.strip() or 'time'}, would {idea} {BENEFIT_FRAME}"
-    return asked if _words(asked) <= STEM_MAX_WORDS else f"Would {idea} {BENEFIT_FRAME}"
+    """keel-cloud 173 `ScaleFour.question` (spec 173 FR-2; 159 FR-1, 091 FR-E before it): Relative advantage's stem around
+    the idea's current name -- *Would {name} have made your last {occasion} go better for you, or not?* (*... the last
+    time ...* with no noun, *the idea* with no name), or, past the 20-word spoken cap, *Would it have made your last
+    {occasion} go better for you, or not?* -- the idea's noun shortened, never the occasion dropped (159's plain frame
+    *Would {name} have made it go better ...* is gone)."""
+    idea = (name or "").strip() or "the idea"
+    asked = f"Would {idea} {benefit_frame(occasion_word)}"
+    return asked if _words(asked) <= STEM_MAX_WORDS else benefit_shortened(occasion_word)
+
+
+def benefit_question_159(occasion_word: str, name: str) -> str:
+    """Spec 159 to 172's composition (`ScaleFour.question` before 173), kept to read an item stored before 173: *On your
+    last {occasion}, would {name} have made it go better for you, or not?*, past 20 words *Would {name} have made it go
+    better for you, or not?*. Never what a project locked since 173 is served."""
+    idea = (name or "").strip() or "the idea"
+    asked = f"On your last {(occasion_word or '').strip() or 'time'}, would {idea} {BENEFIT_FRAME_159}"
+    return asked if _words(asked) <= STEM_MAX_WORDS else f"Would {idea} {BENEFIT_FRAME_159}"
+
+
+_OCCASIONED = re.compile(r"^Would (.+?) have made ((?:your last .+?)|(?:the last time)) go better for you, or not\?$")
+
+
+def benefit_held_with_its_occasion(stem: str | None) -> str | None:
+    """keel-cloud 173 `ScaleFour.heldWithItsOccasion`: a stem in 173's words past the cap (or failing the stranger's
+    grammar) at serving says the idea *it* and keeps the occasion as stored; None for any other stem (an item stored
+    before 173 falls to its plain frame, `BENEFIT_PLAIN_159`, as it did)."""
+    if stem is None:
+        return None
+    m = _OCCASIONED.match(stem.strip())
+    return f"Would it have made {m.group(2)} go better for you, or not?" if m else None
+
+
+def benefit_frame_of(question: str | None) -> str | None:
+    """Which composition a served Relative advantage question is in: `"173"` (the occasion inside, *Would ... have made
+    your last / the last time go better ...*), `"159"` (*... have made it go better ...*, an item stored before 173),
+    `"085"` (*... made things better ...*, before contract 47), else None. A spec-120 anchor before it is read past."""
+    text = (question or "").strip()
+    at = text.find(". ")
+    if at > 0 and text.startswith("Think "):
+        text = text[at + 2:].strip()
+    if _OCCASIONED.match(text):
+        return "173"
+    if text.endswith(BENEFIT_FRAME_159):
+        return "159"
+    if text.endswith(BENEFIT_FRAME_085):
+        return "085"
+    return None
+
+
+def served_benefit_question(stored: str | None, name: str | None = None) -> str | None:
+    """keel-cloud 173 `SpokenCap.held`'s Relative advantage step (with 159's `ScaleFour.goBetter`): the question a stored
+    item is served with. 085's *made things better* is served in 159's words; a 173 stem past the cap is
+    `benefit_held_with_its_occasion`'s; an item stored before 173 past the cap falls to 159's plain frame, the idea's
+    `name` where it is known and fits (`SpokenCap.plain`), else `BENEFIT_PLAIN_159`. Every other stem -- 159's within the
+    cap, 173's within it -- is served as stored: a locked project keeps its question and its clips (spec 173 T006). The
+    grammar check beside the cap (`StrangerGrammar`) is not mirrored, as before 173."""
+    if stored is None or not stored.strip():
+        return stored
+    text = stored.replace(BENEFIT_FRAME_085, BENEFIT_FRAME_159).strip()
+    anchor, stem = None, text
+    at = text.find(". ")
+    if at > 0 and text.startswith("Think "):
+        anchor, stem = text[:at + 1], text[at + 2:].strip()
+    if _words(stem) > STEM_MAX_WORDS:
+        plain = f"Would {name.strip()} {BENEFIT_FRAME_159}" if (name or "").strip() else None
+        kept = benefit_held_with_its_occasion(stem) or plain
+        stem = kept if kept and _words(kept) <= STEM_MAX_WORDS else BENEFIT_PLAIN_159
+    return stem if anchor is None else f"{anchor} {stem}"
 
 
 def founder_idea_name(entry) -> str:

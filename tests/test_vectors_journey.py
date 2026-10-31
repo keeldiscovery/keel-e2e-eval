@@ -310,11 +310,13 @@ def test_idea_names_read_as_keel_cloud_derives_them():
     assert vs.idea_name_of("Keel") == "Keel"
     assert vs.idea_name_of("imagine") == ""
     assert vs.idea_card("payroll error catcher") == "Imagine payroll error catcher."
-    # spec 089 FR-4 (keel-cloud 159 `ScaleFour.question`): *made it go better for you*; past 20 words the plain frame
+    # spec 089 FR-4 (keel-cloud 159 `ScaleFour.question`): *made it go better for you*; past 20 words the plain frame.
+    # Re-pinned by spec 113 FR-2 (keel-cloud 173): the occasion inside the question; past 20 words *Would it ...*, the
+    # occasion kept (the refill pin is now 20 words, so its name stays)
     assert vs.benefit_question("payroll run", "a list of flagged employees") == (
-        "On your last payroll run, would a list of flagged employees have made it go better for you, or not?")
+        "Would a list of flagged employees have made your last payroll run go better for you, or not?")
     assert vs.benefit_question("shift on the phones", "refill requests filed for you") == (
-        "Would refill requests filed for you have made it go better for you, or not?")
+        "Would refill requests filed for you have made your last shift on the phones go better for you, or not?")
 
 
 @pytest.mark.parametrize("entry_id", ENTRIES)

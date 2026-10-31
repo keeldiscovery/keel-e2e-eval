@@ -229,15 +229,23 @@ def _cloud(path: str, marker: str) -> str:
 
 def test_the_question_is_scale_fours_and_the_plain_frame_past_the_cap():
     """keel-cloud 159 T002 (`ScaleFour.question`): *On your last {occasion}, would {name} have made it go better for you,
-    or not?*; where that passes 20 words, *Would {name} ...* (06-repeatline's came to 22)."""
+    or not?*; where that passes 20 words, *Would {name} ...* (06-repeatline's came to 22).
+
+    Re-pinned by spec 113 FR-2 (keel-cloud 173 T005, `ScaleFour.FRAME` moved): *Would {name} have made your last
+    {occasion} go better for you, or not?*; past 20 words *Would it have made your last {occasion} ...* -- the idea's
+    noun shortened, never the occasion dropped (06-repeatline's now comes to 20 and keeps its name); *the last time* with
+    no noun. The name of the test is kept; there is no plain frame past the cap any more."""
     text = _cloud(SCALE_FOUR, "FRAME")
     assert _java_string(text, "FRAME") == vs.BENEFIT_FRAME
+    assert _java_string(text, "FRAME_159") == vs.BENEFIT_FRAME_159
     assert vs.benefit_question("invoice", "invoice payout service") == \
-        "On your last invoice, would invoice payout service have made it go better for you, or not?"
-    long = vs.benefit_question("shift on the phones", "refill requests filed for you")
-    assert long == "Would refill requests filed for you have made it go better for you, or not?"
-    assert len(f"On your last shift on the phones, would refill requests filed for you {vs.BENEFIT_FRAME}".split()) == 22
-    assert vs.benefit_question("", "") == "On your last time, would the idea have made it go better for you, or not?"
+        "Would invoice payout service have made your last invoice go better for you, or not?"
+    at_cap = vs.benefit_question("shift on the phones", "refill requests filed for you")
+    assert at_cap == "Would refill requests filed for you have made your last shift on the phones go better for you, or not?"
+    assert len(at_cap.split()) == 20
+    long = vs.benefit_question("shift on the phones", "refill requests filed for you by text")
+    assert long == "Would it have made your last shift on the phones go better for you, or not?"
+    assert vs.benefit_question("", "") == "Would the idea have made the last time go better for you, or not?"
 
 
 def test_one_code_is_sent_and_no_benefit():
