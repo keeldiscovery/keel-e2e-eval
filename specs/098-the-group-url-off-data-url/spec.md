@@ -15,3 +15,12 @@ section's URL off `GROUP_LINK`'s title today (`:162`, the S-017 leg's `section["
 
 `make unit` green with ZERO failed; `make eval K=s017` green on the playground stack at keel-web 142. Build on the
 founder's word of 2026-10-30, after 142 merges and after 097.
+
+## Addendum 2026-10-30 -- what keel-web 142 built (merged; read these)
+
+- `[data-testid='group-link']` matches nothing now; `groups()`'s `"link"` is always None (drop or keep as None).
+- The URL is `section.get_attribute("data-url")` on the `[data-testid='sent-group']` element (the one carrying
+  `data-group` and `data-closed`); the whole served URL (`https://…/i/<token>`); present on CLOSED sections too, so any
+  check expecting `url is None` for a closed group changes.
+- Unchanged: `group-link-made`, `group-name`, `group-count`, `group-close`, `group-reopen`, `group-empty`, Copy link's
+  accessible name *Copy link · {group}*; Copy still copies the same value.
