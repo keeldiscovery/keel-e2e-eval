@@ -1163,7 +1163,14 @@ Calls 91-109 are spec 041's (the journey on corpus revision 10): they read no ma
     addresses the person, so a base-form clause (*open the app before picking the baby up*) is said to the stranger;
     one whose subject is someone or something else (*the cry ...*, *the room ...*, `THIRD_PERSON_OPENERS`) still
     faults. Compatibility's `K3` is unchanged (the clause carries *you / your*). 163's 12-word clause rule is the
-    registry's option rule and is not restated. A v20 or v21 bundle re-scores at v22 (call 125).
+    registry's option rule and is not restated. A v20 or v21 bundle re-scores at v22 (call 125). **Amended by spec 112
+    FR-1 (keel-cloud 171 FR-4b, 2026-10-30)**: the frame `spoken.framed` reads is now `ItemFrames.adoptionFrame` --
+    *To use it, you'd {step}. Would you do that, or not?* around the **whole** step (`spoken.step`: a leading *would
+    you* / *you'd* / *you would* / *you had to* / *have to* / *need to* dropped, a past or a participle in base form, a
+    leading clause moved to the end in the present, a clause's own *to ..., you'd* purpose dropped), no give-way; 123's
+    *You'd ...* and *you had to* -> *you would have to* are retired. `K3` reads the step after the frame's *you'd*.
+    171's clause is at most 10 words (the option rule's, `spoken.ADOPTION_CLAUSE_MAX_WORDS`, not restated as a fault):
+    an 11-word clause is 21 framed, a `K2`.
 127. **v23**: **a drafted list is held to the draft's rule, not the save's** (spec 091 FR-1). `L1` on Importance's
     draft (`rival_list`) reads the job's `answers` slot: `{}` (the seed-time job, every screen this eval runs) is the
     problem itself alone -- exactly one item; the founder's Answer for it is the problem itself and the difficulties the

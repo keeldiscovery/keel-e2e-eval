@@ -234,7 +234,8 @@ def test_the_asked_job_is_one_list_its_frame_and_its_items_by_index(entry, regis
                               {"index": 1, "label": "Their keys were on one ring"}]
     assert "asked\"" not in repr(built["items"]) and "did you have" not in repr(built), "the faces are the job's to write"
     adoption = context_mod.build_asked(entry, "solution.adoption_friction", registry)
-    assert adoption["dimension"]["frame"] == "{asked}. Would you do that, or not?"
+    # spec 112 FR-4 (keel-cloud 171 FR-4b: `AskedRules.framed`, the asked job's frame): was *{asked}. Would you ...*
+    assert adoption["dimension"]["frame"] == "To use it, you'd {asked}. Would you do that, or not?"
     assert adoption["items"] == [{"index": 0, "label": "Clip a tag to the key ring"}]
     assert built["context"]["window"] == "the last 7 nights"
     keys = ["items", "dimension", "unknown"]

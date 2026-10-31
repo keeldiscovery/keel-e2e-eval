@@ -376,8 +376,10 @@ def test_k5_reads_a_product_word_on_a_part_one_item_only():
 def test_a_face_is_framed_as_design_5_1_frames_it():
     assert spoken_mod.framed("solution.compatibility", "delivery", "could you scan it?") == \
         "On your last delivery, could you scan it?"
+    # spec 112 FR-4 (keel-cloud 171 FR-4b): Adoption friction's frame is *To use it, you'd {step}.*, the clause's own
+    # *you'd* dropped into it (was 123's *You'd scan it. Would you do that, or not?*)
     assert spoken_mod.framed("solution.adoption_friction", None, "you'd scan it.") == \
-        "You'd scan it. Would you do that, or not?"
+        "To use it, you'd scan it. Would you do that, or not?"
 
 
 # ------------------------------------------------------------------------ the cloud corpus parser

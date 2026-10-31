@@ -130,32 +130,43 @@ ADOPTION = "solution.adoption_friction"
 
 
 @pytest.mark.parametrize("asked, line, count", [
-    # keel-cloud 163's recorded slip: code reads 20 (the harness read 21 before -- the model's *would you* kept)
+    # keel-cloud 163's recorded slip -- 20 under 123's *You'd ...*, now 23 in keel-cloud 171's frame (spec 112 FR-4)
     ("would you hold your phone near the crib for ten seconds while your baby cried",
-     "You'd hold your phone near the crib for ten seconds while your baby cried. Would you do that, or not?", 20),
-    # 163's worked example, the plain frame: 15
+     "To use it, you'd hold your phone near the crib for ten seconds while your baby cried. Would you do that, or not?",
+     23),
+    # 163's worked example (was the plain *Hold your ... seconds. Would you ...*, 15): 171's frame, 19
     ("hold your phone near the cot for ten seconds",
-     "Hold your phone near the cot for ten seconds. Would you do that, or not?", 15),
-    # 132 FR-1: a leading clause said after the step, in the present
+     "To use it, you'd hold your phone near the cot for ten seconds. Would you do that, or not?", 19),
+    # 132 FR-1: a leading clause said after the step, in the present -- `K2` measures it whole (was 18 after *You'd*)
     ("When the repair was done, would you speak the fix into your phone.",
-     "You'd speak the fix into your phone when the repair is done. Would you do that, or not?", 18),
-    # 123 FR-2 (`StrangerGrammar.wouldDo`): *you had to* asked *you would have to*
-    ("you had to talk out loud on site", "You would have to talk out loud on site. Would you do that, or not?", 15),
-    ("you'd scan it.", "You'd scan it. Would you do that, or not?", 9),
+     "To use it, you'd speak the fix into your phone when the repair is done. Would you do that, or not?", 21),
+    # 171's `SpokenCap.step`: *you had to* is the bare step after *you'd* (was 123's *You would have to ...*)
+    ("you had to talk out loud on site", "To use it, you'd talk out loud on site. Would you do that, or not?", 15),
+    ("you'd scan it.", "To use it, you'd scan it. Would you do that, or not?", 12),
+    # keel-cloud 171's K2 pins (`k2MeasuresTheClauseInTheNewFrame...`): ten words fit, eleven do not
+    ("let an AI answer your guests in your hotel's voice",
+     "To use it, you'd let an AI answer your guests in your hotel's voice. Would you do that, or not?", 20),
+    ("let an AI answer all your guests in your hotel's voice",
+     "To use it, you'd let an AI answer all your guests in your hotel's voice. Would you do that, or not?", 21),
 ])
 def test_the_frame_is_itemframes_adoption_friction(asked, line, count):
-    """FR-4: the harness frames an Adoption friction clause as `ItemFrames.adoptionFriction` does (163's tasks.md), so
-    `K2` counts the words the cloud counts."""
+    """FR-4 (spec 112 FR-1): the harness frames an Adoption friction clause as `ItemFrames.adoptionFrame` does
+    (`AskedRules.framed`, keel-cloud 171), so `K2` counts the words the cloud counts."""
     assert spoken_mod.framed(ADOPTION, None, asked) == line and spoken_mod.words(line) == count
 
 
 def test_163s_slip_is_no_longer_a_k2_and_a_long_one_still_is():
-    """163's *What did not hold*: the cloud passes the 20-word crib line; one word more is still over."""
-    assert not [f for f in spoken_mod.face_faults("would you hold your phone near the crib for ten seconds while your "
-                                                  "baby cried", "Hold the phone near the cot", ADOPTION, None)
-                if f.startswith("K2")]
-    assert [f for f in spoken_mod.face_faults("would you hold your phone near the crib for ten long seconds while your "
+    """163's *What did not hold*: the cloud passed the 20-word crib line under 123's frame. Spec 112 FR-4 (keel-cloud 171
+    FR-4b, *K2 now refuses the slip*): in *To use it, you'd ...* it is 23 words and a `K2`; the 10-word clause the cloud
+    pins is not, and its 11-word one is."""
+    assert [f for f in spoken_mod.face_faults("would you hold your phone near the crib for ten seconds while your "
                                               "baby cried", "Hold the phone near the cot", ADOPTION, None)
+            if f.startswith("K2: framed")]
+    assert not [f for f in spoken_mod.face_faults("let an AI answer your guests in your hotel's voice",
+                                                  "Let an AI answer guests in the hotel's voice", ADOPTION, None)
+                if f.startswith("K2")]
+    assert [f for f in spoken_mod.face_faults("let an AI answer all your guests in your hotel's voice",
+                                              "Let an AI answer guests in the hotel's voice", ADOPTION, None)
             if f.startswith("K2: framed")]
 
 

@@ -2653,7 +2653,9 @@ def _ing(verb: str) -> str:
 
 
 def gerund(step: str) -> str:
-    """keel-cloud 129 FR-2 / 131 FR-4 (`SpokenCap.gerund`): the founder's step as it follows *{Name} means* -- *Pay a
+    """keel-cloud 129 FR-2 / 131 FR-4 (`SpokenCap.gerund`): the founder's step as it followed *{Name} means* (since
+    keel-cloud 171 no longer the frame's -- `adoption_statement` says the step in base form, spec 112 FR-1; the
+    follow-up rungs' `{effort}` and `{step}` still read it) -- *Pay a
     verified seller they have never met* reads *paying a verified seller you have never met*; every verb joined by
     *and* in -ing (*taking short videos and talking over them*, *reading and correcting every draft*); a step stored as a
     question (*Would you speak the fix ...*) or a past statement (*you wore the glasses ... whenever you talked*) read
@@ -2711,21 +2713,38 @@ def job_gerund(job: str | None) -> str | None:
     return " ".join(words)
 
 
-def adoption_statement(asked: str | None, name: str | None) -> str | None:
-    """keel-cloud 130 FR-11 (`ItemFrames.adoptionFriction(asked, name)` over `SpokenCap.plain`): the statement frame names
-    the idea -- *Karsa means paying a verified seller you have never met. Would you do that, or not?* -- wherever the
-    name is known and the frame fits the 20 words; None where it does not (the statement as before, which the harness
-    reads off the wire: `StrangerGrammar.wouldDo` and the grammar check are not mirrored)."""
+def adoption_statement(asked: str | None, name: str | None, label: str | None = None) -> str | None:
+    """Spec 112 FR-1 (keel-cloud 171 FR-4, FR-4b: `ItemFrames.adoptionFriction(asked, name, label)` at the lock, then
+    `SpokenCap.held`): the served Adoption friction question -- *To use Karsa, you'd pay a verified seller you have
+    never met. Would you do that, or not?* -- the stored clause in base form after *you'd* (`spoken.step`), a clause
+    naming the capitalised idea where the founder's row does not said with *it* (`spoken.says_it`), named where a form of
+    it fits 20 words (whole, without a phrase set off by commas, a question's step without its leading clause), else
+    *To use it, ...* by the same give-way; past them all the lock gives way to the founder's row (`label`) in the same
+    frame (`SpokenCap.plain`: named, *it* where the name takes it past 20), and past that to the plain *Would it fit the
+    way you do things, or not?*. Was 130's *{Name} means {gerund}.*, None with no name (now *To use it*). None with no
+    clause. keel-cloud's grammar check (`StrangerGrammar.fault`) is not mirrored, so a served stem it moved is a
+    finding (`backtest.cloud_130`), never a stop."""
+    from instructions import spoken as spoken_mod                     # noqa: PLC0415
     thing = _trim_end(asked)
-    idea = (name or "").strip()
-    if not idea or not thing:
+    if not thing:
         return None
-    # keel-cloud 131 FR-4: one past the cap drops a phrase set off by commas (*, paired to your phone,*) before giving way
-    for step in (thing, re.sub(r",\s+[^,]+,\s+", " ", thing, count=1)):
-        named = f"{idea[:1].upper() + idea[1:]} means {gerund(step)}. Would you do that, or not?"
-        if _words(named) <= STEM_MAX_WORDS:
-            return named
-    return None
+    idea = (name or "").strip() or None
+    # the lock's call: the tested row's label, `""` where none is known (`RespondentItems.fromList`)
+    composed = spoken_mod.adoption_friction(thing, idea, label or "")
+    if _words(composed) <= STEM_MAX_WORDS:
+        return composed
+    row = _trim_end(label)
+    if row:
+        kept = spoken_mod.to_use(idea, spoken_mod.step(row))
+        if idea is not None and _words(kept) > STEM_MAX_WORDS:
+            kept = spoken_mod.to_use(None, spoken_mod.step(row))
+        if _words(kept) <= STEM_MAX_WORDS:
+            return kept
+    return ADOPTION_PLAIN
+
+
+#: keel-cloud `SpokenCap.PLAIN`'s Adoption friction frame: the question with nothing of the founder's pasted in.
+ADOPTION_PLAIN = "Would it fit the way you do things, or not?"
 
 
 #: keel-cloud 130 FR-10 (`ItemFrames.NAMED_STEP`): what a founder's step may name, with *the*, that the card has to have

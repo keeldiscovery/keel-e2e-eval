@@ -160,7 +160,17 @@ def test_a_record_written_after_170_keeps_every_rule(tmp_path):
     from evals import backtest as bt                                    # noqa: PLC0415
     registry, corpus, cloud, _ = _record_after_170(tmp_path)
     score = spoken_mod.score(cloud, corpus)
-    assert score.faults == [] and (score.units, score.clean) == (109, 109), score.faults
+    # spec 112 FR-4 (keel-cloud 171 FR-4b, its *not foreseen* 1): the corpus (r19) did not move, and five golden
+    # Adoption friction faces -- 11 or 12 words, written to 163's *at most 12* -- are past *To use it, you'd*'s room:
+    # each a `K2` on the framed line (was 109 of 109). The cloud never refuses a stored row (the lock gives way to the
+    # founder's row); a corpus revision with 10-word faces is keel-cloud's to make.
+    assert sorted((f["entry"], f["unit"]) for f in score.faults) == [
+        ("01-countly", "asked scan_each_delivery"), ("02-compliancelog", "asked connect_once"),
+        ("03-lullaby", "asked hold_phone_near_cot"), ("04-linerly", "asked fit_liner_once"),
+        ("06-repeatline", "asked handle_exceptions")], score.faults
+    assert all(f["key"] == "solution.adoption_friction" and f["evidence"].startswith("K2: framed, it reads \"To use it")
+               for f in score.faults)
+    assert (score.units, score.clean) == (109, 104)
     items = cloud.items_of("03-lullaby")
     served = [{"dimension": ci.key, "question": ci.question,
                "options": [{"optionId": str(n), "label": o} for n, o in enumerate(ci.options)],

@@ -404,7 +404,15 @@ def test_the_corpus_lists_as_a_draft_score_clean(lullaby, registry, vector):
     room quiet enough for your phone to hear the cry* says *your* (keel-cloud 091, DRIFT #77 closed)."""
     score = score_mod.score_calibration(fx.calibration_case(lullaby, vector), lullaby, registry,
                                         _drafted_from(lullaby, registry, vector), judge=fx.FakeJudge())
-    assert score.faults == [], score.faults
+    if vector == "SOLUTION":
+        # spec 112 FR-4 (keel-cloud 171 FR-4b, its *not foreseen* 1): the corpus did not move, and Lullaby's 12-word
+        # Adoption friction face is past *To use it, you'd*'s room -- the one fault, a K2 on the framed line (the cloud
+        # never refuses a stored row; at the lock it gives way to the founder's row)
+        assert [(f["key"], f["evidence"][:20]) for f in score.faults] == [
+            ("solution.adoption_friction", "K2: framed, it reads")], score.faults
+        assert "you'd hold your phone near the cot for ten seconds while it listens" in score.faults[0]["evidence"]
+    else:
+        assert score.faults == [], score.faults
     assert spoken_mod.KNOWN == ()
 
 

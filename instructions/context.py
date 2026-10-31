@@ -411,9 +411,11 @@ def build_respondent(entry, part: int, plan: dict | None = None, registry=None, 
 # ---------------------------------------------------------------------------------- ASKED (088)
 
 def asked_frame(key: str, occasion: str | None) -> str:
-    """`AskedRules.framed(dimension, occasion, "{asked}")`: the question code puts a face into (design §5.1)."""
+    """`AskedRules.framed(dimension, occasion, "{asked}")`: the question code puts a face into (design §5.1). Spec 112
+    FR-1 (keel-cloud 171 FR-4b, `ItemFrames.adoptionFrame`): Adoption friction's is *To use it, you'd {asked}. Would you
+    do that, or not?* (was *{asked}. Would you do that, or not?*)."""
     if key == "solution.adoption_friction":
-        return "{asked}. Would you do that, or not?"
+        return "To use it, you'd {asked}. Would you do that, or not?"
     return f"On your last {occasion or 'time'}, {{asked}}?"
 
 

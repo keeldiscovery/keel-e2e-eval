@@ -403,20 +403,42 @@ def _first_step(options: list) -> list:
     return [f"Under {low}", options[2], f"Over {high}", options[5]]
 
 
-#: keel-cloud `ItemFrames.adoptionFriction`'s question after the clause.
+#: keel-cloud `ItemFrames.toUse`'s question after the step (spec 112 FR-1; keel-cloud 171 FR-4b).
 ADOPTION_ASK = "Would you do that, or not?"
+#: keel-cloud 171 (`founder-lists.md`'s *Short*, the registry's option rule): an Adoption friction clause is at most
+#: 10 words -- *To use {name}, you'd* is 10 framed with a one-word name or *it*. The option rule's; a fault of the
+#: frame (`K2`, 20 framed) is the harness's measure, never this count (spec 112 FR-1).
+ADOPTION_CLAUSE_MAX_WORDS = 10
 #: keel-cloud `SpokenCap.LEADING_CLAUSE` (132 FR-1): a step stored with a leading clause before its question.
 _LEADING_CLAUSE = re.compile(r"(?i)^([^,?]+?),\s*((?:would|will|could|can|do) you\s+.+)$")
-#: keel-cloud `ItemFrames.questionPart`'s opener, the words `adoptionFriction` turns into *You'd*.
-_ASKS_YOU = re.compile(r"(?i)^(?:would|will|could|can|do) you\s+")
-#: keel-cloud `StrangerGrammar.secondPerson`: the third person said to the stranger (the count does not move).
-_THIRD_TO_SECOND = {"they": "you", "them": "you", "their": "your", "theirs": "yours", "themselves": "yourself",
+#: keel-cloud `ItemFrames.questionPart`'s opener.
+_ASKS_YOU = re.compile(r"(?i)^(?:would|will|could|can|do) you\s+.+$")
+#: keel-cloud `StrangerGrammar.THIRD` (`secondPerson(text, false)`): the third person said to the stranger. *them* is
+#: not one of them (*talk over them* keeps its object); spec 093's mirror turned it and is corrected here (spec 112).
+_THIRD_TO_SECOND = {"they": "you", "their": "your", "theirs": "yours", "themselves": "yourself",
                     "they're": "you're", "they've": "you've", "they'd": "you'd", "they'll": "you'll"}
 _THIRD_RE = re.compile(r"\b(" + "|".join(sorted((re.escape(w) for w in _THIRD_TO_SECOND), key=len, reverse=True))
                        + r")\b", re.IGNORECASE)
-#: keel-cloud `StrangerGrammar.wouldDo`'s turns: *you had to* is asked *you would have to* -- one word more.
-_WOULD_DO = (("you had to ", "you would have to "), ("you have to ", "you would have to "),
-             ("you need to ", "you would need to "), ("you needed to ", "you would need to "))
+#: keel-cloud `StrangerGrammar.IRREGULAR` (base -> past), as `baseOfPast` reads it back.
+_IRREGULAR = {"are": "were", "is": "was", "have": "had", "has": "had", "do": "did", "does": "did", "go": "went",
+              "get": "got", "make": "made", "take": "took", "see": "saw", "come": "came", "know": "knew", "find": "found",
+              "give": "gave", "tell": "told", "feel": "felt", "leave": "left", "keep": "kept", "begin": "began",
+              "run": "ran", "sit": "sat", "stand": "stood", "lose": "lost", "pay": "paid", "send": "sent",
+              "spend": "spent", "buy": "bought", "bring": "brought", "think": "thought", "hold": "held",
+              "can": "could", "will": "would", "may": "might", "must": "had to", "put": "put", "set": "set",
+              "cut": "cut", "let": "let", "read": "read", "write": "wrote", "speak": "spoke", "meet": "met",
+              "sell": "sold", "wake": "woke", "eat": "ate", "fall": "fell", "drive": "drove", "ride": "rode",
+              "build": "built", "hear": "heard", "mean": "meant", "say": "said", "become": "became",
+              "choose": "chose", "win": "won", "fly": "flew", "grow": "grew", "wear": "wore", "ring": "rang",
+              "catch": "caught"}
+#: keel-cloud 171 `SpokenCap.BE_DO_HAVE`: a statement's own *be*, *do* and *have*, in base form after *you'd*.
+_BE_DO_HAVE = {"was": "be", "were": "be", "are": "be", "did": "do", "had": "have"}
+#: keel-cloud 171 `SpokenCap.PARTICIPLES`: the participles that are no past (*worn*, *taken*) -- English's.
+_PARTICIPLES = {"worn": "wear", "taken": "take", "given": "give", "seen": "see", "done": "do", "gone": "go",
+                "written": "write", "spoken": "speak", "driven": "drive", "chosen": "choose", "known": "know",
+                "grown": "grow", "flown": "fly", "eaten": "eat", "fallen": "fall", "ridden": "ride",
+                "broken": "break", "woken": "wake", "begun": "begin", "shown": "show", "gotten": "get",
+                "forgotten": "forget"}
 
 
 def _belief_lower(text: str) -> str:
@@ -444,34 +466,194 @@ def _second_person(text: str) -> str:
     return _THIRD_RE.sub(turn, text)
 
 
+def base_of_past(past: str) -> str | None:
+    """keel-cloud `StrangerGrammar.baseOfPast`: the base of a past code can be sure of -- the irregulars, and the -ied,
+    -ted, -ded, -cked, -lled pasts."""
+    for base, said in _IRREGULAR.items():
+        if said == past and base != past and not base.endswith("s") and base not in ("is", "are", "was", "were"):
+            return base
+    if past.endswith("ied") and len(past) > 4:
+        return past[:-3] + "y"
+    if re.fullmatch(r"[a-z]+(nt|st|ct|pt|ft|lt|rt|ck|ll|sh|ch|rk|rm|rn|wn|ss|nd|ld|rd)ed", past):
+        return past[:-2]
+    if re.fullmatch(r"[a-z]+eived", past):
+        return past[:-1]
+    if re.fullmatch(r"[a-z]+(ai|ea|ee|oa|oo|ou|ie)[a-z]ed", past):
+        return past[:-2]
+    return None
+
+
+def base_of_past_loose(past: str) -> str | None:
+    """keel-cloud `StrangerGrammar.baseOfPastLoose`: `base_of_past`, else a regular *-ed* undone."""
+    sure = base_of_past(past)
+    if sure is not None:
+        return sure
+    if not past.endswith("ed") or len(past) < 4:
+        return None
+    stem = past[:-2]
+    if re.fullmatch(r".*([bdgmnprt])\1", stem):
+        return stem[:-1]
+    if re.fullmatch(r".*(ored|ared|ured|ired|ated|ized|ised|uced|aded|oded|iked|aked|oked|aved|ived|oved|ased)", past):
+        return past[:-1]
+    return stem
+
+
+def _base_of_participle(participle: str) -> str | None:
+    """keel-cloud 171 `SpokenCap.baseOfParticiple`."""
+    if participle in _PARTICIPLES:
+        return _PARTICIPLES[participle]
+    sure = base_of_past(participle)
+    if sure is not None:
+        return sure
+    return base_of_past_loose(participle) if participle.endswith("ed") else None
+
+
+def leading_clause(step: str):
+    """keel-cloud `SpokenCap.leadingClause` (132 FR-1): `(clause, question)` of a step stored with a leading clause
+    before its question (*When the repair was done, would you speak ...*), else None."""
+    if step is None or not str(step).strip():
+        return None
+    m = _LEADING_CLAUSE.match(_trim_end(step))
+    if not m or len(m.group(1).strip().split()) < 2:
+        return None
+    return _belief_lower(m.group(1).strip()), m.group(2).strip()
+
+
+def _present(clause: str) -> str:
+    """keel-cloud `SpokenCap.present` (132 FR-1): a leading clause said in the present after the step."""
+    text = _second_person(_belief_lower(clause.strip()))
+    text = re.sub(r"(?i)\bwere\b", "are", re.sub(r"(?i)\bwas\b", "is", text))
+
+    def turn(m):
+        verb = m.group(1).lower()
+        base = base_of_past_loose(verb) if (verb.endswith("ed") or base_of_past(verb) is not None) \
+            and verb != "had" else None
+        return "you " + (base or verb)
+    return re.sub(r"(?i)\byou ([a-z]+)\b", turn, text)
+
+
+def step(text: str) -> str:
+    """keel-cloud 171 FR-4b (`SpokenCap.step`): the founder's step as Adoption friction's frame says it after *you'd*
+    -- a base-form verb phrase in the second person: *you'd upload your ID card* -> *upload your ID card*, *You had to
+    talk ...* -> *talk ...*, *You would have worn the glasses ... whenever you talked* -> *wear the glasses ...
+    whenever you talk*, *When the repair was done, would you speak the fix into your phone* -> *speak the fix into your
+    phone when the repair is done*, *to set it up, you'd upload ...* -> *upload ...*. English's small words and the
+    verb tables code keeps, nothing else (spec 112 FR-1)."""
+    if text is None or not str(text).strip():
+        return text
+    led = leading_clause(text)
+    if led is not None:
+        return step(led[1]) + " " + _present(led[0])
+    out = _second_person(_trim_end(text))
+    out = re.sub(r"(?i)^to [^,]+,\s*(?=(?:you'd|you would|you will|you'll|you)\s)", "", out, count=1)
+    out = re.sub(r"(?i)^(?:would|will|could|can|do) you\s+", "", out, count=1)
+    past = False
+    perfect = re.fullmatch(r"(?i)(?:you'd|you would)\s+have\s+(?!to\b)([a-z]+)\b(.*)", out)
+    if perfect and _base_of_participle(perfect.group(1).lower()) is not None:
+        out = _base_of_participle(perfect.group(1).lower()) + perfect.group(2)
+        past = True
+    out = re.sub(r"(?i)^(?:you'd|you would|you will|you'll)\s+(?:have to\s+|need to\s+)?", "", out, count=1)
+    out = re.sub(r"(?i)^(?:you\s+)?(?:had to|have to|has to|would have to|needed to|need to|needs to)\s+", "", out,
+                 count=1)
+    out = re.sub(r"(?i)^you\s+(?:could|can|should|might|may|must)\s+", "", out, count=1)
+    you = re.fullmatch(r"(?i)you\s+([a-z']+)\b(.*)", out)
+    if you:
+        verb = you.group(1).lower()
+        if verb in _BE_DO_HAVE:
+            base = _BE_DO_HAVE[verb]
+        elif verb in ("read", "put", "set", "cut", "let"):
+            base = verb
+        elif base_of_past(verb) is not None:
+            base = base_of_past(verb)
+        elif verb.endswith("ed"):
+            base = base_of_past_loose(verb) or verb
+        else:
+            base = verb
+        past = (base != verb and verb not in _BE_DO_HAVE) or verb in ("was", "were", "did", "had")
+        out = base + you.group(2)
+    said = out.strip().split()
+    for i in range(1, len(said)):
+        lower, before = said[i].lower(), said[i - 1].lower()
+        a_past = (lower != "had" and (lower.endswith("ed") or base_of_past(lower) is not None)
+                  and base_of_past_loose(lower) is not None and lower != "read")
+        if a_past and (before == "you" or past and before == "and"):
+            said[i] = base_of_past_loose(lower)
+    return _belief_lower(" ".join(said))
+
+
+def to_use(name: str | None, said_step: str) -> str:
+    """keel-cloud 171 FR-4b (`ItemFrames.toUse`): *To use {name}, you'd {step}. Would you do that, or not?* -- *To use
+    it, ...* where the idea has no name. Retires 130's *{Name} means {gerund}.* and 123's *You'd {asked}.*"""
+    idea = "it" if name is None or not str(name).strip() else str(name).strip()
+    return f"To use {idea}, you'd {said_step}. {ADOPTION_ASK}"
+
+
+def question_part(asked: str) -> str | None:
+    """keel-cloud `ItemFrames.questionPart` (132 FR-1): the question of a step stored as one, else None."""
+    if asked is None or not str(asked).strip():
+        return None
+    led = leading_clause(asked)
+    text = led[1] if led is not None else _clause(asked)
+    return _belief_lower(text) if _ASKS_YOU.match(text) else None
+
+
+def says_it(asked: str | None, name: str | None, label: str | None) -> str | None:
+    """keel-cloud 171 FR-4 (`ItemFrames.saysIt`): `asked` with the idea's capitalised `name` said as *it* (*its* for
+    *{name}'s* and *the {name} ...*) -- only where the founder's `label` does not carry the name (a row the founder
+    typed with the brand keeps it); `asked` as it is otherwise."""
+    if asked is None or name is None or not str(name).strip() or not str(name).strip()[0].isupper():
+        return asked
+    said = re.escape(str(name).strip())
+    if not re.search(r"(?<![\w'])" + said + r"(?![\w])", asked) or (
+            label is not None and re.search(r"(?i)(?<![\w'])" + said + r"(?![\w])", label)):
+        return asked
+    out = re.sub(r"(?i)\b(?:the|a|an)\s+" + said + r"(?=\s+[a-z])", "its", asked)
+    out = re.sub(r"(?<![\w'])" + said + r"(?:'s|’s)", "its", out)
+    return re.sub(r"(?<![\w'])" + said + r"(?![\w])", "it", out)
+
+
+def _fitted(name: str | None, asked: str | None) -> str | None:
+    """keel-cloud 171 FR-4b (`ItemFrames.fitted`): the first form of the step the frame holds to the spoken cap -- the
+    step whole, then without a phrase set off by commas (131 FR-4), then a question's step without its leading clause
+    (132 FR-1) -- or None. keel-cloud's `StrangerGrammar.fault` beside the cap is not mirrored (as before)."""
+    if asked is None or not str(asked).strip():
+        return None
+    whole = step(_clause(asked))
+    steps = [whole, re.sub(r",\s+[^,]+,\s+", " ", whole, count=1)]
+    question = question_part(asked)
+    if question is not None and leading_clause(asked) is not None:
+        steps.append(step(question))
+    for said in steps:
+        framed_line = to_use(name, said)
+        if words(framed_line) <= STEM_MAX_WORDS:
+            return framed_line
+    return None
+
+
+def adoption_friction(asked: str | None, name: str | None = None, label: str | None = None) -> str:
+    """keel-cloud 171 (`ItemFrames.adoptionFriction(asked, name, label)`, the lock's call): the stored clause with the
+    idea's name said as *it* where the founder's row does not name it (`says_it`), framed named where a form of it fits
+    20 words, else unnamed by the same give-way, else whole (`adoption_frame`) -- which the lock's hold then gives way
+    to the founder's row (`vectors_script.adoption_statement`)."""
+    if label is not None:
+        asked = says_it(asked, name, label)
+    if name is not None and str(name).strip() and asked is not None and str(asked).strip():
+        fitted = _fitted(name, asked)
+        if fitted is not None:
+            return fitted
+    fitted = _fitted(None, asked)
+    return fitted if fitted is not None else adoption_frame(asked)
+
+
 def adoption_frame(asked: str) -> str:
-    """Spec 093 FR-4 (keel-cloud 163's tasks.md, `ItemFrames.adoptionFriction` as `AskedRules.framed` reads it): an
-    Adoption friction clause as code frames it, so the harness and the cloud count the same words. A clause the model
-    opens on *would you* (or *will / could / can / do you*) is said *You'd ...* -- its own *would you* counted as one
-    word -- with a leading clause (*When the repair was done, would you ...*) said after it while the whole stays at
-    most 20 words, then *Would you do that, or not?*; any other clause is said in the second person, *you had to* as
-    *you would have to* (`StrangerGrammar.wouldDo`), capitalised, then the same question. 163's 12-word clause rule is
-    the registry's (`option_rule`), never restated here. (keel-cloud's past-tense turn, *you wore* -> *you'd wear*, moves
-    no word and is not restated.)"""
-    trimmed = _trim_end(asked)
-    led = _LEADING_CLAUSE.match(trimmed)
-    led = (_belief_lower(led.group(1).strip()), led.group(2).strip()) if led and len(led.group(1).split()) >= 2 \
-        else None
-    text = led[1] if led else _clause(asked)
-    if _ASKS_YOU.match(text):
-        said = "You'd " + _ASKS_YOU.sub("", _clause(_belief_lower(text)), count=1)
-        # `SpokenCap.present`: the leading clause said after it in the present (*was* -> *is*; no word moves)
-        after = re.sub(r"(?i)\bwere\b", "are", re.sub(r"(?i)\bwas\b", "is", _second_person(_belief_lower(led[0])))) \
-            if led else None
-        whole = said if after is None else f"{said} {after}"
-        line = f"{whole}. {ADOPTION_ASK}"
-        return line if words(line) <= STEM_MAX_WORDS else f"{said}. {ADOPTION_ASK}"
-    clause = _second_person(_clause(asked))
-    for old, new in _WOULD_DO:
-        if clause.lower().startswith(old):
-            clause = (new[:1].upper() if clause[:1].isupper() else new[:1]) + new[1:] + clause[len(old):]
-            break
-    return f"{clause[:1].upper()}{clause[1:]}. {ADOPTION_ASK}"
+    """Spec 093 FR-4, spec 112 FR-1 (keel-cloud 171 FR-4b, `ItemFrames.adoptionFrame` as `AskedRules.framed` reads it):
+    an Adoption friction clause as `K2` measures it -- *To use it, you'd {step}. Would you do that, or not?* around the
+    **whole** step (`step`: a leading *would you* / *you'd* / *you had to* / *have to* / *need to* dropped, a past or a
+    participle in base form, a leading clause moved to the end in the present, a clause's own *to ..., you'd* purpose
+    dropped), no give-way -- so the harness and the cloud count the same words. (Before keel-cloud 171: *You'd ...* /
+    *{asked}* in the second person, then the question.) 171's 10-word clause rule is the registry's option rule
+    (`ADOPTION_CLAUSE_MAX_WORDS`), never a fault here."""
+    return to_use(None, step(_clause(asked)))
 
 
 #: Spec 093 FR-5: the words a clause's subject opens on when it is someone or something other than the stranger --
@@ -491,7 +673,8 @@ def _third_person_subject(clause: str) -> bool:
 def framed(key: str, occasion: str | None, asked: str) -> str:
     """The question a face is framed into (design §5.1), to count its words: *On your last {occasion},
     {asked}?* and, on Adoption friction, keel-cloud's own frame (`adoption_frame`, spec 093 FR-4; before it the harness
-    kept the model's *would you* and counted one word more than `ItemFrames`)."""
+    kept the model's *would you* and counted one word more than `ItemFrames`) -- since keel-cloud 171 *To use it, you'd
+    {step}. Would you do that, or not?* around the whole step (spec 112 FR-1)."""
     clause = str(asked or "").strip().rstrip("?.").strip()
     if key == ADOPTION_KEY:
         return adoption_frame(asked)
@@ -510,10 +693,11 @@ def face_faults(asked: str, label: str, key: str, occasion: str | None, part: in
     if words(question) > STEM_MAX_WORDS:
         faults.append(f"K2: framed, it reads {question!r}, {words(question)} words; at most {STEM_MAX_WORDS}")
     if key == ADOPTION_KEY:
-        # spec 093 FR-5: K3 judges the line as framed -- *Would you {asked}. Would you do that, or not?* addresses the
-        # person itself, so a base-form clause (*open the app before picking the baby up*) reads to the stranger once
-        # framed; a clause whose subject is someone or something else (*the cry ...*, *the room ...*) still does not
-        said_clause = question.rsplit(f". {ADOPTION_ASK}", 1)[0]
+        # spec 093 FR-5: K3 judges the line as framed -- the frame's *you'd* addresses the person itself, so a
+        # base-form clause (*open the app before picking the baby up*) reads to the stranger once framed; a clause
+        # whose subject is someone or something else (*the cry ...*, *the room ...*) still does not. Spec 112 FR-1: the
+        # step after keel-cloud 171's *To use it, you'd* is what is read (the frame's own *you'd* never counts for it)
+        said_clause = question.rsplit(f". {ADOPTION_ASK}", 1)[0].split("you'd ", 1)[-1]
         if not _YOU.search(said_clause) and _third_person_subject(said_clause):
             faults.append(f"K3: {asked!r} is not said to the stranger: framed it reads {said_clause!r}, a third-person "
                           "subject and no you / your")

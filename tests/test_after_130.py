@@ -82,16 +82,23 @@ def test_the_owed_price_follow_up_is_composed_whole_text_and_spoken_alike():
 # ------------------------------------------------------------------------------- FR-1: the named statement, the step
 
 def test_the_adoption_statement_names_the_idea_where_the_name_is_known():
-    """130 FR-11 (T017): *{Name} means {step}. Would you do that, or not?*; no name, no named frame."""
+    """130 FR-11 (T017), re-pinned by spec 112 FR-4 (keel-cloud 171 FR-4b): the frame is *To use {name}, you'd {step}.
+    Would you do that, or not?* (was *{Name} means {gerund}.*); no name is *To use it, ...* (was None: the statement as
+    before); past 20 words even with *it* and no founder's row known, the plain frame (was None)."""
     assert vs.adoption_statement("Pay a verified seller they have never met", "Karsa") == \
-        "Karsa means paying a verified seller you have never met. Would you do that, or not?"
+        "To use Karsa, you'd pay a verified seller you have never met. Would you do that, or not?"
     assert vs.adoption_statement("you'd talk out loud to an AI tutor", "Issen") == \
-        "Issen means talking out loud to an AI tutor. Would you do that, or not?"
+        "To use Issen, you'd talk out loud to an AI tutor. Would you do that, or not?"
+    # the follow-up rungs still read the gerund (keel-cloud 171 FR-7: `{effort}` unchanged)
     assert vs.gerund("you'd upload your ID card") == "uploading your ID card"
     assert vs.gerund("scan each delivery") == "scanning each delivery"
-    assert vs.adoption_statement("Pay a verified seller they have never met", None) is None
+    assert vs.adoption_statement("Pay a verified seller they have never met", None) == \
+        "To use it, you'd pay a verified seller you have never met. Would you do that, or not?"
     long = "you'd read and correct every single line of every drafted report before you sign it off at the end"
-    assert vs.adoption_statement(long, "Code Four") is None             # past 20 words: the statement as before
+    assert vs.adoption_statement(long, "Code Four") == "Would it fit the way you do things, or not?"
+    # with the founder's row, the lock gives way to it in the same frame (`SpokenCap.plain`)
+    assert vs.adoption_statement(long, "Code Four", "Read and correct every draft") == \
+        "To use Code Four, you'd read and correct every draft. Would you do that, or not?"
 
 
 def test_the_commitment_stem_introduces_a_step_the_card_never_named():
@@ -198,8 +205,9 @@ def test_the_back_test_reads_130s_words_beside_the_mirror_as_findings():
                                                "replaces": "theirs"}]})
     got = bt.cloud_130(j, standings)
     assert [r["dimension"] for r in got["stems"]] == ["solution.adoption_friction"]
+    # spec 112 FR-4 (keel-cloud 171 FR-4b): the new frame (was *Codyco means letting an AI agent answer ...*)
     assert got["stems"][0]["mirror"] == \
-        "Codyco means letting an AI agent answer guests who call. Would you do that, or not?"
+        "To use Codyco, you'd let an AI agent answer guests who call. Would you do that, or not?"
     assert [r["gate"] for r in got["gate_asks_the_job"]] == [gate["question"]]
     assert [(r["key"], r["rule"]) for r in got["brief_lines"]] == [("problem.frequency", "130 FR-2")]
     assert got["replaced"][0]["replaces"] == "theirs"

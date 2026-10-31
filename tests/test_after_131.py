@@ -387,19 +387,27 @@ def test_frequency_is_held_under_the_cap():
 
 
 def test_the_adoption_frame_whole():
-    """131 FR-4 (T013), through the named frame: every verb in -ing, a step stored as a question, a past statement, a
-    phrase set off by commas dropped past the cap (AirCaps)."""
-    assert vs.adoption_statement("take short videos and talk over them as you walk the site", "Fresco") == \
-        "Fresco means taking short videos and talking over them as you walk the site. Would you do that, or not?"
+    """131 FR-4 (T013), re-pinned by spec 112 FR-4 (keel-cloud 171 FR-4b, `AfterTheRerunsOn130Test` /
+    `AfterTheRerunsOn131Test`): every verb in base form after *To use {name}, you'd* (was in -ing after *{Name}
+    means*), a step stored as a question, a past statement, a phrase set off by commas dropped past the cap (AirCaps).
+    The frame is two words longer, so Fresco's, Lemma's and Pairio's 11-13-word clauses no longer fit: the lock gives
+    way to the founder's row, said in the same frame."""
+    assert vs.adoption_statement("take short videos and talk over them as you walk the site", "Fresco",
+                                 "Take short videos and talk over them on walks") == \
+        "To use Fresco, you'd take short videos and talk over them on walks. Would you do that, or not?"
     assert vs.adoption_statement("read and correct every draft before you sign it", "Code Four") == \
-        "Code Four means reading and correcting every draft before you sign it. Would you do that, or not?"
-    assert vs.adoption_statement("review and merge the prompt changes it opens in your codebase", "Lemma") == \
-        "Lemma means reviewing and merging the prompt changes it opens in your codebase. Would you do that, or not?"
-    assert vs.adoption_statement("Would you speak the fix into your phone when the job is done.", "Pairio") == \
-        "Pairio means speaking the fix into your phone when the job is done. Would you do that, or not?"
+        "To use Code Four, you'd read and correct every draft before you sign it. Would you do that, or not?"
+    assert vs.adoption_statement("review and merge the prompt changes it opens in your codebase", "Lemma",
+                                 "Review and merge the prompt changes it opens") == \
+        "To use Lemma, you'd review and merge the prompt changes it opens. Would you do that, or not?"
+    assert vs.adoption_statement("Would you speak the fix into your phone when the job is done.", "Pairio",
+                                 "Speak the fix into the phone when done") == \
+        "To use Pairio, you'd speak the fix into the phone when done. Would you do that, or not?"
     assert vs.adoption_statement("you wore the glasses, paired to your phone, whenever you talked with hearing people",
                                  "AirCaps") == \
-        "AirCaps means wearing the glasses whenever you talk with hearing people. Would you do that, or not?"
+        "To use AirCaps, you'd wear the glasses whenever you talk with hearing people. Would you do that, or not?"
+    assert vs.adoption_statement("you took short videos and talked over them", "Fresco") == \
+        "To use Fresco, you'd take short videos and talk over them. Would you do that, or not?"
 
 
 def test_the_buyer_set_never_says_someone_else_instead():
