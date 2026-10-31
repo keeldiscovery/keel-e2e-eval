@@ -2506,8 +2506,11 @@ def answer_refused_lock(refused: dict, *, entry, read_lines: Callable[[], dict],
                         relock: Callable[[], dict], audience_words=(), most: int = 4) -> dict:
     """Spec 070 FR-1: a refused lock answered the way a founder answers it -- the refusal's `problem` and `fix` read,
     the named line edited on the idea card (`instructions.corpus.plain_line`: the entry's own plain words, the fix's
-    suggestion, the names in parentheses dropped, a design-note belief the entry's first benefit), the lock pressed
-    again; each refusal a `lock_refused` finding with the words before and after. Stops (`AssertionError`, the line and
+    suggestion, the names in parentheses dropped, a design-note belief the entry's first benefit -- never a name, list
+    or note the founder typed, spec 111 / keel-cloud 176), the lock pressed again; each refusal a `lock_refused`
+    finding with the words before and after. Since keel-cloud 176 a back-test walk meets no refusal on 21-codyco's
+    typed parenthesis or 16-pairio's typed list, so its `lock_refused` findings fall: the spec working, not a
+    regression. Stops (`AssertionError`, the line and
     the words named) on a second refusal of a line already edited, on a refusal naming no line, or where no edit moves
     the word. Returns `{status, receipt, findings, passes}` once the lock lands."""
     from instructions import corpus as corpus_mod                   # noqa: PLC0415

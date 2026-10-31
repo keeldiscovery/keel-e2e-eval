@@ -100,10 +100,18 @@ def test_the_m5_mirror_reads_the_cloud_order():
 def test_codyco_the_pms_and_its_names_go_in_one_edit():
     """Codyco's *PMS* -> *the hotel's booking system* (the judge's words) and the parenthesised list dropped in the same
     edit, so the second M5 fault on the line is not a second refusal. Re-pinned by spec 107 FR-3: Codyco's own seed
-    types *PMS*, which keel-cloud 175 never refuses, so the row is walked where the word is Keel's (`keels_words`)."""
-    after = corpus_mod.plain_line(_keels("21-codyco", "PMS"), "how", CODYCO_HOW, "PMS")
+    types *PMS*, which keel-cloud 175 never refuses, so the row is walked where the word is Keel's (`keels_words`).
+    Re-pinned by spec 111 (keel-cloud 176 FR-1): the seed types the three names too, which 176 leaves as the founder's,
+    so the one edit is walked where the names are Keel's as well; on the seed with *PMS* alone cut, the edit moves the
+    *PMS* and keeps the typed parenthesis, and the lock (with the founder's texts) refuses nothing."""
+    after = corpus_mod.plain_line(_keels("21-codyco", "PMS", "OPERA Cloud", "Sihot", "Apaleo"), "how", CODYCO_HOW,
+                                  "PMS")
     assert after.endswith("writes the confirmed booking into the hotel's booking system.")
     assert corpus_mod.m5_faults({"how": after}) == []
+    keels_pms = _keels("21-codyco", "PMS")
+    kept = corpus_mod.plain_line(keels_pms, "how", CODYCO_HOW, "PMS")
+    assert kept.endswith("into the hotel's booking system (OPERA Cloud, Sihot, Apaleo).")
+    assert corpus_mod.m5_faults({"how": kept}, founder_texts=corpus_mod.founder_texts(keels_pms)) == []
 
 
 def test_the_entries_own_plain_words():
@@ -125,14 +133,20 @@ def test_the_entries_own_plain_words():
 def test_a_design_note_belief_is_the_entrys_first_benefit():
     """131 FR-5's shape: Voltair's *use cheap charging pads* reads *get every pole checked without walking the line*
     (131's own test words); Issen's *adapt to*, Careforce's *without an integration project*, Transload's *need no
-    change to the dock workflow* their first benefits, under the belief's frame."""
+    change to the dock workflow* their first benefits, under the belief's frame. Re-pinned by spec 111 (keel-cloud 176
+    FR-1, its Karsa case): Careforce's seed types *without an integration project*, which 176 leaves as the founder's
+    note, so its row is walked where the phrase is Keel's (`keels_words`); the other three seeds do not type the note's
+    phrase to its clause's end (*recharge on cheap charging pads*, *adapts to the learner's level*, *with no change to
+    the dock workflow*)."""
     voltair = corpus_mod.plain_line(_backtest("15-voltair"), "belief",
                                     FRAME + "use cheap charging pads along the lines.", "use")
     assert voltair == FRAME + "get every pole checked without walking the line."
     issen = corpus_mod.plain_line(_backtest("11-issen"), "belief",
                                   FRAME + "adapt to your level, goals and interests.", "adapt to")
     assert issen == FRAME + "get speaking practice any time, no tutor to book."
-    careforce = corpus_mod.plain_line(_backtest("18-careforce"), "belief", FRAME + "do the calling the way the staff "
+    assert corpus_mod.plain_line(_backtest("18-careforce"), "belief", FRAME + "do the calling the way the staff "
+                                 "would, without an integration project.", "without an integration project") is None
+    careforce = corpus_mod.plain_line(_keels("18-careforce", "without an integration project"), "belief", FRAME + "do the calling the way the staff "
                                       "would, without an integration project.", "without an integration project")
     assert careforce == FRAME + "get patients reached without calling back again and again."
     transload = corpus_mod.plain_line(_backtest("12-transload"), "belief", TRANSLOAD_BELIEF, "workflow")
@@ -195,7 +209,9 @@ def test_a_stubbed_422_then_a_second_pass_200():
     """Codyco: the lock refused on *PMS*, the how line edited once, the second lock 200 -- one `lock_refused` finding
     with the words before and after. Re-pinned by spec 096 FR-3 (keel-cloud 165 names each line): *how* edits `how`
     alone; the decision-maker's how line is its own refusal (`test_the_deciders_line_is_its_own_refusal_096`).
-    Spec 107 FR-3: on a Codyco seed without *PMS* -- keel-cloud 175 refuses only a word Keel brought in."""
+    Spec 107 FR-3: on a Codyco seed without *PMS* -- keel-cloud 175 refuses only a word Keel brought in. Spec 111
+    (keel-cloud 176): the edit keeps the typed parenthesis, so the card is read with the founder's texts, as the lock
+    reads it."""
     entry = _keels("21-codyco", "PMS")
     card = _Card({"how": CODYCO_HOW, "howDecider": None, "belief": FRAME + "book the calls that ring out."},
                  [{"status": 200, "receipt": {"version": 1, "questions": {"interactionIds": ["i-1"]}}}])
@@ -203,7 +219,8 @@ def test_a_stubbed_422_then_a_second_pass_200():
                                  edit=card.edit, relock=card.relock)
     assert out["status"] == 200 and out["passes"] == 1 and out["receipt"]["version"] == 1
     assert list(card.edits[0]) == ["how"]
-    assert corpus_mod.m5_faults({k: v for k, v in card.lines.items() if v}) == []
+    assert corpus_mod.m5_faults({k: v for k, v in card.lines.items() if v},
+                                founder_texts=corpus_mod.founder_texts(entry)) == []
     [finding] = out["findings"]
     assert finding["what"] == "lock_refused" and finding["rule"] == "lock" and finding["code"] == "TEXT_REFUSED"
     assert finding["line"] == "how" and finding["word"] == "PMS" and finding["edited"] is True
@@ -213,7 +230,8 @@ def test_a_stubbed_422_then_a_second_pass_200():
 def test_the_deciders_line_is_its_own_refusal_096():
     """Spec 096 FR-3 (keel-cloud 165): the how line refused and edited alone, then *the idea card's decision-maker's how
     line* refused -- read as `howDecider` and edited alone -- then 200; two findings, one line each. Spec 107 FR-3: on a
-    Codyco seed without *PMS*."""
+    Codyco seed without *PMS*. Spec 111 (keel-cloud 176): the typed parenthesis kept, the card read with the founder's
+    texts."""
     entry = _keels("21-codyco", "PMS")
     decider = "Your agents forward the calls nobody picks up; Codyco writes each booking into the PMS."
     card = _Card({"how": CODYCO_HOW, "howDecider": decider, "belief": FRAME + "book the calls that ring out."},
@@ -225,7 +243,8 @@ def test_the_deciders_line_is_its_own_refusal_096():
     assert [list(e) for e in card.edits] == [["how"], ["howDecider"]]
     assert [f["line"] for f in out["findings"]] == ["how", "howDecider"]
     assert out["findings"][1]["before"] == {"howDecider": decider}
-    assert "PMS" not in card.lines["howDecider"] and corpus_mod.m5_faults(card.lines) == []
+    assert "PMS" not in card.lines["howDecider"]
+    assert corpus_mod.m5_faults(card.lines, founder_texts=corpus_mod.founder_texts(entry)) == []
 
 
 def test_two_lines_refused_one_after_the_other():
@@ -241,7 +260,10 @@ def test_two_lines_refused_one_after_the_other():
 
 
 def test_a_second_refusal_of_the_same_line_stops_with_the_words_named():
-    entry = _backtest("21-codyco")
+    """Re-pinned by spec 111 (keel-cloud 176): on Codyco's own seed the *PMS* and the parenthesis are both typed, so no
+    edit moves the line and the walk stopped before any edit; walked on a seed without *PMS*, the first refusal is
+    answered and the second is the stop this test is about."""
+    entry = _keels("21-codyco", "PMS")
     card = _Card({"how": CODYCO_HOW}, [{"status": 422, "receipt": _refusal_body("how", "Sihot")}])
     with pytest.raises(AssertionError, match="refused the idea card's how line again"):
         cs.answer_refused_lock(cs.lock_refusal(422, _refusal_body("how", "PMS")), entry=entry, read_lines=card.read,

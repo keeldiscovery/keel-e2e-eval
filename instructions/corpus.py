@@ -1723,11 +1723,69 @@ def typed_in(word: str | None, texts) -> bool:
     return any(pattern.search(str(t).lower()) for t in texts if t)
 
 
+#: Spec 111 (keel-cloud 176 `RevealWords.NAME`, 132 FR-3): one capitalised name -- a run of up to three capitalised
+#: words (*OPERA Cloud*); `\p{L}\p{N}` read as `[^\W_]`.
+_NAME_WORD = r"[A-Z](?:(?:[^\W_]|['&.-])*[^\W_])?"
+NAME = _NAME_WORD + r"(?:\s+" + _NAME_WORD + r"){0,2}"
+#: Spec 111 (keel-cloud 132 FR-3 `RevealWords.NAMES_IN_A_LIST`, the cloud's own): three or more names joined by commas
+#: and *or* / *and*, groups (first, the middle with its commas, last) -- what 176's `aloud` cuts past the cap. The
+#: edit's simpler `NAMES_IN_A_LIST` (below) is left as it was.
+LIST_OF_NAMES = re.compile(r"(?<![^\W_])(?<!\()(" + NAME + r")((?:\s*,\s*" + NAME + r")+)\s*,?\s+(?:or|and)\s+("
+                           + NAME + r")(?![^\W_])")
+_NAMES_SPLIT = re.compile(r"\s*,\s*(?:(?:or|and)\s+)?|\s+(?:or|and)\s+")
+_CLAUSE_END = re.compile(r"[,;:.!?()]")
+
+
+def names_of(content: str | None) -> list[str]:
+    """Spec 111 (keel-cloud 176 `RevealWords.names`): the names of a parenthesis or a list -- split on its commas and on
+    *or* / *and*: *OPERA Cloud, Sihot, Apaleo* is three, *SAP, Maximo or SharePoint* three."""
+    return [part.strip() for part in _NAMES_SPLIT.split(str(content or "").strip()) if part and part.strip()]
+
+
+def typed_whole(names, texts) -> bool:
+    """Spec 111 (keel-cloud 176 `RevealWords.typedWhole`): every one of `names` stands whole in the founder's texts
+    (`typed_in`); no names is never the founder's."""
+    names = list(names or ())
+    return bool(names) and all(typed_in(n, texts) for n in names)
+
+
+def founders_parenthesis(group: str, texts) -> bool:
+    """Spec 111 (keel-cloud 176 T001): a parenthesis of names (`NAMES_IN_PARENTHESES`'s match, brackets and all) is the
+    founder's when every name in it is typed -- Codyco's *(OPERA Cloud, Sihot, Apaleo)*."""
+    return typed_whole(names_of(group.strip()[1:-1]), texts)
+
+
+def to_clause_end(text: str, at: int) -> str:
+    """Spec 111 (keel-cloud 176 `RevealWords.toClauseEnd`): the line from `at` to the end of its clause (the next comma,
+    stop, colon, semicolon or bracket, or the line's end)."""
+    end = _CLAUSE_END.search(text, at)
+    return (text[at:end.start()] if end else text[at:]).strip()
+
+
+def keels_parenthesis(text: str, texts=()):
+    """Spec 111 (keel-cloud 176 T001): the first parenthesis of names on the line the founder did not type, or None --
+    the cloud reads every parenthesis and skips the founder's."""
+    return next((m for m in NAMES_IN_PARENTHESES.finditer(text or "") if not founders_parenthesis(m.group(), texts)),
+                None)
+
+
+def keels_note(text: str, texts=()):
+    """Spec 111 (keel-cloud 176 T003): the first design note on the belief whose phrase, read to the end of its clause,
+    the founder did not type, or None. A lone *use* is never the founder's because the seed says *use*: Karsa's *no
+    jargon* is theirs where the seed types *with no jargon*, *use cheap charging pads along the lines* only where the
+    seed types that phrase."""
+    return next((m for m in DESIGN_NOTE.finditer(text or "") if not typed_in(to_clause_end(text, m.start()), texts)),
+                None)
+
+
 def m5_faults(lines: dict, audience_words=(), founder_texts=()) -> list[dict]:
     """keel-cloud 131 `RevealWords.m5`, mirrored: per line (how, howDecider, belief, in that order) each M5 word it
     carries (the founder's audience words exempt, and since keel-cloud 175 every word typed in `founder_texts`,
     `typed_in`), a parenthesis of names, and on the belief a design note -- `{line, word, fault}` in the cloud's order,
-    whose first the lock's `TEXT_REFUSED` names. The parenthesis and the design note read the line alone (175 T003)."""
+    whose first the lock's `TEXT_REFUSED` names. Since keel-cloud 176 (spec 111) the parenthesis and the design note
+    read `founder_texts` too: a parenthesis whose every name is typed and a note whose phrase to its clause's end is
+    typed are the founder's, and the first one Keel brought in is the line's one fault of its rule. The cloud's list
+    rule (132 FR-3) is not mirrored here (176's *did not foresee* 6); the edit mirrors it (`plain_line`)."""
     exempt = {str(w).strip().lower() for w in audience_words or () if w}
     out = []
     for line in _IDEA_LINES:
@@ -1739,11 +1797,11 @@ def m5_faults(lines: dict, audience_words=(), founder_texts=()) -> list[dict]:
             m = _word_pattern(word).search(lower)
             if m and word not in exempt and not typed_in(word, founder_texts):
                 out.append({"line": line, "word": text[m.start():m.end()], "fault": "trade word"})
-        names = NAMES_IN_PARENTHESES.search(text)
+        names = keels_parenthesis(text, founder_texts)
         if names:
             out.append({"line": line, "word": names.group(), "fault": "names in parentheses"})
         if line == "belief":
-            note = DESIGN_NOTE.search(text)
+            note = keels_note(text, founder_texts)
             if note:
                 out.append({"line": line, "word": note.group(), "fault": "design note"})
     return out
@@ -1776,14 +1834,18 @@ LOCK_PLAIN_WORDS: dict[str, tuple[tuple[str, str], ...]] = {
 #: Spec 107 (keel-cloud 175): since the lock and the repair turn exempt the founder's own words, most rows above are
 #: their entries' own seeds' words (10-palus's bond phrases, 11-issen's, 12-transload's *3D box*, 14-code-four's *check
 #: words*, 21-codyco's *PMS*) and fire only where Keel brought the word in (`_row_fires`); 16-pairio's *CMMS* / *ERP*
-#: are not in its seed, and its list rows carry no M5 word -- the list of names is a spoken-form rule and stays M5's.
+#: are not in its seed. Spec 111 (keel-cloud 176): its three list rows are its seed's own names (*SAP, Maximo or
+#: SharePoint*) and fire only on a list Keel brought in.
 
 
 def _row_fires(phrase: str, typed) -> bool:
     """Spec 107 FR-2: a `LOCK_PLAIN_WORDS` row fires unless an M5 word it carries is one the founder typed (`typed_in`):
-    the edit never moves the founder's own word. A row with no M5 word (16-pairio's names) always fires."""
+    the edit never moves the founder's own word. Spec 111 (keel-cloud 176): nor a list of names whose every name the
+    founder typed (16-pairio's *SAP, Maximo or SharePoint*) -- a row carrying such a list fires only on Keel's."""
     lower = phrase.lower()
-    return not any(typed_in(w, typed) for w in M5_WORDS if _word_pattern(w).search(lower))
+    if any(typed_in(w, typed) for w in M5_WORDS if _word_pattern(w).search(lower)):
+        return False
+    return not any(typed_whole(names_of(m.group()), typed) for m in NAMES_IN_A_LIST.finditer(phrase))
 
 #: keel-cloud 132 FR-3 (`RevealWords.NAMES_IN_A_LIST`): three or more capitalised names joined by commas and *or* / *and*
 #: on a how or belief line (*SAP, Maximo or SharePoint*). The lock's own remedy offers "keep one name", so the generic
@@ -1839,7 +1901,9 @@ def plain_line(entry, line: str, text: str | None, word: str | None = None, fix:
     refusal's own suggestion for its word where the fix offers one, a parenthesised list of names dropped, a bare
     list of three or more names cut to its first (keel-cloud 132 FR-3), any M5
     word left by `PLAIN_FALLBACK`, and a design-note belief replaced by the entry's first benefit (*get {benefit}*)
-    under the belief's frame. None where the edit would not move the line."""
+    under the belief's frame. Since keel-cloud 176 (spec 111) a parenthesis or a list whose every name the founder
+    typed, and a design note whose phrase to its clause's end they typed, stay as typed. None where the edit would not
+    move the line."""
     before = str(text or "")
     out = before
     typed = founder_texts(entry, audience_words)
@@ -1849,14 +1913,15 @@ def plain_line(entry, line: str, text: str | None, word: str | None = None, fix:
     offered = fix_suggestion(fix, word)
     if offered and word and not typed_in(word, typed) and _word_pattern(str(word)).search(out.lower()):
         out = _replace(out, str(word), offered)
-    out = NAMES_IN_PARENTHESES.sub("", out)
-    out = NAMES_IN_A_LIST.sub(lambda m: m.group(1), out)
+    # spec 111 (keel-cloud 176): a parenthesis or a list whose every name the founder typed stays as typed
+    out = NAMES_IN_PARENTHESES.sub(lambda m: m.group() if founders_parenthesis(m.group(), typed) else "", out)
+    out = NAMES_IN_A_LIST.sub(lambda m: m.group() if typed_whole(names_of(m.group()), typed) else m.group(1), out)
     exempt = {str(w).strip().lower() for w in audience_words or () if w}
     for m5 in M5_WORDS:
         if m5 not in exempt and not typed_in(m5, typed) and _word_pattern(m5).search(out.lower()):
             out = _replace(out, m5, PLAIN_FALLBACK.get(m5, ""))
     out = _tidy(out)
-    if line == "belief" and DESIGN_NOTE.search(out):
+    if line == "belief" and keels_note(out, typed):
         benefit = entry.first_benefit() if entry is not None and hasattr(entry, "first_benefit") else None
         if benefit:
             said = benefit[:1].lower() + benefit[1:] if not (len(benefit) > 1 and benefit[1].isupper()) else benefit

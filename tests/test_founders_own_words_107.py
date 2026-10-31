@@ -94,14 +94,17 @@ def test_a_card_that_adds_an_api_is_faulted_on_the_api_alone():
                                 founder_texts=corpus_mod.founder_texts(palus)) == []
 
 
-def test_the_spoken_form_rules_still_read_the_line_alone():
-    """175 T003: names in parentheses and a design-note belief are about how a line is heard, not whose word it is --
-    Codyco's seed types *(OPERA Cloud, Sihot, Apaleo)* and the parenthesis is still a fault; its *PMS* is not."""
+def test_the_spoken_form_rules_read_the_founders_texts_too():
+    """Re-pinned by spec 111 (keel-cloud 176 FR-1; first pinned on 175 T003, which read these two rules on the line
+    alone): Codyco's seed types *(OPERA Cloud, Sihot, Apaleo)*, so the parenthesis is the founder's and no fault, as its
+    *PMS* is not; the design note stays -- its phrase to the clause's end, *need no change to the front desk*, is not in
+    Codyco's seed. Without the founder's texts both still fire, as before."""
     codyco = _backtest("21-codyco")
     how = "Codyco writes the confirmed booking into the PMS (OPERA Cloud, Sihot, Apaleo)."
-    faults = corpus_mod.m5_faults({"how": how, "belief": FRAME + "need no change to the front desk."},
-                                  founder_texts=corpus_mod.founder_texts(codyco))
-    assert [f["fault"] for f in faults] == ["names in parentheses", "design note"]
+    lines = {"how": how, "belief": FRAME + "need no change to the front desk."}
+    faults = corpus_mod.m5_faults(lines, founder_texts=corpus_mod.founder_texts(codyco))
+    assert [(f["fault"], f["word"]) for f in faults] == [("design note", "need no change")]
+    assert [f["fault"] for f in corpus_mod.m5_faults(lines)] == ["trade word", "names in parentheses", "design note"]
 
 
 @pytest.mark.parametrize("entry_id, words", [
@@ -125,20 +128,23 @@ def test_the_back_test_seeds_type_the_words_the_rows_named(entry_id, words):
     ("12-transload", []),
     ("14-code-four", ["check word"]),
     ("21-codyco", []),
-    ("16-pairio", ["connected to SAP, Maximo or SharePoint", "to SAP, Maximo or SharePoint",
-                   "SAP, Maximo or SharePoint", "CMMS", "ERP"]),
+    ("16-pairio", ["CMMS", "ERP"]),
 ])
 def test_lock_plain_words_rows_fire_only_on_keels_words(entry_id, fires):
     """FR-2: the rows stay; on the entry's own texts a row fires only where no M5 word it carries is typed. Palus's
-    *mortgage-backed* and Code Four's singular *check word* are not the seeds' (no stemming); Pairio's list rows carry no
-    M5 word (the list of names is a spoken-form rule and stays M5's) and its *CMMS* / *ERP* are Keel's."""
+    *mortgage-backed* and Code Four's singular *check word* are not the seeds' (no stemming); Pairio's *CMMS* / *ERP*
+    are Keel's. Re-pinned by spec 111 (keel-cloud 176 FR-1): Pairio's three list rows (*connected to / to / SAP, Maximo
+    or SharePoint*) no longer fire -- its seed types every name of the list, which the lock now leaves as the
+    founder's; they fire only on a list Keel brought in (`test_m5_other_rules_111`)."""
     typed = corpus_mod.founder_texts(_backtest(entry_id))
     assert [p for p, _ in corpus_mod.LOCK_PLAIN_WORDS[entry_id] if corpus_mod._row_fires(p, typed)] == fires
 
 
 def test_plain_line_leaves_the_founders_words_and_moves_keels():
     """Palus's own card is no edit at all; a refusal on Keel's *API* moves the API and keeps the bond words; Keel's
-    *mortgage-backed bonds* takes Palus's own row; Codyco's typed *PMS* stays."""
+    *mortgage-backed bonds* takes Palus's own row; Codyco's typed *PMS* stays. Re-pinned by spec 111 (keel-cloud 176
+    FR-1): Codyco's typed parenthesis *(OPERA Cloud, Sihot, Apaleo)* stays too (it was dropped while the parenthesis
+    rule read the line alone), so that card is no edit; a parenthesis with a name Keel brought in is still dropped."""
     palus = _backtest("10-palus")
     assert corpus_mod.plain_line(palus, "how", PALUS_HOW, "short-duration") is None
     after = corpus_mod.plain_line(palus, "how", PALUS_HOW + " It reads your bank balance through an API.", "API")
@@ -148,6 +154,8 @@ def test_plain_line_leaves_the_founders_words_and_moves_keels():
     codyco = _backtest("21-codyco")
     assert corpus_mod.plain_line(codyco, "how", "Codyco writes the booking into the PMS.", "PMS") is None
     assert corpus_mod.plain_line(codyco, "how", "Codyco writes the booking into the PMS (OPERA Cloud, Sihot, Apaleo).",
+                                 "OPERA Cloud") is None
+    assert corpus_mod.plain_line(codyco, "how", "Codyco writes the booking into the PMS (OPERA Cloud, Mews, Apaleo).",
                                  "OPERA Cloud") == "Codyco writes the booking into the PMS."
 
 
