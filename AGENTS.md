@@ -963,6 +963,24 @@ id: the leg reads the golden journeys' classes and tasks.md lists six ids keel-w
 keel-cloud-docs `ab5b15ef` and keel-web `7a3105f`; the acceptance
 walk (one back-test, about $0.50) is the coordinator's.
 
+**The walk reads keel-web 149's Choose and 150's two boxes** (spec `116-the-walk-reads-the-reworded-founder-screens`,
+2026-10-31). **Choose (FR-1, 149 merged)**: Buyer and payer's title is *Which one do you want to test?*
+(`vs_screens.BUYER_PAYER_CHOOSE_PROMPT`) and its radios draw the roles first and *Nobody else* LAST, so a position in
+`seen["options"]` is no longer the served `pickedIndex`: `list_choose` picks by label (104) and records `drawn_index`
+and `served_index` -- the `pickedIndex` of the `PUT calibration/{vector}` the press sent (`writes`) -- with the recall
+line (`choose-recall`) and the belief under each radio (`choose-belief`); `corpus_scenario.choose_faults` holds the
+served index to the drafted row the label was found at (`_choose_label`), the title, Nobody else last, the recall's
+roles, one belief a row and the bar's case (`vs_screens.buyer_payer_bar`: *the one you pick* before a pick, the role
+in a sentence, *nobody else*). **The two boxes (FR-2, 150 NOT merged at the build's end; ids read from its branch
+`34740c1`)**: where `answer-how` is drawn `list_answer` types the corpus Answer as 150 splits a stored one
+(`split_answer`, the first full stop; today every corpus Answer has none, so the first box takes it whole), reads both
+back and keeps the `POST calibration/{vector}/draft`; `answer_boxes_faults` holds its one text (`join_answer`), the
+heading and the question *How do {actor_plural} {job} today?*. One `leg_calibrate` step asserts both; the `answer`
+screen of record carries both boxes' text and the `choose` one the label, where it was drawn and the served index. No
+old title or bar pin existed to move (tasks.md). `make unit` 4,741 passed / 0 failed / 0 errors / 53 skipped (+23,
+`tests/test_reworded_founder_screens_116.py`; master `f893808` 4,718 / 0 / 0 / 53) against keel-cloud-docs `ab5b15ef`
+and keel-web `7a3105f`.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
