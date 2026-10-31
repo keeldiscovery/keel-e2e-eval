@@ -862,6 +862,20 @@ Beside it, **spec 112's addendum (keel-cloud 172)**: Current solution's escape i
 keel-cloud 173's (`ScaleFour.FRAME` moved, `test_controls_089`), merged into keel-cloud-docs mid-build, not this spec's;
 `make eval K=s016` / `K=s006` on keel-web 145 are the coordinator's.
 
+**The harness reads the advantage belief** (spec `113-the-harness-reads-the-advantage-belief`, 2026-10-30; keel-cloud
+173, keel-cloud-docs `1acc3791`). Relative advantage's belief is *For most, their last {occasion} would have gone better
+with it: {value}.* (`corpus.advantage_belief`: the first benefit whole, its capital and a typed full stop dropped; *the
+last time* with no noun), its drift clause *you said it would have gone better: {benefit} · ...*; corpus revision 19
+keeps 152's words and is never rewritten -- the journeys hold the wire to it read through **one rule**,
+`corpus.spec173_reads` (`engine_belief`; the cloud's `VectorCorpusFixture.spec173Reads`). The stranger's question is
+`vectors_script.benefit_question`: *Would {idea} have made your last {occasion} go better for you, or not?*, past 20
+words *Would it have made your last {occasion} ...* (the occasion never dropped); an item stored before 173 is read in
+159's frame (`served_benefit_question`, `benefit_frame_of`; the gallery's Fresco run stays). The registry slice says 173's
+words, and a named back-test entry's Relative advantage redraft is marked by 173 (`screen_entries.benefits_mark`: one
+row per typed benefit, as typed, never split, none added; `K=10-palus/CALIBRATION_SOLUTION/RELATIVE_ADVANTAGE` expects
+the one row *Higher yield without hiring for treasury*). `MARKS_VERSION` 24 stands. `make unit` 4,543 / 0 / 56 (master
+`ffbddfe` 4,480 / 1 / 56, the one failure 173's `ScaleFour.FRAME`, fixed); the paid 173 screen is the coordinator's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
