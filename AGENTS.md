@@ -844,6 +844,24 @@ marked by 171 (the founder's efforts first and as typed, at most one suggested r
 the corpus did not move, so five golden adoption faces are now `K2`s and `spoken_form` reads 104 of 109 at zero spend.
 `make unit` 4,383 / 0 / 56 (master `0ee35ef` 4,327 / 0 / 56); the paid 171 screens are the founder's.
 
+**The money link is screened** (spec `100-the-money-link-is-screened`, 2026-10-30; keel-cloud 166, keel-web 145 -- built
+before 145 merged, on its branch's ids). A money-only consumer study's person link (FULL, no gate) serves the WHICH
+PEOPLE screener as a top-level `Interview.condition` before the reveal: `vectors_script.chip_from` / `money_condition`
+mirror code's chip (part 3 is code's at the lock), `vectors_screens.screener_of` is keel-web's `conditionOf` (the gate's
+chip where a gate is served, else the link's own), and `_answer_one` reads it wherever served -- its 067 FR-6 fallback
+read `gate.condition` alone and would have walked an outside person inside. S-016 gains `test_s016_money_only_consumer`
+(`scope_journey.consumer_money_entry`: Countly on its own persona under COMMERCIAL, its ten inside and `OUTSIDE_PERSON`
+outside; `leg_money_screener`), and every scoped reading first holds anyone walked outside counted apart
+(`corpus_scenario.hold_outside_apart`: `outsideSegment`, `people.answered`, the People row, the Pilot tile's served
+`notCounted` -- keel-web draws none -- and Sent's `OUTSIDE_SEGMENT_MARK`). **`SCOPE_MARKS_VERSION` 3**: SC8 *the money
+link screens*, and SC4 reads the FULL link's `reveal` (it read `idea`, which only the decision-maker's link serves).
+Beside it, **spec 112's addendum (keel-cloud 172)**: Current solution's escape is read off the SERVED item
+(`spoken.handed_off_of`; *I can't recall*, said *Or say you can't recall.*, where the list's `handed_off` call was false,
+*Someone else did it* otherwise and with nothing served) and the walk sends the code served
+(`vectors_script.served_escape_picks`). `make unit` 4,480 / 1 / 56 (master `88c603d` 4,383 / 0 / 56): the one failure is
+keel-cloud 173's (`ScaleFour.FRAME` moved, `test_controls_089`), merged into keel-cloud-docs mid-build, not this spec's;
+`make eval K=s016` / `K=s006` on keel-web 145 are the coordinator's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
