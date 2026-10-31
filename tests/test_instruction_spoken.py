@@ -459,17 +459,30 @@ def real():
     return corpus, cloud_mod.read(keel_cloud, corpus=corpus, registry=registry)
 
 
+#: Spec 112 FR-4 (keel-cloud 171 FR-4b, its *not foreseen* 1), re-pinned here by spec 109: the five golden Adoption
+#: friction faces -- 11 or 12 words, written to 163's *at most 12* -- framed as 171 frames them (*To use it, you'd
+#: {step}. Would you do that, or not?*, `spoken.adoption_frame`) run past 20 words, each a `K2` on the framed line. The
+#: corpus (r19) is never rewritten and the cloud never refuses a stored row; a revision with 10-word faces is
+#: keel-cloud's to make (`test_lock_frontier_110.test_a_record_written_after_170_keeps_every_rule` names the same five).
+FIVE_ADOPTION_K2 = [("01-countly", "asked scan_each_delivery"), ("02-compliancelog", "asked connect_once"),
+                    ("03-lullaby", "asked hold_phone_near_cot"), ("04-linerly", "asked fit_liner_once"),
+                    ("06-repeatline", "asked handle_exceptions")]
+
+
 def test_the_corpus_record_keeps_every_rule_and_nothing_is_known_apart(real):
     """Calls 111, 112 (keel-cloud 091), spec 065: the record held to keel-cloud's registry of record keeps every rule
-    with no item named apart -- 74 composed items and 35 faces, 109 of 109. On master before spec 065 the same record
-    held to the fixture registry and the fixed §5 table was 75 of 109: 34 faults, every one keel-cloud 118 / 123's own
-    change (the module docstring's five), none a fault of the record."""
+    with no item named apart -- 74 composed items and 35 faces. On master before spec 065 the same record held to the
+    fixture registry and the fixed §5 table was 75 of 109: 34 faults, every one keel-cloud 118 / 123's own change (the
+    module docstring's five), none a fault of the record. Since keel-cloud 171 (spec 112 FR-4) a record scores 104 of
+    109: the five faults are `FIVE_ADOPTION_K2`, named with why, and nothing else (spec 109's re-pin; was 109 of 109)."""
     corpus, cloud = real
     fx.skip_a_spoken_record_before_170(_keel_cloud(), corpus.entries[0].registry)    # spec 110 FR-2
     fx.skip_a_spoken_record_before_174(_keel_cloud(), corpus.entries[0].registry)    # spec 115 FR-0
     score = spoken_mod.score(cloud, corpus)
-    assert score.faults == [], score.faults
-    assert (score.units, score.clean, score.spoken_form) == (109, 109, 1.0)
+    assert sorted((f["entry"], f["unit"]) for f in score.faults) == FIVE_ADOPTION_K2, score.faults
+    assert all(f["key"] == "solution.adoption_friction" and f["evidence"].startswith('K2: framed, it reads "To use it')
+               for f in score.faults), score.faults
+    assert (score.units, score.clean, score.spoken_form) == (109, 104, 104 / 109)
     assert spoken_mod.KNOWN == () and score.known == [] and score.missing_known == []
     assert sum(len(cloud.items_of(e.id)) for e in corpus.entries) == 74, "seventy-four composed items, the gate aside"
 
