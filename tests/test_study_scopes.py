@@ -307,7 +307,8 @@ def _problem_record():
 
 def test_the_problem_study_s_marks_on_a_stubbed_walk():
     card = sm.score(_problem_record())
-    assert card["met"] == card["of"] == 7 and card["version"] == sm.SCOPE_MARKS_VERSION == 2
+    # spec 100: SC8 born, v3
+    assert card["met"] == card["of"] == 8 and card["version"] == sm.SCOPE_MARKS_VERSION == 3
 
 
 @pytest.mark.parametrize("mark, change", [
@@ -360,7 +361,7 @@ def _money_record():
 
 def test_money_alone_s_marks_on_a_stubbed_walk():
     card = sm.score(_money_record())
-    assert card["met"] == card["of"] == 7, card["checks"]
+    assert card["met"] == card["of"] == 8, card["checks"]                # spec 100: SC8, met with its why on B2B
 
 
 @pytest.mark.parametrize("mark, change", [

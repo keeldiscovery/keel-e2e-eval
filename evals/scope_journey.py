@@ -21,7 +21,12 @@ These two journeys walk the two the founder named first, each **short** and each
   in one sentence (held to the spoken-form mirror), the idea card, then part 3; the Overview reads *Will they pay?*,
   the Pilot and *What they would pay* tiles, one card, a one-piece ship.
 
-Both are scored by `evals/scope_marks.py` (SC1-SC7, `SCOPE_MARKS_VERSION` 2). Every job is answered by keel-runtime's
+* **S-016, money alone, consumer** (spec 100, `consumer_money_entry`; keel-cloud 166, keel-web 145): Countly on its own
+  persona under `scope: COMMERCIAL` -- the person's one FULL link, no gate, the screener (`Interview.condition`) before
+  the idea card; Countly's ten answer it inside, one more (`OUTSIDE_PERSON`) outside, who meets the exit and is counted
+  apart (`leg_money_screener`, `corpus_scenario.hold_outside_apart`).
+
+All three are scored by `evals/scope_marks.py` (SC1-SC8, `SCOPE_MARKS_VERSION` 3). Every job is answered by keel-runtime's
 scripted executor from the seed's own texts (`harness/vectors_script.generate`, which reads the scope); no model runs.
 """
 
@@ -36,6 +41,7 @@ from evals import corpus_facts
 from evals import corpus_scenario as cs
 from evals import scope_marks
 from evals.preludes import own_ai_door
+from harness import vectors_screens as vs_screens
 from harness import vectors_script as vs
 from harness.evidence import finalize_run, write_generated
 from harness.steps import Recorder
@@ -135,6 +141,102 @@ def money_entry(entry):
                                expected={"standings": {}, "vector_verdicts": {}})
 
 
+# --------------------------------------------------------------------- S-016's consumer seed (spec 100)
+
+#: Spec 100 FR-1: the one person who answers the money link's screener outside -- no corpus person (Countly's ten are
+#: inside by the corpus's own account), sent a link with them and walked last, so no money line moves but
+#: `outsideSegment`. A name on the link alone: nothing they say reaches a reading.
+OUTSIDE_PERSON = "Ilse Brandvold"
+
+
+def consumer_money_entry(entry):
+    """Spec 100 FR-1 (keel-cloud 166, keel-web 145): 01-countly as money alone on its own consumer persona -- the
+    restaurant manager decides and pays (`SAME_PERSON`, as the file records), `scope: COMMERCIAL`, so every person is on
+    the one FULL link, which serves no gate: `Interview.condition` (*Do you run one or two sites?*, the context's own
+    condition, `vs.money_condition`) before the idea card, then the six money questions. The people: Countly's ten who
+    had a delivery in the window, inside, each on their own money picks (a gate No has none to give off the gate, spec
+    102 FR-2), and `OUTSIDE_PERSON`, who answers the screener NO and meets the exit. The founder's money calibration
+    is Countly's own. `expected` is empty: the verdict is held by keel-cloud 133 FR-7's rule (`scope_marks.sc6`)."""
+    if entry.id != SCOPED_FROM:
+        raise ValueError(f"money alone on the consumer link is derived from {SCOPED_FROM}, not {entry.id}")
+    if vs.is_b2b(entry):
+        raise ValueError(f"{entry.id} is walked B2B; the consumer money link is the person's own (keel-cloud 166)")
+    answers = []
+    for raw in entry.answers:
+        if raw.get("recency") != "yes" or raw.get("link", vs.LINK_PRIMARY) != vs.LINK_PRIMARY:
+            continue
+        picks = {k: v for k, v in (raw.get("picks") or {}).items() if k.startswith("commercial.")}
+        answers.append(dict(raw, picks=picks, condition="YES"))
+    answers.append({"person": OUTSIDE_PERSON, "recency": None, "story": None, "chip": None, "anchoring": None,
+                    "picks": {}, "pilot_opt_in": False, "condition": "NO"})
+    scoped = dataclasses.replace(entry, scope="COMMERCIAL", answers=answers,
+                                 expected={"standings": {}, "vector_verdicts": {}})
+    if vs.money_condition(scoped) is None:
+        raise ValueError(f"{entry.id}'s context carries no condition the money link can ask (vs.money_condition)")
+    return scoped
+
+
+def money_link_faults(interviews: dict, walked: dict, want: dict | None) -> list:
+    """Spec 100 FR-1 (keel-cloud 166 FR-1, keel-web 145 FR-1): on the consumer money link every person's served
+    interview is kind FULL with no gate, the reveal at `afterPart` 0 and `condition` as the mirror asks it (`want`,
+    `vs.money_condition`), so the link opens `["condition", "reveal"]` (`vs_screens.first_screens`); a person inside
+    walks the screener then the reveal and posts their answers alone (spec 102); the person outside walks the screener
+    alone, posts `{outsideSegment: true, answers: []}` (201) and meets the exit (*That's it.*), no pilot box."""
+    faults: list = []
+    for person, iv in interviews.items():
+        if iv.get("kind") != "FULL" or iv.get("gate") is not None:
+            faults.append({person: "not a FULL link without a gate", "kind": iv.get("kind"), "gate": iv.get("gate")})
+        if (iv.get("reveal") or {}).get("afterPart") != 0:
+            faults.append({person: "the reveal does not open the link", "reveal": iv.get("reveal")})
+        if (iv.get("condition") or None) != want:
+            faults.append({person: "condition", "served": iv.get("condition"), "want": want})
+        opening = vs_screens.first_screens(iv)
+        if opening != (["condition", "reveal"] if want else ["reveal"]):
+            faults.append({person: "first screens", "served": opening})
+        if person not in walked:
+            continue                         # not walked (spec 102 FR-2 / FR-4): already named in its own finding
+        w = walked[person] or {}
+        drawn = [x.get("screen") for x in w.get("screens") or []]
+        body = w.get("body") or {}
+        if body.get("outsideSegment") is True:
+            if body != {"outsideSegment": True, "answers": []} or w.get("status") != 201:
+                faults.append({person: "the outside body", "body": body, "status": w.get("status")})
+            if drawn != ["condition"]:
+                faults.append({person: "outside: the screener alone", "drawn": drawn})
+            if (w.get("done") or "").strip() != cs.EXIT_TITLE or w.get("done_screen") is not False or w.get("pilot_box"):
+                faults.append({person: "outside: the exit", "done": w.get("done"), "pilot_box": w.get("pilot_box")})
+        else:
+            opens = ["condition", "reveal"] if want else ["reveal"]
+            if drawn[:len(opens)] != opens:
+                faults.append({person: "inside: the screener, then the reveal", "drawn": drawn[:3]})
+            if set(body) - {"answers", "followUps", "pilotOptIn"} or "answers" not in body:
+                faults.append({person: "inside: the answers alone (spec 102)", "keys": sorted(body)})
+    return faults
+
+
+def leg_money_screener(j: cs.Journey) -> None:
+    """Spec 100 FR-1: the consumer money link's screener held over every person walked (`money_link_faults`), the person
+    outside among them. Strict on S-016; a back-test's finding."""
+    want = vs.money_condition(j.entry)
+    faults = money_link_faults(j.interviews, j.walked, want)
+    outside = cs.outside_people(j.walked)
+    with cs._step(j, f"{j.entry.id} (COMMERCIAL, consumer): the person's link is FULL with no gate and asks the screener "
+                     f"'{(want or {}).get('question')}' before the idea; {len(outside)} outside met the exit with "
+                     "outsideSegment alone (keel-cloud 166, keel-web 145)", party="participant",
+                  kind="assert" if j.strict else "note") as h:
+        h.record_assert({"condition": want, "first screens": ["condition", "reveal"] if want else ["reveal"],
+                         "outside": {"body": {"outsideSegment": True, "answers": []}, "status": 201,
+                                     "screens": ["condition"]}, "faults": []},
+                        {"outside": outside, "faults": faults,
+                         "served": {p: {k: iv.get(k) for k in ("kind", "gate", "condition")}
+                                    for p, iv in j.interviews.items()}})
+        if j.strict:
+            assert outside == [OUTSIDE_PERSON], outside
+            assert not faults, json.dumps(faults, indent=2, default=str)
+    if faults and not j.strict:
+        j.findings.append({"what": "the money link's screener (spec 100)", "faults": faults})
+
+
 # ------------------------------------------------------------------------------- the problem in one sentence
 
 _CUT = re.compile(r"\s*(?:[.;:]\s|\s[-–—]\s)")
@@ -225,7 +327,8 @@ def record_of(j: cs.Journey, overview: dict) -> dict:
                for s in seen if isinstance(s, dict) and s.get("frame")]
     idea_screens = {}
     for person, walked in j.walked.items():
-        first = next((s for s in walked.get("screens") or [] if s.get("screen") == "idea"), None)
+        # spec 100: the decision-maker's idea screen, or the reveal that opens the money study's person link
+        first = next((s for s in walked.get("screens") or [] if s.get("screen") in ("idea", "reveal")), None)
         if first is not None:
             idea_screens[person] = first
     statement = ((j.get(j.project("/review/PROBLEM")) or {}).get("statement"))
@@ -243,6 +346,10 @@ def record_of(j: cs.Journey, overview: dict) -> dict:
             "pilot_boxes": {p: w.get("pilot_box") for p, w in j.walked.items()},
             "done": {p: w.get("done") for p, w in j.walked.items()},
             "idea_screens": idea_screens,
+            # spec 100 (SC8): what each link drew, who answered a screener outside, the money link's mirror
+            "screens": {p: [s.get("screen") for s in w.get("screens") or []] for p, w in j.walked.items()},
+            "outside": cs.outside_people(j.walked),
+            "money_condition": vs.money_condition(j.entry),
             "problem_sentence": problem_sentence(statement) if j.scope != "PROBLEM" else None,
             "founder_texts": list(corpus_mod.founder_texts(j.entry, audience)),
             "standings": j.standings, "overview": overview}
@@ -250,8 +357,10 @@ def record_of(j: cs.Journey, overview: dict) -> dict:
 
 def leg_scoped_report(j: cs.Journey) -> dict:
     """The standings once every link is answered -- on the problem study the entry's own numbers -- then the Overview as
-    drawn, and SC1-SC7 scored (`scope-marks.json` in the bundle); every mark measured and met."""
+    drawn, and SC1-SC8 scored (`scope-marks.json` in the bundle); every mark measured and met. Spec 100: anyone who
+    answered a screener outside is held counted apart first (`corpus_scenario.hold_outside_apart`)."""
     cs._await_standings(j)
+    cs.hold_outside_apart(j)                 # spec 100: anyone who answered a screener outside, counted apart
     if j.scope == "PROBLEM":
         cs.hold_standings(j)
     with cs._step(j, f"{j.scope}: every in-scope dimension is called on the wire, with n and a status keel-cloud "
@@ -272,7 +381,7 @@ def leg_scoped_report(j: cs.Journey) -> dict:
         j.findings.extend({"what": f"{c['mark']} not met on the {j.scope} study", "faults": c["faults"]}
                           for c in card["checks"] if not c["ok"])
         return card
-    with cs._step(j, f"{j.scope}: the study-scope marks SC1-SC7 (SCOPE_MARKS_VERSION {scope_marks.SCOPE_MARKS_VERSION}) "
+    with cs._step(j, f"{j.scope}: the study-scope marks SC1-SC8 (SCOPE_MARKS_VERSION {scope_marks.SCOPE_MARKS_VERSION}) "
                      "-- every one measured and met", party="founder") as h:
         h.record_assert({m: True for m in scope_marks.MARKS}, {c["mark"]: c for c in card["checks"]})
         assert card["met"] == card["of"] == len(scope_marks.MARKS), json.dumps(card["checks"], indent=2, default=str)
@@ -314,6 +423,8 @@ def walk(j: cs.Journey, *, lap=None) -> dict:
         one_kind(j)
     cs.leg_interview(j)
     lap("leg_interview")
+    if j.scope == "COMMERCIAL" and not vs.is_b2b(j.entry):
+        leg_money_screener(j)                # spec 100: the consumer money link's screener
     card = leg_scoped_report(j)
     lap("leg_scoped_report")
     return card

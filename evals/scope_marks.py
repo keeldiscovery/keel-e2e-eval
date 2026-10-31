@@ -1,4 +1,4 @@
-"""The study-scope marks (spec 071 FR-2 / FR-3; keel-cloud 133, contract 38; keel-web 109): SC1-SC7, scored at the end
+"""The study-scope marks (spec 071 FR-2 / FR-3; keel-cloud 133, contract 38; keel-web 109): SC1-SC8, scored at the end
 of S-015 (the problem study) and S-016 (money alone) from the record `evals/scope_journey.py` keeps.
 
 A journey ruler, like `contacts_marks` and `guide_marks`: versioned on its own (`SCOPE_MARKS_VERSION`), never a row of
@@ -19,7 +19,12 @@ what the screens drew and the wire served:
   the ship's pieces and no gate fact;
 * **SC6 decision** -- the decision's label by keel-cloud 133 FR-7's rule over the served verdicts, drawn in its words;
 * **SC7 overview** -- the Overview as drawn: the question, one card, the one-piece ship, the tiles (none in the problem
-  study; Pilot and *What they would pay* where the money is) and the tabs (no Pilot tab in the problem study).
+  study; Pilot and *What they would pay* where the money is) and the tabs (no Pilot tab in the problem study);
+* **SC8 the money link screens** (v3, spec 100; keel-cloud 166, keel-web 145) -- on money alone's person link (FULL,
+  no gate) `Interview.condition` is served as the mirror asks it (`vectors_script.money_condition`) where the context
+  carries a condition, and none where it carries none; the link opens on the screener (or on the reveal with none)
+  and a person who answers it outside draws the screener alone. Where the gate is served the link's own `condition`
+  is absent (the gate carries the chip). B2B money alone issues no person's link: met, and says why.
 """
 
 from __future__ import annotations
@@ -31,9 +36,12 @@ from instructions import spoken
 
 #: v1 (spec 071): SC1-SC7 born. v2 (spec 073 FR-2, keel-web 113 FR-2): SC2 re-pinned -- step 5 counts two screens
 #: (*1 of 2*, *2 of 2*: the pilot, who asks; the word hidden) and the problem study's who asks alone draws no counter
-#: (was three, and two in the problem study).
-SCOPE_MARKS_VERSION = 2
-MARKS = ("SC1", "SC2", "SC3", "SC4", "SC5", "SC6", "SC7")
+#: (was three, and two in the problem study). v3 (spec 100; keel-cloud 166, keel-web 145): SC8 born, and SC4 reads money
+#: alone's person link (FULL) by its `reveal` -- the card that opens it (keel-cloud 133 FR-4) -- where it read `idea`,
+#: which only the decision-maker's link serves (spec 101's *what the spec got wrong* 5); a person outside is not held to
+#: the card they never reach.
+SCOPE_MARKS_VERSION = 3
+MARKS = ("SC1", "SC2", "SC3", "SC4", "SC5", "SC6", "SC7", "SC8")
 
 #: keel-cloud 133 FR-1 / keel-web 109 `scopeVectors`.
 SCOPE_VECTORS = {"PROBLEM": ("PROBLEM",), "SOLUTION": ("SOLUTION",), "SOLUTION_COMMERCIAL": ("SOLUTION", "COMMERCIAL"),
@@ -184,7 +192,8 @@ def sc4(record: dict) -> dict:
             if not (record.get("done") or {}).get(person):
                 faults.append({person: "no thank-you drawn"})
         if scope == "COMMERCIAL":
-            idea = iv.get("idea") or {}
+            # v3 (spec 100): the person's link (FULL) opens with the reveal, the decision-maker's with the idea card
+            idea = (iv.get("reveal") if iv.get("kind") == "FULL" else iv.get("idea")) or {}
             if gate is not None:
                 faults.append({person: "a gate on money alone", "gate": gate})
             if parts != [3]:
@@ -200,6 +209,8 @@ def sc4(record: dict) -> dict:
                 faults.append({person: "the problem's sentence", "served": idea.get("problem"),
                                "want": record["problem_sentence"]})
             drawn = (record.get("idea_screens") or {}).get(person) or {}
+            if person in (record.get("outside") or ()):
+                continue                     # v3: outside, the screener ended the link before the card
             if drawn.get("problem") != idea.get("problem") or not drawn.get("card"):
                 faults.append({person: "the idea screen", "drawn": drawn, "served": idea.get("problem")})
     if not record.get("interviews"):
@@ -287,8 +298,41 @@ def sc7(record: dict) -> dict:
     return _mark("SC7", faults)
 
 
+def sc8(record: dict) -> dict:
+    """v3 (spec 100; keel-cloud 166 FR-1, keel-web 145 FR-1): the money link screens."""
+    scope = record["scope"]
+    interviews = record.get("interviews") or {}
+    screens = record.get("screens") or {}
+    outside = set(record.get("outside") or ())
+    faults: list = []
+    if scope == "COMMERCIAL":
+        full = {p: iv for p, iv in interviews.items() if iv.get("kind") == "FULL"}
+        if not full:
+            return _mark("SC8", [], why="no person's link on B2B money alone (keel-cloud 133 FR-4): the decision-maker's "
+                                        "screener is spec 076's")
+        want = record.get("money_condition")
+        for person, iv in full.items():
+            if iv.get("gate") is not None:
+                faults.append({person: "a gate on money alone", "gate": iv.get("gate")})
+            if (iv.get("condition") or None) != want:
+                faults.append({person: "condition", "served": iv.get("condition"), "want": want})
+            drawn = screens.get(person)
+            if drawn is None:
+                continue                     # not walked (spec 102): no screen to read
+            first = drawn[:1]
+            if first != (["condition"] if want else ["reveal"]):
+                faults.append({person: "the first screen", "drawn": drawn[:2], "want": "condition" if want else "reveal"})
+            if person in outside and drawn != ["condition"]:
+                faults.append({person: "outside: the screener alone", "drawn": drawn})
+    else:
+        for person, iv in interviews.items():
+            if iv.get("kind") == "FULL" and iv.get("gate") and iv.get("condition"):
+                faults.append({person: "a link condition beside the gate", "served": iv.get("condition")})
+    return _mark("SC8", faults)
+
+
 def score(record: dict) -> dict:
-    """The seven marks over one scoped journey's record, every one measured."""
-    checks = [f(record) for f in (sc1, sc2, sc3, sc4, sc5, sc6, sc7)]
+    """The eight marks over one scoped journey's record, every one measured."""
+    checks = [f(record) for f in (sc1, sc2, sc3, sc4, sc5, sc6, sc7, sc8)]
     return {"version": SCOPE_MARKS_VERSION, "scope": record.get("scope"), "checks": checks,
             "met": sum(1 for c in checks if c["ok"]), "of": len(checks)}

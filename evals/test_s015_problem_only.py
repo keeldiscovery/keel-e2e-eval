@@ -4,7 +4,7 @@
 problem chat and its four calibrations, *Before people see it* (the word and who asks -- no pilot), the lock; one link a
 restaurant manager; each walks the gate, the story and part 1 and meets the thank-you with no pilot box. Countly's own
 four problem standings, held; the Overview reads *Should you build it?*, no Pilot tab, no tiles, one card and a one-piece
-ship; the decision by the rule (Current solution split them: *Not yet*). SC1-SC7 (`evals/scope_marks.py`).
+ship; the decision by the rule (Current solution split them: *Not yet*). SC1-SC8 (`evals/scope_marks.py`).
 """
 
 from __future__ import annotations

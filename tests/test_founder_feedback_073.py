@@ -211,7 +211,7 @@ def test_the_exit_screen_owes_no_thank_you():
 
 
 def test_sc2_v2_counts_the_two_screens():
-    assert sm.SCOPE_MARKS_VERSION == 2
+    assert sm.SCOPE_MARKS_VERSION == 3                 # v2's SC2 stands; spec 100 moved it to 3 for SC8 / SC4
     assert "_founders_word" not in vars(__import__("evals.interviewer_leg", fromlist=["x"]))
     assert not hasattr(__import__("evals.interviewer_leg", fromlist=["x"]), "FOUNDERS_WORD")
 
