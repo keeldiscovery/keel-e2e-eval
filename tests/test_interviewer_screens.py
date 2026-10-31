@@ -314,10 +314,28 @@ def test_the_story_beat_and_mic_off_words_are_keel_webs_own(word):
     assert f'"{word}"' in (_web_075() / "src/lib/translate.ts").read_text(encoding="utf-8"), word
 
 
+def _builds_testid(source: str, testid: str) -> bool:
+    """keel-web builds a test id as a literal (`data-testid="ai-mic-off"`), as one arm of an expression (keel-web 143's
+    `MicWave`: `data-testid={writing ? "ai-mic-writing" : (testId ?? "ai-mic-on")}`) or through a component's `testId`
+    prop (143's *Test your mic*: `<MicWave ... testId="ai-mic-wave" />`) -- spec 099 FR-1: the pin accepts all three."""
+    quoted = re.escape(f'"{testid}"')
+    return bool(re.search(rf'data-testid={quoted}|data-testid=\{{[^}}]*{quoted}|\btestId={quoted}', source))
+
+
+def test_the_testid_pin_reads_a_literal_an_expression_and_a_prop():
+    """Spec 099: the three forms keel-web 143 writes, and a word that only names the id elsewhere is not one."""
+    assert _builds_testid('<span data-testid="ai-mic-off">', "ai-mic-off")
+    wave = 'data-testid={writing ? "ai-mic-writing" : (testId ?? "ai-mic-on")}'
+    assert _builds_testid(wave, "ai-mic-on") and _builds_testid(wave, "ai-mic-writing")
+    assert _builds_testid('<MicWave level={check.readLevel} testId="ai-mic-wave" />', "ai-mic-wave")
+    assert not _builds_testid('/** `ai-mic-on` while it listens */ const id = "ai-mic-on";', "ai-mic-on")
+    assert not _builds_testid('data-testid="ai-mic-onward"', "ai-mic-on")
+
+
 @pytest.mark.parametrize("testid", ["ai-mic-off", "ai-mic-on", "ai-state", "ai-ring"])
 def test_the_mic_and_beat_selectors_are_in_keel_web(testid):
     root = _web_075() / "src"
-    hits = [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")]
+    hits = [p for p in root.rglob("*.tsx") if _builds_testid(p.read_text(encoding="utf-8"), testid)]
     assert hits, testid
     assert testid in Path(ivs.__file__).read_text(encoding="utf-8"), testid
 
