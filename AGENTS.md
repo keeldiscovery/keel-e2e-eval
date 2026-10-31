@@ -803,6 +803,19 @@ screen; the written card keeps the founder's punctuation. 107's Codyco pin is `[
 Careforce) are the spec working. `make unit` 4,255 / 1 / 56 (master `6fd5c7f` 4,238 / 0 / 56); the one failure is
 `test_interviewer_screens`' `ai-mic-on` pin against keel-web 143 (`31b7a13`, merged during the build), not this spec's.
 
+**The interviewer marks read the ear's states** (spec `099-the-marks-read-writing-down`, 2026-10-30; keel-web 143,
+keel-web `1d83a28`). The AI sheet's heard line carries `data-heard` (`listening | hearing | writing | words | nothing`):
+`FLOW_TIMELINE` samples it on every change with the status (`window.__keelHeard()`, `Player.heard_lines()`) and the
+stranger's walk keeps it on `hear_out.heard_lines`; `interviewer_marks.heard_windows` cuts it into recorded windows, and
+IM19 owes at least one read and, in every one, *Writing down what you said…* (`HEARD_WRITING_DOWN`; `WRITING_DOWN`
+stays the status line's *Writing it down…*) between the pause and the words, never *Heard so far: nothing yet* there --
+`nothing` only after an empty transcript. IM17: `Player.mic_test` reads *Test your mic*'s wave (`ai-mic-level` holding
+`ai-mic-wave`, five bars, no `.aiv__level`) and, with the seam's stop held (`__holdStop` / `__releaseStop`), the
+`writing` block (`ai-mic-writing`, `ai-mic-writing-line`, *Say hello* kept, Start disabled) before *Heard: hello*.
+`INTERVIEWER_MARKS_VERSION` 16 -> 17. The selector pin accepts a test id built as an expression or a `testId` prop.
+`make unit` 4,294 / 0 / 56 (master `cd03a7e` 4,255 / 1 / 56); `make eval K=s005` at keel-web 143 and the paid s012
+re-run are the coordinator's and the founder's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
