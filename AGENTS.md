@@ -816,6 +816,18 @@ stays the status line's *Writing it down…*) between the pause and the words, n
 `make unit` 4,294 / 0 / 56 (master `cd03a7e` 4,255 / 1 / 56); `make eval K=s005` at keel-web 143 and the paid s012
 re-run are the coordinator's and the founder's.
 
+**The context walker turns two pages** (spec `097-the-context-walker-turns-two-pages`, 2026-10-30; keel-web 141,
+keel-web `1d83a28`). Where a gate is served step 1 is two screens on one route: `Corridor.context` types the four fields
+on 1 of 2, presses *Continue* (`context-continue`), waits for 2 of 2 at `define/context/window` (`context-window-page`),
+reads it as drawn and shoots it (`context-window`), picks the entry's window -- the chip whose words are the window's,
+else the count and the unit -- and presses *Save and continue* (`context-save`); `Corridor.window_page` keeps what was
+drawn and how it was picked, and the leg's `window_page_faults` owes *2 of 2* with nothing pre-filled and the entry's
+window after the pick. Money alone keeps the one screen. `window_drawn` tests *Continue*; the 113 tracker is installed
+on 1 of 2 so one `form` row spans both screens (`fields_screen`, `window_screen`). `context_confirmed` presses
+*Continue* after Edit and reads the saved window on 2 of 2. The back-test's founder screens and the readers' kinds gain
+`context-window`; no mark or rubric read the form, so no version moved. `make unit` 4,327 / 0 / 56 (master `1fdad29`
+4,294 / 0 / 56); `make eval K=s005 / s015 / s016` at keel-web 141 are the coordinator's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
