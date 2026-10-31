@@ -162,10 +162,12 @@ def test_price_is_read_in_two_steps_and_may_offer_six():
 
 
 def test_a_number_has_no_options_and_no_count_line():
-    # spec 089 FR-5 (keel-cloud 160 FR-2, 158 T004): window first, and a count from 1
+    # spec 089 FR-5 (keel-cloud 160 FR-2, 158 T004): window first, and a count from 1. Spec 115 FR-2 re-pin (keel-cloud
+    # 174 FR-5): past five steps the voice asks for the range -- *Say a number from 1 to 7.* (*A number ...* until 174)
     stem = "In the last 7 nights, on how many nights did that happen?"
+    assert spoken_mod.count_answer_line(7) == "Say a number from 1 to 7."
     frequency = _item(key="problem.frequency", part=1, question=stem, stem=stem, options=(),
-                      escape="I can't recall", count_line=None, options_line="A number from 1 to 7.",
+                      escape="I can't recall", count_line=None, options_line=spoken_mod.count_answer_line(7),
                       escape_line="Or say you can't recall.")
     assert _faults(frequency) == []
     assert _rules(dataclasses.replace(frequency, count_line="I'll read eight options.")) == ["S7"]

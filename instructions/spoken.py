@@ -116,6 +116,13 @@ FOUNDER_WORDED = (IMPORTANCE_KEY, CURRENT_SOLUTION_KEY)
 #: The items asked as a number: no options, no count line.
 NUMERIC = (FREQUENCY_KEY, SACRIFICE_KEY)
 
+
+def count_answer_line(count: int) -> str:
+    """keel-cloud `SpokenForm.countAnswerLine` (158 FR-1; 174 FR-5, spec 115 FR-2): Frequency's answer line on a window of
+    `count` -- past five steps (`MAX_OPTIONS`) the range said, *Say a number from 1 to 7.*, never the steps one by one;
+    five or fewer *A number from 1 to 5.*. The screen keeps its buttons."""
+    return f"{'Say a number' if count > MAX_OPTIONS else 'A number'} from 1 to {count}."
+
 #: keel-cloud `CommercialChain.side`: the escape an item is served with where its side is not the registry's row --
 #: Existing sacrifice on a cost stated before the chain keeps spec 077's cost total (registry decision 24; since
 #: keel-cloud 170 the registry's row says the same *I can't recall*, spec 110 FR-2), Ability to pay on a consumer link

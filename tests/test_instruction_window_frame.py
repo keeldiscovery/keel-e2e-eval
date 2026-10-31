@@ -89,10 +89,11 @@ def test_the_gate_and_frequency_are_framed_around_the_clause():
     assert wording_mod.gate(SEVEN_NIGHTS, "Had to guess why the baby cried.") == \
         "In the last 7 nights, did you had to guess why the baby cried?"
     assert wording_mod.gate(FOUR_WEEKS, "lose your keys") == "In the last 4 weeks, did you lose your keys?"
-    # spec 089 FR-5 (keel-cloud 160 FR-2): served window first; E4 measures the frame it was set against
+    # spec 089 FR-5 (keel-cloud 160 FR-2): served window first; E4 measures the frame it was set against. Spec 115 FR-2
+    # re-pin (keel-cloud 174 FR-5): a week is counted *in* (*on how many weeks* until 174)
     assert wording_mod.frequency_respondent(FOUR_WEEKS, "lose your keys") == \
-        "In the last 4 weeks, on how many weeks did you lose your keys?"
-    assert wording_mod.frequency_respondent(FOUR_WEEKS, "") == "In the last 4 weeks, on how many weeks did that happen?", \
+        "In the last 4 weeks, in how many weeks did you lose your keys?"
+    assert wording_mod.frequency_respondent(FOUR_WEEKS, "") == "In the last 4 weeks, in how many weeks did that happen?", \
         "no clause: did that happen, window first (keel-cloud 2026-10-12, 160)"
     assert wording_mod.frequency_measured(FOUR_WEEKS, "lose your keys") == \
         "On how many of those 4 weeks did you lose your keys?"

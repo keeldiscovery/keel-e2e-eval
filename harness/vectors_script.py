@@ -308,12 +308,45 @@ def frequency_question(window: Window, event: str) -> str:
     return f"On how many of those {window_words(window)} did you {event}?"
 
 
+def counted_in(window: Window) -> str:
+    """keel-cloud 174 FR-5 (`WindowFrame.countedIn`, spec 115 FR-2): *on* a day or a night, *in* a week or a month."""
+    return "in" if window.unit in ("WEEKS", "MONTHS") else "on"
+
+
+def short_unit(window: Window) -> str:
+    """keel-cloud 174 FR-5 (`WindowFrame.shortUnit`): the unit's plural, its last word alone where it has two (*working
+    days*: *days*) -- said once in full in the window, once more short."""
+    return _UNIT_WORDS[window.unit][1].split(" ")[-1]
+
+
+def window_first(window: Window) -> str:
+    """keel-cloud 174 FR-5 (`WindowFrame.windowFirst`): the Frequency frames' opening -- *In the last 3 months, in how many
+    months *, *In the last 5 working days, on how many days * -- the unit always said, as it is counted."""
+    return f"In the last {window_words(window)}, {counted_in(window)} how many {short_unit(window)} "
+
+
 def frequency_served(window: Window, event: str | None) -> str:
     """keel-cloud 160 FR-2 (`WindowFrame.frequencyRespondent(window, event)`): the window first and plainly, then the
     gate's one event -- *In the last 7 nights, on how many nights did you have to work out why your baby was crying?*;
-    with no clause *In the last 7 nights, on how many nights did that happen?*."""
+    with no clause *In the last 7 nights, on how many nights did that happen?*. Since keel-cloud 174 FR-5 (spec 115
+    FR-2) the opening is `window_first`'s: *in how many* weeks and months, a two-word unit short the second time."""
+    lead = f"{window_first(window)}did "
+    return f"{lead}{subject_led(event)}?" if (event or "").strip() else f"{lead}that happen?"
+
+
+def frequency_served_before174(window: Window, event: str | None) -> str:
+    """keel-cloud 174 (`WindowFrame.frequencyRespondentBefore174`): the frame as it read from 160 to 173 -- *on how many
+    {the unit in full}* whatever the unit -- read on a stored item, never served for a new one."""
     lead = f"In the last {window_words(window)}, on how many {_UNIT_WORDS[window.unit][1]} did "
     return f"{lead}{subject_led(event)}?" if (event or "").strip() else f"{lead}that happen?"
+
+
+def frequency_unit_dropped(window: Window, event: str | None) -> str | None:
+    """keel-cloud 174 FR-5 (`WindowFrame.unitDropped`): what 160's held frame served past the cap from 160 to 173, the
+    unit dropped -- *In the last 3 months, on how many did you ...?* -- read on a stored item so it is never served
+    again (`frequency_held` no longer writes it); None with no clause."""
+    return f"In the last {window_words(window)}, on how many did {subject_led(event)}?" if (event or "").strip() \
+        else None
 
 
 def event_base(entry) -> str:
@@ -3187,18 +3220,15 @@ def gate_from_circumstance(window: Window, circumstance: str | None) -> str | No
 
 
 def frequency_held(window: Window, clause: str) -> str:
-    """keel-cloud 160 FR-2 (`WindowFrame.frequencyHeld`, judgement call 4) on 131 FR-2: the served Frequency held to the
-    spoken cap -- the whole (`frequency_served`); past 20 words the unit the window has just named said once (*In the
-    last 7 days, on how many did you ...?*); then the clause cut by its trailing phrases (the rightmost preposition
-    first); else *... did that happen?* (the grammar check is not mirrored)."""
+    """keel-cloud 160 FR-2 (`WindowFrame.frequencyHeld`) on 131 FR-2: the served Frequency held to the spoken cap -- the
+    whole (`frequency_served`); past 20 words the clause cut by its trailing phrases (the rightmost preposition first);
+    else *... did that happen?*, the unit said (the grammar check is not mirrored). Keel-cloud 174 FR-5 (spec 115 FR-2)
+    retired 160's judgement call 4, the unit dropped (*In the last 7 days, on how many did you ...?*,
+    `frequency_unit_dropped`): the unit is never dropped."""
     from instructions import spoken as spoken_mod                     # noqa: PLC0415
     whole = frequency_served(window, clause)
     if _words(whole) <= STEM_MAX_WORDS:
         return whole
-    if (clause or "").strip():
-        shorter = f"In the last {window_words(window)}, on how many did {subject_led(clause)}?"
-        if _words(shorter) <= STEM_MAX_WORDS:
-            return shorter
     frame = _words(whole) - _words(clause)
     cut = spoken_mod.cut_to_fit(clause, STEM_MAX_WORDS - frame)
     held = frequency_served(window, cut)

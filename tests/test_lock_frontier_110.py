@@ -218,7 +218,8 @@ def test_the_gate_frames_a_clause_that_opens_on_any_or_some_as_its_own_subject()
     assert "did you any" not in wording_mod.gate(w, palus)
     assert wording_mod.gate(w, "some of the calls ring out after hours") == \
         "In the last 3 months, did some of the calls ring out after hours?"
-    assert wording_mod.frequency_respondent(w, palus) == f"In the last 3 months, on how many months did {palus}?"
+    # spec 115 FR-2 re-pin (keel-cloud 174 FR-5): a month is counted *in* (*on how many months* until 174)
+    assert wording_mod.frequency_respondent(w, palus) == f"In the last 3 months, in how many months did {palus}?"
     assert wording_mod.frequency_measured(w, palus) == f"On how many of those 3 months did {palus}?"
     # 116, 129, 130, 131's subjects, and the second person everywhere else
     assert wording_mod.subject_led("your team miss the deadline") == "your team miss the deadline"

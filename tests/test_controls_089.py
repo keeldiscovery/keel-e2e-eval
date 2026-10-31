@@ -109,8 +109,9 @@ def test_the_classifier_reads_the_count_from_one():
          "escape": {"label": "I can't recall"}},
         {"itemId": "b", "dimension": "problem.frequency", "control": "number_with_unit",
          "numeric": {"defaultUnit": "days out of 30", "min": 1}, "escape": {"label": "I can't recall"}},
+        # spec 115 FR-2 re-pin (keel-cloud 174 FR-5): past five steps the line says the range, *Say a number ...*
         {"itemId": "c", "dimension": "problem.frequency", "control": "number_with_unit",
-         "spoken": {"optionsLine": "A number from 1 to 30."}, "numeric": {"min": 1}, "escape": None},
+         "spoken": {"optionsLine": "Say a number from 1 to 30."}, "numeric": {"min": 1}, "escape": None},
         {"itemId": "d", "dimension": "problem.frequency", "control": "number_with_unit",
          "numeric": {"defaultUnit": "months out of 3"}, "escape": None}]}]}
     got = guard.served_items(interview)
@@ -307,10 +308,13 @@ def test_the_brief_line_and_the_two_decisions_are_keel_clouds():
 
 def test_the_served_frequency_opens_with_the_window_and_e4_keeps_its_measure():
     """keel-cloud 160 FR-2 / judgement call 2: *In {window}, on how many {unit} did ...?* served; `frequencyMeasured`
-    (*On how many of those ...*) is what E4 and the gate's fallbacks measure a clause on, so no gate moves."""
+    (*On how many of those ...*) is what E4 and the gate's fallbacks measure a clause on, so no gate moves. Spec 115 FR-2
+    re-pin (keel-cloud 174 FR-5): the opening is `windowFirst`'s -- `countedIn` (*in* a week or a month) and `shortUnit`
+    (a two-word unit short) -- and 160 to 173's *on how many {unit in full}* is read on stored items alone."""
     from instructions import wording as wording_mod                        # noqa: PLC0415
     text = _cloud(WINDOW_FRAME, "frequencyMeasured")
-    assert '", on how many " + w.timeUnit().plural() + " "' in text and '"On how many of those "' in text
+    assert '", " + countedIn(w) + " how many " + shortUnit(w) + " "' in text and '"On how many of those "' in text
+    assert '", on how many " + w.timeUnit().plural() + " "' in text[text.index("windowFirstBefore174("):]
     nights = vs.Window(7, "NIGHTS")
     assert vs.frequency_served(nights, "have to work out why your baby was crying") == \
         "In the last 7 nights, on how many nights did you have to work out why your baby was crying?"

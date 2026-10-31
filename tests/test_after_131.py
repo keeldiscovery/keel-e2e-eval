@@ -369,18 +369,20 @@ def test_the_gate_on_the_circumstances_event_for_the_five_seeds():
 
 def test_frequency_is_held_under_the_cap():
     """131 FR-2 (Fresco): cut by the trailing phrase; a clause no cut fits asks *did that happen?*. Spec 089 FR-5
-    (keel-cloud 160 FR-2, judgement call 4): window first, the unit said once before the cut -- Fresco's 24 words still
-    cut as before (*... by hand?*, 20); the frame before 160 held as 131 held it."""
+    (keel-cloud 160 FR-2): window first -- Fresco's whole still cuts as before (*... by hand?*); the frame before 160
+    held as 131 held it. Spec 115 FR-2 re-pin (keel-cloud 174 FR-5): a two-word unit is said once more short (*on how
+    many days*), and the unit is never dropped -- 160's judgement call 4 (*on how many did you ...?*) is retired, so the
+    recount clause past the cap is cut by its trailing phrase instead."""
     window = vs.Window(5, "WORKING_DAYS")
     assert vs.frequency_held(window, "type up the daily log by hand after the site walks") == \
-        "In the last 5 working days, on how many working days did you type up the daily log by hand?"
+        "In the last 5 working days, on how many days did you type up the daily log by hand?"
     assert vs.frequency_held(window, "type it up") == \
-        "In the last 5 working days, on how many working days did you type it up?"
+        "In the last 5 working days, on how many days did you type it up?"
     assert vs.frequency_held(window, "reconcile every single supplier delivery note against its matching invoice "
-                                     "line") == "In the last 5 working days, on how many working days did that happen?"
-    # the unit said once where that alone fits (keel-cloud 160 judgement call 4)
+                                     "line") == "In the last 5 working days, on how many days did that happen?"
+    # keel-cloud 174 FR-5: never the unit dropped (it read *In the last 7 days, on how many did you ... a delivery?*)
     assert vs.frequency_held(vs.Window(7, "DAYS"), "have to recount the stock by hand after a delivery") == \
-        "In the last 7 days, on how many did you have to recount the stock by hand after a delivery?"
+        "In the last 7 days, on how many days did you have to recount the stock by hand?"
     assert vs.frequency_held_before160(window, "type up the daily log by hand after the site walks") == \
         "On how many of those 5 working days did you type up the daily log by hand?"
     assert vs.frequency_held_before160(window, "type it up") == "On how many of those 5 working days did you type it up?"

@@ -204,13 +204,24 @@ def gate(window, event) -> str:
     return f"In {window.words()}, did {subject_led(event)}?"
 
 
+def counted_in(window) -> str:
+    """keel-cloud 174 FR-5 (`WindowFrame.countedIn`, spec 115 FR-2): *on* a day or a night, *in* a week or a month."""
+    return "in" if window.plural in ("weeks", "months") else "on"
+
+
+def short_unit(window) -> str:
+    """keel-cloud 174 FR-5 (`WindowFrame.shortUnit`): the plural's last word (*working days*: *days*)."""
+    return window.plural.split(" ")[-1]
+
+
 def frequency_respondent(window, event) -> str:
     """`WindowFrame.frequencyRespondent(window, event)`: Frequency carries the gate's own clause -- since keel-cloud 160
-    (FR-2, spec 089 FR-5) the window first and plainly, then the event: *In the last 4 weeks, on how many weeks did you
-    lose your keys?*; with no clause *In the last 4 weeks, on how many weeks did that happen?* (it read *On how many of
-    those 4 weeks did ...?*)."""
+    (FR-2, spec 089 FR-5) the window first and plainly, then the event; since keel-cloud 174 FR-5 (spec 115 FR-2) the
+    unit as it is counted and said short the second time: *In the last 4 weeks, in how many weeks did you lose your
+    keys?*, *In the last 5 working days, on how many days did ...?*; with no clause *... did that happen?* (it read *On
+    how many of those 4 weeks did ...?* before 160, *on how many weeks* from 160 to 173)."""
     text = clause(event)
-    lead = f"In {window.words()}, on how many {window.plural} did "
+    lead = f"In {window.words()}, {counted_in(window)} how many {short_unit(window)} did "
     if not text.strip():
         return f"{lead}that happen?"
     return f"{lead}{subject_led(text)}?"
