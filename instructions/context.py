@@ -64,7 +64,7 @@ DEFAULT_KEYS = {
     contract_mod.SCREEN_CALIBRATION: ["vector", "context", "market", "interpretation",
                                       "dimensions", "answers"],
     contract_mod.SCREEN_RESPONDENT: ["part", "link", "context", "market", "founder_name",
-                                     "items", "mechanism", "offer_name"],
+                                     "items", "problem", "condition", "mechanism", "offer_name"],
     contract_mod.SCREEN_ASKED: ["dimension", "context", "market", "items"],
     contract_mod.SCREEN_INTERPRET: ["invitation_id", "story"],
 }
@@ -321,6 +321,43 @@ def respondent_item(dimension, *, link: str = LINK_PRIMARY) -> dict:
     return item
 
 
+def problem_of(entry) -> str | None:
+    """keel-cloud 116 FR-1 (`ScreenContextBuilder.prevalenceClause`, `VectorCorridor.prevalenceClause`): the founder's
+    Prevalence clause the part-1 job writes the gate from -- `WindowFrame.eventFromPrevalence` over the founder's
+    Prevalence question. The eval's walk writes that question's `event` as `vectors_script.event_past` (the scripted
+    `CALIBRATION_QUESTIONS`), so the clause read back is it: the golden entries' own (`PROBLEM_CLAUSES`), else *had a
+    time when {circumstance}* (a back-test entry records no founder clause of its own). Spec 110 FR-4."""
+    from harness import vectors_script as vs                            # noqa: PLC0415 - harness reads this module
+    try:
+        return vs.event_past(entry)
+    except (KeyError, TypeError):
+        return None
+
+
+def condition_of(entry) -> str | None:
+    """keel-cloud 120 FR-2 (`VectorCorridor.segmentCondition`): the segment's condition the chip asks before the gate,
+    as the confirmed context stores it (`vectors_script.card_condition`), `None` where there is none. Spec 110 FR-4."""
+    from harness import vectors_script as vs                            # noqa: PLC0415
+    try:
+        return vs.card_condition(entry)
+    except (KeyError, TypeError):
+        return None
+
+
+def _hands_condition(entry, part: int, link: str) -> bool:
+    """`ScreenContextBuilder` (keel-cloud 120 FR-2, 145 FR-4b, 166 FR-2): the condition rides part 1, the
+    decision-maker's part 3, and the person's own part 3 on a study that serves no gate (`StudyScope.servesGate`:
+    neither the problem nor the solution in scope)."""
+    if part == 1:
+        return True
+    if part != 3:
+        return False
+    if link == LINK_B2B:
+        return True
+    scope = getattr(entry, "scope", None) or "ALL"
+    return scope == "COMMERCIAL"
+
+
 def build_respondent(entry, part: int, plan: dict | None = None, registry=None, keys=None, *,
                      link: str = LINK_PRIMARY) -> dict:
     """`RESPONDENT_QUESTIONS` for one part: the plan's items for that part with the registry's
@@ -344,6 +381,13 @@ def build_respondent(entry, part: int, plan: dict | None = None, registry=None, 
                                         for k in item_keys], window_of(entry)),
                            cost_recall_of(entry)),             # call 62: `{cost_period}` filled
     }
+    # keel-cloud 116 FR-1 / 120 FR-2 (spec 110 FR-4): part 1 is handed the founder's Prevalence clause and the
+    # segment's condition -- until spec 110 the export's two keys were written `null`, so every screen of this job wrote
+    # the gate from `context.circumstance`, the path the instruction keeps for a missing `problem`
+    if part == 1:
+        values["problem"] = problem_of(entry)
+    if _hands_condition(entry, part, link):
+        values["condition"] = condition_of(entry)
     if part in (2, 3) and link != LINK_B2B:
         values["mechanism"] = mechanism_of(entry)
     if part == 3:
@@ -355,6 +399,10 @@ def build_respondent(entry, part: int, plan: dict | None = None, registry=None, 
         if key == "mechanism" and (part == 1 or link == LINK_B2B):
             continue
         if key == "offer_name" and part != 3:           # 072: part 3 only, on either link
+            continue
+        if key == "problem" and part != 1:              # 116: the part-1 job alone
+            continue
+        if key == "condition" and not _hands_condition(entry, part, link):
             continue
         out[key] = values.get(key)
     return out

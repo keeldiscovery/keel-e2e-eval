@@ -397,7 +397,7 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
         "brief_facts": [_facts_json(s) for s in facts_scores],
         "report_overview": [_overview_json(s) for s in overview_scores],
         "totals": totals, "spread": {}, "prompts": [],
-        "denominators": denominators(cases),
+        "denominators": denominators(_golden(cases)),
         # MARKS_VERSION 21 (call 121): the readers' scores, reported from committed score files, never gating.
         "read": marks_mod.read_rows(e.id for e in corpus.entries),
         # Spec 105 FR-3: what the screen read beside the golden corpus, the probes apart from the entries.
@@ -806,6 +806,10 @@ def _score(case, entry, answer, failed, state, judge) -> dict:
         # No case kind at v9 may legitimately ask: every screen is handed the corpus's own
         # inputs, so an ask is a failed case, counted, never softened (decision 14's reading).
         failed = failed or "NEEDS_INPUT on a screen this eval always supplies"
+    if screen_mod.is_extra(case):
+        # spec 105 FR-3 / spec 110 FR-4: a back-test entry's or a probe's case has no golden expectations -- rendered
+        # and validated, never scored (a probe's mark is `_score_probe`'s); its entry is not the golden corpus's
+        return diff
     if case.kind == "CALIBRATION":
         score = score_mod.score_calibration(case, entry, entry.registry, result, judge=judge,
                                             failed=failed)
@@ -849,8 +853,8 @@ def _score_probe(case, answer, diff, state) -> dict | None:
     plant = screen_mod.plant_of(case)
     if plant is None:
         return None
-    mark = screen_mod.probe_mark(case.entry_id, plant, outcome=answer.outcome, questions=answer.questions,
-                                 result=answer.result)
+    mark = screen_mod.mark_for(case.entry_id, plant, outcome=answer.outcome, questions=answer.questions,
+                               result=answer.result)
     mark = {"case_id": case.case_id, "run_index": case.run_index, **mark}
     diff["probe"] = mark
     diff["failed"] = diff.get("failed") or (None if mark["held"] else "probe: " + "; ".join(mark["faults"]))

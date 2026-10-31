@@ -463,3 +463,228 @@ def test_the_screens_hold_reads_the_chip_words_and_writes_a_parted_question_as_a
     import inspect                                                          # noqa: PLC0415
     held = inspect.getsource(cs._hold_the_screens)
     assert "value_box_word_faults(item)" in held and "cost_item_drift(j, item)" in held
+
+
+# ------------------------------------------------------------------------------ FR-4: the screen reader
+
+import types                                                                # noqa: E402
+
+import yaml                                                                 # noqa: E402
+
+from instructions import context as context_mod                             # noqa: E402
+from instructions import run as run_mod                                     # noqa: E402
+from instructions import screen_entries as screen_mod                       # noqa: E402
+
+#: keel-cloud 170's probe, restated (the live file is read below, skipped by name where absent).
+JUDGEMENT_PROBE = {
+    "id": "170-judgement-verb",
+    "title": "Raised cash at a startup -- a gate whose founder words carry a verdict verb",
+    "market": {"country": "US", "region": None, "language": "en-US"},
+    "recall_window": {"count": 3, "unit": "MONTHS"},
+    "job_context": {
+        "part": 1, "link": "PRIMARY",
+        "context": {"actor": "finance lead", "actor_plural": "finance leads at venture-backed startups",
+                    "job": "earn interest on the cash from a raise without putting it at risk",
+                    "circumstance": "finance leads leave their raised cash sitting idle in the bank's sweep account",
+                    "segment": "venture-backed startups in the US that raised a round in the last two years",
+                    "window": "the last 3 months"},
+        "market": {"country": "US", "region": None, "language": "en-US"},
+        "founder_name": None,
+        "items": [{"key": "problem.prevalence"}, {"key": "problem.frequency"}, {"key": "problem.importance"},
+                  {"key": "problem.current_solution_satisfaction"}],
+        "problem": "left their raised cash sitting idle in the bank's sweep account",
+        "condition": None},
+    "probes": [{"screen": "RESPONDENT_QUESTIONS", "item": "problem.prevalence", "planted": ["leave", "sitting idle"],
+                "verdict_words": ["idle", "sitting", "sit", "leave", "left", "still", "have to", "had to", "fail to",
+                                  "waste", "struggle", "stuck"],
+                "keeps": ["cash", "raise", "sweep account"],
+                "register": "was any of the cash from your raise held in your bank's sweep account",
+                "in_the_frame": "did any of the cash from your raise stay in your bank's sweep account?",
+                "first_turn": {"outcome": "COMPLETED", "part": 1, "event": "one clause", "no_verdict_word": True,
+                               "object_kept": True}}],
+}
+GOOD_EVENT = "any of the cash from your raise stay in your bank's sweep account"
+
+
+def _checkout_110(tmp_path, probe=JUDGEMENT_PROBE):
+    root = tmp_path / "keel-cloud"
+    backtest, probes = corpus_mod.backtest_dir(root), screen_mod.probes_dir(root)
+    backtest.mkdir(parents=True)
+    probes.mkdir(parents=True)
+    raw = fx.raw_entry()
+    raw["id"] = "08-fixture-bt"
+    raw.pop("expected", None)
+    raw["idea_name"] = "The fixture idea"
+    (backtest / "08-fixture-bt.yaml").write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+    (probes / f"{probe['id']}.yaml").write_text(yaml.safe_dump(probe, sort_keys=False), encoding="utf-8")
+    return root
+
+
+def test_build_respondent_hands_part_one_the_problem_and_the_condition():
+    """keel-cloud 116 FR-1 / 120 FR-2 (`ScreenContextBuilder`): until spec 110 the export's `problem` and `condition`
+    were written `null`, so every eval screen of this job wrote the gate from the circumstance."""
+    entry, registry = fx.entry(), fx.registry()
+    keys = context_mod.DEFAULT_KEYS["RESPONDENT_QUESTIONS"]
+    assert keys.index("items") < keys.index("problem") < keys.index("condition") < keys.index("mechanism")
+    part1 = context_mod.build_respondent(entry, 1, entry.plan(), registry, keys)
+    assert part1["problem"] == vs.event_past(entry) and part1["problem"] is not None
+    assert "condition" in part1 and part1["condition"] == vs.card_condition(entry)
+    part2 = context_mod.build_respondent(entry, 2, entry.plan(), registry, keys)
+    assert "problem" not in part2 and "condition" not in part2, "116 / 120: the part-1 job's alone"
+    part3 = context_mod.build_respondent(entry, 3, entry.plan(), registry, keys)
+    assert "problem" not in part3 and "condition" not in part3, "the person's part 3 on a study with a gate"
+    b2b = context_mod.build_respondent(entry, 3, entry.plan(), registry, keys, link=context_mod.LINK_B2B)
+    assert "condition" in b2b and "problem" not in b2b, "145 FR-4b: the decision-maker's link asks the screener"
+    import dataclasses                                                      # noqa: PLC0415
+    money_only = dataclasses.replace(entry, scope="COMMERCIAL")
+    assert "condition" in context_mod.build_respondent(money_only, 3, entry.plan(), registry, keys), \
+        "166 FR-2: the person's own part 3 on a study that serves no gate"
+
+
+def test_a_golden_entrys_problem_is_its_own_prevalence_clause():
+    if not (KEEL_CLOUD / cloud_mod.REGISTRY_FILE).is_file():
+        pytest.skip("no keel-cloud registry of record")
+    registry = cloud_mod.registry_of_record(KEEL_CLOUD)
+    countly = corpus_mod.load_file(fx.canon_entry("01-countly.yaml"), registry=registry)
+    built = context_mod.build_respondent(countly, 1, countly.plan(registry), registry,
+                                         context_mod.DEFAULT_KEYS["RESPONDENT_QUESTIONS"])
+    assert built["problem"] == vs.PROBLEM_CLAUSES["01-countly"][0] == \
+        "had to recount stock by hand after a mismatched delivery"
+    assert built["condition"] == vs.card_condition(countly)
+
+
+def test_a_backtest_entry_is_screened_on_respondent_part_one(tmp_path):
+    root = _checkout_110(tmp_path)
+    assert screen_mod.BACKTEST_SCREENS[-1] == "RESPONDENT_QUESTIONS"
+    extras = screen_mod.load(root, "08-fixture-bt/RESPONDENT")
+    cases = screen_mod.build_cases(extras, fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime,
+                                   needle="08-fixture-bt/RESPONDENT", n_runs=2)
+    assert [c.case_id for c in cases] == ["08-fixture-bt/RESPONDENT_PART1/run1", "08-fixture-bt/RESPONDENT_PART1/run2"]
+    case = cases[0]
+    assert (case.kind, case.screen, case.subject) == ("RESPONDENT", "RESPONDENT_QUESTIONS", "PART1")
+    assert case.meta["source"] == "backtest" and case.meta["part"] == 1 and case.meta["link"] == "PRIMARY"
+    entry = extras.backtest[0]
+    assert case.meta["plan"] == entry.plan(fx.exported(tmp_path).registry)[1]
+    context = case.payload["context"]
+    assert context["problem"] == vs.event_past(entry) and "condition" in context and "mechanism" not in context
+    assert [i["key"] for i in context["items"]] == case.meta["plan"]
+    assert screen_mod.is_extra(case) and screen_mod.plant_of(case) is None
+
+
+def test_a_respondent_probe_is_read_and_built_from_its_job_context(tmp_path):
+    root = _checkout_110(tmp_path)
+    extras = screen_mod.load(root, "170-judgement-verb")
+    assert extras.backtest == [] and [p.id for p in extras.probes] == ["170-judgement-verb"]
+    probe = extras.probes[0]
+    assert probe.respondent() and probe.recall_window == {"count": 3, "unit": "MONTHS"}
+    plant = probe.plant_for("RESPONDENT_QUESTIONS")
+    assert isinstance(plant, screen_mod.RespondentPlant) and plant.item == "problem.prevalence"
+    cases = screen_mod.build_cases(extras, fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime,
+                                   needle="170-judgement-verb", n_runs=1)
+    assert [c.case_id for c in cases] == ["170-judgement-verb/RESPONDENT_PART1/run1"]
+    case = cases[0]
+    assert case.kind == "RESPONDENT" and case.meta["source"] == "probe" and case.meta["part"] == 1
+    context = case.payload["context"]
+    assert list(context) == ["part", "link", "context", "market", "founder_name", "items", "problem", "condition"]
+    assert context["problem"] == JUDGEMENT_PROBE["job_context"]["problem"] and context["condition"] is None
+    gate = context["items"][0]
+    assert gate["key"] == "problem.prevalence" and set(gate["respondent"]) >= {"anchor", "control", "escape"}
+    assert screen_mod.plant_of(case) == plant, "the plant rides the case's meta whole"
+    assert case.meta["probe"]["recall_window"] == {"count": 3, "unit": "MONTHS"}
+    # 169's frame probe reads as it did
+    assert screen_mod.load_probe.__doc__ and "job_context" in screen_mod.load_probe.__doc__
+
+
+def test_a_broken_respondent_probe_refuses_by_name(tmp_path):
+    import copy                                                             # noqa: PLC0415
+    absent = copy.deepcopy(JUDGEMENT_PROBE)
+    absent["probes"][0]["planted"] = ["parked"]
+    root = _checkout_110(tmp_path, absent)
+    with pytest.raises(corpus_mod.CorpusError, match="planted words"):
+        screen_mod.load(root, "170-judgement-verb")
+    other = copy.deepcopy(JUDGEMENT_PROBE)
+    other["probes"][0]["item"] = "problem.nothing"
+    path = tmp_path / "other.yaml"
+    path.write_text(yaml.safe_dump(other), encoding="utf-8")
+    with pytest.raises(corpus_mod.CorpusError, match="not among job_context's items"):
+        screen_mod.load_probe(path)
+    part3 = copy.deepcopy(JUDGEMENT_PROBE)
+    part3["job_context"]["part"] = 3
+    path.write_text(yaml.safe_dump(part3), encoding="utf-8")
+    with pytest.raises(corpus_mod.CorpusError, match="part 1"):
+        screen_mod.load_probe(path)
+
+
+def _plant():
+    row = JUDGEMENT_PROBE["probes"][0]
+    return screen_mod.RespondentPlant(screen=row["screen"], item=row["item"], planted=tuple(row["planted"]),
+                                      verdict_words=tuple(row["verdict_words"]), keeps=tuple(row["keeps"]),
+                                      first_turn=dict(row["first_turn"]), register=row["register"],
+                                      in_the_frame=row["in_the_frame"], recall_window=JUDGEMENT_PROBE["recall_window"])
+
+
+def _result(event, part=1):
+    return {"part": part, "link": "PRIMARY", "items": [{"key": "problem.prevalence", "event": event},
+                                                       {"key": "problem.frequency"}]}
+
+
+def test_the_probe_holds_an_event_with_no_verdict_word_that_keeps_the_object():
+    mark = screen_mod.respondent_probe_mark("170-judgement-verb", _plant(), outcome="COMPLETED",
+                                            result=_result(GOOD_EVENT))
+    assert mark["held"] and mark["faults"] == [], mark
+    assert mark["framed"] == "In the last 3 months, " + JUDGEMENT_PROBE["probes"][0]["in_the_frame"]
+    assert "the gate's event says no verdict" in screen_mod.probe_line(mark)
+
+
+@pytest.mark.parametrize("outcome, result, fault", [
+    ("COMPLETED", _result("left the cash from your raise sitting idle in your bank's sweep account"),
+     "says the verdict"),
+    ("COMPLETED", _result("have to move the cash from your raise out of your bank's sweep account"),
+     "says the verdict"),
+    ("COMPLETED", _result("any of your money stay in the bank"), "drops the object"),
+    ("COMPLETED", _result(GOOD_EVENT, part=2), "not part 1"),
+    ("COMPLETED", {"part": 1, "items": [{"key": "problem.prevalence"}]}, "not one"),
+    ("COMPLETED", _result("any of the cash from your raise stay in your bank's sweep account last month"),
+     "not one clause"),
+    ("NEEDS_INPUT", None, "not COMPLETED"),
+])
+def test_the_probe_marks_a_verdict_a_lost_object_and_a_wrong_turn(outcome, result, fault):
+    mark = screen_mod.respondent_probe_mark("170-judgement-verb", _plant(), outcome=outcome, result=result)
+    assert not mark["held"] and any(fault in f for f in mark["faults"]), mark["faults"]
+    assert screen_mod.probe_line(mark).startswith("  probe FAULT")
+
+
+def test_the_verdict_words_are_whole_words():
+    """*sit* is never read inside *deposit*; *have to* is two words."""
+    mark = screen_mod.respondent_probe_mark("170-judgement-verb", _plant(), outcome="COMPLETED",
+                                            result=_result("deposit any of the cash from your raise into your bank's "
+                                                           "sweep account"))
+    assert mark["held"], mark["faults"]
+
+
+def test_the_live_probe_reads_as_restated():
+    path = screen_mod.probes_dir(KEEL_CLOUD) / "170-judgement-verb.yaml"
+    if not path.is_file():
+        pytest.skip("keel-cloud has no 170-judgement-verb probe")
+    probe = screen_mod.load_probe(path)
+    live = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert probe.respondent() and probe.job_context == live["job_context"] == JUDGEMENT_PROBE["job_context"]
+    assert probe.plant_for("RESPONDENT_QUESTIONS").record() == _plant().record()
+    # its expected wording holds its own mark
+    assert screen_mod.respondent_probe_mark(probe.id, probe.plant_for("RESPONDENT_QUESTIONS"), outcome="COMPLETED",
+                                            result=_result(GOOD_EVENT))["held"]
+
+
+def test_the_run_never_scores_an_extra_and_marks_a_respondent_probe(tmp_path):
+    root = _checkout_110(tmp_path)
+    extras = screen_mod.load(root, "170-judgement-verb")
+    case = screen_mod.build_cases(extras, fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime,
+                                  needle="170-judgement-verb", n_runs=1)[0]
+    answer = types.SimpleNamespace(schema_valid=True, outcome="COMPLETED", result=_result(GOOD_EVENT), questions=[],
+                                   error=None, schema_error=None)
+    state = run_mod._RunState()
+    diff = run_mod._score(case, None, answer, None, state, judge=None)      # no golden entry: never scored
+    assert state.respondent == [] and "faults" not in diff
+    mark = run_mod._score_probe(case, answer, diff, state)
+    assert mark["held"] and state.probes == [mark] and diff["source"] == "probe" and not diff.get("failed")
+    assert run_mod.denominators(run_mod._golden([case])) == {}

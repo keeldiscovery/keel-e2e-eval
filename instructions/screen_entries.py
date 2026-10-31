@@ -8,14 +8,19 @@ case and nothing ran. Now a **screen** (a `-k` needle that is neither empty nor 
 - **the back-test corpus** -- keel-cloud's `canon/designs/measured-beliefs/backtest/*.yaml` (revision 19 since
   keel-cloud 159; `build/backtest-r19/` is keel-cloud's own `BacktestCorpusTest` output, not a source), loaded through
   `corpus.load(..., backtest=True)` and its refusals. A back-test entry carries no golden expectations, so it is
-  screened on **the three interpretation screens** only (`CONTEXT_INTERPRET` and the two frame screens) -- the
-  screens that read what its founder typed; rendered and validated as the golden ones are, never scored;
+  screened on **the three interpretation screens** (`CONTEXT_INTERPRET` and the two frame screens) -- the
+  screens that read what its founder typed -- and, since spec 110 (keel-cloud 170 FR-7), on **part 1 of
+  `RESPONDENT_QUESTIONS`** (`<id>/RESPONDENT_PART1`, the job that writes the gate from the founder's `problem`);
+  rendered and validated as the golden ones are, never scored;
 - **the probes** -- `canon/designs/measured-beliefs/probes/*.yaml`, keel-cloud 169's planted-term fixtures: no people,
   no answers, no revision, only what the two frame builders read (`id`, `title`, `market`, `context`, `statements`,
   `interpretations`) and a `probes` list naming, per screen, the one planted term, its two senses and the first turn
   owed. A probe is screened on the screens its list names, and **marked** (`probe_mark`): the first turn is
   `NEEDS_INPUT` with one question that names the planted term and offers two readings; a COMPLETED statement or card
-  -- keeping the term or rewriting it -- is a fault.
+  -- keeping the term or rewriting it -- is a fault. Since spec 110 a probe may instead carry a `RESPONDENT_QUESTIONS`
+  job's context as keel-cloud's `ScreenContextBuilder` writes it (`job_context`, with `recall_window` beside it:
+  keel-cloud 170's `170-judgement-verb`), screened as `<id>/RESPONDENT_PART1` and marked by `respondent_probe_mark`:
+  COMPLETED, part 1, the gate's one `event` free of every verdict word and keeping the object (`keeps`).
 
 An extra entry joins only when the needle **names it** -- the needle's first segment is part of its id (`08-fresco`,
 `10-palus/SOLUTION`, `169-banking-gaming`) -- so `-k PROBLEM_INTERPRET`, `-k frame` and the full eval (no needle) build
@@ -42,15 +47,24 @@ from . import prompts as prompts_mod
 SOURCE_BACKTEST = "backtest"
 SOURCE_PROBE = "probe"
 
-#: The screens a back-test entry is screened on: the three that read the founder's typed context and seeds.
+#: The screens a back-test entry is screened on: the three that read the founder's typed context and seeds, and since
+#: spec 110 (keel-cloud 170 FR-7) the respondent job's part 1 -- the gate, written from the founder's `problem`.
 BACKTEST_SCREENS = (contract_mod.SCREEN_CONTEXT_INTERPRET, contract_mod.SCREEN_PROBLEM_INTERPRET,
-                    contract_mod.SCREEN_SOLUTION_MECHANISM)
-#: The screens a probe may name (keel-cloud 169: the frame class).
+                    contract_mod.SCREEN_SOLUTION_MECHANISM, contract_mod.SCREEN_RESPONDENT)
+#: The respondent part a back-test entry and a respondent probe are screened on (`<id>/RESPONDENT_PART1`).
+RESPONDENT_PART = 1
+#: The screens a probe may name (keel-cloud 169: the frame class; keel-cloud 170: the respondent job).
 PROBE_SCREENS = (contract_mod.SCREEN_PROBLEM_INTERPRET, contract_mod.SCREEN_SOLUTION_MECHANISM)
+RESPONDENT_PROBE_SCREENS = (contract_mod.SCREEN_RESPONDENT,)
 
 #: The keys a probe must carry for the frame builders (`instructions/context.py`) to take it as it is.
 PROBE_KEYS = ("id", "context", "statements", "interpretations", "probes")
 PLANT_KEYS = ("screen", "seed", "planted", "gaming_sense", "banking_sense", "first_turn")
+#: Spec 110 FR-4 (keel-cloud 170 FR-7): a respondent probe hands the job its context as it is -- `job_context` under
+#: `ScreenContextBuilder`'s own keys -- and each row names the item, the planted words, the verdict words the event
+#: must not say, the words it must keep and the first turn owed.
+RESPONDENT_PROBE_KEYS = ("id", "job_context", "probes")
+RESPONDENT_PLANT_KEYS = ("screen", "item", "planted", "verdict_words", "keeps", "first_turn")
 
 
 def probes_dir(keel_cloud: Path) -> Path:
@@ -98,9 +112,38 @@ class Probe:
     solution_mechanism: dict = field(default_factory=dict)
     registry: object = None
     backtest: bool = False
+    #: Spec 110 FR-4: a respondent probe's job context, as `ScreenContextBuilder` writes it, and its recall window.
+    job_context: dict | None = None
+    recall_window: dict | None = None
 
-    def plant_for(self, screen: str) -> Plant | None:
+    def plant_for(self, screen: str):
         return next((p for p in self.plants if p.screen == screen), None)
+
+    def respondent(self) -> bool:
+        return self.job_context is not None
+
+
+@dataclass(frozen=True)
+class RespondentPlant:
+    """Spec 110 FR-4 (keel-cloud 170 FR-7): one respondent probe row -- the gate item, the verdict planted in the
+    founder's words, the verdict words its `event` must not say, the words it must keep, the register a reader holds
+    it to, and the recall window it is framed in."""
+
+    screen: str
+    item: str
+    planted: tuple
+    verdict_words: tuple
+    keeps: tuple
+    first_turn: dict
+    register: str | None = None
+    in_the_frame: str | None = None
+    recall_window: dict | None = None
+
+    def record(self) -> dict:
+        return {"screen": self.screen, "item": self.item, "planted": list(self.planted),
+                "verdict_words": list(self.verdict_words), "keeps": list(self.keeps),
+                "first_turn": dict(self.first_turn), "register": self.register, "in_the_frame": self.in_the_frame,
+                "recall_window": dict(self.recall_window) if self.recall_window else None}
 
 
 def _refuse(probe_id, message, path) -> corpus_mod.CorpusError:
@@ -114,13 +157,63 @@ def _seed_text(raw: dict, seed: str):
     return node
 
 
+def _words(value) -> tuple:
+    return tuple(str(v) for v in (value if isinstance(value, list) else [value]) if str(v).strip())
+
+
+def load_respondent_probe(raw: dict, path: Path) -> Probe:
+    """Spec 110 FR-4 (keel-cloud 170 FR-7): a probe that hands `RESPONDENT_QUESTIONS` its job context as it is -- part
+    1, the items by key, `problem` and `condition` -- and names, per row, the gate item, the planted verdict, the words
+    its event must not say and must keep. Each planted word is in the founder's words the job reads (`problem` or
+    `context.circumstance`). A broken probe refuses by name."""
+    probe_id = raw.get("id") or path.name
+    missing = [k for k in RESPONDENT_PROBE_KEYS if not raw.get(k)]
+    if missing:
+        raise _refuse(probe_id, f"carries no {', '.join(missing)}", path)
+    job = raw["job_context"]
+    if not isinstance(job, dict) or job.get("part") != RESPONDENT_PART or not job.get("items"):
+        raise _refuse(probe_id, f"job_context must be part {RESPONDENT_PART}'s, with its items by key", path)
+    founder_words = " ".join(str(x) for x in (job.get("problem"), (job.get("context") or {}).get("circumstance"))
+                             if x)
+    plants, screens = [], set()
+    for item in raw["probes"]:
+        if not isinstance(item, dict) or any(not item.get(k) for k in RESPONDENT_PLANT_KEYS):
+            raise _refuse(probe_id, f"a respondent probe row must carry {', '.join(RESPONDENT_PLANT_KEYS)}: "
+                                    f"{item!r}", path)
+        screen = item["screen"]
+        if screen not in RESPONDENT_PROBE_SCREENS:
+            raise _refuse(probe_id, f"probes a screen {screen!r} beside a job_context; a respondent probe names "
+                                    f"{' or '.join(RESPONDENT_PROBE_SCREENS)}", path)
+        if screen in screens:
+            raise _refuse(probe_id, f"names {screen} twice; one row a screen", path)
+        screens.add(screen)
+        if item["item"] not in [i.get("key") for i in job["items"] if isinstance(i, dict)]:
+            raise _refuse(probe_id, f"{screen}: the item {item['item']!r} is not among job_context's items", path)
+        planted = _words(item["planted"])
+        absent = [w for w in planted if not term_pattern(w).search(founder_words)]
+        if absent:
+            raise _refuse(probe_id, f"{screen}: the planted words {absent} are in neither problem nor "
+                                    "context.circumstance", path)
+        plants.append(RespondentPlant(screen=screen, item=str(item["item"]), planted=planted,
+                                      verdict_words=_words(item["verdict_words"]), keeps=_words(item["keeps"]),
+                                      first_turn=dict(item["first_turn"]), register=item.get("register"),
+                                      in_the_frame=item.get("in_the_frame"),
+                                      recall_window=raw.get("recall_window")))
+    return Probe(id=raw["id"], title=raw.get("title", ""), market=raw.get("market") or job.get("market") or {},
+                 context=job.get("context") or {}, statements={}, interpretations={}, plants=tuple(plants),
+                 path=path, sha256=_sha256(path), job_context=dict(job), recall_window=raw.get("recall_window"))
+
+
 def load_probe(path) -> Probe:
     """One probe file, checked: the keys the frame builders read, one plant a named frame screen, each planted term
-    in the seed it names. A broken probe refuses by name; it never runs as half a probe."""
+    in the seed it names -- or, since spec 110, a respondent probe (`job_context`, `load_respondent_probe`). A broken
+    probe refuses by name; it never runs as half a probe."""
     path = Path(path)
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise corpus_mod.CorpusError(f"{path} is not a probe")
+    if "job_context" in raw:
+        return load_respondent_probe(raw, path)
     probe_id = raw.get("id") or path.name
     missing = [k for k in PROBE_KEYS if not raw.get(k)]
     if missing:
@@ -213,11 +306,64 @@ def probe_mark(probe_id: str, plant: Plant, *, outcome, questions, result) -> di
             "held": not faults, "faults": faults}
 
 
+def _word_pattern(word: str) -> re.Pattern:
+    """A verdict word or phrase standing whole, case-insensitive (*sit* never in *deposit*, *have to* as two words)."""
+    parts = [re.escape(w) for w in re.split(r"\s+", word.strip()) if w]
+    return re.compile(r"(?<![\w'])" + r"\s+".join(parts) + r"(?![\w'])", re.IGNORECASE)
+
+
+def respondent_probe_mark(probe_id: str, plant: RespondentPlant, *, outcome, result) -> dict:
+    """Spec 110 FR-4 (keel-cloud 170 FR-7's acceptance) on one respondent probe case's first turn: `first_turn.outcome`
+    (COMPLETED), the result's part `first_turn.part` (1), and the planted item's one `event`: E1-E3 clean in the probe's
+    window (one clause, no time word, not the frame's words), **no verdict word** (`verdict_words`, whole words) and
+    **the object kept** (every word of `keeps`, in any plain inflection). Its framing by code (`wording.gate`) and the
+    probe's register are recorded for a reader, not judged here."""
+    from . import wording as wording_mod                                    # noqa: PLC0415
+    from .registry import RecallWindow                                      # noqa: PLC0415
+    want = plant.first_turn or {}
+    faults, event, framed = [], None, None
+    window = RecallWindow.read(plant.recall_window) if plant.recall_window else None
+    if outcome != want.get("outcome", "COMPLETED"):
+        faults.append(f"the first turn is {outcome or 'no outcome'}, not {want.get('outcome', 'COMPLETED')}")
+    else:
+        result = result if isinstance(result, dict) else {}
+        if want.get("part") is not None and result.get("part") != want.get("part"):
+            faults.append(f"the result is part {result.get('part')!r}, not part {want.get('part')}")
+        gates = [i for i in result.get("items") or [] if isinstance(i, dict) and i.get("key") == plant.item]
+        events = [i.get("event") for i in gates if isinstance(i.get("event"), str) and i.get("event").strip()]
+        if len(events) != 1:
+            faults.append(f"{len(events)} `event` clauses on {plant.item}, not one")
+        else:
+            event = events[0]
+            fault = wording_mod.event_fault(event, window) if window is not None else None
+            if fault:
+                faults.append(f"the event is not one clause: {fault}")
+            said = [w for w in plant.verdict_words if _word_pattern(w).search(event)]
+            if want.get("no_verdict_word", True) and said:
+                faults.append(f"the event says the verdict: {said}")
+            lost = [w for w in plant.keeps if not term_pattern(w).search(event)]
+            if want.get("object_kept", True) and lost:
+                faults.append(f"the event drops the object: {lost}")
+            framed = wording_mod.gate(window, event) if window is not None else None
+    return {"probe": probe_id, "screen": plant.screen, "item": plant.item, "planted": list(plant.planted),
+            "outcome": outcome, "event": event, "framed": framed, "register": plant.register,
+            "in_the_frame": plant.in_the_frame, "held": not faults, "faults": faults}
+
+
 def probe_line(mark: dict) -> str:
     """The console's line beside a probe case."""
+    if mark["held"] and "event" in mark:
+        return f"  probe held: the gate's event says no verdict and keeps the object -- {mark['framed'] or mark['event']}"
     if mark["held"]:
         return f"  probe held: one question naming {mark['planted']!r}, two readings"
     return f"  probe FAULT: {'; '.join(mark['faults'])}"
+
+
+def mark_for(probe_id: str, plant, *, outcome, questions, result) -> dict:
+    """The probe's mark for its kind: a respondent plant's (`respondent_probe_mark`), else the frame's (`probe_mark`)."""
+    if isinstance(plant, RespondentPlant):
+        return respondent_probe_mark(probe_id, plant, outcome=outcome, result=result)
+    return probe_mark(probe_id, plant, outcome=outcome, questions=questions, result=result)
 
 
 # ------------------------------------------------------------------------------------------ the screen entries
@@ -312,6 +458,68 @@ def _frame_cases(entry, screens, exported, instructions_by_screen, executor_modu
     return cases
 
 
+def _respondent_meta(source: str, part: int, link: str, plan: list, **more) -> dict:
+    """What `validate.py` hands keel-cloud's validator for a `RESPONDENT` case (part, link, plan, founder values none),
+    with the case's source."""
+    return {"source": source, "part": part, "link": link, "plan": list(plan), "swept": [], "founder_values": None,
+            **more}
+
+
+def _respondent_cases(stem: str, entry_id: str, context: dict, meta: dict, exported, instructions_by_screen,
+                      executor_module, *, n_runs, host) -> list:
+    screen = contract_mod.SCREEN_RESPONDENT
+    payload = prompts_mod.payload_for(instructions_by_screen.get(screen), context, exported.for_screen(screen))
+    cases = []
+    for run_index in range(1, n_runs + 1):
+        case = prompts_mod.Case(case_id=f"{stem}/run{run_index}", kind="RESPONDENT", entry_id=entry_id,
+                                screen=screen, subject=f"PART{RESPONDENT_PART}", run_index=run_index,
+                                payload=payload, meta=dict(meta))
+        case.prompt = prompts_mod.render(executor_module, payload, job_id=prompts_mod._slug(case.case_id), host=host)
+        cases.append(case)
+    return cases
+
+
+def backtest_respondent_cases(entry, exported, instructions_by_screen, executor_module, *, n_runs, host) -> list:
+    """Spec 110 FR-4: a back-test entry's part 1 of `RESPONDENT_QUESTIONS` on its primary link, built as the golden
+    corpus's (`context.build_respondent`, now handed `problem` and `condition`) on the export's registry."""
+    registry = getattr(exported, "registry", None) or entry.registry
+    plan = entry.plan(registry)
+    context = context_mod.build_respondent(entry, RESPONDENT_PART, plan, registry,
+                                           exported.keys_for(contract_mod.SCREEN_RESPONDENT),
+                                           link=context_mod.LINK_PRIMARY)
+    meta = _respondent_meta(SOURCE_BACKTEST, RESPONDENT_PART, context_mod.LINK_PRIMARY, plan.get(RESPONDENT_PART) or [],
+                            validation_mechanism=context_mod.validation_mechanism(entry),
+                            validation_problem_statement=context_mod.problem_statement(entry),
+                            offer_name=context_mod.offer_name_of(entry))
+    return _respondent_cases(f"{entry.id}/RESPONDENT_PART{RESPONDENT_PART}", entry.id, context, meta, exported,
+                             instructions_by_screen, executor_module, n_runs=n_runs, host=host)
+
+
+def respondent_probe_context(probe: Probe, registry, keys) -> dict:
+    """A respondent probe's `job_context` as the job is handed it: the export's keys in their order, each item filled
+    with the registry's respondent fields and the window the way `context.respondent_item` / `fill_window` fill them; a
+    key the builder does not write on part 1 (`mechanism`, `offer_name`) left out, as `ScreenContextBuilder` leaves it."""
+    from .registry import RecallWindow, fill_window                         # noqa: PLC0415
+    job = dict(probe.job_context or {})
+    link = job.get("link") or context_mod.LINK_PRIMARY
+    window = RecallWindow.read(probe.recall_window) if probe.recall_window else None
+    items = [context_mod.respondent_item(registry.by_key(i["key"]), link=link) for i in job.get("items") or []]
+    job["items"] = fill_window(items, window) if window is not None else items
+    return {key: job.get(key) for key in keys if key in job}
+
+
+def probe_respondent_cases(probe: Probe, exported, instructions_by_screen, executor_module, *, n_runs, host) -> list:
+    """Spec 110 FR-4: one respondent probe's part-1 cases, marked by `respondent_probe_mark` (`meta["probe"]`)."""
+    plant = probe.plant_for(contract_mod.SCREEN_RESPONDENT)
+    keys = exported.keys_for(contract_mod.SCREEN_RESPONDENT)
+    context = respondent_probe_context(probe, exported.registry, keys)
+    meta = _respondent_meta(SOURCE_PROBE, RESPONDENT_PART, (probe.job_context or {}).get("link")
+                            or context_mod.LINK_PRIMARY, [i["key"] for i in probe.job_context["items"]],
+                            probe=plant.record())
+    return _respondent_cases(f"{probe.id}/RESPONDENT_PART{RESPONDENT_PART}", probe.id, context, meta, exported,
+                             instructions_by_screen, executor_module, n_runs=n_runs, host=host)
+
+
 def build_cases(entries: ScreenEntries, exported, instructions_by_screen, executor_module, *, needle: str,
                 n_runs: int = 3, host: str = "claude") -> list:
     """The extras' cases, in the golden cases' ids (`<id>/<SCREEN>/run<N>`), the needle applied as `-k` applies it
@@ -319,9 +527,16 @@ def build_cases(entries: ScreenEntries, exported, instructions_by_screen, execut
     carries its plant (`meta["probe"]`), which `probe_mark` reads."""
     cases = []
     for entry in entries.backtest:
-        cases += _frame_cases(entry, BACKTEST_SCREENS, exported, instructions_by_screen, executor_module,
+        frames = [s for s in BACKTEST_SCREENS if s != contract_mod.SCREEN_RESPONDENT]
+        cases += _frame_cases(entry, frames, exported, instructions_by_screen, executor_module,
                               n_runs=n_runs, host=host, meta_for=lambda screen: {"source": SOURCE_BACKTEST})
+        cases += backtest_respondent_cases(entry, exported, instructions_by_screen, executor_module,
+                                           n_runs=n_runs, host=host)
     for probe in entries.probes:
+        if probe.respondent():
+            cases += probe_respondent_cases(probe, exported, instructions_by_screen, executor_module,
+                                            n_runs=n_runs, host=host)
+            continue
         screens = [s for s in PROBE_SCREENS if probe.plant_for(s) is not None]
         cases += _frame_cases(probe, screens, exported, instructions_by_screen, executor_module,
                               n_runs=n_runs, host=host,
@@ -335,6 +550,11 @@ def is_extra(case) -> bool:
     return (getattr(case, "meta", None) or {}).get("source") in (SOURCE_BACKTEST, SOURCE_PROBE)
 
 
-def plant_of(case) -> Plant | None:
+def plant_of(case):
     row = (case.meta or {}).get("probe") if (case.meta or {}).get("source") == SOURCE_PROBE else None
-    return Plant(**row) if row else None
+    if not row:
+        return None
+    if "verdict_words" in row:
+        return RespondentPlant(**{**row, "planted": tuple(row["planted"]), "verdict_words": tuple(row["verdict_words"]),
+                                  "keeps": tuple(row["keeps"])})
+    return Plant(**row)

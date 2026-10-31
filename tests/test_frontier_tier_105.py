@@ -230,15 +230,20 @@ def test_a_golden_screen_never_reads_an_unrelated_extra_file(tmp_path):
 
 
 def test_the_needle_names_a_backtest_entry_and_builds_its_three_interpretation_screens(tmp_path):
+    # and, since spec 110, its respondent part 1
     root = _checkout(tmp_path)
     extras = screen_mod.load(root, "08-fixture-bt")
     assert [e.id for e in extras.backtest] == ["08-fixture-bt"] and extras.probes == []
     cases = screen_mod.build_cases(extras, fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime,
                                    needle="08-fixture-bt", n_runs=2)
-    assert [c.case_id for c in cases] == [f"08-fixture-bt/{s}/run{n}" for s in screen_mod.BACKTEST_SCREENS
-                                          for n in (1, 2)]
-    assert {c.kind for c in cases} == {"CONTEXT", "FRAME"}
-    assert all(c.meta == {"source": "backtest"} and screen_mod.is_extra(c) for c in cases)
+    # spec 110 FR-4 (keel-cloud 170 FR-7): the respondent job's part 1 joins the three, named as the golden corpus
+    # names it (`<id>/RESPONDENT_PART1`), its meta the validator's (part, link, plan) beside the source
+    frames = [s for s in screen_mod.BACKTEST_SCREENS if s != "RESPONDENT_QUESTIONS"]
+    assert [c.case_id for c in cases] == [f"08-fixture-bt/{s}/run{n}" for s in frames for n in (1, 2)] + [
+        f"08-fixture-bt/RESPONDENT_PART1/run{n}" for n in (1, 2)]
+    assert {c.kind for c in cases} == {"CONTEXT", "FRAME", "RESPONDENT"}
+    assert all(c.meta["source"] == "backtest" and screen_mod.is_extra(c) for c in cases)
+    assert all(c.meta == {"source": "backtest"} for c in cases if c.kind != "RESPONDENT")
     problem = next(c for c in cases if c.screen == "PROBLEM_INTERPRET")
     assert problem.payload["input"]["content"] == str(fx.raw_entry()["statements"]["problem"])
     only = screen_mod.build_cases(extras, fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime,
