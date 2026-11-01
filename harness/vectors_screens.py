@@ -440,6 +440,83 @@ def l1_title(people: str | None) -> str:
     return f"Who should ask {people.strip()} your questions?" if people and people.strip() else L1_TITLE
 
 
+# keel-web 156 FR-1 (J-6; spec 118 FR-4c(f)): `actor_plural` is not on the wire, so the lock step says the context's
+# `actor` in the plural by keel-web's grammar (`translate.ts` `peoplePlural` / `pluralOfWords` / `readsPlural`, ported
+# word for word): the article dropped, a WHO already plural kept, else its head noun (the last word before a
+# preposition, a relative or a participle) pluralised and a *who/that/which* verb agreed; the first letter lowered
+# unless the WHO opens on an acronym. The cloud's own `actor_plural` (the context job's, spec 123) can differ --
+# 03-lullaby's is *parents of babies under six months* where the page says *parents* -- so the mirror follows the page
+# (the matrix's s012 of 2026-11-01). No trade is special-cased.
+_HEAD_ENDS = re.compile(r"^(of|at|in|on|for|with|who|whose|that|which|from|to|under|over|across|by|near|without|"
+                        r"[^\W\d_]+ing)$", re.IGNORECASE)
+_PLURAL_ALWAYS = {"people", "children", "men", "women", "folks"}
+_PLURAL_IRREGULAR = {"person": "people", "man": "men", "woman": "women", "child": "children"}
+_VERB_PLURAL = {"has": "have", "is": "are", "was": "were", "does": "do"}
+
+
+def _head_cut(words: list[str]) -> int:
+    return next((i for i, w in enumerate(words) if i > 0 and _HEAD_ENDS.match(w)), -1)
+
+
+def reads_plural(actor: str) -> bool:
+    """keel-web `readsPlural`: the head noun ends in a plural *s* (*parents*, never *boss* or *bus*)."""
+    words = actor.strip().split()
+    if not words:
+        return False
+    cut = _head_cut(words)
+    head = (words[cut - 1] if cut > 0 else words[-1]).lower()
+    head = "".join(ch for ch in head if ch.isalpha() or ch in "'\u2019")
+    if head in _PLURAL_ALWAYS:
+        return True
+    return re.search(r"[^siu'\u2019]s$", head) is not None
+
+
+def _plural_word(word: str) -> str:
+    if sum(1 for ch in word if ch.isupper()) >= 2:
+        return word + "s"
+    irregular = _PLURAL_IRREGULAR.get(word.lower())
+    if irregular:
+        return irregular
+    if re.search(r"(s|x|z|ch|sh)$", word, re.IGNORECASE):
+        return word + "es"
+    if re.search(r"[^aeiou]y$", word, re.IGNORECASE):
+        return word[:-1] + "ies"
+    return word + "s"
+
+
+def _verb_plural(word: str) -> str:
+    said = _VERB_PLURAL.get(word.lower())
+    if said:
+        return said
+    if re.search(r"(ch|sh|ss|x|z)es$", word, re.IGNORECASE):
+        return word[:-2]
+    return word[:-1] if re.search(r"[^s]s$", word, re.IGNORECASE) else word
+
+
+def _plural_of_words(said: str) -> str | None:
+    words = [w for w in re.sub(r"^(the|a|an)\s+", "", said, flags=re.IGNORECASE).split() if w]
+    if not words:
+        return None
+    if reads_plural(" ".join(words)):
+        return " ".join(words)
+    cut = _head_cut(words)
+    head = cut - 1 if cut > 0 else len(words) - 1
+    words[head] = _plural_word(words[head])
+    if cut > 0 and re.match(r"^(who|that|which)$", words[cut], re.IGNORECASE) and cut + 1 < len(words):
+        words[cut + 1] = _verb_plural(words[cut + 1])
+    return " ".join(words)
+
+
+def people_plural(actor: str | None) -> str | None:
+    """keel-web `peoplePlural`: the typed WHO in the plural, mid-sentence -- *parent* -> *parents*, *HR manager* ->
+    *HR managers*, *person who has a baby* -> *people who have a baby*, *parents of babies under six months* kept."""
+    said = re.sub(r"^(the|a|an)\s+", "", re.sub(r"\s+", " ", (actor or "").strip()), flags=re.IGNORECASE)
+    if not said:
+        return None
+    acronym = len(said) >= 2 and said[0].isupper() and said[1].isupper()
+    return _plural_of_words(said if acronym else said[0].lower() + said[1:])
+
+
 def before_lock_record(face: str) -> str:
     """keel-web 130 FR-2 (`beforeLockRecord`): the lock names the face it records."""
     return f"Lock and record {face}"

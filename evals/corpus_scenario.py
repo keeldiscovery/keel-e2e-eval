@@ -3014,14 +3014,15 @@ def _answer_the_refused_lock(j: Journey, drawn: dict) -> dict:
 
 
 def l1_title_owed(j: Journey) -> str:
-    """Spec 090 FR-4 (keel-web 130 FR-2): L1's title names the context's people. Spec 118 FR-4c(f) (keel-web 156 FR-1):
-    the people are `{actor_plural}` -- the entry's `context.actor_plural`, which keel-cloud fills and keel-web 156 derives
-    from the typed WHO (`peoplePlural`, equal on the solution fixtures) -- at any length; the segment only where the
-    entry names no plural."""
-    plural = str((j.entry.context or {}).get("actor_plural") or "").strip()
-    if plural:
-        return vs_screens.l1_title(plural)
+    """Spec 090 FR-4 (keel-web 130 FR-2): L1's title names the context's people. Spec 118 FR-4c(f) (keel-web 156 FR-1,
+    J-6): `actor_plural` is not on the wire, so the page says the served context's `actor` in the plural by its own
+    grammar (`vs_screens.people_plural`, keel-web's `peoplePlural` ported) -- not the entry's `actor_plural`, which the
+    context job writes on its own and which differs on 03-lullaby (*parents of babies under six months* against the page's
+    *parents*; the matrix's s012, 2026-11-01); the segment's core only where the context names no actor."""
     context = j.get(j.project("/context")) or {}
+    actor = str(((context.get("fields") or {}).get("actor")) or "").strip()
+    if actor:
+        return vs_screens.l1_title(vs_screens.people_plural(actor))
     return vs_screens.l1_title(vs_screens._sentence_lower(((context.get("segment") or {}).get("core"))))
 
 
