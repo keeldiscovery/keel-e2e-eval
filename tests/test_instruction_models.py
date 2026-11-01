@@ -417,9 +417,9 @@ def test_ask_hands_the_jobs_model_to_a_routing_runtime_through_the_pollers_rule(
         assert runner._model_kwarg(executor_module, Claude(), unpinned) == {
             "model": "claude-haiku-5-5", "effort": None}
         # A reading since v16 (keel-cloud 190, spec 121 FR-1): Haiku 5.5 at the light row's `low`.
-        reading = {"model": {"claude": "claude-haiku-5-5"}, "effort": {"claude": "low"}}
+        reading = {"model": {"claude": "claude-haiku-5-5"}, "effort": {"claude": "medium"}}
         assert runner._model_kwarg(executor_module, Claude(), reading) == {
-            "model": "claude-haiku-5-5", "effort": "low"}
+            "model": "claude-haiku-5-5", "effort": "medium"}
         assert kwargs["effort"] is None, "codex has no efforts row and is handed no effort"
 
 

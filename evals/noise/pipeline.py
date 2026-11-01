@@ -6,7 +6,7 @@ paid eval command, its alternatives (the direct audio model, RNNoise, spectral g
                     language, one `keywords[]` per hint (the item's labels and its escape), prompt *A short spoken
                     answer to one survey question.* (keel-cloud `OpenAiTranscriber`); then `claude-haiku-5-5`
                     (keel-cloud 190: no temperature, **max_tokens 1,024**, `thinking: {type: adaptive}` and
-                    `output_config.effort` `low`, the answer read from the text blocks by type; Haiku 4.5 at
+                    `output_config.effort` `medium` (the 2026-11-01 light certificate's pick), the answer read from the text blocks by type; Haiku 4.5 at
                     temperature 0 and max_tokens 400 before it, spec 137), the system prompt the cloud checkout's own
                     `src/main/resources/keel/inference-instructions/classify-answer.md` (`stack.toml`'s `keel_cloud`),
                     the user lines as `KeelsAiClassifier.userPrompt` writes them. The story (FREE) is never classified:
@@ -58,7 +58,7 @@ TRANSCRIBE_USD_A_MINUTE = 0.0045
 #: until then.
 MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 CLASSIFY_MODEL = "claude-haiku-5-5"
-CLASSIFY_EFFORT = "low"
+CLASSIFY_EFFORT = "medium"
 MAX_TOKENS = 1_024
 THINKING = {"type": "adaptive"}
 #: Haiku 5.5's list prices on its first card (a prompt of at most 100,000 tokens; a classify prompt is about 2 KB),

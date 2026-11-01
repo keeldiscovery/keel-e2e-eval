@@ -1,7 +1,7 @@
 """The live classifier check (spec 048 FR-2): the weekly live column's one text-only check of keel-cloud 099's answer
 path against the **real** model -- the spoken-answer cases (`harness/classifier_cases.py`) carried onto an AI link's
 own items and sent to staging's `POST /v2/i/{token}/interview/classify`, where a founder outside `fake-for` is read by
-Keel's AI on the light tier (Haiku 5.5 at effort low since keel-cloud 190; Haiku 4.5 before) -- held to the guard's one bar: no confident wrong answer, the
+Keel's AI on the light tier (Haiku 5.5 at effort medium since keel-cloud 190; Haiku 4.5 before) -- held to the guard's one bar: no confident wrong answer, the
 corrections right.
 
 **Not a scenario, and no journey.** It drives no browser and builds no project: a link that answers classify for the

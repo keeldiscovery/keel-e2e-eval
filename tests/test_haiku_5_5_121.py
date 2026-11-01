@@ -30,7 +30,7 @@ V16 = {
         "claude": {"light": "claude-haiku-5-5", "standard": "claude-sonnet-5-5", "frontier": "claude-opus-5-5"},
     },
     "efforts": {"codex": {"standard": "medium"}, "copilot": {"standard": "medium"},
-                "claude": {"light": "low", "standard": "medium", "frontier": "medium"}},
+                "claude": {"light": "medium", "standard": "medium", "frontier": "medium"}},
     "_tiers": ["light", "standard", "frontier"],
     "classes": {"frame": "frontier", "reading": "light", "brief": "standard", "context": "light",
                 "calibration": "standard", "respondent": "frontier", "asked": "light", "example_match": "light"},
@@ -51,10 +51,10 @@ def test_v16_puts_every_claude_light_class_on_haiku_5_5_at_low():
     table = models_mod.parse(V16, source="v16")
     for job_class in LIGHT_CLASSES:
         assert table.resolve("claude", job_class) == "claude-haiku-5-5", job_class
-        assert table.resolve_effort("claude", job_class) == "low", job_class
+        assert table.resolve_effort("claude", job_class) == "medium", job_class
     assert table.resolve_screen("claude", "INTERPRET") == "claude-haiku-5-5"
-    assert table.resolve_effort_screen("claude", "CONTEXT_INTERPRET") == "low"
-    assert table.resolve_effort_screen("claude", "ASKED") == "low"
+    assert table.resolve_effort_screen("claude", "CONTEXT_INTERPRET") == "medium"
+    assert table.resolve_effort_screen("claude", "ASKED") == "medium"
 
 
 def test_v16_moves_nothing_but_the_claude_light_row():
@@ -72,8 +72,8 @@ def test_v16_moves_nothing_but_the_claude_light_row():
 
 def test_v16_efforts_used_records_low_on_the_light_classes():
     table = models_mod.parse(V16, source="v16")
-    assert table.efforts_used("claude") == {"context": "low", "frame": "medium", "calibration": "medium",
-                                            "respondent": "medium", "reading": "low", "asked": "low"}
+    assert table.efforts_used("claude") == {"context": "medium", "frame": "medium", "calibration": "medium",
+                                            "respondent": "medium", "reading": "medium", "asked": "medium"}
     assert table.models_used("claude")["reading"] == "claude-haiku-5-5"
 
 
@@ -83,8 +83,8 @@ def test_stamp_writes_a_claude_reading_the_seventh_key_since_v16():
     models_mod.stamp([reading, context], table, "claude")
     for case in (reading, context):
         assert case.payload[models_mod.MODEL_KEY] == {"claude": "claude-haiku-5-5"}
-        assert case.payload[models_mod.EFFORT_KEY] == {"claude": "low"}
-        assert case.effort == "low"
+        assert case.payload[models_mod.EFFORT_KEY] == {"claude": "medium"}
+        assert case.effort == "medium"
         assert list(case.payload)[-2:] == [models_mod.MODEL_KEY, models_mod.EFFORT_KEY]
     codex = _case("READING", "INTERPRET")
     models_mod.stamp([codex], table, "codex")
@@ -121,14 +121,14 @@ def test_keel_clouds_live_table_is_v16_as_mirrored():
     if document["version"] == 16:
         assert document == V16
     table = models_mod.parse(document, source=str(path))
-    assert table.resolve_effort("claude", "reading") == "low"
+    assert table.resolve_effort("claude", "reading") == "medium"
 
 
 def test_the_029_screen_pin_follows_the_light_row_and_is_still_refused_for_asked():
     path = REPO / "specs" / "029-marks-v9-vectors" / "contracts" / "models-screen.json"
     document = json.loads(path.read_text(encoding="utf-8"))
     assert document["hosts"]["claude"]["light"] == "claude-haiku-5-5"
-    assert document["efforts"]["claude"] == {"light": "low", "standard": "medium"}
+    assert document["efforts"]["claude"] == {"light": "medium", "standard": "medium"}
     assert "spec 121" in document["_comment"]
     with pytest.raises(models_mod.ModelsUnavailable, match="says nothing about asked"):
         models_mod.load(path)
@@ -140,7 +140,7 @@ def test_the_029_screen_pin_follows_the_light_row_and_is_still_refused_for_asked
 #: keel-cloud 190's classifier request as the SDK serialises it (`ApiRequestShapeTest.OnHaikuFiveFive`, written to its
 #: `build/haiku-5-5-requests.txt`; the texts elided to their lengths there).
 CLASSIFIER_REQUEST_190 = {"max_tokens": 1024, "messages": [{"content": "<40 bytes>", "role": "user"}],
-                          "model": "claude-haiku-5-5", "output_config": {"effort": "low"},
+                          "model": "claude-haiku-5-5", "output_config": {"effort": "medium"},
                           "system": "<1853 bytes>", "thinking": {"type": "adaptive"}}
 
 ITEM = {"kind": "single", "options": ["Daily", "Weekly", "Monthly"], "escape": "I can't say"}

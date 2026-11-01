@@ -137,7 +137,7 @@ def test_the_classifier_is_called_as_keel_cloud_calls_it():
     routing = json.loads((load_config(validate=False).keel_cloud / "src/main/resources/keel/model-routing.json")
                          .read_text(encoding="utf-8"))
     assert pl.CLASSIFY_MODEL == routing["hosts"]["claude"]["light"] == "claude-haiku-5-5"
-    assert pl.CLASSIFY_EFFORT == routing["efforts"]["claude"]["light"] == "low"
+    assert pl.CLASSIFY_EFFORT == routing["efforts"]["claude"]["light"] == "medium"
     assert 'lines.add("Answer kind: " + describe(item) + ".");' in source
     assert 'lines.add("They said: \\"" + (request.heard() == null ? "" : request.heard().strip()) + "\\"");' in source
     assert (load_config(validate=False).keel_cloud / pl.INSTRUCTION).is_file()

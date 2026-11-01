@@ -1119,13 +1119,13 @@ fields; K leaked` and *Typo leaks* lists a defect line a leak under its study. N
 **The referee follows the light tier to Claude Haiku 5.5** (spec `121-the-referee-follows-haiku-5-5`, 2026-11-01;
 keel-cloud 190 on its branch `190-the-light-tier-on-haiku-5-5`, `ddb691f0`: routing v16, `InferenceCharge.VERSION` 15,
 contract 56 unchanged). **FR-1**: `instructions/models.py` reads the table as the file, so no code moved -- on v16 the
-`claude` light row is `claude-haiku-5-5` at effort `low` and there is no `sampling` block (the reader never read one), so
-a claude light case (context, reading, asked) now carries the wire's seventh key `effort: {claude: low}`; Codex and
+`claude` light row is `claude-haiku-5-5` at effort `medium` (the 2026-11-01 light certificate's pick over `low`) and there is no `sampling` block (the reader never read one), so
+a claude light case (context, reading, asked) now carries the wire's seventh key `effort: {claude: medium}`; Codex and
 Copilot light cases carry none. The docstrings that said a light case carries no effort (Haiku 4.5 refused one) say v16;
-every fixture's light id is `claude-haiku-5-5`; `specs/029-.../contracts/models-screen.json` pins Haiku 5.5 at `low`
+every fixture's light id is `claude-haiku-5-5`; `specs/029-.../contracts/models-screen.json` pins Haiku 5.5 at `medium`
 (still refused for naming no `asked`); S-012's per-job model check reads the same table. **FR-2**: the noise check's
 classifier (`evals/noise/pipeline.py` `request_body`) is keel-cloud 190's request -- `claude-haiku-5-5`, `max_tokens`
-1,024, `thinking: {type: adaptive}`, `output_config.effort` `low`, no `temperature`, one user message -- with the answer
+1,024, `thinking: {type: adaptive}`, `output_config.effort` `medium`, no `temperature`, one user message -- with the answer
 read from text blocks by type (`answer_text`) and the cost at Haiku 5.5's first card ($0.10 / $0.50); held to 190's
 `build/haiku-5-5-requests.txt`; never run here (paid, the founder's word). The canon's `page_template.html` still says
 *Haiku 4.5 at temperature 0* (byte-pinned to keel-cloud's canon copy; owed there). **FR-3**: `PRICE_VERSION` 15 in

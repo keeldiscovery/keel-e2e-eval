@@ -132,7 +132,7 @@ backtest:
 # answers, two voices each, quiet and five noise beds at 20 / 10 / 5 / 0 dB) read from KEEL_NOISE_SAMPLES (default
 # ~/Documents/projects/keel-noise-check-2026-10-26/audio, the kept set; synthesized there when absent) and sent down
 # Keel's answer path exactly as the product calls it -- gpt-transcribe with the item's hints and prompt, then
-# claude-haiku-5-5 with no temperature, max_tokens 1,024 and adaptive thinking at effort low (keel-cloud 190; Haiku
+# claude-haiku-5-5 with no temperature, max_tokens 1,024 and adaptive thinking at effort medium (keel-cloud 190, the 2026-11-01 light certificate's pick; Haiku
 # 4.5 at temperature 0 and max_tokens 400 before it, keel-cloud 137) on the cloud checkout's own
 # classify-answer.md -- and read by `Classification.validated()`'s rules with keel-cloud 136's partial pick. It writes
 # runs/<stamp>-noise-check/ (results.jsonl, summary.json, noise-check.md, page/, register-row.md; the row appended to
@@ -398,7 +398,7 @@ acceptance: venv
 # (`manifest.json`'s `effort.per_class`, the scorecard's and verdict's `efforts_used`), so a run of
 # record can state the effort it was taken at instead of it being a fact about whoever typed the
 # command. Readings take the `light` row's effort: none on tables v6 to v15 (`effort` errored on
-# Haiku 4.5), `low` on `claude` since v16 (keel-cloud 190: the light row is claude-haiku-5-5).
+# Haiku 4.5), `medium` on `claude` since v16 (keel-cloud 190: the light row is claude-haiku-5-5).
 #
 # **WHY=<event>** (the founder, 2026-09-13, design §7.1): every run that spends says why --
 # `WHY=instruction:<file>`, `WHY=prompt:<file>`, `WHY=contract:<file>` earn a screen;

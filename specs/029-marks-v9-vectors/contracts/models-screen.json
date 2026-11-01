@@ -5,7 +5,7 @@
     "claude": {"light": "claude-haiku-5-5", "standard": "claude-sonnet-5-5"}
   },
   "efforts": {
-    "claude": {"light": "low", "standard": "medium"}
+    "claude": {"light": "medium", "standard": "medium"}
   },
   "_tiers": ["light", "standard", "frontier"],
   "classes": {

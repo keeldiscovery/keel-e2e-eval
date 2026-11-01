@@ -81,7 +81,7 @@ class Case:
     model: str | None = None
     #: The effort the wire's `effort` key pins for this case (keel-cloud table v6, spec 047), or
     #: `None` for the CLI's own default. `None` on every `light`-tier case on tables v6 to v15 (`effort`
-    #: errored on Haiku 4.5); `low` on a `claude` light case since v16 (keel-cloud 190, Haiku 5.5).
+    #: errored on Haiku 4.5); `medium` on a `claude` light case since v16 (keel-cloud 190, Haiku 5.5).
     #: Stamped with the model; never in the prompt.
     effort: str | None = None
     #: What a scorer and the validator's batch need beside the payload: the vector, the part and
