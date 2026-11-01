@@ -1045,6 +1045,29 @@ screens and *Read and tap*. **FR-4d**: one scripted line per follow-up (`vs_scre
 `_failing_now` / `_whys_now`), 184's *you* on a loss and its headings. Current solution's Answer is typed as keel-web 150's
 two boxes (`vs.current_solution_boxes`). DRIFT #102 (keel-web's Purchase friction Choose bar). `MARKS_VERSION` 24 stands. `make unit` 4,838 passed / 0 failed / 0 errors / 53 skipped (master `82fae86` against the same siblings 4,345 / 193 / 59 / 255: the corpus at 21 and the registry it refused) against keel-cloud-docs `f3f0d99e` and keel-web `3c0db0c`; the acceptance back-test is the coordinator's.
 
+**The harness walks cycle 5's studies to the end** (spec `119-the-harness-walks-cycle-5-to-the-end`, 2026-11-01;
+keel-cloud-docs `bc172359` = keel-cloud 187 + 188, contract 56, corpus revision 22; keel-web `f02595c` = 158 + 159).
+**Corpus revision 22** (FR-6): `corpus.REVISION` 22, 21 refused by name; every B2B back-test entry names the founder's
+time (typed on Choose, sent on the save) and 08-21 record `current_solution: {today}` (`Entry.today()`, one sentence of
+at most 25 words), which `vs.current_solution_boxes` types into the Answer's first box -- the rungs the second within the
+Answer's 25 words joined (keel-cloud's cap), so none fit and the Check screen types them back. **FR-1**: the strangers'
+idea line is the served one (`cs.idea_line_faults`: it names the idea, it is the founder's `IdeaView.line`, every card
+opens with it; money alone keeps `whatItIs` / `line`). **FR-2**: an `askedAfter` item's drawn question is the written one
+for the person's Price answer (`cs.pointed_back_question`, the walk's `pointed_back`). **FR-3**: Choose stops by name
+where the time box is drawn and the entry names none; `bt.READ_JS` reads a Choose's title, intro, time box and
+Keel-will-test box, and the founder-reader is handed them. **FR-4**: `served_items` records every item's served `spoken`
+(and the plan's, `askedAfter`'s written questions, the screener's `condition`) on either link, so the reader's
+`{{screen}}` says the served lines; §18 pasted for R6. **FR-5**: the guard reads Ability to pay's escape where it points
+back as Price's row's in the export (`CommercialChain.side`), a percent ladder's first step to §3's shape, and the
+duration bands as Price's (S3 / S7 / S8 / S9 / S11 on the first step's four and the two lines). **FR-8**: a refused job's
+page is evidence (`Camera.evidence`, `failure_screens`), never a founder screen; a recorded `failed-*` screen is never
+scored; the idea step is captured once its how and belief are drawn; DRIFT #97's step holds the applied jobs and names
+the refused-and-retried ones. Owed by 158 / 159: the Check cap the served `saves.maxWords` (Compatibility's 16), the send
+heading in the plural of the kind's label. `MARKS_VERSION` 24 and `RUBRIC_VERSION` 3 stand. `make unit` 4,866 passed / 0
+failed / 0 errors / 53 skipped (+26, 25 in `tests/test_cycle_5_to_the_end_119.py`; master `082dc9e` against the same
+siblings 4,404 / 186 / 59 / 244: the corpus at 22) against keel-cloud-docs `bc172359` and keel-web `f02595c`; the next
+cycle's fifteen walks are the coordinator's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
