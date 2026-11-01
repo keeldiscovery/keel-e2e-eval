@@ -339,16 +339,24 @@ def no_price_shown(r: dict) -> tuple[bool, Any]:
                                                "S3 credits note": note.group(0) if note else None}
 
 
-def _expected_kinds(role: dict) -> list[tuple[str, str | None]]:
+def _expected_kinds(role: dict, *, with_condition: bool = True) -> list[tuple[str, str | None]]:
     """A role's spoken order, from what its link is served: the opening, each part's passage and its items in order,
     the pilot ask, thanks. A commercial link opens on the idea (094 FR-B: "its idea lines first" -- the SOLUTION
     passage with no items of its own), then the money side."""
     out: list[tuple[str, str | None]] = [("OPENING", None)]
+    # spec 124 FR-2 (keel-cloud 194 FR-1): the CONDITION clip, before the idea where no gate carries the condition, and
+    # before the gate's ITEM on a gated part 1 (`role["condition"]`, recorded by the leg; absent on an older record)
+    where = (role.get("condition") or {}).get("where") if with_condition else None
+    if where == "idea":
+        out.append(("CONDITION", None))
     if role.get("kind") == "COMMERCIAL_LINK":
         out.append(("SOLUTION", None))
     for part in role["parts"]:
         out.append((fake.PASSAGE_OF_PART[int(part["part"])], None))
-        out += [("ITEM", dim) for dim in part["items"]]
+        items = [("ITEM", dim) for dim in part["items"]]
+        if where == "gate" and int(part["part"]) == 1 and items:
+            items = [("CONDITION", None)] + items          # before the gate's ITEM, part 1's first
+        out += items
     return out + [("PILOT", None), ("THANKS", None)]
 
 
@@ -368,7 +376,8 @@ def spoken_order(r: dict) -> tuple[bool, Any]:
                     said.append(("ITEM_MORE?", c.get("itemId")))
                 continue
             said.append((c.get("kind"), c.get("itemId") if c.get("kind") == "ITEM" else None))
-        want = _expected_kinds(role)
+        # spec 124 FR-2: a lock from before keel-cloud 194 holds no CONDITION clip and is not refused for it
+        want = _expected_kinds(role, with_condition=any(c.get("kind") == "CONDITION" for c in clips))
         catches = sum(c.get("kind") == "DIDNT_CATCH" for c in clips)
         unsure = sum(c.get("kind") == "IS_THAT_RIGHT" for c in clips)
         this = said == want and catches == 1 and unsure == 1

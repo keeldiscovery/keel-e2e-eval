@@ -768,7 +768,10 @@ def _the_recording(j, wire: _Wire, record: dict) -> None:
         for link, role_id in _role_ids(j).items():
             _, served = wire("GET", f"/interviewer/try/{role_id}")
             tries[link] = served
-            roles[link] = {"kind": served.get("kind"), "parts": _served_parts(served), "roleId": role_id}
+            roles[link] = {"kind": served.get("kind"), "parts": _served_parts(served), "roleId": role_id,
+                           # spec 124 FR-2 (keel-cloud 194 FR-1): where the link asks its condition aloud -- before the
+                           # gate on a gated link, before the idea elsewhere -- and what the clip says
+                           "condition": _condition_place(served)}
         record["roles"] = roles
         record["tries"] = {k: {"tryRun": v.get("tryRun"), "formats": v.get("formats"),
                                "clips": sorted(((v.get("interviewer") or {}).get("clips") or {}).keys())}
@@ -830,16 +833,35 @@ def _follow_up_clips(j, record: dict, tries: dict) -> None:
             assert r["served"] == sorted(r["want"]), (link, r["served"])
 
 
-def _framing_words(served: dict, role: dict) -> dict[str, dict]:
+def _condition_place(served: dict) -> dict | None:
+    """Spec 124 FR-2 (keel-cloud 194 FR-1, `PassageComposer.conditionOf`): `{where, script}` -- `gate` (said after the
+    problem passage, before the gate's ITEM) or `idea` (after the OPENING, before the idea) -- for a link that asks a
+    condition, else None."""
+    condition = fake.condition_of(served)
+    if not condition:
+        return None
+    return {"where": "gate" if served.get("gate") else "idea", "script": fake.condition_clip(condition["question"])}
+
+
+def _framing_words(served: dict, role: dict, *, with_condition: bool = True) -> dict[str, dict]:
     """Spec 050 FR-1 (keel-cloud 101): what each passage of a role must say, from the interview its link serves -- the
-    opening whole; the problem passage whole (`{topic} That's the problem. ...`, part 1's items with the gate); the
-    idea passage's opening and close (the reveal's three lines between are IM4's), its count part 2's items on the full
-    link and every served item on the decision-maker's."""
+    opening whole; the problem passage whole (`{topic} That's the problem. ...`); the idea passage's opening and close
+    (the reveal's three lines between are IM4's), its count part 2's items on the full link and every served item on the
+    decision-maker's. Spec 124 FR-3 (keel-cloud 194 FR-2): on a gated part 1 the problem passage says the checks and
+    counts the items alone (the gate is not counted); where the condition comes before the idea the opening names the
+    check; the CONDITION clip says *{question} Yes or no.* -- `with_condition` False reads a recording from before 194
+    (no CONDITION clip), whose passages say 101's words."""
     commercial = served.get("kind") == "COMMERCIAL_LINK"
     counts = {int(part["part"]): len(part["items"]) for part in role["parts"]}
-    out = {"OPENING": {"whole": fake.opening(served.get("founderFirstName"), commercial)}}
+    gated = bool(served.get("gate"))
+    place = _condition_place(served) if with_condition else None
+    checked = bool(place) and place["where"] == "idea"
+    out = {"OPENING": {"whole": fake.opening(served.get("founderFirstName"), commercial, checked=checked)}}
+    if place:
+        out["CONDITION"] = {"whole": place["script"]}
     if 1 in counts:
-        out["PROBLEM"] = {"whole": fake.problem_passage(served.get("topic") or "", counts[1])}
+        out["PROBLEM"] = {"whole": fake.problem_passage(served.get("topic") or "", counts[1] - 1, gated=True)
+                          if gated and with_condition else fake.problem_passage(served.get("topic") or "", counts[1])}
     if 2 in counts or commercial:
         n = sum(counts.values()) if commercial else counts[2]
         # spec 071 (keel-cloud 133 FR-6, T018): the problem in one sentence is said before *Now the idea.* where the
@@ -864,7 +886,10 @@ def _framing_lines(j, record: dict, tries: dict) -> None:
         sets = fake.role_sets(record["recording"])
         out = {}
         for link, served in tries.items():
-            want = _framing_words(served, record["roles"][link])
+            # spec 124 FR-2: a recording from before keel-cloud 194 holds no CONDITION clip -- read in 101's words
+            since_194 = any(c.get("kind") == "CONDITION" for c in sets.get(link) or []) \
+                or not record["roles"][link].get("condition")
+            want = _framing_words(served, record["roles"][link], with_condition=since_194)
             have = {c.get("kind"): c.get("script") for c in sets.get(link) or [] if c.get("kind") in want}
             out[link] = {kind: {"want": w, "said": have.get(kind), "ok": _says(have.get(kind), w)}
                          for kind, w in want.items()}

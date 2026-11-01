@@ -1078,6 +1078,13 @@ writer's shorter ones. **FR-3**: P2 is the cloud validator's (no copy here). **F
 decision-maker's condition (`decider_condition` None); S-006 / S-007 walk the idea first, the outside-decider leg is not
 owed. Beside it keel-cloud 192 FR-1's stage verdict (`brief_facts.stage_verdict`). `MARKS_VERSION` stands.
 
+**The referee follows keel-cloud 194** (spec `124-the-referee-follows-194`, 2026-11-01; contract 57). `fake.KINDS` gains
+`CONDITION` (*{question} Yes or no.*, `condition_clip`, `condition_of`); IM3 and the framing step expect it before the
+gate's ITEM on a gated link and after the OPENING where the condition precedes the idea, and hold a lock from before 194
+without it; the gated problem passage says *First a quick check or two that this is for you.* and counts the items alone,
+and a condition before the idea opens on *First a quick check that this is for you. Then the idea, and a few questions on
+the money side.* (`PassageComposer` as built). Contract 57 is read from keel-cloud's yaml (no snapshot here).
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;

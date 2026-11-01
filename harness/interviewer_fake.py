@@ -116,6 +116,15 @@ HOW_TO_ANSWER = "Say the answer that fits, or tap it."
 FULL_ROUTE = "First the problem, then the idea, with a few questions about each."
 #: 101 judgement call 3: the decision-maker's link opens with the idea, then the money side.
 COMMERCIAL_ROUTE = "First the idea, then a few questions on the money side."
+#: Spec 124 FR-3 (keel-cloud 194 FR-2, the coordinator's decision of 2026-11-01): `COMMERCIAL_ROUTE` where the link asks a
+#: condition before the idea (the decision-maker's, money alone on the person's) -- the opening names the check.
+CHECKED_COMMERCIAL_ROUTE = ("First a quick check that this is for you. Then the idea, and a few questions on the money "
+                            "side.")
+#: Spec 124 FR-3 (keel-cloud 194 FR-2, `PassageComposer.CHECKS`): the problem passage's first sentence where the gate (and
+#: its condition) precede part 1's items, before the count of the items alone.
+CHECKS = "First a quick check or two that this is for you."
+#: Spec 124 FR-1 (keel-cloud 194 FR-1, `PassageComposer.YES_OR_NO`): what the CONDITION clip says after its question.
+YES_OR_NO = "Yes or no."
 PROBLEM_CLOSE = "That's the problem. Take a moment with it."
 SOLUTION_CLOSE = "That's the idea. Take a moment."
 SOLUTION_OPENING = "Now the idea."
@@ -138,13 +147,14 @@ def number(n: int) -> str:
     return NUMBER_WORDS[n] if 0 <= n < len(NUMBER_WORDS) else str(n)
 
 
-def opening(first: str | None, commercial_link: bool = False) -> str:
+def opening(first: str | None, commercial_link: bool = False, *, checked: bool = False) -> str:
     """`PassageComposer.opening`: *I'm Keel's interviewer. I'm an AI, not a person. {First} has an idea for a problem
     you may know. First the problem, then the idea, with a few questions about each. Say the answer that fits, or tap
-    it.* -- the decision-maker's link says its own route."""
+    it.* -- the decision-maker's link says its own route. Spec 124 FR-3 (keel-cloud 194 FR-2): `checked` -- the link
+    asks a condition before the idea (no gate) -- says `CHECKED_COMMERCIAL_ROUTE`."""
     founder = (first or "").strip() or FOUNDER_FALLBACK
-    return _join(INTRODUCED, f"{founder} has an idea for a problem you may know.",
-                 COMMERCIAL_ROUTE if commercial_link else FULL_ROUTE, HOW_TO_ANSWER)
+    route = (CHECKED_COMMERCIAL_ROUTE if checked else COMMERCIAL_ROUTE) if commercial_link or checked else FULL_ROUTE
+    return _join(INTRODUCED, f"{founder} has an idea for a problem you may know.", route, HOW_TO_ANSWER)
 
 
 def then(count: int, about: str) -> str:
@@ -152,10 +162,35 @@ def then(count: int, about: str) -> str:
     return f"Then I'll ask you {number(count)} {'question' if count == 1 else 'questions'} {about}."
 
 
-def problem_passage(topic: str, count: int) -> str:
+def checks(items: int, about: str) -> str:
+    """keel-cloud 194 FR-2 (`PassageComposer.checks`): *First a quick check or two that this is for you. Then I'll ask
+    you three questions about it.* -- the first sentence alone where no item follows the checks."""
+    return _join(CHECKS, then(items, about) if items > 0 else None)
+
+
+def problem_passage(topic: str, count: int, *, gated: bool = False) -> str:
     """The PROBLEM clip: `{topic} That's the problem. Take a moment with it. Then I'll ask you {N} questions about it.`
-    (`{N}`: part 1's items with the gate)."""
-    return _join(topic, PROBLEM_CLOSE, then(count, "about it"))
+    (`{N}`: part 1's items). Spec 124 FR-3 (keel-cloud 194 FR-2): on a `gated` part 1 the gate and its condition are the
+    checks, said apart, and `count` is the items alone -- `{topic} That's the problem. Take a moment with it. First a
+    quick check or two that this is for you. Then I'll ask you {N} questions about it.` (it counted the gate before)."""
+    return _join(topic, PROBLEM_CLOSE, checks(count, "about it") if gated else then(count, "about it"))
+
+
+def condition_clip(question: str | None) -> str | None:
+    """Spec 124 FR-1 (keel-cloud 194 FR-1, `PassageComposer.condition`): the CONDITION clip's words -- the condition's
+    question as served, then *Yes or no.*; None where the link asks none."""
+    q = (question or "").strip()
+    return _join(q, YES_OR_NO) if q else None
+
+
+def condition_of(interview: dict | None) -> dict | None:
+    """keel-cloud 194 FR-1 (`PassageComposer.conditionOf`): the condition a link asks -- a gated link's
+    `gate.condition`, else `Interview.condition` (the decision-maker's written one, money alone's own); None where none
+    or blank."""
+    interview = interview or {}
+    gate = interview.get("gate")
+    condition = (gate or {}).get("condition") if gate else interview.get("condition")
+    return condition if isinstance(condition, dict) and str(condition.get("question") or "").strip() else None
 
 
 def passage_said(text: str | None) -> str:
@@ -197,8 +232,9 @@ def solution_close(count: int) -> str:
 
 
 #: 101's closes, as a recording made before 101 did not say them: `... I'll ask you {N} questions about that.`
-_CLOSE_101 = re.compile(r"\s*That's the (problem|idea)\. Take a moment(?: with it)?\. Then I'll ask you (\S+) "
-                        r"(questions?) .*$", re.S)
+#: Since keel-cloud 194 (spec 124 FR-3) a gated problem passage says the checks between (`CHECKS`).
+_CLOSE_101 = re.compile(r"\s*That's the (problem|idea)\. Take a moment(?: with it)?\.(?: First a quick check or two "
+                        r"that this is for you\.)? Then I'll ask you (\S+) (questions?) .*$", re.S)
 
 
 def before_101(kind: str, script: str) -> str:
@@ -304,8 +340,11 @@ def story_escape(chips, occasion: str | None) -> str | None:
 #: part its passage and its items (an item's follow-up right after it), the pilot ask, thanks. DIDNT_CATCH and, since
 #: keel-cloud 099 (contract 18), IS_THAT_RIGHT have no place in the order; the composer writes them last.
 #: Spec 051 (keel-cloud 103): FOLLOW_UP, last in the enum; the composer writes a role's between PILOT and THANKS.
+#: Spec 124 FR-1 (keel-cloud 194, contract 57): CONDITION, last in the enum -- the condition said aloud (*{question} Yes
+#: or no.*), one a role, no item; in the spoken order before the gate's ITEM on a gated link, after the OPENING
+#: elsewhere. A recording from before 194 holds none and is not refused.
 KINDS = ("OPENING", "PROBLEM", "ITEM", "ITEM_MORE", "SOLUTION", "COMMERCIAL", "DIDNT_CATCH", "PILOT", "THANKS",
-         "IS_THAT_RIGHT", "FOLLOW_UP")
+         "IS_THAT_RIGHT", "FOLLOW_UP", "CONDITION")
 #: The clips said only when an answer asks for them -- never in the spoken order (103: the follow-up, only when the
 #: walk finds its rung).
 UNSPOKEN = ("DIDNT_CATCH", "IS_THAT_RIGHT", "FOLLOW_UP")

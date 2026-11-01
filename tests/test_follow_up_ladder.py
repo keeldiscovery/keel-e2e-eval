@@ -297,7 +297,8 @@ def test_fill_and_its_words():
 
 
 def test_the_fakes_follow_up_lines():
-    assert fake.KINDS[-1] == "FOLLOW_UP" and "FOLLOW_UP" in fake.UNSPOKEN
+    # spec 124 re-pin (keel-cloud 194, contract 57): CONDITION follows FOLLOW_UP in `ClipKind`
+    assert fake.KINDS[-2:] == ("FOLLOW_UP", "CONDITION") and "FOLLOW_UP" in fake.UNSPOKEN
     assert fake.follow_up_script(fake.spoken_filled("problem.importance", {"{founder_item}": "knowing what the cry "
                                                                                        "means"})) == (
         "One more thing. You did not pick knowing what the cry means as one to make easier. What made the others more "
