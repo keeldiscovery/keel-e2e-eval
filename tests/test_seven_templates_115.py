@@ -57,13 +57,18 @@ def _cloud(path: str, marker: str) -> str:
     return text
 
 
+#: Spec 118: a registry at or past 174 -- its Commitment decider template (174 FR-1), which 180-185 kept; 174's Purchase
+#: friction words (*can slow or stop the purchase*) are gone since 182, so they can no longer tell a 174 registry apart.
+REGISTRY_174 = "belief_template_decider"
+
+
 def _exported():
-    _cloud(REGISTRY_JSON, "can slow or stop the purchase")
+    _cloud(REGISTRY_JSON, REGISTRY_174)
     return cloud_mod.registry_of_record(KEEL_CLOUD)
 
 
 def _rows() -> dict:
-    document = json.loads(_cloud(REGISTRY_JSON, "can slow or stop the purchase"))
+    document = json.loads(_cloud(REGISTRY_JSON, REGISTRY_174))
     return {d["key"]: d for d in document["dimensions"]}
 
 
@@ -113,6 +118,10 @@ def test_the_four_refused_entries_read_under_the_exported_registry_and_the_recor
     still records `cant_recall` on Purchase friction -- the record is never rewritten."""
     registry = _exported()
     entry = _entry(entry_id, registry)
+    if entry.duration() is not None:
+        # spec 118 re-pin (keel-cloud 182 T020, revision 20): a timed entry's row is code's six, recorded `cant_tell`
+        assert entry.respondent_questions[FRICTION]["escape"] == "cant_tell" and entry_id in ("10-palus", "17-expanse")
+        return
     assert entry.respondent_questions[FRICTION]["escape"] == "cant_recall"
     assert "escape: cant_recall" in entry.path.read_text(encoding="utf-8")
     assert registry.by_key(FRICTION).escape["code"] == "cant_tell"
@@ -125,9 +134,11 @@ def test_every_entry_reads_under_the_exported_registry():
     backtest = corpus_mod.load(KEEL_CLOUD, registry=registry, backtest=True)
     recorded = [e.id for e in golden.entries + backtest.entries
                 if (e.respondent_questions.get(FRICTION) or {}).get("escape") == "cant_recall"]
-    assert set(REFUSED) <= set(recorded)
-    assert not [e.id for e in golden.entries + backtest.entries
-                if (e.respondent_questions.get(FRICTION) or {}).get("escape") == "cant_tell"], "no revision cut"
+    # spec 118 re-pin (keel-cloud 182 T020): revision 20 records `cant_tell` on the three timed entries alone
+    assert set(REFUSED) - {"10-palus", "17-expanse"} <= set(recorded)
+    assert sorted(e.id for e in golden.entries + backtest.entries
+                  if (e.respondent_questions.get(FRICTION) or {}).get("escape") == "cant_tell") == [
+        "08-fresco", "10-palus", "17-expanse"]
 
 
 def test_a_recorded_purchase_friction_chip_is_walked_as_cant_tell():
@@ -191,9 +202,7 @@ def test_the_leg_records_the_escape_served_for_the_dimension_the_note_names():
     ("problem.frequency", "founder", "guidance"),
     (IMPORTANCE, "founder", "belief_template"),
     (COMPATIBILITY, "founder", "belief_template"),
-    (FRICTION, "founder", "belief_template"),
     (FRICTION, "respondent", "escape"),
-    (FRICTION, "respondent", "option_rule"),
     (COMMITMENT, "founder", "belief_template"),
     (COMMITMENT, "founder", "belief_template_decider"),
 ])
@@ -201,6 +210,19 @@ def test_the_slice_says_174s_words(key, side, field):
     rows = _rows()
     sliced = {d["key"]: d for d in yaml.safe_load(SLICE.read_text(encoding="utf-8"))["dimensions"]}
     assert sliced[key][side][field] == rows[key][side][field]
+
+
+def test_the_slice_keeps_174s_friction_and_the_registry_says_182s():
+    """Spec 118 (keel-cloud 182 FR-1 / FR-2): the registry of record's Purchase friction belief and option rule are 182's
+    (the time against the founder's, code's six); the eval's fixture slice is a registry before 182 and keeps 174's
+    (`caution_turned`, the fixed three), which the reader still reads."""
+    from instructions import friction as friction_mod                  # noqa: PLC0415
+    rows = _rows()
+    sliced = {d["key"]: d for d in yaml.safe_load(SLICE.read_text(encoding="utf-8"))["dimensions"]}
+    assert rows[FRICTION]["founder"]["belief_template"] == friction_mod.BELIEF_TEMPLATE
+    assert rows[FRICTION]["respondent"]["option_rule"].startswith("Code's five duration bands")
+    assert sliced[FRICTION]["founder"]["belief_template"] == corpus_mod.FRICTION_BELIEF_TEMPLATE
+    assert sliced[FRICTION]["answers"]["compare_rule"] == "caution_turned"
 
 
 def test_the_slice_holds_174s_words_and_its_invariants():
@@ -223,7 +245,9 @@ def test_invariant_4_holds_the_decider_template_to_one_value(tmp_path):
 def test_the_four_templates_are_the_registrys():
     rows = _rows()
     assert rows[COMMITMENT]["founder"]["belief_template_decider"] == corpus_mod.COMMITMENT_DECIDER_TEMPLATE
-    assert rows[FRICTION]["founder"]["belief_template"] == corpus_mod.FRICTION_BELIEF_TEMPLATE
+    # spec 118 re-pin (keel-cloud 182 FR-1): Purchase friction's template is the positive form
+    from instructions import friction as friction_mod                  # noqa: PLC0415
+    assert rows[FRICTION]["founder"]["belief_template"] == friction_mod.BELIEF_TEMPLATE
     assert rows[COMPATIBILITY]["founder"]["belief_template"] == corpus_mod.COMPATIBILITY_BELIEF_TEMPLATE
     assert rows[IMPORTANCE]["founder"]["belief_template"] == corpus_mod.IMPORTANCE_BELIEF_TEMPLATE
 
@@ -328,8 +352,12 @@ def test_the_fact_four_are_the_registrys_and_128s_are_kept_for_stored_items():
 
 
 def test_the_fact_labels_mirror_item_frames():
-    text = _cloud(VECTORS + "ItemFrames.java", "a fact takes the registry's own four")
-    assert "if (permission(condition) || fact(condition)) {" in text
+    # spec 118 re-pin (keel-cloud 185 FR-1): 174's *a fact takes the registry's own four* is gone -- a fact takes three,
+    # `FACT_THREE`, which `spoken.FACT_ANSWERS` mirrors; 128's `FACT_LABELS` stay for a stored item
+    text = _cloud(VECTORS + "ItemFrames.java", "FACT_THREE")
+    assert ('FACT_THREE = java.util.Map.of("yes_easily", "Yes",\n            "yes_with_steps", "Yes, with some steps", '
+            '"no", "No");') in text
+    assert spoken_mod.FACT_ANSWERS == {"yes_easily": "Yes", "yes_with_steps": "Yes, with some steps", "no": "No"}
     assert re.search(r'FACT_LABELS = java\.util\.Map\.of\("yes_easily", "Yes",\s*"yes_with_steps", "Mostly", '
                      r'"only_with_help", "Partly", "no", "No"\);', text)
     for word in spoken_mod.PERMISSION_WORDS:
