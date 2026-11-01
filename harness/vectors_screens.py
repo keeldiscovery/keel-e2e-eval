@@ -3839,12 +3839,19 @@ class Answers:
                 not_about = _tc(box.get_by_test_id("insights-not-about-this")) or None
                 own_lines += [x for x in (concern, frame, took, not_about) if x]
                 grouping = box.get_by_test_id("insights-grouping")
+                # keel-web 155 FR-9 (keel-cloud 184 FR-8): a line with a second stem draws the quotes that answered it
+                # under their own heading (`[data-testid=insights-also]`, `.rp-concern--also`), not in `ol.rp-themes`
+                also_box = box.get_by_test_id("insights-also")
+                also = {"heading": _tc(also_box.locator(".rp-concern--also")) or None,
+                        "quotes": [_tc(q) for q in also_box.locator(".rp-quote").all()]} if also_box.count() else None
+                if also and also["heading"]:
+                    own_lines.append(also["heading"])
                 boxes.append({
                     "key": box.get_attribute("data-dim"), "status": box.get_attribute("data-status"),
                     "state": box.get_attribute("data-state"), "dissent": box.get_attribute("data-dissent") == "true",
                     "head": _tc(box.locator(".rp-ihead")), "concern": concern, "frame": frame or None,
                     "not_about": not_about,
-                    "themes": themes, "text": text,
+                    "themes": themes, "text": text, "also": also,
                     "split": fake.SPLIT_NOTE if fake.SPLIT_NOTE in text else None,
                     "took_by": took or None,
                     "grouping": [_tc(q) for q in grouping.locator(".rp-quote").all()] if grouping.count() else None,

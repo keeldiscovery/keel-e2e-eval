@@ -373,11 +373,22 @@ def expected_box(insight: dict, standing: dict | None = None, guessed: frozenset
     quotes."""
     state = insight.get("state") or ("RAW" if insight.get("raw") else "GROUPED")
     said = lambda q: str(q.get("invitationId")) not in guessed  # noqa: E731 - keel-web 106 FR-4: GUESSED drawn apart
-    themes = [{"label": _theme_label(t), "count": t.get("count"),
-               "quotes": [fake.quote_words(q) for q in t.get("quotes") or [] if said(q)]}
-              for t in insight.get("themes") or []] if state == "GROUPED" else []
+    # keel-web 155 FR-9 (keel-cloud 184 FR-8; the matrix's s012 of 2026-11-01): the quotes that answered the line's
+    # second stem (`heading` == `alsoHeading`) are drawn under their own heading, never in a group; a group whose quotes
+    # all answered it is not drawn, and a group's count is its remaining quotes when any were taken out.
+    also_heading = insight.get("alsoHeading") or None
+    is_also = lambda q: bool(also_heading) and q.get("heading") == also_heading  # noqa: E731
+    themes = []
+    for t in (insight.get("themes") or []) if state == "GROUPED" else []:
+        kept = [q for q in t.get("quotes") or [] if not is_also(q)]
+        if also_heading and not kept and (t.get("quotes") or []):
+            continue
+        count = len(kept) if also_heading and len(kept) != len(t.get("quotes") or []) else t.get("count")
+        themes.append({"label": _theme_label(t), "count": count,
+                       "quotes": [fake.quote_words(q) for q in kept if said(q)]})
     every = [q for t in insight.get("themes") or [] for q in t.get("quotes") or []] if state == "GROUPED" else \
         list(insight.get("rawQuotes") or insight.get("quotes") or [])
+    also = [fake.quote_words(q) for q in every if is_also(q) and said(q)]
     loose = [fake.quote_words(q) for q in (insight.get("rawQuotes") or insight.get("quotes") or []) if said(q)]
     # keel-web 106 FR-3 (keel-cloud 128 FR-8, spec 068 FR-4): a bar line's amber is *Did not hold* past the bar, with no
     # split note (Purchase friction's held fear *Holding up*); the standing's counts decide it, the insight's status else
@@ -390,8 +401,11 @@ def expected_box(insight: dict, standing: dict | None = None, guessed: frozenset
         "concern": insight.get("rungHeading") or None,
         "frame": insight.get("frame") if insight.get("dissent") else None,
         "themes": themes,
-        "took_by": fake.took_by(insight.get("asked"), insight.get("against"), insight.get("tookBy"))
-        if insight.get("tookBy") else None,
+        "also": {"heading": also_heading, "quotes": also} if also_heading and also else None,
+        # keel-web 155 FR-7: the served `countLine` is drawn in place of the composed *Only k of the n* footer
+        "took_by": insight.get("countLine") if insight.get("countLine")
+        else (fake.took_by(insight.get("asked"), insight.get("against"), insight.get("tookBy"))
+              if insight.get("tookBy") else None),
         "grouping": loose if state == "GROUPING" else None,
         "raw": loose if state == "RAW" else None,
         "note": insight.get("note") if state == "RAW" else None,
@@ -511,6 +525,14 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
             for wt, gt in zip(want["themes"], drawn):
                 if [ov.norm(q) for q in gt.get("quotes") or []] != [ov.norm(q) for q in wt["quotes"]]:
                     faults.append({key: f"quotes of {wt['label']}", "drawn": gt.get("quotes"), "wire": wt["quotes"]})
+        got_also = got.get("also") or {}
+        if want.get("also") is not None:
+            if [ov.norm(q) for q in got_also.get("quotes") or []] != [ov.norm(q) for q in want["also"]["quotes"]] \
+                    or ov.norm(got_also.get("heading")) != ov.norm(want["also"]["heading"]):
+                faults.append({key: "the second stem's quotes under their heading (keel-web 155 FR-9)",
+                               "drawn": got.get("also"), "wire": want["also"]})
+        elif got_also.get("quotes"):
+            faults.append({key: "a second-stem group drawn where the wire has none", "drawn": got.get("also")})
         if want["grouping"] is not None:
             missing += ov.in_order(got.get("text"), [fake.GROUPING_LINE] + want["grouping"])
         if want["raw"] is not None:
