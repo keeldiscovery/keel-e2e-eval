@@ -293,6 +293,11 @@ def leg_idea_card(j: cs.Journey) -> None:
         assert idea.get("what") == name and idea.get("approved") is True, idea
         assert (seen["frame"].get("kicker") or "").lower().startswith("step 3 of 5 · your idea"), seen["frame"]
         j.idea_name = str(idea.get("shortName") or idea.get("what") or "")
+        # spec 119 FR-1 (keel-cloud 185, 188): the idea's plain words and the line the founder's read served -- the
+        # strangers' card and reveal open with that line (money alone's 10-palus and 13-aircaps stopped on a card
+        # composed without them, *Imagine Palus.* beside the served *Imagine Palus, a managed reserve portfolio.*)
+        j.idea_what_it_is = idea.get("whatItIs")
+        j.idea_line = idea.get("line") or None
 
 
 def drift_97(j: cs.Journey) -> None:
@@ -304,7 +309,18 @@ def drift_97(j: cs.Journey) -> None:
             if r.get("screen") == "CALIBRATION_QUESTIONS"]
     want = {v: sum(1 for w, _ in vs.calibration_jobs(j.entry) if w == v) for v in in_scope}
     have: dict = {}
+    # spec 119 (cycle 5's 10-palus and 13-aircaps SOLUTION): a job Keel's AI got refused and the founder retried
+    # (`cs._retried`, spec 062: a finding) is the product's refusal, named in the findings by its served reason -- not a
+    # job chained outside the scope; the jobs held to the script's count are the ones applied, and every refused one
+    # in scope must be one the walk retried
+    retried = {v: sum(1 for f in getattr(j, "findings", None) or []
+                      if isinstance(f, dict) and f.get("what") == f"{v} calibration" and f.get("refused"))
+               for v in in_scope}
+    refused: dict = {}
     for r in rows:
+        if r.get("vector") in in_scope and r.get("status") != "APPLIED":
+            refused[r.get("vector")] = refused.get(r.get("vector"), 0) + 1
+            continue
         have[r.get("vector")] = have.get(r.get("vector"), 0) + 1
     title = (f"{j.entry.id} ({j.scope}): CALIBRATION_QUESTIONS for {', '.join(in_scope)} alone -- one slice a vector in "
              "scope and its redrafts, none for another (DRIFT #97 closed by keel-cloud 134)")
@@ -315,9 +331,11 @@ def drift_97(j: cs.Journey) -> None:
         assert not outside, (f"CALIBRATION_QUESTIONS chained for {outside} outside the scope -- DRIFT #97 came back",
                              rows)
         assert all(want[v] >= 1 for v in in_scope), want                  # one slice a vector in scope, at least
-        assert have == want, {"wire": have, "script": want}
-        assert all(r.get("status") == "APPLIED" for r in rows), rows
-    j.changed["drift_97"] = {"out_of_scope": [], "jobs": len(rows), "by_vector": have}
+        assert have == want, {"wire": have, "script": want, "refused and retried": refused}
+        unretried = {v: n for v, n in refused.items() if n > retried.get(v, 0)}
+        assert not unretried, {"refused and never retried": unretried, "rows": rows}
+    j.changed["drift_97"] = {"out_of_scope": [], "jobs": len(rows), "by_vector": have,
+                             **({"refused_and_retried": refused} if refused else {})}
 
 
 # --------------------------------------------------------------------------------------- the scoped reading

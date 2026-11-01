@@ -263,6 +263,10 @@ def join_answer(what: str, how: str) -> str:
 
 
 #: Spec 118 FR-2 (keel-web 155 T021): the founder's time beside Purchase friction's picked step on Choose.
+#: Spec 119 FR-8: the idea step's served lines are drawn -- the how and the belief boxes hold Keel's text (the what box
+#: is the founder's, empty until named, keel-cloud 097).
+IDEA_LINES_DRAWN = ("() => ['#idea-how', '#idea-belief'].every((sel) => "
+                    "(document.querySelector(sel)?.value || '').trim() !== '')")
 DURATION_INPUT_TESTID = "duration-input"
 DURATION_COUNT_TESTID = "duration-count"
 DURATION_UNIT_TESTID = "duration-unit"
@@ -450,7 +454,9 @@ def l1_title(people: str | None) -> str:
 _HEAD_ENDS = re.compile(r"^(of|at|in|on|for|with|who|whose|that|which|from|to|under|over|across|by|near|without|"
                         r"[^\W\d_]+ing)$", re.IGNORECASE)
 _PLURAL_ALWAYS = {"people", "children", "men", "women", "folks"}
-_PLURAL_IRREGULAR = {"person": "people", "man": "men", "woman": "women", "child": "children"}
+#: keel-web 159 J-2 (`PLURAL_IRREGULAR`): *someone* / *somebody* read *people* (keel-cloud's *Someone who runs ...* label).
+_PLURAL_IRREGULAR = {"person": "people", "man": "men", "woman": "women", "child": "children", "someone": "people",
+                     "somebody": "people"}
 _VERB_PLURAL = {"has": "have", "is": "are", "was": "were", "does": "do"}
 
 
@@ -505,6 +511,24 @@ def _plural_of_words(said: str) -> str | None:
     if cut > 0 and re.match(r"^(who|that|which)$", words[cut], re.IGNORECASE) and cut + 1 < len(words):
         words[cut + 1] = _verb_plural(words[cut + 1])
     return " ".join(words)
+
+
+#: keel-web `founderLists.ts`: a list item's cap where the wire serves none (`saves.maxWords` absent).
+DEFAULT_ITEM_WORDS = 9
+
+
+def served_word_cap(question: dict | None) -> int:
+    """Spec 119 (keel-cloud 187 FR-1, keel-web 158 T006): a list's item cap as the wire serves it -- `saves.maxWords`
+    (Compatibility's 16 since 187, every other list's 9) -- or 9 where none is served."""
+    cap = ((question or {}).get("saves") or {}).get("maxWords")
+    return int(cap) if isinstance(cap, int) and cap > 0 else DEFAULT_ITEM_WORDS
+
+
+def check_intro_cap(intro: str | None) -> int | None:
+    """keel-web 158 T006 (`listCheckIntro(dimension, maxWords)`): the *under {n} words each* the Check intro says, or None
+    where it says none."""
+    found = re.search(r"\bunder (\d+) words each\b", intro or "")
+    return int(found.group(1)) if found else None
 
 
 def people_plural(actor: str | None) -> str | None:
@@ -1929,15 +1953,16 @@ class Corridor:
             _wait_url(self.page, r"/define/solution/idea")
             self.page.locator("#idea-what").wait_for(state="visible", timeout=20_000)
             reloaded = False
+            # spec 119 FR-8: the idea step is captured once, when the served lines are drawn -- the how and the belief
+            # (the what box opens empty for the founder's name since keel-cloud 097) -- never its waiting state
+            served = IDEA_LINES_DRAWN
             try:
-                self.page.wait_for_function("() => (document.querySelector('#idea-how')?.value || '') !== ''",
-                                            timeout=5_000)
+                self.page.wait_for_function(served, timeout=5_000)
             except Exception:  # noqa: BLE001 - runs/DRIFT.md #78: the stale plan's empty lines
                 h.add_screenshot(self._b.screenshot("idea-check-empty"))
                 self.page.reload(wait_until="load")
                 self.page.locator("#idea-what").wait_for(state="visible", timeout=20_000)
-                self.page.wait_for_function(
-                    "() => (document.querySelector('#idea-how')?.value || '') !== ''", timeout=20_000)
+                self.page.wait_for_function(served, timeout=20_000)
                 reloaded = True
             lines = {line: _value(self.page.locator(f"#idea-{line}")) for line in ("what", "how", "belief")}
             # spec 118 FR-4c(d) (keel-web 156 FR-3): the second box, *What it is* (`idea-what-it-is`), prefilled with
@@ -2352,17 +2377,20 @@ class Corridor:
                 seen["after"] = self._list_rows()
                 seen["test_after"] = self._keel_test()
         seen["smaller_step_removed"] = self._remove_over_cap_smaller_step(name)
-        seen["rows_cut_to_fit"] = self._cut_over_cap_rows(name)
+        seen["rows_cut_to_fit"] = self._cut_over_cap_rows(name, served_word_cap(question))
+        # spec 119 (keel-web 158 T006, keel-cloud 187 FR-1): the Check intro says the served cap (Compatibility's 16)
+        seen["intro"] = " ".join(_first_text(self.page, ".corridor__intro").split()) or None
         with self._b.step(f"founder saves {name}") as h:
             seen["primary"] = self._press_primary()
             h.add_screenshot(self._b.screenshot(f"check-{name}-saved"))
             return seen
 
-    def _cut_over_cap_rows(self, name: str) -> list[dict]:
+    def _cut_over_cap_rows(self, name: str, cap: int = 9) -> list[dict]:
         """A Check screen whose drafted row is over its word cap keeps *Save* disabled (09-karsa, 2026-10-24: Keel drafted
         the Compatibility condition *"They would have a bank account or wallet in their name"*, 11 / 9 words). A founder
-        would cut it; this cuts each over-cap row to its first nine words, named as a step so the judge sees Keel's
-        draft (a product fault, keel-cloud 130 FR-5). Nothing is touched when the primary is enabled."""
+        would cut it; this cuts each over-cap row to its first `cap` words -- the served `saves.maxWords` (spec 119:
+        Compatibility's 16 since keel-cloud 187 FR-1, every other list's 9; `served_word_cap`) -- named as a step so the
+        judge sees Keel's draft (a product fault, keel-cloud 130 FR-5). Nothing is touched when the primary is enabled."""
         rows = self.page.locator(".listcheck ul.listrows li.listrow")
         over = [i for i in range(rows.count()) if rows.nth(i).locator(".listrow__wc--over").count()]
         if not over or not self._primary().is_disabled():
@@ -2372,7 +2400,7 @@ class Corridor:
             for i in over:
                 box = rows.nth(i).locator("textarea.listrow__ed").first
                 was = _value(box)
-                now = " ".join(str(was or "").split()[:9])
+                now = " ".join(str(was or "").split()[:cap])
                 box.fill(now)
                 out.append({"row": i, "was": was, "now": now})
             self.page.wait_for_function("() => !document.querySelector('.listcheck ul.listrows .listrow__wc--over')",
@@ -2432,6 +2460,12 @@ class Corridor:
             group.get_by_role("radio", name=label, exact=True).click()
             drawn_duration = self.page.get_by_test_id(DURATION_INPUT_TESTID)
             typed_duration = None
+            if drawn_duration.count() and not duration:
+                # spec 119 FR-3: the screen asks the founder's time and Continue waits for it -- an entry that names
+                # none stops here by name, never on Continue's 30-second wait (21-codyco COMMERCIAL at revision 21)
+                raise AssertionError(f"{name}'s Choose draws the founder's time box (Continue waits for it) and the "
+                                     "entry names no time -- corpus revision 22 times every B2B back-test entry "
+                                     "(keel-cloud 187 FR-4 (a)); a golden entry names none")
             if duration and drawn_duration.count():
                 self.page.get_by_test_id(DURATION_COUNT_TESTID).first.fill(str(duration["count"]))
                 self.page.get_by_test_id(DURATION_UNIT_TESTID).first.select_option(value=str(duration["unit"]))
@@ -3006,6 +3040,8 @@ class Interview:
                     "seen": list(self.seen),
                     "screens": list(self.screens), "unanswered": list(self.unanswered), "closed_price": list(self.closed_price), "retried": list(self.retried), "follow_up_route": self.route, "follow_up": self.follow_up_seen,
                     "follow_up_routes": self._routes(), "follow_ups": list(self.follow_ups_seen),
+                    # spec 119 FR-2: the pointed-back questions the walk met, the written one per person
+                    "pointed_back": list(self.pointed_back),
                     "late": sorted(self._late_items),
                     "speak": self.speak_seen, "transcribed": self._transcribed(), "consent": self.consent}
 

@@ -175,6 +175,10 @@ class Journey:
     idea_name: str = ""
     #: Spec 118 FR-4c(d): `IdeaView.whatItIs` after S2 -- the card's *Imagine {name}, {what it is}.*
     idea_what_it_is: str | None = None
+    #: Spec 119 FR-1 (keel-cloud 185 `IdeaView.line`, 188): the line the founder's idea read served after S2 -- *Imagine
+    #: {name}, {what}.*, or *Imagine {name}.* where Keel has no plain words that are not the name -- the one the strangers'
+    #: card and reveal must open with; None where the read carried none (a stack before 185).
+    idea_line: str | None = None
     #: The lock's receipt (`LockReceipt`), as keel-web received it from `POST lock`.
     receipt: dict = field(default_factory=dict)
     #: The stack and the identity the founder signed in as (spec 043: the contacts leg reads the ledger and stands the
@@ -1611,6 +1615,7 @@ def leg_interpret_solution(j: Journey) -> None:
         # spec 118 FR-4c(d) (keel-cloud 185 FR-2, keel-web 156 FR-3): the plain words of what it is, Keel's suggestion the
         # walk accepted (or the founder's own), which the strangers' card composes beside the name
         j.idea_what_it_is = idea.get("whatItIs")
+        j.idea_line = idea.get("line") or None
         # spec 064 FR-5b (keel-cloud 121 J1, keel-web 097): the idea's notes are recomputed on every read and never
         # refuse. Spec 107 (keel-cloud 175): a word the founder typed is never noted -- 05-paidly's scripted how says
         # *platform*, but so does its own solution seed, so its card carries no J1 note, like every other golden card
@@ -2091,6 +2096,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             seen.append(j.corridor.list_check(question, add_rungs=lambda drawn: _rungs_to_type(j, question, drawn)))
         else:
             seen.append(j.corridor.list_check(question))
+        _hold_check_intro(j, question, seen[-1])
         if key in vs.PICKED:
             if not j.strict:
                 _name_keel_added(j, key, question, answer)
@@ -2258,6 +2264,17 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                          "rows": review.get("rows")})
         assert review.get("complete") is True, review
         assert not mismatches, json.dumps(mismatches, indent=2)
+
+
+def _hold_check_intro(j: Journey, question: dict, seen: dict) -> None:
+    """Spec 119 (keel-web 158 T006, keel-cloud 187 FR-1): the Check intro's *under {n} words each* is the served cap
+    (`saves.maxWords`: Compatibility's 16, every other list's 9). A page that says another number is a finding (a
+    keel-web before 158 says 9 on Compatibility), never a stop: the counter and Save read the served cap either way."""
+    said = vs_screens.check_intro_cap((seen or {}).get("intro"))
+    cap = vs_screens.served_word_cap(question)
+    if said is not None and said != cap and hasattr(j, "findings"):
+        j.findings.append({"what": f"{question.get('dimension')}: the Check intro says under {said} words each; the "
+                                   f"served cap is {cap} (keel-web 158 T006)", "intro": seen.get("intro")})
 
 
 def _rungs_to_type(j: Journey, question: dict, drawn: dict) -> dict:
@@ -2741,12 +2758,20 @@ def _retried(j: Journey, what: str, said: str, retry_path: str) -> bool:
         return False
     j.retries -= 1
     camera = getattr(j, "camera", None)
+    reason = str(said).split(":", 1)[0].strip() or "FAILED"
     if camera is not None:
-        camera.founder(f"failed-{what.replace(' ', '-').lower()}")
-    with _step(j, f"{what}: Keel's AI's result was refused, and the founder retries it (spec 062: a finding, recorded)",
-               party="founder", kind="note") as h:
+        # spec 119 FR-8: the page as it stood when the job was refused is evidence, never a scored founder screen -- on
+        # 10-palus SOLUTION it was the idea step still waiting (the kicker and the what box's hint, no text), captured
+        # twice as `failed-solution-calibration` and scored R1 = 0, R2 = 0 by the founder-reader. Named by the served
+        # reason (`RESULT_INVALID`, ...), kept apart (`Camera.failure_shots`, the bundle's `failure_screens`)
+        evidence = getattr(camera, "evidence", None)
+        if callable(evidence):
+            evidence(f"{what.replace(' ', '-').lower()}-{reason}", said)
+    with _step(j, f"{what}: Keel's AI's result was refused ({said}), and the founder retries it (spec 062: a "
+                  "finding, recorded)", party="founder", kind="note") as h:
         status, body = j.call("POST", retry_path, {}, ok=(200, 201, 202, 204, 409, 422))
-        j.findings.append({"what": what, "refused": said, "retry": {"path": retry_path, "status": status}})
+        j.findings.append({"what": what, "refused": said, "reason": reason,
+                           "retry": {"path": retry_path, "status": status}})
         h.record_wire({"POST": retry_path, "because": said}, {"status": status, "body": body})
         # the screen is reloaded on the retried job, the way a founder pressing Try again sees it start over
         j.page.reload(wait_until="load")
@@ -4244,6 +4269,19 @@ def cost_item_drift(j: Journey, item: dict) -> None:
                                    "(vectors_script.cost_item, spec 110 FR-3)", "parted": parted})
 
 
+def pointed_back_question(item: dict, walked: dict) -> str | None:
+    """Spec 119 FR-2: the written question an `askedAfter` item draws for this person -- the one the walk met
+    (`walked["pointed_back"]`, keyed by the dimension), else the `askedAfter` entry whose `optionIds` are the person's
+    sent Price answer (`vs.asked_after` over the body the page posted); None on an item served no `askedAfter`."""
+    if not isinstance((item or {}).get("askedAfter"), dict):
+        return None
+    for met in walked.get("pointed_back") or []:
+        if met.get("dimension") == item.get("dimension") and met.get("question"):
+            return met["question"]
+    sent = {a.get("itemId"): a for a in ((walked.get("body") or {}).get("answers") or []) if isinstance(a, dict)}
+    return vs.asked_after(item, sent)[1]
+
+
 def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None:
     """keel-web 064, held to the wire on every journey: the decision-maker's link opens with the idea's
     three lines under the served kicker (D9); the gate's story chip is *I can't recall one particular
@@ -4338,6 +4376,14 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
                     faults.append({"dimension": drawn["dimension"], "second ask": got, "wire": wanted})
             if not item.get("priceAnchor"):
                 want["question"] = plan.get("question") if on_plan else item.get("question")
+            written = pointed_back_question(item, walked)
+            if written:
+                # spec 119 FR-2 (keel-cloud 181 FR-2, keel-web 155 T020): an item served `askedAfter` (Ability to pay on
+                # a chain price) carries the one SPOKEN sentence as its `question` (*Think of the price you just gave.
+                # ...*) and the WRITTEN per-person one on `askedAfter.answers[].question` (*You said about {band}. ...*)
+                # for the person's own Price answer -- the page draws the written one (17-expanse COMMERCIAL stopped on
+                # Gregory Lindqvist holding the drawn question to the spoken sentence)
+                want["question"] = written
             have = {k: drawn.get(k) for k in want}
             if have != want:
                 faults.append({"dimension": drawn["dimension"], "screen": have, "wire": want})
@@ -4359,17 +4405,55 @@ def _hold_the_screens(j: Journey, person, interview: dict, walked: dict) -> None
 RA_KEY = "solution.relative_advantage"
 
 
+def idea_line_faults(name: str, served: list, drawn_screens: list, *, want: str | None = None) -> list:
+    """Spec 119 FR-1 (keel-cloud 185 `IdeaLines.card`, 188): the strangers' idea line is the one the wire serves --
+    `served.idea.what` / `served.reveal.what` -- *Imagine {name}, {what}.* (or *Imagine {name}.* where Keel has no plain
+    words that are not the name), never composed here from a what-it-is the walk may not have read (10-palus and
+    13-aircaps COMMERCIAL stopped on *want: Imagine Palus.* beside the served *Imagine Palus, a managed reserve
+    portfolio.*). Held: each served line names the idea (*Imagine {name}* opens it, the name in it); where the
+    founder's idea read served its own `line` (`want`), each served line is that line; every drawn reveal / idea card
+    OPENS with the served line, and the idea card above the Relative advantage item is it. `served` is `[(kind,
+    lines)]`; `drawn_screens` the walk's screens. `[]` where it all holds."""
+    faults = []
+    lines_served = {}
+    for kind, lines in served:
+        if not lines:
+            continue
+        what = " ".join(str(lines.get("what") or "").split())
+        lines_served[kind] = what
+        opens = f"Imagine {name.strip()}"
+        if not what.startswith(opens) or what[len(opens):len(opens) + 1] not in (".", ","):
+            faults.append({kind: what, "want": f"{opens}. or {opens}, {{what it is}}. (the line names the idea)"})
+        elif want and what != want:
+            faults.append({kind: what, "want": want, "why": "the founder's idea read served this line"})
+    card = lines_served.get("idea") or lines_served.get("reveal") or want
+    for drawn in drawn_screens:
+        on = drawn.get("screen")
+        if on in ("reveal", "idea"):
+            line_of = lines_served.get(on) or card
+            if line_of and not " ".join(str(drawn.get("card") or "").split()).startswith(line_of):
+                faults.append({"screen": on, "card": drawn.get("card"), "want": f"opens with {line_of!r}"})
+        if on == "item" and drawn.get("dimension") == RA_KEY and card \
+                and " ".join(str(drawn.get("idea_card") or "").split()) != card:
+            faults.append({"screen": "item", "idea card": drawn.get("idea_card"), "want": card})
+    return faults
+
+
 def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> None:
-    """keel-cloud 090 (D14) on every journey: the idea card strangers read is *Imagine {name}.* and the Relative
-    advantage question *Would {name} have made your last {occasion} go better for you, or not?* (keel-cloud 173, spec
-    113 FR-2; past 20 words *Would it have made your last {occasion} ...*, the occasion never dropped), both composed by
-    code
-    around the idea's **current** name -- the one the wire stored after S2 (`IdeaView.shortName`): Keel's short name
-    where the founder saved the draft untouched, the founder's own where they renamed it. Held on the wire (the served
-    reveal / idea and the item's question) and on the screens (the reveal's or idea screen's card, and the idea card
-    above the Relative advantage item)."""
+    """keel-cloud 090 (D14) on every journey: the idea card strangers read and the Relative advantage question
+    *Would {name} have made your last {occasion} go better for you, or not?* (keel-cloud 173, spec 113 FR-2; past 20
+    words *Would it have made your last {occasion} ...*, the occasion never dropped), both composed by code around the
+    idea's **current** name -- the one the wire stored after S2 (`IdeaView.shortName`): Keel's short name where the
+    founder saved the draft untouched, the founder's own where they renamed it. Held on the wire (the served reveal /
+    idea and the item's question) and on the screens (the reveal's or idea screen's card, and the idea card above the
+    Relative advantage item).
+
+    Spec 119 FR-1: the card is the served line (`idea_line_faults`), *Imagine {name}, {what}.* since keel-cloud 185 --
+    held to name the idea and to be what every card opens with; on a scripted journey (`j.strict`) it is also the
+    harness's own composition (`vs.idea_card` over `IdeaView.whatItIs`)."""
     name = j.idea_name
-    card = vs.idea_card(name, getattr(j, "idea_what_it_is", None))
+    composed = vs.idea_card(name, getattr(j, "idea_what_it_is", None))
+    want = getattr(j, "idea_line", None) or (composed if j.strict else None)
     served = [("reveal", interview.get("reveal")), ("idea", interview.get("idea"))]
     items = {i.get("dimension"): i for p in interview.get("parts") or [] for i in p.get("items") or []}
     advantage = items.get(RA_KEY)
@@ -4377,12 +4461,11 @@ def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> No
         return                                       # a gate No: nothing about the idea was served
     with _step(j, f"{person.person}: the idea card and the Relative advantage question name the idea "
                   f"{name!r}, its current name (keel-cloud 090)", party="participant") as h:
-        faults = []
         occasion = interview.get("occasion") or ""
         want_question = vs.benefit_question(occasion, name)
-        for kind, lines in served:
-            if lines and lines.get("what") != card:
-                faults.append({kind: lines.get("what"), "want": card})
+        faults = idea_line_faults(name, served, walked["screens"], want=want)
+        if j.strict and want != composed:
+            faults.append({"idea line read": want, "composed": composed})
         served_q = (advantage or {}).get("question") or ""
         if advantage is not None and (served_q != want_question if j.strict else name not in served_q):
             # on the back-test the stem and the question are the model's (keel-cloud 120 opens the question with the
@@ -4393,12 +4476,7 @@ def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> No
                            "want": want_question if j.strict else f"names {name!r}"})
         if j.strict and occasion != vs.occasion(j.entry):
             faults.append({"occasion": occasion, "corpus": vs.occasion(j.entry)})
-        for drawn in walked["screens"]:
-            if drawn.get("screen") in ("reveal", "idea") and card not in (drawn.get("card") or ""):
-                faults.append({"screen": drawn.get("screen"), "card": drawn.get("card"), "want": card})
-            if drawn.get("screen") == "item" and drawn.get("dimension") == RA_KEY and drawn.get("idea_card") != card:
-                faults.append({"screen": "item", "idea card": drawn.get("idea_card"), "want": card})
-        h.record_assert({"card": card, "question": want_question, "faults": []},
+        h.record_assert({"card": want or f"Imagine {name}[, {{what it is}}].", "question": want_question, "faults": []},
                         {"served": dict(served), "question": (advantage or {}).get("question"), "faults": faults})
         assert not faults, json.dumps(faults, indent=2)
 

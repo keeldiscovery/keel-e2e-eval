@@ -113,10 +113,19 @@ def format_status_when_ready(face: str) -> str:
     return f"Ready when {face} is"
 
 
-def send_format_title(people: str | None) -> str:
-    """keel-web 156 FR-2 (`sendFormatTitle`): Send more's heading names the people -- the kind's served short form
-    (`labelShort`), *How should they answer?* only where none is served."""
-    return f"How should {people.strip()} answer?" if people and people.strip() else "How should they answer?"
+def kind_people_plural(label: str | None, label_short: str | None = None) -> str | None:
+    """keel-web 159 FR-1 (`kindPeoplePlural`): the kind's people in the plural by the lock step's rule
+    (`vectors_screens.people_plural`) -- the served long `label` first, its `labelShort` where no label is served."""
+    from harness.vectors_screens import people_plural                    # noqa: PLC0415
+    return (people_plural(label) if label else None) or (people_plural(label_short) if label_short else None)
+
+
+def send_format_title(label: str | None, label_short: str | None = None) -> str:
+    """keel-web 156 FR-2 / 159 FR-1 (`sendFormatTitle(label, labelShort)`): Send more's heading names the kind's people
+    in the plural -- *How should startup founders answer?* for a kind labelled *Startup founder* (cycle 5's *How should
+    founder answer?*), a plural already said kept; *How should they answer?* only with no people to name."""
+    people = kind_people_plural(label, label_short)
+    return f"How should {people} answer?" if people else "How should they answer?"
 
 
 #: keel-web 156 FR-1 / FR-2 (`INTERVIEWER_IS`): what the interviewer is -- the lock step's hint opens on it.
