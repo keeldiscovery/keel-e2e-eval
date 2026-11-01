@@ -1015,6 +1015,36 @@ after-answers leg reads `stage-page`, `stage-verdict`, `stage-dimension[data-dim
 `dimension-chart`, `dimension-verdict`, `dimension-count` first, 109's classes as the fallback (`by_ids` recorded).
 `make unit` 4,799 passed / 0 failed / 0 errors / 53 skipped (+44, 43 in `tests/test_mirror_follows_117.py`; master `88772e4` 4,755 / 0 / 0 / 53) against keel-cloud-docs `2f147fe7` and keel-web `7243de7`; the acceptance walk is the coordinator's.
 
+**The harness reads the money cards redrawn and the question screens** (spec `118-the-harness-reads-the-money-cards-redrawn`,
+2026-10-31; keel-cloud-docs `f3f0d99e` = keel-cloud 180-185, contract 55; keel-web `3c0db0c` = 155 and 156). **Corpus
+revision 21** (the spec's *20* read 21: 182 took it to 20, 185 to 21): `corpus.REVISION` 21, revisions 19 and 20 refused by
+name; rule C holds the chain's beliefs to keel-cloud 180 / 181's words (`chain.cost_belief`, `price_belief`,
+`ability_belief`, `deciders`, `plural_words`: *{Deciders} already spend ...*, *... would think {name} worth ...*, *...
+who would pay {price} could find the money for it.*); Ability to pay's row points back to the price
+(`chain.POINTS_BACK`, escape `cant_say`) and its pick is refused from a person whose Price answer is not at or above the
+founder's (`chain.reached`); Purchase friction's row is code's six around the founder's time (`instructions/friction.py`,
+182's ladder) or, with no time, the fixed three; a fact's Compatibility row is three (`spoken.condition_kind`, 185's
+`conditionKind`); `screeners.decider` is read (`Entry.screeners`). `tests/test_corpus_r19.py`'s D19 is the record now
+(mirror against mirror); D20 and D21 are `tests/test_money_cards_redrawn_118.py`'s. **FR-1**: `brief_facts` -- every yes
+the number, the conditional *· k of them ...* beside it (180's no neutral), Purchase friction the number those against
+with *expect {step} to take longer than {duration}* / *said {step} would take a long time* and 182's bar, *Not reached*;
+117's `retense_179` tolerance removed. **FR-2**: the walk types the founder's time on Choose (`duration-count` /
+`duration-unit`, sent as `SavedList.duration`), the loss line in its own box (`chain-loss`), no hourly rate (180 FR-9);
+the text and AI walks skip an `askedAfter` item and show its pointed-back question (`vs.asked_after`). **FR-3**:
+`spoken` S8 reads step one's *or more*, S11 holds Price's second step (`ComposedItem.under` / `over`). **FR-4**: the
+after-answers leg reads `stage-tally`, `bar-strip` (mode, counted, bar, label, marker, axis, cells by side and kind),
+`dimension-asked` / `-rule` / `-count-line` / `-so`, `li.dimbar[data-side]`, the marks (`founder-range`, `most-often`,
+...), `price-part`, `dimension-person[data-side]` / `-why` / `-band`, and Insights' `insights-status-line` / `-belief` /
+`-count-line` / `-also`; the readers' screens name them (FR-5). **FR-4c**: the reader's `{{screen}}` says every served
+spoken line, Price's second step and the plan's too (and §16 / §17 pasted where the guidelines carry them); the AI walk
+answers Price and the plan in two steps (`vs.step_one`, `Player.wait_ask`); *Yes, most of the time* and a fact's three;
+the idea card *Imagine {name}, {what it is}.* (`vs.idea_card`, `idea-what-it-is` read); the decision-maker's screener is
+the writer's (`vs.decider_screener`, scripted as `decider_condition`; 145's *you decide for* retired); 156's interviewer
+screens and *Read and tap*. **FR-4d**: one scripted line per follow-up (`vs_screens.distinct_follow_up`,
+`cs.follow_up_lines_owed`). Keel-cloud 183's fewest-first rule is mirrored (`fake.fewest_first`, the walk's
+`_failing_now` / `_whys_now`), 184's *you* on a loss and its headings. Current solution's Answer is typed as keel-web 150's
+two boxes (`vs.current_solution_boxes`). DRIFT #102 (keel-web's Purchase friction Choose bar). `MARKS_VERSION` 24 stands. `make unit` 4,838 passed / 0 failed / 0 errors / 53 skipped (master `82fae86` against the same siblings 4,345 / 193 / 59 / 255: the corpus at 21 and the registry it refused) against keel-cloud-docs `f3f0d99e` and keel-web `3c0db0c`; the acceptance back-test is the coordinator's.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
