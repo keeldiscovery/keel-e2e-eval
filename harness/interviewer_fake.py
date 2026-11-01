@@ -357,7 +357,12 @@ LOCK_RULE = "lock_rule"
 #: make much difference on your last {occasion}. What would make {job} better for you, if anything?*, a *worse* said as
 #: worse. Spec 093 FR-2: keel-cloud 161's Current solution rung (`b009fac8`) -- *You said {phrase} works for you. What
 #: keeps it working?*, `{phrase}` the locked phrase as the question says it.
-LADDER_SHA = "b009fac8"
+#: Spec 118 (keel-cloud 182 FR-5, 183 FR-1, 184 FR-7; keel-cloud-docs `f3f0d99e`): Purchase friction's one rung is the
+#: lock's (`duration_band`: a band above the founder's time, or on a list with no time *a long time*), *What would take
+#: the time in buying {solution_name}?*, its second stem gone; Compatibility gains the second stem *What steps did it
+#: take?* on *Yes, with some steps* (a permission or a fact; never the ability's *Yes, most of the time*); a person's
+#: questions go first to the failing line with the fewest whys so far (`fewest_first`).
+LADDER_SHA = "f3f0d99e"
 #: Design §2, as the registry carries it since keel-cloud 118: `(dimension, against, text template, spoken wording)`, in
 #: registry order. Purchase friction is a rung now (its quick / not-needed answers are against the fear); Adoption
 #: friction's and Commitment's stems are the plain questions of 118 FR-4. Since keel-cloud 154 (spec 086 FR-5) every rung
@@ -389,9 +394,9 @@ LADDER: tuple[tuple[str, tuple[str, ...] | str, str, str], ...] = (
     ("commercial.buyer_payer_alignment", LOCK_RULE,
      "Who had to agree when you paid for something like {solution_name}, and what did they need to see?",
      "Who had to agree when you paid for something like {solution_name}, and what did they need to see?"),
-    ("commercial.purchase_friction", ("yes_quick", "not_needed"),
-     "What would slow down buying {solution_name}, if anything?",
-     "What would slow down buying {solution_name}, if anything?"),
+    ("commercial.purchase_friction", LOCK_RULE,
+     "What would take the time in buying {solution_name}?",
+     "What would take the time in buying {solution_name}?"),
     ("commercial.commitment", ("probably_not", "no"),
      "What would you start with instead of {step}?",
      "What would you start with instead of {step}?"),
@@ -400,11 +405,12 @@ RUNGS = tuple(r[0] for r in LADDER)
 #: Keel-cloud 118 FR-4 (`FollowUpBlock.Also`): a rung's second stem, asked on the answers it names (the conditional yes,
 #: the long purchase) -- `{dimension: (on, text template, spoken wording, heading)}`.
 ALSO: dict[str, tuple[tuple[str, ...], str, str, str]] = {
+    # spec 118 (keel-cloud 183 FR-1 / T003): the founder's words, one short question, the clip the same
+    "solution.compatibility": (("yes_with_steps",), "What steps did it take?", "What steps did it take?",
+                               "What steps did it take?"),
     "solution.adoption_friction": (("yes_if_worth_it",), "What would make {solution_name} clearly worth it to you?",
                                    "What would make {solution_name} clearly worth it to you?",
                                    "What would make it clearly worth it?"),
-    "commercial.purchase_friction": (("yes_long",), "What would take the time in buying {solution_name}?",
-                                     "What would take the time in buying {solution_name}?", "What took the time?"),
     "commercial.commitment": (("yes_after_trying",), "What would {smaller_step} have to show you?",
                               "What would {smaller_step} have to show you?",
                               "What would the first step have to show?"),
@@ -519,6 +525,14 @@ class Founder:
     #: keel-cloud 128 FR-21 (`Ladder.Founder.upfrontLow`): an up-front-then price's up-front low, so a two-step pick
     #: below the founder's price on either step is against; None off that shape.
     upfront_low: float | None = None
+    #: Spec 118 FR-2 (keel-cloud 182 FR-3 / FR-5, `PurchaseFriction.longer`): the founder's time beside Purchase
+    #: friction's step, in days -- a band from it on is against; None (a list with no time) reads *a long time*
+    #: (`yes_long`) against.
+    friction_days: int | None = None
+    #: Spec 118 (keel-cloud 183 T004, `FollowUpComposer.saysItsSteps`): whether the tested Compatibility condition's
+    #: *Yes, with some steps* says its steps (a permission or a fact) -- the ability's *Yes, most of the time* names none
+    #: and is owed no second stem.
+    compatibility_steps: bool = True
 
 
 def _founder_floor(low: float) -> float:
@@ -588,6 +602,12 @@ def against(dimension: str, pick, founder: Founder) -> bool:
             if founder.chain_price:
                 return not (floor is not None and floor >= float(founder.price_low))
             return not (floor is not None and floor >= _founder_floor(float(founder.price_low)))
+        if dimension == "commercial.purchase_friction":
+            # spec 118 FR-2 (keel-cloud 182 FR-3): a band from the founder's time on, or with no time *a long time*
+            if founder.friction_days is None:
+                return codes[0] == "yes_long"
+            low = friction_low(codes[0])
+            return low is not None and low >= founder.friction_days
         supports = founder.buyer_supports
         return supports is not None and codes[0] in BUYER_ANSWERS and codes[0] not in supports
     if dimension == "problem.importance":
@@ -613,11 +633,42 @@ def ordered(rungs, first=()) -> tuple[str, ...]:
     return tuple(out + [r for r in rungs if r not in out])
 
 
-def apart(dimension: str, pick) -> bool:
-    """`Ladder.apart`: the answer is one a rung's second stem is asked on (the conditional yes, the long purchase)."""
+def friction_low(code: str | None) -> int | None:
+    """keel-cloud 182 `PurchaseFriction.bounds`: a duration band's low edge in days (`days_A_to_B` A, `days_over_N` N);
+    None for *Under ...*, *It wouldn't be needed* and any other code."""
+    code = str(code or "")
+    if not code.startswith("days_") or code.startswith("days_under_"):
+        return None
+    rest = code[len("days_"):]
+    try:
+        return int(rest[len("over_"):]) if rest.startswith("over_") else int(rest.split("_to_")[0])
+    except ValueError:
+        return None
+
+
+def apart(dimension: str, pick, founder: "Founder | None" = None) -> bool:
+    """`Ladder.apart`: the answer is one a rung's second stem is asked on (the conditional yes). Spec 118 (keel-cloud
+    183 T004): Compatibility's *Yes, with some steps* only where the condition's label says its steps
+    (`Founder.compatibility_steps`)."""
     also = ALSO.get(dimension)
     v = _value(pick)
+    if dimension == "solution.compatibility" and founder is not None and not founder.compatibility_steps:
+        return False
     return also is not None and not v["chip"] and len(v["codes"]) == 1 and v["codes"][0] in also[0]
+
+
+def fewest_first(owed_list: list, failing=(), whys=None) -> list:
+    """Spec 118 (keel-cloud 183 FR-1, `Ladder.fewestFirst`): of the questions a person is owed, in the walk's order, those
+    on a failing line (NOT_HOLDING_UP or PEOPLE_DISAGREE) come first -- the line with the fewest whys so far first, a tie
+    to the earlier line in registry order -- then every other in the walk's order; a person owed nothing on a failing
+    line keeps the walk whole. `whys` is `{rung: whys stored so far}`; nothing here is per dimension."""
+    failing = set(failing or ())
+    whys = whys or {}
+    on = [o for o in owed_list if o[0] in failing]
+    if not on:
+        return list(owed_list)
+    on.sort(key=lambda o: (int(whys.get(o[0], 0)), RUNGS.index(o[0]) if o[0] in RUNGS else len(RUNGS)))
+    return on + [o for o in owed_list if o[0] not in failing]
 
 
 def closes(dimension: str, pick) -> bool:
@@ -628,7 +679,7 @@ def closes(dimension: str, pick) -> bool:
 
 
 def owed(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False, served: set[str] | None = None,
-         first=(), asked=()) -> list[tuple[str, bool]]:
+         first=(), asked=(), failing=(), whys=None) -> list[tuple[str, bool]]:
     """`Ladder.owed` (keel-cloud 118): every question these answers are owed, `(dimension, apart)`, in the walk's order
     -- the deciding lines first, then registry order -- on the rungs the link walks (and, given, the interview serves).
     Spec 075 (keel-cloud 142 FR-1, `FollowUpComposer.ask(..., asked)`): a rung in `asked` is left out."""
@@ -644,29 +695,31 @@ def owed(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False, s
             continue
         if against(dimension, pick, founder):
             out.append((dimension, False))
-        elif apart(dimension, pick):
+        elif apart(dimension, pick, founder):
             out.append((dimension, True))
-    return out
+    return fewest_first(out, failing, whys) if failing else out
 
 
 def first_stem(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False,
-               served: set[str] | None = None, first=(), asked=()) -> tuple[str, bool] | None:
-    """`Ladder.stemOf`: the question the route returns -- the first owed not in `asked` (keel-cloud 142) -- or None."""
-    stems = owed(picks, founder, link, b2b=b2b, served=served, first=first, asked=asked)
+               served: set[str] | None = None, first=(), asked=(), failing=(), whys=None) -> tuple[str, bool] | None:
+    """`Ladder.stemOf`: the question the route returns -- the first owed not in `asked` (keel-cloud 142) -- or None;
+    since keel-cloud 183 the failing line with the fewest whys first (`fewest_first`, `failing` / `whys` given)."""
+    stems = owed(picks, founder, link, b2b=b2b, served=served, first=first, asked=asked, failing=failing, whys=whys)
     return stems[0] if stems else None
 
 
 def first_rung(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False,
-               served: set[str] | None = None, first=(), asked=()) -> str | None:
+               served: set[str] | None = None, first=(), asked=(), failing=(), whys=None) -> str | None:
     """The rung of the question the route returns (`first_stem`), or None (nothing owed). Since keel-cloud 118 the
     deciding lines (`first`) are walked first, and an answer a second stem is asked on is owed too; since 142 a rung
     in `asked` is passed over."""
-    stem = first_stem(picks, founder, link, b2b=b2b, served=served, first=first, asked=asked)
+    stem = first_stem(picks, founder, link, b2b=b2b, served=served, first=first, asked=asked, failing=failing,
+                      whys=whys)
     return stem[0] if stem else None
 
 
 def asks(picks, founder: Founder, order, link: str = "PRIMARY", *, b2b: bool = False, served: set[str] | None = None,
-         first=(), rungs=None, late=()) -> list[dict]:
+         first=(), rungs=None, late=(), failing=(), whys=None) -> list[dict]:
     """Spec 075 (keel-cloud 142 FR-1, keel-web 124 FR-1 / FR-2): the follow-ups the page asks these answers, in the order
     asked -- `[{dimension, also, on}]`, `on` the item's dimension it hangs on (asked on the spot) or None (the end's);
     since keel-web 126 both under the one kicker *One more thing*. The page's own walk, every route answered inside the beat: after each answered item
@@ -684,7 +737,7 @@ def asks(picks, founder: Founder, order, link: str = "PRIMARY", *, b2b: bool = F
     def route(upto: int):
         so_far = [by_dimension[d] for d in order[:upto + 1] if d in by_dimension]
         return first_stem(so_far, founder, link, b2b=b2b, served=served, first=first,
-                          asked=tuple(a["dimension"] for a in out))
+                          asked=tuple(a["dimension"] for a in out), failing=failing, whys=whys)
 
     for i, dimension in enumerate(order):
         last = i == len(order) - 1
@@ -920,18 +973,22 @@ def served_quotes(ids, by_id: dict) -> list[dict]:
 # by a source check once 077 is on master.
 
 #: Design §4.2 (registry `follow_up.heading`; keel-cloud 118: the stem asked on the three friction / commitment rungs):
-#: the rung's heading over its quotes, one a dimension with a question.
+#: the rung's heading over its quotes, one a dimension with a question. Spec 118 FR-4b (keel-cloud 180 T025, 182 FR-5,
+#: 184 T032): every heading in the question's own tense, a question -- registry of record at keel-cloud-docs `f3f0d99e`.
 RUNG_HEADINGS = {
-    "problem.importance": "Why other things come first",
-    "problem.current_solution_satisfaction": "What makes today's way work for them",
-    "solution.compatibility": "What gets in the way",
-    "solution.relative_advantage": "What would have made a difference",
+    "problem.importance": "What made the others more pressing?",
+    "problem.current_solution_satisfaction": "What keeps today's way working?",
+    "solution.compatibility": "What got in the way?",
+    "solution.relative_advantage": "What would have made a difference?",
     "solution.adoption_friction": "What makes that too much?",
-    "commercial.price": "What would make it worth more",
-    "commercial.buyer_payer_alignment": "Who had to agree",
-    "commercial.purchase_friction": "What did slow it down?",
+    "commercial.price": "What would make it worth more?",
+    "commercial.buyer_payer_alignment": "Who would have to agree?",
+    "commercial.purchase_friction": "What would take the time?",
     "commercial.commitment": "What would you start with instead?",
 }
+#: keel-cloud 184 T032 (`InsightView.alsoHeading`): the box's second group, the quotes whose `heading` is a line's second
+#: stem's (Adoption friction, Commitment, Compatibility -- 184 not foreseen 12).
+ALSO_HEADINGS = {key: also[3] for key, also in ALSO.items()}
 #: Design §2 *Rungs with no question* (`no_follow_up`), as the registry carries them since keel-cloud 118 / 115.
 NO_FOLLOW_UP_WHY = {
     "problem.prevalence": "a No at the gate ends the interview",
@@ -940,6 +997,8 @@ NO_FOLLOW_UP_WHY = {
     "commercial.ability_to_pay": "it is read from the cost and the price (or the budget item), never asked of the "
                                  "founder",
 }
+#: keel-web 077's split note -- deleted by keel-web 155 FR-7 (T014: `SPLIT_NOTE` gone; the box draws the served
+#: `statusWord` and `statusLine`), so no box owes it; kept for the record of a page before 155.
 SPLIT_NOTE = "A split, not a no: it fits one group and not the other."
 #: keel-web 095 (spec 064 FR-8b): *In their words* became *In their own words* (RAW only, with the served note);
 #: *Keel is grouping what they said…* while GROUPING; *On their own* for the leftovers; the side marks.

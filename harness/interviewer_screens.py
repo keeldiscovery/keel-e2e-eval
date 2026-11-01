@@ -77,6 +77,7 @@ Every write a press makes returns the response keel-web received, so the leg hol
 from __future__ import annotations
 
 import re
+import time
 
 from playwright.sync_api import Page
 
@@ -89,10 +90,71 @@ PERSONA_NOT_RECORDED = "No interviewer recorded yet."
 TRY_IT_YOURSELF = "Try it yourself"
 TRY_IT_YOURSELF_RECORDING = "Try it yourself · recording"
 TRY_NOTHING_STORED = "Nothing was stored."
-SEND_TEXT_ONLY_LINKS = "Send text-only links"
+#: Spec 118 FR-4c(f) (keel-web 156 FR-2): the text route is *Read and tap* wherever the format is named -- the role
+#: card's primary while the interviewer records (`SEND_TEXT_ONLY_LINKS`, it read *Send text-only links*).
+SEND_TEXT_ONLY_LINKS = "Send read-and-tap links"
 SEND_LINKS = "Send links"
 SEND_FORMAT_RECORDED = "The interviewer is already recorded for this project."
-SEND_FORMAT_RECORDING = "The interviewer is still recording; Text only is ready now."
+#: keel-web 156 FR-2 (T007): renamed (*Read and tap is ready now*) and no longer drawn -- the status line under each row
+#: (`FORMAT_STATUS`) says it; kept for a page before 156. `SEND_FORMAT_RECORDED` the same (still in keel-web's copy).
+SEND_FORMAT_RECORDING = "The interviewer is still recording; Read and tap is ready now."
+SEND_FORMAT_RECORD_ON_PICK = ("The interviewer is recorded when you first pick them, in about five minutes; Read and tap "
+                              "is ready now.")
+#: Spec 118 FR-4c(f) (keel-web 156 FR-2, `FORMAT_STATUS`, `format-status[data-format]`): the line under each option on an
+#: account on Keel's AI -- in place of the bare *recording* tag and the foot sentences.
+FORMAT_STATUS_RECORDING = "Still recording · ready in a few minutes"
+FORMAT_STATUS_READY = "Ready now"
+FORMAT_STATUS = "[data-testid='format-status']"
+SEND_FORMAT_TITLE = "[data-testid='send-format-title']"
+
+
+def format_status_when_ready(face: str) -> str:
+    """keel-web 156 `FORMAT_STATUS.whenReady`: Let them choose while the face records -- *Ready when {Name} is*."""
+    return f"Ready when {face} is"
+
+
+def send_format_title(people: str | None) -> str:
+    """keel-web 156 FR-2 (`sendFormatTitle`): Send more's heading names the people -- the kind's served short form
+    (`labelShort`), *How should they answer?* only where none is served."""
+    return f"How should {people.strip()} answer?" if people and people.strip() else "How should they answer?"
+
+
+#: keel-web 156 FR-1 / FR-2 (`INTERVIEWER_IS`): what the interviewer is -- the lock step's hint opens on it.
+INTERVIEWER_IS = ("Keel's AI interviewer asks each question aloud on video, and every question is also written on the "
+                  "screen, so people can read it and type or tap instead of talking.")
+#: keel-web 156 FR-1 (`BEFORE_SEND_LATER`, `send-later`): the one line under the faces on the lock step.
+BEFORE_SEND_LATER = ("When you send the links you can still offer a read-and-tap interview, where people speak or type "
+                     "into any box, or let each person choose.")
+#: keel-web 156 FR-2 (`SEND_FORMATS_069.TEXT`): the read-and-tap row's line.
+READ_AND_TAP_LINE = ("They read each question and tap their answer. Where there is a box to fill, they can speak into it "
+                     "or type.")
+
+
+def before_interviewer_title(people: str | None) -> str:
+    """keel-web 156 FR-1 (`beforeInterviewerTitle`): *Who should ask {actor_plural} your questions?* -- any length, never
+    *them* but while the context is not read."""
+    return f"Who should ask {(people or '').strip() or 'them'} your questions?"
+
+
+def before_interviewer_sub(face: str, other: str, other_object: str, credits: int | None = None) -> str:
+    """keel-web 156 FR-1 (`beforeInterviewerSub`): the lock step's hint -- what the interviewer is, the face picked and
+    the other, what the recording costs whichever is picked, the text message. *The voice goes with the face* is gone."""
+    cost = "Keel's credits" if credits is None else f"{credits} credits"
+    return (f"{INTERVIEWER_IS} {face} is picked for you; tap {other} to hear {other_object} and switch. Keel records the "
+            f"voice you pick once for this project: {cost}, whichever you choose. People get the link by text message "
+            "either way.")
+
+
+def send_ai_claim(subject: str, plural: bool = False) -> str:
+    """keel-web 156 FR-2 (`sendAiClaim`): the accuracy claim with its subject, no example places."""
+    return (f"{subject[:1].upper()}{subject[1:]} {'catch' if plural else 'catches'} every spoken answer in a quiet room, "
+            "and more than 9 in 10 where it is loud.")
+
+
+def face_hear_line(face: str, seconds: int = 5) -> str:
+    """keel-web 156 FR-1 (`introHear`, `face-hear-line`): *▶ Hear {Name} · 5 s* on both faces of the lock step (the glyph
+    is drawn apart from the words)."""
+    return f"Hear {face} · {seconds} s"
 #: Spec 092 FR-4a (keel-web 131 FR-3, `FORMAT_CREDITS_NOTE`): since 131 the first line under Send more's format rows, on
 #: an account on Keel's AI (`format-credits`), is one interview's price in every way of answering -- in place of spec
 #: 130's AI-only note. `SEND_FORMAT_RECORDED` / `SEND_FORMAT_RECORDING` above are unchanged and still drawn, under it.
@@ -704,13 +766,19 @@ class Persona:
         rows = {}
         for radio in dialog.locator("[role=radiogroup] [role=radio]").all():
             word = radio.locator(".fmt__na")
+            status = radio.locator(FORMAT_STATUS)
             rows[_words(radio.locator(".fmt__name").first)] = {
                 "disabled": radio.is_disabled(), "checked": radio.get_attribute("aria-checked") == "true",
-                "word": _words(word) if word.count() else None}
+                "word": _words(word) if word.count() else None,
+                # spec 118 FR-4c(f) (keel-web 156 T007): the status line under the option, and which option it is
+                "status": _words(status) if status.count() else None,
+                "format": status.first.get_attribute("data-format") if status.count() else None}
         # spec 092 FR-4a: keel-web 131's credits note (`format-credits`) is the first `.hint` under the rows now; the
         # format's state line (recorded / still recording) is read apart from it, and both are kept
         credits = dialog.locator(FORMAT_CREDITS)
+        title = dialog.locator(SEND_FORMAT_TITLE)
         out = {"rows": rows, "hint": _words(dialog.locator(f".hint:not({FORMAT_CREDITS})").first),
+               "title": _words(title) if title.count() else None,
                "credits": _words(credits) if credits.count() else None,
                "hints": [_words(h) for h in dialog.locator(".hint").all()], "text": _words(dialog)}
         dialog.get_by_role("button", name="Cancel", exact=True).first.click()
@@ -958,7 +1026,27 @@ class Player:
                 "preview": _words(sheet.get_by_test_id("ai-preview")),
                 "heard": _words(sheet.get_by_test_id("ai-heard")),
                 "status": _words(sheet.get_by_test_id("ai-status")),
-                "banner": _words(sheet.get_by_test_id("ai-banner")) or None}
+                "banner": _words(sheet.get_by_test_id("ai-banner")) or None,
+                # spec 118 FR-4c(b) (keel-web 156 T015, J-13): which ask the sheet is on (`main`, `under`, `over`,
+                # `plan`, `planUnder`, `planOver`) and, on a second step, the rows greyed and the side's line
+                "ask": sheet.first.get_attribute("data-ask") if sheet.count() else None,
+                "greyed": [_words(o) for o in sheet.locator("[data-testid=ai-options] [data-greyed=true]").all()]}
+
+    def ask(self) -> str | None:
+        """Spec 118 FR-4c(b) (keel-web 156 J-13): the sheet's `data-ask` -- `main` on a question's first ask, `under` /
+        `over` on Price's second step (`planUnder` / `planOver` on the plan's), None where the sheet draws none."""
+        sheet = self.page.get_by_test_id("ai-sheet")
+        return sheet.first.get_attribute("data-ask") if sheet.count() else None
+
+    def wait_ask(self, *asks: str, timeout_s: float = 30) -> str | None:
+        """Until the sheet's `data-ask` is one of `asks` (the second step opened), and which."""
+        deadline = time.monotonic() + timeout_s * self.patience
+        while time.monotonic() < deadline:
+            now = self.ask()
+            if now in asks:
+                return now
+            self.page.wait_for_timeout(100)
+        raise AssertionError({"the sheet never asked": asks, "ask": self.ask(), "question": self.question()})
 
     def say(self, text: str, final: bool = True, *, look: bool = True) -> bool:
         """The stranger speaks into the window the page records (spec 074, keel-web 115 FR-5: the level pulses, then

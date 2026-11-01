@@ -257,6 +257,43 @@ def join_answer(what: str, how: str) -> str:
     return f"{first} {second}" if re.search(r"[.!?]$", first) else f"{first}. {second}"
 
 
+#: Spec 118 FR-2 (keel-web 155 T021): the founder's time beside Purchase friction's picked step on Choose.
+DURATION_INPUT_TESTID = "duration-input"
+DURATION_COUNT_TESTID = "duration-count"
+DURATION_UNIT_TESTID = "duration-unit"
+
+
+def sent_duration(writes: list[dict], dimension: str | None) -> dict | None:
+    """Spec 118 FR-2: the `SavedList.duration` the Choose press's `PUT calibration/{vector}` carried for `dimension`
+    (`{count, unit}`), or None."""
+    for write in reversed(writes or []):
+        body = write.get("body") if isinstance(write, dict) and isinstance(write.get("body"), dict) else {}
+        for answer in body.get("answers") or []:
+            if isinstance(answer, dict) and answer.get("dimension") == dimension:
+                return (answer.get("list") or {}).get("duration") or None
+    return None
+
+
+def distinct_follow_up(line: str | None, typed: list) -> str | None:
+    """Spec 118 FR-4d: the line a follow-up is answered with, or None (*Skip this one*) where this person already typed
+    those words on an earlier follow-up of the same interview -- one scripted line per follow-up, never the same why on
+    two rungs (keel-cloud 180 not foreseen 3: the AirCaps walk filed Walter's Price why under Buyer and payer too)."""
+    if not line:
+        return None
+    said = " ".join(str(line).split()).lower()
+    return None if any(" ".join(str(t or "").split()).lower() == said for t in typed or [] if t) else line
+
+
+def _asked_items(items: list, wire_answers: dict) -> list:
+    from harness import vectors_script as vs                       # noqa: PLC0415
+    return vs.asked_items(items, wire_answers)
+
+
+def _pointed_back(item: dict, wire_answers: dict) -> str | None:
+    from harness import vectors_script as vs                       # noqa: PLC0415
+    return vs.asked_after(item, wire_answers)[1]
+
+
 def served_picked_index(writes: list[dict], dimension: str | None) -> int | None:
     """Spec 116 FR-1: the `pickedIndex` Choose sent for `dimension` -- read off the last 2xx `PUT calibration/{vector}`
     the press kept (the last one where none was answered 2xx), never off the drawn list's position. None where no write
@@ -392,11 +429,10 @@ def pilot_testid(yes: bool) -> str:
 
 
 def l1_title(people: str | None) -> str:
-    """keel-web 130 FR-2 (`beforeInterviewerTitle`): *Who should ask {people} your questions?* while that is at most ten
-    words, else (or with no segment served) *Who should ask them your questions?*. `people` is the context's
-    `segment.core` as a sentence takes it (`cost_line_parts`' reading, keel-web `thePeople`)."""
-    named = f"Who should ask {people} your questions?" if people else None
-    return named if named and len(named.split()) <= 10 else L1_TITLE
+    """keel-web 130 FR-2 (`beforeInterviewerTitle`): *Who should ask {people} your questions?*. Spec 118 FR-4c(f)
+    (keel-web 156 FR-1, T001): `people` is `{actor_plural}` -- the typed WHO in the plural, as keel-cloud fills it -- at
+    any length (130's ten-word cap and its *them* are gone); *them* only with no people to name."""
+    return f"Who should ask {people.strip()} your questions?" if people and people.strip() else L1_TITLE
 
 
 def before_lock_record(face: str) -> str:
@@ -1822,6 +1858,10 @@ class Corridor:
                     "() => (document.querySelector('#idea-how')?.value || '') !== ''", timeout=20_000)
                 reloaded = True
             lines = {line: _value(self.page.locator(f"#idea-{line}")) for line in ("what", "how", "belief")}
+            # spec 118 FR-4c(d) (keel-web 156 FR-3): the second box, *What it is* (`idea-what-it-is`), prefilled with
+            # Keel's suggestion (the mechanism's short name) -- read and accepted as drawn; absent on a page before 156
+            plain = self.page.get_by_test_id("idea-what-it-is")
+            lines["whatItIs"] = _value(plain.first) if plain.count() else None
             what = self.page.locator("#idea-what")
             unnamed = {"value": lines["what"], "placeholder": what.get_attribute("placeholder") or "",
                        "save_enabled": self._primary().is_enabled()}
@@ -1979,8 +2019,9 @@ class Corridor:
         filled["base_help"] = _first_text(page, "#chain-base-help") or None
         if cost["mode"] == "HOURS":
             # keel-web 123 FR-2: the rate (and, while it is Keel's figure, its note) drawn whenever the view carries
-            # `hourlyRate`, directly under the hours row
-            filled["rate"] = _input_value(page, "chain-rate")
+            # `hourlyRate`, directly under the hours row. Spec 118 (keel-cloud 180 FR-9, keel-web 155 FR-8): gone -- the
+            # view serves no rate and the step draws no box, so these read None on a stack at 180
+            filled["rate"] = _input_value(page, "chain-rate") if page.get_by_test_id("chain-rate").count() else None
             filled["rate_note"] = HOURLY_RATE_DEFAULTED if page.locator(
                 ".calib__note", has_text=HOURLY_RATE_DEFAULTED).count() else None
             filled["order"] = page.evaluate("""() => {
@@ -1996,6 +2037,12 @@ class Corridor:
                 page.get_by_test_id("chain-measure-count").click()
                 page.get_by_test_id("chain-count").fill(str(cost.get("measure")))
             page.get_by_test_id("chain-base").fill(str(cost.get("base") or ""))
+            # spec 118 (keel-web 155 T022, keel-cloud 184 FR-8b (c)): the loss line is its own box (`chain-loss`, *What
+            # they lose*, optional), sent as `lossPhrase` as typed -- keel-web 094's one box sent as both is retired
+            loss = page.get_by_test_id("chain-loss")
+            if cost.get("lossPhrase") and loss.count():
+                loss.fill(str(cost["lossPhrase"]))
+            filled["loss"] = _input_value(page, "chain-loss") if loss.count() else None
         elif cost["mode"] == "HOURS" and cost.get("base") and page.get_by_test_id("chain-base").count():
             # keel-web 102 FR-3c (keel-cloud 126 FR-2): on hours the founder says what the hours are spent on, so the
             # strangers' question names it ("how many hours did the daily log take your team?"); typed where the box is
@@ -2270,7 +2317,7 @@ class Corridor:
             h.add_screenshot(self._b.screenshot(f"check-{name}-smaller-step-removed"))
         return label
 
-    def list_choose(self, question: dict, label: str) -> dict:
+    def list_choose(self, question: dict, label: str, duration: dict | None = None) -> dict:
         """*Choose* (FR-006): none pre-picked; the radio named `label` picked; the *Keel will test* box
         read with the pick; the primary (*Continue*, or the stage's exit). Returns what it read.
 
@@ -2282,7 +2329,13 @@ class Corridor:
 
         Spec 117 FR-3 (keel-web 153): the intro over the list (`.corridor__intro`, `intro`) and the *Keel will test*
         box's last line (`keeltest-note`, Compatibility's alone) before and after the pick (`note_before`, `note`) are
-        read; `_keel_test` itself is unchanged (the note is outside `.keeltest__t` and `.keeltest__b`)."""
+        read; `_keel_test` itself is unchanged (the note is outside `.keeltest__t` and `.keeltest__b`).
+
+        Spec 118 FR-2 (keel-web 155 T021, keel-cloud 182 FR-1): where the screen draws the founder's time beside the
+        picked step (`duration-input`, Purchase friction's Choose), `duration` (`{count, unit}`, the entry's own) is typed
+        into `duration-count` and picked in `duration-unit` before the press -- the save sends it as
+        `SavedList.duration`; what the box read back is `seen["duration"]`, what the PUT carried `seen["duration_sent"]`.
+        A screen that draws no box (a keel-web before 155) records `duration_drawn: False`."""
         name = question.get("dimension")
         with self._b.step(f"founder picks the one item strangers are asked about: {label!r} ({name})") as h:
             _wait_url(self.page, r"/choose")
@@ -2295,7 +2348,15 @@ class Corridor:
             empty = self._keel_test()
             note_before = _first_text(self.page, f"[data-testid={KEEL_TEST_NOTE_TESTID}]")
             group.get_by_role("radio", name=label, exact=True).click()
+            drawn_duration = self.page.get_by_test_id(DURATION_INPUT_TESTID)
+            typed_duration = None
+            if duration and drawn_duration.count():
+                self.page.get_by_test_id(DURATION_COUNT_TESTID).first.fill(str(duration["count"]))
+                self.page.get_by_test_id(DURATION_UNIT_TESTID).first.select_option(value=str(duration["unit"]))
+                typed_duration = {"count": _value(self.page.get_by_test_id(DURATION_COUNT_TESTID).first),
+                                  "unit": self.page.get_by_test_id(DURATION_UNIT_TESTID).first.input_value()}
             seen = {"screen": "choose", "frame": self.frame(), "options": options, "label": label,
+                    "duration_drawn": drawn_duration.count() > 0, "duration": typed_duration,
                     "drawn_index": options.index(label) if label in options else None,
                     "picked_before": [i for i, c in enumerate(before) if c == "true"],
                     "test_before": empty, "test": self._keel_test(),
@@ -2312,6 +2373,7 @@ class Corridor:
                 seen["primary"] = self._press_primary()
             seen["writes"] = [_request_row(r) for r in writes]
             seen["served_index"] = served_picked_index(seen["writes"], name)
+            seen["duration_sent"] = sent_duration(seen["writes"], name)
             return seen
 
     # --------------------------------------------------------------------------------- persona
@@ -2565,6 +2627,11 @@ class Corridor:
                 "faces": faces, "carousel": carousel.count() > 0,
                 "button": _safe_text(lambda: button.inner_text()) if button.count() else None,
                 "switch": self.lock_switch(main),
+                # spec 118 FR-4c(f) (keel-web 156 FR-1): *▶ Hear {Name} · 5 s* on both faces and the read-and-tap line
+                # under them (`face-hear-line`, `send-later`), recorded for the readers and held where a step asks
+                "hear_lines": [" ".join((t or "").split()) for t in
+                               self.page.get_by_test_id("face-hear-line").all_inner_texts()],
+                "send_later": _first_text(self.page, "[data-testid=send-later]") or None,
                 "text": " ".join((main.text_content() or "").split())}
 
     def lock_switch(self, main=None) -> dict:
@@ -2798,6 +2865,8 @@ class Interview:
         self._route_responses: list = []
         self._responded = False
         self._late_items = set(late or ())
+        #: Spec 118 FR-2: the pointed-back questions drawn (Ability to pay, keel-cloud 181's `askedAfter`).
+        self.pointed_back: list[dict] = []
         self._hold_next = False
         if self._late_items:
             page.route("**/interview/follow-up", self._held_route)
@@ -2943,6 +3012,11 @@ class Interview:
         if self._line_for and served_rung and served_rung != self._line_for:
             drawn["line_for"] = self._line_for
             line = None
+        line = distinct_follow_up(line, [f.get("typed") for f in self.follow_ups_seen])
+        if line is None and served_rung and self._lines(served_rung):
+            # spec 118 FR-4d (keel-cloud 180 not foreseen 3): the entry carries one why a person; a second follow-up
+            # (spec 142) never gets the first one's words again -- it is skipped, so no quote is filed twice
+            drawn["said_already"] = True
         if line:
             screen.locator("textarea").first.fill(line)
             drawn["continue_enabled_typed"] = cont.is_enabled()
@@ -3177,14 +3251,21 @@ class Interview:
                 # with the idea card (`reveal.afterPart` 0) -- the problem's sentence, the card, the bridge, Continue
                 self._idea(screen="reveal")
                 revealed = True
-            items = part.get("items") or []
+            # spec 118 FR-2 (keel-cloud 181, keel-web 155 T020): an item served `askedAfter` (Ability to pay on a chain
+            # price) is drawn only after a Price answer at or above the founder's price, with that answer's own question
+            # -- any other answer skips it, so the walk does too (`vs.asked_after`)
+            items = _asked_items(part.get("items") or [], wire_answers)
             for i_index, item in enumerate(items):
                 page.locator("h1.iv-q").first.wait_for(state="visible", timeout=20_000)
                 self._keep()
                 self._shot(f"part{part.get('part')}-{item.get('dimension')}")
                 answer = wire_answers.get(item.get("itemId"))
                 stem = _first_text(page, "h1.iv-q") or ""
-                if item.get("text") and stem.strip() and stem.strip() != str(item.get("text")).strip():
+                pointed = _pointed_back(item, wire_answers)
+                if pointed:
+                    self.pointed_back.append({"dimension": item.get("dimension"), "question": pointed, "drawn": stem})
+                if item.get("text") and stem.strip() and stem.strip() not in (str(item.get("text")).strip(),
+                                                                              str(pointed or "").strip()):
                     # the page is not on the item the walk is about to answer: name both, instead of a click that
                     # times out on a chip or radio the screen never drew
                     raise AssertionError(json.dumps({"walk_item": item.get("dimension"), "walk_stem": item.get("text"),
@@ -3745,11 +3826,16 @@ class Answers:
                 if head.count() and not (body.count() and body.first.is_visible()):
                     head.first.click()
                     body.first.wait_for(state="visible", timeout=10_000)
-                said[key] = _first_text(row, ".dimrow__said") or None
+                # spec 118 FR-4 (keel-web 155 T006): the founder's line is not drawn where it is the rule line itself
+                # (Ability to pay off the budget question: `founderSaid` is the counts sentence, `ruleLine` the same) --
+                # the rule line (`dimension-rule`) says it then
+                said[key] = _first_text(row, ".dimrow__said") or _first_text(row, "[data-testid=dimension-rule]") or None
                 # spec 076 FR-1 (keel-cloud 145 FR-1, keel-web 127 FR-5): the row's bars as drawn -- each label and
-                # whether it is muted (`li.dimbar--muted`: not the founder's), and the row's whole words
-                bars[key] = [{"label": _first_text(li, "span"), "muted": "dimbar--muted" in (li.get_attribute("class")
-                                                                                            or "")}
+                # whether it is muted (`li.dimbar--muted`: not the founder's), and the row's whole words. Spec 118 FR-4
+                # (keel-web 155 T008): a sided bar (`li.dimbar[data-side]`) is the founder's on FOR and not on AGAINST
+                bars[key] = [{"label": _first_text(li, "span"), "side": li.get_attribute("data-side"),
+                              "muted": "dimbar--muted" in (li.get_attribute("class") or "")
+                              or li.get_attribute("data-side") == "AGAINST"}
                              for li in row.locator("ul.dimbars li.dimbar").all()]
                 row_text[key] = _words(row)
             text = _text(self.page)

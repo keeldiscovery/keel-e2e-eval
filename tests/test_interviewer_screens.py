@@ -395,7 +395,10 @@ def test_send_mores_credits_note_is_131s_and_read_apart_from_the_state_line():
     assert "export const FORMAT_CREDITS_NOTE = \"" + ivs.FORMAT_CREDITS_NOTE + "\";" in _web("src/lib/translate.ts")
     popup = _web("src/components/interviews/SendMorePopup.tsx")
     assert 'data-testid="format-credits"' in popup
-    assert popup.index("FORMAT_CREDITS_NOTE}") < popup.index("SEND_FORMAT_RECORDED :"), "the note is the first hint"
+    # spec 118 FR-4c(f) re-pin (keel-web 156 T007): the foot sentences (*already recorded* / *still recording*) are no
+    # longer drawn -- each row's status line (`format-status[data-format]`) says it, read by `formats_now` as `status`
+    assert "SEND_FORMAT_RECORDED :" not in popup and 'data-testid="format-status" data-format={option}' in popup
+    assert '"status"' in inspect.getsource(ivs.Persona.formats_now) and ivs.FORMAT_STATUS == "[data-testid='format-status']"
     reader = inspect.getsource(ivs.Persona.formats_now)
     assert '.hint:not({FORMAT_CREDITS})' in reader and '"credits"' in reader
     held = inspect.getsource(interviewer_leg._screens_ready)

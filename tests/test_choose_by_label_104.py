@@ -113,7 +113,8 @@ def test_the_leg_names_the_added_rows_off_the_golden_walk_and_refuses_inside_a_s
     """FR-1 / FR-3 wired into `leg_calibrate`: on every PICKED dimension, the finding off strict, then the pick; a
     refusal recorded in its own step and re-raised."""
     source = inspect.getsource(corpus_scenario.leg_calibrate)
-    picked = source[source.index("if key in vs.PICKED:"):source.index("j.corridor.list_choose(question, label)")]
+    # spec 118 FR-2: the Choose press now hands Purchase friction's time (`duration=`)
+    picked = source[source.index("if key in vs.PICKED:"):source.index("j.corridor.list_choose(question, label, duration=")]
     assert "if not j.strict:\n                _name_keel_added(j, key, question, answer)" in picked
     assert "except vs.VectorsScriptError:" in picked and "(spec 104 FR-1)" in picked and "raise\n" in picked
 

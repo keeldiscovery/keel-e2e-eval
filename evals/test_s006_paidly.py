@@ -134,7 +134,7 @@ def _paidly_extras(j, sample: sample_export.Pending | None = None) -> None:
                          "every stranger's screen that names the idea (keel-cloud 090, D14)",
                          party="participant", kind="assert") as h:
         idea = j.get(j.project("/idea")) or {}
-        card = vs.idea_card(named)
+        card = vs.idea_card(named, idea.get("whatItIs"))       # spec 118 FR-4c(d): keel-cloud 185's composed line
         question = vs.benefit_question(vs.occasion(j.entry), named)
         reveals = {p.person: (j.interviews[p.person].get("reveal") or {}).get("what") for p in primary
                    if j.interviews[p.person].get("reveal")}
@@ -147,7 +147,7 @@ def _paidly_extras(j, sample: sample_export.Pending | None = None) -> None:
                  for p in primary}
         h.record_assert({"what": named, "shortName": named, "card": card, "question": question},
                         {"idea": idea, "reveals": reveals, "openings": openings, "asked": asked, "cards": cards})
-        assert named == "invoice payout service" and card == "Imagine invoice payout service.", (named, card)
+        assert named == "invoice payout service" and card.startswith("Imagine invoice payout service"), (named, card)
         assert idea.get("what") == named and idea.get("shortName") == named, idea
         assert named != j.entry.solution_mechanism["short_name"], named
         assert reveals and set(reveals.values()) == {card}, reveals

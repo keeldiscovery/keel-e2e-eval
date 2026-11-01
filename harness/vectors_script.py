@@ -430,7 +430,8 @@ def chip_of(entry) -> dict | None:
 
 
 def decider_chip(condition: str | None, actor_plural: str | None) -> str | None:
-    """keel-cloud 145 FR-4b / 146 FR-3 (`RespondentQuestionsRules.deciderChip`, mirrored): the decision-maker's screener
+    """**Retired by keel-cloud 185 FR-4** (`deciderChip` and `deciderPeople` gone; kept as the record of what a lock
+    before 185 served -- `decider_condition` no longer reads it). keel-cloud 145 FR-4b / 146 FR-3 (`RespondentQuestionsRules.deciderChip`, mirrored): the decision-maker's screener
     -- the condition in the third person about the people they decide for, named once (`decider_people`): (*Do the
     payroll practitioners you decide for run
     payroll for at least 50 employees?*, *Are the ... you decide for past the beginner stage?*); a condition about the
@@ -505,11 +506,28 @@ def decider_people(clause: str, actor_plural: str | None) -> str:
 def decider_condition(entry) -> dict | None:
     """Spec 076 FR-4 (keel-cloud 145 FR-4b, contract 43 `Interview.condition`): what the decision-maker's link serves
     on a SOMEONE_ELSE study whose context carries a condition -- `{question, inCodes}`, before the idea; None on a
-    study with no condition (or no decision-maker's link)."""
+    study with no condition (or no decision-maker's link). Spec 118 FR-4c(e) (keel-cloud 185 FR-4, revision 21): the
+    question writer writes it (`decider_condition`, one sentence about their own organisation, never *you decide for*;
+    the scripted part-1 job writes the entry's `screeners.decider`, `decider_screener`) and the link serves the writer's;
+    with none written, code asks the condition as part 1 does, said to the decision-maker (`chip_from`) -- never the
+    retired *Do the {people} you decide for ...?* (`decider_chip`)."""
     if not is_b2b(entry):
         return None
-    question = decider_chip(segment_of(entry)["condition"], _ctx(entry).get("actor_plural"))
+    written = decider_screener(entry)
+    if written and segment_of(entry)["condition"]:
+        return {"question": written["question"], "inCodes": [written.get("inside") or "YES"]}
+    question = chip_from(segment_of(entry)["condition"])
     return {"question": question, "inCodes": ["YES"]} if question else None
+
+
+def decider_screener(entry) -> dict | None:
+    """Spec 118 FR-4c(e) (keel-cloud 185 FR-4 / T024): the decision-maker's condition as the question writer wrote it,
+    `{question, inside}` -- the entry's `screeners.decider` (08-fresco, 10-palus, 17-expanse at revision 21); None where
+    the entry records none (code's question then stands)."""
+    found = (getattr(entry, "screeners", None) or {}).get("decider")
+    if not isinstance(found, dict) or not str(found.get("question") or "").strip():
+        return None
+    return {"question": str(found["question"]).strip(), "inside": str(found.get("inside") or "YES")}
 
 
 def _phrase(text) -> str:
@@ -695,9 +713,31 @@ def idea_view(entry) -> dict:
             "how": lines["how"], "belief": lines["belief"]}
 
 
-def idea_card(name: str) -> str:
-    """keel-cloud `IdeaLines.card` (spec 090): the strangers' what line, composed by code -- *Imagine {name}.*"""
-    return f"Imagine {name.strip()}."
+def what_it_is(words: str | None) -> str | None:
+    """keel-cloud 185 `IdeaLines.whatIs`: the plain words cleaned -- stripped, a closing full stop and a leading comma
+    dropped, a capitalised article (*A*, *An*, *The*) lowered; None when blank."""
+    text = " ".join(str(words or "").split())
+    while text.endswith("."):
+        text = text[:-1].strip()
+    while text.startswith(","):
+        text = text[1:].strip()
+    if not text:
+        return None
+    first = text.split(" ")[0]
+    if first in ("A", "An", "The"):
+        text = first.lower() + text[len(first):]
+    return text
+
+
+def idea_card(name: str, what: str | None = None) -> str:
+    """keel-cloud `IdeaLines.card` (spec 090): the strangers' what line, composed by code -- *Imagine {name}.* Spec 118
+    FR-4c(d) (keel-cloud 185 FR-2, `IdeaLines.card(name, whatItIs)`): with the plain words, *Imagine {name}, {what it
+    is}.* -- *Imagine Fresco, notes written from site videos.* -- the name said once where it is the plain words
+    themselves; *Imagine {name}.* where there are none (a project from before 185)."""
+    plain = what_it_is(what)
+    if plain is None or plain.lower() == idea_name_of(name).lower():
+        return f"Imagine {name.strip()}."
+    return f"Imagine {name.strip()}, {plain}."
 
 
 #: keel-cloud 173 `ScaleFour.FRAME`: Relative advantage's tail after the idea's name, the occasion inside it (spec 173
@@ -1153,10 +1193,14 @@ def _loss_missed(ladder, opening, team, loss) -> None:
             forms.append((shorter, ""))
     for said, where in forms:
         for about in (", about how much ", ", how much "):
-            whom = _who(team, said + " " + where)
-            for person in ([whom] if whom == "you" else [whom, "you"]):
-                ladder.append(opening + about + _much(said) + " did " + person + " miss"
-                              + ("" if not where.strip() else " " + where) + "?")
+            # spec 118 (keel-cloud 184 FR-8b (c), `CommercialChain.LOSER`): the person asked is the one who misses it --
+            # *you*, never *your team*
+            ladder.append(opening + about + _much(said) + " did " + LOSER + " miss"
+                          + ("" if not where.strip() else " " + where) + "?")
+
+
+#: keel-cloud 184 FR-8b (c) (`CommercialChain.LOSER`): a loss with the measure's neutral verb is the person's own to miss.
+LOSER = "you"
 
 
 def cost_question(team: bool, occasion, job, cost: dict) -> str:
@@ -1193,7 +1237,7 @@ def cost_question(team: bool, occasion, job, cost: dict) -> str:
             loss = None
         if not share:
             _loss_count(ladder, opening, team, loss)
-            ladder.append(f"{opening}, about how many {measure.strip()} did {_who(team, None)} miss?")
+            ladder.append(f"{opening}, about how many {measure.strip()} did {LOSER} miss?")
         else:
             loss_open = f"On your last {noun}" if not team and noun is not None else opening
             openings = [opening] if loss_open == opening else [loss_open, opening]
@@ -1205,8 +1249,8 @@ def cost_question(team: bool, occasion, job, cost: dict) -> str:
                     _loss_missed(ladder, each, team, loss)
             if base is not None:
                 ladder.append(opening + (", about what share of " if count_noun(base) else ", about how much of ")
-                              + base + " did " + _who(team, base) + " miss?")
-        ladder.append(f"{opening}, about how much did {_who(team, None)} miss?")
+                              + base + " did " + LOSER + " miss?")
+        ladder.append(f"{opening}, about how much did {LOSER} miss?")
         return _held(ladder)
     if over == "each" and noun is not None:
         thing = base if base is not None else "it"
@@ -1466,8 +1510,9 @@ def founder_rungs(entry) -> int:
     key = "problem.current_solution_satisfaction"
     saved = founder_list(entry, key)
     labels = [i["label"] for i in saved["items"]]
-    text = answer_text(entry, key)
-    return sum(1 for label in labels if label in text.split("; "))
+    # spec 118 (keel-cloud 184 FR-8b (a)): the rungs are typed in the second box, *how it goes*, as its own sentence
+    how = current_solution_boxes(entry)[1]
+    return sum(1 for label in labels if label in how.rstrip(".").split("; "))
 
 
 def _same_words(a: str | None, b: str | None) -> bool:
@@ -1507,8 +1552,20 @@ def saved_list(entry, key: str) -> dict:
             out["asked"] = item["asked"]
         items.append(out)
     picked = saved.get("picked")
-    return {"items": items, "pickedIndex": int(picked) if key in PICKED and picked is not None else None,
-            "phrase": bare_phrase(saved.get("phrase")) if key == "problem.current_solution_satisfaction" else None}
+    out = {"items": items, "pickedIndex": int(picked) if key in PICKED and picked is not None else None,
+           "phrase": bare_phrase(saved.get("phrase")) if key == "problem.current_solution_satisfaction" else None}
+    if key == PURCHASE_FRICTION_KEY and founder_duration(entry):
+        # spec 118 FR-2 (keel-cloud 182 FR-1): the founder's time beside the step, `SavedList.duration`
+        out["duration"] = founder_duration(entry)
+    return out
+
+
+def founder_duration(entry) -> dict | None:
+    """Spec 118 FR-2 (keel-cloud 182 FR-1, revision 20): the founder's expected time beside Purchase friction's picked
+    step, `{count, unit}` as the wire takes it -- the entry's own (08-fresco 2 WEEKS, 10-palus 4 WEEKS, 17-expanse 6
+    WEEKS); None where the entry names none (the list is saved with no time and served the fixed three)."""
+    found = entry.duration() if hasattr(entry, "duration") else None
+    return found.as_wire() if found else None
 
 
 #: keel-web's Answer box on a list dimension: *Up to 25 words* (the founder's words Keel drafts the list from).
@@ -1556,6 +1613,35 @@ def _answer_labels(entry, key: str) -> list[str]:
     return labels
 
 
+def current_solution_boxes(entry) -> tuple[str, str]:
+    """Spec 118 (keel-cloud 184 FR-8b (a), keel-web 150's two boxes): Current solution's Answer as the founder types it
+    -- the first box *what they do*, their own words for today's way (the list's phrase as a sentence of its own, *Getting
+    the day into the log.*), the second box *how it goes*, its own sentence (the outcomes the founder names, as many
+    whole ones as fit the box's 25 words, *Log done on site, nothing left over; done in the trailer in under an hour.*).
+    Never the phrase and the labels run together by *"; "* -- with no full stop keel-web's split put all of it in the
+    first box and left the second empty (cycle 4's run-together Answer)."""
+    key = "problem.current_solution_satisfaction"
+    saved = founder_list(entry, key)
+    phrase = bare_phrase(saved.get("phrase")) or ""
+    what = _stopped(phrase) if phrase else ""
+    # the outcomes the Answer names are the ones it always named (the phrase and the labels within the box's 25 words,
+    # so keel-cloud 117's `founder_rungs` -- the leading rungs typed, kept verbatim -- is unchanged), now in their own box
+    labels = [i["label"] for i in saved["items"]]
+    named, typed = [], str(saved.get("phrase") or "").strip()
+    for label in labels:
+        if _words("; ".join([typed] + named + [label])) > ANSWER_MAX_WORDS:
+            break
+        named.append(label)
+    how = "; ".join(named)
+    return what, _stopped(how) if how else ""
+
+
+def _stopped(text: str) -> str:
+    """One sentence: its first letter raised, one closing full stop."""
+    said = _sentence(text).rstrip(".").strip()
+    return f"{said}." if said else ""
+
+
 def answer_text(entry, key: str) -> str:
     """The founder's words on a list dimension's Answer screen (at most 25): the list's own labels, joined,
     as many whole ones as fit -- r10 records the list the Answer was drafted from, not the Answer (COMPOSED).
@@ -1568,7 +1654,10 @@ def answer_text(entry, key: str) -> str:
         # names fewer than the list holds and the founder types the rest on the Check screen (`IMPORTANCE_NAMED`).
         labels = importance_named(entry)
     if key == "problem.current_solution_satisfaction" and saved.get("phrase"):
-        labels = [saved["phrase"]] + labels
+        # spec 118 (keel-cloud 184 FR-8b (a)): the two boxes, each its own sentence (`current_solution_boxes`), as one
+        # Answer text the page splits at the first full stop (keel-web 150 `splitAnswer` / `joinAnswer`)
+        what, how = current_solution_boxes(entry)
+        return f"{what} {how}".strip()
     if not labels:
         return "Nobody"
     text = labels[0]
@@ -1766,7 +1855,9 @@ def calibration_answers(entry, vector: str) -> list[CalibrationAnswer]:
                                     "unit": f"{_UNIT_WORDS[window.unit][1]} out of {window.count}"}
         elif key == "commercial.existing_sacrifice" and chain_mod.cost_in_chain(answer):
             # spec 064 FR-2 (keel-cloud 115): a chain cost posts every field the entry carries
-            body["cost"] = {k: answer[k] for k in sorted(chain_mod.CHAIN_FIELDS_COST) if answer.get(k) is not None}
+            # spec 118 (keel-cloud 180 FR-9, contract 50): `CalibrationAnswer.cost.rate` is gone -- hours stay hours
+            body["cost"] = {k: answer[k] for k in sorted(chain_mod.CHAIN_FIELDS_COST - {"rate"})
+                            if answer.get(k) is not None}
         elif key == "commercial.existing_sacrifice":
             body["cost"] = {k: answer[k] for k in ("mode", "low", "high", "period") if k in answer}
             if answer.get("rate") is not None:
@@ -1782,6 +1873,8 @@ def calibration_answers(entry, vector: str) -> list[CalibrationAnswer]:
                             "pickedIndex": saved["pickedIndex"]}
             if saved["phrase"]:
                 listed["phrase"] = saved["phrase"]
+            if saved.get("duration"):
+                listed["duration"] = saved["duration"]
             body["list"] = listed
             text = answer_text(entry, key)
         elif isinstance(answer, (str, list)):
@@ -1859,6 +1952,11 @@ def respondent_result(entry, part: int, link: str) -> dict:
     chip = chip_of(entry)
     if chip and part == 1 and link == LINK_PRIMARY:
         out["condition"] = chip
+        # spec 118 FR-4c(e) (keel-cloud 185 FR-4, T018): on a study where someone else decides, the part-1 job writes the
+        # decision-maker's clause beside the chip -- the entry's recorded one, where it records one
+        decider = decider_screener(entry) if is_b2b(entry) else None
+        if decider:
+            out["decider_condition"] = decider
     return out
 
 
@@ -2408,9 +2506,16 @@ def founder_side(entry, *, line: int | None = None):
     # keel-cloud 128 FR-21: an up-front-then price is held on both steps -- the up front's own low as well
     upfront = float(price["upfrontLow"]) if chain and chain_mod.two_steps(price) and price.get("upfrontLow") is not None \
         else None
+    # spec 118 FR-2 (keel-cloud 182): Purchase friction's rung reads the founder's time; (183 T004) Compatibility's
+    # second stem only where *Yes, with some steps* says its steps -- a permission's or a fact's, never an ability's
+    duration = entry.duration() if hasattr(entry, "duration") else None
+    tested = entry.tested("solution.compatibility") or {}
+    from instructions import spoken as spoken_mod                     # noqa: PLC0415
+    steps = spoken_mod.condition_kind(tested.get("asked"), tested.get("label")) != "ABILITY" if tested else True
     return fake.Founder(importance_item=wire_code("problem.importance", 0) if importance and importance["items"]
                         else None, price_low=low, buyer_supports=supports, chain_price=chain, current_line=line,
-                        upfront_low=upfront)
+                        upfront_low=upfront, friction_days=duration.days() if duration else None,
+                        compatibility_steps=steps)
 
 
 _THIRD = re.compile(r"\b(they're|they've|they'd|they'll|theirs|their|themselves|they)\b", re.IGNORECASE)
@@ -2821,7 +2926,7 @@ WHOLE_TEXT = "{whole_text}"
 
 
 def follow_up_plan(entry, picks: list, link: str, interview: dict, token: str, first=(), *,
-                   line: int | None = None, late=()) -> list[dict]:
+                   line: int | None = None, late=(), failing=(), whys=None) -> list[dict]:
     """Spec 075 (keel-cloud 142, keel-web 124): every follow-up the page asks these picks on this link, in the order
     asked -- each `follow_up_question`'s `{dimension, text, spoken, also}` and `on`, the served item's dimension it is
     asked right after, or None for the end's (both under *One more thing* since keel-web 126). At most two (`fake.asks`, the page's
@@ -2832,8 +2937,10 @@ def follow_up_plan(entry, picks: list, link: str, interview: dict, token: str, f
     order = [i.get("dimension") for part in interview.get("parts") or [] for i in part.get("items") or []]
     rungs = [f.get("dimension") for f in interview.get("followUps") or []] or None
     founder = founder_side(entry, line=line)
+    # spec 118 (keel-cloud 183): the asked items are the page's (an `askedAfter` item skipped is no item), and the
+    # failing line with the fewest whys so far goes first (`failing` / `whys`, read off the run by the walk)
     plan = fake.asks(picks, founder, order, link, b2b=is_b2b(entry), served=set(order), first=first, rungs=rungs,
-                     late=late)
+                     late=late, failing=failing, whys=whys)
     out = []
     for asked in plan:
         question = follow_up_question(entry, picks, link, interview, token, first, line=line,
@@ -3608,6 +3715,65 @@ def inputs_json(entry, founder: FounderInputs, people: list[PersonInputs]) -> di
 
 
 # ------------------------------------------------------------------------------------------- main
+
+# ------------------------------------------------- spec 118 FR-2 / FR-4c(b): the items the page asks, and how
+
+def asked_after(item: dict, answers_by_item: dict) -> tuple[bool, str | None]:
+    """Spec 118 FR-2 (keel-cloud 181 FR-1 / T003, keel-web 155 T020 `askedAfterQuestion`): whether the page asks `item`
+    of this person, and the question it shows in place of the item's. An item served `askedAfter {itemId, answers}`
+    (Ability to pay on a chain study with a price) is asked only where the person's answer to `itemId` sends exactly one
+    entry's `optionIds`, in order -- that entry's `question` (*You said about {their band}. ...*) is drawn; any other
+    answer (a lower band, *I wouldn't pay for this*, the escape, none) skips it: no screen, nothing said, no answer
+    sent. An item with no `askedAfter` is asked of everyone who reaches it: `(True, None)`. `answers_by_item` is
+    `{itemId: wire answer}` (`PersonInputs.response`'s `answers`)."""
+    after = (item or {}).get("askedAfter")
+    if not isinstance(after, dict):
+        return True, None
+    sent = (answers_by_item.get(after.get("itemId")) or {}).get("optionIds") or []
+    for answer in after.get("answers") or []:
+        if list(answer.get("optionIds") or []) == list(sent) and sent:
+            return True, answer.get("question")
+    return False, None
+
+
+def asked_items(items: list, answers_by_item: dict) -> list:
+    """The items of a part the page draws for this person, in order -- `asked_after` applied (spec 118 FR-2)."""
+    return [i for i in items or [] if asked_after(i, answers_by_item)[0]]
+
+
+def two_steps_of(item: dict) -> dict | None:
+    """Spec 118 FR-4c(b) (keel-cloud 185 FR-3, keel-web 156 T013 `twoStepsOfItem`): a ladder asked in two steps -- its
+    spoken form `two_steps` over six options with the second step's lines served (`spoken.under` / `over`) -- as
+    `{under: [band 1, band 2], middle: band 3, over: [band 4, band 5], close: option 6, phrases: step one's four, under_line,
+    over_line}`; the phrases are the served `optionsLine` split (*Under $800 · $800 to under $2,500 · $2,500 or more ·
+    or you wouldn't pay for this*). None on any other item (a lock from before 185 serves no lines: one ask)."""
+    spoken = (item or {}).get("spoken") or {}
+    labels = [o.get("label") for o in (item or {}).get("options") or []]
+    if spoken.get("transform") != "two_steps" or len(labels) != 6 or not spoken.get("under") or not spoken.get("over"):
+        return None
+    line = str(spoken.get("optionsLine") or "").strip()
+    line = line[:-1] if line.endswith(".") else line
+    phrases = [p.strip() for p in line.split("; ")]
+    if phrases and phrases[-1].startswith("or "):
+        phrases[-1] = phrases[-1][3:]
+    return {"under": labels[:2], "middle": labels[2], "over": labels[3:5], "close": labels[5],
+            "phrases": phrases, "under_line": spoken.get("under"), "over_line": spoken.get("over")}
+
+
+def step_one(item: dict, label: str) -> tuple[str, str | None]:
+    """What the person says at Price's first step to give `label`, and the side it opens (`under` / `over`) or None
+    where the first step is the answer (the middle band, *I wouldn't pay for this*): a band on a side is said as step
+    one's phrase for that side (*Under $800*, *$2,500 or more*) -- the voice asks the two bands next
+    (`ai-sheet[data-ask=under|over]`), where the band itself is said. An item not in two steps: the label, at once."""
+    steps = two_steps_of(item)
+    if steps is None or len(steps["phrases"]) < 3:
+        return label, None
+    if label in steps["under"]:
+        return steps["phrases"][0], "under"
+    if label in steps["over"]:
+        return steps["phrases"][2], "over"
+    return label, None
+
 
 def _main(argv: list[str]) -> int:
     from stack.config import load_config

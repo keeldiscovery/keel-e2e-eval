@@ -142,7 +142,7 @@ class _ChainPage:
         self.mode = self.period = None
         self.log: list[tuple[str, str]] = []
         self.values = {"chain-unit": "superintendent", "chain-base": "job", "chain-rate": "80", "chain-low": "",
-                       "chain-high": "", "chain-count": ""}
+                       "chain-high": "", "chain-count": "", "chain-loss": ""}
         self.texts = {"#chain-unit-help": vs_screens.CHAIN_UNIT_HELP, "[data-testid=chain-equation]":
                       "40 to 80 hours of job · per superintendent · a month", "[data-testid=chain-per]":
                       "per superintendent · a month", ".calib__note": vs_screens.HOURLY_RATE_DEFAULTED,
@@ -166,6 +166,9 @@ class _ChainPage:
             return self.mode in ("HOURS", "RATE")
         if key in ("chain-rate", ".calib__note"):
             return self.mode == "HOURS"
+        if key == "chain-loss":
+            # spec 118 (keel-web 155 T022): the loss line's own box on *A share they lose*
+            return self.mode == "RATE"
         raise AssertionError(f"the double draws no {key}")
 
     def press(self, key: str) -> None:

@@ -69,7 +69,8 @@ def test_the_rung_is_161s_and_says_the_phrase():
     rung = fake.rung(CUR)
     assert rung[2] == rung[3] == "You said {phrase} works for you. What keeps it working?"
     assert fake.FILL_DEFAULTS["{phrase}"] == "the way you do it"
-    assert fake.LADDER_SHA == "b009fac8"
+    # spec 118 re-pin: the copy follows keel-cloud 182 / 183 / 184 (keel-cloud-docs f3f0d99e); 161's rung is unchanged
+    assert fake.LADDER_SHA == "f3f0d99e"
 
 
 def test_lullabys_rung_is_161s_worked_example():

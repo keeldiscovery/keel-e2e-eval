@@ -600,9 +600,11 @@ def _screens_recording(j, wire: _Wire, record: dict) -> None:
         record.setdefault("screens", {})["S1"] = line["text"]
         record["screens_drawn"] = {"S1": {"line": line, "cards": cards, "formats": formats}}
         name = fake.FACE_NAMES[FIRST_FACE]
+        # spec 118 FR-4c(f) (keel-web 156 FR-2, T007): while it records the two face rows are greyed with the status line
+        # *Still recording · ready in a few minutes*, Read and tap *Ready now*; no foot sentence, no bare tag
         h.record_assert({"line": f"{ivs.persona_asks(name)} {ivs.PERSONA_RECORDING}", "try": ivs.TRY_IT_YOURSELF_RECORDING,
-                         "primary": ivs.SEND_TEXT_ONLY_LINKS, "greyed": iv.FORMAT_RECORDING,
-                         "hint": ivs.SEND_FORMAT_RECORDING}, record["screens_drawn"]["S1"])
+                         "primary": ivs.SEND_TEXT_ONLY_LINKS, "greyed": ivs.FORMAT_STATUS_RECORDING,
+                         "ready": ivs.FORMAT_STATUS_READY}, record["screens_drawn"]["S1"])
         if line.get("state") != "RECORDING":
             return                                         # READY landed while the screen was read
         assert ivs.persona_asks(name) in line["text"] and ivs.PERSONA_RECORDING in line["text"], line
@@ -612,7 +614,10 @@ def _screens_recording(j, wire: _Wire, record: dict) -> None:
         assert all(c["primary"] == ivs.SEND_TEXT_ONLY_LINKS for c in cards), cards
         rows = formats["rows"]
         assert rows.get(iv.TEXT_ONLY, {}).get("disabled") is False, rows
-        assert all(r["disabled"] and r["word"] == iv.FORMAT_RECORDING for n, r in rows.items() if n != iv.TEXT_ONLY), rows
+        assert rows.get(iv.TEXT_ONLY, {}).get("status") == ivs.FORMAT_STATUS_READY, rows
+        assert all(r["disabled"] for n, r in rows.items() if n != iv.TEXT_ONLY), rows
+        assert rows.get(iv.ai_format_name(name), {}).get("status") == ivs.FORMAT_STATUS_RECORDING, rows
+        assert rows.get(iv.CHOICE_NAME, {}).get("status") == ivs.format_status_when_ready(name), rows
 
 
 def _screens_ready(j, wire: _Wire, record: dict) -> None:
@@ -635,7 +640,7 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
         h.record_assert({"line": "Recorded today at", "action": ivs.change_who_asks(fake.CREDITS),
                          "try": ivs.TRY_IT_YOURSELF, "primary": ivs.SEND_LINKS,
                          "formats": [iv.ai_format_name(name), iv.TEXT_ONLY, iv.CHOICE_NAME],
-                         "hint": ivs.SEND_FORMAT_RECORDED, "credits": ivs.FORMAT_CREDITS_NOTE, "row words": None},
+                         "status": ivs.FORMAT_STATUS_READY, "credits": ivs.FORMAT_CREDITS_NOTE, "row words": None},
                         {"S2": record["screens_drawn"]["S2"], "S3": formats})
         assert "Recorded today at" in line["text"] and line.get("action") == ivs.change_who_asks(fake.CREDITS), line
         assert all(c["try"] and c["try"]["enabled"] and c["try"]["text"] == ivs.TRY_IT_YOURSELF for c in cards), cards
@@ -646,7 +651,8 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
         # `.hint` -- s006 of 2026-10-30 read it where the state line was); the state line is still *already recorded*;
         # no row carries a greyed word (*needs Keel's credits* is the own-AI word, and this founder is on Keel's door)
         assert formats["credits"] == ivs.FORMAT_CREDITS_NOTE, formats
-        assert formats["hint"] == ivs.SEND_FORMAT_RECORDED, formats
+        # spec 118 FR-4c(f) (keel-web 156 T007): *already recorded* is no longer drawn -- every row says *Ready now*
+        assert all(r.get("status") == ivs.FORMAT_STATUS_READY for r in formats["rows"].values()), formats["rows"]
         assert all(r["word"] is None for r in formats["rows"].values()), formats["rows"]
     with j.recorder.step("interviewer (W1, spec 059 FR-2): the replay reading retires -- keel-web 088 removed *How it "
                          "works* from Sent, and no control of that name is left on the page", party="founder",
@@ -1655,6 +1661,14 @@ class _Walk:
         #: decision-maker's AI walk asks none (keel-web 127 FR-2 / 145 FR-3).
         self.screener = (vs_screens.screener_of(interview) if interview.get("kind") == "FULL" else None) or {}
         self.items = {i.get("question"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
+        # spec 118 FR-2 (keel-cloud 181, keel-web 155 T020): Ability to pay's item, where served `askedAfter`, shows the
+        # pointed-back question of the person's own Price answer under the avatar -- that question is the item too
+        for item in list(self.items.values()):
+            for pointed in ((item.get("askedAfter") or {}).get("answers") or []):
+                if pointed.get("question"):
+                    self.items.setdefault(pointed["question"], item)
+        #: Spec 118 FR-4c(b): Price's two steps as met -- `{itemId: {said, side, ask, then}}`.
+        self.two_steps: dict[str, dict] = {}
         self.order = [i.get("itemId") for part in interview.get("parts") or [] for i in part.get("items") or []]
         self.by_id = {a["itemId"]: a for a in expected.get("answers") or []}
         self.expected = expected
@@ -2318,7 +2332,22 @@ class _Walk:
                 self.how[item["itemId"]] = "TYPED"
             _wait_next(p, entry["question"])
             return
-        labels = [options[o] for o in ans.get("optionIds") or []]
+        labels = [options[o] for o in ans.get("optionIds") or [] if o in options]
+        if item.get("plan") and len(ans.get("optionIds") or []) == 2:
+            # spec 118 FR-4c(b) (keel-cloud 185 FR-3 / T015, keel-web 156 T013-T015): up front, then the plan -- the
+            # thing's ladder in its two steps, then the plan's the same way, read on the page (`data-ask` plan,
+            # planUnder / planOver); the stored answer is the one-off's id, then the plan's
+            plan = item["plan"]
+            plan_labels = {o["optionId"]: o["label"] for o in plan.get("options") or []}
+            self.how[item["itemId"]] = SPOKEN_HOW
+            self.ladder(entry, item, labels[0], labels_shown, ("under", "over"), then_wait=False)
+            p.wait_ask("plan")
+            plan_item = {"itemId": f"{item['itemId']}#plan", "spoken": plan.get("spoken") or {},
+                         "options": plan.get("options") or []}
+            self.ladder(entry, plan_item, plan_labels[ans["optionIds"][1]], list(plan_labels.values()),
+                        ("planUnder", "planOver"), then_wait=False)
+            _wait_next(p, entry["question"])
+            return
         assert len(labels) == 1, {"item": item["dimension"], "answer": ans}
         meant = labels[0]
         index = labels_shown.index(meant)
@@ -2377,8 +2406,41 @@ class _Walk:
             self.held(entry, meant, item=item, meant=meant, labels=labels_shown)
             _wait_next(p, entry["question"])
             return
+        if self.price_in_two_steps(entry, item, meant, labels_shown):
+            return
         self.held(entry, meant, item=item, meant=meant, labels=labels_shown)   # the option's own words
         _wait_next(p, entry["question"])
+
+    def price_in_two_steps(self, entry: dict, item: dict, meant: str, labels: list[str]) -> bool:
+        """Spec 118 FR-4c(b) (keel-cloud 185 FR-3, keel-web 156 FR-5): Price on the AI link as the voice asks it -- a band
+        on a side is said as step one's phrase for that side (`vs.step_one`: *Under $800*, *$2,500 or more*), held as a
+        side (its two rows lit, nothing stored), then the second step (`ai-sheet[data-ask=under|over]`, the side's line
+        and its two rungs, the other four greyed) answered with the band itself. The middle band, *I wouldn't pay for
+        this* and a ladder served in one step (a lock before 185) are answered at once: False, nothing done."""
+        if vs.step_one(item, meant)[1] is None:
+            return False
+        self.ladder(entry, item, meant, labels, ("under", "over"))
+        return True
+
+    def ladder(self, entry: dict, item: dict, meant: str, labels: list[str], asks: tuple[str, str], *,
+               then_wait: bool = True) -> None:
+        """One ladder as the voice asks it (`price_in_two_steps`; the plan with `asks` planUnder / planOver): step one's
+        side phrase held, the second step's ask awaited, the band said; or the label at once where step one is the
+        answer."""
+        p = self.player
+        said, side = vs.step_one(item, meant)
+        if side is None:
+            self.held(entry, meant, item=None, meant=meant, labels=labels)
+        else:
+            self.held(entry, said, item=None, meant=said, labels=labels)
+            ask = p.wait_ask(asks[0] if side == "under" else asks[1])
+            sheet = p.sheet()
+            self.two_steps[item["itemId"]] = {"said": said, "side": side, "ask": ask, "greyed": sheet.get("greyed"),
+                                             "line": " ".join((p.second_ask() or "").split()) or None, "then": meant}
+            entry["did"].append(f"said {said!r} (step one, the {side} side), then {meant!r} at the second step")
+            self.held(entry, meant, item=None, meant=meant, labels=[o["label"] for o in sheet["options"]])
+        if then_wait:
+            _wait_next(p, entry["question"])
 
 
 def _step_after(player, question: str | None, *, timeout_s: float = 30) -> dict:

@@ -173,6 +173,8 @@ class Journey:
     standings: dict = field(default_factory=dict)    # the last GET standings
     #: The idea's name every later question uses, as the wire stored it after S2 (`IdeaView.shortName`, keel-cloud 090).
     idea_name: str = ""
+    #: Spec 118 FR-4c(d): `IdeaView.whatItIs` after S2 -- the card's *Imagine {name}, {what it is}.*
+    idea_what_it_is: str | None = None
     #: The lock's receipt (`LockReceipt`), as keel-web received it from `POST lock`.
     receipt: dict = field(default_factory=dict)
     #: The stack and the identity the founder signed in as (spec 043: the contacts leg reads the ledger and stands the
@@ -1606,6 +1608,9 @@ def leg_interpret_solution(j: Journey) -> None:
                 seen["lines"], want)
             assert idea.get("shortName") == vs.idea_name(j.entry), (idea, vs.idea_name(j.entry))
         j.idea_name = str(idea.get("shortName") or "")
+        # spec 118 FR-4c(d) (keel-cloud 185 FR-2, keel-web 156 FR-3): the plain words of what it is, Keel's suggestion the
+        # walk accepted (or the founder's own), which the strangers' card composes beside the name
+        j.idea_what_it_is = idea.get("whatItIs")
         # spec 064 FR-5b (keel-cloud 121 J1, keel-web 097): the idea's notes are recomputed on every read and never
         # refuse. Spec 107 (keel-cloud 175): a word the founder typed is never noted -- 05-paidly's scripted how says
         # *platform*, but so does its own solution seed, so its card carries no J1 note, like every other golden card
@@ -2098,7 +2103,10 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                     h.record_assert({"picked": _typed_labels(answer)[(answer.listed or {}).get("pickedIndex") or 0]},
                                     {"drafted": _drafted_labels(question)})
                     raise
-            seen.append(j.corridor.list_choose(question, label))
+            # spec 118 FR-2 (keel-cloud 182 FR-1, keel-web 155 T021): Purchase friction's Choose takes the founder's time
+            # beside the step -- the entry's own `duration`, sent on the save
+            duration = vs.founder_duration(j.entry) if key == vs.PURCHASE_FRICTION_KEY else None
+            seen.append(j.corridor.list_choose(question, label, duration=duration))
             seen[-1]["row"] = row       # spec 116 FR-1: the drafted row the label was found at
         j.framing[key] = seen
     refused = j.corridor.conflicts[conflicts:]
@@ -2193,11 +2201,9 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         h.record_assert([], faults)
         assert not faults, json.dumps(faults, indent=2)
 
-    cost = j.entry.cost() or {}
-    if vector == "COMMERCIAL" and j.founder.hourly_rate is not None and (not j.entry.chain()
-                                                                          or cost.get("mode") == "HOURS"):
-        # spec 064 FR-2: on the chain only an HOURS cost is priced at a rate; off it, every B2B entry as before
-        _hourly_rate(j)
+    # spec 118 (keel-cloud 180 FR-9, keel-web 155 FR-8): the hourly rate is gone -- `CalibrationView.hourlyRate`, the PUT
+    # body's `hourlyRate` (a rate alone is 422) and the cost step's rate box; hours stay hours, priced nowhere, so the
+    # walk sets no rate (`_hourly_rate` is kept for a stack before 180, never called)
     # the 097 F9 probe writes the entry's own Importance labels over Keel's draft through the API; on the back-test
     # (spec 062, `retries` set) what Keel drafted is the finding, so the probe is skipped (062 follow-up, 2026-10-22:
     # the 08-fresco and 10-palus judges saw the founder approve one list and strangers served another)
@@ -3008,7 +3014,13 @@ def _answer_the_refused_lock(j: Journey, drawn: dict) -> dict:
 
 
 def l1_title_owed(j: Journey) -> str:
-    """Spec 090 FR-4 (keel-web 130 FR-2): L1's title names the context's people while it fits ten words."""
+    """Spec 090 FR-4 (keel-web 130 FR-2): L1's title names the context's people. Spec 118 FR-4c(f) (keel-web 156 FR-1):
+    the people are `{actor_plural}` -- the entry's `context.actor_plural`, which keel-cloud fills and keel-web 156 derives
+    from the typed WHO (`peoplePlural`, equal on the solution fixtures) -- at any length; the segment only where the
+    entry names no plural."""
+    plural = str((j.entry.context or {}).get("actor_plural") or "").strip()
+    if plural:
+        return vs_screens.l1_title(plural)
     context = j.get(j.project("/context")) or {}
     return vs_screens.l1_title(vs_screens._sentence_lower(((context.get("segment") or {}).get("core"))))
 
@@ -3252,7 +3264,7 @@ def leg_invite(j: Journey) -> None:
         assert len(set(j.tokens.values())) == len(j.people), j.tokens
         assert [r.get("personName") for r in wire] == [p.person for p in j.people][::-1], wire
         assert [r.get("Who") for r in drawn] == [r.get("personName") for r in wire], drawn
-        assert {r.get("Format") for r in drawn} == {"Text"}, drawn
+        assert {r.get("Format") for r in drawn} == {iv_screens.READ_AND_TAP}, drawn   # keel-web 156: *Text* -> *Read and tap*
         assert all((r.get("Status") or "").startswith(iv_screens.REGISTER_STATUS["SENT"]) for r in drawn), drawn
     if j.teach is not None:
         # spec 059: Sent's order and the role counts (G15, G17), the links table (G16), Sent's pill (G14)
@@ -3376,6 +3388,30 @@ def _deciding_now(j: Journey) -> list[str]:
     if not hasattr(j, "get") or not hasattr(j, "project"):
         return []
     return fake.deciding_lines(j.get(j.project("/standings")) or {})
+
+
+def _failing_now(j: Journey) -> set:
+    """Spec 118 (keel-cloud 183 FR-1, `FollowUpComposer.failing`): the lines failing in the standings as they stand --
+    NOT_HOLDING_UP or PEOPLE_DISAGREE -- read off the wire; none where no project is read (a stub)."""
+    if not hasattr(j, "get") or not hasattr(j, "project"):
+        return set()
+    out = set()
+    for vector in (j.get(j.project("/standings")) or {}).get("vectors") or []:
+        for d in vector.get("dimensions") or []:
+            if d.get("status") in ("NOT_HOLDING_UP", "PEOPLE_DISAGREE"):
+                out.add(d.get("dimension"))
+    return out
+
+
+def _whys_now(j: Journey) -> dict:
+    """Spec 118 (keel-cloud 183 FR-1, `FollowUpComposer.whys`): the whys stored so far, per rung -- the follow-ups the
+    people walked before typed (a skip, and a question owed and never shown, give none)."""
+    out: dict = {}
+    for record in (getattr(j, "follow_ups", None) or {}).values():
+        for screen in (record or {}).get("screens") or []:
+            if screen.get("did") == "typed" and screen.get("rung"):
+                out[screen["rung"]] = out.get(screen["rung"], 0) + 1
+    return out
 
 
 def _served_line(j: Journey) -> int | None:
@@ -3546,8 +3582,10 @@ def _answer_one(j: Journey, person, token: str) -> None:
                                                    first=deciding, line=_served_line(j))[:1]
                 if a.get("on")] if walks_rungs and j.strict and person.person in vs.LATE_FOLLOW_UPS.get(
                     j.entry.id, ()) else []
+        # spec 118 (keel-cloud 183): the failing line with the fewest whys so far goes first
         plan = vs.follow_up_plan(j.entry, person.picks, person.link, interview, token, first=deciding,
-                                 line=_served_line(j), late=late) if walks_rungs else []
+                                 line=_served_line(j), late=late, failing=_failing_now(j) if walks_rungs else (),
+                                 whys=_whys_now(j)) if walks_rungs else []
         for asked in plan:
             asked["deciding"] = deciding
         # spec 067 FR-3 (keel-cloud 128 FR-14): a line the entry wrote for one rung is typed on that rung alone -- the
@@ -3805,6 +3843,16 @@ def _hold_the_box(j: Journey, person, interview: dict, walked: dict, expected: d
     return {**expected, "story": want}
 
 
+def follow_up_lines_owed(plan: list[dict], line_for) -> dict:
+    """`{rung: line}` the person types on each follow-up of `plan`, in the order asked -- spec 118 FR-4d: a line already
+    typed on an earlier follow-up of this interview is never typed again (None: *Skip this one*), as the page object
+    does (`vs_screens.distinct_follow_up`)."""
+    out: dict = {}
+    for a in plan:
+        out[a["dimension"]] = vs_screens.distinct_follow_up(line_for(a["dimension"]), list(out.values()))
+    return out
+
+
 def _hold_the_follow_up(j: Journey, person, interview: dict, walked: dict, plan: list[dict], line_for,
                         *, asked: bool) -> None:
     """Spec 051 FR-4 as spec 075 has it (keel-cloud 142, keel-web 124): *Next* on each item of a rung the link walks,
@@ -3820,7 +3868,7 @@ def _hold_the_follow_up(j: Journey, person, interview: dict, walked: dict, plan:
     seen = walked.get("follow_ups") or []
     body_sent = walked.get("body") or {}
     sent = body_sent.get("followUps")
-    lines = {a["dimension"]: line_for(a["dimension"]) for a in plan}
+    lines = follow_up_lines_owed(plan, line_for)
     want = _want_follow_ups(plan, lines)
     rungs = [a["dimension"] for a in plan]
     with _step(j, f"{person.person}: the follow-ups -- " + (
@@ -4320,7 +4368,7 @@ def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> No
     reveal / idea and the item's question) and on the screens (the reveal's or idea screen's card, and the idea card
     above the Relative advantage item)."""
     name = j.idea_name
-    card = vs.idea_card(name)
+    card = vs.idea_card(name, getattr(j, "idea_what_it_is", None))
     served = [("reveal", interview.get("reveal")), ("idea", interview.get("idea"))]
     items = {i.get("dimension"): i for p in interview.get("parts") or [] for i in p.get("items") or []}
     advantage = items.get(RA_KEY)

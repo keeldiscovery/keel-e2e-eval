@@ -854,6 +854,12 @@ ARRIVAL_FACE = "span.iv-arrival__face"
 AI_INTRO = "[data-testid='ai-intro']"
 CHOICE_TALK = "choice-talk"
 CHOICE_WRITE = "choice-write"
+
+
+def choice_write_label(minutes: int | None) -> str:
+    """Spec 118 FR-4c(f) (keel-web 156 FR-2, `choiceWriteLabel`): the link's own choice screen names the text route as
+    everywhere else -- *Read and tap · about N minutes* (it read *Answer in writing · about N minutes*)."""
+    return "Read and tap" + (f" · about {minutes} minutes" if minutes else "")
 ANSWERED_LINE = ".iv-shell p.hello"
 #: keel-web 136 `translate.ts`: the card's words.
 ARRIVAL_CONTINUE_GOOGLE = "Continue with Google"
@@ -1008,6 +1014,8 @@ class Arrival:
                 "who": " ".join((_optional_text(page.locator(ARRIVAL_WHO)) or "").split()) or None,
                 "not_you": not_you.first.get_attribute("href") if not_you.count() else None,
                 "buttons": [b for b in (CHOICE_TALK, CHOICE_WRITE) if page.get_by_test_id(b).count()],
+                # spec 118 FR-4c(f): the text route's words on the choice screen (*Read and tap · about N minutes*)
+                "write_label": " ".join((_optional_text(page.get_by_test_id(CHOICE_WRITE)) or "").split()) or None,
                 "begin": page.get_by_role("button", name="Begin", exact=True).count()}
 
     def write_my_answers(self) -> None:

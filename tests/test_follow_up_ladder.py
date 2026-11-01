@@ -145,11 +145,13 @@ def _p(dimension: str, *codes: str, chip: str | None = None) -> dict:
     return {"dimension": dimension, "codes": list(codes), "chip": chip}
 
 
-#: Everything supporting the founder (a B2C link that answers all eight rungs, "Nobody else" tested, a £30 low).
+#: Everything supporting the founder (a B2C link that answers all eight rungs, "Nobody else" tested, a £30 low). Spec
+#: 118 re-pin (keel-cloud 182 FR-3): Purchase friction's quick answer supports (on a list with no time, *a long time* is
+#: the one answer against -- spec 118's fear, where *quick* was against, is gone).
 CLEAR = [_p("problem.importance", "rival_1", "own"), _p("problem.current_solution_satisfaction", "outcome_3"),
          _p("solution.compatibility", "yes_easily"), _p("solution.relative_advantage", "a_lot_better"),
          _p("solution.adoption_friction", "yes"), _p("commercial.price", "band_20_50"),
-         _p("commercial.buyer_payer_alignment", "decided_alone"), _p("commercial.purchase_friction", "yes_long"),
+         _p("commercial.buyer_payer_alignment", "decided_alone"), _p("commercial.purchase_friction", "yes_quick"),
          _p("commercial.commitment", "yes_start")]
 
 
@@ -195,12 +197,13 @@ TABLE = [
     ("Buyer and payer, a role tested: decided alone closes the line",
      [_p("commercial.buyer_payer_alignment", "decided_alone")], NAMED, "COMMERCIAL_B2B", True, None),
     ("Commitment: yes, after trying it first (its second stem, keel-cloud 118)",
-     _with(_p("commercial.commitment", "yes_after_trying"), _p("commercial.purchase_friction", "yes_long")),
+     _with(_p("commercial.commitment", "yes_after_trying"), _p("commercial.purchase_friction", "not_needed")),
      NOBODY, "PRIMARY", False, None),
     ("Commitment: probably not", _with(_p("commercial.commitment", "probably_not")), NOBODY, "PRIMARY", False,
      "commercial.commitment"),
-    ("Purchase friction: quick is against the fear (a rung since keel-cloud 118)",
-     _with(_p("commercial.purchase_friction", "yes_quick")), NOBODY, "PRIMARY", False, "commercial.purchase_friction"),
+    # spec 118 re-pin (keel-cloud 182 FR-3 / FR-5): the lock's rule -- with no time, *a long time* is against
+    ("Purchase friction: a long time is against (keel-cloud 182, a list with no time)",
+     _with(_p("commercial.purchase_friction", "yes_long")), NOBODY, "PRIMARY", False, "commercial.purchase_friction"),
     ("the first rung wins", _with(_p("solution.compatibility", "no"), _p("commercial.commitment", "no")), NOBODY,
      "PRIMARY", False, "solution.compatibility"),
     ("a B2B practitioner's link walks no commercial rung", _with(_p("commercial.commitment", "no")), NOBODY, "PRIMARY",
@@ -221,9 +224,10 @@ def test_first_rung_by_hand(name, picks, founder, link, b2b, want):
 def test_the_second_stems_and_the_deciding_line_first():
     """keel-cloud 118 FR-4: an answer a rung's `also` names is owed its second stem (the conditional yes, the long
     purchase); the deciding lines are walked first, then registry order."""
-    assert fake.first_stem(CLEAR, NOBODY) == ("commercial.purchase_friction", True)
+    # spec 118 re-pin (keel-cloud 182 FR-5): Purchase friction's second stem is gone -- nothing is owed CLEAR
+    assert fake.first_stem(CLEAR, NOBODY) is None
     assert fake.first_stem(_with(_p("commercial.commitment", "yes_after_trying")), NOBODY, "COMMERCIAL_B2B",
-                           b2b=True) == ("commercial.purchase_friction", True)
+                           b2b=True) == ("commercial.commitment", True)
     both = _with(_p("problem.importance", "rival_1", "rival_2"), _p("problem.current_solution_satisfaction",
                                                                    "outcome_1"))
     assert fake.first_rung(both, NOBODY) == "problem.importance"
@@ -243,12 +247,13 @@ def test_the_second_stems_and_the_deciding_line_first():
     assert fake.deciding_lines(standings) == ["problem.importance", "commercial.commitment"]
     assert fake.fill("commercial.commitment", {"{smaller_step}": "the free trial"}, also=True) == \
         "What would the free trial have to show you?"
-    # spec 086 FR-5 (keel-cloud 154): the second stem names the purchase, filled from the project's words
-    assert fake.spoken_of("commercial.purchase_friction", also=True) == \
-        "What would take the time in buying {solution_name}?"
-    assert fake.spoken_filled("commercial.purchase_friction", {"{solution_name}": "Fresco"}, also=True) == \
+    # spec 118 re-pin (keel-cloud 182 FR-5): *What would take the time in buying ...?* is the rung itself now, filled
+    # from the project's words; (183 T003) Compatibility's second stem is the founder's *What steps did it take?*
+    assert fake.spoken_of("commercial.purchase_friction") == "What would take the time in buying {solution_name}?"
+    assert fake.spoken_filled("commercial.purchase_friction", {"{solution_name}": "Fresco"}) == \
         "What would take the time in buying Fresco?"
-    assert fake.spoken_filled("commercial.purchase_friction", {}, also=True) == "What would take the time in buying it?"
+    assert fake.spoken_filled("commercial.purchase_friction", {}) == "What would take the time in buying it?"
+    assert fake.spoken_of("solution.compatibility", also=True) == "What steps did it take?"
     chain = fake.Founder(importance_item="own", price_low=1.0, chain_price=True)
     assert fake.first_rung([_p("commercial.price", "band_0.5_1")], chain, "COMMERCIAL_B2B", b2b=True) == \
         "commercial.price"
@@ -383,7 +388,10 @@ def test_the_follow_up_lines(entry_id):
 def test_the_founder_side_of_three_entries():
     sides = {eid: vs.founder_side(vs.entry_for(CONFIG.keel_cloud, eid)[1])
              for eid in ("01-countly", "05-paidly", "07-mulchrun")}
-    assert sides["01-countly"] == fake.Founder("own", 30.0, (fake.BUYER_ALONE,))
+    # spec 118 (keel-cloud 183 T004): Countly's condition is an ability, so its *Yes, most of the time* names no steps
+    # and is owed no second stem (`compatibility_steps`); no Purchase friction time on a golden entry
+    assert sides["01-countly"] == fake.Founder("own", 30.0, (fake.BUYER_ALONE,), compatibility_steps=False)
+    assert sides["05-paidly"].friction_days is None
     assert sides["07-mulchrun"].price_low is None                        # no price yet: no Price rung
 
 

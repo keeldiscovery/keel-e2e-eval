@@ -88,10 +88,20 @@ SEND_THE_QUESTIONS = "Send the questions"
 MAKE_A_NEW_LINK = "New link"
 RELINK_DONE = "Done"
 FORMAT_NOT_AVAILABLE = "Not available yet"             # keel-web 068, until 069
-FORMAT_NAMES = {"TEXT": "Text", "AI_INTERVIEWER": "AI interviewer", "CHOICE": "Let them choose"}   # the Continue words
+#: The Continue words (`FORMAT_LABEL`). Spec 118 FR-4c(f) (keel-web 156 FR-2): *Continue · Read and tap* (it read
+#: *Continue · Text*).
+FORMAT_NAMES = {"TEXT": "Read and tap", "AI_INTERVIEWER": "AI interviewer", "CHOICE": "Let them choose"}
 # ---- keel-web 069 (`translate.ts` at d23895f): Send more's rows and their greyed words
-TEXT_ONLY = "Text only"
+#: Spec 118 FR-4c(f) (keel-web 156 FR-2, `READ_AND_TAP`): the text route's name on every place it is drawn -- Send
+#: more's row, the Sent table's Format column, the link's choice screen (`choice-write`) -- it read *Text only* (*Text*
+#: in the column, *Answer in writing* on the choice screen).
+READ_AND_TAP = "Read and tap"
+TEXT_ONLY = READ_AND_TAP
+#: The names a keel-web before 156 drew, read where one is still served.
+TEXT_ONLY_BEFORE_156 = ("Text only", "Text")
 CHOICE_NAME = "Let them choose"
+#: keel-web 069's bare *recording* tag -- gone with keel-web 156 FR-2 (T007): a row while the face records draws the
+#: status line *Still recording · ready in a few minutes* (`interviewer_screens.FORMAT_STATUS_RECORDING`) instead.
 FORMAT_RECORDING = "recording"
 FORMAT_NOT_RECORDED = "not recorded"
 FORMAT_NEEDS_CREDITS = "needs Keel's credits"
@@ -539,7 +549,7 @@ class Interviews:
         formats = self._formats(dialog)
         # keel-web 069 checks the AI interviewer first once it is recorded: the asked format is always pressed
         pattern = {"AI_INTERVIEWER": re.compile(r"^AI interviewer"), "CHOICE": re.compile(rf"^{CHOICE_NAME}"),
-                   "TEXT": re.compile(rf"^({TEXT_ONLY}|Text)$")}[fmt]
+                   "TEXT": re.compile(rf"^({READ_AND_TAP}|Text only|Text)$")}[fmt]
         radio = dialog.locator("[role=radiogroup] [role=radio]", has=self.page.locator(".fmt__name", has_text=pattern))
         if radio.count() and radio.first.get_attribute("aria-checked") != "true":
             # spec 074 (keel-web 119 FR-2): the AI interviewer's row carries *Hear it* inside it, whose press opens the

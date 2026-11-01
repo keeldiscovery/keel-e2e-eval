@@ -598,7 +598,7 @@ def _the_work(j, wire: _Wire, contacts, record: dict, everyone, founder_id: str,
                          "kind": kind_row})
         assert {r.get("invitationId") for r in rows[:PICKS]} == {link["invitationId"] for link in links}, rows[:PICKS]
         assert [r.get("Who") for r in drawn] == [r.get("personName") for r in rows], drawn
-        assert drawn_row.get("Format") == "Text" and "dataset" in (drawn_row.get("Kind · from") or ""), drawn_row
+        assert drawn_row.get("Format") == iv.READ_AND_TAP and "dataset" in (drawn_row.get("Kind · from") or ""), drawn_row
         assert (drawn_row.get("Status") or "").startswith(iv.REGISTER_STATUS["ANSWERED"]), drawn_row
         assert iv.MAKE_A_NEW_LINK not in offers, offers
         assert kind_row.get("linksMade") == corpus_deciders + PICKS, kind_row

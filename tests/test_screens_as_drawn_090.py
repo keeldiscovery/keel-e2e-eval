@@ -265,7 +265,9 @@ def test_the_first_option_is_the_actor_deciding(label, same):
 
 @pytest.mark.parametrize("people, title", [
     ("payroll practitioners", "Who should ask payroll practitioners your questions?"),
-    ("parents of babies under six months old at home", "Who should ask them your questions?"),   # past ten words
+    # spec 118 FR-4c(f) re-pin (keel-web 156 FR-1): any length -- 130's ten-word cap and its *them* are gone
+    ("parents of babies under six months old at home",
+     "Who should ask parents of babies under six months old at home your questions?"),
     (None, "Who should ask them your questions?"),
 ])
 def test_l1s_title_names_the_people_within_ten_words(people, title):
@@ -293,8 +295,11 @@ def _l1_journey(tmp_path, countly, core):
 
 def test_the_l1_holds_take_130s_title(tmp_path, countly):
     j = _l1_journey(tmp_path, countly, "Payroll practitioners")
+    # spec 118 FR-4c(f) re-pin (keel-web 156 FR-1): the title names the entry's `actor_plural` at any length
+    title = f"Who should ask {countly.context['actor_plural']} your questions?"
+    assert cs.l1_title_owed(j) == title
     drawn = {"counters": cs.before_counters(j.scope), "ready": {"pilot_title": "Offer a pilot?"},
-             "l1": {"title": "Who should ask payroll practitioners your questions?", "carousel": False,
+             "l1": {"title": title, "carousel": False,
                     "sub": vs_screens.BEFORE_INTERVIEWER_OWN, "button": vs_screens.BEFORE_LOCK_APPROVE}}
     cs._keels_door_l1(j, drawn)
     cs._own_door_l1(j, drawn)
