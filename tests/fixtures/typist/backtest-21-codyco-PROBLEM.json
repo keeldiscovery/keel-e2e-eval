@@ -1,0 +1,1157 @@
+{
+ "spec": "062",
+ "run": "20261101T111212Z-backtest-21-codyco",
+ "passed": true,
+ "failed_step": null,
+ "entry": {
+  "id": "21-codyco",
+  "title": "Codyco — the calls a hotel group misses, booked by an AI agent",
+  "sha256": "530f04eb7aba5008e67f9486f4031f05c743e76f4776d072c444d539a311a9d6",
+  "idea_name": "Codyco",
+  "b2b": true
+ },
+ "scope": "PROBLEM",
+ "people": 7,
+ "stack": {
+  "keel-cloud": "d096da91",
+  "keel-web": "f02595c"
+ },
+ "founder_screens": [
+  {
+   "n": 1,
+   "screen": "name",
+   "file": "screens/founder-01-name.png",
+   "kicker": "NAME IT",
+   "question": "What should we call this project?",
+   "hint": "",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "answer": "Codyco — the calls a hotel group misses, booked by an AI agent",
+   "keel read back": null
+  },
+  {
+   "n": 2,
+   "screen": "market",
+   "file": "screens/founder-02-market.png",
+   "kicker": "WHERE YOU SELL · CODYCO — THE CALLS A HOTEL GROUP MISSES, BOOKED BY AN AI AGENT",
+   "question": "Where will you sell this first?",
+   "hint": "",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "answer": {
+    "country": "DE",
+    "region": null
+   },
+   "keel read back": null
+  },
+  {
+   "n": 3,
+   "screen": "context",
+   "file": "screens/founder-03-context.png",
+   "kicker": "STEP 1 OF 3 · THE CONTEXT",
+   "question": "Before we test anything, let's define exactly where this idea applies.",
+   "hint": "",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "intro": "Four short answers, a phrase each. Every belief you give later, and every answer a stranger gives, is read inside this boundary and nowhere else.",
+   "answer": {
+    "actor": "reservation agent",
+    "job": "turn every guest who calls into a booking",
+    "circumstance": "booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered",
+    "segment": "reservation agents at hotel groups in Germany that run a central reservations office or call center"
+   },
+   "keel read back": {
+    "understands": "Reservation agents at hotel groups in Germany that run a central reservations office or call center. When booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered, they want to turn every guest who calls into a booking. We'll ask about the last 7 days."
+   }
+  },
+  {
+   "n": 4,
+   "screen": "context-window",
+   "file": "screens/founder-04-context-window.png",
+   "kicker": "STEP 1 OF 3 · THE CONTEXT",
+   "question": "How recent should an episode be to count?",
+   "hint": "",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "intro": "Strangers are asked about their last time inside this window; Keel counts how many had one.",
+   "answer": {
+    "recall window": {
+     "count": 7,
+     "unit": "DAYS"
+    },
+    "picked with": "chip"
+   },
+   "keel read back": {
+    "understands": "Reservation agents at hotel groups in Germany that run a central reservations office or call center. When booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered, they want to turn every guest who calls into a booking. We'll ask about the last 7 days."
+   }
+  },
+  {
+   "n": 5,
+   "screen": "context-card",
+   "file": "screens/founder-05-context-card.png",
+   "kicker": "STEP 1 OF 3 · THE CONTEXT",
+   "question": "Before we test anything, let's define exactly where this idea applies.",
+   "hint": "",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "answer": "Yes, that's it",
+   "keel read back": {
+    "understands": "Reservation agents at hotel groups in Germany that run a central reservations office or call center. When booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered, they want to turn every guest who calls into a booking. We'll ask about the last 7 days."
+   }
+  },
+  {
+   "n": 6,
+   "screen": "problem-seed",
+   "file": "screens/founder-06-problem-seed.png",
+   "kicker": "STEP 2 OF 3 · THE PROBLEM",
+   "question": "",
+   "hint": "",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "answer": "Hotel groups miss about 5% of their reservation calls even with a central reservations office or a call center: after hours, during peak hours, on holidays. Every call that rings out is a booking that goes to an online travel agency or a competitor, a seven-figure rounding error for a mid-sized group; we started Codyco after a friend told us how much money he was losing from missed calls, and one 53-room hotel made €5,000 in extra bookings in its first 4 weeks with us.",
+   "keel read back": {
+    "statement": "Reservation agents at hotel groups miss a share of reservation calls, even with a central reservations office or a call center: after hours, during peak hours and on holidays. Every call that rings out is a booking that goes to an online travel agency or a competitor. For a mid-sized group, those lost bookings add up to a large sum that is written off as a rounding error."
+   }
+  },
+  {
+   "n": 7,
+   "screen": "problem-card",
+   "file": "screens/founder-07-problem-card.png",
+   "kicker": "STEP 2 OF 3 · THE PROBLEM",
+   "question": "",
+   "hint": "",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "answer": "Yes, that's the problem",
+   "keel read back": {
+    "statement": "Reservation agents at hotel groups miss a share of reservation calls, even with a central reservations office or a call center: after hours, during peak hours and on holidays. Every call that rings out is a booking that goes to an online travel agency or a competitor. For a mid-sized group, those lost bookings add up to a large sum that is written off as a rounding error."
+   }
+  },
+  {
+   "n": 8,
+   "screen": "q-problem.prevalence",
+   "file": "screens/founder-08-q-problem.prevalence.png",
+   "kicker": "STEP 2 OF 3 · THE PROBLEM · WHAT DO YOU BELIEVE IS TRUE?",
+   "question": "In the last 7 days, how many out of 10 reservation agents had a booking call ring out without being answered?",
+   "hint": "",
+   "options": [
+    "Fewer than 2 in 10",
+    "2 or 3 in 10",
+    "4 or 5 in 10",
+    "6 or 7 in 10",
+    "8 or more in 10"
+   ],
+   "rows": [],
+   "chips": [],
+   "intro": "Let's turn your problem belief into something we can test. Four short questions. Pick \"I'm not sure\" and Keel leaves that dimension out of the study.",
+   "answer": {
+    "codes": [
+     "p_80_100"
+    ]
+   },
+   "keel read back": {
+    "belief": "At least 8 in 10 of these reservation agents had this at least once in the last 7 days.",
+    "frame": "Problem · 1 of 4",
+    "belief line on screen": "At least 8 in 10 of these reservation agents had this at least once in the last 7 days."
+   }
+  },
+  {
+   "n": 9,
+   "screen": "q-problem.frequency",
+   "file": "screens/founder-09-q-problem.frequency.png",
+   "kicker": "STEP 2 OF 3 · THE PROBLEM · WHAT DO YOU BELIEVE IS TRUE?",
+   "question": "In the last 7 days, on how many days did a typical reservation agent have a booking call ring out without being answered?",
+   "hint": "Your estimate from what you have seen and heard. A range is fine.",
+   "options": [],
+   "rows": [],
+   "chips": [
+    "I'm not sure"
+   ],
+   "intro": "Let's turn your problem belief into something we can test. Four short questions. Pick \"I'm not sure\" and Keel leaves that dimension out of the study.",
+   "answer": {
+    "interval": {
+     "low": 5,
+     "high": 7,
+     "unit": "days out of 7"
+    }
+   },
+   "keel read back": {
+    "belief": "Reservation agents face this on 5 to 7 days out of 7.",
+    "frame": "Problem · 2 of 4",
+    "belief line on screen": "reservation agents face this on 5 to 7 days out of 7."
+   }
+  },
+  {
+   "n": 10,
+   "screen": "answer-problem.importance",
+   "file": "screens/founder-10-answer-problem.importance.png",
+   "kicker": "STEP 2 OF 3 · THE PROBLEM · TELL US ABOUT IT",
+   "question": "What else is hard for them when booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered?",
+   "hint": "Name up to four other difficulties they meet around this. Up to 25 words.",
+   "options": [],
+   "rows": [],
+   "chips": [
+    "Leave this out of the study"
+   ],
+   "intro": "Answer in your own words. Keel turns your answer into what strangers are asked. You check it on the next screen.",
+   "answer": "Handling guests' requests at the desk; Keeping rates right on every channel; Answering booking emails and group requests; Getting through the check-in and check-out rush",
+   "keel read back": {
+    "belief": "Reservation agents have five things that are hard across a run of shifts. Booking calls that ring out unanswered is one of the two they would most like made easier.",
+    "frame": "Problem · 3 of 4"
+   }
+  },
+  {
+   "n": 11,
+   "screen": "check-problem.importance",
+   "file": "screens/founder-11-check-problem.importance.png",
+   "kicker": "STEP 2 OF 3 · THE PROBLEM · CHECK WHAT KEEL WROTE",
+   "question": "",
+   "hint": "",
+   "options": [],
+   "rows": [
+    "Booking calls that ring out unanswered yours",
+    "Handling guests' requests at the desk",
+    "Keeping rates right on every channel",
+    "Answering booking emails and group requests",
+    "Getting through the check-in and check-out rush"
+   ],
+   "chips": [],
+   "title": "Your problem and the difficulties you named",
+   "intro": "Reword, remove or add anything. Each line is read aloud to strangers, so keep it under 9 words. Once you save, these are the words they hear.",
+   "keel_test": {
+    "belief": "Reservation agents have five things that are hard across a run of shifts. Booking calls that ring out unanswered is one of the two they would most like made easier.",
+    "bar": "Set by Keel. Holds if at least 2 in 3 put it in their two.",
+    "note": null
+   },
+   "answer": "saved as Keel drafted it",
+   "keel read back": {
+    "belief": "Reservation agents have five things that are hard across a run of shifts. Booking calls that ring out unanswered is one of the two they would most like made easier.",
+    "frame": "Problem · 3 of 4",
+    "keel will test": "Reservation agents have five things that are hard across a run of shifts. Booking calls that ring out unanswered is one of the two they would most like made easier.",
+    "bar": "Set by Keel. Holds if at least 2 in 3 put it in their two."
+   }
+  },
+  {
+   "n": 12,
+   "screen": "answer-problem.current_solution_satisfaction",
+   "file": "screens/founder-12-answer-problem.current_solution_satisfaction.png",
+   "kicker": "STEP 2 OF 3 · THE PROBLEM · TELL US ABOUT IT",
+   "question": "How do reservation agents turn every guest who calls into a booking today?",
+   "hint": "What they do: the tools, the habits, the workarounds. Up to 25 words.",
+   "options": [],
+   "rows": [],
+   "chips": [
+    "Leave this out of the study"
+   ],
+   "intro": "Answer in your own words. Keel turns your answer into what strangers are asked. You check it on the next screen.",
+   "answer": {
+    "what they do (first box)": "A central reservations office or a call center answers what it can; calls after hours, at peak and on holidays ring out.",
+    "how well it goes (second box)": "",
+    "sent as one Answer": "A central reservations office or a call center answers what it can; calls after hours, at peak and on holidays ring out."
+   },
+   "keel read back": {
+    "belief": "For most reservation agents, their way of answering booking calls through a central reservations office or call center still falls short.",
+    "frame": "Problem · 4 of 4"
+   }
+  },
+  {
+   "n": 13,
+   "screen": "check-problem.current_solution_satisfaction",
+   "file": "screens/founder-13-check-problem.current_solution_satisfaction.png",
+   "kicker": "STEP 2 OF 3 · THE PROBLEM · CHECK WHAT KEEL WROTE",
+   "question": "",
+   "hint": "",
+   "options": [],
+   "rows": [
+    "Every booking call got answered",
+    "Nearly every booking call got answered",
+    "Some booking calls rang out",
+    "Many booking calls rang out",
+    "Most booking calls rang out unanswered"
+   ],
+   "chips": [],
+   "title": "The five answers, in order",
+   "intro": "Reword any answer so it sounds like your people, under 9 words each. The order and the line stay fixed.",
+   "keel_test": {
+    "belief": "For most reservation agents, their way of answering booking calls through a central reservations office or call center still falls short.",
+    "bar": "Set by Keel. Holds if at least 2 in 3 land below 'Nearly every booking call got answered'.",
+    "note": null
+   },
+   "answer": "saved as Keel drafted it",
+   "keel read back": {
+    "belief": "For most reservation agents, their way of answering booking calls through a central reservations office or call center still falls short.",
+    "frame": "Problem · 4 of 4",
+    "keel will test": "For most reservation agents, their way of answering booking calls through a central reservations office or call center still falls short.",
+    "bar": "Set by Keel. Holds if at least 2 in 3 land below 'A few rang out, all called back that day'."
+   }
+  },
+  {
+   "n": 14,
+   "screen": "ready-interviewer",
+   "file": "screens/founder-14-ready-interviewer.png",
+   "kicker": "STEP 3 OF 3 · BEFORE PEOPLE SEE IT",
+   "question": "Who should ask reservation agents your questions?",
+   "hint": "Keel's AI interviewer asks each question aloud on video, and every question is also written on the screen, so people can read it and type or tap instead of talking. Daphne is picked for you; tap Saskia to hear her and switch. Keel records the voice you pick once for this project: 400 credits, whichever you choose. People get the link by text message either way.",
+   "options": [
+    "Daphne ▶ Hear Daphne · 5 s",
+    "Saskia ▶ Hear Saskia · 5 s"
+   ],
+   "rows": [],
+   "chips": [],
+   "answer": "Lock and record the face Keel preselects",
+   "keel read back": null
+  },
+  {
+   "n": 15,
+   "screen": "send-format",
+   "file": "screens/founder-15-send-format.png",
+   "kicker": "INTERVIEWS · SENT",
+   "question": "How should reservation agents answer?",
+   "hint": "",
+   "options": [
+    "AI interviewer · Daphne Daphne asks each question aloud on video, and every question is also written on the screen. They answer by talking, typing or tapping. She catches every spoken answer in a quiet room, and more than 9 in 10 where it is loud. Hear her Still recording · ready in a few minutes",
+    "Read and tap They read each question and tap their answer. Where there is a box to fill, they can speak into it or type. Ready now",
+    "Let them choose Both are offered; they pick Daphne or text when they open the link. Ready when Daphne is"
+   ],
+   "rows": [],
+   "chips": [],
+   "answer": "Read and tap",
+   "keel read back": null
+  },
+  {
+   "n": 16,
+   "screen": "send-who",
+   "file": "screens/founder-16-send-who.png",
+   "kicker": "INTERVIEWS · SENT",
+   "question": "Who gets a link?",
+   "hint": "",
+   "options": [
+    "People I know by name I send each one their own link.",
+    "People I found with Keel From a search on the Contacts page. Pick a list; Keel makes a link for each one, and you send them.",
+    "A group, with one open link I post one link where the people already are. Each person who opens it signs in with Google, then is interviewed."
+   ],
+   "rows": [],
+   "chips": [],
+   "answer": "People I know by name: each person by name",
+   "keel read back": null
+  }
+ ],
+ "respondents": {
+  "PRIMARY": {
+   "person": "Lena Hoffmann",
+   "served": {
+    "kind": "FULL",
+    "occasion": "shift",
+    "idea": null,
+    "gate": {
+     "itemId": "74aa6813f4d5",
+     "dimension": "problem.prevalence",
+     "question": "In the last 7 days, did a booking call come in on your shift?",
+     "storyPrompt": "Think of the most recent time when a booking call came in during your shift. Tell us what happened.",
+     "storyHint": "When it was, what you did first, how it ended.",
+     "chips": [
+      "CANT_RECALL",
+      "RATHER_NOT_SAY"
+     ],
+     "exitText": "Thanks for telling us. That's all we need from you -- there's nothing more to answer.",
+     "kicker": "Part 1 of 1 · A recent time · 1 of 4 · a recent time",
+     "spoken": {
+      "anchor": null,
+      "stem": "In the last 7 days, did a booking call come in on your shift?",
+      "countLine": null,
+      "optionsLine": "Yes or no.",
+      "escapeLine": null,
+      "transform": "none"
+     },
+     "condition": {
+      "question": "Do you work for a hotel group in Germany that runs a central reservations office or call center?",
+      "inCodes": [
+       "YES"
+      ]
+     }
+    },
+    "parts": [
+     {
+      "part": 1,
+      "kicker": null,
+      "items": [
+       {
+        "dimension": "problem.frequency",
+        "question": "In the last 7 days, on how many days did a booking call come in on your shift?",
+        "control": "segmented_1_to_n",
+        "hint": null,
+        "options": [],
+        "escape": "I can't recall",
+        "kicker": "Part 1 of 1 · A recent time · 2 of 4",
+        "scale": {
+         "min": 1,
+         "max": 7,
+         "minLabel": "just one",
+         "maxLabel": "every one"
+        },
+        "spoken": {
+         "stem": "In the last 7 days, on how many days did a booking call come in on your shift?",
+         "optionsLine": "Say a number from 1 to 7.",
+         "escapeLine": "Or say you can't recall.",
+         "transform": "none"
+        }
+       },
+       {
+        "dimension": "problem.importance",
+        "question": "Think of your last run of shifts. Which one of these would you most like made easier?",
+        "control": "pick_one_then_one",
+        "hint": null,
+        "options": [
+         "Keeping rates right on every channel",
+         "Booking calls that ring out unanswered",
+         "Handling guests' requests at the desk",
+         "Getting through the check-in and check-out rush",
+         "Answering booking emails and group requests"
+        ],
+        "escape": "None of these",
+        "kicker": "Part 1 of 1 · A recent time · 3 of 4",
+        "spoken": {
+         "stem": "Think of your last run of shifts. Which one of these would you most like made easier?",
+         "countLine": "I'll read five options.",
+         "optionsLine": "Keeping rates right on every channel; booking calls that ring out unanswered; handling guests' requests at the desk; getting through the check-in and check-out rush; or answering booking emails and group requests.",
+         "escapeLine": "Or say none of these.",
+         "transform": "one_then_one_more"
+        }
+       },
+       {
+        "dimension": "problem.current_solution_satisfaction",
+        "question": "Think of your last shift. How did answering booking calls through a central reservations office or call center go?",
+        "control": "single_choice_5",
+        "hint": null,
+        "options": [
+         "Every call answered or called back in minutes",
+         "A few rang out, all called back that day",
+         "Some rang out, called back when there was time",
+         "Many rang out, few were called back",
+         "Calls that rang out were simply lost"
+        ],
+        "escape": "Someone else did it that shift",
+        "kicker": "Part 1 of 1 · A recent time · 4 of 4",
+        "spoken": {
+         "anchor": "Think of your last shift.",
+         "stem": "How did answering booking calls through a central reservations office or call center go?",
+         "countLine": "I'll read five options.",
+         "optionsLine": "Every call answered or called back in minutes; a few rang out, all called back that day; some rang out, called back when there was time; many rang out, few were called back; or calls that rang out were simply lost.",
+         "escapeLine": "Or say someone else did it that shift.",
+         "transform": "none"
+        }
+       }
+      ]
+     }
+    ],
+    "reveal": null
+   },
+   "drawn": [
+    {
+     "screen": "gate",
+     "kicker": "Part 1 of 1 · A recent time · 1 of 4",
+     "question": "In the last 7 days, did a booking call come in on your shift?",
+     "chips": [
+      "I can't recall one particular shift",
+      "I'd rather not say"
+     ],
+     "chip": {
+      "question": "Do you work for a hotel group in Germany that runs a central reservations office or call center?",
+      "answered": "YES",
+      "options": [
+       "Yes",
+       "No"
+      ]
+     },
+     "options": [
+      "Yes",
+      "No"
+     ]
+    },
+    {
+     "screen": "item",
+     "dimension": "problem.frequency",
+     "control": "segmented_1_to_n",
+     "kicker": "Part 1 of 1 · A recent time · 2 of 4",
+     "question": "In the last 7 days, on how many days did a booking call come in on your shift?",
+     "stem": null,
+     "asked": "In the last 7 days, on how many days did a booking call come in on your shift?",
+     "idea_card": "",
+     "hint": "",
+     "picked_line": "",
+     "rows": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7"
+     ],
+     "chips": [
+      "I can't recall"
+     ],
+     "order": [
+      "iv-kicker",
+      "iv-q",
+      "iv-control",
+      "taps iv-chips",
+      "iv-actions"
+     ]
+    },
+    {
+     "screen": "item",
+     "dimension": "problem.importance",
+     "control": "pick_one_then_one",
+     "kicker": "Part 1 of 1 · A recent time · 3 of 4",
+     "question": "Think of your last run of shifts. Which one of these would you most like made easier?",
+     "stem": null,
+     "asked": "Think of your last run of shifts. Which one of these would you most like made easier?",
+     "idea_card": "",
+     "hint": "Pick one.",
+     "picked_line": "",
+     "rows": [
+      "Keeping rates right on every channel",
+      "Booking calls that ring out unanswered",
+      "Handling guests' requests at the desk",
+      "Getting through the check-in and check-out rush",
+      "Answering booking emails and group requests"
+     ],
+     "chips": [
+      "None of these"
+     ],
+     "order": [
+      "iv-kicker",
+      "iv-q",
+      "iv-note iv-tick",
+      "iv-control",
+      "taps iv-chips",
+      "iv-actions"
+     ],
+     "second_ask": {
+      "prompt": "And one more?",
+      "asked": "Think of your last run of shifts. Which one of these would you most like made easier?",
+      "chips": [
+       "Nothing else"
+      ],
+      "first": "Booking calls that ring out unanswered",
+      "served": "And one more?",
+      "second": "Answering booking emails and group requests",
+      "picked_line": "2 of 2 picked. Untick one to change.",
+      "pressed": []
+     }
+    },
+    {
+     "screen": "item",
+     "dimension": "problem.current_solution_satisfaction",
+     "control": "single_choice_5",
+     "kicker": "Part 1 of 1 · A recent time · 4 of 4",
+     "question": "Think of your last shift. How did answering booking calls through a central reservations office or call center go?",
+     "stem": null,
+     "asked": "Think of your last shift. How did answering booking calls through a central reservations office or call center go?",
+     "idea_card": "",
+     "hint": "Pick one.",
+     "picked_line": "",
+     "rows": [
+      "Every call answered or called back in minutes",
+      "A few rang out, all called back that day",
+      "Some rang out, called back when there was time",
+      "Many rang out, few were called back",
+      "Calls that rang out were simply lost"
+     ],
+     "chips": [
+      "Someone else did it that shift"
+     ],
+     "order": [
+      "iv-kicker",
+      "iv-q",
+      "iv-note iv-tick",
+      "iv-control",
+      "taps iv-chips",
+      "iv-actions"
+     ]
+    }
+   ],
+   "screens": [
+    "screens/respondent-primary-01-intro.png",
+    "screens/respondent-primary-02-segment-chip.png",
+    "screens/respondent-primary-03-gate.png",
+    "screens/respondent-primary-04-part1-problem.frequency.png",
+    "screens/respondent-primary-05-part1-problem.importance.png",
+    "screens/respondent-primary-06-part1-problem.current_solution_satisfaction.png",
+    "screens/respondent-primary-07-done.png"
+   ]
+  }
+ },
+ "brief": {
+  "decision": {
+   "label": "BUILD",
+   "howSure": "MEDIUM",
+   "reason": "Smallest group: 7 people.",
+   "smallestN": 7,
+   "split": false,
+   "notTested": [],
+   "change": null
+  },
+  "notAsked": [
+   {
+    "dimension": "problem.prevalence",
+    "name": "Prevalence",
+    "why": "a No at the gate ends the interview"
+   },
+   {
+    "dimension": "problem.frequency",
+    "name": "Frequency",
+    "why": "a number has no why worth a question"
+   }
+  ],
+  "outsideSegment": 0,
+  "verdicts": {
+   "PROBLEM": "Holding up"
+  },
+  "cards": [
+   {
+    "key": "problem.prevalence",
+    "name": "Prevalence",
+    "number": "7 of 7",
+    "line": "had a booking call come in on their shift in the last 7 days",
+    "status": "HOLDING_UP",
+    "statusWords": "Holding up",
+    "keelBar": null
+   },
+   {
+    "key": "problem.frequency",
+    "name": "Frequency",
+    "number": "6 days out of 7",
+    "line": "the middle answer · days they had a booking call come in on their shift",
+    "status": "HOLDING_UP",
+    "statusWords": "Holding up",
+    "keelBar": null
+   },
+   {
+    "key": "problem.importance",
+    "name": "Importance",
+    "number": "6 of 7",
+    "line": "put it in their top two",
+    "status": "HOLDING_UP",
+    "statusWords": "Holding up · 6 of 7 put it in their two",
+    "keelBar": "holds if at least 2 in 3 put it in their two"
+   },
+   {
+    "key": "problem.current_solution_satisfaction",
+    "name": "Current solution",
+    "number": "6 of 7",
+    "line": "say today's way falls short",
+    "status": "HOLDING_UP",
+    "statusWords": "Holding up",
+    "keelBar": "holds if at least 2 in 3 land below 'A few rang out, all called back that day'"
+   }
+  ],
+  "stages": {
+   "PROBLEM": {
+    "broke": null,
+    "notAsked": []
+   },
+   "SOLUTION": {
+    "broke": null,
+    "notAsked": null
+   },
+   "COMMERCIAL": {
+    "broke": null,
+    "notAsked": null
+   }
+  },
+  "insights": [
+   {
+    "dimension": "problem.importance",
+    "name": "Importance",
+    "status": "HOLDING_UP",
+    "rungHeading": "What made the others more pressing?",
+    "noQuestionWhy": null,
+    "against": 1,
+    "asked": 1,
+    "answered": 1,
+    "themes": [
+     {
+      "label": "ON_THEIR_OWN",
+      "count": 1,
+      "evidence": [
+       {
+        "name": "Chiara Russo",
+        "text": "The phones are covered by our call center after six. What eats my day is the group requests and emails that come in with no rates attached."
+       }
+      ]
+     }
+    ],
+    "raw": false,
+    "rawQuotes": [],
+    "state": "GROUPED",
+    "note": null,
+    "dissent": true,
+    "frame": "Importance held, 6 of 7; the 1 who said no:",
+    "quotes": [
+     {
+      "name": "Chiara Russo",
+      "text": "The phones are covered by our call center after six. What eats my day is the group requests and emails that come in with no rates attached.",
+      "option": "Answering booking emails and group requests, Keeping rates right on every channel",
+      "side": "AGAINST",
+      "heading": "What made the others more pressing?"
+     }
+    ]
+   }
+  ],
+  "pilot": {
+   "optedIn": 0,
+   "finished": 7,
+   "percent": 0,
+   "perLink": [
+    {
+     "link": "PRIMARY",
+     "words": "people who have it",
+     "optedIn": 0,
+     "finished": 7
+    }
+   ]
+  },
+  "price": null,
+  "people": {
+   "invited": 7,
+   "answered": 7,
+   "read": 7,
+   "anchored": 7,
+   "guessed": 0
+  },
+  "contextUnderstands": "Reservation agents at hotel groups in Germany that run a central reservations office or call center. When booking calls come in on every shift, after hours, at peak and on holidays, and not every one gets answered, they want to turn every guest who calls into a booking. We'll ask about the last 7 days."
+ },
+ "after_screens": [
+  {
+   "n": 1,
+   "kind": "stage",
+   "stage": "PROBLEM",
+   "dimension": null,
+   "file": "screens/founder-after-01-stage.png",
+   "url": "http://localhost:5173/p/8491d00a-cdad-4418-a186-4f5f96a94b16/s/PROBLEM",
+   "screen": "stage",
+   "page": {
+    "kicker": "THE PROBLEM · 7 PEOPLE ANSWERED",
+    "title": "The problem",
+    "headline": "Holding up",
+    "statement": "Reservation agents at hotel groups miss a share of reservation calls, even with a central reservations office or a call center: after hours, during peak hours and on holidays. Every call that rings out is a booking that goes to an online travel agency or a competitor. For a mid-sized group, those lost bookings add up to a large sum that is written off as a rounding error.",
+    "foot": "4 holding · 7 people answered",
+    "decider": "",
+    "tally": "4 holding · 7 people answered",
+    "measures": "Each belief is checked against what the people who answered said; the verdict is the worst of all its cards.",
+    "rows": [
+     {
+      "dimension": "problem.prevalence",
+      "n": "1.",
+      "name": "Prevalence",
+      "belief": "At least 8 in 10 reservation agents had a booking call come in on their shift in the last 7 days.",
+      "status": "Holding up 7 of 7 said yes · bar 6 of 7",
+      "opens": true,
+      "open": false
+     },
+     {
+      "dimension": "problem.frequency",
+      "n": "2.",
+      "name": "Frequency",
+      "belief": "Reservation agents have a booking call come in on their shift on 5 to 7 days out of 7.",
+      "status": "Holding up median 6 days out of 7 · 6 of 7 inside what you said · bar 5 of 7",
+      "opens": true,
+      "open": false
+     },
+     {
+      "dimension": "problem.importance",
+      "n": "3.",
+      "name": "Importance",
+      "belief": "Reservation agents have five things that are hard across a run of shifts. Booking calls that ring out unanswered is one of the two they would most like made easier.",
+      "status": "Holding up 6 of 7 put it in their two 6 of 7 put it in their two · bar 5 of 7",
+      "opens": true,
+      "open": false
+     },
+     {
+      "dimension": "problem.current_solution_satisfaction",
+      "n": "4.",
+      "name": "Current solution",
+      "belief": "For most reservation agents, their way of answering booking calls through a central reservations office or call center still falls short.",
+      "status": "Holding up 6 of 7 said today's way falls short · bar 5 of 7",
+      "opens": true,
+      "open": false
+     }
+    ],
+    "stage": "PROBLEM",
+    "by_ids": true
+   },
+   "text": "Keel\n·\nCodyco — the calls a hotel group misses, booked by an AI agent · Germany\n1,467 credits available\nTHE IDEA\nTHE INTERVIEWS\nTHE ANSWERS\nTHE BRIEF\nOverview\nThe problem\nInterviews\n\nTHE PROBLEM · 7 PEOPLE ANSWERED\n\nThe problem\n\nHolding up\n\nReservation agents at hotel groups miss a share of reservation calls, even with a central reservations office or a call center: after hours, during peak hours and on holidays. Every call that rings out is a booking that goes to an online travel agency or a competitor. For a mid-sized group, those lost bookings add up to a large sum that is written off as a rounding error.\n\n4 holding · 7 people answered\n\n1.\nPrevalence\nAt least 8 in 10 reservation agents had a booking call come in on their shift in the last 7 days.\nHolding up\n7 of 7 said yes · bar 6 of 7\n2.\nFrequency\nReservation agents have a booking call come in on their shift on 5 to 7 days out of 7.\nHolding up\nmedian 6 days out of 7 · 6 of 7 inside what you said · bar 5 of 7\n3.\nImportance\nReservation agents have five things that are hard across a run of shifts. Booking calls that ring out unanswered is one of the two they would most like made easier.\nHolding up\n6 of 7 put it in their two\n6 of 7 put it in their two · bar 5 of 7\n4.\nCurrent solution\nFor most reservation agents, their way of answering booking calls through a central reservations office or call center still falls short.\nHolding up\n6 of 7 said today's way falls short · bar 5 of 7\n\nWHAT IT MEASURES\n\nEach belief is checked against what the people who answered said; the verdict is the worst of all its cards.\n\nKeel\n·\nPrivacy\n·\nTerms\nSigned in as backtest@keel-backtest.test\n·\nLog out\nFEEDBACK"
+  },
+  {
+   "n": 2,
+   "kind": "dimension",
+   "stage": "PROBLEM",
+   "dimension": "problem.prevalence",
+   "file": "screens/founder-after-02-dimension-problem.prevalence.png",
+   "url": "http://localhost:5173/p/8491d00a-cdad-4418-a186-4f5f96a94b16/s/PROBLEM",
+   "screen": "dimension-problem.prevalence",
+   "chart": {
+    "title": "Prevalence",
+    "belief": "At least 8 in 10 reservation agents had a booking call come in on their shift in the last 7 days.",
+    "verdict": "Holding up 7 of 7 said yes · bar 6 of 7",
+    "insight": "",
+    "count": "7 of 7 said yes · bar 6 of 7",
+    "asked": "Asked: \"In the last 7 days, did a booking call come in on your shift?\" — the most recent time it happened",
+    "bar": "You said At least 8 in 10.",
+    "chart": "strip",
+    "caption": "",
+    "legend": "",
+    "line": "",
+    "drawing": "your bar · 6 of 7 (at least 8 in 10) 0 7",
+    "rule": null,
+    "count_line": "7 answered · 7 counted · a small group: a lean, not a call",
+    "so": "Common among these 7. How often, and whether it matters, are the next two cards.",
+    "asked_line": "Asked: \"In the last 7 days, did a booking call come in on your shift?\" — the most recent time it happened",
+    "strips": [
+     {
+      "mode": "cells",
+      "counted": "7",
+      "bar": "6",
+      "label": "your bar · 6 of 7 (at least 8 in 10)",
+      "marker": null,
+      "axis": "0 7",
+      "sides": {
+       "FOR": 7
+      },
+      "kinds": {
+       "for": 7
+      },
+      "cells": 7
+     }
+    ],
+    "parts": [],
+    "bars": [],
+    "marks": {
+     "founder-range": null,
+     "most-often": null,
+     "chart-caption": null,
+     "problem-you-named": null,
+     "current-solution-line": null,
+     "benefit-limit": null,
+     "strip-unit": null,
+     "strip-median": null,
+     "ability-values": null
+    },
+    "people": [
+     {
+      "name": "Lena Hoffmann",
+      "read": "said yes",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Murat Yilmaz",
+      "read": "said yes",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Chiara Russo",
+      "read": "said yes",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Jonas Weber",
+      "read": "said yes",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Aylin Demir",
+      "read": "said yes",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Tobias Brandl",
+      "read": "said yes",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Elif Kaya",
+      "read": "said yes",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     }
+    ]
+   },
+   "text": "1. Prevalence At least 8 in 10 reservation agents had a booking call come in on their shift in the last 7 days. Holding up 7 of 7 said yes · bar 6 of 7 Asked: \"In the last 7 days, did a booking call come in on your shift?\" — the most recent time it happened You said At least 8 in 10. your bar · 6 of 7 (at least 8 in 10) 0 7 7 answered · 7 counted · a small group: a lean, not a call Common among these 7. How often, and whether it matters, are the next two cards. Lena Hoffmann said yes Murat Yilmaz said yes Chiara Russo said yes Jonas Weber said yes Aylin Demir said yes Tobias Brandl said yes Elif Kaya said yes"
+  },
+  {
+   "n": 3,
+   "kind": "dimension",
+   "stage": "PROBLEM",
+   "dimension": "problem.frequency",
+   "file": "screens/founder-after-03-dimension-problem.frequency.png",
+   "url": "http://localhost:5173/p/8491d00a-cdad-4418-a186-4f5f96a94b16/s/PROBLEM",
+   "screen": "dimension-problem.frequency",
+   "chart": {
+    "title": "Frequency",
+    "belief": "Reservation agents have a booking call come in on their shift on 5 to 7 days out of 7.",
+    "verdict": "Holding up median 6 days out of 7 · 6 of 7 inside what you said · bar 5 of 7",
+    "insight": "",
+    "count": "median 6 days out of 7 · 6 of 7 inside what you said · bar 5 of 7",
+    "asked": "Asked: \"In the last 7 days, on how many days did a booking call come in on your shift?\" — the most recent time it happened",
+    "bar": "You said 5 to 7 days out of 7.",
+    "chart": "window-steps",
+    "caption": "days out of 7 middle answer: 6 days",
+    "legend": "what you said at what you said short of it",
+    "line": "",
+    "drawing": "0 1 2 3 4 5 6 median 7 days out of 7 middle answer: 6 days what you said at what you said short of it your bar · 5 of 7 (at least 2 in 3)",
+    "rule": null,
+    "count_line": "7 answered · 7 counted · a small group: a lean, not a call",
+    "so": "6 of 7 sit in your band. Whether it matters is the next card.",
+    "asked_line": "Asked: \"In the last 7 days, on how many days did a booking call come in on your shift?\" — the most recent time it happened",
+    "strips": [
+     {
+      "mode": "cells",
+      "counted": "7",
+      "bar": "5",
+      "label": "your bar · 5 of 7 (at least 2 in 3)",
+      "marker": null,
+      "axis": null,
+      "sides": {
+       "FOR": 6,
+       "AGAINST": 1
+      },
+      "kinds": {
+       "for": 6,
+       "against": 1
+      },
+      "cells": 7
+     }
+    ],
+    "parts": [],
+    "bars": [],
+    "marks": {
+     "founder-range": null,
+     "most-often": null,
+     "chart-caption": null,
+     "problem-you-named": null,
+     "current-solution-line": null,
+     "benefit-limit": null,
+     "strip-unit": null,
+     "strip-median": null,
+     "ability-values": null
+    },
+    "people": [
+     {
+      "name": "Lena Hoffmann",
+      "read": "inside what you said",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Murat Yilmaz",
+      "read": "inside what you said",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Chiara Russo",
+      "read": "inside what you said",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Jonas Weber",
+      "read": "inside what you said",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Aylin Demir",
+      "read": "inside what you said",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Tobias Brandl",
+      "read": "below what you said",
+      "side": "AGAINST",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Elif Kaya",
+      "read": "inside what you said",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     }
+    ]
+   },
+   "text": "2. Frequency Reservation agents have a booking call come in on their shift on 5 to 7 days out of 7. Holding up median 6 days out of 7 · 6 of 7 inside what you said · bar 5 of 7 Asked: \"In the last 7 days, on how many days did a booking call come in on your shift?\" — the most recent time it happened You said 5 to 7 days out of 7. 0 1 2 3 4 5 6 median 7 days out of 7 middle answer: 6 days what you said at what you said short of it your bar · 5 of 7 (at least 2 in 3) 7 answered · 7 counted · a small group: a lean, not a call 6 of 7 sit in your band. Whether it matters is the next card. Lena Hoffmann inside what you said Murat Yilmaz inside what you said Chiara Russo inside what you said Jonas Weber inside what you said Aylin Demir inside what you said Tobias Brandl below what you said Elif Kaya inside what you said"
+  },
+  {
+   "n": 4,
+   "kind": "dimension",
+   "stage": "PROBLEM",
+   "dimension": "problem.importance",
+   "file": "screens/founder-after-04-dimension-problem.importance.png",
+   "url": "http://localhost:5173/p/8491d00a-cdad-4418-a186-4f5f96a94b16/s/PROBLEM",
+   "screen": "dimension-problem.importance",
+   "chart": {
+    "title": "Importance",
+    "belief": "Reservation agents have five things that are hard across a run of shifts. Booking calls that ring out unanswered is one of the two they would most like made easier.",
+    "verdict": "Holding up 6 of 7 put it in their two 6 of 7 put it in their two · bar 5 of 7",
+    "insight": "6 of 7 put it in their two",
+    "count": "6 of 7 put it in their two · bar 5 of 7",
+    "asked": "Asked: \"Think of your last run of shifts. Which one of these would you most like made easier?\" then \"And one more?\" — the most recent time it happened",
+    "bar": "You said Booking calls that ring out unanswered.",
+    "chart": "choice",
+    "caption": "7 people · each picked two · bars count picks (14)",
+    "legend": "",
+    "line": "",
+    "drawing": "7 people · each picked two · bars count picks (14) Booking calls that ring out unanswered the problem you named 6 for Handling guests' requests at the desk 2 against Keeping rates right on every channel 2 against Answering booking emails and group requests 2 against Getting through the check-in and check-out rush 2 against your bar · 5 of 7 (at least 2 in 3 put it in their two)",
+    "rule": null,
+    "count_line": "7 answered · 7 counted · a small group: a lean, not a call",
+    "so": "6 of 7 put booking calls that ring out unanswered in their two, among these 7; each could pick two, so this says it is in the top two, not that it ranks first.",
+    "asked_line": "Asked: \"Think of your last run of shifts. Which one of these would you most like made easier?\" then \"And one more?\" — the most recent time it happened",
+    "strips": [
+     {
+      "mode": "cells",
+      "counted": "14",
+      "bar": "5",
+      "label": "your bar · 5 of 7 (at least 2 in 3 put it in their two)",
+      "marker": null,
+      "axis": null,
+      "sides": {
+       "FOR": 6,
+       "AGAINST": 8
+      },
+      "kinds": {
+       "for": 6,
+       "against": 8
+      },
+      "cells": 14
+     }
+    ],
+    "parts": [],
+    "bars": [
+     {
+      "label": "Booking calls that ring out unanswered the problem you named",
+      "side": "FOR",
+      "side_word": "for",
+      "founder_band": false
+     },
+     {
+      "label": "Handling guests' requests at the desk",
+      "side": "AGAINST",
+      "side_word": "against",
+      "founder_band": false
+     },
+     {
+      "label": "Keeping rates right on every channel",
+      "side": "AGAINST",
+      "side_word": "against",
+      "founder_band": false
+     },
+     {
+      "label": "Answering booking emails and group requests",
+      "side": "AGAINST",
+      "side_word": "against",
+      "founder_band": false
+     },
+     {
+      "label": "Getting through the check-in and check-out rush",
+      "side": "AGAINST",
+      "side_word": "against",
+      "founder_band": false
+     }
+    ],
+    "marks": {
+     "founder-range": null,
+     "most-often": null,
+     "chart-caption": "7 people · each picked two · bars count picks (14)",
+     "problem-you-named": "the problem you named",
+     "current-solution-line": null,
+     "benefit-limit": null,
+     "strip-unit": null,
+     "strip-median": null,
+     "ability-values": null
+    },
+    "people": [
+     {
+      "name": "Lena Hoffmann",
+      "read": "put it in their two",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Murat Yilmaz",
+      "read": "put it in their two",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Chiara Russo",
+      "read": "put two others first",
+      "side": "AGAINST",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Jonas Weber",
+      "read": "put it in their two",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Aylin Demir",
+      "read": "put it in their two",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Tobias Brandl",
+      "read": "put it in their two",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     },
+     {
+      "name": "Elif Kaya",
+      "read": "put it in their two",
+      "side": "FOR",
+      "why": null,
+      "band": null
+     }
+    ]
+   },
+   "text": "3. Importance Reservation agents have five things that are hard across a run of shifts. Booking calls that ring out unanswered is one of the two they would most like made easier. Holding up 6 of 7 put it in their two 6 of 7 put it in their two · bar 5 of 7 Asked: \"Think of your last run of shifts. Which one of these would you most like made easier?\" then \"And one more?\" — the most recent time it happened You said Booking calls that ring out unanswered. 7 people · each picked two · bars count picks (14) Booking calls that ring out unanswered the problem you named 6 for Handling guests' requests at the desk 2 against Keeping rates right on every channel 2 against Answering booking emails and group requests 2 against Getting through the check-in and check-out rush 2 against your bar · 5 of 7 (at least 2 in 3 put it in their two) 7 answered · 7 counted · a small group: a lean, not a call 6 of 7 put booking calls that ring out unanswered in their two, among these 7; each could pick two, so this says it is in the top two, not that it ranks first. Lena Hoffmann put it in their two Murat Yilmaz put it in their two Chiara Russo put two others first One more thing · Importance: “The phones are covered by our call center after six. What eats my day is the group requests and emails that come in with no rates attached.” Jonas Weber put it in their two Aylin Demir put it in their two Tobias Brandl put it in their two Elif Kaya put it in their two"
+  }
+ ]
+}

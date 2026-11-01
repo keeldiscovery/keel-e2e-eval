@@ -148,6 +148,10 @@ DEFAULT_SCOPE = "ALL"
 #: people the study sends on the person's own link, the first in corpus order (`vectors_script.study_people`); the
 #: decision-makers whole. Every person the study's scope sends when unsaid.
 PEOPLE_VAR = "KEEL_BACKTEST_PEOPLE"
+#: Spec 126 FR-2: `make backtest TYPOS=1` (`make quality-walk` passes it unless `TYPOS=0`) -- the founder's typed texts
+#: typed through `harness/typist.py`, the typos recorded in `backtest.json` (`typos`). Off when unsaid: a plain back-test,
+#: a golden journey and the gallery type as recorded.
+TYPOS_VAR = "KEEL_BACKTEST_TYPOS"
 
 #: FR-2: the runtime's home inside the run, and the log its stdout and stderr go to.
 KEEL_HOME_DIR = "keel_home"
@@ -224,6 +228,19 @@ def people(env: dict | None = None) -> int | None:
     return int(raw)
 
 
+def typos(env: dict | None = None) -> bool:
+    """Spec 126 FR-2: `TYPOS=1` / `on` types the founder's texts with typos; unsaid, `0` or `off` types them as recorded;
+    anything else refused by name, never a fallback."""
+    env = os.environ if env is None else env
+    raw = (env.get(TYPOS_VAR) or "").strip().lower()
+    if raw in ("", "0", "off"):
+        return False
+    if raw in ("1", "on"):
+        return True
+    raise UnknownDoor(f"make backtest refuses: TYPOS={raw!r} -- `TYPOS=1` types the founder's texts with typos (spec "
+                      "126), `TYPOS=0` or unsaid types them as recorded")
+
+
 def door_refusal(env: dict | None = None) -> str | None:
     """FR-1 / FR-2: the one sentence for a door, host, model, (spec 071) scope or (spec 106) number of people the
     back-test will not run, else `None`."""
@@ -231,6 +248,7 @@ def door_refusal(env: dict | None = None) -> str | None:
     try:
         scope(env)
         people(env)
+        typos(env)
         if door(env) != "host":
             return None
         host(env)
@@ -1022,6 +1040,9 @@ class Backtest:
     scope: str = DEFAULT_SCOPE
     #: Spec 106 FR-2: how many people the study sends on the person's own link (`PEOPLE=`); None sends every one.
     people: int | None = None
+    #: Spec 126 FR-2: whether the founder's typed texts go through the typist (`TYPOS=1`), and the typos typed.
+    typos: bool = False
+    typed: list = field(default_factory=list)
     #: Spec 066 FR-2: the runtime the back-test started on the host door, and what the door read.
     runtime: HostRuntime | None = None
     door_facts: dict = field(default_factory=dict)
@@ -1984,6 +2005,8 @@ def transcript(j, bt: Backtest) -> dict:
         "scope": bt.scope,
         # spec 106 FR-2: the walk's cap on the person's own link, where `PEOPLE=` named one
         **({"people": bt.people} if bt.people else {}),
+        # spec 126 FR-2: every typo the founder typed, `{field, meant, typed, kind}` -- absent on a walk that typed none
+        **({"typos": list(bt.typed)} if getattr(bt, "typed", None) else {}),
         "stack": {"keel-cloud": _sha(getattr(j.stack, "keel_cloud", None)),
                   "keel-web": _sha(getattr(j.stack, "keel_web", None))},
         "founder": {"identity": IDENTITY_EMAIL, "at sign-up": bt.me_at_signup,

@@ -22,6 +22,10 @@ with `strict=False` and recorded in `backtest.json` (`scope`) and the register r
 **Spec 106 FR-2: `PEOPLE=`** (`KEEL_BACKTEST_PEOPLE`; `make quality-walk` passes `quality/cycle.toml`'s seven): the
 study sends the first that many people on the person's own link, in corpus order (`vectors_script.study_people`), the
 decision-makers whole; recorded in `backtest.json` (`people`). Every person the scope sends when unsaid.
+
+**Spec 126 FR-2: `TYPOS=1`** (`KEEL_BACKTEST_TYPOS`; `make quality-walk` passes it unless `TYPOS=0`): the founder types his
+four context fields and his two seeds with a person's typos (`harness/typist.py`), recorded in `backtest.json`
+(`typos`). Off when unsaid: the walk types the entry as recorded.
 """
 
 from __future__ import annotations
@@ -67,11 +71,11 @@ def test_backtest(stack, browser, run_dir):
     if DOOR != "host":
         corpus_scenario.run(stack, None, browser, run_dir, entry_id=ENTRY_ID, slug=f"backtest-{ENTRY_ID}",
                             backtest=backtest.Backtest(run_dir=run_dir, stack=stack, scope=backtest.scope(),
-                                                       people=backtest.people()))
+                                                       people=backtest.people(), typos=backtest.typos()))
         return
     # spec 066: the host door -- and the runtime stopped whatever happens (FR-5; `finish` stops it first)
     bt = backtest.Backtest(run_dir=run_dir, stack=stack, door="host", host=backtest.host(), scope=backtest.scope(),
-                           people=backtest.people())
+                           people=backtest.people(), typos=backtest.typos())
     try:
         corpus_scenario.run(stack, None, browser, run_dir, entry_id=ENTRY_ID, slug=f"backtest-{ENTRY_ID}",
                             backtest=bt)

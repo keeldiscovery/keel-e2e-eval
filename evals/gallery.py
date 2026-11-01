@@ -85,6 +85,7 @@ from typing import Any, Iterable
 
 from evals import backtest as bt
 from evals import sample_export as se
+from harness import typist
 
 REPO = Path(__file__).resolve().parent.parent
 NAMES_FILE = REPO / "instructions" / "gallery_names.toml"
@@ -310,7 +311,9 @@ def read_run(run_dir: Path) -> Run:
     absent = [k for k in se.TOP_READS if k not in reads]
     if absent:
         raise GalleryRefused([f"{run_dir.name}: the export lacks {absent}"])
-    return Run(dir=run_dir, record=record, founder=(_json(run_dir / "inputs.json") or {}).get("founder") or {},
+    inputs = _json(run_dir / "inputs.json") or {}
+    # spec 126: a quality walk's founder typed with typos -- the gallery shows the words he meant (unchanged without any)
+    return Run(dir=run_dir, record=record, founder=typist.as_meant(inputs.get("founder"), inputs.get("typos")),
                reads=reads, corpus=manifest.get("corpus"), follow_ups=read_follow_ups(run_dir / "transcript.jsonl"))
 
 

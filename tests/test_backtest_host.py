@@ -113,9 +113,11 @@ def test_the_runner_reads_the_door_and_the_keel_door_still_refuses_on_a_missing_
     source = (REPO / "evals" / "run_backtest.py").read_text(encoding="utf-8")
     assert "backtest.door_refusal()" in source and "backtest.refusal() or backtest.entry_refusal()" in source
     # spec 071 FR-4: the KEEL door's call is unchanged but for the study's scope (ALL when unsaid) -- and, since spec
-    # 106 FR-2, the people a study sends (`PEOPLE=`, every person when unsaid), re-pinned with why
+    # 106 FR-2, the people a study sends (`PEOPLE=`, every person when unsaid), and since spec 126 FR-2 whether the
+    # founder types with typos (`TYPOS=1`, off when unsaid), re-pinned with why
     assert ("backtest=backtest.Backtest(run_dir=run_dir, stack=stack, scope=backtest.scope(),\n"
-            "                                                       people=backtest.people()))") in source
+            "                                                       people=backtest.people(), typos=backtest.typos()))"
+            ) in source
     assert "bt.stop_runtime()" in source
 
 

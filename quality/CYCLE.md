@@ -44,6 +44,13 @@ make quality-walk DRY=1 ENTRIES=21-codyco SCOPES=PROBLEM WHY="dry"   # the plan 
   `cycle.toml`'s `people = 7` rides on every back-test as `PEOPLE=7` -- the entry's first seven in corpus order of the
   people the study's scope sends on the person's own link; a B2B money study sends its decision-makers whole (eight on
   08-fresco, 10-palus and 21-codyco, seven on 17-expanse). `PEOPLE=<n>` overrides it for one walk; the record says it.
+- **The founder types like a person** (spec 126, the founder 2026-11-01: *"ensure the agent emulates a human by making
+  small typos in their statements"*): every back-test rides with `TYPOS=1` -- his four context fields and two seeds typed
+  with a person's typos (`harness/typist.py`, deterministic from the entry and the field; never a name, a number, a unit,
+  a short word or a first letter). After the readers, every served text the bundle captured is searched for each typed
+  form: a hit is a *typo leak*, a defect line under the study in the record and `typo_leaks` in the score file, and the
+  head says `typos: N typed on M fields; K leaked`. A leak is a keel-cloud defect, never a reason to retype. `TYPOS=0`
+  types the entry as recorded; `DRY=1` prints every field as typed, `withot[without]`.
 - **It refuses** (one sentence, exit 2, nothing run) without ENTRIES, without WHY, with a dirty keel-cloud checkout (a
   sha must name what was measured), on DOOR=keel without `KEEL_ANTHROPIC_API_KEY` in the shell, without the `claude`
   CLI (the readers' door, and DOOR=host's), on an entry keel-cloud has no back-test file for, or an unknown scope.

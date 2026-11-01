@@ -5411,9 +5411,18 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
     hashes_before = dict(corpus.hashes)
     script = vs.generate(entry) if backtest is None else None
     founder = vs.founder_inputs(entry)
+    typed: list = []
+    if getattr(backtest, "typos", False) is True:
+        # spec 126 FR-2: on the quality walk alone (`TYPOS=1`) the founder types his four fields and two seeds as a person
+        # does, with typos; a golden walk and a plain back-test type the entry as recorded
+        from harness import typist                                         # noqa: PLC0415
+        founder, typed = typist.type_founder(entry, founder)
+        backtest.typed = typed
     people = vs.person_inputs(entry)
-    write_generated(run_dir, script=script.to_json() if script is not None else None,
-                    inputs=vs.inputs_json(entry, founder, people))
+    inputs = vs.inputs_json(entry, founder, people)
+    if typed:
+        inputs["typos"] = typed
+    write_generated(run_dir, script=script.to_json() if script is not None else None, inputs=inputs)
     journey = None
     try:
         exported = contract_mod.export(stack.keel_cloud,

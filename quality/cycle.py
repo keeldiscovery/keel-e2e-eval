@@ -43,6 +43,7 @@ import tomllib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from harness import typist
 from quality import decisions as dec
 from quality import readers, rubric, table
 
@@ -288,12 +289,14 @@ def preflight(*, entries: list[str], scopes: list[str], door: str, why: str | No
     return hard, soft
 
 
-def plan_steps(entries: list[str], scopes: list[str], door: str, work: Path, people: int | None = None) -> list[dict]:
+def plan_steps(entries: list[str], scopes: list[str], door: str, work: Path, people: int | None = None,
+               typos: bool = False) -> list[dict]:
     """The walk as commands, in order: per entry per scope a `make down`, a `make backtest` and a `make read-screens`,
     then one `make read-table`. `<bundle>` is filled after its back-test, from the run folder it wrote. Spec 106 FR-2:
-    `people` (cycle.toml's seven, or `PEOPLE=`) rides on every back-test as `PEOPLE=`."""
+    `people` (cycle.toml's seven, or `PEOPLE=`) rides on every back-test as `PEOPLE=`. Spec 126 FR-2: `typos` (the
+    walk's default, `--typos off` / `TYPOS=0` not) rides on it as `TYPOS=1`."""
     make = ["make", "-C", str(REPO), "--no-print-directory"]
-    sends = [f"PEOPLE={int(people)}"] if people else []
+    sends = ([f"PEOPLE={int(people)}"] if people else []) + (["TYPOS=1"] if typos else [])
     steps = []
     for entry in entries:
         for scope in scopes:
@@ -374,6 +377,16 @@ def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=sub
         study.error = f"make read-screens exited {code} (see {read['log']})"
         return study
     path = Path(pointer.read_text(encoding="utf-8").strip())
+    typed = typist.walked(record, record.get("typos") or [])
+    if typed:
+        # spec 126 FR-3: the typos the walk typed and the served texts they reached, written into the score file -- only
+        # when the walk typed one, so a score file of a walk with none is 078's to the byte; never a stop, never a retype
+        found = typist.leaks(record, typed)
+        written = json.loads(path.read_text(encoding="utf-8"))
+        written.update(typos=typed, typo_leaks=found)
+        path.write_text(json.dumps(written, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"  {entry} · {scope}: {len(typed)} typos typed on {len({t['field'] for t in typed})} fields; "
+              f"{len(found)} leaked" + "".join(f"\n    {typist.leak_line(x)}" for x in found))
     obj = rubric.load_file(path)
     study.score_file = _rel(path)
     study.read_usd = obj.get("cost_usd")
@@ -446,9 +459,16 @@ def _head_of(files: list[dict]) -> dict | None:
     s = top["summary"]
     # spec 122 (FR-2): the screens the readers read on a second ask, and the ones left unread, over the files -- said
     # only when there was a second ask, so a record with none is 079's to the byte
-    again = sum(int(f.get("asked_again") or 0) for f in latest if isinstance(f, dict))
-    extra = {"asked_again": again, "unread": sum(len(f.get("unread") or []) for f in latest if isinstance(f, dict))} \
+    again = sum(int(f.get("asked_again") or 0) for f in latest.values() if isinstance(f, dict))
+    extra = {"asked_again": again,
+             "unread": sum(len(f.get("unread") or []) for f in latest.values() if isinstance(f, dict))} \
         if again else {}
+    # spec 126 (FR-2 / FR-3): the typos the walks typed, on how many fields, and how many reached a served text -- said
+    # only when a walk typed one, so a record of walks with none (every record before 126) is 122's to the byte
+    typed = [(key, t) for key, f in latest.items() if isinstance(f, dict) for t in f.get("typos") or []]
+    if typed:
+        extra.update(typos=len(typed), typo_fields=len({(key, t.get("field")) for key, t in typed}),
+                     typo_leaks=sum(len(f.get("typo_leaks") or []) for f in latest.values() if isinstance(f, dict)))
     return {"score_pct": top["score_pct"], "flagged_pct": s["overall"]["flagged_pct"], "screens": s["overall"]["screens"],
             **extra,
             "founder": {"score_pct": s["founder"]["score_pct"], "flagged_pct": s["founder"]["flagged_pct"]},
@@ -583,6 +603,11 @@ def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: 
         "cost": {"walk_usd": walk_usd, "read_usd": read_usd, "total_usd": round(walk_usd + read_usd, 4)},
     }
     data["walks"] = walks_of(data, root)
+    typo_studies = {key: {"typos": len(f.get("typos") or []), "fields": len({t.get("field") for t in f["typos"]}),
+                          "leaks": list(f.get("typo_leaks") or [])}
+                    for key, f in latest.items() if f.get("typos")}
+    if typo_studies:                                # spec 126 FR-3: absent on walks that typed no typo, as 122's read
+        data["typo_leaks"] = typo_studies
     if people:                                      # spec 106: absent on a walk that capped nobody, as a 079 record reads
         data["people"] = int(people)
     if snoozed:                                     # spec 087: absent when nothing is decided, as a 079 record reads
@@ -617,6 +642,8 @@ def render_record(d: dict) -> str:
              *table.walks_lines(d.get("walks")),
              *([f"  - {head['asked_again']} screens read on a second ask (spec 122); {head.get('unread', 0)} unread"]
                if head.get("asked_again") else []),
+             *([f"  - typos: {head['typos']} typed on {head.get('typo_fields', 0)} fields; "
+                f"{head.get('typo_leaks', 0)} leaked (spec 126)"] if head.get("typos") else []),
              (f"- **The baseline** (cut {base['cut']}): score_pct {_pct(base.get('score_pct'))}, flagged "
               f"{_pct(base.get('flagged_pct'))}" if base else "- **The baseline**: none cut yet"),
              f"- **The bar**: {bar:.0f}% -- this cycle "
@@ -655,6 +682,7 @@ def render_record(d: dict) -> str:
                                  f"`{s['score_file']}`" if s.get("score_file") else "--", _pct(s.get("score_pct")),
                                  _pct(s.get("flagged_pct")), f"{s['walk_usd']}" if s.get("walk_usd") is not None else "--",
                                  f"{s['read_usd']}" if s.get("read_usd") is not None else "--", f"{minutes} |"]))
+    lines += typo_lines(d.get("typo_leaks"))
     snoozed = d.get("decided_before") or []
     decided = {s["row"] for s in snoozed}
     to_advise = [k for k in d["weak_rows"] if k not in decided]
@@ -684,6 +712,21 @@ def render_record(d: dict) -> str:
               f"3. **Accept** (free, on his word): `make quality-accept CYCLE={rel}`", "",
               _DATA, "```json", json.dumps(d, indent=1, ensure_ascii=False), "```", ""]
     return "\n".join(lines)
+
+
+def typo_lines(studies: dict | None) -> list[str]:
+    """Spec 126 FR-3: the typo leaks, a defect line each under its study -- and a study whose typos reached nothing said
+    so; nothing at all where no walk typed a typo."""
+    if not studies:
+        return []
+    lines = ["", "## Typo leaks (spec 126) -- the founder typed like a person; a leak is a keel-cloud defect, never a "
+                 "reason to retype", ""]
+    for key, s in studies.items():
+        leaks = s.get("leaks") or []
+        lines.append(f"- **{key}**: {s.get('typos', 0)} typos typed on {s.get('fields', 0)} fields; "
+                     + (f"{len(leaks)} leaked" if leaks else "none leaked"))
+        lines += [f"  - {typist.leak_line(x)}" for x in leaks]
+    return lines
 
 
 def load_record(path: str | Path) -> dict:
@@ -733,6 +776,24 @@ def table_head(record: dict, *, baseline_path: Path | None = None) -> dict:
             "baseline": base, "bar_pct": record.get("bar_pct") or rubric.BAR_PCT}
 
 
+def typed_fields(entries: list[str], cloud: Path, typos: bool) -> list[str]:
+    """Spec 126 FR-2, the DRY run: every field the founder types, as he will type it, each typo marked `typed[meant]` --
+    or that typos are off. An entry that cannot be read is said, never refused (the plan is still printed)."""
+    if not typos:
+        return ["typos: off (TYPOS=0) -- the founder's fields and seeds are typed as recorded"]
+    lines = ["typos: on (spec 126; TYPOS=0 turns them off) -- the founder's fields and seeds as he will type them, each "
+             "typo marked typed[meant]:"]
+    from harness import vectors_script as vs                               # noqa: PLC0415
+    for entry_id in entries:
+        try:
+            _, entry = vs.entry_for(cloud, entry_id, backtest=True)
+            lines.append(f"  {entry_id}:")
+            lines += typist.dry_lines(entry, vs.founder_inputs(entry))
+        except Exception as reason:                     # noqa: BLE001 - a dry run says what it could not read
+            lines.append(f"  {entry_id}: the typed fields could not be read ({str(reason)[:160]})")
+    return lines
+
+
 def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> int:
     p = argparse.ArgumentParser(prog="make quality-walk", description="Spec 079 FR-2: the kick-off.")
     p.add_argument("--entries", default="")
@@ -741,6 +802,8 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
     p.add_argument("--build", default="")
     p.add_argument("--why", default="")
     p.add_argument("--people", default="", help="spec 106 FR-2: people a study (default quality/cycle.toml's)")
+    p.add_argument("--typos", choices=("on", "off"), default="on",
+                   help="spec 126 FR-2: the founder types his fields and seeds with typos (on), or as recorded (off)")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--cycles-dir", default=str(CYCLES_DIR))
     p.add_argument("--decisions", default="", help=argparse.SUPPRESS)
@@ -765,7 +828,8 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
     cycles_dir = Path(a.cycles_dir)
     name = record_name(now.strftime("%Y%m%d"), cloud7, cycles_dir)
     work = RUNS_DIR / "quality-walk" / f"{now.strftime('%Y%m%dT%H%M%SZ')}-{name}"
-    steps = plan_steps(entries, scopes, door, work, people)
+    typos = a.typos == "on"
+    steps = plan_steps(entries, scopes, door, work, people, typos)
     record_path = cycles_dir / f"{name}.md"
     if a.dry_run:
         print(f"quality-walk DRY RUN -- nothing runs, nothing is written. WHY: {a.why or '(none: a paid walk needs one)'}")
@@ -781,6 +845,8 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
                     for x in step["argv"]]
             print(f"  {i:>3}. {' '.join(argv[4:]) if argv[:1] == ['make'] else ' '.join(argv)}"
                   + (f"   > {_rel(step['log'])}" if step.get("log") else ""))
+        for line in typed_fields(entries, cloud, typos):
+            print(line)
         print(f"decisions: {len(decisions)} in quality/decisions.toml (spec 087) -- a weak row one covers is listed "
               "under Decided before, not advised")
         print(f"then the record: {_rel(record_path)} (and TABLE.md's head); commit both with the score files")

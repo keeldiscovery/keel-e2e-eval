@@ -1097,6 +1097,25 @@ and held (`brand_plate_faults`: none before the name, the mark as typed, the str
 read whole (`_line_text`, `textContent`) around `idea-mark`. `make unit` 4,917 passed / 0 failed / 0 errors / 54 skipped
 against keel-cloud-docs `2d848360` and keel-web `2b84758` (master `39a9ccb`: 4,717 / 154 / 2 / 55).
 
+**The founder types like a person** (spec `126-the-founder-types-like-a-person`, 2026-11-01; the founder: *"ensure the
+agent emulates a human by making small typos in their statements"*). **FR-1**: `harness/typist.py` `typos(text, seed)`
+-> `(typed, [Typo(meant, typed, kind)])`, seeded `<entry id>:<field>` through sha256 (no `random`): about one typo every
+twelve words, at least one from four; an adjacent transposition, a dropped inner letter, a doubled consonant, the ie /
+ei swap where a word has one; only a plain lower-case word of five letters or more, never its first letter, never a
+unit or currency, a word of the idea name, the offer name or the short name (the corpus records no `product_words`),
+and never a typed form that is a word of the entry's own yaml; every typo `spelling.same_word` its word. **FR-2**: on the
+quality walk alone -- `--typos on|off` (default on; `make quality-walk TYPOS=0` is off) rides on each back-test as
+`TYPOS=1` (`KEEL_BACKTEST_TYPOS`, `backtest.typos`), and `corpus_scenario.run` types `FounderInputs`' four context
+fields and two seeds through `typist.type_founder` only when `backtest.typos is True`; `backtest.json` and `inputs.json`
+carry `typos` only when one was typed, so a golden journey, `make gallery` (which reads `typist.as_meant`) and a plain
+`make backtest` are byte for byte as before. `DRY=1` prints every field as typed, `withot[without]`. **FR-3**:
+`typist.leaks` searches every served text the bundle captured (the founder's screens less his `answer`, each link's
+served interview and drawn screens, the screens after the answers, the report) for each typed form as a whole word,
+case-insensitively, on the fields the walk reached (`walked`: no solution seed on a PROBLEM study); `cycle.walk_one`
+writes `typos` and `typo_leaks` into the score file only when typos were typed, the head says `typos: N typed on M
+fields; K leaked` and *Typo leaks* lists a defect line a leak under its study. Never a stop, never a retype.
+`RUBRIC_VERSION` and `MARKS_VERSION` stand; no reader prompt moved.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;

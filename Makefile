@@ -118,12 +118,15 @@ gallery: venv
 # Spec 106 FR-2: PEOPLE=<n> sends the first n people on the person's own link, in corpus order (the decision-makers
 # whole); every person the scope sends when unsaid. `make quality-walk` passes quality/cycle.toml's people (seven).
 #   make backtest DOOR=host ENTRY=08-fresco SCOPE=PROBLEM PEOPLE=7
+# Spec 126 FR-2: TYPOS=1 types the founder's four context fields and two seeds with a person's typos (harness/typist.py,
+# deterministic from the entry and the field), recorded in backtest.json (`typos`); `make quality-walk` passes it unless
+# TYPOS=0. Unsaid, the back-test types the entry as recorded.
 backtest:
 	@if [ -n "$(DOOR)" ] && [ "$(DOOR)" != "keel" ] && [ "$(DOOR)" != "host" ]; then echo "make backtest refuses: DOOR=$(DOOR) is not a door -- \`DOOR=keel\` (Keel's AI, spec 062) or \`DOOR=host\` (the founder's own Claude Code through the runtime, spec 066)"; exit 2; fi
 	@if [ "$(DOOR)" != "host" ] && [ -z "$$KEEL_ANTHROPIC_API_KEY" ]; then echo "make backtest refuses: KEEL_ANTHROPIC_API_KEY is not set in this shell -- the local stack passes it to keel-cloud, which answers every job of the back-test on Keel's AI (spec 062 FR-2); it is never logged, echoed or written"; exit 2; fi
 	@if [ -z "$(ENTRY)" ]; then echo "make backtest refuses: no ENTRY -- name a back-test entry, \`make backtest ENTRY=<id>\` (keel-cloud canon/designs/measured-beliefs/backtest/<id>.yaml)"; exit 2; fi
 	@$(MAKE) --no-print-directory venv
-	KEEL_EVAL_PROFILE=eval KEEL_BACKTEST_ENTRY=$(ENTRY) $(if $(SCOPE),KEEL_BACKTEST_SCOPE=$(SCOPE) ,)$(if $(PEOPLE),KEEL_BACKTEST_PEOPLE=$(PEOPLE) ,)$(if $(filter host,$(DOOR)),KEEL_BACKTEST_DOOR=host KEEL_BACKTEST_HOST=$(if $(HOST),$(HOST),claude) $(if $(MODEL),KEEL_BACKTEST_MODEL=$(MODEL) ,),)$(PY) -m pytest evals/run_backtest.py -q -rs -l
+	KEEL_EVAL_PROFILE=eval KEEL_BACKTEST_ENTRY=$(ENTRY) $(if $(SCOPE),KEEL_BACKTEST_SCOPE=$(SCOPE) ,)$(if $(PEOPLE),KEEL_BACKTEST_PEOPLE=$(PEOPLE) ,)$(if $(TYPOS),KEEL_BACKTEST_TYPOS=$(TYPOS) ,)$(if $(filter host,$(DOOR)),KEEL_BACKTEST_DOOR=host KEEL_BACKTEST_HOST=$(if $(HOST),$(HOST),claude) $(if $(MODEL),KEEL_BACKTEST_MODEL=$(MODEL) ,),)$(PY) -m pytest evals/run_backtest.py -q -rs -l
 
 # make noise-check (spec 074 FR-3) is THE NOISE-CAPTURE CERTIFICATE: the 1,260 samples of 2026-10-26 (thirty spoken
 # answers, two voices each, quiet and five noise beds at 20 / 10 / 5 / 0 dB) read from KEEL_NOISE_SAMPLES (default
@@ -190,13 +193,16 @@ read-table: venv
 # without the `claude` CLI, on an unknown entry or scope, and when BUILD= is not the checkout's sha. DRY=1 prints the plan
 # and runs nothing. Spec 106 FR-2: every study sends quality/cycle.toml's `people` (seven) on the person's own link --
 # the first in corpus order, the decision-makers whole; PEOPLE=<n> overrides it for one walk.
+# Spec 126 FR-2: the founder types like a person -- every back-test of the walk passes TYPOS=1 (his four context fields
+# and two seeds typed with typos), the record says `typos: N typed on M fields; K leaked`; TYPOS=0 types them as
+# recorded. DRY=1 prints every typed field with its typos marked, `withot[without]`.
 #   make quality-walk DRY=1 ENTRIES=21-codyco SCOPES=PROBLEM WHY="dry"
 #   KEEL_ANTHROPIC_API_KEY="$$(...)" make quality-walk ENTRIES=default WHY="the registry's Frequency row moved"
 #   make quality-walk ENTRIES=default DOOR=host WHY="a week since the last cycle"
 quality-walk: venv
 	PYTHONPATH=. $(PY) -m quality.cycle walk --entries "$(ENTRIES)" $(if $(SCOPES),--scopes "$(SCOPES)",) \
 	  $(if $(DOOR),--door "$(DOOR)",) $(if $(BUILD),--build "$(BUILD)",) $(if $(DRY),--dry-run,) \
-	  $(if $(PEOPLE),--people "$(PEOPLE)",) $(if $(WHY),--why "$(WHY)",)
+	  $(if $(PEOPLE),--people "$(PEOPLE)",) $(if $(filter 0 off,$(TYPOS)),--typos off,) $(if $(WHY),--why "$(WHY)",)
 
 # make quality-advise (PAID, one call per weak row, the founder's plan) hands each weak row of a cycle to the adviser
 # (quality/readers/adviser.md, Opus 5.5 through the claude CLI) with the current text at its fix location read from
