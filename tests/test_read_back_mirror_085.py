@@ -254,7 +254,9 @@ def test_the_draw_mirror_reads_the_clouds_sources():
     assert ('"(?i)(?:,\\\\s*" + ITEM + ")*,\\\\s*" + ITEM + "\\\\s+(?:or|and)\\\\s+"\n'
             '            + ITEM_OPENS + "[^,;]+?(?=\\\\s+and\\\\b|\\\\s*[,;]|\\\\s*$)"') in source
     assert 'replaceAll("(?i)\\\\b(bank|work|own|employ)ing\\\\b", "$1")' in source
-    assert "FounderWords.dropped(bare(qualifier), bare(condition)).isEmpty()" in source
+    # spec 125 re-pin (keel-cloud 195 FR-2): the founder's part reads spelling aside, the core's own parts exactly
+    assert ("(asSpelt ? FounderWords.droppedAsSpelt(bare(qualifier), bare(condition))\n"
+            "                : FounderWords.dropped(bare(qualifier), bare(condition))).isEmpty()") in source
     applier = _cloud("src/main/java/com/keeldiscovery/cloud/application/ScreenResultApplier.java")
     assert '"(?i)\\\\b(?:that|which)\\\\s+(bank|run|work|operate|own|employ)s?\\\\s+(.+)$"' in applier
     assert '"(?i)(?:^|\\\\s)(banking|running|working|operating|owning|employing)\\\\s+(.+)$"' in applier

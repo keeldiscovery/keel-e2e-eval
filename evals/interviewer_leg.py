@@ -1681,10 +1681,16 @@ class _Walk:
                  follow_up: dict | None = None, owes: Callable[[dict, str], bool] | None = None):
         self.player = player
         self.gate = interview.get("gate") or {}
-        #: Spec 100 (keel-web 145 FR-1, keel-cloud 166): the screener the AI flow asks on a FULL link -- the gate's chip,
-        #: or the money link's own `Interview.condition` (no gate) on a step of its own before the idea; the
-        #: decision-maker's AI walk asks none (keel-web 127 FR-2 / 145 FR-3).
-        self.screener = (vs_screens.screener_of(interview) if interview.get("kind") == "FULL" else None) or {}
+        #: Spec 100 (keel-web 145 FR-1, keel-cloud 166): the screener the AI flow asks -- the gate's chip, or the link's own
+        #: `Interview.condition` (no gate) on a step of its own before the idea. Spec 125 FR-2 (keel-web 160 T005): the
+        #: decision-maker's AI link asks its screener too, after the opening (it asked none from keel-web 127 to 159).
+        self.screener = vs_screens.screener_of(interview) or {}
+        #: Spec 125 FR-2 (keel-web 160 FR-1, keel-cloud 194): the condition's clip (`clips.condition`), played on the
+        #: condition step before its Yes / No; None on a lock from before 194, which asks it as text.
+        self.condition_clip = (((interview.get("interviewer") or {}).get("clips") or {}).get("condition")
+                               or {}).get("clipId")
+        #: What the condition step drew and heard (`{step, clip, played, at}`), for the record.
+        self.condition_seen: dict | None = None
         self.items = {i.get("question"): i for part in interview.get("parts") or [] for i in part.get("items") or []}
         # spec 118 FR-2 (keel-cloud 181, keel-web 155 T020): Ability to pay's item, where served `askedAfter`, shows the
         # pointed-back question of the person's own Price answer under the avatar -- that question is the item too
@@ -1866,7 +1872,10 @@ class _Walk:
             if condition and q == condition.get("question"):
                 # keel-cloud 120 (FR-2): the segment chip, asked before the gate question; the golden people are
                 # inside the segment, so the answer is the first code the study lets in (YES / NO). Spec 100: the money
-                # link's screener the same, before the idea's passages
+                # link's screener the same, before the idea's passages. Spec 125 FR-2 (keel-web 160): heard first --
+                # the condition's clip played, then the window, then the Yes / No
+                self.condition_seen = wait_condition_clip(p, self.condition_clip)
+                entry["condition_clip"] = self.condition_seen
                 self.held(entry, "yes" if (condition.get("inCodes") or ["YES"])[0] == "YES" else "no")
                 continue
             if self.gate and q == self.gate.get("question"):
@@ -2508,6 +2517,34 @@ def _record_stamps(player) -> dict:
         released: (window.__micReleasedAt || []).slice() })""")
 
 
+def wait_condition_clip(player, clip_id: str | None, *, timeout_s: float = 20) -> dict:
+    """Spec 125 FR-2 (keel-web 160 FR-1, T004): on a lock since keel-cloud 194 the sheet's condition step
+    (`[data-testid=ai-sheet][data-step=condition]`, or the gate's step asking its chip) plays `clips.condition` and opens
+    the window when it ends -- wait for that play (the timeline's `play` of the clip, the stage's `data-clip`) and the
+    window after it, as for the problem clip. With no clip served (a lock from before 194) nothing is waited for: the
+    page asks the condition as text and opens the window at once."""
+    seen = {"step": _step_of(player), "clip": clip_id, "played": False, "at": None}
+    if not clip_id:
+        return seen
+    deadline = time.monotonic() + timeout_s * player.patience
+    while time.monotonic() < deadline and not _played_at(player, clip_id):
+        time.sleep(0.05)
+    played = _played_at(player, clip_id)
+    seen.update(played=bool(played), at=played or None)
+    assert played, {"the condition's clip never played": clip_id, "step": seen["step"],
+                    "stage": player.stage().get("clip")}
+    _wait_recording_since(player, played, timeout_s=timeout_s)
+    return seen
+
+
+def ai_question_count(interview: dict) -> int:
+    """Spec 125 FR-2 (keel-web 160 FR-2, `questionCount`): what the AI intro and the counter count -- one for the
+    condition where the link asks one (`fake.condition_of`), one for the gate, and every item. *Question 1 of N* is the
+    condition where there is one (the gate is 2)."""
+    items = sum(len(part.get("items") or []) for part in interview.get("parts") or [])
+    return (1 if fake.condition_of(interview) else 0) + (1 if interview.get("gate") else 0) + items
+
+
 def _played_at(player, clip_id: str | None) -> float:
     """When `clip_id` last began to play on the stage (the timeline's `play`), or 0."""
     plays = [e.get("t") or 0 for e in player.timeline() if e.get("kind") == "play" and clip_id
@@ -2835,6 +2872,9 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
                          "statuses": [s.get("status") for s in statuses]})
         assert intro["intro"] == "AI_INTERVIEWER" and intro["buttons"] == ["start-talking"], intro
         assert intro["heading"].startswith(f"{fake.FACE_NAMES[FIRST_FACE]} will ask you"), intro
+        # spec 125 FR-2 (keel-web 160 FR-2): the heading counts every question -- the condition where the link asks one
+        assert intro["heading"] == ivs.ai_intro_heading(fake.FACE_NAMES[FIRST_FACE], ai_question_count(interview)), \
+            (intro["heading"], ai_question_count(interview))
         assert len(responses) == 1 and responses[0]["status"] in (200, 201), responses
         assert body.get("format") == "AI_INTERVIEWER", body
         assert sent == want, {"sent": sent, "want": want}

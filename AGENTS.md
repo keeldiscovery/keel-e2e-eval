@@ -1085,6 +1085,18 @@ without it; the gated problem passage says *First a quick check or two that this
 and a condition before the idea opens on *First a quick check that this is for you. Then the idea, and a few questions on
 the money side.* (`PassageComposer` as built). Contract 57 is read from keel-cloud's yaml (no snapshot here).
 
+**The referee follows keel-cloud 195 and keel-web 160 / 161** (spec `125-the-referee-follows-195-160-161`, 2026-11-01;
+keel-cloud-docs `2d848360`, keel-web `2b84758`). **FR-1**: `instructions/spelling.py` ports `Spelling.sameWord` / `inText` /
+`runIn` (the first letter the same; OSA 1 at four letters, 2 from five; under four, or a digit, exact); `no_leak`'s
+vocabulary also subtracts the stems that are a typed problem word spelt right (`Entry.typed_problem_texts`), and the two
+other mirrors 195 routed follow (`chain._same_words`, `qualifiers.dropped_as_spelt` under `same_qualifier`).
+`MARKS_VERSION` 24 stands. **FR-2**: the AI walk waits for `clips.condition` before the condition's Yes / No
+(`wait_condition_clip`; none on a lock before 194), the decision-maker's AI link asks its screener, and the intro's
+heading is held to `ai_question_count` (the condition counted). **FR-3**: S2's brand plate is read (`Corridor.brand_plate`)
+and held (`brand_plate_faults`: none before the name, the mark as typed, the stranger's line); the stranger's line is
+read whole (`_line_text`, `textContent`) around `idea-mark`. `make unit` 4,917 passed / 0 failed / 0 errors / 54 skipped
+against keel-cloud-docs `2d848360` and keel-web `2b84758` (master `39a9ccb`: 4,717 / 154 / 2 / 55).
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;

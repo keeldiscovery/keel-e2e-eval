@@ -65,18 +65,29 @@ def stem(word: str) -> str:
     return w[:5] if len(w) > 5 else w
 
 
-def dropped(founder: str | None, *kept: str | None) -> list[str]:
-    """`FounderWords.dropped`: the founder's content words none of `kept` carries (by stem), in the founder's order."""
+def dropped(founder: str | None, *kept: str | None, spelt: bool = False) -> list[str]:
+    """`FounderWords.dropped`: the founder's content words none of `kept` carries (by stem), in the founder's order.
+    `spelt` (spec 125, keel-cloud 195 `FounderWords.droppedAsSpelt`): a word is carried too where a word of `kept` is
+    the same word spelt right or wrong (`spelling.same_word`) -- one side the founder's typed text, the other the
+    model's."""
+    from instructions import spelling as spelling_mod                  # noqa: PLC0415
     missing: list[str] = []
     if founder is None or not founder.strip():
         return missing
-    stems = {stem(w) for text in kept for w in words(text)}
+    kept_words = [w for text in kept for w in words(text)]
+    stems = {stem(w) for w in kept_words}
     for word in words(founder):
         if len(word) < 3 or word in STOP or re.fullmatch(r"\d+", word):
             continue
-        if stem(word) not in stems and word not in missing:
+        if stem(word) not in stems and word not in missing \
+                and not (spelt and any(spelling_mod.same_word(word, own) for own in kept_words)):
             missing.append(word)
     return missing
+
+
+def dropped_as_spelt(founder: str | None, *kept: str | None) -> list[str]:
+    """keel-cloud 195 FR-2 (`FounderWords.droppedAsSpelt`): `dropped`, spelling aside."""
+    return dropped(founder, *kept, spelt=True)
 
 
 def _negated(text: str | None) -> bool:
@@ -310,17 +321,19 @@ def _framed_off(condition: str) -> str:
     return FRAME.sub("", condition.strip(), count=1)
 
 
-def same_qualifier(condition: str | None, part: str | None) -> bool:
+def same_qualifier(condition: str | None, part: str | None, *, as_spelt: bool = True) -> bool:
     """`Qualifiers.sameQualifier` (145 FR-4a, 149 FR-3): `condition` names the same qualifier as the founder's `part` --
     the qualifier (the part from its first DRAWN_QUALIFIER match on, a leading *who / that / which* off) has every number
-    and capitalised word in the condition and no content word lost, a participle read as its verb (`bare`)."""
+    and capitalised word in the condition and no content word lost, a participle read as its verb (`bare`). Spec 125
+    (keel-cloud 195 FR-2): the founder's part is typed, so a content word is kept by the same word spelt right
+    (`dropped_as_spelt`); `in_core`'s model-to-model read is exact (`as_spelt` False). Numbers and names stay as typed."""
     if condition is None or not condition.strip() or part is None:
         return False
     at = DRAWN_QUALIFIER.search(part)
     qualifier = part[at.start():].strip() if at else part.strip()
     qualifier = re.sub(r"(?i)^(?:who|that|which)\s+", "", qualifier, count=1)
     # keel-cloud 149 FR-3: a participle is its verb (*banking with Mercury* is named by *banks with Mercury*)
-    return _carries(condition, qualifier) and not dropped(bare(qualifier), bare(condition))
+    return _carries(condition, qualifier) and not dropped(bare(qualifier), bare(condition), spelt=as_spelt)
 
 
 def in_core(core: str | None, condition: str | None) -> bool:
@@ -337,7 +350,7 @@ def in_core(core: str | None, condition: str | None) -> bool:
     anything = bool(dropped(said, "")) or bool(re.search(r"\d", said)) or bool(re.search(r"\b[A-Z]", said, re.ASCII))
     if anything and not dropped(said, core):
         return True
-    return any(DRAWN_QUALIFIER.search(part) and same_qualifier(condition, part) for part in parts(core))
+    return any(DRAWN_QUALIFIER.search(part) and same_qualifier(condition, part, as_spelt=False) for part in parts(core))
 
 
 def head(people: str | None) -> str | None:

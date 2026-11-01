@@ -642,6 +642,27 @@ def _input_value(page, testid: str) -> str | None:
     return box.first.input_value() if box.count() else None
 
 
+def _line_text(scope, selector: str) -> str:
+    """Spec 125 FR-3 (keel-web 161 FR-2): one line read whole -- the first match's `textContent`, whitespace folded --
+    since the stranger's first line is split around `b.iv-mark[data-testid=idea-mark]` (*Imagine <b>Titam</b>, a ...*)
+    and a single text node of it is never the line. "" where nothing matches."""
+    try:
+        found = scope.locator(selector)
+        return " ".join(str(found.first.text_content() or "").split()) if found.count() else ""
+    except Exception:  # noqa: BLE001 - a read, never load-bearing
+        return ""
+
+
+def idea_mark(scope) -> str | None:
+    """Spec 125 FR-3 (keel-web 161 FR-2): the name the stranger's line marks (`[data-testid=idea-mark]`), or None where
+    the line carries no mark (*Imagine Fresco.* with no served name, a line from before 185)."""
+    try:
+        found = scope.get_by_test_id("idea-mark")
+        return " ".join(str(found.first.text_content() or "").split()) if found.count() else None
+    except Exception:  # noqa: BLE001 - a read
+        return None
+
+
 def _first_text(scope, selector: str) -> str:
     """The first match's text, or "" at once when nothing matches -- never Playwright's thirty-second
     wait for an element a screen variant does not draw (the decider banner on a B2C page)."""
@@ -1977,6 +1998,8 @@ class Corridor:
             suggestion = _tc(hint) if hint.count() else None
             frame = self.frame()
             counter = {"drawn": self._name_counter()}
+            # spec 125 FR-3 (keel-web 161 FR-1): no brand plate while the name box is empty
+            plate = {"before": self.brand_plate()}
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot("idea-check"))
             self._shot("idea")
@@ -1997,12 +2020,27 @@ class Corridor:
                     pass
                 counter["named"] = {**self._name_counter(),
                                     "waiting": self.page.locator("[data-testid=corridor-waiting]").count() > 0}
+                plate["named"] = self.brand_plate()
+                plate["whatItIs"] = _value(plain.first) if plain.count() else None
                 h.add_screenshot(self._b.screenshot("idea-named"))
             label = self._press_primary(SAVE)
             # spec 071 (keel-web 109 FR-3): on money alone the idea card's Save goes to who decides
             _wait_url(self.page, next_url)
             return {"lines": lines, "unnamed": unnamed, "typed": name, "frame": frame, "primary": label,
-                    "reloaded": reloaded, "counter": counter, "suggestion": suggestion or None}
+                    "reloaded": reloaded, "counter": counter, "suggestion": suggestion or None, "plate": plate}
+
+    def brand_plate(self) -> dict:
+        """Spec 125 FR-3 (keel-web 161 FR-1): the idea check's brand plate (`[data-testid=brand-plate]`) -- whether it is
+        drawn, its mark (`brand-plate-mark`, the name as typed) and its line (`brand-plate-line`, the stranger's line;
+        its text read whole, the name inside a `<b>`), and whether anything in it can take focus (it must not)."""
+        plate = self.page.get_by_test_id("brand-plate")
+        if not plate.count():
+            return {"drawn": False}
+        mark, line = plate.first.get_by_test_id("brand-plate-mark"), plate.first.get_by_test_id("brand-plate-line")
+        focusable = plate.first.locator("button, a, input, select, textarea, [tabindex]").count()
+        return {"drawn": True, "mark": _tc(mark) if mark.count() else None,
+                "line": " ".join(str(line.first.text_content() or "").split()) if line.count() else None,
+                "focusable": focusable}
 
     def _name_counter(self) -> dict:
         """keel-web 066's S2 counter under *What it is* (`[data-testid=idea-name-words]`, *n / 5 words*), whether it
@@ -2885,6 +2923,31 @@ def first_screens(interview: dict) -> list[str]:
     return out
 
 
+def brand_plate_faults(plate: dict | None, typed: str | None, what_it_is: str | None) -> list[dict]:
+    """Spec 125 FR-3 (keel-web 161 FR-1, `plateOf`): the idea check draws no plate before the name is typed; once named,
+    the plate's mark is the name as typed (whitespace folded) and its line the stranger's -- keel-cloud's `IdeaLines.card`
+    over `nameOf(name)` and `whatIs(whatItIs)` (`vs.idea_card`, `vs.idea_name_of`) -- with nothing focusable in it. No
+    name typed (a served name, or no plate read) owes nothing."""
+    from harness import vectors_script as vs                           # noqa: PLC0415
+    if not plate or not typed:
+        return []
+    faults = []
+    before, named = plate.get("before") or {}, plate.get("named") or {}
+    if before.get("drawn"):
+        faults.append({"plate before the name": before})
+    if not named.get("drawn"):
+        return faults + [{"no plate once named": named}]
+    mark = " ".join(typed.split())
+    line = vs.idea_card(vs.idea_name_of(typed), what_it_is)
+    if named.get("mark") != mark:
+        faults.append({"mark": named.get("mark"), "want": mark})
+    if named.get("line") != line:
+        faults.append({"line": named.get("line"), "want": line})
+    if named.get("focusable"):
+        faults.append({"focusable in the plate": named["focusable"]})
+    return faults
+
+
 def screener_of(interview: dict) -> dict | None:
     """Spec 100 (keel-web 145 FR-1 `conditionOf`, keel-cloud 166 FR-1): the screener a link asks, `{question, inCodes}`
     -- the gate's segment chip (`gate.condition`) where a gate is served, else the link's own `Interview.condition` (the
@@ -3486,7 +3549,8 @@ class Interview:
         out = {"screen": "item", "dimension": item.get("dimension"), "control": item.get("control"),
                "kicker": _first_text(page, ".iv-kicker"), "question": f"{stem} {asked}" if stem else asked,
                "stem": stem or None, "asked": asked,
-               "idea_card": _first_text(page, ".iv-ideacard__what"),
+               # spec 125 FR-3 (keel-web 161 FR-2): the line read whole, the mark inside it read apart
+               "idea_card": _line_text(page, ".iv-ideacard__what"), "idea_mark": idea_mark(page),
                "hint": _first_text(page, ".iv-tick"), "picked_line": _first_text(page, ".iv-picked"),
                "rows": [r.strip() for r in rows], "chips": [c.strip() for c in chips], "order": order}
         if item.get("control") == "value_box":

@@ -474,7 +474,9 @@ class _Player:
     (_money_link(), COUNTLY_ASKS),
     ({"kind": "FULL", "gate": {"question": "Q?", "condition": {"question": "Gate?"}}}, {"question": "Gate?"}),
     ({"kind": "FULL", "gate": {"question": "Q?"}}, {}),
-    ({"kind": "COMMERCIAL_LINK", "condition": COUNTLY_ASKS}, {}),                   # keel-web 145 FR-3: not asked
+    # spec 125 FR-2 re-pin (keel-web 160 T005): the decision-maker's AI link asks its screener after the opening (keel-web
+    # 145 FR-3's *not asked* is superseded)
+    ({"kind": "COMMERCIAL_LINK", "condition": COUNTLY_ASKS}, COUNTLY_ASKS),
 ])
 def test_the_ai_walk_asks_the_screener_the_link_serves(served, want):
     walk = il._Walk(_Player(), served, {"answers": []})

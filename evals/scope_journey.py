@@ -280,6 +280,7 @@ def leg_idea_card(j: cs.Journey) -> None:
     typed = j.founder.idea_name
     seen = j.corridor.idea_check(typed, next_url=r"/define/persona")
     j.framing["idea"] = [seen]
+    cs._hold_the_brand_plate(j, seen)                                  # spec 125 FR-3 (keel-web 161 FR-1)
     with cs._step(j, "money alone: the idea card is *Your idea*, step 3 of 5, its how and belief the mechanism's, the "
                      "name the founder typed, approved on Save, and Save goes on to who decides", party="founder") as h:
         idea = j.get(j.project("/idea")) or {}

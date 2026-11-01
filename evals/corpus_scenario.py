@@ -1563,6 +1563,7 @@ def leg_interpret_solution(j: Journey) -> None:
     seen = j.corridor.idea_check(typed)
     j.framing["idea"] = [seen]
     _hold_the_name_suggestion(j, seen)
+    _hold_the_brand_plate(j, seen)
     if seen["reloaded"]:
         # runs/DRIFT.md #78, closed by keel-web 066 (IdeaCheck refills from the served idea): spec 041 reloaded the page
         # once. The page object still reloads (so the bundle shows what followed), and the journey fails here.
@@ -4008,6 +4009,17 @@ def condition_screen_faults(interview: dict, screens: list, *, inside: bool = Tr
     if after != next_screen:
         faults.append({"after the screener": after, "want": next_screen[0] if next_screen else "nothing (the exit)"})
     return faults
+
+
+def _hold_the_brand_plate(j: Journey, seen: dict) -> None:
+    """Spec 125 FR-3 (keel-web 161 FR-1): the idea check shows the brand plate once the name is typed -- the mark the name
+    as typed, the line the stranger's (`vs_screens.brand_plate_faults`) -- and none before (keel-web `2b84758`)."""
+    plate = seen.get("plate") or {}
+    with _step(j, "S2: the brand plate -- none before the name, then the mark and the stranger's line "
+                  "(keel-web 161 FR-1)", party="founder") as h:
+        faults = vs_screens.brand_plate_faults(plate, seen.get("typed"), plate.get("whatItIs"))
+        h.record_assert({"faults": []}, {"plate": plate, "faults": faults})
+        assert not faults, faults
 
 
 #: keel-web `ExitScreen`'s heading (`INTERVIEW_DONE_TITLE`): the gate's No, outside, and since 127 a story chip.

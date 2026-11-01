@@ -239,16 +239,25 @@ def _upper(text: str) -> str:
 
 
 def _same_words(a, b) -> bool:
-    """`CommercialChain.sameWords` (vectors_script's port): case, articles and person aside, the same words."""
+    """`CommercialChain.sameWords` (vectors_script's port): case, articles and person aside, the same words. Spec 125
+    FR-1 (keel-cloud 195 FR-2): word by word through `spelling.same_word`, the same count of words -- the founder's loss
+    line typed *late shipmnts* is the base *late shipments*; a different word is a different phrase."""
     if a is None or b is None:
         return False
     from harness import loss_line as ll                                # noqa: PLC0415 - the harness's grammar
+    from instructions import spelling as spelling_mod                  # noqa: PLC0415
 
     def norm(t):
         t = ll.second_person(t, False).lower()
         t = re.sub(r"\b(the|a|an)\b", "", t)
         return re.sub(r"[^a-z0-9%]+", " ", t).strip()
-    return norm(a) == norm(b)
+    x, y = norm(a), norm(b)
+    if x == y:
+        return True
+    xs, ys = x.split(" "), y.split(" ")
+    if not x or not y or len(xs) != len(ys):
+        return False
+    return all(spelling_mod.same_word(p, q) for p, q in zip(xs, ys))
 
 
 #: keel-cloud 193 FR-1c (`CommercialChain.LACK`): a base that is the lack itself -- *go without*, *lack*, *miss* --

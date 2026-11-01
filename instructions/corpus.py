@@ -649,9 +649,25 @@ class Entry:
         mechanism's `mechanism`, `output` and `not_assumed` (never `trigger` or `actor`) and its
         single-word `mechanism_terms`, stemmed, less the stoplist and every stem of the
         problem's own words (`context`, `statements.problem`, `interpretations.problem`, every
-        story). Multi-word terms are `mechanism_phrases()`."""
+        story). Multi-word terms are `mechanism_phrases()`.
+
+        Spec 125 FR-1 (keel-cloud 195 FR-2, `LeakStems.vocabulary`'s four-argument form): less also every stem that is
+        the same word, its spelling aside (`spelling.same_word`), as a stem of the founder's typed problem texts
+        (`typed_problem_texts`: the four typed context fields and the problem seed) -- *erros* typed is the problem's
+        *errors* spelt right. The problem texts are still subtracted exactly."""
+        from instructions import spelling as spelling_mod                    # noqa: PLC0415
         problem = self._problem_words()
-        return {s for s in self._mechanism_words() if s not in problem}
+        typed = {stem for text in self.typed_problem_texts() for stem in text_mod.stems(text)}
+        return {s for s in self._mechanism_words() if s not in problem
+                and not any(spelling_mod.same_word(s, own) for own in typed)}
+
+    def typed_problem_texts(self) -> list[str]:
+        """Spec 125 FR-1 (keel-cloud 195 `VectorCorridor.typedProblemTexts`): the problem's words as the founder typed
+        them -- the four context fields keel-web's form takes (`FOUNDER_CONTEXT_FIELDS`) and the problem seed."""
+        ctx = self.context or {}
+        texts = [str(ctx.get(k)) for k in FOUNDER_CONTEXT_FIELDS if ctx.get(k)]
+        seed = (self.statements or {}).get("problem")
+        return texts + ([str(seed)] if seed else [])
 
     def mechanism_phrases(self) -> list[tuple]:
         """The multi-word `mechanism_terms` (*most likely*), stemmed in order, matched as phrases."""
