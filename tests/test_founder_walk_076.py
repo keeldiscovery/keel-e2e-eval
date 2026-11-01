@@ -103,7 +103,7 @@ def test_every_six_journey_entry_tests_nobody_else_so_no_golden_reading_moves(co
     the row's two readings `SPEC_147_ROW_FROM` / `_TO`."""
     for entry_id in ("01-countly", "05-paidly", "07-mulchrun"):
         assert (_entry(corpus, entry_id).tested("commercial.buyer_payer_alignment") or {}).get("code") == "nobody_else"
-    assert corpus_mod.REVISION == 19      # spec 086: r18 (152), 089: r19 (159) moved no standing; the row stays as 147 recorded it
+    assert corpus_mod.REVISION == 21      # spec 086: r18 (152), 089: r19 (159), 118: r21 (181/182/185) moved no such standing; the row stays as 147 recorded it
     row = _entry(corpus, "02-compliancelog").expected["standings"]["commercial.buyer_payer_alignment"]
     assert (row["status"], row["drift"], row["inside"], row["n"]) == ("HOLDING_UP", "none", 7, 9)
     golden = _cloud("src/test/java/com/keeldiscovery/cloud/corpus/GoldenCorpusTest.java")
@@ -153,9 +153,13 @@ def test_the_budget_bars_draw_the_supports_on_and_the_said_line_is_the_counts_se
     assert 'FROM_SPEND = "from_spend"' in chain
     assert cs.vs_screens.BUDGET_SUPPORTS == ("from_spend", "existing_line", "taken_from_other_spend")
     said = _cloud("src/main/java/com/keeldiscovery/cloud/application/StandingsAssembler.java")
-    assert "return com.keeldiscovery.cloud.domain.vectors.CommercialChain.countsSentence(b2b);" in said
-    page = _web("src/components/answers/DimensionStagePage.tsx")
-    assert 'className={`dimbar${option.founderNamed ? "" : " dimbar--muted"}`}' in page
+    # spec 118 re-pin (keel-cloud 181 FR-4, T014): the said line names the reading's own sides (`countsSentence(derived,
+    # b2b)`, the budget readings' spec 141 sentence as before)
+    assert "return com.keeldiscovery.cloud.domain.vectors.CommercialChain.countsSentence(answer.derived(), b2b);" in said
+    # spec 118 FR-4 re-pin (keel-web 155 T008): the bars carry their served side -- FOR the founder's, AGAINST muted --
+    # and an unsided bar (a recording before contract 50) still reads `founderNamed`
+    page = _web("src/components/answers/charts/AnswerChart.tsx")
+    assert 'const look = option.side ? sideClass(option) : option.founderNamed ? "" : " dimbar--muted";' in page
 
 
 # ----------------------------------------------------------------- FR-3 Send more is the name alone
@@ -192,9 +196,10 @@ def test_the_decision_makers_screener_is_codes_third_person_question():
     assert vs.decider_chip("work at a hotel group that runs a call center", "agents") == \
         "Do you work at a hotel group that runs a call center?"
     assert vs.decider_chip(None, "x") is None
+    # spec 118 FR-4c(e) re-pin (keel-cloud 185 FR-4, T021): the frame is retired in the cloud; the mirror is the
+    # record of a lock before 185 (`decider_condition` serves the writer's clause, else part 1's shape)
     source = _cloud("src/main/java/com/keeldiscovery/cloud/application/RespondentQuestionsRules.java")
-    assert '"Do the " + people + " you decide for " + text + "?"' in source
-    assert '"Does your " + org.group(1).strip() + " have " + org.group(2).strip() + "?"' in source
+    assert '"Do the " + people + " you decide for " + text + "?"' not in source
 
 
 def test_which_journey_entries_serve_the_screener(corpus):
@@ -205,8 +210,8 @@ def test_which_journey_entries_serve_the_screener(corpus):
     from harness import vectors_script as vs                           # noqa: PLC0415
     served = {e.id: vs.decider_condition(e) for e in corpus.entries}
     assert [k for k, v in served.items() if v] == ["05-paidly", "07-mulchrun"]
-    assert served["05-paidly"] == {"question": "Do the people you decide for work mostly for agencies?",
-                                   "inCodes": ["YES"]}
+    # spec 118 FR-4c(e) re-pin (keel-cloud 185 FR-4): code's question in part 1's shape where no clause is written
+    assert served["05-paidly"] == {"question": "Do you work mostly for agencies?", "inCodes": ["YES"]}
 
 
 def _person(**over):
@@ -292,7 +297,7 @@ def test_the_interviewer_marks_moved_to_12():
     from evals import report_marks as rm                               # noqa: PLC0415
     from instructions import marks as instruction_marks                 # noqa: PLC0415
     assert marks.INTERVIEWER_MARKS_VERSION == 17 and rm.REPORT_MARKS_VERSION == 3      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19
-    assert instruction_marks.MARKS_VERSION == 24 and corpus_mod.REVISION == 19      # spec 080: r17, v21 stands; spec 086: r18; 089: r19; 093: v22; 091: v23; 112: v24
+    assert instruction_marks.MARKS_VERSION == 24 and corpus_mod.REVISION == 21      # spec 080: r17, v21 stands; spec 086: r18; 089: r19; 093: v22; 091: v23; 112: v24; 118: r21
     ok, _ = marks.chip_ended_it({"chip": "I can't recall one particular delivery",
                                  "want_chip": "I can't recall one particular delivery",
                                  "responses": [{"status": 201, "body": {**marks.CHIP_ONLY, "pilotOptIn": False}}],

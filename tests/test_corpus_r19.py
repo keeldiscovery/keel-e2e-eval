@@ -14,6 +14,11 @@ added -- and never a standing, drift, inside, n or verdict (`expected` reads as 
 prints OK on all 35. **Rule Q** (`check_corpus_r15.py`'s, mirrored by the reader) still holds: a person's `condition` is
 YES or NO, on the primary link only, where the context records a condition. The mirrors and the checker are
 keel-cloud's; where its checkout lacks them the tests skip by name (judgement call 4 of 067's tasks.md).
+
+**Spec 118: D19 is the record now**, mirror against mirror: canon is at revision 21 (keel-cloud 181, 182, 185), so 159's
+edits are read on `corpus-r19/` + `backtest-r19/` beside `corpus-r18/` + `backtest-r18/`, and `check_corpus_r19.py` runs
+over the revision-19 records (`tests/test_corpus_r21.py` holds D20 and D21, the current revision, as r19's retired the
+way r18's did).
 """
 
 from __future__ import annotations
@@ -135,8 +140,8 @@ def test_every_entry_moves_by_exactly_159s_edits():
     """D19, the eval's own: 35 entries, each beside its revision-18 record; every difference the revision line (18 ->
     19), Relative advantage's row (control and codes), a Relative advantage pick moved by the one rule, or on a golden
     entry the row's optionCounts added; nothing else -- 71 golden picks and 361 back-test picks."""
-    _need_mirrors("r18")
-    pairs = _pairs("r18")
+    _need_mirrors("r18", "r19")
+    pairs = _record_pairs("r18", "r19")
     assert len(pairs) == 35, [p.name for p, _, _ in pairs]
     strays, picks, counts, rows = [], {}, {}, {}
     for path, before_path, backtest in pairs:
@@ -182,8 +187,8 @@ def test_revision_19_moves_no_standing_and_the_scale_counts_are_the_people_insid
     whole but the golden Relative advantage row's optionCounts -- and those counts are the four's: a lot better plus a
     little better is the row's inside, no difference plus worse its outside; a little better is 0 on every golden row
     (every recorded *better* carried a benefit)."""
-    _need_mirrors("r18")
-    for path, before_path, backtest in _pairs("r18"):
+    _need_mirrors("r18", "r19")
+    for path, before_path, backtest in _record_pairs("r18", "r19"):
         after, before = _load(path), _load(before_path)
         got = after.get("expected")
         if not backtest:
@@ -356,11 +361,13 @@ def test_no_golden_entry_answers_yes_after_trying_without_the_smaller_step():
 def test_the_cloud_checker_prints_ok_on_every_entry():
     """`check_corpus_r19.py` itself (the cloud's D19 and RA19 on the scale, RC both ways and Q, with every older rule --
     r18's B, P18 and C) over the 35 entries."""
-    _need_mirrors("r18")
+    _need_mirrors("r18", "r19")
     if not SIM.is_file():
         pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no {SIM.name}")
     failed = {}
-    pairs = _pairs("r18")
+    # spec 118: over the revision-19 records (canon is at 21; no `check_corpus_r20.py` / `_r21.py` was written --
+    # keel-cloud 182's and 185's `CorpusRevisionTwentyTest` / `CorpusRevisionTwentyOneTest` are the D-rules)
+    pairs = _record_pairs("r18", "r19")
     assert len(pairs) == 35
     for path, _, _ in pairs:
         run = subprocess.run([sys.executable, "-I", str(SIM), str(path)], cwd=SIM.parent, capture_output=True,
@@ -371,14 +378,11 @@ def test_the_cloud_checker_prints_ok_on_every_entry():
     assert not failed, failed
 
 
-def test_every_revision_19_entry_loads_in_its_mode_and_a_revision_18_file_is_refused_by_name(tmp_path):
-    """Every one of the 35 loads at 19 (the 28 in back-test mode); r18's 03-lullaby is refused by name."""
+def test_a_revision_18_file_is_refused_by_name(tmp_path):
+    """r18's 03-lullaby is refused by name (spec 118: every canon entry's load at 21 is `tests/test_corpus_r21.py`'s)."""
     _need_mirrors("r18")
-    for path, _, backtest in _pairs("r18"):
-        entry = corpus_mod.load_file(path, registry=fx.registry(), backtest=backtest)
-        assert entry.revision == 19, entry.id
     raw = _load(MIRROR / "corpus-r18" / "03-lullaby.yaml")
-    with pytest.raises(corpus_mod.CorpusError, match="revision is 18; this eval reads revision 19 only -- revision 18 "
+    with pytest.raises(corpus_mod.CorpusError, match="revision is 18; this eval reads revision 21 only -- revision 18 "
                                                      "is MARKS_VERSION 21's corpus before keel-cloud 159"):
         corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="03-lullaby.yaml"), registry=fx.registry())
 
@@ -464,18 +468,18 @@ def test_every_entry_fits_the_answer_box_and_revision_14s_transload_stops_at_loa
         vs.check_answer_box(corpus_mod.load_file(path, registry=fx.registry(), backtest=backtest))
     if not (MIRROR / "backtest-r14").is_dir():
         pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no revision-14 back-test mirror")
-    raw = yaml.safe_load((MIRROR / "backtest-r14" / "12-transload.yaml").read_text(encoding="utf-8"))
-    raw["revision"] = corpus_mod.REVISION
-    # spec 086: revision 18's rate cost belief (keel-cloud 152, rule C) -- the record's own words, so the read reaches
-    # the Answer box rather than stopping on revision 14's *Most dock supervisors ... lose about ...*
-    now = _load(corpus_mod.backtest_dir(KEEL_CLOUD) / "12-transload.yaml")
-    raw["founder_calibration"]["commercial.existing_sacrifice"]["belief_sentence"] = \
-        now["founder_calibration"]["commercial.existing_sacrifice"]["belief_sentence"]
-    # spec 089: revision 19's scale (keel-cloud 159, rule RA19) -- the row and every pick by the one rule, as the record
-    raw["respondent_questions"][RA] = now["respondent_questions"][RA]
+    old = yaml.safe_load((MIRROR / "backtest-r14" / "12-transload.yaml").read_text(encoding="utf-8"))
+    # spec 118: today's 12-transload (revision 21) with revision 14's Importance -- the list, its row and every person's
+    # two picks -- and nothing else, so the read reaches the Answer box at the current revision (it took every later
+    # revision's words in by hand before: 152's rate belief, 159's scale; 180-185 move far more than that)
+    raw = _load(corpus_mod.backtest_dir(KEEL_CLOUD) / "12-transload.yaml")
+    importance = "problem.importance"
+    raw["founder_calibration"][importance] = old["founder_calibration"][importance]
+    raw["respondent_questions"][importance] = old["respondent_questions"][importance]
+    picks = {p["person"]: (p.get("picks") or {}).get(importance) for p in old.get("answers") or []}
     for person in raw.get("answers") or []:
-        if RA in (person.get("picks") or {}):
-            person["picks"][RA] = registry_mod.from_three(person["picks"][RA])
+        if importance in (person.get("picks") or {}) and picks.get(person["person"]) is not None:
+            person["picks"][importance] = picks[person["person"]]
     entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="12-transload.yaml"), registry=fx.registry(),
                                  backtest=True)
     with pytest.raises(vs.VectorsScriptError) as stopped:
@@ -660,7 +664,9 @@ def test_the_backtest_record_holds_every_served_item_to_the_spoken_form():
                 "options": [{"optionId": str(n), "label": o} for n, o in enumerate(ci.options)],
                 "escape": {"code": "X", "label": ci.escape} if ci.escape else None,
                 "spoken": {"anchor": ci.anchor, "stem": ci.stem if stem is None else stem, "countLine": ci.count_line,
-                           "optionsLine": ci.options_line, "escapeLine": ci.escape_line, "transform": ci.transform}}
+                           "optionsLine": ci.options_line, "escapeLine": ci.escape_line, "transform": ci.transform,
+                           # spec 118 FR-3 (keel-cloud 185 FR-3): Price's second step, as the wire serves it
+                           **({"under": ci.under, "over": ci.over} if ci.under else {})}}
     long = " ".join(["word"] * 20) + " too?"
     interview = {"kind": "FULL", "parts": [{"part": 1, "items": [served(ci) for ci in items]
                                             + [dict(served(items[0], stem=long), dimension=items[0].key)]}]}

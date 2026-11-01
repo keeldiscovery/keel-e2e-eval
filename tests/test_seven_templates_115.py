@@ -234,7 +234,8 @@ def test_the_rule_is_the_clouds_own():
     body = text[text.index("public static String spec174Reads("):]
     body = body[:body.index("\n    }\n")]
     assert '"^Most .+? would (.+) now\\\\.$"' in body and '"In most cases "' in body and '" now."' in body
-    assert '" can slow or stop the purchase."' in body and '" slows the purchase most."' in body
+    # spec 118 FR-2 (keel-cloud 182, revision 20): Purchase friction's rule is retired in the cloud's and here
+    assert '" can slow or stop the purchase."' not in body and "retired -- revision 20 records spec 182" in body
     assert '"For most, "' in body and '"For most " + ' in body
     assert '" things that are hard when "' in body and '" is one of the two they would most like "' in body
     assert "spec173Reads(" in body
@@ -243,8 +244,9 @@ def test_the_rule_is_the_clouds_own():
 @pytest.mark.parametrize("entry_id, key, recorded, read", [
     ("05-paidly", COMMITMENT, "Most freelance translators working for agencies would start a read-only trial now.",
      "In most cases the agency would start a read-only trial now."),
-    ("05-paidly", FRICTION, "The agency owner's approval slows the purchase most.",
-     "The agency owner's approval can slow or stop the purchase."),
+    # spec 118 FR-2 re-pin (keel-cloud 182, revision 20): the positive form is recorded, and read as recorded
+    ("05-paidly", FRICTION, "Most agencies would get through the agency owner's approval quickly, or not need it.",
+     "Most agencies would get through the agency owner's approval quickly, or not need it."),
     ("03-lullaby", COMPATIBILITY, "For most, their phone was within reach of the cot.",
      "For most parents of babies under six months, their phone was within reach of the cot."),
     ("03-lullaby", IMPORTANCE, "Of these five, knowing what the cry means is one of the two that parents of babies under "
@@ -257,8 +259,9 @@ def test_the_rule_is_the_clouds_own():
     # a back-test founder's own words are not 152's sentence: as recorded
     ("21-codyco", COMMITMENT, "Most are open to pay €3,000 for a money-back pilot at one hotel now.",
      "Most are open to pay €3,000 for a money-back pilot at one hotel now."),
-    ("21-codyco", FRICTION, "A data protection review of guest calls slows the purchase most.",
-     "A data protection review of guest calls can slow or stop the purchase."),
+    ("21-codyco", FRICTION, "Most hotel group revenue directors would get through a data protection review of guest "
+     "calls quickly, or not need it.", "Most hotel group revenue directors would get through a data protection review "
+     "of guest calls quickly, or not need it."),
 ])
 def test_the_record_reads_as_the_engine_writes(entry_id, key, recorded, read):
     entry = _entry(entry_id)
@@ -313,8 +316,11 @@ def test_the_money_seed_says_174s_words():
 def test_the_fact_four_are_the_registrys_and_128s_are_kept_for_stored_items():
     registry = fx.registry()
     four = [a["label"] for a in registry.by_key(COMPATIBILITY).fixed_answers]
-    assert list(spoken_mod.FACT_ANSWERS.values()) == four
-    assert list(spoken_mod.FACT_ANSWERS) == list(spoken_mod.FACT_ANSWERS_128) == registry.by_key(
+    # spec 118 FR-4c(c) re-pin (keel-cloud 185 FR-1): 174's fact four are the registry's (`FACT_ANSWERS_174`, an item
+    # stored before 185); a fact is served three since 185, `only_with_help` never on a fact
+    assert list(spoken_mod.FACT_ANSWERS_174.values()) == four
+    assert spoken_mod.FACT_ANSWERS == {"yes_easily": "Yes", "yes_with_steps": "Yes, with some steps", "no": "No"}
+    assert list(spoken_mod.FACT_ANSWERS_174) == list(spoken_mod.FACT_ANSWERS_128) == registry.by_key(
         COMPATIBILITY).fixed_answer_codes
     assert list(spoken_mod.FACT_ANSWERS_128.values()) == ["Yes", "Mostly", "Partly", "No"]
     labels = spoken_mod.served_labels(registry, COMPATIBILITY)
@@ -362,7 +368,11 @@ def _compatibility(entry, code, labels):
 def test_a_fact_is_said_back_as_the_fact_on_the_registrys_four():
     """174 FR-3 (T012): Lullaby's fact on the registry's four -- the third said as picked, *No* as *no to this*."""
     lullaby = _golden("03-lullaby")
-    four = spoken_mod.FACT_ANSWERS
+    # spec 118 re-pin (keel-cloud 185 FR-1): the registry's four on an item stored before 185 (`FACT_ANSWERS_174`); since
+    # 185 a fact has no third, and its *No* is said back the same
+    four = spoken_mod.FACT_ANSWERS_174
+    three = _compatibility(lullaby, "no", spoken_mod.FACT_ANSWERS)
+    assert three["text"] == "You said no to this: your phone was within reach of the cot. What got in the way?"
     third = _compatibility(lullaby, "only_with_help", four)
     assert third["text"] == third["spoken"] == ("You said only with help or approval: your phone was within reach of "
                                                 "the cot. What got in the way?")
@@ -532,6 +542,8 @@ def test_the_fresco_run_is_read_in_its_recorded_frame():
     recorded = types.SimpleNamespace(persona=fresco.persona, context=fresco.context, founder_calibration={
         FRICTION: {"belief_sentence": "A trial on one live job slows the purchase most."},
         COMPATIBILITY: {"belief_sentence": "For most, on their last day, they could talk over the noise on site."}})
-    assert corpus_mod.spec174_reads(recorded, FRICTION) == "A trial on one live job can slow or stop the purchase."
+    # spec 118 FR-2 re-pin (keel-cloud 182): the friction rule is retired -- the recorded words read as recorded; the run
+    # is a record of its cycle, never rewritten (re-recorded after the screens)
+    assert corpus_mod.spec174_reads(recorded, FRICTION) == "A trial on one live job slows the purchase most."
     assert corpus_mod.spec174_reads(recorded, COMPATIBILITY) == (
         f"For most {fresco.context['actor_plural']}, on their last day, they could talk over the noise on site.")

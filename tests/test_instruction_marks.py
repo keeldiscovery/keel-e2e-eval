@@ -27,6 +27,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from stack.config import load_config
+
 from instructions import marks as marks_mod
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -368,8 +370,15 @@ def test_the_header_names_the_seven_r19_digests_and_keeps_v13s_counted_denominat
     names = ("01-countly", "02-compliancelog", "03-lullaby", "04-linerly", "05-paidly",
              "06-repeatline", "07-mulchrun")
     for name in names:
+        # spec 118 re-pin: canon is at revision 21 -- its seven digests are the revision-21 paragraph's; the
+        # revision-19 paragraph's seven are `corpus-r19/`'s record bytes
         path = fx.canon_entry(f"{name}.yaml")
         assert hashlib.sha256(path.read_bytes()).hexdigest() in header, name
+        record = Path(load_config(validate=False).keel_cloud) / "src" / "test" / "resources" / "keel" / "corpus-r19" / \
+            f"{name}.yaml"
+        if record.is_file():
+            assert hashlib.sha256(record.read_bytes()).hexdigest() in header, name
+    assert "The seven revision-21 files, by sha256" in header and "keel-cloud-docs\n`f3f0d99e`" in header
     assert "The seven revision-12\nfiles, by sha256" in header and "The seven revision-11 files, by sha256" in header
     assert "The seven revision-13 files, by sha256" in header and "**v20 stands**: this spec bumps nothing" in header
     assert "The seven revision-14 files, by sha256" in header and "**v20\nstands**: this cut bumps nothing" in header

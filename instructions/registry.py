@@ -91,7 +91,10 @@ FOUNDER_CONTROLS = ("single_choice", "numeric_interval") + LIST_FOUNDER_CONTROLS
 #: `benefit_with_advantages`, gone with its advantages).
 RESPONDENT_CONTROLS = ("gate_yes_no", "segmented_1_to_n", "number_with_unit", "single_choice",
                        "single_choice_5", "pick_one_then_one", "fixed_four", "fixed_three", "cost_total",
-                       "price_ladder", "scale_four", "value_box")
+                       "price_ladder", "scale_four", "value_box", "duration_bands")
+#: Spec 118 FR-2 (keel-cloud 182 FR-2): Purchase friction's six -- five duration bands around the founder's time and
+#: *It wouldn't be needed* (`PurchaseFriction.bands`, codes `days_under_N`, `days_A_to_B`, `days_over_N`, `not_needed`).
+DURATION_CONTROL = "duration_bands"
 #: Spec 089 FR-1: the control names the corpus still records for a row whose control keel-cloud 158 renamed. The
 #: corpus is never edited and 158 cut no revision, so revision 19's Frequency row reads `segmented_0_to_7` and its
 #: Importance row `pick_two`; the stored answers are the same integer and the same two codes (158 T003, T011), so a
@@ -115,7 +118,10 @@ FIXED_ANSWER_CONTROLS = ("fixed_four", "fixed_three", "scale_four")
 #: `fixed_last_two_against` over its four).
 COMPARE_RULES = ("proportion_from_gate", "interval_contains_median", "share_in_picks", "below_line",
                  "fixed_last_two_against", "ordinal_band", "cost_covers_price",
-                 "first_supports", "caution_turned")
+                 "first_supports", "duration_band")
+#: keel-cloud 182 FR-3: `caution_turned` (spec 118's fear) is `duration_band` -- the time against the founder's. A
+#: registry before 182 (the eval's fixture slice) is still read; its name is the retired one.
+RETIRED_COMPARE_RULES = {"caution_turned": "duration_band"}
 #: An escape is apart, or (Importance's alone) counted against (087 FR-004).
 ESCAPE_COUNTS = ("apart", "against")
 
@@ -700,7 +706,8 @@ def check_invariants(registry: Registry) -> list[str]:
         if d.respondent_control not in RESPONDENT_CONTROLS:
             faults.append(f"invariant 5 (respondent controls): {d.key}'s respondent control is "
                           f"{d.respondent_control!r}, not one of keel-cloud 087's")
-        if d.compare_rule not in COMPARE_RULES:
+        if d.compare_rule not in COMPARE_RULES and d.compare_rule not in RETIRED_COMPARE_RULES:
+            # spec 118: a registry before keel-cloud 182 (the eval's own fixture slice) still names `caution_turned`
             faults.append(f"invariant 5 (compare rules): {d.key} is read by {d.compare_rule!r}, not "
                           "one of keel-cloud 087's")
         codes = d.fixed_codes

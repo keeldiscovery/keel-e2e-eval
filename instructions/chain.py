@@ -194,26 +194,96 @@ def cost_said(cost: dict, occasion, role_word) -> str:
     return ("about " if is_money(cost) else "") + figure(cost, lo, hi) + " " + per(unit, cost["period"])
 
 
-def cost_belief(cost: dict, actor_plural, occasion, role_word) -> str:
-    """CommercialChain.costBelief. RATE since keel-cloud 152 (corpus revision 18, spec 086): *The problem already costs
-    the payer about {figure} of {base} {per}: {loss}.* -- the payer named, the founder's loss phrase kept (its trailing
-    full stops trimmed, its first letter lowered as `BeliefSentence.lower` does); it read *Most {actor plural} lose
-    about ...*, so `actor_plural` is no longer read."""
-    unit, lo, hi = unit_of(cost, role_word), dec(cost["low"]), dec(cost["high"])
+# ------------------------------------------------- spec 118 FR-1 (keel-cloud 180 FR-2, 181 FR-4): who pays, in words
+
+def plural_of(role: str) -> str:
+    """keel-cloud `PersonaModel.pluralOf`: *payroll manager* -> *payroll managers*, lower-cased; a plural kept."""
+    lower = str(role).lower()
+    if lower.endswith("s"):
+        return lower
+    if lower.endswith("y") and not lower.endswith(("ay", "ey", "oy")):
+        return lower[:-1] + "ies"
+    return lower + "s"
+
+
+def plural_words(words: str) -> str:
+    """keel-cloud `PersonaModel.pluralWords` (spec 123 FR-10): a title's plural with its case kept -- *Contractor
+    operations lead* -> *Contractor operations leads*, *CFO* -> *CFOs*, *head of finance* -> *heads of finance*."""
+    text = str(words).strip()
+    of = text.lower().find(" of ")
+    if of > 0:
+        return plural_words(text[:of]) + text[of:]
+    space = text.rfind(" ")
+    head, last = (text[:space + 1], text[space + 1:]) if space >= 0 else ("", text)
+    if len(last) > 1 and last == last.upper():
+        return head + last + "s"
+    lower = last.lower()
+    if lower.endswith("s"):
+        return head + last
+    if lower.endswith("y") and not lower.endswith(("ay", "ey", "oy")):
+        return head + last[:-1] + "ies"
+    return head + last + "s"
+
+
+def deciders(decider_words, actor_plural, b2b: bool):
+    """keel-cloud 180 `CommercialChain.deciders(deciderWords, slots, b2b)`: who pays in the founder's word -- the
+    decider's title (else role) in the plural where someone else decides, else the people's own plural; None with
+    neither. The corpus hands it the decider's `title`, else its `role` (`BacktestCorpusTest.theChainsWordsAreTheEngines`)."""
+    if b2b and decider_words and str(decider_words).strip():
+        return plural_words(str(decider_words))
+    return str(actor_plural).strip() if actor_plural and str(actor_plural).strip() else None
+
+
+def _upper(text: str) -> str:
+    return text[:1].upper() + text[1:] if text else text
+
+
+def _same_words(a, b) -> bool:
+    """`CommercialChain.sameWords` (vectors_script's port): case, articles and person aside, the same words."""
+    if a is None or b is None:
+        return False
+    from harness import loss_line as ll                                # noqa: PLC0415 - the harness's grammar
+
+    def norm(t):
+        t = ll.second_person(t, False).lower()
+        t = re.sub(r"\b(the|a|an)\b", "", t)
+        return re.sub(r"[^a-z0-9%]+", " ", t).strip()
+    return norm(a) == norm(b)
+
+
+def cost_belief(cost: dict, occasion, role_word, deciders_words=None, b2b: bool = True) -> str:
+    """keel-cloud 180 FR-2 (`CommercialChain.costBelief(cost, slots, roleWord, deciders, b2b)`, corpus revision 20):
+    the belief names who pays in the founder's word, never *the payer* -- *{Deciders} already spend {figure} {per} on
+    {base}.* on money and hours (no dollars on hours), *{Deciders} already lose about {figure} of {base} {per}: {loss}.*
+    on a rate (a count whose base names its own measure says the number once; the loss line dropped where it only
+    repeats the base); *They* with no word; no unit where the user pays (`b2b` False); a period of *each* closes its own
+    clause, so the base goes before it."""
+    who = "They" if not deciders_words or not str(deciders_words).strip() else _upper(str(deciders_words).strip())
+    unit = unit_of(cost, role_word) if b2b else None
+    lo, hi = dec(cost["low"]), dec(cost["high"])
+    words = per(unit, cost["period"])
+    tail = "" if not words else " " + words
+    of = base_of(cost, occasion)
     if cost["mode"] == "RATE":
-        of = base_of(cost, occasion)
-        loss = (cost.get("lossPhrase") or "").strip()
-        while loss.endswith("."):
-            loss = loss[:-1].strip()
-        return ("The problem already costs the payer about " + figure(cost, lo, hi) + ("" if of is None else " of " + of)
-                + " " + per(unit, cost["period"]) + (": " + _lower_first(loss) if loss else "") + ".")
+        loss_text = cost.get("lossPhrase")
+        loss = None
+        if loss_text and str(loss_text).strip() and not _same_words(loss_text, of):
+            loss = str(loss_text).strip()
+            while loss.endswith("."):
+                loss = loss[:-1].strip()
+            loss = _lower_first(loss)
+        fig = figure(cost, lo, hi)
+        measure = measure_of(cost)
+        if of is not None and not is_percent(cost) and measure and re.search(
+                r"(?i)\b" + re.escape(measure.strip()) + r"\b", of):
+            fig = _range(cnumber(lo), cnumber(hi), lo, hi)
+        return who + " already lose about " + fig + ("" if of is None else " of " + of) + tail + (
+            "" if loss is None else ": " + loss) + "."
+    on = "" if of is None else " on " + of
+    spent = on + tail if cost.get("period") == "each" else tail + on
     if cost["mode"] == "HOURS":
-        rate = dec(cost.get("rate"))
-        money = None if rate is None else _range(cmoney(lo * rate, cost.get("currency")),
-                                                 cmoney(hi * rate, cost.get("currency")), lo * rate, hi * rate)
-        return ("The problem already costs the payer " + figure(cost, lo, hi) + " " + per(unit, cost["period"])
-                + ("" if money is None else ", about " + money) + ".")
-    return "The problem already costs the payer about " + figure(cost, lo, hi) + " " + per(unit, cost["period"]) + "."
+        return who + " already spend " + figure(cost, lo, hi) + spent + "."
+    return who + " already spend about " + figure(cost, lo, hi) + spent + "."
 
 
 def price_figure(price: dict, lo, hi) -> str:
@@ -258,10 +328,25 @@ def free_line(actor_plural, decider) -> str:
         the(decider) if decider else "someone else")
 
 
-def price_belief(price: dict, cost, actor_plural, occasion, role_word, decider) -> str:
+def price_belief(price: dict, cost, actor_plural, occasion, role_word, decider, deciders_words=None, name=None,
+                 b2b: bool = True) -> str:
+    """keel-cloud 180 FR-2 (`CommercialChain.priceBelief(..., deciders, name, b2b)`): *{Deciders} would think {name}
+    worth {price}.*; a share *{Deciders} would think a fee of {share} fair for {name}.*; the idea *it* with no name, no
+    unit where the user pays; free to them as before (*Free to {actor plural}; paid by {the decider}.*)."""
     if price.get("shape") == "FREE":
         return free_line(actor_plural, decider) + "."
-    return "The payer would think it worth " + price_said(price, cost, occasion, role_word) + "."
+    who = "They" if not deciders_words or not str(deciders_words).strip() else _upper(str(deciders_words).strip())
+    idea = "it" if not name or not str(name).strip() else str(name).strip()
+    read = cost if b2b else _without_unit(cost)
+    said = price_said(price, read, occasion, role_word if b2b else None)
+    if price.get("shape") == "SHARE":
+        return f"{who} would think a fee of {said} fair for {idea}."
+    return f"{who} would think {idea} worth {said}."
+
+
+def _without_unit(cost):
+    """`CommercialChain.withoutUnit`: the cost with no unit (the person who pays is no unit)."""
+    return None if cost is None else {**cost, "unit": None}
 
 
 def reading(cost, price):
@@ -290,27 +375,97 @@ def derive(cost, price) -> dict:
     return {"ratio_low": lo, "ratio_high": hi, "band": read}
 
 
-def ability_belief(derived: dict, actor_plural, decider) -> str:
-    """CommercialChain.abilityBelief."""
-    lo, hi = derived.get("ratio_low"), derived.get("ratio_high")
-    ratio = None if lo is None else (f"{lo}%" if lo == hi else f"{lo}% to {hi}%")
+def ability_belief(derived: dict, actor_plural, decider, price=None, cost=None, occasion=None, role_word=None,
+                   deciders_words=None, b2b: bool = True) -> str:
+    """keel-cloud 181 FR-4 (`CommercialChain.abilityBelief(derived, price, cost, slots, roleWord, deciderRole, deciders,
+    b2b)`, corpus revision 20): one sentence per reading over the people who would pay the founder's price, in the
+    founder's word for them -- BUDGET *{Deciders} who would pay {price} could find the money for it.* (where the user
+    pays *... could find it in money they already spend on this.*); OUT_OF_GAIN *{Deciders} who would pay the {share} fee
+    lose at least that much {of base} today, so it is paid out of the gain.*; COMPARE *{Deciders} who would pay {price}
+    already lose at least that much to the problem.*; FROM_WHAT_COMES_BACK *... lose something to the problem today, so
+    it is paid only from what comes back.*; FREE the founder's own line. Never *Your price is read ...* (spec 141's
+    frame), never the ratio. *Those* with no word; *Of {them}, those* where the word carries its own relative clause."""
     band = derived.get("band")
-    if band == "out_of_gain":
-        return "Your price is paid out of the gain" + ("" if ratio is None else ": " + ratio + " of what they lose") + "."
-    if band == "compare":
-        return ("Your price is read against what the problem costs them today"
-                + ("" if ratio is None else ": " + ratio + " of it") + ".")
-    if band == "from_what_comes_back":
-        return "Your price is paid only from what comes back."
     if band == "free":
         return free_line(actor_plural, decider) + "."
-    return "Your price is read against where the money would come from."
+    if not deciders_words or not str(deciders_words).strip():
+        who = "Those"
+    elif re.search(r"(?i)\b(who|whose|that|which)\b", str(deciders_words)):
+        who = "Of " + str(deciders_words).strip() + ", those"
+    else:
+        who = _upper(str(deciders_words).strip())
+    read = cost if b2b else _without_unit(cost)
+    if price is None or price.get("shape") == "FREE":
+        said = "your price"
+    else:
+        said = re.sub(r",? (each|then nothing)$", "", price_said(price, read, occasion, role_word if b2b else None),
+                      count=1)
+    fee = "your fee" if price is None or price.get("shape") != "SHARE" else \
+        "the " + price_figure(price, dec(price["low"]), dec(price["high"])) + " fee"
+    if band == "out_of_gain":
+        of = "" if price is None else _share_of(price, cost, occasion)
+        return f"{who} who would pay {fee} lose at least that much" + ("" if not of else " " + of) + \
+            " today, so it is paid out of the gain."
+    if band == "compare":
+        return f"{who} who would pay {said} already lose at least that much to the problem."
+    if band == "from_what_comes_back":
+        return f"{who} who would pay {fee if price is not None and price.get('shape') == 'SHARE' else said} lose " \
+               "something to the problem today, so it is paid only from what comes back."
+    return f"{who} who would pay {said} could find the money for it." if b2b else \
+        f"{who} who would pay {said} could find it in money they already spend on this."
 
 
-def ability_phrase(derived: dict, actor_plural, decider) -> str:
-    s = ability_belief(derived, actor_plural, decider)
+def _share_of(price: dict, cost, occasion) -> str:
+    """`CommercialChain.shareOf`: *of the balance*, or *of what it gets back, only when it does*."""
+    if recovered(price):
+        return "of what it gets back, only when it does"
+    base = base_of(cost, occasion)
+    return "" if base is None else "of " + base
+
+
+def ability_phrase(derived: dict, actor_plural, decider, price=None, cost=None, occasion=None, role_word=None) -> str:
+    """keel-cloud 181 FR-4 (`CommercialChain.phrase` on Ability to pay): the belief lowered, its full stop gone -- over
+    the decider's ROLE in the plural (`deciders(deciderRole, slots, deciderRole != null)`), not the title the sentence
+    reads: Fresco's sentence says *Contractor operations leads*, its phrase *contractors*."""
+    b2b = decider is not None
+    s = ability_belief(derived, actor_plural, decider, price, cost, occasion, role_word,
+                       deciders(decider, actor_plural, b2b), b2b)
     s = s[:-1] if s.endswith(".") else s
-    return s[:1].lower() + s[1:]
+    return _lower_first(s)
+
+
+#: keel-cloud 181 FR-2 (`CommercialChain.POINTS_BACK`): Ability to pay's stored and spoken question on a chain study
+#: with a price -- asked only of a Price answer at or above the founder's price (`InterviewItem.askedAfter`).
+POINTS_BACK = "Think of the price you just gave. If you went ahead at that, where would the money come from?"
+#: keel-cloud 181 FR-2 (T007): its escape on every link, *I can't say* (the decision-maker's *I can't recall one* gone).
+POINTS_BACK_ESCAPE = "cant_say"
+
+
+def asks_back(price) -> bool:
+    """Whether Ability to pay points back to the price (`CommercialChain.pointsBack`): a chain price, not free."""
+    return price_in_chain(price) and price.get("shape") != "FREE"
+
+
+def at_or_above(code, low) -> bool:
+    """`CommercialChain.atOrAbove`: a band (or *over*) whose low edge is at or above the founder's low on its step."""
+    floor = floor_of(code)
+    return floor is not None and low is not None and floor >= dec(low) and not str(code).endswith(WOULD_NOT_PAY)
+
+
+def reached(price: dict, pick) -> bool:
+    """keel-cloud 181 FR-1 (`Compare.reach` is REACHED): a person's Price pick at or above the founder's price on each
+    step -- on up front then a plan, the one-off's against its own low and the plan's against the price's; any other
+    answer (a lower band, *would not pay*, the escape, none) is not reached, and the interview never asks them Ability
+    to pay (`askedAfter`)."""
+    if not isinstance(price, dict) or pick is None or isinstance(pick, dict):
+        return False
+    if two_steps(price):
+        return isinstance(pick, list) and len(pick) == 2 and at_or_above(pick[0], price.get("upfrontLow")) \
+            and at_or_above(pick[1], price.get("low"))
+    if isinstance(pick, list):
+        pick = pick[0] if len(pick) == 1 else None
+    low = price.get("upfrontLow") if price.get("shape") == "UPFRONT_THEN" else price.get("low")
+    return isinstance(pick, str) and at_or_above(pick, low)
 
 
 def _with_founder(low, percent: bool) -> list:

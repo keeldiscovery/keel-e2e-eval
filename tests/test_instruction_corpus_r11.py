@@ -147,7 +147,7 @@ def _items(raw, key):
 
 def _revision(n, words):
     return (lambda r: r.__setitem__("revision", n),
-            f"revision is {n}; this eval reads revision 19 only -- revision {n} is {words}")
+            f"revision is {n}; this eval reads revision 21 only -- revision {n} is {words}")
 
 
 #: The registry-free refusals: the file alone is refused.
@@ -181,6 +181,12 @@ MUTATIONS = {
     # spec 089 FR-1: revision 18 refused by name, before keel-cloud 159's one scale
     "revision 18": _revision(18, "MARKS_VERSION 21's corpus before keel-cloud 159 (Relative advantage answered "
                                  "positive / neutral / negative with the founder's benefits ticked under positive"),
+    # spec 118 FR-2 (keel-cloud 181 / 182, corpus revision 20) and FR-4c (keel-cloud 185, revision 21): 19 and 20 refused
+    # by name -- the eval reads revision 21 only, as keel-cloud's mirror is
+    "revision 19": _revision(19, "MARKS_VERSION 24's corpus before keel-cloud 181 / 182 (the chain beliefs in *The "
+                                 "problem already costs the payer* / *Keel reads* words, Ability to pay asked of everyone"),
+    "revision 20": _revision(20, "MARKS_VERSION 24's corpus before keel-cloud 185 (a fact's Compatibility row on the "
+                                 "four codes with `only_with_help` picks, no `screeners.decider`)"),
     # r11's two rules in L (keel-cloud 091 FR-G, DRIFT #77): K3 on a face, S10 on Commitment's step
     "a face with no you": (lambda r: _items(r, "solution.compatibility")[0].__setitem__(
         "asked", "was the phone to hand"), "is said to the stranger and carries no 'you' or 'your' (rule L, K3)"),

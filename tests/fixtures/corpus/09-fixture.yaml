@@ -11,12 +11,16 @@
 # Revision 12 since spec 053, and **GB deliberately**: the reader's one non-US path (`MARKET_CURRENCY`, `money_text`'s
 # pound, a GBP price) -- keel-cloud's Market table still serves GB (105 FR-6). `expected` is unchanged (no number moved);
 # `check_corpus_r12.py`'s rule U would refuse this file, and the reader does not mirror that rule (the canon test does).
+# Revision 21 since spec 118 (keel-cloud 181, 182, 185): the tested Compatibility condition is a fact by code's reading
+# (`ItemFrames.conditionKind`), so its row is the fact's three (only_with_help never served on a fact) and the one
+# only_with_help pick moved by keel-cloud 185's one rule to no (both count against: no status, inside or n moves). No chain
+# price and no founder's time on Purchase friction, so nothing else moves.
 # Revision 19 since spec 089 (keel-cloud 159): Relative advantage's row is scale_four over the four codes and every
 # answer moved by the one rule (positive with a benefit a_lot_better, neutral no_difference, negative worse).
 # The Relative advantage row's optionCounts added on the four (inside 6 a lot better, outside 2 no difference).
 id: 09-fixture
 title: Fixture — the keys you cannot find
-revision: 19
+revision: 21
 market:
   country: GB
   region: null
@@ -201,7 +205,6 @@ respondent_questions:
     codes:
     - yes_easily
     - yes_with_steps
-    - only_with_help
     - 'no'
     escape: cant_tell
   solution.relative_advantage:
@@ -362,7 +365,7 @@ answers:
     problem.importance:
       chip: none_of_these
     problem.current_solution_satisfaction: works_well
-    solution.compatibility: only_with_help
+    solution.compatibility: 'no'
     solution.relative_advantage: a_lot_better
     solution.adoption_friction: 'yes'
     commercial.existing_sacrifice:
@@ -499,7 +502,7 @@ expected:
       n: 7
       inside: 5
       outside: 2
-      optionCounts: yes_easily=3, yes_with_steps=2, only_with_help=1, no=1
+      optionCounts: yes_easily=3, yes_with_steps=2, only_with_help=0, no=2
     solution.relative_advantage:
       status: HOLDING_UP
       drift: none

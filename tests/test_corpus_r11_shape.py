@@ -55,7 +55,7 @@ def corpus():
 def test_the_seven_entries_are_all_at_revision_eighteen_and_none_states_the_chain(corpus):
     assert [e.id for e in corpus.entries] == list(ENTRIES)
     for entry in corpus.entries:
-        assert entry.revision == 19, entry.id                               # spec 086: keel-cloud 152; 089: 159
+        assert entry.revision == 21, entry.id               # spec 086: keel-cloud 152; 089: 159; 118: 181/182/185
         assert not entry.chain() and entry.reading() is None, entry.id      # read as r12 (keel-cloud 124 T001)
     assert Path(corpus.directory) == fx.canon_dir()
 
@@ -242,7 +242,11 @@ def test_every_row_is_the_registrys_and_every_pick_its_rows(corpus, entry_id):
         # read through the one rule -- the record is never rewritten
         assert corpus_mod.recorded_escape_is(key, row.get("escape"), (dimension.escape or {}).get("code")), \
             (entry_id, key)
-        if dimension.fixed_answers:
+        if dimension.fixed_answers and key == "solution.compatibility" and row["codes"] == list(corpus_mod.FACT_CODES):
+            # spec 118 FR-4c(c) (keel-cloud 185 FR-1, revision 21): a fact is served three, never only_with_help --
+            # 03-lullaby, 04-linerly, 07-mulchrun, by code's reading of the tested condition
+            assert entry_id in ("03-lullaby", "04-linerly", "07-mulchrun"), (entry_id, key)
+        elif dimension.fixed_answers:
             assert row["codes"] == dimension.fixed_answer_codes, (entry_id, key)
     for person in entry.people():
         for key, pick in person.picks.items():
@@ -437,7 +441,7 @@ def test_the_corpus_reads_the_same_through_the_exported_registry(corpus):
     exported = registry_mod.load(path)
     for entry in corpus.entries:
         corpus_mod.load_file(entry.path, registry=exported)
-    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 19      # spec 086; 089
+    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 21      # spec 086; 089; 118
 
 
 #: 105 FR-1's market lines: every entry the US, two with a state.

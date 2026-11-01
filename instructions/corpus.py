@@ -133,13 +133,14 @@ from pathlib import Path
 import yaml
 
 from . import chain as chain_mod
+from . import friction as friction_mod
 from . import text as text_mod
-from .registry import (RECORDED_CONTROLS, ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTROL, BENEFIT_KEY,
+from .registry import (DURATION_CONTROL, RECORDED_CONTROLS, ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTROL, BENEFIT_KEY,
                        BENEFIT_MAX_TICKS, COMMITMENT_KEY, COMPATIBILITY_KEY, COST_MODES, COST_TOTAL_CONTROL,
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, PURCHASE_FRICTION_KEY, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 19
+REVISION = 21
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -171,7 +172,12 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 17: "MARKS_VERSION 21's corpus before keel-cloud 152 (the belief sentences of seven templates and the "
                     "prevalence phrases in revision 17's words, the rate cost's belief *Most {actor plural} lose ...*)",
                 18: "MARKS_VERSION 21's corpus before keel-cloud 159 (Relative advantage answered positive / neutral / "
-                    "negative with the founder's benefits ticked under positive, `benefit_with_advantages`)"}
+                    "negative with the founder's benefits ticked under positive, `benefit_with_advantages`)",
+                19: "MARKS_VERSION 24's corpus before keel-cloud 181 / 182 (the chain beliefs in *The problem already "
+                    "costs the payer* / *Keel reads* words, Ability to pay asked of everyone, Purchase friction's fixed "
+                    "three with no founder's time)",
+                20: "MARKS_VERSION 24's corpus before keel-cloud 185 (a fact's Compatibility row on the four codes with "
+                    "`only_with_help` picks, no `screeners.decider`)"}
 
 #: Spec 067 FR-6 (keel-cloud 128 FR-11, `check_corpus_r15.py`'s rule Q): a person's answer to the segment's condition
 #: chip -- inside or outside -- where the entry's context records a condition; on the primary link only.
@@ -429,6 +435,10 @@ class Entry:
     #: those its scope sends (`harness/vectors_script.study_people`); the decision-makers' link is never narrowed. None
     #: (every golden journey, and a back-test walked without `PEOPLE=`) sends every one. Never read from a file.
     people_cap: int | None = None
+    #: Spec 118 FR-4c(e) (keel-cloud 185 FR-4, revision 21): the top-level `screeners` -- on the three B2B entries of
+    #: the four (08-fresco, 10-palus, 17-expanse) `{decider: {question, inside}}`, the decision-maker's condition the
+    #: question writer writes (`decider_condition`); `{}` everywhere else.
+    screeners: dict = field(default_factory=dict)
 
     # ------------------------------------------------------------------ the people
 
@@ -542,6 +552,20 @@ class Entry:
         return out
 
     # ------------------------------------------------------------------ the founder's lists
+
+    def duration(self):
+        """Spec 118 FR-2 (keel-cloud 182 FR-1, revision 20): the founder's expected time beside Purchase friction's step
+        (`founder_calibration.commercial.purchase_friction.answer.duration`), a `friction.Duration`; None on a list that
+        names none (13 back-test entries, the golden seven) -- they keep the fixed three."""
+        answer = (self.founder_calibration.get(PURCHASE_FRICTION_KEY) or {}).get("answer")
+        found = friction_mod.Duration.of(answer.get("duration") if isinstance(answer, dict) else None)
+        return found if found is not None and found.valid() else None
+
+    def decider_question(self) -> str | None:
+        """Spec 118 FR-4c(e) (keel-cloud 185 FR-4): the decision-maker's screener the question writer wrote
+        (`screeners.decider.question`), or None."""
+        decider = (self.screeners or {}).get("decider")
+        return decider.get("question") if isinstance(decider, dict) else None
 
     def founder_list(self, key: str) -> dict | None:
         """A list dimension's saved list (087 FR-007, the lock's `SavedList`): `{items: [{code, label,
@@ -1225,7 +1249,12 @@ def _check_chain(raw: dict, entry_id, path: Path) -> bool:
             raise fault(f"{where}: HOURS on a B2B entry is at a rate, and neither the cost nor the entry gives one")
     elif cost.get("rate") is not None:
         raise fault(f"{where}: a rate belongs to HOURS only")
-    want = chain_mod.cost_belief(cost, actor_plural, occasion, role_word)
+    # spec 118 FR-1 (keel-cloud 180 FR-2, 181 FR-4; revision 20): who pays in the founder's word -- the decider's title
+    # (else role) in the plural where someone else decides, else the people's plural (`BacktestCorpusTest`)
+    title = maker.get("title") if b2b else None
+    deciders = chain_mod.deciders(title or decider, actor_plural, b2b)
+    idea = raw.get("idea_name")
+    want = chain_mod.cost_belief(cost, occasion, role_word, deciders, b2b)
     if sacrifice.get("belief_sentence") != want:
         raise fault(f"{where}: belief sentence {sacrifice.get('belief_sentence')!r}, the engine's {want!r}")
     want = chain_mod.cost_said(cost, occasion, role_word)
@@ -1267,7 +1296,7 @@ def _check_chain(raw: dict, entry_id, path: Path) -> bool:
             raise fault(f"{where}: free to them needs someone else to pay (FREE_NEEDS_A_PAYER)")
     if shape != "SHARE" and price.get("shareBase") is not None:
         raise fault(f"{where}: shareBase belongs to SHARE only")
-    want = chain_mod.price_belief(price, cost, actor_plural, occasion, role_word, decider)
+    want = chain_mod.price_belief(price, cost, actor_plural, occasion, role_word, decider, deciders, idea, b2b)
     if price_cal.get("belief_sentence") != want:
         raise fault(f"{where}: belief sentence {price_cal.get('belief_sentence')!r}, the engine's {want!r}")
     want = chain_mod.free_line(actor_plural, decider) if shape == "FREE" else \
@@ -1284,10 +1313,10 @@ def _check_chain(raw: dict, entry_id, path: Path) -> bool:
     derived = chain_mod.derive(cost, price)
     if ability.get("answer") != derived:
         raise fault(f"{where}: answer {ability.get('answer')!r}, the engine's reading {derived!r}")
-    want = chain_mod.ability_belief(derived, actor_plural, decider)
+    want = chain_mod.ability_belief(derived, actor_plural, decider, price, cost, occasion, role_word, deciders, b2b)
     if ability.get("belief_sentence") != want:
         raise fault(f"{where}: belief sentence {ability.get('belief_sentence')!r}, the engine's {want!r}")
-    want = chain_mod.ability_phrase(derived, actor_plural, decider)
+    want = chain_mod.ability_phrase(derived, actor_plural, decider, price, cost, occasion, role_word)
     if ability.get("belief_phrase") != want:
         raise fault(f"{where}: belief phrase {ability.get('belief_phrase')!r}, the engine's {want!r}")
 
@@ -1417,6 +1446,18 @@ def _check_row(entry: Entry, registry, key: str, row: dict) -> None:
     if _chain_row(entry, key):
         return                                   # rule C held it (`_check_chain`): the chain's row, not the registry's
     control, escape = _registry_row(entry, dimension)
+    if key == PURCHASE_FRICTION_KEY:
+        _check_friction_row(entry, row)
+        return
+    if key == ABILITY_KEY and chain_mod.asks_back(entry.price()):
+        # spec 118 FR-2 (keel-cloud 181 FR-2, revision 20): on a chain study with a price, the row points back to the
+        # price and takes *I can't say* on the decision-maker's link too (the registry still names *I can't recall one*,
+        # which `CommercialChain.side` replaces)
+        if row.get("question") != chain_mod.POINTS_BACK:
+            raise _refuse(entry.id, f"respondent_questions[{key}].question is {row.get('question')!r}; revision 20 "
+                                    f"records the question pointing back to the price, {chain_mod.POINTS_BACK!r}",
+                          entry.path)
+        escape = chain_mod.POINTS_BACK_ESCAPE
     if row.get("control") not in RECORDED_CONTROLS.get(control, (control,)):
         raise _refuse(entry.id, f"respondent_questions[{key}].control is {row.get('control')!r}; the registry's is "
                                 f"{control!r}", entry.path)
@@ -1424,7 +1465,17 @@ def _check_row(entry: Entry, registry, key: str, row: dict) -> None:
         raise _refuse(entry.id, f"respondent_questions[{key}].escape is {row.get('escape')!r}; the registry's one "
                                 f"escape is {escape!r}", entry.path)
     codes = list(row.get("codes") or [])
-    if dimension.fixed_answers and codes != dimension.fixed_answer_codes:
+    if key == COMPATIBILITY_KEY and codes == list(FACT_CODES):
+        # spec 118 FR-4c(c) (keel-cloud 185 FR-1, revision 21): a fact is served three -- never *Only with help or
+        # approval* -- on the registry's codes; held to code's reading of the tested condition (`conditionKind`)
+        tested = entry.tested(key) or {}
+        if _tested_kind(entry) != "FACT":
+            raise _refuse(entry.id, f"respondent_questions[{key}].codes are a fact's three {codes}, and the tested "
+                                    f"condition {tested.get('label')!r} is no fact (keel-cloud 185 FR-1)", entry.path)
+    elif key == COMPATIBILITY_KEY and codes == dimension.fixed_answer_codes and _tested_kind(entry) == "FACT":
+        raise _refuse(entry.id, f"respondent_questions[{key}].codes are the registry's four on a fact; revision 21 "
+                                f"serves a fact three, {list(FACT_CODES)} (keel-cloud 185 FR-1)", entry.path)
+    elif dimension.fixed_answers and codes != dimension.fixed_answer_codes:
         raise _refuse(entry.id, f"respondent_questions[{key}].codes are {codes}; the registry fixes "
                                 f"{dimension.fixed_answer_codes}", entry.path)
     saved = entry.founder_list(key)
@@ -1438,6 +1489,40 @@ def _check_row(entry: Entry, registry, key: str, row: dict) -> None:
             and codes != [i.get("code") for i in saved["items"]]:
         raise _refuse(entry.id, f"respondent_questions[{key}].codes are {codes}; the founder's five outcomes in "
                                 f"order are {[i.get('code') for i in saved['items']]}", entry.path)
+
+
+#: keel-cloud 185 FR-1 (`ItemFrames.FACT_THREE`): a fact's Compatibility codes, `only_with_help` never served on one.
+FACT_CODES = ("yes_easily", "yes_with_steps", "no")
+#: keel-cloud 182 (`PurchaseFriction.undatedSide`): a list saved with no time keeps spec 128's fixed three.
+UNDATED_FRICTION_ROW = ("fixed_three", list(friction_mod.UNDATED_CODES))
+FRICTION_ESCAPE = "cant_tell"
+
+
+def _tested_kind(entry: Entry) -> str:
+    """keel-cloud 185 `ItemFrames.conditionKind` of the tested Compatibility condition (`spoken.condition_kind`)."""
+    from . import spoken as spoken_mod                                 # noqa: PLC0415 - spoken reads this module
+    tested = entry.tested(COMPATIBILITY_KEY) or {}
+    return spoken_mod.condition_kind(tested.get("asked"), tested.get("label"))
+
+
+def _check_friction_row(entry: Entry, row: dict) -> None:
+    """Spec 118 FR-2 (keel-cloud 182 FR-2, revision 20): Purchase friction's row is code's -- where the founder named a
+    time, `duration_bands` over the six around it (`friction.codes`), escape `cant_tell`; where none was named (13
+    back-test entries, the golden three B2B), the fixed three it always was, its recorded `cant_recall` read as
+    `cant_tell` by spec 115's one rule."""
+    key = PURCHASE_FRICTION_KEY
+    founder = entry.duration()
+    control, codes = (DURATION_CONTROL, friction_mod.codes(founder)) if founder else UNDATED_FRICTION_ROW
+    if row.get("control") != control:
+        raise _refuse(entry.id, f"respondent_questions[{key}].control is {row.get('control')!r}; "
+                                f"{'the founder named ' + founder.said() if founder else 'no time is named'}, so code "
+                                f"serves {control!r} (keel-cloud 182)", entry.path)
+    if list(row.get("codes") or []) != codes:
+        raise _refuse(entry.id, f"respondent_questions[{key}].codes are {row.get('codes')}; code serves {codes} "
+                                "(keel-cloud 182, `PurchaseFriction.bands`)", entry.path)
+    if not recorded_escape_is(key, row.get("escape"), FRICTION_ESCAPE):
+        raise _refuse(entry.id, f"respondent_questions[{key}].escape is {row.get('escape')!r}; the one escape is "
+                                f"{FRICTION_ESCAPE!r}", entry.path)
 
 
 def _chain_row(entry: Entry, key: str) -> bool:
@@ -1471,8 +1556,19 @@ def _check_pick(entry: Entry, registry, person: dict, key: str, pick) -> None:
     name = person.get("person")
     if _chain_row(entry, key):
         return                                   # rule C held it (`_check_chain`)
+    if key == ABILITY_KEY and chain_mod.asks_back(entry.price()) and not chain_mod.reached(
+            entry.price(), (person.get("picks") or {}).get(PRICE_KEY)):
+        # spec 118 FR-2 (keel-cloud 181 FR-1, revision 20): the interview asks Ability to pay only of a Price answer at
+        # or above the founder's price (`askedAfter`); revision 20 deleted every other person's pick
+        raise _refuse(entry.id, f"{name} picks {key} and their Price answer "
+                                f"{(person.get('picks') or {}).get(PRICE_KEY)!r} is not at or above the founder's price, "
+                                "so the interview never asks them (keel-cloud 181 FR-1)", entry.path)
     if isinstance(pick, dict) and "chip" in pick:
         _, escape = _registry_row(entry, registry.by_key(key))
+        if key == ABILITY_KEY and chain_mod.asks_back(entry.price()):
+            escape = chain_mod.POINTS_BACK_ESCAPE
+        if key == PURCHASE_FRICTION_KEY:
+            escape = FRICTION_ESCAPE
         if escape is None or not recorded_escape_is(key, pick.get("chip"), escape) or set(pick) != {"chip"}:
             raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}; its one escape is {escape!r}"
                                     + (" (Commitment has none)" if key == COMMITMENT_KEY else ""), entry.path)
@@ -1486,7 +1582,8 @@ def _check_pick(entry: Entry, registry, person: dict, key: str, pick) -> None:
                 or not set(map(str, pick)) <= set(codes):
             raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}; Importance is two distinct codes of "
                                     f"{codes}", entry.path)
-    elif control in ("fixed_four", "fixed_three", "single_choice_5", "single_choice", BENEFIT_CONTROL) and codes:
+    elif control in ("fixed_four", "fixed_three", "single_choice_5", "single_choice", BENEFIT_CONTROL,
+                     "duration_bands") and codes:
         if not isinstance(pick, str) or pick not in codes:
             raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}, not one of {codes}", entry.path)
 
@@ -1688,6 +1785,7 @@ def _entry(raw: dict, path: Path, digest: str, *, backtest: bool = False) -> Ent
         raw_rate=raw.get("hourly_rate"),
         idea_name=(raw.get("idea_name").strip() if backtest else None),
         backtest=backtest,
+        screeners=raw.get("screeners") or {},
     )
 
 
@@ -1830,9 +1928,9 @@ def spec174_reads(entry, key: str):
     whose decision-maker is someone else, *Most {people} would {step} now.* -> *In most cases the {role} would {step}
     now.*; FR-4 Importance's *Of these {n}, {item} is one of the two that {people} would most like made easier when {c}.*
     -> *{People} have {n} things that are hard when {c}. {Item} is one of the two they would most like made easier.*;
-    FR-3 Compatibility's *For most, {c}.* -> *For most {actor_plural}, {c}.*; FR-2 Purchase friction's *{step} slows the
-    purchase most.* -> *{step} can slow or stop the purchase.*. Any other text as 173 reads it; None where none is
-    recorded. The record is never rewritten."""
+    FR-3 Compatibility's *For most, {c}.* -> *For most {actor_plural}, {c}.*. FR-2 (Purchase friction's *{step} slows the
+    purchase most.* -> *{step} can slow or stop the purchase.*) is retired (spec 118, keel-cloud 182: revision 20 records
+    the positive form). Any other text as 173 reads it; None where none is recorded. The record is never rewritten."""
     node = (getattr(entry, "founder_calibration", None) or {}).get(key) or {}
     recorded = spec173_reads(node.get("belief_sentence"))
     if recorded is None:
@@ -1850,8 +1948,8 @@ def spec174_reads(entry, key: str):
     if key == COMPATIBILITY_KEY and recorded.startswith(_COMPATIBILITY_152):
         actors = str(((getattr(entry, "context", None) or {}).get("actor_plural")) or "")
         return f"For most {actors}, {recorded[len(_COMPATIBILITY_152):]}"
-    if key == PURCHASE_FRICTION_KEY and recorded.endswith(_FRICTION_152):
-        return recorded[:-len(_FRICTION_152)] + " can slow or stop the purchase."
+    # FR-2 (Purchase friction's *can slow or stop*): retired by spec 118 FR-2 as keel-cloud 182 retired it -- revision 20
+    # records 182's positive form (*Most {deciders} would get through {step} within about {duration}, or not need it.*)
     return recorded
 
 

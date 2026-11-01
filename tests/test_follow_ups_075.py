@@ -102,7 +102,8 @@ def test_a_second_stem_is_asked_on_the_spot_too():
 def test_only_a_rung_the_link_walks_calls_and_none_after_a_skip_counts_less():
     # a decision-maker's link walks the commercial rungs alone: a primary rung's answer is asked nothing
     order = [PRICE, "commercial.ability_to_pay", BUYER, FRICTION, COMMIT]
-    picks = [_pick(BUYER, "someone_else_decided"), _pick(FRICTION, "yes_quick"), _pick(COMMIT, "no")]
+    # spec 118 re-pin (keel-cloud 182 FR-3): on a list with no time *a long time* is Purchase friction's answer against
+    picks = [_pick(BUYER, "someone_else_decided"), _pick(FRICTION, "yes_long"), _pick(COMMIT, "no")]
     plan = fake.asks(picks, FOUNDER, order, "COMMERCIAL_B2B", b2b=True)
     assert [a["dimension"] for a in plan] == [BUYER, FRICTION]
     # where the served rungs are fewer, an item that is none asks nothing; the end's call still walks the ladder
@@ -317,13 +318,16 @@ def test_the_money_only_walk_holds_one_kind():
 
 def test_the_cost_step_words_are_keel_webs():
     text = _web("src/lib/translate.ts")
-    for name in ("CHAIN_UNIT_HELP", "CHAIN_HOURS_BASE_HELP", "CHAIN_BASE_HELP", "HOURLY_RATE_DEFAULTED"):
+    for name in ("CHAIN_UNIT_HELP", "CHAIN_HOURS_BASE_HELP", "CHAIN_BASE_HELP"):
         assert re.search(rf'export const {name} = "([^"]*)";', text).group(1) == getattr(vs_screens, name), name
+    # spec 118 re-pin (keel-cloud 180 FR-9, keel-web 155 FR-8): the hourly rate, its box and its default note are gone
+    assert "export const HOURLY_RATE_DEFAULTED" not in text
     frame = re.search(r"export const priceCostBox = \(said: string\): string => `([^`]*)`;", text).group(1)
     assert frame.replace("${said}", "{said}") == vs_screens.PRICE_COST_BOX
     control = _web("src/components/calibration/FounderControl.tsx")
-    for testid in ("chain-unit", "chain-base", "chain-rate", "chain-low"):
+    for testid in ("chain-unit", "chain-base", "chain-low", "chain-loss"):    # spec 118: chain-rate gone, chain-loss new
         assert f'"{testid}"' in control, testid
+    assert '"chain-rate"' not in control
     assert 'id="chain-unit-help"' in control or "chain-unit-help" in control
 
 
@@ -353,8 +357,10 @@ def test_ability_to_pay_is_said_as_keels_reading():
     flat = re.sub(r'"\s*\+\s*"', "", chain)
     for b2b, sentence in vs_screens.COUNTS_SENTENCE.items():
         assert sentence in flat, b2b
+    # spec 118 re-pin (keel-cloud 181 FR-4): the belief per reading over the people at the price -- spec 141's *Keel
+    # reads your price ...* frames are gone from the engine, and the hold still refuses one said as the founder's
     for reading in cs.KEEL_READINGS:
-        assert reading in chain, reading
+        assert reading not in chain, reading
     source = inspect.getsource(cs._hold_the_ability_line)
     assert 'said.startswith("You said " + r)' in source and "COUNTS_SENTENCE[vs.is_b2b(j.entry)]" in source
 
@@ -368,4 +374,4 @@ def test_the_versions_move_as_the_spec_says():
     # spec 075 FR-1 moved it to 10; FR-5 (keel-cloud 144, keel-web 126) to 11 -- IM23, IM26, IM27 re-pinned; spec 076
     # FR-5 (keel-cloud 145, keel-web 127) to 12 -- IM22, IM23 (held in test_founder_walk_076.py)
     assert marks.INTERVIEWER_MARKS_VERSION >= 11
-    assert instruction_marks.MARKS_VERSION == 24 and corpus_mod.REVISION == 19      # spec 080: r17, v21 stands; spec 086: r18; 089: r19; 093: v22; 091: v23; 112: v24
+    assert instruction_marks.MARKS_VERSION == 24 and corpus_mod.REVISION == 21      # spec 080: r17, v21 stands; spec 086: r18; 089: r19; 093: v22; 091: v23; 112: v24; 118: r21

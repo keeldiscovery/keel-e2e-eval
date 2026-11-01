@@ -124,6 +124,28 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Corpus revisions 20 and 21 (2026-10-31, keel-cloud 181, 182 and 185; eval 118, the harness half)**: the money cards
+in the founder's words and the question screens said once. Revision 20: the chain's cost, price and Ability to pay
+beliefs are the engine's since 180 / 181 (*{Deciders} already spend ...*, *... would think {name} worth ...*, *... who
+would pay {price} could find the money for it.*), Ability to pay's row points back to the price and takes *I can't say*,
+its pick kept only for a Price answer at or above the founder's price; Purchase friction's belief is the positive form,
+and on 08-fresco, 10-palus and 17-expanse the founder's time and code's six duration bands (the picks by one rule).
+Revision 21: a fact's Compatibility row is three codes (`only_with_help` never served on a fact; 13 picks moved to `no`
+by one rule) and 08-fresco, 10-palus and 17-expanse record `screeners.decider`. No standing, drift, inside, n or verdict
+moved but Ability to pay's own (181). The reader reads **revision 21** and refuses revisions 19 and 20 by name.
+**v24 stands**: no mark scores a belief sentence or a pick's shape, and `spoken_form` reads the record as keel-cloud
+serves it -- Price's step one ends *{top} or more* (S8) and its second step's two lines are held to §17 (S11, a record
+before 185 carries none and is not asked them), the shape the record already keeps (no fault at keel-cloud-docs
+`f3f0d99e`), as spec 089 FR-3 and spec 115 read theirs. The seven revision-21 files, by sha256 (keel-cloud canon's own
+bytes at keel-cloud-docs `f3f0d99e`, equal to `src/test/resources/keel/corpus-r21/`): `01-countly.yaml`
+`a57346f1436ecf725ccd933d87ce3c625e0264bb74fd37dbaaf14e1983fb1d21`; `02-compliancelog.yaml`
+`c1dd20f816f52356c2aa1078c6196d934c321fb01676f1d7b39b1faddec960fb`; `03-lullaby.yaml`
+`4fb36c4cd1d93874b716170581a37d35e4f6542bb7d83b47d6faa371f097ee86`; `04-linerly.yaml`
+`23119b2244509f022bb2a99361b592cca622604031745385cab3c00822fde7d3`; `05-paidly.yaml`
+`4bc2d6695c4b81a20122f19fe05797890af096fa0054bc52727d52b3b00f1d82`; `06-repeatline.yaml`
+`48e5923ba33833d860aa79909072430d0c6eb0b542b862dd32c0ebb2ba73cd05`; `07-mulchrun.yaml`
+`88c724997a133a3727a84e6207c68809775c1b4975f1dca607c25da7f74468e4`.
+
 **Revision 19 read through keel-cloud 174 (2026-10-31; eval 115, the harness half)**: no corpus revision, no mark
 moved. The engine writes four belief rows in 174's words -- Commitment where someone else decides *In most cases
 {decider} would {value} now.*, Importance *{actor_plural} have {list_size} things that are hard {stretch}. {value} is one

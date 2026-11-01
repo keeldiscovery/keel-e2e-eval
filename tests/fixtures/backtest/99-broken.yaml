@@ -2,11 +2,15 @@
 # back-test keys added (`idea_name`, `sources`) -- a well-formed back-test entry but for one golden shape rule:
 # context.occasion is five words, where revision 10 records one to four. The loader in back-test mode refuses
 # it with the sentence a golden author gets. Not a back-test entry; values invented.
+# Revision 21 since spec 118 (keel-cloud 181, 182, 185): the tested Compatibility condition is a fact by code's reading
+# (`ItemFrames.conditionKind`), so its row is the fact's three (only_with_help never served on a fact) and the one
+# only_with_help pick moved by keel-cloud 185's one rule to no (both count against: no status, inside or n moves). No chain
+# price and no founder's time on Purchase friction, so nothing else moves.
 # Revision 19 since spec 089 (keel-cloud 159): Relative advantage's row is scale_four over the four codes and every
 # answer moved by the one rule (positive with a benefit a_lot_better, neutral no_difference, negative worse).
 id: 99-broken
 title: Fixture — the keys you cannot find, bought by the office
-revision: 19
+revision: 21
 idea_name: Whistle key tag
 sources: 99-broken.sources.md
 market:
@@ -211,7 +215,6 @@ respondent_questions:
     codes:
     - yes_easily
     - yes_with_steps
-    - only_with_help
     - 'no'
     escape: cant_tell
   solution.relative_advantage:
@@ -358,7 +361,7 @@ answers:
     problem.importance:
       chip: none_of_these
     problem.current_solution_satisfaction: works_well
-    solution.compatibility: only_with_help
+    solution.compatibility: 'no'
     solution.relative_advantage: a_lot_better
     solution.adoption_friction: 'yes'
   pilot_opt_in: false

@@ -55,7 +55,7 @@
       "outside": 2,
       "below": 2,
       "above": 0,
-      "optionCounts": "yes_easily=3, yes_with_steps=2, only_with_help=1, no=1",
+      "optionCounts": "yes_easily=3, yes_with_steps=2, only_with_help=0, no=2",
       "status_line": "5 of 7 said yes, easily or with some steps"
     },
     "solution.relative_advantage": {
