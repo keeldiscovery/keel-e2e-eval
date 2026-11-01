@@ -5709,3 +5709,19 @@ stops the walk by name as 104 does, with a finding *{Dimension}: Keel left out: 
 three bundles: 21-codyco and 13-aircaps now walk on with one DRIFT line each; 08-fresco stops at purchase friction.
 **For keel-cloud:** keel-cloud-docs spec `177-a-founders-row-is-kept-as-typed` (written at `4d790648`, not built): a
 founder's row drafted byte for byte, tense and all, never left out, held by code in the saved-list check.
+
+## 102. Observation (keel-web, with keel-cloud beside it): Purchase friction's Choose bar still says spec 118's fear -- the brief and the card say keel-cloud 182's time
+
+Found by spec `118-the-harness-reads-the-money-cards-redrawn` (its tasks.md, *What the spec did not foresee*), reading
+keel-web master `3c0db0c` beside keel-cloud-docs master `f3f0d99e`. keel-cloud 182 (FR-3) reads Purchase friction as the
+time against the founder's: the brief's and the stage card's bar is *holds if no more than 1 in 3 say it would take
+longer than you expect* (`PurchaseFriction.BAR`, `build/brief-facts/` and `build/money-cards/` of record), and keel-web 155
+draws the founder's time beside the step on Choose (`duration-input`). But keel-web's own copy for the Choose screen's
+bar (`translate.ts`, `HOLDS["commercial.purchase_friction"]`, under the belief) still reads 153's *Holds if at least 2 in
+3 say it would be needed and would take a long time.* -- spec 118's fear, which 182 removed -- and the intro above the
+list *if they bought it, would this step be needed, and how long would it take*. So the founder sets a bar on Choose that
+the stage card never applies. **What the harness does**: each mirror follows its own source --
+`vectors_screens.PURCHASE_FRICTION_CHOOSE_BAR` the page's words, `brief_facts.KEEL_BAR` the cloud's -- and
+`tests/test_mirror_follows_117.py` pins that they now differ (it pinned them equal). **For keel-web:** the Choose bar in
+182's words (*Holds if no more than 1 in 3 say it would take longer than you expect.*, and with no time *... a long
+time.*), and the intro without *would this step be needed*.
