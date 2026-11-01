@@ -876,7 +876,8 @@ def test_the_price_word_finds_a_price_and_leaves_plain_words_alone():
 # ------------------------------------------------------------------------------- the fake and charge v9, restated
 
 def test_charge_v9_and_the_fixed_lines():
-    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (14, 400, 2_000_000, 400)
+    # price version 15 since keel-cloud 190 (spec 121 FR-3); the interviewer's two rows unmoved
+    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (15, 400, 2_000_000, 400)
     # spec 083 (keel-cloud 143): the two studio faces, DAPHNE preselected; 110's four retired with 094's (less DAPHNE)
     assert fake.FACES == ("DAPHNE", "SASKIA") and fake.PRESELECTED == "DAPHNE"
     assert fake.FACE_NAMES == {"DAPHNE": "Daphne", "SASKIA": "Saskia"}

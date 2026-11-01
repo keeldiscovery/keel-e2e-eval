@@ -50,8 +50,9 @@ def _charge_table() -> tuple[int, dict[str, int]]:
 
 # --------------------------------------------------------------------------------------------- FR-1: the prices
 
-def test_both_fakes_carry_price_version_14():
-    assert interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == charge.PRICE_VERSION == 14
+def test_both_fakes_carry_price_version_15():
+    # 14 since keel-cloud 170 (spec 110); 15 since keel-cloud 190 (spec 121 FR-3: CONTEXT_INTERPRET and ASKED 3 -> 1)
+    assert interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == charge.PRICE_VERSION == 15
 
 
 def test_the_mirror_is_keel_clouds_charge_table():
@@ -97,7 +98,7 @@ PROJECT = "0b8e5f8e-3a5c-4b7e-8f0e-6c2b1d9a7e22"
 
 
 def _row(**over) -> dict:
-    row = {"kind": "INTERVIEW", "action": "INTERVIEW", "credits": -30, "price_credits": 30, "price_version": 14,
+    row = {"kind": "INTERVIEW", "action": "INTERVIEW", "credits": -30, "price_credits": 30, "price_version": 15,
            "inference_job_id": None, "actual_cost_micro_usd": None, "reason": f"invitation:{INVITATION}",
            "idempotency_key": f"interview:{INVITATION}", "project_id": PROJECT}
     return {**row, **over}

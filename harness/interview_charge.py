@@ -3,7 +3,10 @@ charge per interview, at Begin** -- mirrored for the referee (keel-e2e-eval spec
 **13** since keel-cloud 169 (keel-e2e-eval spec 105): `PROBLEM_INTERPRET` 13 -> 26 and `SOLUTION_MECHANISM` 14 -> 28
 (the frame class on frontier, Opus 5.5), the New-project gate 273 -> 300; no row this module mirrors moved. **14** since
 keel-cloud 170 (keel-e2e-eval spec 110): `RESPONDENT_QUESTIONS` 35 -> 70 (the lock's job on frontier), the lock's gate
-70, or 470 with the recording; no row this module mirrors moved.
+70, or 470 with the recording; no row this module mirrors moved. **15** since keel-cloud 190 (keel-e2e-eval spec 121):
+the light tier on Claude Haiku 5.5 (routing v16) -- `CONTEXT_INTERPRET` and `ASKED` 3 -> 1, so the New-project gate is
+300 -> **298**; INTERPRET's, CONTEXT_INTERPRET's, ASKED's and EXAMPLE_MATCH's measured cost re-based (1.3 times the
+tokens at a tenth of Haiku 4.5's rate), their prices otherwise unmoved; no row the interview's charge reads moved.
 
 One `INTERVIEW` row of 30 credits is written when a person presses Begin (`POST /v2/i/{token}/interview/begin`), once
 per invitation (`idempotency_key` `interview:<invitationId>`), never refused and never read against the balance; the
@@ -22,9 +25,20 @@ import os
 #: keel-cloud `InferenceCharge.VERSION` (the interviewer's and the contacts' fakes carry it as `PRICE_VERSION`): 12
 #: since spec 156, **13** since keel-cloud 169 (spec 105 FR-2: the two frame prices doubled; INTERVIEW, the readings
 #: and every founder-side row unmoved), **14** since keel-cloud 170 (spec 110 FR-1: `RESPONDENT_QUESTIONS` 35 -> 70, the
-#: lock's job on the frontier tier, routing v15). No corridor sum is mirrored here; the New-project gate those prices
-#: sum to is 300 (3 + 26 + 28 + 3 x 81), the lock's 70 (470 with the recording).
-PRICE_VERSION = 14
+#: lock's job on the frontier tier, routing v15), **15** since keel-cloud 190 (spec 121 FR-3: `CONTEXT_INTERPRET` and
+#: `ASKED` 3 -> 1, the light tier on Haiku 5.5, routing v16). The New-project gate those prices sum to is **298** (1 +
+#: 26 + 28 + 3 x 81; 300 at 13 and 14, 273 before), the lock's 70 (470 with the recording).
+PRICE_VERSION = 15
+#: The founder-side rows of `InferenceCharge` at version 15 that `CreditPolicy.NEW_PROJECT_PRICE` sums, and the asked
+#: turn: the light tier's two priced rows at 1 credit since keel-cloud 190 (3 at 14 and before), the frame and
+#: calibration rows unmoved since 169. Mirrored for the record and pinned against keel-cloud's enum; no walk sums them.
+LIGHT_PRICES = {"CONTEXT_INTERPRET": 1, "ASKED": 1}
+LIGHT_PRICES_V14 = {"CONTEXT_INTERPRET": 3, "ASKED": 3}
+FRAME_PRICES = {"PROBLEM_INTERPRET": 26, "SOLUTION_MECHANISM": 28}
+CALIBRATION_QUESTIONS_CREDITS = 81
+#: `CreditPolicy.NEW_PROJECT_PRICE`: the context, the problem, the mechanism and three calibrations, summed, never typed.
+NEW_PROJECT_PRICE = (LIGHT_PRICES["CONTEXT_INTERPRET"] + FRAME_PRICES["PROBLEM_INTERPRET"]
+                     + FRAME_PRICES["SOLUTION_MECHANISM"] + 3 * CALIBRATION_QUESTIONS_CREDITS)
 #: `InferenceCharge.RESPONDENT_QUESTIONS` at version 14 (35 at 13): the lock's one job, and with it
 #: `CreditPolicy.LOCK_PRICE`.
 RESPONDENT_QUESTIONS_CREDITS = 70
@@ -39,8 +53,9 @@ READ_PRICES_V11 = {"INTERPRET": 10, "THEMES": 8}
 
 #: `ai-credits-design.md` §6.3's five-participant row, re-summed at version 12: framing 540 (the six kinds), the brief
 #: 105 and the conversation 560 as they were; each person's reading 0 (was 9 in §6.3's table) and each person's Begin 30.
-#: Versions 13 and 14 leave it as it is: it is the classic walk's figure (the six framing kinds), recorded and asserted against
-#: nothing, 13 moved only the corridor's two frame prices (spec 105 FR-2) and 14 only the lock's job (spec 110 FR-1).
+#: Versions 13, 14 and 15 leave it as it is: it is the classic walk's figure (the six framing kinds), recorded and asserted
+#: against nothing, 13 moved only the corridor's two frame prices (spec 105 FR-2), 14 only the lock's job (spec 110 FR-1)
+#: and 15 only the light tier's two priced rows (spec 121 FR-3).
 FRAMING_CREDITS = 540
 BRIEF_CREDITS = 105
 CONVERSATION_CREDITS = 560
@@ -49,7 +64,7 @@ READING_CREDITS_V11 = 9
 
 def project_credits(people: int, *, version: int = PRICE_VERSION) -> int:
     """What §6.3 says a project of `people` participants costs: 1,250 at five on version 11, 1,355 on version 12 and
-    on 13 and 14 (which moved no row of this figure)."""
+    on 13, 14 and 15 (which moved no row of this figure)."""
     if version >= 12:
         return FRAMING_CREDITS + BRIEF_CREDITS + CONVERSATION_CREDITS + people * INTERVIEW_CREDITS
     return FRAMING_CREDITS + BRIEF_CREDITS + CONVERSATION_CREDITS + people * READING_CREDITS_V11
@@ -92,7 +107,7 @@ def rows_for(ledger: list[dict], invitation_id: str) -> list[dict]:
 
 def row_faults(row: dict, *, invitation_id: str, project_id: str | None = None) -> list[str]:
     """What is wrong with one Begin's row against `CreditLedgerEntry.interview`: kind and action `INTERVIEW`, credits
-    -30, `price_credits` 30, `price_version` 14 (13 before keel-cloud 170, 12 before 169), no job, no cost, `reason` `invitation:<id>`, the key, the project."""
+    -30, `price_credits` 30, `price_version` 15 (14 before keel-cloud 190, 13 before 170, 12 before 169), no job, no cost, `reason` `invitation:<id>`, the key, the project."""
     want = {"kind": INTERVIEW, "action": INTERVIEW, "credits": -INTERVIEW_CREDITS, "price_credits": INTERVIEW_CREDITS,
             "price_version": PRICE_VERSION, "inference_job_id": None, "actual_cost_micro_usd": None,
             "reason": f"invitation:{invitation_id}", "idempotency_key": key(invitation_id)}

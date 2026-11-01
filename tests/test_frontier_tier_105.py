@@ -131,12 +131,13 @@ def test_s012s_per_job_check_reads_the_resolver_that_falls_back():
 
 # ------------------------------------------------------------------------------------ FR-2: the price version
 
-def test_price_version_14_is_pinned_in_the_mirror_and_both_fakes():
-    # 13 at keel-cloud 169 (this spec); 14 since keel-cloud 170 (eval spec 110 FR-1: RESPONDENT_QUESTIONS 35 -> 70)
+def test_price_version_15_is_pinned_in_the_mirror_and_both_fakes():
+    # 13 at keel-cloud 169 (this spec); 14 since keel-cloud 170 (eval spec 110 FR-1: RESPONDENT_QUESTIONS 35 -> 70); 15
+    # since keel-cloud 190 (eval spec 121 FR-3: CONTEXT_INTERPRET and ASKED 3 -> 1)
     from harness import contacts_fake, interviewer_fake                     # noqa: PLC0415
     from harness import interview_charge as charge                          # noqa: PLC0415
-    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == 14
-    # §6.3's classic five-participant figure moved no row at 13 or 14
+    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == 15
+    # §6.3's classic five-participant figure moved no row at 13, 14 or 15
     assert charge.FIVE_PARTICIPANTS == charge.project_credits(5, version=12) == 1_355
 
 

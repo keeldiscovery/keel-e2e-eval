@@ -225,3 +225,50 @@ def test_no_test_or_fixture_names_the_old_light_id_but_the_v15_shape_above():
             if "claude-haiku-4-5" in path.read_text(encoding="utf-8", errors="ignore"):
                 hits.append(str(path.relative_to(REPO)))
     assert hits == []
+
+
+# --------------------------------------------------------------------------------------- FR-3: price version 15
+
+CHARGE_JAVA = "src/main/java/com/keeldiscovery/cloud/domain/connect/InferenceCharge.java"
+POLICY_JAVA = "src/main/java/com/keeldiscovery/cloud/application/CreditPolicy.java"
+
+
+def test_price_version_15_and_the_light_prices_in_the_mirror():
+    from harness import contacts_fake, interviewer_fake                     # noqa: PLC0415
+    from harness import interview_charge as charge                          # noqa: PLC0415
+    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == 15
+    assert charge.LIGHT_PRICES == {"CONTEXT_INTERPRET": 1, "ASKED": 1}
+    assert charge.LIGHT_PRICES_V14 == {"CONTEXT_INTERPRET": 3, "ASKED": 3}
+    assert charge.NEW_PROJECT_PRICE == 1 + 26 + 28 + 3 * 81 == 298
+    # nothing the interview's charge or the two fakes read moved
+    assert (charge.INTERVIEW_CREDITS, charge.RESPONDENT_QUESTIONS_CREDITS, charge.READ_PRICES) == (
+        30, 70, {"INTERPRET": 0, "THEMES": 0})
+    assert charge.FIVE_PARTICIPANTS == 1_355 and interviewer_fake.CREDITS == 400
+
+
+def test_the_mirror_is_keel_clouds_enum_at_version_15():
+    import re                                                                # noqa: PLC0415
+
+    from stack.config import load_config                                    # noqa: PLC0415
+    from harness import interview_charge as charge                          # noqa: PLC0415
+    cloud = load_config(validate=False).keel_cloud
+    if not (cloud / CHARGE_JAVA).is_file():
+        pytest.skip(f"keel-cloud has no {CHARGE_JAVA}")
+    text = (cloud / CHARGE_JAVA).read_text(encoding="utf-8")
+    version = int(re.search(r"public static final int VERSION = (\d+);", text).group(1))
+    if version < 15:
+        pytest.skip(f"keel-cloud's InferenceCharge.VERSION {version} predates keel-cloud 190")
+    rows = {m.group(1): int(m.group(2).replace("_", ""))
+            for m in re.finditer(r"^\s{4}([A-Z_]+)\s*\(\s*([\d_]+)\s*,", text, re.M)}
+    for action, credits in {**charge.LIGHT_PRICES, **charge.FRAME_PRICES,
+                            "CALIBRATION_QUESTIONS": charge.CALIBRATION_QUESTIONS_CREDITS}.items():
+        assert rows[action] == credits, action
+    policy = (cloud / POLICY_JAVA).read_text(encoding="utf-8")
+    assert "<b>298</b>" in policy and "3 * InferenceCharge.CALIBRATION_QUESTIONS.priceCredits()" in policy
+
+
+@pytest.mark.parametrize("rel", ["harness/interview_charge.py", "harness/interviewer_fake.py",
+                                 "harness/contacts_fake.py", "evals/test_s012_journey_through_a_host.py"])
+def test_the_prose_beside_each_pin_names_15_and_190(rel):
+    text = (REPO / rel).read_text(encoding="utf-8")
+    assert "15" in text and "190" in text and "spec 121" in text.replace("spec\n121", "spec 121"), rel

@@ -35,7 +35,8 @@ founder's own plan -- about 1,355 credits, $13.55 at list price and about $2.44 
 inference (design §6.3, re-summed at price version 12: readings 0, 30 at each person's Begin --
 keel-cloud 156, spec 088; price version 13, keel-cloud 169, doubled the corridor's two frame prices
 and moved no row of this classic figure, spec 105; 14, keel-cloud 170, doubled the lock's one job to 70 and moved none
-either, spec 110) -- which is why `matrix/cells.py` buys it once a Saturday and refuses it
+either, spec 110; 15, keel-cloud 190, priced the light tier's context and asked rows 1 and moved none either, spec
+121) -- which is why `matrix/cells.py` buys it once a Saturday and refuses it
 in `per_change` by name.
 
 Two legs, one runtime, and the runtime is what joins them -- on three of the four doors.
@@ -1244,7 +1245,8 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
                      "what the design expects a five-participant journey to cost": (
                          f"{interview_charge.FIVE_PARTICIPANTS:,} credits (ai-credits-design.md §6.3 "
                          "at price version 12: readings 0, 30 a Begin; unmoved at 13, which doubled "
-                         "the corridor's two frame prices, and at 14, which doubled the lock's job) -- a figure written for the classic walk; "
+                         "the corridor's two frame prices, at 14, which doubled the lock's job, and at 15, which priced "
+                         "the light tier's context and asked rows 1) -- a figure written for the classic walk; "
                          "the corridor's own spend is the ledger's, recorded here"),
                      "what Keel actually paid, in micro-dollars": sum(
                          r["actual_cost_micro_usd"] or 0 for r in per_job),

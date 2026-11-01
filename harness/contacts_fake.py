@@ -38,8 +38,10 @@ EMAIL_COST_MICRO_USD = 60_000
 #: no price moved -- S-006 met it on the 129 build, spec 068); 12 since keel-cloud 156 (spec 088: INTERVIEW 30 at
 #: Begin added, INTERPRET and THEMES priced 0; no contacts price moved); **13** since keel-cloud 169 (spec 105:
 #: PROBLEM_INTERPRET 26 and SOLUTION_MECHANISM 28, the frame class on frontier; no contacts price moved); **14** since
-#: keel-cloud 170 (spec 110: RESPONDENT_QUESTIONS 35 -> 70, the lock's job on frontier; no contacts price moved).
-PRICE_VERSION = 14
+#: keel-cloud 170 (spec 110: RESPONDENT_QUESTIONS 35 -> 70, the lock's job on frontier; no contacts price moved);
+#: **15** since keel-cloud 190 (spec 121: CONTEXT_INTERPRET and ASKED 3 -> 1, the light tier on Haiku 5.5; no contacts
+#: price moved).
+PRICE_VERSION = 15
 
 _WORDS = re.compile(r"\W+", re.ASCII)
 

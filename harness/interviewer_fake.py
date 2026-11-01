@@ -38,8 +38,9 @@ from pathlib import Path
 #: interviewer's two rows did not move -- `harness/interview_charge.py`), **13** since 169 (spec 105: PROBLEM_INTERPRET
 #: 13 -> 26 and SOLUTION_MECHANISM 14 -> 28, the frame class on frontier; the interviewer's two rows did not move),
 #: **14** since 170 (spec 110: RESPONDENT_QUESTIONS 35 -> 70, the lock's job on frontier; the interviewer's two rows did
-#: not move).
-PRICE_VERSION = 14
+#: not move), **15** since 190 (spec 121: CONTEXT_INTERPRET and ASKED 3 -> 1, the light tier on Haiku 5.5; the
+#: interviewer's two rows did not move).
+PRICE_VERSION = 15
 #: The first recording, written at lock (or, on a project with none, at the first face chosen) -- and the change.
 RECORDING = "INTERVIEWER_RECORDING"
 CHANGE = "INTERVIEWER_CHANGE"
