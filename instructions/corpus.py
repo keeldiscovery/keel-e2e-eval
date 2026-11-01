@@ -1,4 +1,13 @@
-"""The golden corpus at revision 13, read and never written (spec 029 FR-006/FR-012, data-model §2;
+"""**Revision 22 read** (spec 119 FR-6; keel-cloud 187 FR-4, keel-cloud-docs `bc172359`): revision 21's rules, and test data
+the walks need -- every B2B back-test entry names the founder's time beside its Purchase friction step
+(`founder_calibration.commercial.purchase_friction.answer.duration`, `Entry.duration()`), so no back-test row is the
+fixed three (the golden seven name none and keep them), and the 14 entries 08-21 carry a top-level
+`current_solution: {today}` -- what they do today in the founder's own words, at most 25 words (`Entry.today()`), which
+the walk types into Current solution's first Answer box. A revision-21 file is refused by name. keel-cloud 188 moved no
+corpus word: a recorded pre-chain cost sentence (*The problem already costs the payer {cost}.*) stays this reader's
+check until a revision records 188's words.
+
+The golden corpus at revision 13, read and never written (spec 029 FR-006/FR-012, data-model §2;
 spec 030 FR-002, judgement call 49; ...; spec 038 FR-001, call 81; spec 040 FR-002, call 78; spec 042 call 110;
 spec 053 FR-1; spec 064 FR-1).
 
@@ -140,7 +149,7 @@ from .registry import (DURATION_CONTROL, RECORDED_CONTROLS, ABILITY_BANDS, ABILI
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, PURCHASE_FRICTION_KEY, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 21
+REVISION = 22
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -177,7 +186,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                     "costs the payer* / *Keel reads* words, Ability to pay asked of everyone, Purchase friction's fixed "
                     "three with no founder's time)",
                 20: "MARKS_VERSION 24's corpus before keel-cloud 185 (a fact's Compatibility row on the four codes with "
-                    "`only_with_help` picks, no `screeners.decider`)"}
+                    "`only_with_help` picks, no `screeners.decider`)",
+                21: "MARKS_VERSION 24's corpus before keel-cloud 187 (13 B2B back-test entries with no founder's time on "
+                    "Purchase friction -- the fixed three -- and no `current_solution.today`)"}
 
 #: Spec 067 FR-6 (keel-cloud 128 FR-11, `check_corpus_r15.py`'s rule Q): a person's answer to the segment's condition
 #: chip -- inside or outside -- where the entry's context records a condition; on the primary link only.
@@ -439,6 +450,9 @@ class Entry:
     #: the four (08-fresco, 10-palus, 17-expanse) `{decider: {question, inside}}`, the decision-maker's condition the
     #: question writer writes (`decider_condition`); `{}` everywhere else.
     screeners: dict = field(default_factory=dict)
+    #: Spec 119 FR-6 (keel-cloud 187 FR-4 (b), revision 22): the top-level `current_solution` -- `{today: <one sentence,
+    #: at most 25 words, the founder's own words for what they do today>}` on the 14 entries 08-21; `{}` elsewhere.
+    current_solution: dict = field(default_factory=dict)
 
     # ------------------------------------------------------------------ the people
 
@@ -560,6 +574,12 @@ class Entry:
         answer = (self.founder_calibration.get(PURCHASE_FRICTION_KEY) or {}).get("answer")
         found = friction_mod.Duration.of(answer.get("duration") if isinstance(answer, dict) else None)
         return found if found is not None and found.valid() else None
+
+    def today(self) -> str | None:
+        """Spec 119 FR-6 (keel-cloud 187 FR-4 (b), revision 22): what they do today, in the founder's own words
+        (`current_solution.today`), or None on an entry that records none (the golden seven, 22-35)."""
+        today = (self.current_solution or {}).get("today")
+        return " ".join(today.split()) if isinstance(today, str) and today.strip() else None
 
     def decider_question(self) -> str | None:
         """Spec 118 FR-4c(e) (keel-cloud 185 FR-4): the decision-maker's screener the question writer wrote
@@ -1786,7 +1806,29 @@ def _entry(raw: dict, path: Path, digest: str, *, backtest: bool = False) -> Ent
         idea_name=(raw.get("idea_name").strip() if backtest else None),
         backtest=backtest,
         screeners=raw.get("screeners") or {},
+        current_solution=_current_solution(raw, path),
     )
+
+
+#: keel-cloud 187 FR-4 (b): `current_solution.today` is one sentence of at most 25 words (the Answer box's own cap).
+TODAY_MAX_WORDS = 25
+
+
+def _current_solution(raw: dict, path: Path) -> dict:
+    """Spec 119 FR-6: the top-level `current_solution` (revision 22), `{today}` alone, one sentence of at most 25 words --
+    else refused by name; `{}` where the entry records none."""
+    block = raw.get("current_solution")
+    if block is None:
+        return {}
+    entry_id = raw.get("id") or path.name
+    if not isinstance(block, dict) or set(block) != {"today"} or not isinstance(block.get("today"), str) \
+            or not block["today"].strip():
+        raise _refuse(entry_id, f"current_solution is {block!r}; revision 22 records `{{today: <one sentence>}}` "
+                                "alone (keel-cloud 187 FR-4 (b))", path)
+    if len(block["today"].split()) > TODAY_MAX_WORDS:
+        raise _refuse(entry_id, f"current_solution.today is {len(block['today'].split())} words; at most "
+                                f"{TODAY_MAX_WORDS} (keel-cloud 187 FR-4 (b), the Answer box's cap)", path)
+    return dict(block)
 
 
 # ------------------------------------------------- spec 115 FR-0: revision 19's escape read through keel-cloud 174's rule

@@ -1619,15 +1619,23 @@ def current_solution_boxes(entry) -> tuple[str, str]:
     the day into the log.*), the second box *how it goes*, its own sentence (the outcomes the founder names, as many
     whole ones as fit the box's 25 words, *Log done on site, nothing left over; done in the trailer in under an hour.*).
     Never the phrase and the labels run together by *"; "* -- with no full stop keel-web's split put all of it in the
-    first box and left the second empty (cycle 4's run-together Answer)."""
+    first box and left the second empty (cycle 4's run-together Answer). Spec 119 FR-6: on revision 22 the first box is
+    the entry's `current_solution.today` where it records one."""
     key = "problem.current_solution_satisfaction"
     saved = founder_list(entry, key)
     phrase = bare_phrase(saved.get("phrase")) or ""
     what = _stopped(phrase) if phrase else ""
+    # spec 119 FR-6 (keel-cloud 187 FR-4 (b), revision 22): where the entry records what they do today in the founder's
+    # own words (`current_solution.today`, the 14 entries 08-21), that sentence is the first box -- never the list's
+    # phrase -- and the rungs fill the second within what is left of the Answer's 25 words (keel-cloud's
+    # `VectorCorridorService.ANSWER_MAX_WORDS` holds the two boxes joined)
+    today = entry.today() if hasattr(entry, "today") else None
+    if today:
+        what = _stopped(today)
     # the outcomes the Answer names are the ones it always named (the phrase and the labels within the box's 25 words,
     # so keel-cloud 117's `founder_rungs` -- the leading rungs typed, kept verbatim -- is unchanged), now in their own box
     labels = [i["label"] for i in saved["items"]]
-    named, typed = [], str(saved.get("phrase") or "").strip()
+    named, typed = [], (what if today else str(saved.get("phrase") or "").strip())
     for label in labels:
         if _words("; ".join([typed] + named + [label])) > ANSWER_MAX_WORDS:
             break
@@ -1653,7 +1661,7 @@ def answer_text(entry, key: str) -> str:
         # first by code -- and Keel's redraft is the own item plus exactly those (spec 046 FM2); on two entries it
         # names fewer than the list holds and the founder types the rest on the Check screen (`IMPORTANCE_NAMED`).
         labels = importance_named(entry)
-    if key == "problem.current_solution_satisfaction" and saved.get("phrase"):
+    if key == "problem.current_solution_satisfaction" and (saved.get("phrase") or entry.today()):
         # spec 118 (keel-cloud 184 FR-8b (a)): the two boxes, each its own sentence (`current_solution_boxes`), as one
         # Answer text the page splits at the first full stop (keel-web 150 `splitAnswer` / `joinAnswer`)
         what, how = current_solution_boxes(entry)

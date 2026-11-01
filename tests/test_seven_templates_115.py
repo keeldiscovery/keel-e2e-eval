@@ -119,8 +119,10 @@ def test_the_four_refused_entries_read_under_the_exported_registry_and_the_recor
     registry = _exported()
     entry = _entry(entry_id, registry)
     if entry.duration() is not None:
-        # spec 118 re-pin (keel-cloud 182 T020, revision 20): a timed entry's row is code's six, recorded `cant_tell`
-        assert entry.respondent_questions[FRICTION]["escape"] == "cant_tell" and entry_id in ("10-palus", "17-expanse")
+        # spec 118 re-pin (keel-cloud 182 T020, revision 20): a timed entry's row is code's six, recorded `cant_tell`;
+        # spec 119 re-pin (keel-cloud 187 FR-4 (a), revision 22): every B2B back-test entry is timed, Codyco with them
+        assert entry.respondent_questions[FRICTION]["escape"] == "cant_tell" \
+            and entry_id in ("10-palus", "17-expanse", "21-codyco")
         return
     assert entry.respondent_questions[FRICTION]["escape"] == "cant_recall"
     assert "escape: cant_recall" in entry.path.read_text(encoding="utf-8")
@@ -134,18 +136,24 @@ def test_every_entry_reads_under_the_exported_registry():
     backtest = corpus_mod.load(KEEL_CLOUD, registry=registry, backtest=True)
     recorded = [e.id for e in golden.entries + backtest.entries
                 if (e.respondent_questions.get(FRICTION) or {}).get("escape") == "cant_recall"]
-    # spec 118 re-pin (keel-cloud 182 T020): revision 20 records `cant_tell` on the three timed entries alone
-    assert set(REFUSED) - {"10-palus", "17-expanse"} <= set(recorded)
+    # spec 118 re-pin (keel-cloud 182 T020): revision 20 records `cant_tell` on the three timed entries alone; spec 119
+    # re-pin (keel-cloud 187 FR-4 (a), revision 22): every B2B back-test entry is timed and records `cant_tell` -- only
+    # the golden B2B rows (no founder's time) keep the recorded `cant_recall`
+    timed = {e.id for e in backtest.entries if e.duration() is not None}
+    assert timed == {e.id for e in backtest.entries if e.b2b()} and len(timed) == 16, sorted(timed)
+    assert set(REFUSED) - timed <= set(recorded)
     assert sorted(e.id for e in golden.entries + backtest.entries
-                  if (e.respondent_questions.get(FRICTION) or {}).get("escape") == "cant_tell") == [
-        "08-fresco", "10-palus", "17-expanse"]
+                  if (e.respondent_questions.get(FRICTION) or {}).get("escape") == "cant_tell") == sorted(timed)
 
 
 def test_a_recorded_purchase_friction_chip_is_walked_as_cant_tell():
     """Transload's one chip on Purchase friction (`{chip: cant_recall}`) is read through the rule: the person the walk
     builds carries `CANT_TELL`, the code keel-cloud 174 serves."""
     transload = _backtest("12-transload")
-    raw = [p for p in transload.answers if ((p.get("picks") or {}).get(FRICTION) or {}) == {"chip": "cant_recall"}]
+    # spec 119 re-pin (keel-cloud 187 FR-4 (a), revision 22): Transload is timed now, and its one chip is recorded as
+    # the row's escape, `cant_tell` -- walked as before
+    raw = [p for p in transload.answers
+           if ((p.get("picks") or {}).get(FRICTION) or {}) in ({"chip": "cant_recall"}, {"chip": "cant_tell"})]
     assert raw, "the record keeps its chip"
     walked = {p.person: p for p in vs.person_inputs(transload)}
     for person in raw:
@@ -283,9 +291,11 @@ def test_the_rule_is_the_clouds_own():
     # a back-test founder's own words are not 152's sentence: as recorded
     ("21-codyco", COMMITMENT, "Most are open to pay €3,000 for a money-back pilot at one hotel now.",
      "Most are open to pay €3,000 for a money-back pilot at one hotel now."),
+    # spec 119 re-pin (keel-cloud 187 FR-4 (a), revision 22): Codyco names the founder's time (4 weeks), so its belief
+    # is the engine's dated form (*... within about {time}, or not need it.*), recorded as the engine writes it
     ("21-codyco", FRICTION, "Most hotel group revenue directors would get through a data protection review of guest "
-     "calls quickly, or not need it.", "Most hotel group revenue directors would get through a data protection review "
-     "of guest calls quickly, or not need it."),
+     "calls within about 4 weeks, or not need it.", "Most hotel group revenue directors would get through a data "
+     "protection review of guest calls within about 4 weeks, or not need it."),
 ])
 def test_the_record_reads_as_the_engine_writes(entry_id, key, recorded, read):
     entry = _entry(entry_id)

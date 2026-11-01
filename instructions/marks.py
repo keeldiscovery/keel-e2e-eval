@@ -124,6 +124,26 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Corpus revision 22 (2026-11-01, keel-cloud 187; eval 119, the harness half)**: test data the walks need. Every B2B
+back-test entry names the founder's time beside its Purchase friction step (13 more: code's six duration bands, 80 picks
+moved by 182's one rule, Transload's `cant_recall` chip the row's `cant_tell`; nobody changes side) and the 14 entries
+08-21 record `current_solution.today` (what they do today, the founder's own words, typed into Current solution's first
+Answer box). The golden seven moved by their revision line alone. No standing, drift, inside, n or verdict moved. The
+reader reads **revision 22** and refuses revisions 19, 20 and 21 by name. **v24 stands**: no mark scores a pick's
+shape or the Answer's words, and `spoken_form` reads the record as keel-cloud serves it -- the duration bands in two
+steps as Price's (S3 the first step's four, S7 its count line, S8 its four, S9 `two_steps`, S11 the second step) and
+Ability to pay's escape where it points back Price's own (`CommercialChain.side`), each a shape the record already keeps
+(the build record of record at keel-cloud-docs `bc172359` is the golden seven, which name no time). The seven
+revision-22 files, by sha256 (keel-cloud canon's own bytes at keel-cloud-docs `bc172359`, equal to
+`src/test/resources/keel/corpus-r22/`): `01-countly.yaml`
+`26ee03bc91fc0a480e9c5ec81904fda14ae5afd3a5b55cc4575e10b306c98894`; `02-compliancelog.yaml`
+`d42fcaf00c68f0ffe743657d9515b2eed4102256320ed5fd3a383681c090390e`; `03-lullaby.yaml`
+`d51c7e1099c87911371c8f5e9301dfbc908547a8051420d4edda028035295dbd`; `04-linerly.yaml`
+`d51252e3b326eb3ea9abd031cc157bfffd240c630ba9fc26b41b45fdd785181a`; `05-paidly.yaml`
+`4803a1869b8e2537c8bd98343f40d78181020be22854773e6ff8317d27a0583c`; `06-repeatline.yaml`
+`4b1242ffd76994a900494db1f3e7ff1955b2e3107eeb72fc3bb06991b524c4aa`; `07-mulchrun.yaml`
+`5b51e60dface62b83e5864dc3e470f387c1b1710ed9a642f8357442e78cdd8f6`.
+
 **Corpus revisions 20 and 21 (2026-10-31, keel-cloud 181, 182 and 185; eval 118, the harness half)**: the money cards
 in the founder's words and the question screens said once. Revision 20: the chain's cost, price and Ability to pay
 beliefs are the engine's since 180 / 181 (*{Deciders} already spend ...*, *... would think {name} worth ...*, *... who
