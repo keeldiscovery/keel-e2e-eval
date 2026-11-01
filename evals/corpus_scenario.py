@@ -104,6 +104,9 @@ STATUS_WORD = {
     "NOT_ASKED_YET": "Not asked yet",
     "LEFT_OUT": "Left out",
     "NOT_TESTED": "Not tested",
+    # keel-cloud 181 / keel-web 155 (`MEASURED_STATUS_NOT_REACHED`): Ability to pay when nobody named the founder's price
+    # or more -- cycle 6's 13-aircaps COMMERCIAL stopped here (2026-11-01) because the word was missing from this table
+    "NOT_REACHED": "Not reached",
 }
 
 #: keel-web `VECTOR_WORD`, the counter's first word (*Problem · 3 of 4*).
