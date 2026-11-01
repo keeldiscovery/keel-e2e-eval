@@ -276,6 +276,11 @@ TIMED_22 = {"12-transload": (4, "WEEKS"), "14-code-four": (8, "WEEKS"), "15-volt
 TODAY = {f"{n:02d}-" for n in range(8, 22)}
 
 
+#: Spec 123 FR-1: the head of every back-test entry keel-cloud 193 amended in place (revision 22 kept).
+AMENDED_193 = "# AMENDED IN PLACE (keel-cloud spec 193 FR-1"
+ES = "commercial.existing_sacrifice"
+
+
 def test_revision_22_moves_exactly_187s_edits():
     """D22, the revision-21 record beside canon: the revision line (21 -> 22); on 13 B2B back-test entries the founder's
     time beside Purchase friction, its belief in the dated form, the row (control, codes, escape) code's six and every
@@ -284,7 +289,7 @@ def test_revision_22_moves_exactly_187s_edits():
     for rev in ("corpus-r21", "backtest-r21"):
         if not (MIRROR / rev).is_dir():
             pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no {rev} record")
-    moved, today, strays = 0, set(), []
+    moved, today, strays, amended = 0, set(), [], set()
     for kind, canon in (("corpus", corpus_mod.corpus_dir(KEEL_CLOUD)), ("backtest", corpus_mod.backtest_dir(KEEL_CLOUD))):
         for path in sorted(canon.glob("*.yaml")):
             before, after = _load(MIRROR / f"{kind}-r21" / path.name), _load(path)
@@ -300,6 +305,12 @@ def test_revision_22_moves_exactly_187s_edits():
                     today.add(entry)
                 elif kind == "backtest" and entry in TIMED_22 and p == ("founder_calibration", PF, "answer", "duration"):
                     assert old is _ABSENT and (new["count"], new["unit"]) == TIMED_22[entry], (entry, new)
+                elif kind == "backtest" and p == ("founder_calibration", ES, "belief_sentence") \
+                        and path.read_text(encoding="utf-8").startswith(AMENDED_193):
+                    # spec 123 FR-1 (keel-cloud 193 FR-1): revision 22 amended in place -- the Existing sacrifice
+                    # sentence names who really spends; the load holds it to the engine's (`chain.cost_belief`)
+                    assert old != new and ("already" in new or new.startswith("About ")), (entry, new)
+                    amended.add(entry)
                 elif kind == "backtest" and entry in TIMED_22 and p == ("founder_calibration", PF, "belief_sentence"):
                     assert "within about" in new, (entry, new)
                 elif kind == "backtest" and entry in TIMED_22 and p[:2] == ("respondent_questions", PF):
@@ -317,6 +328,8 @@ def test_revision_22_moves_exactly_187s_edits():
             assert before.get("expected") == after.get("expected"), entry
     assert not strays, strays[:20]
     assert len(today) == 14 and moved == 80, (sorted(today), moved)
+    # keel-cloud 193's 17 entries (08-14, 16-23, 26, 28), each with its AMENDED IN PLACE note
+    assert len(amended) == 17, sorted(amended)
 
 
 def test_every_entry_loads_at_22_and_21_is_refused_by_name(tmp_path, registry):

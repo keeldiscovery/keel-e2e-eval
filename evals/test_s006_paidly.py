@@ -72,10 +72,12 @@ def _paidly_extras(j, sample: sample_export.Pending | None = None) -> None:
         drawn = {p.person: [s_.get("screen") for s_ in j.walked[p.person]["screens"][:2]] for p in deciders}
         h.record_assert({"condition": want, "screens": ["condition", "idea"]}, {"served": served, "drawn": drawn,
                                                                                "primary chip": vs.chip_of(j.entry)})
-        assert want and want["question"].startswith("Do the ") and " you decide for " in want["question"], want
+        # spec 123 FR-4 (keel-cloud 193 FR-4a): 05-paidly records no `screeners.decider`, so the decision-maker's link
+        # asks no condition -- the idea first (the fallback chip said to them is gone); a written one is asked first
+        first = ["condition", "idea"] if want else ["idea"]
         for p in deciders:
             assert served[p.person] == want, (p.person, served[p.person])
-            assert drawn[p.person] == ["condition", "idea"], (p.person, drawn[p.person])
+            assert drawn[p.person][:len(first)] == first, (p.person, drawn[p.person])
         for p in primary:
             assert not j.interviews[p.person].get("condition"), p.person
 

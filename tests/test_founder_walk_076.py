@@ -209,9 +209,9 @@ def test_which_journey_entries_serve_the_screener(corpus):
     entries are held in `tests/test_drawn_screener_seams_077.py`."""
     from harness import vectors_script as vs                           # noqa: PLC0415
     served = {e.id: vs.decider_condition(e) for e in corpus.entries}
-    assert [k for k, v in served.items() if v] == ["05-paidly", "07-mulchrun"]
-    # spec 118 FR-4c(e) re-pin (keel-cloud 185 FR-4): code's question in part 1's shape where no clause is written
-    assert served["05-paidly"] == {"question": "Do you work mostly for agencies?", "inCodes": ["YES"]}
+    # spec 123 FR-4 re-pin (keel-cloud 193 FR-4a): no golden entry writes `screeners.decider`, so no decision-maker's
+    # link asks a condition (spec 118's code question in part 1's shape is gone); the journeys walk the idea first
+    assert [k for k, v in served.items() if v] == []
 
 
 def _person(**over):

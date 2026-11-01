@@ -1068,6 +1068,16 @@ failed / 0 errors / 53 skipped (+26, 25 in `tests/test_cycle_5_to_the_end_119.py
 siblings 4,404 / 186 / 59 / 244: the corpus at 22) against keel-cloud-docs `bc172359` and keel-web `f02595c`; the next
 cycle's fifteen walks are the coordinator's.
 
+**The referee follows keel-cloud 193** (spec `123-the-referee-follows-193`, 2026-11-01; keel-cloud-docs `2d848360`).
+**FR-1**: `chain.cost_belief` names who really spends -- money the deciders', hours the context's `actor_plural` (*per
+{unit}* dropped on their own noun, *on {base}* on a lack), a rate with a loss said of its base (*About ... : {loss}.*, the
+loss its predicate when it opens on a verb); revision 22 amended in place (17 back-test sentences), no revision 23.
+**FR-2**: E4 (`wording.framed_fault`, `vectors_script.e4_fault`) measures the gate and the Frequency question **served**,
+window first; an overrun asks the writer to shorten (never cut), so five golden scripted gate clauses are the scripted
+writer's shorter ones. **FR-3**: P2 is the cloud validator's (no copy here). **FR-4**: no written `screeners.decider`, no
+decision-maker's condition (`decider_condition` None); S-006 / S-007 walk the idea first, the outside-decider leg is not
+owed. Beside it keel-cloud 192 FR-1's stage verdict (`brief_facts.stage_verdict`). `MARKS_VERSION` stands.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;

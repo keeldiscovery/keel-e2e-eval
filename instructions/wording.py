@@ -239,11 +239,15 @@ def frequency_measured(window, event) -> str:
 
 def framed_fault(event, window) -> str | None:
     """E4 (keel-cloud 088 `RespondentQuestionsRules.gate`): framed, the gate and the Frequency question it frames
-    are each at most 20 words -- the Frequency question as E4 measures it (`frequency_measured`, keel-cloud 160)."""
-    questions = (gate(window, event), frequency_measured(window, event))
-    longest = max(questions, key=lambda q: len(q.split()))
-    count = len(longest.split())
-    if count > SPOKEN_STEM_MAX_WORDS:
-        return (f"E4: framed, the clause makes a question of {count} words ('{longest}'); every question a "
-                f"stranger hears is at most {SPOKEN_STEM_MAX_WORDS} words, so shorten the clause")
+    are each at most 20 words. Spec 123 FR-2 (keel-cloud 193 FR-2): the Frequency question **served**
+    (`frequency_respondent`, window first) -- no longer the shorter frame of 160 (`frequency_measured`, read on an item
+    stored before 160 only); past the cap the writer is asked to shorten the clause, keeping its verb and its object,
+    never cut."""
+    g, f = gate(window, event), frequency_respondent(window, event)
+    longest = max(len(g.split()), len(f.split()))
+    if longest > SPOKEN_STEM_MAX_WORDS:
+        gate_longest = len(g.split()) >= longest
+        return (f"E4: framed, the clause makes {'the gate' if gate_longest else 'the Frequency question served'} "
+                f"{longest} words ('{g if gate_longest else f}'); every question a stranger hears is at most "
+                f"{SPOKEN_STEM_MAX_WORDS} words, so shorten the clause, keeping its verb and its object")
     return None

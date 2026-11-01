@@ -213,11 +213,11 @@ def test_which_journey_entries_serve_the_decision_makers_screener(corpus):
     """Spec 077: 05-paidly's decision-makers are served *the people* (DRIFT #99 closed), and 07-mulchrun -- SOMEONE_ELSE,
     its condition now drawn by code -- serves the cut shape on S-007's decision-makers' links."""
     served = {e.id: vs.decider_condition(e) for e in corpus.entries}
-    assert [k for k, v in served.items() if v] == ["05-paidly", "07-mulchrun"]
-    # spec 118 FR-4c(e) re-pin (keel-cloud 185 FR-4): no golden entry records the writer's clause, so code asks the
-    # condition as part 1 does, said to the decision-maker (`chipFrom`) -- never *you decide for*
-    assert served["05-paidly"] == {"question": "Do you work mostly for agencies?", "inCodes": ["YES"]}
-    assert served["07-mulchrun"] == {"question": "Are you based in the Dallas-Fort Worth suburbs?", "inCodes": ["YES"]}
+    # spec 123 FR-4 re-pin (keel-cloud 193 FR-4a): no golden entry records the writer's clause, and with none written
+    # the decision-maker's link asks no condition -- code's `chipFrom` fallback (spec 118's *Do you work mostly for
+    # agencies?*, *Are you based in the Dallas-Fort Worth suburbs?*) is gone
+    assert [k for k, v in served.items() if v] == []
+    assert served["05-paidly"] is None and served["07-mulchrun"] is None
     for want in served.values():
         if want:
             assert " you decide for " not in want["question"]

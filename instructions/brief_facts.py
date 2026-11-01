@@ -517,11 +517,54 @@ def _option_counts_all(standing: dict) -> dict:
     return out
 
 
-def vectors_for(entry) -> list:
+#: keel-cloud `Status.severity()`: NOT_HOLDING_UP > PEOPLE_DISAGREE > TOO_FEW_TO_CALL > NOT_ASKED_YET > HOLDING_UP >
+#: LEFT_OUT (NOT_REACHED and NOT_TESTED 0).
+SEVERITY = {"HOLDING_UP": 1, "NOT_HOLDING_UP": 5, "PEOPLE_DISAGREE": 4, "TOO_FEW_TO_CALL": 3, "NOT_ASKED_YET": 2,
+            "LEFT_OUT": 0, "NOT_REACHED": 0, "NOT_TESTED": 0}
+
+
+def card_status(card: dict) -> str | None:
+    """keel-cloud 192 FR-1 (`StandingsAssembler.cardStatus`): the status a card's served word decides -- *Did not hold*
+    (a bar line past its bar, whose engine standing stays PEOPLE_DISAGREE) is NOT_HOLDING_UP; every other deciding word
+    the card's own status; None where the word decides nothing (*Not asked yet*, *Left out*, *Not reached*)."""
+    if _head(card.get("statusWords")) == DID_NOT_HOLD:
+        return "NOT_HOLDING_UP"
+    status = card.get("status")
+    return status if status in ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE", "TOO_FEW_TO_CALL") else None
+
+
+def stage_verdict(cards: list, engine: dict | None) -> str | None:
+    """keel-cloud 192 FR-1 (`StandingsAssembler.cardsDeciding`): the stage reads as its cards read -- the most severe
+    card status (`card_status`), a tie keeping registry order and the engine's deciding dimension where it is among the
+    tied; the cards can only raise the engine's verdict, never lower it (NOT_TESTED, NOT_ASKED_YET and a stage with no
+    bar line past its bar keep the engine's)."""
+    engine = engine or {}
+    verdict, deciding = engine.get("verdict"), engine.get("deciding")
+    worst = worst_status = None
+    for c in cards:
+        status = card_status(c)
+        if status is None:
+            continue
+        if worst is None or SEVERITY[status] > SEVERITY[worst_status] or (
+                SEVERITY[status] == SEVERITY[worst_status] and deciding and c.get("key") == deciding):
+            worst, worst_status = c, status
+    if worst is None or SEVERITY[worst_status] <= SEVERITY.get(verdict, 0):
+        return verdict
+    return worst_status
+
+
+def vectors_for(entry, cards: list | None = None) -> list:
+    """`BriefFacts.vectors`: each stage's verdict and words. Since keel-cloud 192 FR-1 (spec 123, *Not foreseen*) the
+    stage reads as its cards read (`stage_verdict`) where the cards are handed; without them the corpus's engine
+    verdict, as before."""
     verdicts = (entry.expected or {}).get("vector_verdicts") or {}
-    return [{"vector": v, "verdict": (verdicts.get(v) or {}).get("verdict"),
-             "words": VERDICT_WORDS.get((verdicts.get(v) or {}).get("verdict"), "Not asked yet")}
-            for v in VECTORS]
+    out = []
+    for v in VECTORS:
+        engine = verdicts.get(v) or {}
+        verdict = engine.get("verdict") if cards is None else stage_verdict(
+            [c for c in cards if str(c.get("key") or "").split(".")[0].upper() == v], engine)
+        out.append({"vector": v, "verdict": verdict, "words": VERDICT_WORDS.get(verdict, "Not asked yet")})
+    return out
 
 
 def decision(entry, registry) -> dict:
@@ -595,7 +638,7 @@ def facts_for(entry, registry) -> dict:
     out = {
         "header": {"project": entry.title, "segment": (entry.context or {}).get("segment"), "people": people},
         "decision": decision(entry, registry),
-        "vectors": vectors_for(entry),
+        "vectors": vectors_for(entry, cards),
         "money": {"currency": currency, "currencySymbol": CURRENCY_SYMBOL.get(currency, f"{currency} "
                                                                           if currency else None),
                   "period": period, "periodWords": corpus_mod._PERIOD_WORDS.get(period) if period else None},
@@ -679,7 +722,7 @@ def compare(entry, registry, cloud_facts: dict | None) -> FactsCompare:
         score.mismatches.append({"key": "priceMedian", "expected": want_median, "produced": have})
     for name, want, have in (
             ("decision", decision(entry, registry), cloud_facts.get("decision")),
-            ("vectors", vectors_for(entry), cloud_facts.get("vectors"))):
+            ("vectors", vectors_for(entry, mine), cloud_facts.get("vectors"))):
         if want != have:
             score.reported_diffs.append({"key": name, "field": name, "expected": want, "produced": have})
     for vector in VECTORS:

@@ -45,17 +45,18 @@ def _mulchrun_extras(j) -> None:
         screeners = {p.person: j.interviews[p.person].get("condition") for p in deciders}
         drawn = {p.person: [s_.get("screen") for s_ in j.walked[p.person]["screens"][:2]] for p in deciders}
         outside = j.standings.get("outsideSegment")
-        h.record_assert({"chip": want_chip, "screener": want_decider, "screens": ["condition", "idea"],
-                         "outsideSegment": 0},
+        # spec 123 FR-4 (keel-cloud 193 FR-4a): 07-mulchrun records no `screeners.decider`, so the decision-maker's
+        # link asks no condition -- the idea first (the fallback chip said to them is gone)
+        first = ["condition", "idea"] if want_decider else ["idea"]
+        h.record_assert({"chip": want_chip, "screener": want_decider, "screens": first, "outsideSegment": 0},
                         {"chips": chips, "screeners": screeners, "drawn": drawn, "outsideSegment": outside})
         assert primary and deciders, (len(primary), len(deciders))
-        assert want_decider == {"question": "Are the landscaping crew leads you decide for based in the Dallas-Fort "
-                                            "Worth suburbs?", "inCodes": ["YES"]}, want_decider
+        assert want_decider is None, want_decider
         for person, served in chips.items():
             assert {k: (served or {}).get(k) for k in want_chip} == want_chip, (person, served)
         for person, served in screeners.items():
             assert served == want_decider, (person, served)
-            assert drawn[person] == ["condition", "idea"], (person, drawn[person])
+            assert drawn[person][:len(first)] == first, (person, drawn[person])
         assert int(outside or 0) == 0, outside
 
     with j.recorder.step("S-007: the market persisted as United States, Texas, in en-US",

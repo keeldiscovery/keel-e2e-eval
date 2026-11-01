@@ -273,8 +273,10 @@ def test_the_chain_beliefs_name_who_pays(registry):
     them. Never *the payer*, never *Keel reads*."""
     fresco, palus, aircaps = (_backtest(e, registry) for e in ("08-fresco", "10-palus", "13-aircaps"))
     cal = fresco.founder_calibration
+    # spec 123 FR-1 re-pin (keel-cloud 193 FR-1, revision 22 amended in place): the hours are the superintendents'
+    # (`actor_plural`), never the deciders'; *per site* is no noun of theirs, so it stays
     assert cal[SACRIFICE]["belief_sentence"] == \
-        "Contractor operations leads already spend 30 to 60 hours per site a month on the daily log."
+        "Construction superintendents on commercial jobs already spend 30 to 60 hours per site a month on the daily log."
     assert cal[PRICE]["belief_sentence"] == "Contractor operations leads would think Fresco worth $800 to $1,000 per site a month."
     assert cal[AB]["belief_sentence"] == \
         "Contractor operations leads who would pay $800 to $1,000 per site a month could find the money for it."
@@ -517,9 +519,10 @@ def test_the_decision_makers_screener_is_the_writers(registry):
         assert vs.respondent_result(fresco, 1, vs.LINK_PRIMARY)["decider_condition"] == vs.decider_screener(fresco)
     served = vs.decider_condition(fresco)
     assert served is None or served["question"] == DECIDERS["08-fresco"]
+    # spec 123 FR-4 re-pin (keel-cloud 193 FR-4a): with none written the decision-maker's link asks none (code's
+    # part-1 shape, spec 118's fallback, is gone)
     for entry_id in ("05-paidly", "07-mulchrun"):
-        want = vs.decider_condition(_golden(entry_id, registry))
-        assert want and " you decide for " not in want["question"], want
+        assert vs.decider_condition(_golden(entry_id, registry)) is None, entry_id
 
 
 def test_the_interviewer_screens_say_156s_words():

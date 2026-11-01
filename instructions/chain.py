@@ -251,14 +251,75 @@ def _same_words(a, b) -> bool:
     return norm(a) == norm(b)
 
 
-def cost_belief(cost: dict, occasion, role_word, deciders_words=None, b2b: bool = True) -> str:
+#: keel-cloud 193 FR-1c (`CommercialChain.LACK`): a base that is the lack itself -- *go without*, *lack*, *miss* --
+#: drops *on {base}* on an hours cost (nobody spends time on what they go without).
+LACK = re.compile(r"(?i)\b(?:go|goes|went|going) without\b|\black(?:s|ing)?\b|\bmiss(?:es|ed|ing)?\b")
+
+#: keel-cloud 193 FR-1b (`CommercialChain.LOSS_VERBS`): the words a loss phrase opens with when it is a verb phrase the
+#: base can carry as its predicate (*carry a dimension error*) -- finite verbs and the auxiliaries only; a noun-led
+#: phrase or a participle (*billed as declared*) keeps the colon.
+LOSS_VERBS = frozenset({
+    "are", "is", "were", "was", "have", "has", "had", "carry", "carries", "get", "gets", "go", "goes", "come", "comes",
+    "fail", "fails", "miss", "misses", "need", "needs", "arrive", "arrives", "lack", "lacks", "lose", "loses", "slip",
+    "slips", "sit", "sits", "stay", "stays", "end", "wait", "waits", "bounce", "bounces", "never", "can", "cannot",
+    "could", "will", "would", "must", "do", "does", "did", "don't", "doesn't", "didn't", "leave", "take", "contain",
+    "contains", "include", "includes", "require", "requires", "ship", "cross", "pass", "reach", "sell", "bring", "hold",
+    "hit"})
+
+#: keel-cloud `CommercialChain.BASE_ENDS`: the words that end the head of the people's plural (*officers* of *patrol
+#: officers at small and mid-sized police departments*).
+BASE_ENDS = frozenset({
+    "they", "that", "which", "who", "whom", "of", "for", "in", "on", "at", "to", "from", "with", "by", "due", "when",
+    "where", "while", "after", "before", "per", "across", "into", "over", "under", "about", "through", "during"})
+
+
+def loss_predicate(loss) -> bool:
+    """keel-cloud 193 FR-1b (`CommercialChain.lossPredicate`): whether the (lowered) loss phrase opens with a verb, so
+    the base can carry it as its predicate."""
+    if not loss or not str(loss).strip():
+        return False
+    first = re.sub(r"[^a-z']", "", str(loss).strip().split()[0].lower().replace("\u2019", "'"))
+    return first in LOSS_VERBS
+
+
+def own_noun(unit, actor, actor_plural) -> bool:
+    """keel-cloud 193 FR-1a (`CommercialChain.ownNoun`): whether the cost's unit is the subject's own noun -- the actor's
+    head word (*officer* of *patrol officer*), or the head of the people's plural (*officers* of *patrol officers at
+    small and mid-sized police departments*), singular or plural -- so *per officer* beside patrol officers says the
+    people twice."""
+    if not unit or not str(unit).strip():
+        return False
+    u = str(unit).strip().lower()
+    a = str(actor or "").strip().lower()
+    if a and (a == u or a.endswith(" " + u)):
+        return True
+    head = None
+    for word in re.split(r"[\s,;:]+", str(actor_plural or "").strip().lower()):
+        w = re.sub(r"[^a-z-]", "", word)
+        if not w:
+            continue
+        if w in BASE_ENDS:
+            break
+        head = w
+    return head is not None and " " not in u and (head == u or head == plural_of(u))
+
+
+def cost_belief(cost: dict, occasion, role_word, deciders_words=None, b2b: bool = True, *, actor=None,
+                actor_plural=None) -> str:
     """keel-cloud 180 FR-2 (`CommercialChain.costBelief(cost, slots, roleWord, deciders, b2b)`, corpus revision 20):
-    the belief names who pays in the founder's word, never *the payer* -- *{Deciders} already spend {figure} {per} on
-    {base}.* on money and hours (no dollars on hours), *{Deciders} already lose about {figure} of {base} {per}: {loss}.*
-    on a rate (a count whose base names its own measure says the number once; the loss line dropped where it only
-    repeats the base); *They* with no word; no unit where the user pays (`b2b` False); a period of *each* closes its own
-    clause, so the base goes before it."""
+    the belief names who pays in the founder's word, never *the payer*; *They* with no word; no unit where the user
+    pays (`b2b` False); a period of *each* closes its own clause, so the base goes before it.
+
+    Spec 123 FR-1 (keel-cloud 193 FR-1, revision 22 amended in place): the sentence names who really spends --
+    **money** is the deciders' (*{Deciders} already spend about {figure} {per} on {base}.*, unchanged); **hours** are
+    spent by the context's `actor_plural` (capitalised; *They* with none), the *per {unit}* dropped where the unit is
+    their own noun (`own_noun`), and a base that is the lack itself (`LACK`) drops *on {base}*; **a rate with a loss
+    phrase** is said of its base, by nobody -- *About {figure} of {base} {per} {loss}.* where the loss opens with a verb
+    (`loss_predicate`), else *About {figure} of {base} {per}: {loss}.* (consumer studies too); without a loss phrase,
+    *{Actor plural} already lose about {figure} of {base} {per}.* A count whose base names its own measure says the
+    number once; the loss line is dropped where it only repeats the base."""
     who = "They" if not deciders_words or not str(deciders_words).strip() else _upper(str(deciders_words).strip())
+    actors = "They" if not actor_plural or not str(actor_plural).strip() else _upper(str(actor_plural).strip())
     unit = unit_of(cost, role_word) if b2b else None
     lo, hi = dec(cost["low"]), dec(cost["high"])
     words = per(unit, cost["period"])
@@ -277,12 +338,18 @@ def cost_belief(cost: dict, occasion, role_word, deciders_words=None, b2b: bool 
         if of is not None and not is_percent(cost) and measure and re.search(
                 r"(?i)\b" + re.escape(measure.strip()) + r"\b", of):
             fig = _range(cnumber(lo), cnumber(hi), lo, hi)
-        return who + " already lose about " + fig + ("" if of is None else " of " + of) + tail + (
-            "" if loss is None else ": " + loss) + "."
-    on = "" if of is None else " on " + of
-    spent = on + tail if cost.get("period") == "each" else tail + on
+        said = "about " + fig + ("" if of is None else " of " + of) + tail
+        if loss is None:
+            return actors + " already lose " + said + "."
+        return _upper(said) + (" " + loss if loss_predicate(loss) else ": " + loss) + "."
+    each = cost.get("period") == "each"
     if cost["mode"] == "HOURS":
-        return who + " already spend " + figure(cost, lo, hi) + spent + "."
+        hours_words = per(None if own_noun(unit, actor, actor_plural) else unit, cost["period"])
+        hours_tail = "" if not hours_words else " " + hours_words
+        on = "" if of is None or LACK.search(of) else " on " + of
+        return actors + " already spend " + figure(cost, lo, hi) + (on + hours_tail if each else hours_tail + on) + "."
+    on = "" if of is None else " on " + of
+    spent = on + tail if each else tail + on
     return who + " already spend about " + figure(cost, lo, hi) + spent + "."
 
 

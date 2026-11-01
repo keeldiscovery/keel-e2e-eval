@@ -258,18 +258,23 @@ def occasion(entry) -> str:
 #: Spec 064 FR-4a (keel-cloud 116, *Proposed after* in its tasks.md): the founder's Prevalence clause names the problem,
 #: not the routine -- `(founder's clause, past tense, their words; the gate's clause, base form, said to the stranger)`,
 #: each framed by code within E4's 20 words and with no time word (COMPOSED). 116 frames the gate *did {clause}* when the
-#: clause opens *you* / *your*, else *did you {clause}*; none of these does.
+#: clause opens *you* / *your*, else *did you {clause}*; none of these does. Spec 123 FR-2 (keel-cloud 193 FR-2): E4
+#: measures the Frequency question **served** (window first, `frequency_served`), so five gate clauses that framed it
+#: past 20 words are the scripted writer's shorter ones, the verb and the object kept, the founder's clause unchanged
+#: (01 *have to recount stock by hand after a mismatched delivery*, 02 *have to pull training completions into a
+#: spreadsheet by hand*, 04 *lose time to a puncture riding to or from work*, 05 *wait beyond agreed terms to be paid
+#: for an approved invoice*, 07 *wait at the supply yard for mulch for a job* -- 21 or 22 words served).
 PROBLEM_CLAUSES = {
     "01-countly": ("had to recount stock by hand after a mismatched delivery",
-                   "have to recount stock by hand after a mismatched delivery"),
+                   "recount stock by hand after a mismatched delivery"),
     "02-compliancelog": ("had to pull training completions into a spreadsheet by hand",
-                         "have to pull training completions into a spreadsheet by hand"),
+                         "pull training completions into a spreadsheet by hand"),
     "03-lullaby": ("had to work out why their baby was crying", "have to work out why your baby was crying"),
-    "04-linerly": ("lost time to a puncture riding to or from work", "lose time to a puncture riding to or from work"),
+    "04-linerly": ("lost time to a puncture riding to or from work", "lose time to a puncture riding to work"),
     "05-paidly": ("waited beyond agreed terms to be paid for an approved invoice",
-                  "wait beyond agreed terms to be paid for an approved invoice"),
+                  "wait beyond agreed terms for an approved invoice"),
     "06-repeatline": ("had to type a refill request in by hand", "have to type a refill request in by hand"),
-    "07-mulchrun": ("waited at the supply yard for mulch for a job", "wait at the supply yard for mulch for a job"),
+    "07-mulchrun": ("waited at the supply yard for mulch for a job", "wait at the supply yard for mulch"),
 }
 
 
@@ -281,15 +286,18 @@ def event_past(entry) -> str:
     return f"had a time when {_ctx(entry)['circumstance']}"
 
 
-#: keel-cloud 088 `E4` (measured since keel-cloud 160 on `frequencyMeasured`, the frame below): framed, the gate ("In the
-#: last 3 months, did you ...?") and the Frequency question
-#: ("On how many of those 3 months did you ...?") are each at most 20 words. Where "have a time when
+#: keel-cloud 088 `E4` (measured from keel-cloud 160 to 192 on `frequencyMeasured`; since keel-cloud 193 FR-2 on the
+#: question served, `frequency_served`): framed, the gate ("In the last 3 months, did you ...?") and the Frequency
+#: question ("In the last 3 months, in how many months did you ...?") are each at most 20 words. Where "have a time when
 #: {circumstance}" frames longer, the referee's shorter clause, in the same register (COMPOSED).
 GATE_EVENTS = {
     "02-compliancelog": "have the training-compliance report fall due at quarter close",
     "04-linerly": "get a tyre puncture on the way to or from work",
     "05-paidly": "wait to be paid for an invoice an agency had approved",
     "07-mulchrun": "fetch mulch from the supply yard for a job",
+    # spec 123 FR-2 (keel-cloud 193 FR-2): the B2B test fixture's *have a time when the morning they cannot find their
+    # keys* serves a 22-word Frequency question window first, so the scripted writer shortens it, verb and object kept
+    "10-fixture-b2b": "fail to find your keys in the morning",
 }
 
 #: keel-cloud `SpokenForm.STEM_MAX_WORDS`.
@@ -353,12 +361,25 @@ def event_base(entry) -> str:
     """The gate's clause for the respondent: base form, second person, framed within E4's 20 words."""
     event = (PROBLEM_CLAUSES.get(entry.id) or (None, None))[1] or GATE_EVENTS.get(entry.id) \
         or f"have a time when {_ctx(entry)['circumstance']}"
-    window = window_of(entry)
-    longest = max(_words(gate_question(window, event)), _words(frequency_question(window, event)))
-    if longest > STEM_MAX_WORDS:
-        raise VectorsScriptError(f"{entry.id}: the gate's clause {event!r} frames a question of {longest} "
-                                 f"words; E4 allows {STEM_MAX_WORDS} (add a shorter clause to GATE_EVENTS)")
+    fault = e4_fault(window_of(entry), event)
+    if fault:
+        raise VectorsScriptError(f"{entry.id}: {fault} (the scripted writer's shorter clause goes in GATE_EVENTS)")
     return event
+
+
+def e4_fault(window: Window, event: str) -> str | None:
+    """Spec 123 FR-2 (keel-cloud 193 FR-2, `RespondentQuestionsRules.gate`): framed, the gate and **the Frequency
+    question served** (`frequency_served`, `servedFrequency`) are each at most 20 words; past the cap the breach names
+    the longer and asks the writer to shorten the clause, keeping its verb and its object -- the clause is never cut
+    (`frequency_held`'s cut is an item stored before 193's)."""
+    gate, frequency = gate_question(window, event), frequency_served(window, event)
+    longest = max(_words(gate), _words(frequency))
+    if longest <= STEM_MAX_WORDS:
+        return None
+    gate_longest = _words(gate) >= longest
+    return (f"E4: framed, the clause makes {'the gate' if gate_longest else 'the Frequency question served'} "
+            f"{longest} words ('{gate if gate_longest else frequency}'); every question a stranger hears is at most "
+            f"{STEM_MAX_WORDS} words, so shorten the clause, keeping its verb and its object")
 
 
 #: Spec 064 FR-4 / 4b (keel-cloud 120's golden table): the segment's core and the condition the gate's chip asks, by entry
@@ -510,14 +531,15 @@ def decider_condition(entry) -> dict | None:
     question writer writes it (`decider_condition`, one sentence about their own organisation, never *you decide for*;
     the scripted part-1 job writes the entry's `screeners.decider`, `decider_screener`) and the link serves the writer's;
     with none written, code asks the condition as part 1 does, said to the decision-maker (`chip_from`) -- never the
-    retired *Do the {people} you decide for ...?* (`decider_chip`)."""
+    retired *Do the {people} you decide for ...?* (`decider_chip`). Spec 123 FR-4 (keel-cloud 193 FR-4a,
+    `RespondentQuestionsRules.condition` / `InterviewComposer`): with none written the link serves **no** condition
+    (None) -- the fallback through `chip_from`, the segment's chip said to the decision-maker, is gone."""
     if not is_b2b(entry):
         return None
     written = decider_screener(entry)
     if written and segment_of(entry)["condition"]:
         return {"question": written["question"], "inCodes": [written.get("inside") or "YES"]}
-    question = chip_from(segment_of(entry)["condition"])
-    return {"question": question, "inCodes": ["YES"]} if question else None
+    return None
 
 
 def decider_screener(entry) -> dict | None:

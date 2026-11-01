@@ -102,12 +102,18 @@ def test_the_gate_and_frequency_are_framed_around_the_clause():
 
 def test_e4_holds_each_framed_question_to_twenty_words():
     assert wording_mod.framed_fault("lose your keys on the way out", SEVEN_NIGHTS) is None
-    # 11 words of clause: Frequency frames it into 20 -- the longest still within 20.
-    eleven = "search the whole flat for your keys before leaving for work"
-    assert wording_mod.framed_fault(eleven, SEVEN_NIGHTS) is None
-    fault = wording_mod.framed_fault(eleven + " again", SEVEN_NIGHTS)
+    # spec 123 FR-2 re-pin (keel-cloud 193 FR-2): E4 measures the Frequency question SERVED, window first (*In the last
+    # 7 nights, on how many nights did you ...?*, 11 words of frame) -- 9 words of clause frame it into 20; the 11-word
+    # clause that fitted 160's shorter measured frame now breaches, and the writer is asked to shorten it, never cut
+    nine = "search the whole flat for your keys before work"
+    assert wording_mod.framed_fault(nine, SEVEN_NIGHTS) is None
+    fault = wording_mod.framed_fault(nine + " again", SEVEN_NIGHTS)
     assert fault is not None and fault.startswith("E4:") and "21 words" in fault, fault
-    assert "On how many of those 7 nights" in fault, "the longer of the two is named (as E4 measures it, keel-cloud 160)"
+    assert "In the last 7 nights, on how many nights" in fault, "the longer of the two is named, as served"
+    assert "the Frequency question served" in fault and "keeping its verb and its object" in fault, fault
+    eleven = "search the whole flat for your keys before leaving for work"
+    assert len(wording_mod.frequency_measured(SEVEN_NIGHTS, eleven).split()) == 20, "160's frame would have passed it"
+    assert "22 words" in (wording_mod.framed_fault(eleven, SEVEN_NIGHTS) or "")
 
 
 # ---------------------------------------------------------- calls 83, 85 on the two scorers

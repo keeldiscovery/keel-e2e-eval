@@ -347,7 +347,9 @@ def condition_of(entry) -> str | None:
 def _hands_condition(entry, part: int, link: str) -> bool:
     """`ScreenContextBuilder` (keel-cloud 120 FR-2, 145 FR-4b, 166 FR-2): the condition rides part 1, the
     decision-maker's part 3, and the person's own part 3 on a study that serves no gate (`StudyScope.servesGate`:
-    neither the problem nor the solution in scope)."""
+    neither the problem nor the solution in scope). Spec 123 FR-4: keel-cloud 193 left `ScreenContextBuilder` as it was
+    -- the decision-maker's part 3 is still handed the segment's condition -- and moved only what the link serves with
+    no written `decider_condition` (nothing; `vectors_script.decider_condition`), so this reads the same."""
     if part == 1:
         return True
     if part != 3:

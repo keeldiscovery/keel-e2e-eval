@@ -1274,7 +1274,8 @@ def _check_chain(raw: dict, entry_id, path: Path) -> bool:
     title = maker.get("title") if b2b else None
     deciders = chain_mod.deciders(title or decider, actor_plural, b2b)
     idea = raw.get("idea_name")
-    want = chain_mod.cost_belief(cost, occasion, role_word, deciders, b2b)
+    want = chain_mod.cost_belief(cost, occasion, role_word, deciders, b2b, actor=ctx.get("actor"),
+                                 actor_plural=actor_plural)
     if sacrifice.get("belief_sentence") != want:
         raise fault(f"{where}: belief sentence {sacrifice.get('belief_sentence')!r}, the engine's {want!r}")
     want = chain_mod.cost_said(cost, occasion, role_word)

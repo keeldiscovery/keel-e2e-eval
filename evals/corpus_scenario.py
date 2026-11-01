@@ -4024,6 +4024,13 @@ def leg_outside_decider(j: Journey) -> dict:
     exit, with no idea, no item and no pilot box; the standings count them apart (`outsideSegment` + 1) and no
     commercial line's `n` moves."""
     from harness import interviews_screens as ivs_mod                  # noqa: PLC0415
+    if vs.decider_condition(j.entry) is None:
+        # spec 123 FR-4 (keel-cloud 193 FR-4a): with no written `screeners.decider` the decision-maker's link asks no
+        # condition, so there is no screener to answer outside -- the leg is recorded as not owed, never failed
+        with _step(j, f"{OUTSIDE_DECIDER}: not walked -- the entry writes no decision-maker's condition, so their link "
+                      "asks none (keel-cloud 193 FR-4a)", party="participant") as h:
+            h.record_assert({"condition": None}, {"condition": None})
+        return {"condition": None, "walked": False}
     before = j.get(j.project("/standings")) or {}
     commercial = lambda st: {d.get("dimension"): d.get("n") for v in st.get("vectors") or []  # noqa: E731
                              for d in v.get("dimensions") or [] if (d.get("dimension") or "").startswith("commercial.")}

@@ -236,9 +236,12 @@ def test_the_gate_frames_a_clause_that_opens_on_any_or_some_as_its_own_subject()
     assert wording_mod.subject_led("lose your keys") == "you lose your keys"
     assert wording_mod.subject_led("work out why your baby was crying") == "you work out why your baby was crying"
     assert wording_mod.subject_led("any cash") == "you any cash", "two words: no subject of its own (131's > 2)"
-    # E4 measures the older frame without a second *you*: 22 words, past the cap (170's tasks.md, not foreseen 2)
+    # E4 measures the older frame without a second *you*: 22 words, past the cap (170's tasks.md, not foreseen 2).
+    # Spec 123 FR-2 re-pin (keel-cloud 193 FR-2): E4 measures the question served, window first -- 24 words
     assert len(wording_mod.frequency_measured(w, palus).split()) == 22
-    assert (wording_mod.framed_fault(palus, w) or "").startswith("E4: framed, the clause makes a question of 22 words")
+    assert len(wording_mod.frequency_respondent(w, palus).split()) == 24
+    assert (wording_mod.framed_fault(palus, w) or "").startswith(
+        "E4: framed, the clause makes the Frequency question served 24 words")
 
 
 def test_subject_led_mirrors_window_frame():
