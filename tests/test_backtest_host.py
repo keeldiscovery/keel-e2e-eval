@@ -279,7 +279,7 @@ def test_the_host_door_stops_when_the_account_is_on_keel_s_ai(monkeypatch, tmp_p
 # ------------------------------------------------------------------------- FR-3: the jobs on the host, the cost
 
 def test_every_landed_job_must_name_the_host_and_its_model():
-    per_job = [{"screen": "CONTEXT", "status": "COMPLETED", "host": "claude", "model_used": "claude-haiku-4-5"},
+    per_job = [{"screen": "CONTEXT", "status": "COMPLETED", "host": "claude", "model_used": "claude-haiku-5-5"},
                {"screen": "FRAME", "status": "FAILED", "host": "claude", "model_requested": "claude-sonnet-5-5"},
                {"screen": "THEMES", "status": "QUEUED", "host": None}]
     got = bt.host_door_jobs(per_job + [{"screen": "R", "status": "CANCELLED", "host": None}])

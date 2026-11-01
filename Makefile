@@ -396,8 +396,8 @@ acceptance: venv
 # the effort travels per job, on the path a founder's job takes, and the bundle RECORDS it
 # (`manifest.json`'s `effort.per_class`, the scorecard's and verdict's `efforts_used`), so a run of
 # record can state the effort it was taken at instead of it being a fact about whoever typed the
-# command. Readings are exempt by construction: `reading` routes to the `light` tier, whose row
-# carries no effort, because `effort` errors on Haiku 4.5.
+# command. Readings take the `light` row's effort: none on tables v6 to v15 (`effort` errored on
+# Haiku 4.5), `low` on `claude` since v16 (keel-cloud 190: the light row is claude-haiku-5-5).
 #
 # **WHY=<event>** (the founder, 2026-09-13, design §7.1): every run that spends says why --
 # `WHY=instruction:<file>`, `WHY=prompt:<file>`, `WHY=contract:<file>` earn a screen;

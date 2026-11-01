@@ -185,9 +185,10 @@ class ModelTable:
     def resolve_effort(self, host: str, job_class: str) -> str | None:
         """The effort this host pins for this class, or `None` -- the CLI's own default.
 
-        Looked up at the tier the host's MODEL row answers the class at, which is what keeps a
-        reading clean: the `reading` class routes to `light`, keel-cloud's `light` row carries no
-        effort, and `effort` errors on Haiku 4.5. That tier is the class's own, except where the
+        Looked up at the tier the host's MODEL row answers the class at: the `reading` class routes
+        to `light`, so a reading takes the `light` row's effort -- none on tables v6 to v15 (`effort`
+        errored on Haiku 4.5), **`low` since v16** (keel-cloud 190: `hosts.claude.light` is
+        `claude-haiku-5-5`, `efforts.claude.light` is `low`). That tier is the class's own, except where the
         model falls back (spec 105 FR-1): a `frontier` class on a host with no frontier row takes
         that host's `standard` effort with its `standard` model -- model and effort together, as
         keel-cloud's `ModelRouting` resolves them (the class's own tier when no model stands at all).
@@ -213,8 +214,9 @@ class ModelTable:
 
     def efforts_used(self, host: str) -> dict:
         """The per-class record a verdict carries beside `models_used`, `None` where this host runs
-        the class at its CLI's own default. `context` and `reading` route to `light`, whose row
-        carries no effort, because `effort` errors on Haiku 4.5."""
+        the class at its CLI's own default. `context`, `reading` and `asked` route to `light`, whose
+        row carried no effort on tables v6 to v15 (`effort` errored on Haiku 4.5) and carries `low`
+        on `claude` since v16 (keel-cloud 190, Haiku 5.5)."""
         return {job_class: self.resolve_effort(host, job_class)
                 for job_class in REPORTED_CLASSES}
 
@@ -357,10 +359,13 @@ def stamp(cases, table: ModelTable | None, host: str) -> None:
     §5). The payload order stays the cloud's -- the five keys `buildRequestPayload` writes, then
     `model`, then `effort`.
 
-    `effort` is written only when the table pins one for that case's class, which since v6 means
-    the Sonnet-tier classes on `claude` and nothing else: a reading routes to `light`, whose row
-    carries no effort, because `effort` errors on Haiku 4.5. So a reading's payload is byte-
-    identical to the one this function wrote before v6, and so is every Codex and Copilot case's.
+    `effort` is written only when the table pins one for that case's class. From v6 to v15 that
+    meant the Sonnet- and Opus-tier classes on `claude` and nothing else: a reading routes to
+    `light`, whose row carried no effort because `effort` errored on Haiku 4.5, so a reading's
+    payload was byte-identical to the one this function wrote before v6. **Since v16** (keel-cloud
+    190) the `claude` light row is `claude-haiku-5-5` at `low`, so a light case on `claude` carries
+    `effort: {claude: low}` -- the key keel-runtime 0.7.0 passes as `--effort low`. Every Codex and
+    Copilot light case still carries none (their `efforts` rows name `standard` alone).
     """
     for case in cases:
         case.model = None

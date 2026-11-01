@@ -1340,7 +1340,9 @@ def test_s012_journey_through_a_host_live(stack, founder_one, browser, run_dir):
             # (keel-cloud 169, spec 105 FR-1) `resolve_screen` stands a frontier class on the host's
             # standard row where the host pins no frontier model (codex / copilot frame jobs on
             # gpt-5.6-terra), as keel-cloud's `ModelRouting.FALLBACK` sends it; since v15 (keel-cloud 170, spec
-            # 110) the lock's RESPONDENT_QUESTIONS job is the frontier class too, and falls back the same way. Not a loosened
+            # 110) the lock's RESPONDENT_QUESTIONS job is the frontier class too, and falls back the same way; since v16
+            # (keel-cloud 190, spec 121 FR-1) a claude light job (context, reading, asked) requests `claude-haiku-5-5`,
+            # read off the same table, never typed here (Codex / Copilot light jobs stay on gpt-5.6-luna). Not a loosened
             # assertion: an older runtime, or a checkout with no table yet, is a note that says which,
             # never a pass.
             screen_by_job = {(i.get("job") or {}).get("job_id"): i.get("screen")

@@ -411,11 +411,15 @@ def test_ask_hands_the_jobs_model_to_a_routing_runtime_through_the_pollers_rule(
         pinned = {"model": {"claude": "claude-sonnet-5-5"}, "effort": {"claude": "medium"}}
         assert runner._model_kwarg(executor_module, Claude(), pinned) == {
             "model": "claude-sonnet-5-5", "effort": "medium"}
-        # A reading: the `light` row names a model and no effort, because `effort` errors on
-        # Haiku 4.5. The payload carries no `effort` key at all and the runtime gets `None`.
-        reading = {"model": {"claude": "claude-haiku-4-5-20251001"}}
+        # A payload with no `effort` key (a light job on tables v6 to v15, whose row named no effort
+        # because `effort` errored on Haiku 4.5): the runtime gets `None`.
+        unpinned = {"model": {"claude": "claude-haiku-5-5"}}
+        assert runner._model_kwarg(executor_module, Claude(), unpinned) == {
+            "model": "claude-haiku-5-5", "effort": None}
+        # A reading since v16 (keel-cloud 190, spec 121 FR-1): Haiku 5.5 at the light row's `low`.
+        reading = {"model": {"claude": "claude-haiku-5-5"}, "effort": {"claude": "low"}}
         assert runner._model_kwarg(executor_module, Claude(), reading) == {
-            "model": "claude-haiku-4-5-20251001", "effort": None}
+            "model": "claude-haiku-5-5", "effort": "low"}
         assert kwargs["effort"] is None, "codex has no efforts row and is handed no effort"
 
 
@@ -434,7 +438,7 @@ def test_ask_hands_the_jobs_model_to_a_routing_runtime_through_the_pollers_rule(
 V6 = {
     "version": 6,
     "hosts": {
-        "claude": {"standard": "claude-sonnet-5-5", "light": "claude-haiku-4-5-20251001"},
+        "claude": {"standard": "claude-sonnet-5-5", "light": "claude-haiku-5-5"},
         "codex": {"standard": "gpt-6-astra", "light": "gpt-5.4-mini"},
         "copilot": {"standard": "gpt-6-astra", "light": "gpt-5.4-mini"},
     },
@@ -451,8 +455,8 @@ def test_v6_resolves_the_effort_at_the_classes_own_tier():
     assert table.resolve_effort("claude", "calibration") == "medium"
     assert table.resolve_effort("claude", "brief") == "medium"
     assert table.resolve_effort("claude", "frame") == "medium"
-    # The reading is the one that matters: it routes to `light`, whose row carries no effort,
-    # because `effort` ERRORS on Haiku 4.5. Nothing has to say so -- the shape says it.
+    # The reading is the one that matters: it routes to `light`, whose row carries no effort at v6
+    # (`effort` ERRORED on Haiku 4.5; v16's `low` on Haiku 5.5 is spec 121's). The shape says it.
     assert table.resolve_effort("claude", "reading") is None
     # And the other two hosts have no `efforts` row at all, because neither CLI has an effort flag.
     assert table.resolve_effort("codex", "calibration") is None
@@ -463,7 +467,7 @@ def test_v6_efforts_used_is_the_per_class_record_a_verdict_carries():
     table = models_mod.parse(V6, source="v6")
 
     # Six classes at v9 (spec 029 FR-023): `context` and `reading` route to `light`, whose row
-    # carries no effort -- `effort` errors on Haiku 4.5.
+    # carries no effort at v6 -- `effort` errored on Haiku 4.5 (v16 gives it `low`, spec 121).
     assert table.efforts_used("claude") == {
         "context": None, "frame": "medium", "calibration": "medium", "respondent": "medium",
         "reading": None, "asked": None}
@@ -493,7 +497,7 @@ def test_stamp_writes_the_seventh_key_and_leaves_a_reading_untouched():
     assert calibration.effort == "medium"
     assert brief.payload["effort"] == {"claude": "medium"}
     # The reading: a model, and no `effort` key at all.
-    assert reading.payload["model"] == {"claude": "claude-haiku-4-5-20251001"}
+    assert reading.payload["model"] == {"claude": "claude-haiku-5-5"}
     assert "effort" not in reading.payload
     assert reading.effort is None
     # The key order the cloud writes: the five, then model, then effort.
@@ -554,10 +558,11 @@ def test_an_efforts_block_that_is_not_an_object_refuses_to_start():
 
 # ------------------------------------------------- spec 029 FR-023: the six classes of MARKS_VERSION 9
 
-#: keel-cloud's own `model-routing.json` at v8 (`3e91cfc`), the table the export carries today.
+#: keel-cloud's own `model-routing.json` at v8 (`3e91cfc`), its shape; the light id is today's (spec 121: the
+#: v16 pin, claude-haiku-5-5, in every fixture -- the version and the shape are what this test reads).
 V8_TABLE = {
     "version": 8,
-    "hosts": {"claude": {"light": "claude-haiku-4-5-20251001", "standard": "claude-sonnet-5-5"}},
+    "hosts": {"claude": {"light": "claude-haiku-5-5", "standard": "claude-sonnet-5-5"}},
     "efforts": {"claude": {"standard": "medium"}},
     "_tiers": ["light", "standard", "frontier"],
     "classes": {"frame": "standard", "assumptions": "standard", "reframe": "standard",
@@ -604,15 +609,15 @@ def test_the_v9_screen_pin_file_is_refused_naming_asked():
 def test_keel_clouds_v11_table_routes_asked_to_light():
     """keel-cloud 088's table v11 (`asked: light`): Haiku on Claude, luna on Codex / Copilot."""
     v11 = {"version": 11, "_tiers": ["light", "standard", "frontier"],
-           "hosts": {"claude": {"light": "claude-haiku-4-5-20251001", "standard": "claude-sonnet-5-5"},
+           "hosts": {"claude": {"light": "claude-haiku-5-5", "standard": "claude-sonnet-5-5"},
                      "codex": {"light": "gpt-5.6-luna", "standard": "gpt-5.6-terra"}},
            "efforts": {"claude": {"standard": "medium"}},
            "classes": {"frame": "standard", "reading": "light", "brief": "standard", "context": "light",
                        "calibration": "standard", "respondent": "standard", "asked": "light"}}
     table = models_mod.parse(v11, source="exported")
-    assert table.resolve("claude", "asked") == "claude-haiku-4-5-20251001"
+    assert table.resolve("claude", "asked") == "claude-haiku-5-5"
     assert table.resolve("codex", "asked") == "gpt-5.6-luna"
-    assert table.resolve_effort("claude", "asked") is None, "the light row carries no effort"
+    assert table.resolve_effort("claude", "asked") is None, "v11's light row carries no effort (v16's does)"
 
 
 def test_a_table_naming_an_unknown_class_still_refuses_by_name():
@@ -633,7 +638,7 @@ def test_the_wire_pins_a_context_case_on_the_light_row_and_writes_it_no_effort()
     table = models_mod.parse(V6, source="v6")
     case = _case("CONTEXT", case_id="e/CONTEXT_INTERPRET/run1")
     models_mod.stamp([case], table, "claude")
-    assert case.payload[models_mod.MODEL_KEY] == {"claude": "claude-haiku-4-5-20251001"}
+    assert case.payload[models_mod.MODEL_KEY] == {"claude": "claude-haiku-5-5"}
     assert models_mod.EFFORT_KEY not in case.payload
     assert case.effort is None
 

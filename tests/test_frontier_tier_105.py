@@ -23,7 +23,7 @@ V14 = {
     "hosts": {
         "codex": {"light": "gpt-5.6-luna", "standard": "gpt-5.6-terra"},
         "copilot": {"light": "gpt-5.6-luna", "standard": "gpt-5.6-terra"},
-        "claude": {"light": "claude-haiku-4-5-20251001", "standard": "claude-sonnet-5-5",
+        "claude": {"light": "claude-haiku-5-5", "standard": "claude-sonnet-5-5",
                    "frontier": "claude-opus-5-5"},
     },
     "efforts": {"codex": {"standard": "medium"}, "copilot": {"standard": "medium"},
