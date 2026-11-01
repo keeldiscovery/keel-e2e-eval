@@ -444,7 +444,13 @@ def _head_of(files: list[dict]) -> dict | None:
         return None
     top = table.head(latest)
     s = top["summary"]
+    # spec 122 (FR-2): the screens the readers read on a second ask, and the ones left unread, over the files -- said
+    # only when there was a second ask, so a record with none is 079's to the byte
+    again = sum(int(f.get("asked_again") or 0) for f in latest if isinstance(f, dict))
+    extra = {"asked_again": again, "unread": sum(len(f.get("unread") or []) for f in latest if isinstance(f, dict))} \
+        if again else {}
     return {"score_pct": top["score_pct"], "flagged_pct": s["overall"]["flagged_pct"], "screens": s["overall"]["screens"],
+            **extra,
             "founder": {"score_pct": s["founder"]["score_pct"], "flagged_pct": s["founder"]["flagged_pct"]},
             "respondent": {"score_pct": s["respondent"]["score_pct"], "flagged_pct": s["respondent"]["flagged_pct"]},
             "by_scope": {k: {"score_pct": v["score_pct"], "flagged_pct": v["flagged_pct"]}
@@ -609,6 +615,8 @@ def render_record(d: dict) -> str:
              f"{_pct((head.get('respondent') or {}).get('score_pct'))}"
              + "".join(f"; {k} {_pct(v['score_pct'])}" for k, v in (head.get("by_scope") or {}).items()) + ")",
              *table.walks_lines(d.get("walks")),
+             *([f"  - {head['asked_again']} screens read on a second ask (spec 122); {head.get('unread', 0)} unread"]
+               if head.get("asked_again") else []),
              (f"- **The baseline** (cut {base['cut']}): score_pct {_pct(base.get('score_pct'))}, flagged "
               f"{_pct(base.get('flagged_pct'))}" if base else "- **The baseline**: none cut yet"),
              f"- **The bar**: {bar:.0f}% -- this cycle "

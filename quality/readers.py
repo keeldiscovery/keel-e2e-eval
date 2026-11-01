@@ -744,6 +744,31 @@ def spoken_guidelines(bundle: dict, cloud: Path | None = None) -> dict:
 
 # --------------------------------------------------------------------------------------------- the calls
 
+#: Spec 122 (FR-1): the tail of the second ask, the first answer's fault named.
+AGAIN_TAIL = ("\n\nYour previous reply could not be read: {error}. Reply again with the one JSON object and nothing "
+              "else.")
+
+
+def ask_twice(reader, label: str, prompt: str, parse):
+    """Spec 122 (FR-1): one ask, read by `parse`; on a `RubricError` (the object does not parse, a mark missing or out
+    of range, R6 on the wrong audience) one more ask with the fault named, under `{label}-again`. Returns
+    `(answer, again)` -- `again` True when the second answer was the one read. A CLI error is the CLI's, not the
+    model's: raised at once, never asked again. Two faults raise one error naming both."""
+    said = reader.ask(label, prompt)
+    if said["error"]:
+        raise rubric.RubricError(said["error"])
+    try:
+        return parse(said["answer"]), False
+    except rubric.RubricError as first:
+        again = reader.ask(f"{label}-again", prompt + AGAIN_TAIL.format(error=first))
+        if again["error"]:
+            raise rubric.RubricError(f"first: {first}; again: {again['error']}") from None
+        try:
+            return parse(again["answer"]), True
+        except rubric.RubricError as second:
+            raise rubric.RubricError(f"first: {first}; again: {second}") from None
+
+
 @dataclass
 class Reader:
     """One bounded, recorded, cached door to the `claude` CLI -- the judge's door with a model and an effort."""
@@ -1002,24 +1027,24 @@ def run(argv=None) -> int:
     except Refused as reason:
         print(str(reason), file=sys.stderr)
         return 2
-    scores, unread = [], []
+    scores, unread, asked_again = [], [], 0
     for screen, prompt in work["screens"]:
-        said = reader.ask(screen.label(), prompt)
+        parse = ((lambda raw, k=screen.kind: rubric.parse_after(raw, kind=k)) if screen.after else
+                 (lambda raw, o=screen.has_options, a=screen.audience: rubric.parse_answer(raw, has_options=o,
+                                                                                            audience=a)))
         try:
-            if said["error"]:
-                raise rubric.RubricError(said["error"])
-            answer = (rubric.parse_after(said["answer"], kind=screen.kind) if screen.after else
-                      rubric.parse_answer(said["answer"], has_options=screen.has_options, audience=screen.audience))
+            answer, again = ask_twice(reader, screen.label(), prompt, parse)
+            asked_again += int(again)
             scores.append(rubric.screen_score(screen.meta(), answer))
-            print(f"  {screen.label():<64} scored")
+            print(f"  {screen.label():<64} scored" + (" (on a second ask)" if again else ""))
         except rubric.RubricError as reason:
             unread.append({**screen.meta(), "error": str(reason)})
             print(f"  {screen.label():<64} unread: {reason}")
     flow = {"founder": None, "respondent": {}}
     for audience, link, prompt in work["flows"]:
-        said = reader.ask(f"flow-{audience}-{link or 'founder'}", prompt)
         try:
-            answer = rubric.parse_flow(said["answer"]) if not said["error"] else {"error": said["error"]}
+            answer, again = ask_twice(reader, f"flow-{audience}-{link or 'founder'}", prompt, rubric.parse_flow)
+            asked_again += int(again)
         except rubric.RubricError as reason:
             answer = {"error": str(reason)}
         if audience == "founder":
@@ -1028,13 +1053,12 @@ def run(argv=None) -> int:
             flow["respondent"][link] = answer
     readings = []
     for line, prompt in work["insights"]:
-        said = reader.ask(f"insights-{line['link']}-{line['dimension']}", prompt)
         try:
-            if said["error"]:
-                raise rubric.RubricError(said["error"])
-            readings.append({"line": line["line"], "dimension": line["dimension"], "link": line["link"],
-                             **rubric.parse_insight(said["answer"])})
-            print(f"  insights {line['link']} {line['dimension']:<48} scored")
+            answer, again = ask_twice(reader, f"insights-{line['link']}-{line['dimension']}", prompt,
+                                      rubric.parse_insight)
+            asked_again += int(again)
+            readings.append({"line": line["line"], "dimension": line["dimension"], "link": line["link"], **answer})
+            print(f"  insights {line['link']} {line['dimension']:<48} scored" + (" (on a second ask)" if again else ""))
         except rubric.RubricError as reason:
             unread.append({"insights": line["dimension"], "link": line["link"], "error": str(reason)})
             print(f"  insights {line['link']} {line['dimension']:<48} unread: {reason}")
@@ -1061,6 +1085,7 @@ def run(argv=None) -> int:
         "read_fraction": (round((len(scores) + len(readings)) / (len(scores) + len(readings) + len(unread)), 3)
                           if (scores or readings or unread) else None),
         "unread": unread,
+        "asked_again": asked_again,                   # spec 122 (FR-1): screens read on the second ask
         "summary": rubric.summaries(scores, readings),
         "insights": readings,
         "insights_note": (None if work["insights"] else "partial run: no grouping read" if partial
@@ -1084,7 +1109,8 @@ def run(argv=None) -> int:
     path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     (out / "score-path.txt").write_text(str(path) + "\n", encoding="utf-8")
     overall = record["summary"]["overall"]
-    print(f"{entry['id']} ({bundle_scope(bundle)}): {len(scores)} screens scored, {len(unread)} unread, score_pct {overall['score_pct']}, "
+    print(f"{entry['id']} ({bundle_scope(bundle)}): {len(scores)} screens scored, {len(unread)} unread, "
+          f"{asked_again} on a second ask, score_pct {overall['score_pct']}, "
           f"spoken_pct {overall.get('spoken_pct')}, "
           f"flagged {overall['flagged']}, ${record['cost_usd']} in {record['seconds']} s"
           + (" (partial: not a score of record)" if partial else ""))
