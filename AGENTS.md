@@ -1116,6 +1116,27 @@ writes `typos` and `typo_leaks` into the score file only when typos were typed, 
 fields; K leaked` and *Typo leaks* lists a defect line a leak under its study. Never a stop, never a retype.
 `RUBRIC_VERSION` and `MARKS_VERSION` stand; no reader prompt moved.
 
+**The referee follows the light tier to Claude Haiku 5.5** (spec `121-the-referee-follows-haiku-5-5`, 2026-11-01;
+keel-cloud 190 on its branch `190-the-light-tier-on-haiku-5-5`, `ddb691f0`: routing v16, `InferenceCharge.VERSION` 15,
+contract 56 unchanged). **FR-1**: `instructions/models.py` reads the table as the file, so no code moved -- on v16 the
+`claude` light row is `claude-haiku-5-5` at effort `low` and there is no `sampling` block (the reader never read one), so
+a claude light case (context, reading, asked) now carries the wire's seventh key `effort: {claude: low}`; Codex and
+Copilot light cases carry none. The docstrings that said a light case carries no effort (Haiku 4.5 refused one) say v16;
+every fixture's light id is `claude-haiku-5-5`; `specs/029-.../contracts/models-screen.json` pins Haiku 5.5 at `low`
+(still refused for naming no `asked`); S-012's per-job model check reads the same table. **FR-2**: the noise check's
+classifier (`evals/noise/pipeline.py` `request_body`) is keel-cloud 190's request -- `claude-haiku-5-5`, `max_tokens`
+1,024, `thinking: {type: adaptive}`, `output_config.effort` `low`, no `temperature`, one user message -- with the answer
+read from text blocks by type (`answer_text`) and the cost at Haiku 5.5's first card ($0.10 / $0.50); held to 190's
+`build/haiku-5-5-requests.txt`; never run here (paid, the founder's word). The canon's `page_template.html` still says
+*Haiku 4.5 at temperature 0* (byte-pinned to keel-cloud's canon copy; owed there). **FR-3**: `PRICE_VERSION` 15 in
+`harness/interview_charge.py` and both fakes; `LIGHT_PRICES` (CONTEXT_INTERPRET and ASKED at 1, were 3) and
+`NEW_PROJECT_PRICE` 298 (1 + 26 + 28 + 3 x 81, was 300) mirrored and pinned against the enum at 15; no mark summed the
+3s. **FR-4**: no cost note here reads keel-cloud's settled log (`cache_read=`): the coordinator's log check.
+`MARKS_VERSION` 24, contract 56 and corpus revision 22 stand. `make unit` 4,887 passed / 0 failed / 53 skipped (+19, in
+`tests/test_haiku_5_5_121.py`) against keel-cloud-docs-190 `ddb691f0` and keel-web `f02595c` (master `edb3c92` against
+keel-cloud-docs `cbc3ef8f` 4,868 / 0 / 53; this branch against `cbc3ef8f`, before 190, fails the price version alone);
+the next quality cycle on the five catalog entries is the switch's run of record (cycle 6: 85.4%).
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
