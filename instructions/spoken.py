@@ -234,10 +234,31 @@ def item_escape(registry, key: str, entry=None, served=None):
     dimension = registry.by_key(key)
     if entry is not None and key == ABILITY_KEY and not entry.b2b():
         return CONSUMER_BUDGET_ESCAPE
+    if points_back(entry, key):
+        return pointed_back_escape(registry)
     if key == CURRENT_SOLUTION_KEY:
         return _current_solution_escape(registry, served)
     escape = dimension.escape
     return escape.get("label") if escape else None
+
+
+def points_back(entry, key: str) -> bool:
+    """keel-cloud 181 FR-2 (`CommercialChain.side`, `pointsBack`): Ability to pay on a B2B chain study with a price that
+    is not free points back to the price, and its escape is not its registry row's (*I can't recall one* fitted a past
+    tool) but Price's own."""
+    if entry is None or key != ABILITY_KEY or not entry.b2b() or not callable(getattr(entry, "price", None)):
+        return False
+    from instructions import chain as chain_mod                        # noqa: PLC0415
+    return chain_mod.asks_back(entry.price())
+
+
+def pointed_back_escape(registry):
+    """Spec 119 FR-5 (keel-cloud 181 FR-2): Ability to pay's escape of record where it points back -- read off the
+    registry the item was served from (the bundle's `contract-export/dimension-registry.json`), never a pinned label:
+    `CommercialChain.side` gives it Price's own escape (`cant_say`, *I can't say*; *the consumer's and Price's own*), so
+    it is Price's row's escape in that export. The export's Ability to pay row still names `cant_recall_one`, which
+    `side` replaces (S6 called every B2B money study of cycle 5 red on it)."""
+    return registry_escape(registry, PRICE_KEY)
 
 
 def served_escape(registry, key: str, entry=None, served=None):
@@ -252,6 +273,8 @@ def served_escape(registry, key: str, entry=None, served=None):
             return OFF_CHAIN_COST_ESCAPE
         if key == ABILITY_KEY and not entry.b2b():
             return CONSUMER_BUDGET_ESCAPE
+        if points_back(entry, key):
+            return pointed_back_escape(registry)
     return registry_escape(registry, key)
 
 
@@ -394,8 +417,11 @@ def item_faults(item, registry, entry=None) -> list:
             faults.append(f"S3: {len(options)} options on a number")
     else:
         most = PRICE_MAX_OPTIONS if key == PRICE_KEY else MAX_OPTIONS
-        if not options or len(options) > most:
-            faults.append(f"S3: {len(options)} options; at most {most}")
+        # spec 119 FR-5 (keel-cloud 187 FR-3): the duration bands are read as Price's -- said in two steps, so S3 counts
+        # the first step's four, never the screen's six
+        counted = first_step(key, options) if key == PURCHASE_FRICTION_KEY else options
+        if not options or len(counted) > most:
+            faults.append(f"S3: {len(counted)} options; at most {most}")
     longest = STEP_OPTION_MAX_WORDS if key == COMMITMENT_KEY else OPTION_MAX_WORDS
     for label in options:
         n = words(label)
@@ -431,14 +457,14 @@ def item_faults(item, registry, entry=None) -> list:
         elif item.escape_line is not None:
             faults.append(f"S6: an escape line {item.escape_line!r} on an item with no escape")
     # S7 / S8: the template's count and options lines.
-    transform = TRANSFORMS.get(key, "none")
+    transform = transform_of(key, options)
     if key in NUMERIC:
         if item.count_line is not None:
             faults.append(f"S7: a count line {item.count_line!r} on a number")
         if not item.options_line.strip().endswith("."):
             faults.append(f"S8: the answer line {item.options_line!r} is not one sentence")
     else:
-        spoken = _first_step(options) if key == PRICE_KEY else options
+        spoken = first_step(key, options)
         n = len(spoken)
         count = _COUNT_LINE.match(item.count_line or "")
         if not count or count.group(1) != (_NUMBER_WORDS[n] if n < len(_NUMBER_WORDS) else str(n)) \
@@ -452,7 +478,14 @@ def item_faults(item, registry, entry=None) -> list:
             pieces[-1] = pieces[-1][3:]
         else:
             pieces = None
-        if pieces is None or [said(p) for p in pieces] != [said(o) for o in spoken]:
+        if key == PRICE_KEY and len(options) == 6 and any("%" in str(o) for o in options) and spoken != options:
+            # spec 119 FR-5 (keel-cloud 185 FR-3, `SpokenForm.percentSaid`): a percent ladder's first step is said in
+            # words (*Under a quarter of a percent; a quarter to under half a percent; half a percent or more; or you
+            # wouldn't pay for this.*), so it is held to §3's shape -- the four in order, *Under ...* first, *... or
+            # more* (or *Over ...*) third, the last option said whole after *; or* -- never to the screen's figures
+            if not _percent_first_step_holds(pieces, options):
+                faults.append(f"S8: the options line is {line!r}; §3 says the {n} options in order, '...; or z.'")
+        elif pieces is None or [said(p) for p in pieces] != [said(o) for o in spoken]:
             faults.append(f"S8: the options line is {line!r}; §3 says the {n} options in order, '...; or z.'")
     # S9: the transform.
     if item.transform != transform:
@@ -468,6 +501,70 @@ def item_faults(item, registry, entry=None) -> list:
             faults.append(f"S10: the step reads {item.stem!r}; 'would you {{step}}' says 'you' twice -- the step "
                           "is the stranger's, in base form, with no second 'you'")
     return faults
+
+
+def first_step(key: str, options: list) -> list:
+    """What the voice says first: Price's first step (`_first_step`), the duration bands' (`duration_first_step`,
+    keel-cloud 182 / 187), every other item's options as served."""
+    if key == PRICE_KEY:
+        return _first_step(options)
+    if key == PURCHASE_FRICTION_KEY:
+        return duration_first_step(options)
+    return list(options)
+
+
+def transform_of(key: str, options: list) -> str:
+    """§4's transform for `key`: Importance `one_then_one_more`, Price `two_steps`; spec 119 FR-5 (keel-cloud 187 FR-3,
+    `SpokenForm.of` on `DURATION_BANDS`): the duration bands `two_steps` where they are the six read in two steps (the
+    fixed three of a list with no time, `none`); every other item `none`."""
+    if key == PURCHASE_FRICTION_KEY:
+        return "two_steps" if duration_first_step(options) != list(options) else "none"
+    return TRANSFORMS.get(key, "none")
+
+
+def duration_first_step(options: list) -> list:
+    """keel-cloud 182 FR-2 (`SpokenForm.durationFirstStep`): the duration bands' first step, as Price's -- under the
+    middle band, the middle band, over it, or that it wouldn't be needed (*Under 4 weeks; 4 weeks to 3 months; over 3
+    months; or it wouldn't be needed.*); a band that says its unit once (*3 to 6 months*) lends it to its low edge
+    (*Under 3 months*, *1 month* in the singular). Off the six (or a middle band with no *to*) the options as served."""
+    options = list(options)
+    if len(options) != 6:
+        return options
+    middle = str(options[2])
+    if " to " not in middle:
+        return options
+    low, high = (part.strip() for part in middle.split(" to ", 1))
+    if high.startswith("under "):
+        high = high[len("under "):]
+    if " " not in low:
+        unit = high.rsplit(" ", 1)[-1]
+        low = f"{low} {unit[:-1] if low == '1' and unit.endswith('s') else unit}"
+    return [f"Under {low}", middle, f"Over {high}", options[5]]
+
+
+def side_question(options: list, start: int) -> str:
+    """keel-cloud 185 / 187 (`SpokenForm.sideQuestion`): one side's two bands from `start` (0 under the middle band, 3
+    over it) as one short question in the screen's words -- *Under 2 weeks, or 2 to under 4 weeks?*, *3 to 6 months, or
+    over 6 months?*, *Under $500, or $500 to under $800?* (percents are said in words by the cloud, not mirrored)."""
+    one, two = (said_label(str(options[start + k]).strip().rstrip(".").strip()) for k in (0, 1))
+    return f"{one[:1].upper() + one[1:]}, or {_lower(two)}?"
+
+
+def said_label(label: str) -> str:
+    """`SpokenForm.second`: a label said to the person, the first person turned (*I* -> *you*), its words otherwise as
+    served."""
+    return _FIRST_PERSON_RE.sub(lambda m: m.group(0) if m.group(0) == "US" else _FIRST_PERSON[m.group(0).lower()],
+                                str(label or "").strip())
+
+
+def _percent_first_step_holds(pieces, options: list) -> bool:
+    """Spec 119 FR-5: a percent ladder's first step keeps §3's shape -- four pieces, *Under ...* first, the screen's
+    middle band's place second, *... or more* / *Over ...* third, the last option said whole after *; or*."""
+    if not pieces or len(pieces) != 4:
+        return False
+    first, _, third, last = pieces
+    return first.startswith("Under ") and (third.endswith(" or more") or third.lower().startswith("over ")) \
+        and said(last) == said(options[5])
 
 
 def _first_step(options: list) -> list:
@@ -497,15 +594,23 @@ def second_step_faults(item) -> list:
     """`S11` (spec 118 FR-3, keel-cloud 185 §17): on a Price item in two steps, the record carries both second-step
     lines (`under`, `over`), each one question of at most 20 words with one *, or* and no escape; on a money ladder each
     is the two bands said whole (`second_step`)."""
-    if item.key != PRICE_KEY or item.transform != "two_steps":
+    if item.key not in (PRICE_KEY, PURCHASE_FRICTION_KEY) or item.transform != "two_steps":
         return []
-    if not (item.under or item.over) and not (len(item.options) == 6 and " to under " in str(item.options[2])):
+    if item.key == PRICE_KEY and not (item.under or item.over) \
+            and not (len(item.options) == 6 and " to under " in str(item.options[2])):
         return []                                      # a ladder recorded before 185 (*X to Y*) has no second step
     faults = []
     want = second_step(list(item.options))
+    if item.key == PURCHASE_FRICTION_KEY:
+        # spec 119 FR-5 (keel-cloud 187 FR-3): the duration bands' second step, read as Price's -- each side's two bands
+        # (`side_question`), served on every lock since 187 (a lock before it serves none: no fault, the page composes)
+        if not (item.under or item.over):
+            return []
+        want = (side_question(list(item.options), 0), side_question(list(item.options), 3)) \
+            if len(item.options) == 6 else None
     for side, line in (("under", item.under), ("over", item.over)):
         if not line:
-            faults.append(f"S11: no {side} line -- Price's second step says the side's two bands (keel-cloud 185)")
+            faults.append(f"S11: no {side} line -- the second step says the side's two bands (keel-cloud 185 / 187)")
             continue
         if words(line) > STEM_MAX_WORDS or not line.endswith("?") or line.count(", or ") != 1 or "Or say" in line:
             faults.append(f"S11: the {side} line {line!r} is not one short question of two bands with no escape")

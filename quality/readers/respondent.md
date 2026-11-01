@@ -7,13 +7,15 @@ entry's `.sources.md`, their role, and the project's what / where / when as the 
 actor_plural, job, circumstance, segment, window, the market's country); the score file records it once in its header
 -- `{{rubric}}` is `quality/RUBRIC.md` between its `prompt` markers, `{{rubric_r6}}` the same file between its
 `prompt-r6` markers (R6, said aloud: this reader's alone), `{{spoken_rules}}` keel-cloud's
-`canon/designs/spoken-questions-guidelines.md` §2, §3 and §5 pasted whole by the runner, and its dated amendments §16
-and §17 where the guidelines read carry them (spec 118: the two steps of Price and of Purchase friction's six, the
-amount-only rungs, a fact's three; read at the bundle's cloud sha where that commit has it, else from the checkout),
+`canon/designs/spoken-questions-guidelines.md` §2, §3 and §5 pasted whole by the runner, and its dated amendments §16,
+§17 and §18 where the guidelines read carry them (spec 118: the two steps of Price and of Purchase friction's six, the
+amount-only rungs, a fact's three; spec 119: §18, the duration bands' second step; read at the bundle's cloud sha where
+that commit has it, else from the checkout),
 `{{earlier}}` the screens before this one on the same link as a compact list (kicker and question only -- the
 coordinator's decision 3), `{{screen}}` the screen in full, as served, with how the AI interviewer says it -- since spec
 118 every line the voice says, from the served spoken form: the anchor, the stem, the count line, the options line,
-the escape line, and on a ladder in two steps the second step's two lines (the side's two bands). The `insights` prompt is sent once per follow-up line of the link (§G): `{{line}}`
+the escape line, and on a ladder in two steps the second step's two lines (the side's two bands) -- since spec 119 on
+either link, the bundle recording each item's served spoken form whichever link the person walked. The `insights` prompt is sent once per follow-up line of the link (§G): `{{line}}`
 is the line -- its dimension, its question, every answer on it, the groups Keel made with their names and answers, the
 answers left on their own -- and `{{rubric_g}}` is RUBRIC.md's §G between its `prompt-g` markers. Nothing above the
 first marker is sent. A change to these words is a change to the reader: say why in the commit.

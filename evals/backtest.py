@@ -593,11 +593,25 @@ READ_JS = """() => {
   }).filter(Boolean);
   const dialog = document.querySelector("[role=dialog]");
   const scope = dialog || document.querySelector("main") || document.body;
+  // spec 119 FR-3 (keel-web 155 / 157): a Choose screen's title and intro, the founder's time box under the list (its
+  // question, the count and unit as they stand, its hint) and the *Keel will test* box beside it (belief, bar, note)
+  const box = document.querySelector("[data-testid=duration-input]");
+  const unit = box && box.querySelector("[data-testid=duration-unit]");
+  const keel = document.querySelector(".keeltest");
   return {kicker: one(".corridor__kicker, .iv-kicker, .guided-step__kicker"),
           question: one("[role=dialog] h2, h1.calib__q, h1.iv-q, .guided-step__question, h1"),
           hint: one(".calib__hint, .iv-tick, .iv-note, .ccard__sub"),
           options: all((dialog ? "[role=dialog] " : "") + "[role=radio], " + (dialog ? "[role=dialog] " : "") + "[role=checkbox]"),
           rows: rows, chips: all(".calib__chip, .iv-chips button"),
+          title: one(".listcheck__title") || null, intro: one(".corridor__intro") || null,
+          time_box: box ? {question: one("[data-testid=duration-input] .calib__durationq"),
+                           count: ((box.querySelector("[data-testid=duration-count]") || {}).value || "").trim(),
+                           unit: unit && unit.selectedOptions && unit.selectedOptions[0]
+                               ? unit.selectedOptions[0].textContent.trim() : "",
+                           units: unit ? Array.from(unit.options).map((o) => o.textContent.trim()) : [],
+                           hint: one("[data-testid=duration-input] .calib__hint")} : null,
+          keel_test: keel ? {belief: one(".keeltest .keeltest__t"), bar: one(".keeltest .keeltest__b"),
+                             note: one("[data-testid=keeltest-note]") || null} : null,
           text: (scope.innerText || "").slice(0, 6000)};
 }"""
 
@@ -779,6 +793,9 @@ class Camera:
     respondent_shots: dict = field(default_factory=dict)
     #: Spec 109 FR-1: the screens after the answers, numbered on their own (`founder-after-NN-...`).
     after_shots: list = field(default_factory=list)
+    #: Spec 119 FR-8: the page as it stood when a model job was refused and retried (`failed-NN-<what>-<reason>.png`) --
+    #: evidence beside the findings, never a founder screen: no reader scores it.
+    failure_shots: list = field(default_factory=list)
     _taken: set = field(default_factory=set)
 
     @property
@@ -819,6 +836,14 @@ class Camera:
             shot["error"] = repr(missed)[:300]
         self.after_shots.append(shot)
         return shot
+
+    def evidence(self, slug: str, why: str | None = None) -> None:
+        """Spec 119 FR-8: one screenshot of the page as it stood when a job was refused -- kept apart from the founder's
+        screens (`failure_shots`), named by what failed and its served reason, so a waiting state is never scored."""
+        n = len(self.failure_shots) + 1
+        shot = {"n": n, **self._take(self.page, f"failed-{n:02d}-{_safe_slug(slug)}.png", f"failed-{slug}")}
+        shot["why"] = why
+        self.failure_shots.append(shot)
 
     def founder(self, slug: str) -> None:
         """One founder screen. The send screen is taken once (its first opening), not once a person."""
@@ -1367,9 +1392,14 @@ def founder_answer(j, slug: str) -> Any:
         # spec 116 FR-1 (keel-web 149): the row picked by its label (spec 104), where it was drawn (Buyer and payer's
         # Nobody else last) and the pickedIndex the press sent, off the wire
         picked = next((s for s in seen if s.get("screen") == "choose"), {})
-        return {"pickedIndex": index, "the file's item": (items[index] or {}).get("label") if index < len(items) else None,
-                "picked on screen (by label)": picked.get("label"), "drawn at": picked.get("drawn_index"),
-                "served pickedIndex (the wire)": picked.get("served_index")}
+        out = {"pickedIndex": index, "the file's item": (items[index] or {}).get("label") if index < len(items) else None,
+               "picked on screen (by label)": picked.get("label"), "drawn at": picked.get("drawn_index"),
+               "served pickedIndex (the wire)": picked.get("served_index")}
+        if picked.get("duration_drawn"):
+            # spec 119 FR-3 (keel-cloud 187 FR-4 (a)): the founder's time typed in the box, and what the save sent
+            out["the founder's time (typed in the box)"] = picked.get("duration")
+            out["sent with the save (SavedList.duration)"] = picked.get("duration_sent")
+        return out
     return None
 
 
@@ -1431,7 +1461,11 @@ def founder_screens(j, cam: Camera | None, wire: dict) -> list[dict]:
         out.append({"n": shot["n"], "screen": slug, "file": shot.get("file"), "kicker": shot.get("kicker"),
                     "question": shot.get("question"), "hint": shot.get("hint"),
                     "options": shot.get("options") or [], "rows": shot.get("rows") or [],
-                    "chips": shot.get("chips") or [], "answer": _safe(lambda s=slug: founder_answer(j, s)),
+                    "chips": shot.get("chips") or [],
+                    # spec 119 FR-3: what a Choose screen draws beyond the list -- its title and intro, the founder's
+                    # time box and the *Keel will test* box (only where drawn)
+                    **{k: shot[k] for k in ("title", "intro", "time_box", "keel_test") if shot.get(k)},
+                    "answer": _safe(lambda s=slug: founder_answer(j, s)),
                     "keel read back": _safe(lambda s=slug: read_back(j, s, wire)),
                     **({"camera error": shot["error"]} if shot.get("error") else {})})
     return out
@@ -1465,14 +1499,44 @@ def served_items(interview: dict) -> dict:
             if item.get("advantages"):
                 row["advantages"] = _labels(item["advantages"])
             row.update({k: item[k] for k in SERVED_EXTRAS if item.get(k) not in (None, "", [], {})})
+            spoken = _spoken_of(item.get("spoken"))
+            if spoken:
+                # spec 119 FR-4: the served spoken form of every item, whichever link the person walks -- the reader's
+                # `{{screen}}` says it (118 FR-4c(a)); a bundle without it made the reader compose §3's template from
+                # the written list (*the bundle records no spoken form for it*, 10-palus COMMERCIAL's Price)
+                row["spoken"] = spoken
+            if isinstance(item.get("askedAfter"), dict):
+                # spec 119 FR-2: the per-person written questions beside the item's one spoken sentence
+                row["askedAfter"] = {"itemId": item["askedAfter"].get("itemId"),
+                                     "answers": [{"question": a.get("question")}
+                                                 for a in item["askedAfter"].get("answers") or []]}
             if item.get("plan"):
                 row["plan"] = {"question": item["plan"].get("question"),
                                "options": _labels(item["plan"].get("options"))}
+                plan_spoken = _spoken_of(item["plan"].get("spoken"))
+                if plan_spoken:
+                    row["plan"]["spoken"] = plan_spoken
             items.append(row)
         parts.append({"part": part.get("part"), "kicker": part.get("kicker"), "items": items})
     gate = interview.get("gate") or None
-    return {"kind": interview.get("kind"), "occasion": interview.get("occasion"),
-            "idea": interview.get("idea"), "gate": gate, "parts": parts, "reveal": interview.get("reveal")}
+    out = {"kind": interview.get("kind"), "occasion": interview.get("occasion"),
+           "idea": interview.get("idea"), "gate": gate, "parts": parts, "reveal": interview.get("reveal")}
+    if interview.get("condition"):
+        # the decision-maker's screener (keel-cloud 145 / 185), its spoken form with it
+        out["condition"] = interview["condition"]
+    return out
+
+
+#: Spec 119 FR-4: the lines of a served `Spoken` block the bundle keeps (keel-cloud's `InterviewComposer.Spoken`):
+#: what the voice says, in order, and the second step's two lines on a ladder in two steps (Price, the duration bands).
+SPOKEN_FIELDS = ("anchor", "stem", "countLine", "optionsLine", "escapeLine", "transform", "under", "over")
+
+
+def _spoken_of(spoken) -> dict | None:
+    """The served spoken block as the bundle records it (`SPOKEN_FIELDS`, the ones served), or None where none is."""
+    if not isinstance(spoken, dict) or not spoken.get("stem"):
+        return None
+    return {k: spoken[k] for k in SPOKEN_FIELDS if spoken.get(k) not in (None, "")}
 
 
 def respondent_questions(j, cam: Camera | None) -> dict:
@@ -1928,6 +1992,9 @@ def transcript(j, bt: Backtest) -> dict:
         "founder_screens": founder_screens(j, bt.cam, wire),
         # spec 109 FR-1: the screens after the answers -- the founder-reader's §B
         "after_screens": after_screens(bt.cam),
+        # spec 119 FR-8: the page when a model job was refused -- evidence, never a scored screen
+        "failure_screens": [{k: shot.get(k) for k in ("n", "slug", "file", "url", "why", "error") if shot.get(k)}
+                            for shot in (bt.cam.failure_shots if bt.cam else [])],
         "answers_leg": bt.answers,
         "respondents": respondent_questions(j, bt.cam),
         "spoken_guard": _safe(lambda: spoken_guard(j)),

@@ -200,10 +200,11 @@ DECIDERS = {"08-fresco": "Do any of your company's jobs run on Procore or ACC?",
 
 
 def test_revision_21_moves_exactly_185s_edits():
-    """D21, the revision-20 record beside canon: the revision line (20 -> 21); on the 13 fact entries the row's codes the
-    fact's three and every `only_with_help` pick `no` (13 people; on Lullaby and Mulchrun the golden row's counts);
-    `screeners.decider` on the three B2B entries of the four; nothing else."""
-    pairs = _pairs("r20", None)
+    """D21, the revision-20 record beside the revision-21 record (canon until keel-cloud 187; spec 119 reads it mirror
+    against mirror, `corpus-r21/` and `backtest-r21/`): the revision line (20 -> 21); on the 13 fact entries the row's
+    codes the fact's three and every `only_with_help` pick `no` (13 people; on Lullaby and Mulchrun the golden row's
+    counts); `screeners.decider` on the three B2B entries of the four; nothing else."""
+    pairs = _pairs("r20", "r21")
     moved, strays = 0, []
     for before_path, after_path, backtest in pairs:
         before, after = _load(before_path), _load(after_path)
@@ -229,19 +230,20 @@ def test_revision_21_moves_exactly_185s_edits():
     assert moved == 13
 
 
-def test_every_canon_entry_loads_at_21_and_19_and_20_are_refused_by_name(tmp_path, registry):
+def test_every_canon_entry_loads_at_22_and_19_20_and_21_are_refused_by_name(tmp_path, registry):
+    """Spec 119 re-pin (keel-cloud 187, revision 22): canon loads at 22; 19, 20 and 21 are refused by name."""
     for path in sorted(corpus_mod.corpus_dir(KEEL_CLOUD).glob("*.yaml")):
-        assert corpus_mod.load_file(path, registry=registry).revision == 21
+        assert corpus_mod.load_file(path, registry=registry).revision == 22
     for path in sorted(corpus_mod.backtest_dir(KEEL_CLOUD).glob("*.yaml")):
-        assert corpus_mod.load_file(path, registry=registry, backtest=True).revision == 21
-    for rev in ("r19", "r20"):
+        assert corpus_mod.load_file(path, registry=registry, backtest=True).revision == 22
+    for rev in ("r19", "r20", "r21"):
         record = MIRROR / f"corpus-{rev}" / "03-lullaby.yaml"
         if not record.is_file():
             pytest.skip(f"no {rev} record")
         target = tmp_path / rev
         target.mkdir()
         (target / "03-lullaby.yaml").write_text(record.read_text(encoding="utf-8"), encoding="utf-8")
-        with pytest.raises(corpus_mod.CorpusError, match=f"revision is {rev[1:]}; this eval reads revision 21 only"):
+        with pytest.raises(corpus_mod.CorpusError, match=f"revision is {rev[1:]}; this eval reads revision 22 only"):
             corpus_mod.load_file(target / "03-lullaby.yaml", registry=registry)
 
 
@@ -337,7 +339,12 @@ def test_the_timed_entries_rows_are_codes_six_and_the_sides_are_the_founders_tim
     assert body["list"]["duration"] == {"count": 2, "unit": "WEEKS"}, "sent on the save (SavedList.duration)"
     cost = next(a.body for a in vs.calibration_answers(fresco, "COMMERCIAL") if a.dimension == SACRIFICE)
     assert "rate" not in cost["cost"], "keel-cloud 180 FR-9: hours stay hours, no rate on the wire"
-    untimed = _backtest("12-transload", registry)
+    # spec 119 re-pin (keel-cloud 187 FR-4 (a), revision 22): no back-test list is untimed now -- Transload names 4 weeks;
+    # the undated path is the golden seven's (Paidly's Purchase friction names no time)
+    transload = _backtest("12-transload", registry)
+    assert transload.duration().said() == "4 weeks" and vs.saved_list(transload, PF)["duration"] == {
+        "count": 4, "unit": "WEEKS"}
+    untimed = _golden("05-paidly", registry)
     assert untimed.duration() is None and "duration" not in vs.saved_list(untimed, PF)
 
 
@@ -478,7 +485,7 @@ def test_the_reader_screen_says_what_the_voice_says():
     said = readers._spoken(_price_item()["spoken"])
     assert "I'll read four options." in said and "Under $500, or $500 to under $800?" in said
     assert "$2,500 to under $5,000, or $5,000 or more?" in said
-    assert readers.GUIDELINE_AMENDMENTS == ("16", "17")
+    assert readers.GUIDELINE_AMENDMENTS[:2] == ("16", "17")      # spec 119 re-pin: and keel-cloud 187's §18 after them
 
 
 # --------------------------------------------------------- FR-4c(c)-(f): the question and interviewer screens
@@ -537,13 +544,16 @@ def test_the_interviewer_screens_say_156s_words():
 def test_current_solutions_answer_is_typed_as_two_boxes(registry):
     """keel-cloud 184 T033: the what box the founder's own words for today's way, the how box its own sentence -- never
     the phrase and the labels joined by *"; "* with no full stop (cycle 4's run-together Answer)."""
-    fresco = _backtest("08-fresco", registry)
-    text = vs.answer_text(fresco, "problem.current_solution_satisfaction")
+    # spec 119 re-pin (keel-cloud 187 FR-4 (b), revision 22): Fresco records what they do today, which is the first box
+    # now (`tests/test_cycle_5_to_the_end_119.py`); an entry with no `current_solution.today` keeps 184's phrase -- 22-andy-ai
+    entry = _backtest("22-andy-ai", registry)
+    text = vs.answer_text(entry, "problem.current_solution_satisfaction")
     what, how = vs_screens.split_answer(text)
-    assert what == "Getting the day into the log." and how.endswith(".") and how
+    assert entry.today() is None
+    assert what == "Getting that visit charted." and how.endswith(".") and how
     assert vs_screens.join_answer(what, how) == text
     assert ";" not in what, "the phrase is a sentence of its own"
-    assert vs.founder_rungs(fresco) == 2
+    assert vs.founder_rungs(entry) == 2
 
 
 # --------------------------------------------------------------- FR-4d: one scripted line per follow-up

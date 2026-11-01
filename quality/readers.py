@@ -75,8 +75,9 @@ GUIDELINE_SECTIONS = ("2", "3", "5")
 #: Spec 118 FR-4c(a): the dated amendments the served spoken forms now follow -- §16 (keel-cloud 182: Purchase friction's
 #: six, said in two steps) and §17 (keel-cloud 185: Price's second step, the amount-only rungs, a fact's three, the idea's
 #: line, the screener) -- pasted after §5 where the guidelines read carry them (a bundle's sha before 182 does not), so R6
-#: reads the two steps against the rule that writes them, never as a fault of §3.
-GUIDELINE_AMENDMENTS = ("16", "17")
+#: reads the two steps against the rule that writes them, never as a fault of §3. Spec 119 FR-4: and §18 (keel-cloud 187:
+#: the duration bands' second step, said as Price's; Compatibility's 16), now that the reader hears the served lines.
+GUIDELINE_AMENDMENTS = ("16", "17", "18")
 
 _FOUNDER_KIND = re.compile(r"^(q|answer|check|choose)-(.+)$")
 _PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
@@ -241,22 +242,35 @@ def _compact(n: int, kicker: str, question: str, fallback: str) -> str:
     return f"{n}. [{(kicker or '').strip()}] {said}"
 
 
+#: Spec 119 FR-8: a founder screen recorded as the page stood when a model job was refused (`failed-<what>`, before
+#: the walk kept those shots apart) -- a waiting state, never a screen the founder answers: no reader scores it.
+WAITING_STATE = re.compile(r"^failed-")
+
+
 def founder_screens(bundle: dict) -> list[Screen]:
-    screens = bundle.get("founder_screens") or []
+    """The founder flow's screens as the founder-reader is handed them, in order -- never a waiting state (spec 119
+    FR-8): a `failed-*` screen of a recorded bundle (10-palus SOLUTION's two captures of the idea step while the
+    mechanism job ran) is left out, and the rest keep their recorded numbers."""
+    screens = [s for s in bundle.get("founder_screens") or [] if not WAITING_STATE.match(str(s.get("screen") or ""))]
     out = []
     for s in screens:
         name = s.get("screen") or f"screen-{s.get('n')}"
         match = _FOUNDER_KIND.match(name)
         kind, dimension = (match.group(1), match.group(2)) if match else (name, None)
-        body = [f"Screen {s.get('n')} of {len(screens)} of the founder flow ({name}).",
+        body = [f"Screen {s.get('n')} of {len(bundle.get('founder_screens') or [])} of the founder flow ({name}).",
                 f"Kicker: {s.get('kicker') or ''}"]
         if s.get("question"):
             body.append(f"Question: {s['question']}")
         if s.get("hint"):
             body.append(f"Hint: {s['hint']}")
+        if s.get("title"):
+            body.append(f"Title over the list: {s['title']}")
+        if s.get("intro"):
+            body.append(f"Intro: {s['intro']}")
         body += _lines("Options", s.get("options"))
         body += _lines("Rows", s.get("rows"))
         body += _lines("Chips (the escape)", s.get("chips"))
+        body += _choose_boxes(s)
         if s.get("keel read back"):
             body.append("What Keel wrote on this screen:\n" + _said(s["keel read back"]))
         if s.get("answer") not in (None, "", {}, []):
@@ -268,6 +282,26 @@ def founder_screens(bundle: dict) -> list[Screen]:
                           full="\n".join(body),
                           compact=_compact(int(s.get("n") or len(out) + 1), s.get("kicker"), s.get("question")
                                            or s.get("hint"), name)))
+    return out
+
+
+def _choose_boxes(s: dict) -> list[str]:
+    """Spec 119 FR-3 (keel-web 155 T021, 157): what a Choose screen draws beside the list -- the founder's time box under
+    it (its question, a number box and a unit menu, its hint) and the *Keel will test* box (the belief, the bar) -- so
+    the founder-reader scores what is there (cycle 5's 21-codyco read *no number box* on a screen that drew one)."""
+    out = []
+    box = s.get("time_box") if isinstance(s.get("time_box"), dict) else None
+    if box:
+        typed = " ".join(x for x in (str(box.get("count") or ""), str(box.get("unit") or "")) if x).strip()
+        out.append(f"Under the list, a time box: {box.get('question') or ''} -- a number box and a unit menu"
+                   + (f" ({', '.join(box['units'])})" if box.get("units") else "")
+                   + (f", as drawn: {typed}" if box.get("count") else ", empty as drawn")
+                   + (f". Its hint: {box['hint']}" if box.get("hint") else ""))
+    keel = s.get("keel_test") if isinstance(s.get("keel_test"), dict) else None
+    if keel and (keel.get("belief") or keel.get("bar")):
+        out.append("Beside the list, the *Keel will test* box: " + " ".join(
+            x for x in (keel.get("belief"), (f"(the bar: {keel['bar']})" if keel.get("bar") else None),
+                        keel.get("note")) if x))
     return out
 
 
