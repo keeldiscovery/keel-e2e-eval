@@ -72,6 +72,11 @@ PROBE_PROMPT = "Reply with the one word: ready"
 #: Spec 081 FR-4: the spoken-question guidelines R6 is read against, in keel-cloud (one source), and the sections pasted.
 GUIDELINES_REL = "canon/designs/spoken-questions-guidelines.md"
 GUIDELINE_SECTIONS = ("2", "3", "5")
+#: Spec 118 FR-4c(a): the dated amendments the served spoken forms now follow -- §16 (keel-cloud 182: Purchase friction's
+#: six, said in two steps) and §17 (keel-cloud 185: Price's second step, the amount-only rungs, a fact's three, the idea's
+#: line, the screener) -- pasted after §5 where the guidelines read carry them (a bundle's sha before 182 does not), so R6
+#: reads the two steps against the rule that writes them, never as a fault of §3.
+GUIDELINE_AMENDMENTS = ("16", "17")
 
 _FOUNDER_KIND = re.compile(r"^(q|answer|check|choose)-(.+)$")
 _PLACEHOLDER = re.compile(r"\{\{(\w+)\}\}")
@@ -276,6 +281,10 @@ def _stage_words(stage: str | None) -> str:
         "the stage page"
 
 
+def _side_words(side: str | None) -> str:
+    return {"FOR": "counts for you", "AGAINST": "counts against", "NOT_COUNTED": "not counted"}.get(str(side), str(side))
+
+
 def _after_body(s: dict, total: int) -> tuple[list[str], str]:
     """One §B screen as the founder-reader is handed it (FR-2): what each part of the screen is, then its words as drawn
     -- and the compact line the later screens see."""
@@ -292,6 +301,9 @@ def _after_body(s: dict, total: int) -> tuple[list[str], str]:
             body.append(f"The count line: {page['foot']}")
         if page.get("decider"):
             body.append(f"The banner: {page['decider']}")
+        if page.get("tally"):
+            # spec 118 FR-5 (keel-web 155 T013, keel-cloud 180 T019): the served tally of the cards' words
+            body.append(f"The tally over the cards (how many hold, do not, did not hold, are split): {page['tally']}")
         rows = page.get("rows") or []
         if rows:
             body.append("One card per dimension, as listed (its number and name, your belief, the status word with its "
@@ -309,16 +321,37 @@ def _after_body(s: dict, total: int) -> tuple[list[str], str]:
                 f"The card's title: {card.get('title') or ''}",
                 f"Your belief, as the card says it: {card.get('belief') or ''}",
                 f"The verdict (the status word, its line and the count under it): {card.get('verdict') or ''}"]
-        for label, key in (("Asked", "asked"), ("The bar line", "bar"), ("The chart's caption", "caption"),
-                           ("The chart's legend", "legend")):
-            if card.get(key):
+        for label, key in (("Asked", "asked_line"), ("Asked", "asked"), ("The bar line", "bar"),
+                           ("The rule line (which answers count for you, which against)", "rule"),
+                           ("The chart's caption", "caption"), ("The chart's legend", "legend")):
+            if card.get(key) and not (key == "asked" and card.get("asked_line")):
                 body.append(f"{label}: {card[key]}")
         if card.get("drawing"):
             body.append(f"The chart ({card.get('chart') or 'drawn'}), its words: {card['drawing']}")
+        # spec 118 FR-5 (keel-web 155 FR-1, FR-2, FR-9): the strip under the chart (one cell a person, for / against /
+        # not yet counted, the marker at your bar), the count line and the So line -- named so the reader scores what
+        # the card says, not their absence
+        for i, strip in enumerate(card.get("strips") or []):
+            sides = ", ".join(f"{k.lower()} {v}" for k, v in (strip.get("sides") or {}).items())
+            body.append(f"The strip under the chart{'' if i == 0 else f' ({i + 1})'}: {strip.get('label') or ''}"
+                        + (f" -- cells: {sides}" if sides else "")
+                        + (f" -- the marker at {strip.get('bar')}" if strip.get("bar") else "")
+                        + (f" -- its axis: {strip['axis']}" if strip.get("axis") else ""))
+        for part in card.get("parts") or []:
+            body.append(f"A part of the price ({part.get('step')}): {part.get('head') or ''}")
+        for mark, words in (card.get("marks") or {}).items():
+            if words:
+                body.append(f"On the chart ({mark.replace('-', ' ')}): {words}")
+        if card.get("count_line"):
+            body.append(f"The count line (who answered, who was counted, why not): {card['count_line']}")
+        if card.get("so"):
+            body.append(f"The So line (what this means for you): {card['so']}")
         people = card.get("people") or []
         if people:
-            body.append("Everyone who answered (name -- how Keel read the answer):")
-            body += [f"  - {p.get('name') or ''} -- {p.get('read') or ''}" for p in people]
+            body.append("Everyone who answered (name -- how Keel read the answer -- for you / against / not counted):")
+            body += [f"  - {p.get('name') or ''} -- {p.get('read') or ''}"
+                     + (f" -- {_side_words(p.get('side'))}" if p.get("side") else "")
+                     + (f" ({p['why']})" if p.get("why") else "") for p in people]
         compact = f"{n}. [the {card.get('title') or s.get('dimension')} card] {card.get('verdict') or ''}"
     else:
         ins = s.get("insights") or {}
@@ -332,6 +365,12 @@ def _after_body(s: dict, total: int) -> tuple[list[str], str]:
                 body.append(f"  - {b.get('head') or b.get('dimension')} -- {b.get('concern') or ''}"
                             + (f" -- groups: {groups}" if groups else "")
                             + (f" -- {b.get('quotes')} quote(s)" if b.get("quotes") is not None else ""))
+                # spec 118 FR-5 (keel-web 155 T014, T017): the box's header lines as served
+                for label, key in (("its status line", "status_line"), ("your belief", "belief"),
+                                   ("its count line (asked here, gave none, asked on another line)", "count_line"),
+                                   ("its second group", "also")):
+                    if b.get(key):
+                        body.append(f"      {label}: {b[key]}")
         if ins.get("empty"):
             body.append(f"The screen says: {ins['empty']}")
         for line in ins.get("not_asked") or []:
@@ -382,11 +421,18 @@ def _served_items(served: dict) -> dict:
 
 
 def _spoken(spoken: dict | None) -> str | None:
-    """The served spoken form (keel-cloud's `spoken` block), as one line, or None where the bundle records none."""
+    """The served spoken form (keel-cloud's `spoken` block), as one line, or None where the bundle records none. Spec
+    118 FR-4c(a) (keel-cloud 185 FR-3): every line the voice says -- the anchor, the stem, the count line, the options
+    line, the escape line, and on a ladder in two steps the second step's two lines (`under`, `over`: the side's two
+    bands, said after a side is picked), so R6 is scored on what the voice says, never on the written list."""
     if not spoken or not spoken.get("stem"):
         return None
     words = [spoken.get(k) for k in ("anchor", "stem", "countLine", "optionsLine", "escapeLine")]
-    return " ".join(str(w).strip() for w in words if w)
+    said = " ".join(str(w).strip() for w in words if w)
+    if spoken.get("under") or spoken.get("over"):
+        said += (" Then, after a side is picked, the second step -- on the lower side: "
+                 f"{str(spoken.get('under') or '').strip()} On the upper side: {str(spoken.get('over') or '').strip()}")
+    return said
 
 
 def _escape_label(escape) -> str | None:
@@ -444,7 +490,10 @@ def respondent_screens(bundle: dict) -> dict[str, list[Screen]]:
             if what == "gate":
                 chip = d.get("chip") or {}
                 if chip.get("question"):
-                    said, line = said_line(None, spoken_template(chip["question"], chip.get("options")))
+                    # spec 118 FR-4c(a): the screener's served spoken form where the bundle records one (the stem, then
+                    # *Yes or no.*), else the template
+                    said, line = said_line(chip.get("spoken") or (served.get("condition") or {}).get("spoken"),
+                                           spoken_template(chip["question"], chip.get("options")))
                     add("screener", "screener", None, True,
                         [f"Kicker: {d.get('kicker') or ''}", f"Question: {chip['question']}",
                          *_lines("Options", chip.get("options")), line], d.get("kicker"), chip["question"], said)
@@ -487,6 +536,11 @@ def respondent_screens(bundle: dict) -> dict[str, list[Screen]]:
                 else:
                     composed = spoken_template(question, d.get("rows"), escape, pick_two=d.get("control") == "pick_two")
                 said, line = said_line(item.get("spoken"), composed)
+                plan_said = _spoken((item.get("plan") or {}).get("spoken"))
+                if plan and plan_said:
+                    # spec 118 FR-4c(a) (keel-cloud 185 T015): the plan's own spoken form, its escape and second step
+                    said = f"{said} Then the plan: {plan_said}"
+                    line = f"{line} Then the plan, said aloud: {plan_said}"
                 body.append(line)
                 add(f"item-{dim}", "item", dim,
                     bool(d.get("rows") or d.get("chips") or d.get("value_box_label") or plan),
@@ -648,8 +702,9 @@ def spoken_guidelines(bundle: dict, cloud: Path | None = None) -> dict:
             raise Refused(f"make read-screens refuses: no {GUIDELINES_REL} in {cloud} (R6, spec 081)")
         text = path.read_text(encoding="utf-8")
         source = f"the keel-cloud checkout ({cloud}; the bundle's sha {sha or 'unnamed'} does not carry it)"
-    part = guideline_sections(text)
-    return {"text": part, "source": source, "sections": list(GUIDELINE_SECTIONS),
+    present = [n for n in GUIDELINE_AMENDMENTS if re.search(rf"^## {re.escape(n)}\.[^\n]*$", text, re.M)]
+    part = guideline_sections(text, GUIDELINE_SECTIONS + tuple(present))
+    return {"text": part, "source": source, "sections": list(GUIDELINE_SECTIONS) + present,
             "sha256": hashlib.sha256(part.encode("utf-8")).hexdigest()}
 
 

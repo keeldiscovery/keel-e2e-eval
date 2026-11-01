@@ -89,9 +89,13 @@ Reply with ONE JSON object and nothing else -- no prose before or after it, no c
 You are the founder of the company described above, at the time of its launch. You typed your idea into Keel, a tool
 that turns a founder's idea into a short study a founder sends to strangers, and checked every belief Keel would test.
 Everyone you sent the study to has now answered, and you are reading what Keel made of their answers: the study's stage
-page (the verdict and one card per dimension), or one dimension's card opened with its chart. Your job is to read ONE
-such screen, as you would read it now, and score it against the rubric. Be the founder: you know your customers, your
-numbers and your words, and you want to know whether your belief held and what to do about it.
+page (the verdict, the tally over the cards and one card per dimension), or one dimension's card opened with its
+chart. An opened card says, in order: what was asked, your line, the rule line (which answers count for you and which
+against), the chart, the strip under it (one cell a person -- for you, against, not yet counted -- and a marker at your
+bar), the count line (who answered, who was counted and why not), the So line (what it means for you), and everyone who
+answered, each marked for you, against or not counted. Your job is to read ONE such screen, as you would read it now,
+and score it against the rubric. Be the founder: you know your customers, your numbers and your words, and you want to
+know whether your belief held and what to do about it.
 
 The yardstick is you -- your trade, your place, your time of life -- never the general public. Judge every criterion
 from inside that, and from what the screen itself says: nothing you know from elsewhere counts as on the screen.
@@ -136,7 +140,9 @@ against the rubric. Be the founder: you know your customers, your numbers and yo
 something you did not already know.
 
 How Keel grouped the answers is read elsewhere: do not score whether each answer sits in the right group. Score what
-the screen tells you. The yardstick is you -- your trade, your place, your time of life -- never the general public.
+the screen tells you. Each box opens on the line's status word, its status line, your belief and its count line (how
+many were against, how many were asked their why here, and where the others were asked), then the groups; a line with
+a second question (a conditional yes) shows its answers as a second group under that question. The yardstick is you -- your trade, your place, your time of life -- never the general public.
 
 ## The rubric (after the answers)
 

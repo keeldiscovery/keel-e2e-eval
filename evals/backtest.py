@@ -639,6 +639,7 @@ STAGE_JS = """() => {
   return {page: {kicker: within(".corridor__kicker"), title: within(".ccard__title"),
                  headline: t(either("stage-verdict", ".answers p.answers__headline")),
                  statement: within(".ccard__sub"), foot: within(".rfoot"), decider: within("p.decider-banner"),
+                 tally: t(document.querySelector("[data-testid=stage-tally]")) || null,
                  measures: within(".calib__belief .corridor__intro"), rows: rows,
                  stage: root ? root.getAttribute("data-stage") : null,
                  by_ids: !!document.querySelector("[data-testid=stage-page]")},
@@ -660,15 +661,49 @@ CARD_JS = """(key) => {
   const chart = drawing && drawing.querySelector(".achart");
   const kind = chart ? (chart.getAttribute("data-chart") || "chart")
       : drawing && drawing.querySelector("ul.dimbars") ? "bars" : (drawing && drawing.children.length ? "strip" : null);
+  // spec 118 FR-4 (keel-web 155 T005): the bar strip under the chart -- its mode, counted and bar, the label, the
+  // marker's place, the cells by side and kind, the people axis (Prevalence)
+  const strip = (el) => {
+    const cells = Array.from(el.querySelectorAll(".barstrip__cell"));
+    const by = (attr) => cells.reduce((acc, c) => { const k = c.getAttribute(attr) || "?"; acc[k] = (acc[k] || 0) + 1;
+                                                      return acc; }, {});
+    return {mode: el.getAttribute("data-mode"), counted: el.getAttribute("data-counted"), bar: el.getAttribute("data-bar"),
+            label: t(el.querySelector("[data-testid=bar-strip-label]")) || null,
+            marker: t(el.querySelector("[data-testid=bar-strip-marker]")) || null,
+            axis: t(el.querySelector("[data-testid=bar-strip-axis]")) || null,
+            sides: by("data-side"), kinds: by("data-kind"), cells: cells.length};
+  };
   return {chart: {title: one(".dimrow__name"), belief: one(".dimrow__belief"), verdict: t(verdict),
                   insight: t(verdict && verdict.querySelector(".status__insight")),
                   count: t(either("dimension-count", "span.status .sub")),
                   asked: one(".dimrow__asked"), bar: one(".dimrow__said"), chart: kind,
                   caption: one(".achart__caption"), legend: one(".achart__legend"), line: one(".achart__linelabel"),
                   drawing: t(drawing),
+                  rule: one("[data-testid=dimension-rule]") || null,
+                  count_line: one("[data-testid=dimension-count-line]") || null,
+                  so: one("[data-testid=dimension-so]") || null,
+                  asked_line: one("[data-testid=dimension-asked]") || null,
+                  strips: Array.from(row.querySelectorAll("[data-testid=bar-strip]")).map(strip),
+                  parts: Array.from(row.querySelectorAll("[data-testid=price-part]")).map((part) => ({
+                      step: part.getAttribute("data-step"), head: t(part.querySelector(".achart__parthead")),
+                      strip: part.querySelector("[data-testid=bar-strip]")
+                          ? strip(part.querySelector("[data-testid=bar-strip]")) : null})),
+                  bars: Array.from(row.querySelectorAll("li.dimbar")).map((li) => ({
+                      label: t(li.querySelector("span")), side: li.getAttribute("data-side"),
+                      side_word: t(li.querySelector(".dimbar__side")) || null,
+                      founder_band: li.hasAttribute("data-founder-band")})),
+                  marks: Object.fromEntries(["founder-range", "most-often", "chart-caption", "problem-you-named",
+                      "current-solution-line", "benefit-limit", "strip-unit", "strip-median", "ability-values"]
+                      .map((id) => [id, one(`[data-testid=${id}]`) || null])),
                   people: Array.from(row.querySelectorAll("ul.dimpeople li")).map((li) => ({
-                      name: t(li.querySelector("span")), read: t(li.querySelector(".dimpeople__read"))}))},
+                      name: t(li.querySelector("span")), read: t(li.querySelector(".dimpeople__read")),
+                      side: li.getAttribute("data-side")
+                          || (li.querySelector("[data-testid=dimension-person]") || {getAttribute: () => null})
+                              .getAttribute("data-side"),
+                      why: t(li.querySelector("[data-testid=dimension-person-why]")) || null,
+                      band: t(li.querySelector("[data-testid=dimension-person-band]")) || null}))},
           open: !!row.querySelector(".dimrow__body"), by_ids: row.getAttribute("data-testid") === "stage-dimension",
+          strip_drawn: !!row.querySelector("[data-testid=bar-strip]"),
           text: t(row).slice(0, 6000)};
 }"""
 
@@ -686,7 +721,13 @@ INSIGHTS_JS = """() => {
           label: t(li.querySelector(".rp-themes__label")),
           count: t(li.querySelector(".rp-themes__n")).replace(/[()]/g, "")})),
       quotes: box.querySelectorAll(".rp-quote").length,
-      folds: box.querySelectorAll("[data-testid=insights-more]").length}));
+      folds: box.querySelectorAll("[data-testid=insights-more]").length,
+      // spec 118 FR-4 (keel-web 155 T014, T017): the box header as served -- status line, belief, count line, and the
+      // second stem's group (`alsoHeading`)
+      status_line: t(box.querySelector("[data-testid=insights-status-line]")) || null,
+      belief: t(box.querySelector("[data-testid=insights-belief]")) || null,
+      count_line: t(box.querySelector("[data-testid=insights-count-line]")) || null,
+      also: t(box.querySelector("[data-testid=insights-also]")) || null}));
   return {insights: {boxes: boxes, empty: t(view.querySelector(".rp-inone")) || null,
                      not_asked: Array.from(view.querySelectorAll("[data-testid=insights-not-asked] li")).map(t),
                      opens: view.querySelectorAll("[data-testid=insights-open]").length,
@@ -1296,7 +1337,7 @@ def founder_answer(j, slug: str) -> Any:
         # spec 090 FR-4 (keel-web 130 FR-2): the lock names the face it records
         return "Lock and record the face Keel preselects"
     if slug == "send-format":
-        return "Text only"
+        return "Read and tap"                   # spec 118 FR-4c(f) (keel-web 156 FR-2): it read *Text only*
     if slug == "send-who":
         # spec 090 FR-4 (keel-web 130 FR-5, `SEND_WHO.OWN`)
         return "People I know by name: each person by name"
@@ -1470,7 +1511,9 @@ def spoken_guard(j) -> dict:
                     escape=(item.get("escape") or {}).get("label"), anchor=said.get("anchor"),
                     stem=said.get("stem") or "", count_line=said.get("countLine"),
                     options_line=said.get("optionsLine") or "", escape_line=said.get("escapeLine"),
-                    transform=said.get("transform") or "none")
+                    transform=said.get("transform") or "none",
+                    # spec 118 FR-3 (keel-cloud 185 FR-3): Price's second step as served (`Spoken.under` / `over`)
+                    under=said.get("under"), over=said.get("over"))
                 try:
                     faults = spoken_mod.item_faults(composed, registry, entry)
                 except Exception as broke:  # noqa: BLE001 - a reading: one unreadable item never hides the rest
