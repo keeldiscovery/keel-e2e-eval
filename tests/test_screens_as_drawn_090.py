@@ -288,15 +288,17 @@ def test_the_lock_screens_words_are_130s():
 def _l1_journey(tmp_path, countly, core):
     j = cs.Journey(recorder=Recorder(tmp_path), page=None, context=None, web_base="", cloud_base="", entry=countly,
                    founder=None, people=[], project_id="p1", scope=countly.scope)
-    j.get = lambda path: {"segment": {"core": core}} if path.endswith("/context") else {}
+    actor = str((countly.context or {}).get("actor") or "")
+    j.get = lambda path: {"fields": {"actor": actor}, "segment": {"core": core}} if path.endswith("/context") else {}
     j.receipt = {}
     return j
 
 
 def test_the_l1_holds_take_130s_title(tmp_path, countly):
     j = _l1_journey(tmp_path, countly, "Payroll practitioners")
-    # spec 118 FR-4c(f) re-pin (keel-web 156 FR-1): the title names the entry's `actor_plural` at any length
-    title = f"Who should ask {countly.context['actor_plural']} your questions?"
+    # spec 118 FR-4c(f) re-pin (keel-web 156 FR-1, J-6; the matrix's s012 of 2026-11-01): the title names the served
+    # context's `actor` in the plural by the page's own grammar (`people_plural`), not the entry's `actor_plural`
+    title = vs_screens.l1_title(vs_screens.people_plural(countly.context["actor"]))
     assert cs.l1_title_owed(j) == title
     drawn = {"counters": cs.before_counters(j.scope), "ready": {"pilot_title": "Offer a pilot?"},
              "l1": {"title": title, "carousel": False,
