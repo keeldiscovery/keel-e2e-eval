@@ -269,8 +269,9 @@ def test_a_count_line_disagreeing_with_the_served_options_is_still_a_fault():
     assert _rules(dataclasses.replace(three, count_line="I'll read four options.")) == ["S7"]
     assert _rules(dataclasses.replace(three, options_line="Yes, you'd install the app; probably not; no.")) == ["S8"], \
         "a missing 'or' is still a fault"
+    # spec 118 FR-4c(c) re-pin (keel-cloud 185 FR-1): the ability's second yes is *Yes, most of the time*
     ability = _item(options=tuple(spoken_mod.ABILITY_ANSWERS.values()),
-                    options_line="Yes, easily; yes, mostly; only sometimes; or no.")
+                    options_line="Yes, easily; yes, most of the time; only sometimes; or no.")
     assert _faults(ability) == []
     assert _rules(dataclasses.replace(ability, count_line="I'll read five options.")) == ["S7"]
 
@@ -534,7 +535,12 @@ def test_the_ability_four_are_the_registrys_own_words(real):
     assert list(spoken_mod.ABILITY_ANSWERS) == compatibility.fixed_answer_codes
     assert " · ".join(spoken_mod.ABILITY_ANSWERS.values()) in compatibility.respondent["guidance"]
     registry_four = [a["label"] for a in compatibility.fixed_answers]
-    assert list(spoken_mod.FACT_ANSWERS.values()) == registry_four
+    # spec 118 FR-4c(c) re-pin (keel-cloud 185 FR-1): the registry's own four are a permission's (and 174's fact four,
+    # `FACT_ANSWERS_174`); a fact is served three -- *Yes · Yes, with some steps · No* -- as the guidance now says. The
+    # registry's Lullaby block still shows the four for Lullaby's fact (keel-cloud's documentation, owed there)
+    assert list(spoken_mod.FACT_ANSWERS_174.values()) == registry_four
+    assert " · ".join(spoken_mod.FACT_ANSWERS.values()) in compatibility.respondent["guidance"]
+    assert list(spoken_mod.FACT_ANSWERS) == ["yes_easily", "yes_with_steps", "no"]
     assert compatibility.lullaby["respondent_options"][:4] == registry_four
 
 

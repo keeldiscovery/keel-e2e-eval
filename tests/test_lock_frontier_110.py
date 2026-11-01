@@ -188,7 +188,9 @@ def test_a_record_written_after_170_keeps_every_rule(tmp_path):
                "options": [{"optionId": str(n), "label": o} for n, o in enumerate(ci.options)],
                "escape": {"code": "X", "label": ci.escape} if ci.escape else None,
                "spoken": {"anchor": ci.anchor, "stem": ci.stem, "countLine": ci.count_line,
-                          "optionsLine": ci.options_line, "escapeLine": ci.escape_line, "transform": ci.transform}}
+                          "optionsLine": ci.options_line, "escapeLine": ci.escape_line, "transform": ci.transform,
+                          # spec 118 FR-3 (keel-cloud 185 FR-3): Price's second step, as the wire serves it
+                          **({"under": ci.under, "over": ci.over} if ci.under else {})}}
               for ci in items]
     j = SimpleNamespace(entry=corpus.by_id("03-lullaby"), registry=registry,
                         interviews={"Amira Saleh": {"kind": "FULL", "parts": [{"part": 1, "items": served}]}})
@@ -272,14 +274,16 @@ def _asked(team, occasion, cost):
 
 #: keel-cloud 170's `CostQuestionInTheirWordsTest`, case for case: the founder's line gives the verb and the thing (the
 #: first four: Expanse word for word, Palus's *your team ... miss*, Codyco's share of the reservation calls, Lemma),
-#: then the counts, then the neutral verbs where no line (or no verb) was typed.
+#: then the counts, then the neutral verbs where no line (or no verb) was typed. Spec 118 re-pin (keel-cloud 184 FR-8b
+#: (c), `CommercialChain.LOSER`, `CostQuestionInTheirWordsTest` at keel-cloud-docs f3f0d99e): a loss with the measure's
+#: neutral verb is the person's own to miss -- *you*, never *your team* (who still *spend* hours on the daily log).
 FRAMES = [
     (True, "job submission", _rate("%", "the cluster's GPU hours", "cluster", "month",
                                    "GPU hours and memory that jobs reserve and never use"),
      "Last month, about what share of the cluster's GPU hours did jobs reserve and never use?"),
     (True, "cash decision", _rate("%", "the balance", "company", "year",
                                   "Interest on cash that sits in the operating account"),
-     "Last year, about how much interest did your team miss on cash that sat in the operating account?"),
+     "Last year, about how much interest did you miss on cash that sat in the operating account?"),
     (True, "reservation shift", _rate("%", "the reservation calls", "hotel", "month",
                                       "Bookings lost when a call rings out after hours, at peak or on a holiday"),
      "Last month, about what share of the reservation calls were lost?"),
@@ -303,9 +307,9 @@ FRAMES = [
      "Last month, about how many conversations did you miss?"),
     (True, "billing cycle", _rate("%", "the practice's collections", "practice", "month",
                                   "What billing staff or a billing company costs, plus claims rejected and never paid"),
-     "Last month, about what share of the practice's collections did your team miss?"),
+     "Last month, about what share of the practice's collections did you miss?"),
     (True, "shipment", _rate("%", "the shipments", "terminal", "month", None),
-     "Last month, about what share of the shipments did your team miss?"),
+     "Last month, about what share of the shipments did you miss?"),
 ]
 
 
@@ -317,7 +321,7 @@ def test_the_cost_frame_is_keel_cloud_170s(team, occasion, cost, question):
 def test_with_no_loss_line_the_frame_says_the_measures_neutral_verb():
     # a share and a count with no line: *miss*; hours: *spend on*; a line that says *now* keeps its present
     assert _asked(True, "shipment", _rate("%", "the shipments", "terminal", "month", None)).endswith(
-        "did your team miss?")
+        "did you miss?")
     assert _asked(False, "x", _rate("conversations", None, None, "month", None)) == \
         "Last month, about how many conversations did you miss?"
     assert _asked(True, "x", {"mode": "HOURS", "base": None, "unit": "site", "period": "month"}) == \
@@ -445,7 +449,7 @@ def _backtest(entry_id: str):
 
 
 @pytest.mark.parametrize("entry_id, question, label", [
-    ("10-palus", "Last year, about how much interest did your team miss on cash that sat in the operating account?",
+    ("10-palus", "Last year, about how much interest did you miss on cash that sat in the operating account?",
      "% of the balance last year"),
     ("17-expanse", "Last month, about what share of the cluster's GPU hours did jobs reserve and never use?",
      "% of GPU hours last month"),

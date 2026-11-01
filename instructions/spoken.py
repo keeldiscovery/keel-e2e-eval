@@ -139,14 +139,23 @@ CANT_RECALL_ESCAPE = "I can't recall"
 
 #: keel-cloud 123 FR-8 (`ItemFrames.ABILITY_LABELS`, the registry's Compatibility guidance): the four answers to a
 #: condition of ability, on the registry's own four codes; a condition of permission keeps the registry's labels.
-ABILITY_ANSWERS = {"yes_easily": "Yes, easily", "yes_with_steps": "Yes, mostly", "only_with_help": "Only sometimes",
-                   "no": "No"}
+#: Spec 118 FR-4c(c) (keel-cloud 185 FR-1, `ItemFrames.ABILITY_LABELS`): the ability's second yes reads *Yes, most of
+#: the time* (it read *Yes, mostly* until 185 -- `ABILITY_ANSWERS_123`, on an item stored before it).
+ABILITY_ANSWERS = {"yes_easily": "Yes, easily", "yes_with_steps": "Yes, most of the time",
+                   "only_with_help": "Only sometimes", "no": "No"}
+ABILITY_ANSWERS_123 = {"yes_easily": "Yes, easily", "yes_with_steps": "Yes, mostly", "only_with_help": "Only sometimes",
+                       "no": "No"}
 
 
 #: keel-cloud 174 FR-3 (`ItemFrames.compatibilityLabel`, spec 115 FR-1): a Compatibility condition read as a fact is
 #: answered on the registry's own four, as a permission is -- never *Mostly* or *Partly*.
-FACT_ANSWERS = {"yes_easily": "Yes, easily", "yes_with_steps": "Yes, with some steps",
-                "only_with_help": "Only with help or approval", "no": "No"}
+FACT_ANSWERS_174 = {"yes_easily": "Yes, easily", "yes_with_steps": "Yes, with some steps",
+                    "only_with_help": "Only with help or approval", "no": "No"}
+#: Spec 118 FR-4c(c) (keel-cloud 185 FR-1, `ItemFrames.FACT_THREE`): a fact is answered on three -- *Yes · Yes, with some
+#: steps · No* -- `only_with_help` never served on a fact (`NOT_ON_A_FACT`); spoken *I'll read three options. Yes; yes,
+#: with some steps; or no.* 174's four (`FACT_ANSWERS_174`) read only on an item stored before 185.
+FACT_ANSWERS = {"yes_easily": "Yes", "yes_with_steps": "Yes, with some steps", "no": "No"}
+FACT_CODES = tuple(FACT_ANSWERS)
 #: keel-cloud 128 FR-13b (`ItemFrames.FACT_LABELS`, spec 067): the four a fact was answered on from 128 to 173, on the
 #: same codes -- retired by 174 FR-3 and read only on an item a lock stored before 174 (its labels are stored), as
 #: `FollowUpComposer`'s *Partly* reads it.
@@ -257,7 +266,10 @@ def served_labels(registry, key: str, entry=None) -> list:
     if key == COMPATIBILITY_KEY:
         fixed = list(labels)
         labels += [ABILITY_ANSWERS.get(code, label) for code, label in zip(dimension.fixed_answer_codes, fixed)]
-        labels += [FACT_ANSWERS.get(code, label) for code, label in zip(dimension.fixed_answer_codes, fixed)]
+        labels += [FACT_ANSWERS.get(code, label) for code, label in zip(dimension.fixed_answer_codes, fixed)
+                   if code in FACT_ANSWERS]
+        # keel-cloud 185: an item stored before it keeps the ability's *Yes, mostly* (174's fact four is the registry's)
+        labels += [ABILITY_ANSWERS_123.get(code, label) for code, label in zip(dimension.fixed_answer_codes, fixed)]
         # keel-cloud 174 FR-3: an item a lock stored before 174 keeps 128's fact four (its labels are stored)
         labels += [FACT_ANSWERS_128.get(code, label) for code, label in zip(dimension.fixed_answer_codes, fixed)]
     if key == PURCHASE_FRICTION_KEY:
@@ -445,6 +457,8 @@ def item_faults(item, registry, entry=None) -> list:
     # S9: the transform.
     if item.transform != transform:
         faults.append(f"S9: the transform is {item.transform!r}; §4 names {transform!r} for {key}")
+    # S11 (spec 118 FR-3, keel-cloud 185): Price's second step, both lines, as the voice says them.
+    faults += second_step_faults(item)
     # S10: Commitment's step said once to the stranger.
     if key == COMMITMENT_KEY:
         # keel-cloud 130 FR-10: an introduced step past 20 words opens its question *Would you* (spec 069 FR-1)
@@ -457,11 +471,49 @@ def item_faults(item, registry, entry=None) -> list:
 
 
 def _first_step(options: list) -> list:
-    """§4, Price's first step: under the middle band, the middle band, over it, or the last."""
+    """§4, Price's first step: under the middle band, the middle band, its top *or more* (spec 118 FR-3, keel-cloud 185
+    FR-3: one home per edge -- the middle band reads *X to under Y*, step one *Y or more*), or the last. A ladder recorded
+    before 185 (*X to Y*) keeps *Over Y*."""
     if len(options) != 6 or " to " not in options[2]:
         return options
+    if " to under " in options[2]:
+        low, high = options[2].split(" to under ", 1)
+        return [f"Under {low}", options[2], f"{high} or more", options[5]]
     low, high = options[2].split(" to ", 1)
     return [f"Under {low}", options[2], f"Over {high}", options[5]]
+
+
+def second_step(options: list) -> tuple[str, str] | None:
+    """Spec 118 FR-3 (keel-cloud 185 FR-3, `SpokenForm.secondStep`): Price's second step on a money ladder -- the two
+    bands on that side as one short question, no second escape: *Under $500, or $500 to under $800?*, *$2,500 to under
+    $5,000, or $5,000 or more?*. None off the six. (A share's bands are said in words, *a quarter of a percent*, so a
+    percent ladder is held to the shape alone, `second_step_faults`.)"""
+    if len(options) != 6:
+        return None
+    return f"{options[0]}, or {options[1]}?", f"{options[3]}, or {options[4]}?"
+
+
+def second_step_faults(item) -> list:
+    """`S11` (spec 118 FR-3, keel-cloud 185 §17): on a Price item in two steps, the record carries both second-step
+    lines (`under`, `over`), each one question of at most 20 words with one *, or* and no escape; on a money ladder each
+    is the two bands said whole (`second_step`)."""
+    if item.key != PRICE_KEY or item.transform != "two_steps":
+        return []
+    if not (item.under or item.over) and not (len(item.options) == 6 and " to under " in str(item.options[2])):
+        return []                                      # a ladder recorded before 185 (*X to Y*) has no second step
+    faults = []
+    want = second_step(list(item.options))
+    for side, line in (("under", item.under), ("over", item.over)):
+        if not line:
+            faults.append(f"S11: no {side} line -- Price's second step says the side's two bands (keel-cloud 185)")
+            continue
+        if words(line) > STEM_MAX_WORDS or not line.endswith("?") or line.count(", or ") != 1 or "Or say" in line:
+            faults.append(f"S11: the {side} line {line!r} is not one short question of two bands with no escape")
+        elif want and not any("%" in o for o in item.options) and \
+                line != (want[0] if side == "under" else want[1]):
+            faults.append(f"S11: the {side} line is {line!r}; the side's two bands said whole are "
+                          f"{want[0] if side == 'under' else want[1]!r}")
+    return faults
 
 
 #: keel-cloud `ItemFrames.toUse`'s question after the step (spec 112 FR-1; keel-cloud 171 FR-4b).
@@ -629,6 +681,15 @@ def condition_fact(condition) -> bool:
     if head is not None and head in MODALS:
         return False
     return not _MODAL_ANYWHERE.search(" " + _clause(str(condition)).lower() + " ")
+
+
+def condition_kind(asked, label) -> str:
+    """Spec 118 FR-4c(c) (keel-cloud 185 FR-1, `ItemFrames.conditionKind(asked, label)`): a Compatibility condition is a
+    PERMISSION where either face says one (whatever else it says), else a FACT (`is_fact`), else an ABILITY -- which
+    scale it is served: the registry's four, the fact's three (`FACT_ANSWERS`), the ability's four (`ABILITY_ANSWERS`)."""
+    if permission(f"{asked or ''} {label or ''}"):
+        return "PERMISSION"
+    return "FACT" if is_fact(asked, label) else "ABILITY"
 
 
 def is_fact(asked, label) -> bool:

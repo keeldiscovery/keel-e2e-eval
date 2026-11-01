@@ -68,6 +68,10 @@ class ComposedItem:
     options_line: str
     escape_line: str | None
     transform: str
+    #: Spec 118 FR-3 (keel-cloud 185 FR-3, `Spoken.under` / `over`): Price's second step, the side's two bands as one
+    #: short question (*Under $500, or $500 to under $800?*); None on every other item and on a record before 185.
+    under: str | None = None
+    over: str | None = None
 
 
 @dataclass
@@ -139,7 +143,7 @@ def parse_spoken(text: str, known_labels=None) -> dict:
                 options=current.get("options", ()), escape=current.get("escape"), anchor=fields.get("anchor"),
                 stem=fields.get("stem") or "", count_line=fields.get("count"),
                 options_line=fields.get("options") or "", escape_line=fields.get("escape"),
-                transform=fields.get("transform") or ""))
+                transform=fields.get("transform") or "", under=fields.get("under"), over=fields.get("over")))
     return out
 
 
