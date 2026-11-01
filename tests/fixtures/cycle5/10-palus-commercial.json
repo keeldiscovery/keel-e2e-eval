@@ -1,0 +1,277 @@
+{
+ "_what": "spec 119 FR-4 / FR-5 / FR-1: cycle 5's 10-palus COMMERCIAL bundle (runs/20261101T051335Z-backtest-10-palus, keel-cloud e65afec + keel-web 2a202d8): Sofia Marchetti's served idea and three money items as the interview wire served them -- the labels, questions, escapes and drawn screens as recorded; the spoken blocks as the bundle's spoken_guard faults quote them (price and purchase friction's options lines, the count line, the escape line) and keel-cloud's TheQuestionScreensSayItOnceTest / CycleFiveDefectsCorpusTest pin them (the second steps); the askedAfter answers' option ids are the fixture's own",
+ "person": "Sofia Marchetti",
+ "interview": {
+  "kind": "COMMERCIAL_LINK",
+  "occasion": "time",
+  "idea": {
+   "what": "Imagine Palus, a managed reserve portfolio.",
+   "how": "A treasury account links to your existing bank through Plaid. It holds your long-term reserve in a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds. Assets sit in your company's name at a regulated custodian. Cash is back in checking in one to two business days.",
+   "belief": "The people building it believe it would reach its target of 4.5 to 5 percent on your long-term reserve.",
+   "kicker": "The buying decision · An idea to consider"
+  },
+  "gate": null,
+  "reveal": null,
+  "parts": [
+   {
+    "part": 3,
+    "kicker": null,
+    "items": [
+     {
+      "itemId": "price",
+      "dimension": "commercial.price",
+      "question": "Palus takes a small fee on the balance. What fee a year would feel fair to you?",
+      "control": "price_ladder",
+      "hint": null,
+      "kicker": "The buying decision · 2 of 6",
+      "options": [
+       {
+        "optionId": "price-0",
+        "label": "Under 0.1%"
+       },
+       {
+        "optionId": "price-1",
+        "label": "0.1% to under 0.25%"
+       },
+       {
+        "optionId": "price-2",
+        "label": "0.25% to under 0.5%"
+       },
+       {
+        "optionId": "price-3",
+        "label": "0.5% to under 1%"
+       },
+       {
+        "optionId": "price-4",
+        "label": "1% or more"
+       },
+       {
+        "optionId": "price-5",
+        "label": "I wouldn't pay for this"
+       }
+      ],
+      "escape": {
+       "code": null,
+       "label": "I can't say"
+      },
+      "spoken": {
+       "stem": "Palus takes a small fee on the balance. What fee a year would feel fair to you?",
+       "countLine": "I'll read four options.",
+       "optionsLine": "Under a quarter of a percent; a quarter to under half a percent; half a percent or more; or you wouldn't pay for this.",
+       "escapeLine": "Or say you can't say.",
+       "transform": "two_steps",
+       "under": "Under a tenth of a percent, or a tenth to under a quarter of a percent?",
+       "over": "Half to under one percent, or one percent or more?"
+      }
+     },
+     {
+      "itemId": "ab",
+      "dimension": "commercial.ability_to_pay",
+      "question": "Think of the price you just gave. If you went ahead at that, where would the money come from?",
+      "control": "single_choice",
+      "hint": null,
+      "kicker": "The buying decision · 3 of 6",
+      "options": [
+       {
+        "optionId": "ab-0",
+        "label": "A budget line we already had"
+       },
+       {
+        "optionId": "ab-1",
+        "label": "A new budget line someone signed off"
+       },
+       {
+        "optionId": "ab-2",
+        "label": "Taken from other spending"
+       },
+       {
+        "optionId": "ab-3",
+        "label": "There was no budget for it"
+       }
+      ],
+      "escape": {
+       "code": "cant_say",
+       "label": "I can't say"
+      },
+      "spoken": {
+       "anchor": "Think of the price you just gave.",
+       "stem": "If you went ahead at that, where would the money come from?",
+       "countLine": "I'll read four options.",
+       "optionsLine": "A budget line you already had; a new budget line someone signed off; taken from other spending; or there was no budget for it.",
+       "escapeLine": "Or say you can't say.",
+       "transform": "none"
+      },
+      "askedAfter": {
+       "itemId": "price",
+       "answers": [
+        {
+         "optionIds": [
+          "price-3"
+         ],
+         "question": "You said about 0.5% to under 1% a year. If you went ahead at that, where would the money come from?"
+        },
+        {
+         "optionIds": [
+          "price-4"
+         ],
+         "question": "You said about 1% or more a year. If you went ahead at that, where would the money come from?"
+        }
+       ]
+      }
+     },
+     {
+      "itemId": "pf",
+      "dimension": "commercial.purchase_friction",
+      "question": "If you bought Palus, how long would diligence on a new provider take before it went through?",
+      "control": "duration_bands",
+      "hint": null,
+      "kicker": "The buying decision · 5 of 6",
+      "options": [
+       {
+        "optionId": "pf-0",
+        "label": "Under 2 weeks"
+       },
+       {
+        "optionId": "pf-1",
+        "label": "2 to under 4 weeks"
+       },
+       {
+        "optionId": "pf-2",
+        "label": "4 weeks to 3 months"
+       },
+       {
+        "optionId": "pf-3",
+        "label": "3 to 6 months"
+       },
+       {
+        "optionId": "pf-4",
+        "label": "Over 6 months"
+       },
+       {
+        "optionId": "pf-5",
+        "label": "It wouldn't be needed"
+       }
+      ],
+      "escape": {
+       "code": "cant_tell",
+       "label": "I can't tell"
+      },
+      "spoken": {
+       "stem": "If you bought Palus, how long would diligence on a new provider take before it went through?",
+       "countLine": "I'll read four options.",
+       "optionsLine": "Under 4 weeks; 4 weeks to 3 months; over 3 months; or it wouldn't be needed.",
+       "escapeLine": "Or say you can't tell.",
+       "transform": "two_steps",
+       "under": "Under 2 weeks, or 2 to under 4 weeks?",
+       "over": "3 to 6 months, or over 6 months?"
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "drawn": [
+  {
+   "screen": "idea",
+   "kicker": "The buying decision · An idea to consider",
+   "card": "Imagine Palus, a managed reserve portfolio.\n\nA treasury account links to your existing bank through Plaid. It holds your long-term reserve in a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds. Assets sit in your company's name at a regulated custodian. Cash is back in checking in one to two business days.\n\nThe people building it believe it would reach its target of 4.5 to 5 percent on your long-term reserve.",
+   "question": "",
+   "problem": null
+  },
+  {
+   "screen": "item",
+   "dimension": "commercial.price",
+   "control": "price_ladder",
+   "kicker": "The buying decision · 2 of 6",
+   "question": "Palus takes a small fee on the balance. What fee a year would feel fair to you?",
+   "stem": null,
+   "asked": "Palus takes a small fee on the balance. What fee a year would feel fair to you?",
+   "idea_card": "Imagine Palus, a managed reserve portfolio.",
+   "hint": "",
+   "picked_line": "",
+   "rows": [
+    "Under 0.1%",
+    "0.1% to under 0.25%",
+    "0.25% to under 0.5%",
+    "0.5% to under 1%",
+    "1% or more",
+    "I wouldn't pay for this"
+   ],
+   "chips": [
+    "I can't say"
+   ],
+   "order": [
+    "iv-kicker",
+    "iv-ideacard",
+    "iv-q",
+    "iv-control",
+    "taps iv-chips",
+    "iv-actions"
+   ]
+  },
+  {
+   "screen": "item",
+   "dimension": "commercial.purchase_friction",
+   "control": "duration_bands",
+   "kicker": "The buying decision · 5 of 6",
+   "question": "If you bought Palus, how long would diligence on a new provider take before it went through?",
+   "stem": null,
+   "asked": "If you bought Palus, how long would diligence on a new provider take before it went through?",
+   "idea_card": "",
+   "hint": "Pick one.",
+   "picked_line": "",
+   "rows": [
+    "Under 2 weeks",
+    "2 to under 4 weeks",
+    "4 weeks to 3 months",
+    "3 to 6 months",
+    "Over 6 months",
+    "It wouldn't be needed"
+   ],
+   "chips": [
+    "I can't tell"
+   ],
+   "order": [
+    "iv-kicker",
+    "iv-q",
+    "iv-note iv-tick",
+    "iv-control",
+    "taps iv-chips",
+    "iv-actions"
+   ]
+  }
+ ],
+ "recorded_guard_red": [
+  {
+   "dimension": "commercial.price",
+   "stem": "Palus takes a small fee on the balance. What fee a year would feel fair to you?",
+   "faults": [
+    "S8: the options line is \"Under a quarter of a percent; a quarter to under half a percent; half a percent or more; or you wouldn't pay for this.\"; §3 says the 4 options in order, '...; or z.'"
+   ]
+  },
+  {
+   "dimension": "commercial.ability_to_pay",
+   "stem": "If you went ahead at that, where would the money come from?",
+   "faults": [
+    "S6: the escape is \"I can't say\"; the registry's is \"I can't recall one\"",
+    "S6: the escape line is \"Or say you can't say.\"; §3 says 'Or say {escape}.' last, the escape served \"I can't recall one\""
+   ]
+  },
+  {
+   "dimension": "commercial.purchase_friction",
+   "stem": "If you bought Palus, how long would diligence on a new provider take before it went through?",
+   "faults": [
+    "S3: 6 options; at most 5",
+    "S7: the count line is \"I'll read four options.\"; §3 says 'I'll read six options.' (no '; pick two' since keel-cloud 158)",
+    "S8: the options line is \"Under 4 weeks; 4 weeks to 3 months; over 3 months; or it wouldn't be needed.\"; §3 says the 6 options in order, '...; or z.'",
+    "S9: the transform is 'two_steps'; §4 names 'none' for commercial.purchase_friction"
+   ]
+  }
+ ],
+ "founder_idea_read": {
+  "name": "Palus",
+  "whatItIs": "a managed reserve portfolio",
+  "line": "Imagine Palus, a managed reserve portfolio.",
+  "shortName": "Palus"
+ }
+}

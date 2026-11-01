@@ -1,0 +1,37 @@
+{
+ "_what": "spec 119 FR-1: cycle 5's 13-aircaps COMMERCIAL bundle (runs/20261101T053028Z-backtest-13-aircaps): Harriet Coleman's served reveal and the drawn reveal screen",
+ "link": "PRIMARY",
+ "person": "Harriet Coleman",
+ "served_reveal": {
+  "afterPart": 0,
+  "what": "Imagine AirCaps, live captions inside the lens.",
+  "how": "You wear lightweight glasses with the app on them. The app shows live captions of what the people nearby are saying. The captions appear inside the lens.",
+  "belief": "The people building it believe it would let you read the words while keeping eye contact.",
+  "formats": [
+   {
+    "format": "READ",
+    "available": true,
+    "label": "Read it"
+   }
+  ],
+  "bridge": "The next questions are on the money side.",
+  "kicker": "Part 1 of 1 · An idea to consider",
+  "problem": "Deaf and hard-of-hearing adults lose the conversation when they sit around a table with hearing people, at a restaurant."
+ },
+ "served_idea": null,
+ "drawn": [
+  {
+   "screen": "reveal",
+   "kicker": "Part 1 of 1 · An idea to consider",
+   "card": "Imagine AirCaps, live captions inside the lens.\n\nYou wear lightweight glasses with the app on them. The app shows live captions of what the people nearby are saying. The captions appear inside the lens.\n\nThe people building it believe it would let you read the words while keeping eye contact.",
+   "question": "",
+   "problem": "Deaf and hard-of-hearing adults lose the conversation when they sit around a table with hearing people, at a restaurant."
+  }
+ ],
+ "founder_idea_read": {
+  "name": "AirCaps",
+  "whatItIs": "live captions inside the lens",
+  "line": "Imagine AirCaps, live captions inside the lens.",
+  "shortName": "AirCaps"
+ }
+}

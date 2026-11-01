@@ -1,0 +1,132 @@
+{
+ "_what": "spec 119 FR-2: cycle 5's 17-expanse COMMERCIAL bundle (runs/20261101T055117Z-backtest-17-expanse): Gregory Lindqvist's Price and Ability to pay as served and drawn, and the failed step's screen-vs-wire record; the askedAfter entries' option ids are the fixture's own, the written question the one the page drew",
+ "person": "Gregory Lindqvist",
+ "served_items": [
+  {
+   "dimension": "commercial.price",
+   "question": "What would Expanse be worth to you a month, per cluster?",
+   "control": "price_ladder",
+   "hint": null,
+   "options": [
+    "Under $5,000",
+    "$5,000 to under $10,000",
+    "$10,000 to under $25,000",
+    "$25,000 to under $50,000",
+    "$50,000 or more",
+    "I wouldn't pay for this"
+   ],
+   "escape": "I can't say",
+   "kicker": "The buying decision · 2 of 6"
+  },
+  {
+   "dimension": "commercial.ability_to_pay",
+   "question": "Think of the price you just gave. If you went ahead at that, where would the money come from?",
+   "control": "single_choice",
+   "hint": null,
+   "options": [
+    "A budget line we already had",
+    "A new budget line someone signed off",
+    "Taken from other spending",
+    "There was no budget for it"
+   ],
+   "escape": "I can't say",
+   "kicker": "The buying decision · 3 of 6"
+  }
+ ],
+ "drawn": [
+  {
+   "screen": "item",
+   "dimension": "commercial.price",
+   "control": "price_ladder",
+   "kicker": "The buying decision · 2 of 6",
+   "question": "What would Expanse be worth to you a month, per cluster?",
+   "stem": null,
+   "asked": "What would Expanse be worth to you a month, per cluster?",
+   "idea_card": "Imagine Expanse, a predicted resource request.",
+   "hint": "",
+   "picked_line": "",
+   "rows": [
+    "Under $5,000",
+    "$5,000 to under $10,000",
+    "$10,000 to under $25,000",
+    "$25,000 to under $50,000",
+    "$50,000 or more",
+    "I wouldn't pay for this"
+   ],
+   "chips": [
+    "I can't say"
+   ],
+   "order": [
+    "iv-kicker",
+    "iv-ideacard",
+    "iv-q",
+    "iv-control",
+    "taps iv-chips",
+    "iv-actions"
+   ]
+  },
+  {
+   "screen": "item",
+   "dimension": "commercial.ability_to_pay",
+   "control": "single_choice",
+   "kicker": "The buying decision · 3 of 6",
+   "question": "You said about $10,000 to $25,000 a month. If you went ahead at that, where would the money come from?",
+   "stem": null,
+   "asked": "You said about $10,000 to $25,000 a month. If you went ahead at that, where would the money come from?",
+   "idea_card": "",
+   "hint": "Pick one.",
+   "picked_line": "",
+   "rows": [
+    "A budget line we already had",
+    "A new budget line someone signed off",
+    "Taken from other spending",
+    "There was no budget for it"
+   ],
+   "chips": [
+    "I can't say"
+   ],
+   "order": [
+    "iv-kicker",
+    "iv-q",
+    "iv-note iv-tick",
+    "iv-control",
+    "taps iv-chips",
+    "iv-actions"
+   ]
+  }
+ ],
+ "failed_step": {
+  "name": "Gregory Lindqvist: every screen draws what the wire served -- the kicker, the stem, the options, one escape last",
+  "response": [
+   {
+    "dimension": "commercial.ability_to_pay",
+    "screen": {
+     "kicker": "The buying decision · 3 of 6",
+     "chips": [
+      "I can't say"
+     ],
+     "rows": [
+      "A budget line we already had",
+      "A new budget line someone signed off",
+      "Taken from other spending",
+      "There was no budget for it"
+     ],
+     "question": "You said about $10,000 to $25,000 a month. If you went ahead at that, where would the money come from?"
+    },
+    "wire": {
+     "kicker": "The buying decision · 3 of 6",
+     "chips": [
+      "I can't say"
+     ],
+     "rows": [
+      "A budget line we already had",
+      "A new budget line someone signed off",
+      "Taken from other spending",
+      "There was no budget for it"
+     ],
+     "question": "Think of the price you just gave. If you went ahead at that, where would the money come from?"
+    }
+   }
+  ]
+ }
+}

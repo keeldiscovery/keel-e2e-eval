@@ -1,0 +1,117 @@
+{
+ "_what": "spec 119 FR-8: cycle 5's 10-palus SOLUTION bundle (runs/20261101T050851Z-backtest-10-palus): founder screens 9 to 13 as recorded -- 10 and 11 the idea step's waiting state captured as failed-solution-calibration (scored R1 = 0, R2 = 0 in cycle 5), 12 the idea step itself; the total recorded",
+ "founder_screens_total": 20,
+ "founder_screens": [
+  {
+   "n": 9,
+   "screen": "solution-card",
+   "file": "screens/founder-09-solution-card.png",
+   "kicker": "STEP 3 OF 4 · YOUR SOLUTION",
+   "question": "",
+   "hint": "",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "answer": "Looks right",
+   "keel read back": {
+    "what": "Palus",
+    "how": "You link a treasury account to your existing bank through Plaid. It holds your long-term reserve in a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds. Assets sit in your company's name at a regulated custodian. Cash reaches checking in one to two business days.",
+    "belief": "The people building it believe it would reach its target of 4.5 to 5 percent.",
+    "shortName": "Palus",
+    "approved": true
+   }
+  },
+  {
+   "n": 10,
+   "screen": "failed-solution-calibration",
+   "file": "screens/founder-10-failed-solution-calibration.png",
+   "kicker": "STEP 3 OF 4 · YOUR SOLUTION · CHECK WHAT KEEL WROTE",
+   "question": "",
+   "hint": "Strangers may not know the name, so say what it is in a few plain words.",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "answer": null,
+   "keel read back": null
+  },
+  {
+   "n": 11,
+   "screen": "failed-solution-calibration",
+   "file": "screens/founder-11-failed-solution-calibration.png",
+   "kicker": "STEP 3 OF 4 · YOUR SOLUTION · CHECK WHAT KEEL WROTE",
+   "question": "",
+   "hint": "Strangers may not know the name, so say what it is in a few plain words.",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "answer": null,
+   "keel read back": null
+  },
+  {
+   "n": 12,
+   "screen": "idea",
+   "file": "screens/founder-12-idea.png",
+   "kicker": "STEP 3 OF 4 · YOUR SOLUTION · CHECK WHAT KEEL WROTE",
+   "question": "",
+   "hint": "Strangers may not know the name, so say what it is in a few plain words.",
+   "options": [],
+   "rows": [],
+   "chips": [],
+   "answer": {
+    "what (typed)": "Palus",
+    "how / belief": "saved as Keel drafted them"
+   },
+   "keel read back": {
+    "what": "Palus",
+    "how": "You link a treasury account to your existing bank through Plaid. It holds your long-term reserve in a managed portfolio of short-duration, floating-rate, government-backed mortgage bonds. Assets sit in your company's name at a regulated custodian. Cash reaches checking in one to two business days.",
+    "belief": "The people building it believe it would reach its target of 4.5 to 5 percent.",
+    "shortName": "Palus",
+    "approved": true
+   }
+  },
+  {
+   "n": 13,
+   "screen": "answer-solution.compatibility",
+   "file": "screens/founder-13-answer-solution.compatibility.png",
+   "kicker": "STEP 3 OF 4 · YOUR SOLUTION · TELL US ABOUT YOUR IDEA",
+   "question": "How does it fit into the way they work today?",
+   "hint": "What must already be true at finance leads at venture-backed startups in the US within two years of a raise, banking with Mercury, Brex or similar for this to work? Tools they use, time they can wait, rules they work under. Two to four things. Up to 25 words.",
+   "options": [],
+   "rows": [],
+   "chips": [
+    "Leave this out of the study"
+   ],
+   "answer": "Their bank could link through Plaid; They could wait two days for their cash; Their policy allowed bonds beyond Treasuries",
+   "keel read back": {
+    "belief": "For most finance leads, they could wait two days for their cash.",
+    "frame": "Solution · 2 of 4"
+   }
+  }
+ ],
+ "calibration_jobs": [
+  [
+   "SOLUTION",
+   "APPLIED"
+  ],
+  [
+   "SOLUTION",
+   "APPLIED"
+  ],
+  [
+   "SOLUTION",
+   "APPLIED"
+  ],
+  [
+   "SOLUTION",
+   "APPLIED"
+  ],
+  [
+   "SOLUTION",
+   "RESULT_INVALID"
+  ],
+  [
+   "SOLUTION",
+   "RESULT_INVALID"
+  ]
+ ]
+}
