@@ -45,15 +45,13 @@ def browser():
 # ----------------------------------------------------------------------------------- FR-1: keel-cloud 179's tense
 
 def test_the_briefs_bar_is_the_choose_bar_in_the_briefs_shape():
-    """keel-cloud 179 T005: the brief's `keelBar` was the page's Choose bar (keel-web 153) lower-cased and unstopped.
-    Spec 118 re-pin (keel-cloud 182 FR-3): the brief's bar is the time against the founder's (*holds if no more than 1 in
-    3 say it would take longer than you expect*), while keel-web 155 still draws 153's fear bar on Purchase friction's
-    Choose (`HOLDS` in `translate.ts`, at keel-web `3c0db0c`) -- the two no longer agree, and the page's is keel-web's to
-    move (owed there, runs/DRIFT.md). Each mirror follows its own source."""
+    """keel-cloud 179 T005: the brief's `keelBar` is the page's Choose bar lower-cased and unstopped. Spec 118 found them
+    apart (keel-cloud 182 moved the brief's bar to the time against the founder's while keel-web 155 still drew 153's
+    fear bar -- DRIFT #102); keel-web 157 (`2a202d8`) moved the page's, and the two agree again."""
     choose = vs_screens.PURCHASE_FRICTION_CHOOSE_BAR
-    assert choose == "Holds if at least 2 in 3 say it would be needed and would take a long time."
+    assert choose == "Holds if no more than 1 in 3 say it would take longer than you expect."
     assert bf.KEEL_BAR[FRICTION] == "holds if no more than 1 in 3 say it would take longer than you expect"
-    assert bf.KEEL_BAR[FRICTION] != choose[0].lower() + choose[1:-1]
+    assert bf.KEEL_BAR[FRICTION] == choose[0].lower() + choose[1:-1]
 
 
 @pytest.mark.parametrize("counts", ["yes_long=5, yes_quick=1, not_needed=1", "yes_long=1, yes_quick=3, not_needed=3",

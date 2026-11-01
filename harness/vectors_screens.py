@@ -167,14 +167,19 @@ COMPATIBILITY_ANSWER_HINT = re.compile(r"^What must already be true(?: at (?P<se
 CHOOSE_PROMPT = {"commercial.buyer_payer_alignment": BUYER_PAYER_CHOOSE_PROMPT,
                  "commercial.purchase_friction": "Which one do you want to test?",
                  "solution.compatibility": "Which one do you want to test?"}
-#: keel-web 153 FR-2 (`LIST_CHOOSE_INTRO`, `.corridor__intro`): Purchase friction's Choose intro (was *..., about the last
-#: thing they paid for. Pick the one step; nothing is reworded here.*).
-PURCHASE_FRICTION_CHOOSE_INTRO = ("The person who decides gets one question for this: if they bought it, would this "
-                                  "step be needed, and how long would it take. Pick the one step.")
-#: keel-web 153 FR-2 (`HOLDS`, `.keeltest__b`): Purchase friction's Choose bar, before and after the pick (was *Holds if
-#: at least 2 in 3 say it was needed last time and took a long time.*). The brief's `keelBar` is keel-cloud 179's, the
-#: same words in the brief's shape (`instructions/brief_facts.KEEL_BAR`).
-PURCHASE_FRICTION_CHOOSE_BAR = "Holds if at least 2 in 3 say it would be needed and would take a long time."
+#: keel-web 157 FR-2 (`LIST_CHOOSE_INTRO`, `.corridor__intro`; keel-cloud 182's question): Purchase friction's Choose
+#: intro (153's was *..., would this step be needed, and how long would it take. ...*; DRIFT #102).
+PURCHASE_FRICTION_CHOOSE_INTRO = ("The person who decides gets one question for this: if they bought it, how long would "
+                                  "this step take before it went through. Pick the one step.")
+#: keel-web 157 FR-1 (`HOLDS` / `purchaseFrictionBar(true)`, `.keeltest__b`): Purchase friction's Choose bar, before and
+#: after the pick, on every lock that serves `CalibrationQuestion.duration` (keel-cloud 182: every lock since) -- the
+#: brief's `keelBar` is keel-cloud 182's, the same words in the brief's shape (`instructions/brief_facts.KEEL_BAR`;
+#: DRIFT #102 resolved). 153's fear bar (*Holds if at least 2 in 3 say it would be needed and would take a long time.*)
+#: is gone.
+PURCHASE_FRICTION_CHOOSE_BAR = "Holds if no more than 1 in 3 say it would take longer than you expect."
+#: keel-web 157 FR-1 (`PURCHASE_FRICTION_BAR_UNDATED`): the same bar on a lock from before keel-cloud 182, which serves no
+#: duration (test data only; no walk of this harness locks one).
+PURCHASE_FRICTION_CHOOSE_BAR_UNDATED = "Holds if no more than 1 in 3 say it would take a long time."
 #: keel-web 153 FR-1 (`commitmentHolds`, `KEEL_TEST_SET_BY_KEEL`): Commitment's Check bar -- on a B2B study (the page's
 #: `hourlyRate`, keel-cloud's `isB2b()`) *Set by Keel. Holds if no more than 1 in 3 {deciders} say probably not or no.*,
 #: `{deciders}` the persona's title (else role) plural (149's `deciderPlural`; not held to a word, as 116 holds Buyer

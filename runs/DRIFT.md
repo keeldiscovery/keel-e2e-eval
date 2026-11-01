@@ -5710,7 +5710,7 @@ three bundles: 21-codyco and 13-aircaps now walk on with one DRIFT line each; 08
 **For keel-cloud:** keel-cloud-docs spec `177-a-founders-row-is-kept-as-typed` (written at `4d790648`, not built): a
 founder's row drafted byte for byte, tense and all, never left out, held by code in the saved-list check.
 
-## 102. Observation (keel-web, with keel-cloud beside it): Purchase friction's Choose bar still says spec 118's fear -- the brief and the card say keel-cloud 182's time
+## 102. RESOLVED (keel-web `2a202d8`, spec 157, 2026-11-01) -- was an observation (keel-web, with keel-cloud beside it): Purchase friction's Choose bar still said spec 118's fear while the brief and the card said keel-cloud 182's time
 
 Found by spec `118-the-harness-reads-the-money-cards-redrawn` (its tasks.md, *What the spec did not foresee*), reading
 keel-web master `3c0db0c` beside keel-cloud-docs master `f3f0d99e`. keel-cloud 182 (FR-3) reads Purchase friction as the
