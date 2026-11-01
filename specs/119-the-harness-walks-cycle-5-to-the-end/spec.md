@@ -36,7 +36,14 @@ referee's fault. Builds on 118. keel-cloud 187 (contract 56, corpus revision 22)
   `current_solution.today`); r21 retires as r20 did; `answer_text` types `current_solution.today` into the Answer's first
   box and the rungs into the second (184 FR-8b(a)); the AI walk answers the duration bands in two steps (keel-web 158);
   contract 56.
-- **FR-7 Tests.** Each mirror pinned with why; the four stops replayed on fixtures; `make unit` ZERO failed.
+- **FR-8 The idea step's waiting state is not a screen.** On 10-palus SOLUTION the walk captured the idea step twice
+  while the mechanism job was still running (the kicker and the what-box hint, no text; recorded as
+  `failed-solution-calibration`) and the founder-reader scored both (R1 = 0, R2 = 0: *repeats the kicker and hint of
+  screen 10 with no text*). The walk waits for the served `what` / `how` / `belief` before it captures the idea step,
+  captures it once, and names a calibration that truly failed by its served reason; a waiting state is never a scored
+  screen. A test on the recorded bundle.
+- **FR-7 Tests.** Each mirror pinned with why; the four stops replayed on fixtures; FR-8 on the Palus bundle; `make unit`
+  ZERO failed.
 
 ## Acceptance
 
