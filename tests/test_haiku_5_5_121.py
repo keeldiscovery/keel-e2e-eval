@@ -133,3 +133,95 @@ def test_the_029_screen_pin_follows_the_light_row_and_is_still_refused_for_asked
     with pytest.raises(models_mod.ModelsUnavailable, match="says nothing about asked"):
         models_mod.load(path)
 
+
+
+# ------------------------------------------------------------------------ FR-2: the noise check's classifier
+
+#: keel-cloud 190's classifier request as the SDK serialises it (`ApiRequestShapeTest.OnHaikuFiveFive`, written to its
+#: `build/haiku-5-5-requests.txt`; the texts elided to their lengths there).
+CLASSIFIER_REQUEST_190 = {"max_tokens": 1024, "messages": [{"content": "<40 bytes>", "role": "user"}],
+                          "model": "claude-haiku-5-5", "output_config": {"effort": "low"},
+                          "system": "<1853 bytes>", "thinking": {"type": "adaptive"}}
+
+ITEM = {"kind": "single", "options": ["Daily", "Weekly", "Monthly"], "escape": "I can't say"}
+
+
+def _shape(body: dict) -> dict:
+    """The request with its texts elided, as keel-cloud's record writes it."""
+    out = json.loads(json.dumps(body))
+    out["system"] = f"<{len(body['system'].encode())} bytes>"
+    for message in out["messages"]:
+        message["content"] = f"<{len(message['content'].encode())} bytes>"
+    return out
+
+
+def test_the_noise_checks_request_is_the_products_on_haiku_5_5():
+    from evals.noise import pipeline as pl                                   # noqa: PLC0415
+    body = pl.request_body(ITEM, "weekly", "S" * 1853)
+    assert set(body) == set(CLASSIFIER_REQUEST_190)
+    for key in ("max_tokens", "model", "output_config", "thinking"):
+        assert body[key] == CLASSIFIER_REQUEST_190[key], key
+    assert [m["role"] for m in body["messages"]] == ["user"] and isinstance(body["messages"][0]["content"], str)
+    for absent in ("temperature", "top_p", "top_k", "budget_tokens"):
+        assert absent not in json.dumps(body), absent
+    assert pl.HAIKU_USD_IN == 0.10 and pl.HAIKU_USD_OUT == 0.50       # Haiku 5.5's first card ($0.10 / $0.50 a MTok)
+
+
+def test_the_request_matches_keel_clouds_own_record_where_the_checkout_has_it():
+    from stack.config import load_config                                    # noqa: PLC0415
+    from evals.noise import pipeline as pl                                   # noqa: PLC0415
+    record = load_config(validate=False).keel_cloud / "build" / "haiku-5-5-requests.txt"
+    if not record.is_file():
+        pytest.skip(f"keel-cloud's checkout has no {record.name} (before keel-cloud 190, or not built)")
+    text = record.read_text(encoding="utf-8")
+    served = json.loads(text.split("## the classifier (classify-answer.md)", 1)[1].strip())
+    assert served == CLASSIFIER_REQUEST_190
+    ours = _shape(pl.request_body(ITEM, "weekly", "S" * 1853))
+    assert {k: v for k, v in ours.items() if k != "messages"} == {k: v for k, v in served.items() if k != "messages"}
+
+
+def test_the_answer_is_read_by_type_past_a_thinking_block():
+    from evals.noise import pipeline as pl                                   # noqa: PLC0415
+    reply = {"content": [{"type": "thinking", "thinking": "they said weekly", "signature": "x"},
+                         {"type": "text", "text": '{"picks": [2], '}, {"type": "text", "text": '"confidence": 0.9}'}]}
+    assert pl.answer_text(reply) == '{"picks": [2], "confidence": 0.9}'
+    assert pl.answer_text({"content": [], "stop_reason": "refusal"}) == ""        # no text: unparsed, then unclear
+
+
+def test_classify_sends_the_body_and_parses_past_thinking(monkeypatch):
+    """One mocked Messages call, no network and no key: the body sent is `request_body`'s and the parsed answer is the
+    text block's, the thinking block skipped."""
+    import requests                                                          # noqa: PLC0415
+    from evals.noise import pipeline as pl                                   # noqa: PLC0415
+    sent = []
+
+    class Reply:
+        status_code = 200
+
+        @staticmethod
+        def json():
+            return {"content": [{"type": "thinking", "thinking": "{not this}"},
+                                {"type": "text", "text": '{"picks": [2], "confidence": 0.9}'}],
+                    "usage": {"input_tokens": 600, "output_tokens": 90}, "stop_reason": "end_turn"}
+
+    monkeypatch.setattr(requests, "post", lambda url, **kw: sent.append(kw) or Reply())
+    out, _ms, usage, text, stop = pl.classify(ITEM, "weekly", "k", "S")
+    assert out == {"picks": [2], "confidence": 0.9} and usage == (600, 90) and stop == "end_turn"
+    assert len(sent) == 1 and sent[0]["json"] == pl.request_body(ITEM, "weekly", "S")
+    assert "temperature" not in sent[0]["json"]
+
+
+def test_the_makefile_says_the_classifier_as_it_is_called():
+    make = (REPO / "Makefile").read_text(encoding="utf-8")
+    comment = make[make.index("# make noise-check (spec 074 FR-3)"):make.index("\nnoise-check:")]
+    assert "claude-haiku-5-5 with no temperature, max_tokens 1,024 and adaptive thinking at effort low" in comment
+
+
+def test_no_test_or_fixture_names_the_old_light_id_but_the_v15_shape_above():
+    """Every fixture's light id moved (FR-1); the one place it stays is this file's v15 table, which is what it is."""
+    hits = []
+    for path in sorted((REPO / "tests").rglob("*")):
+        if path.is_file() and path.suffix in (".py", ".json", ".yaml", ".toml") and path.name != Path(__file__).name:
+            if "claude-haiku-4-5" in path.read_text(encoding="utf-8", errors="ignore"):
+                hits.append(str(path.relative_to(REPO)))
+    assert hits == []

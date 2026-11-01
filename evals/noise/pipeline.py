@@ -4,8 +4,10 @@ paid eval command, its alternatives (the direct audio model, RNNoise, spectral g
 
   STT -> classify : `POST /v1/audio/transcriptions`, model `gpt-transcribe`, `response_format=json`, `languages[]` the
                     language, one `keywords[]` per hint (the item's labels and its escape), prompt *A short spoken
-                    answer to one survey question.* (keel-cloud `OpenAiTranscriber`); then `claude-haiku-4-5-20251001`,
-                    temperature 0, **max_tokens 400** (keel-cloud spec 137), the system prompt the cloud checkout's own
+                    answer to one survey question.* (keel-cloud `OpenAiTranscriber`); then `claude-haiku-5-5`
+                    (keel-cloud 190: no temperature, **max_tokens 1,024**, `thinking: {type: adaptive}` and
+                    `output_config.effort` `low`, the answer read from the text blocks by type; Haiku 4.5 at
+                    temperature 0 and max_tokens 400 before it, spec 137), the system prompt the cloud checkout's own
                     `src/main/resources/keel/inference-instructions/classify-answer.md` (`stack.toml`'s `keel_cloud`),
                     the user lines as `KeelsAiClassifier.userPrompt` writes them. The story (FREE) is never classified:
                     the transcript is the answer.
@@ -50,13 +52,19 @@ TRANSCRIBE_MODEL = "gpt-transcribe"
 TRANSCRIBE_PROMPT = "A short spoken answer to one survey question."
 #: gpt-transcribe's list price, $0.0045 a minute.
 TRANSCRIBE_USD_A_MINUTE = 0.0045
-#: keel-cloud `KeelsAiClassifier`: the light tier's pin, temperature 0, the cap since spec 137.
+#: keel-cloud `KeelsAiClassifier` since keel-cloud 190 (spec 121 FR-2): the light tier's pin and its effort (routing
+#: v16's `claude` light row), adaptive thinking, no `temperature` (Haiku 5.5 refuses a non-default one with a 400), and
+#: the cap 1,024 -- spec 137's 400 for the JSON plus room for a low-effort think. Haiku 4.5 at temperature 0 and 400
+#: until then.
 MESSAGES_URL = "https://api.anthropic.com/v1/messages"
-CLASSIFY_MODEL = "claude-haiku-4-5-20251001"
-MAX_TOKENS = 400
-TEMPERATURE = 0.0
-#: Haiku 4.5's list prices, $ a million tokens in and out.
-HAIKU_USD_IN, HAIKU_USD_OUT = 1.0, 5.0
+CLASSIFY_MODEL = "claude-haiku-5-5"
+CLASSIFY_EFFORT = "low"
+MAX_TOKENS = 1_024
+THINKING = {"type": "adaptive"}
+#: Haiku 5.5's list prices on its first card (a prompt of at most 100,000 tokens; a classify prompt is about 2 KB),
+#: $ a million tokens in and out (keel-cloud 190 `ModelRates.HAIKU_5_5`; Haiku 4.5's were 1.0 / 5.0). Thinking tokens
+#: are billed as output.
+HAIKU_USD_IN, HAIKU_USD_OUT = 0.10, 0.50
 #: The instruction, read from the cloud checkout `stack.toml` names.
 INSTRUCTION = Path("src") / "main" / "resources" / "keel" / "inference-instructions" / "classify-answer.md"
 
@@ -171,13 +179,28 @@ def instruction(keel_cloud: Path) -> str:
     return text
 
 
+def request_body(item: dict, heard: str, system: str) -> dict:
+    """The Messages request `KeelsAiClassifier.params` sends since keel-cloud 190 (its `build/haiku-5-5-requests.txt`):
+    model, `max_tokens` 1,024, one user message (no prefill), the system prompt, `thinking: {type: adaptive}` and
+    `output_config.effort` at the light row's effort -- and no `temperature`, `top_p`, `top_k` or `budget_tokens`."""
+    return {"model": CLASSIFY_MODEL, "max_tokens": MAX_TOKENS, "system": system,
+            "messages": [{"role": "user", "content": user_prompt(item, heard)}],
+            "thinking": dict(THINKING), "output_config": {"effort": CLASSIFY_EFFORT}}
+
+
+def answer_text(message: dict) -> str:
+    """`KeelsAiClassifier.textOf`: every text block, joined, **by type** -- a reply that opens with a thinking block
+    (adaptive thinking) is read past it, never from the first block. A refusal carries no text: `""`, unparsed."""
+    return "".join(b.get("text", "") for b in message.get("content") or []
+                   if isinstance(b, dict) and b.get("type") == "text")
+
+
 def classify(item: dict, heard: str, key: str, system: str) -> tuple:
     """One Messages call as `KeelsAiClassifier` makes it (one retry when the reply is not the JSON asked for):
     `(parsed or None, ms, (input, output), text, stop_reason)`."""
     import requests                                                           # noqa: PLC0415
 
-    body = {"model": CLASSIFY_MODEL, "max_tokens": MAX_TOKENS, "temperature": TEMPERATURE, "system": system,
-            "messages": [{"role": "user", "content": user_prompt(item, heard)}]}
+    body = request_body(item, heard, system)
     headers = {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"}
     started = time.time()
     out, text, usage, stop = None, "", (0, 0), None
@@ -194,7 +217,7 @@ def classify(item: dict, heard: str, key: str, system: str) -> tuple:
             text = f"HTTP {response.status_code}"
             break
         got = response.json()
-        text = "".join(b.get("text", "") for b in got.get("content") or [] if b.get("type") == "text")
+        text = answer_text(got)
         u = got.get("usage") or {}
         usage = (usage[0] + int(u.get("input_tokens") or 0), usage[1] + int(u.get("output_tokens") or 0))
         stop = got.get("stop_reason")
@@ -440,7 +463,8 @@ def run(argv: list[str] | None = None) -> int:
         "spec": "074", "started": datetime.now(timezone.utc).isoformat(), "samples": str(root),
         "selection": {"only": a.only, "snrs": a.snrs, "limit": a.limit}, "n": len(samples),
         "transcribe": {"model": TRANSCRIBE_MODEL, "prompt": TRANSCRIBE_PROMPT},
-        "classify": {"model": CLASSIFY_MODEL, "max_tokens": MAX_TOKENS, "temperature": TEMPERATURE,
+        "classify": {"model": CLASSIFY_MODEL, "max_tokens": MAX_TOKENS, "thinking": THINKING["type"],
+                     "effort": CLASSIFY_EFFORT,
                      "instruction": str(Path(keel_cloud) / INSTRUCTION), "keel_cloud": report.git_sha(keel_cloud)},
     }, indent=1), encoding="utf-8")
     print(f"noise-check: {len(done)} done, {len(todo)} to run -> {out_dir}", flush=True)

@@ -123,10 +123,21 @@ def _cloud(rel: str) -> str:
 
 
 def test_the_classifier_is_called_as_keel_cloud_calls_it():
+    """Spec 121 FR-2 (keel-cloud 190 T005): no temperature, the cap 1,024, adaptive thinking at the light row's effort.
+    Skipped by name on a checkout before keel-cloud 190 (its classifier still temperature 0 and 400 on Haiku 4.5)."""
     source = _cloud("infrastructure/anthropic/KeelsAiClassifier.java")
-    assert re.search(r"static final long MAX_TOKENS = (\d+);", source).group(1) == str(pl.MAX_TOKENS) == "400"
-    assert ".temperature(0.0)" in source and pl.TEMPERATURE == 0.0
-    assert pl.CLASSIFY_MODEL == "claude-haiku-4-5-20251001"
+    if "ThinkingConfigAdaptive" not in source:
+        pytest.skip("keel-cloud's KeelsAiClassifier predates keel-cloud 190 (Haiku 4.5, temperature 0, 400)")
+    cap = re.search(r"static final long MAX_TOKENS = ([\d_]+);", source).group(1)
+    assert int(cap.replace("_", "")) == pl.MAX_TOKENS == 1_024
+    assert ".temperature(" not in source and not hasattr(pl, "TEMPERATURE")
+    assert ".thinking(ThinkingConfigAdaptive.builder().build())" in source and pl.THINKING == {"type": "adaptive"}
+    assert ".outputConfig(OutputConfig.builder().effort(OutputConfig.Effort.of(effort)).build())" in source
+    assert "routing.effortsAt(\"light\")" in _cloud("infrastructure/interviewer/InterviewerConfig.java")
+    routing = json.loads((load_config(validate=False).keel_cloud / "src/main/resources/keel/model-routing.json")
+                         .read_text(encoding="utf-8"))
+    assert pl.CLASSIFY_MODEL == routing["hosts"]["claude"]["light"] == "claude-haiku-5-5"
+    assert pl.CLASSIFY_EFFORT == routing["efforts"]["claude"]["light"] == "low"
     assert 'lines.add("Answer kind: " + describe(item) + ".");' in source
     assert 'lines.add("They said: \\"" + (request.heard() == null ? "" : request.heard().strip()) + "\\"");' in source
     assert (load_config(validate=False).keel_cloud / pl.INSTRUCTION).is_file()

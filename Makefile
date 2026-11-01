@@ -132,7 +132,8 @@ backtest:
 # answers, two voices each, quiet and five noise beds at 20 / 10 / 5 / 0 dB) read from KEEL_NOISE_SAMPLES (default
 # ~/Documents/projects/keel-noise-check-2026-10-26/audio, the kept set; synthesized there when absent) and sent down
 # Keel's answer path exactly as the product calls it -- gpt-transcribe with the item's hints and prompt, then
-# claude-haiku-4-5-20251001 at temperature 0 and max_tokens 400 (keel-cloud 137) on the cloud checkout's own
+# claude-haiku-5-5 with no temperature, max_tokens 1,024 and adaptive thinking at effort low (keel-cloud 190; Haiku
+# 4.5 at temperature 0 and max_tokens 400 before it, keel-cloud 137) on the cloud checkout's own
 # classify-answer.md -- and read by `Classification.validated()`'s rules with keel-cloud 136's partial pick. It writes
 # runs/<stamp>-noise-check/ (results.jsonl, summary.json, noise-check.md, page/, register-row.md; the row appended to
 # runs/noise-check-register.md) and prints the certificate: quiet closed answers 100%, every bed at 20 / 10 / 5 dB
