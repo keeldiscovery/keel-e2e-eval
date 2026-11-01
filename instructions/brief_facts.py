@@ -32,6 +32,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from . import chain as chain_mod
 from . import corpus as corpus_mod
+from . import friction as friction_mod
 from .registry import (ABILITY_KEY, ADOPTION_KEY, BUYER_KEY, COMMITMENT_KEY, COMPATIBILITY_KEY,
                        CURRENT_SOLUTION_KEY, FREQUENCY_KEY, GATE_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY,
                        PRICE_KEY, PURCHASE_FRICTION_KEY, SACRIFICE_KEY, VECTORS)
@@ -40,6 +41,9 @@ VERDICT_WORDS = {
     "HOLDING_UP": "Holding up", "NOT_HOLDING_UP": "Not holding up",
     "PEOPLE_DISAGREE": "People disagree", "TOO_FEW_TO_CALL": "Too few to call",
     "NOT_ASKED_YET": "Not asked yet", "LEFT_OUT": "Left out", "NOT_TESTED": "Not tested",
+    # spec 118 FR-1 (keel-cloud 181 FR-3, `StandingsAssembler.words`): nobody named the founder's price, so Ability to
+    # pay asked nobody -- decides nothing, drawn neutral, counted as its own kind in the tally (*1 not reached*)
+    "NOT_REACHED": "Not reached",
 }
 CURRENCY_SYMBOL = {"GBP": "£", "USD": "$", "EUR": "€", "JPY": "¥"}
 _THIN = ("TOO_FEW_TO_CALL", "NOT_ASKED_YET")
@@ -57,10 +61,18 @@ DERIVED_ABILITY_LINE = "derived from cost and price: already lose your price or 
 #: keel-cloud 091 FR-F1 (`BriefFacts.Card.keelBar`): Keel's bar where Keel sets it, the words after "Keel's bar: ".
 KEEL_BAR = {IMPORTANCE_KEY: "holds if at least 2 in 3 put it in their two",
             CURRENT_SOLUTION_KEY: "holds if at least 2 in 3 say today's way falls short (answers 3 to 5)",
-            # spec 064 FR-7 (keel-cloud 118 FR-3): the fear's bar; spec 117 FR-1 (keel-cloud 179 FR-2): in the tense of
-            # the question every lock since keel-cloud 128 asks -- the page's Choose bar (keel-web 153) in the brief's
-            # own shape (lower case, unstopped, after "Keel's bar: ")
-            PURCHASE_FRICTION_KEY: "holds if at least 2 in 3 say it would be needed and would take a long time"}
+            # spec 118 FR-1 (keel-cloud 182 FR-3, `PurchaseFriction.BAR`): the time against the founder's -- spec 118's
+            # fear (*at least 2 in 3 say it would be needed and would take a long time*, 117's tense) is gone; a list
+            # saved with no time reads `friction.BAR_UNDATED` (`keel_bar`)
+            PURCHASE_FRICTION_KEY: friction_mod.BAR}
+
+
+def keel_bar(entry, key: str) -> str | None:
+    """keel-cloud 182 (`BriefFacts.keelBar`): Purchase friction's bar by whether the founder named a time
+    (`PurchaseFriction.bar(dated)`); every other Keel bar `KEEL_BAR`'s."""
+    if key == PURCHASE_FRICTION_KEY:
+        return friction_mod.BAR if entry.duration() else friction_mod.BAR_UNDATED
+    return KEEL_BAR.get(key)
 
 
 def current_solution_bar(rung: str) -> str:
@@ -141,8 +153,10 @@ DECISION_CHANGE = {
                       "sentence": "Build, but change what it does better: only 3 of 9 said it would have gone "
                                   "better, 3 of them a lot, and 6 did not.",
                       "also": {"line": COMMITMENT_KEY,
-                               "sentence": "Change the first step you ask for too: only 2 of 7 would introduce us to the "
-                                           "practice's IT supplier, and 5 did not."}},
+                               # spec 118 FR-1 (keel-cloud 180 FR-4, no neutral): the yes after a short call counts
+                               # for -- 2 + 2 of 7 (`build/brief-facts/06-repeatline.json` at keel-cloud-docs f3f0d99e)
+                               "sentence": "Change the first step you ask for too: only 4 of 7 would introduce us to the "
+                                           "practice's IT supplier, and 3 did not."}},
     # spec 086 (keel-cloud 152, `DecisionChangeCorpusTest`): the founder's Prevalence phrase is the bin's share now
     "07-mulchrun": {"line": GATE_KEY,
                     "sentence": "Not yet: Prevalence did not hold, 9 of 12 had it in the last 2 weeks against your "
@@ -248,42 +262,54 @@ DID_NOT_HOLD = "Did not hold"
 
 
 def bar_words(key: str, standing: dict) -> str:
-    """keel-cloud 128 FR-8 (`BriefFacts.barWords`, spec 067): a status's words -- on a line with a founder's bar the
-    engine's amber is never said *People disagree*: past the bar it *Did not hold*, and Purchase friction's fear that held
-    (`yes_long` at two in three or more) is *Holding up*. The status and every count are the engine's, unchanged."""
+    """keel-cloud 128 FR-8 (`BriefFacts.barWords`, spec 067; since keel-cloud 180 FR-8 the served `statusWord`): a
+    status's words -- on a line with a founder's bar the engine's amber is never said *People disagree*: past the bar it
+    *Did not hold*. Spec 118 FR-1 (keel-cloud 182 FR-3): Purchase friction's fear that held (*Holding up* on an amber) is
+    gone with the fear -- a split past its bar *Did not hold* like every bar line. The served `statusWord` is read where
+    the standing carries one. The status and every count are the engine's, unchanged."""
+    if standing.get("statusWord"):
+        return standing["statusWord"]
     status = standing.get("status")
     if status != "PEOPLE_DISAGREE" or key not in BAR_LINES:
         return VERDICT_WORDS.get(status, status)
-    if key == PURCHASE_FRICTION_KEY and standing.get("n") \
-            and _split(_option_count(standing, "yes_long"), int(standing["n"])) == "HOLDING_UP":
-        return VERDICT_WORDS["HOLDING_UP"]
     return DID_NOT_HOLD
 
 
 def friction_words(key: str, standing: dict, tested: str | None, words: str) -> str:
-    """Spec 064 FR-7 (keel-cloud 118 FR-3, `BriefFacts.frictionWords`): a friction line's words -- Purchase friction (a
-    fear) held *Yes, {step} would slow it. Plan for it.*, not held *Your fear was {step}. k of n said it would be quick
-    or not needed. Not the blocker you expected.* (spec 117 FR-1: keel-cloud 179's tense, the question's since
-    keel-cloud 128 -- *If you bought it, would it need ...?*); Adoption friction (an effort) not held *{Effort} is too
-    much for k of n*; a split and anything else keep the status words."""
+    """Spec 064 FR-7 (keel-cloud 118 FR-3, `BriefFacts.frictionWords`): Adoption friction (an effort) not held *{Effort}
+    is too much for k of n*; a split and anything else keep the status words. Spec 118 FR-1 (keel-cloud 182 FR-3):
+    Purchase friction's fear words (*Yes, {step} would slow it. Plan for it.*, *Your fear was {step}. ... Not the
+    blocker you expected.*) are gone with the fear -- its card says the status's words."""
     status = standing.get("status")
     n = int(standing.get("n") or 0)
-    if status not in ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE") or not tested or not n:
+    if key != ADOPTION_KEY or status not in ("HOLDING_UP", "NOT_HOLDING_UP", "PEOPLE_DISAGREE") or not tested or not n:
         return words
     step = lower(tested.strip())
-    if key == PURCHASE_FRICTION_KEY:
-        held = _option_count(standing, "yes_long")
-        belief = _split(held, n)
-        if belief == "HOLDING_UP":
-            return f"Yes, {step} would slow it. Plan for it."
-        if belief == "NOT_HOLDING_UP":
-            return (f"Your fear was {step}. {n - held} of {n} said it would be quick or not needed. Not the "
-                    "blocker you expected.")
-        return words
     against = _option_count(standing, "probably_not") + _option_count(standing, "no")
     if _split(n - against, n) == "NOT_HOLDING_UP":
         return f"{step[:1].upper() + step[1:]} is too much for {against} of {n}"
     return words
+
+
+#: keel-cloud 180 FR-7 (`Compare.ON_A_CONDITION`, `BriefFacts.secondYes`): the second yes with no smaller step named.
+ON_A_CONDITION = "on a condition"
+#: keel-cloud 184 FR-7 (`BriefFacts.onlyIfWords`): Adoption friction's conditional yes, the plain option.
+ONLY_IF_WORDS = "if it was clearly worth it"
+
+
+def friction_against(entry, standing: dict) -> int:
+    """keel-cloud 182 FR-4 (`BriefFacts.card`, `n - supports`): those who expect the step to take longer than the
+    founder's time -- `n` less the FOR side (`friction.within`: the bands at or under the time and *It wouldn't be
+    needed*; with no time, *quick* and *not needed*)."""
+    founder = entry.duration()
+    n = int(standing.get("n") or 0)
+    counts = _option_counts_all(standing) if standing.get("optionCounts") else {}
+    served = ((standing.get("choice") or {}) if isinstance(standing.get("choice"), dict) else {}).get("optionCounts")
+    if isinstance(served, list):
+        counts = {o.get("code"): int(o.get("count") or 0) for o in served if isinstance(o, dict)}
+    if not counts:
+        return _option_count(standing, friction_mod.LONG)
+    return n - sum(c for code, c in counts.items() if friction_mod.within(code, founder))
 
 
 def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict:
@@ -318,11 +344,12 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
         view = benefit_view(standing)
         out.update(number=f"{view['better']} of {view['n']}", line=gone_better_line(view["aLot"]))
     elif key == ADOPTION_KEY:
-        # keel-cloud 118 FR-2: the effort as asked -- the plain yes; "if it was clearly worth it" apart, after it
+        # spec 118 FR-1 (keel-cloud 180 FR-1, no neutral): every yes is the number, the conditional ones split beside it
+        # -- *· 2 of them if it was clearly worth it* (keel-cloud 118's *k more* reversed; 184's plain option)
         apart = _option_count(standing, "yes_if_worth_it")
-        out.update(number=f"{_option_count(standing, 'yes')} of {standing.get('n')}",
+        out.update(number=f"{_option_count(standing, 'yes') + apart} of {standing.get('n')}",
                    line=f"would {lower((entry.tested(key) or {}).get('label'))}"
-                        + (f" · {apart} more if it was clearly worth it" if apart else ""))
+                        + (f" · {apart} of them {ONLY_IF_WORDS}" if apart else ""))
     elif key == SACRIFICE_KEY:
         cost = entry.cost() or {}
         out.update(number=corpus_mod.money_text(standing.get("median"), cost.get("currency")),
@@ -341,25 +368,30 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
                   if tested.get("label") else "someone else had to agree, or they decided alone")
         out.update(number=_count(standing), line=line)
     elif key == PURCHASE_FRICTION_KEY:
-        # keel-cloud 118 FR-3: the fear's supporters -- needed, and it took a long time; spec 117 FR-1 (keel-cloud
-        # 179 FR-2): in the question's tense -- would need, and it would take a long time
+        # spec 118 FR-1 (keel-cloud 182 FR-4): those who expect the step to take longer than the founder's time --
+        # *expect {step} to take longer than 2 weeks*; a list with no time *said {step} would take a long time*
         step = (entry.tested(key) or {}).get("label")
-        out.update(number=f"{_option_count(standing, 'yes_long')} of {standing.get('n')}",
-                   line=f"would need {lower(step) if step else 'the step'}, and it would take a long time")
+        step = lower(step) if step else "the step"
+        founder = entry.duration()
+        out.update(number=f"{friction_against(entry, standing)} of {standing.get('n')}",
+                   line=f"expect {step} to take longer than {founder.said()}" if founder
+                   else f"said {step} would take a long time")
     elif key == COMMITMENT_KEY:
         # keel-cloud 118 FR-2: the step as asked is the number; the second yes beside it, apart
         apart = _option_count(standing, "yes_after_trying")
         smaller = (entry.founder_list(key) or {}).get("items") or []
         second = lower(smaller[1]["label"]) if len(smaller) > 1 else None
-        out.update(number=f"{_option_count(standing, 'yes_start')} of {standing.get('n')}",
-                   line=f"would {(entry.tested(key) or {}).get('label') or 'take the step'}"
-                        + (f" · {apart} more {'after ' + second + ' first' if second else 'after trying it first'}"
+        # spec 118 FR-1 (keel-cloud 180 FR-7): every yes is the number, the yes after the smaller step split beside
+        # it (*· 2 of them after a free trial first*; *on a condition* where the list names no smaller step)
+        out.update(number=f"{_option_count(standing, 'yes_start') + apart} of {standing.get('n')}",
+                   line=f"would {lower((entry.tested(key) or {}).get('label') or 'take the step')}"
+                        + (f" · {apart} of them {'after ' + second + ' first' if second else ON_A_CONDITION}"
                            if apart else ""))
     out.update(status=status, statusWords=bar_words(key, standing))
-    if key in (ADOPTION_KEY, PURCHASE_FRICTION_KEY) and standing.get("n"):
+    if key == ADOPTION_KEY and standing.get("n"):
         out["statusWords"] = friction_words(key, standing, (entry.tested(key) or {}).get("label"), out["statusWords"])
     if key in KEEL_BAR and status != "LEFT_OUT":
-        out["keelBar"] = KEEL_BAR[key]
+        out["keelBar"] = keel_bar(entry, key)
         if key == CURRENT_SOLUTION_KEY:
             saved = entry.founder_list(key) or {}
             items = saved.get("items") or []

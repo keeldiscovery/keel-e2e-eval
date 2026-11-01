@@ -253,8 +253,11 @@ def test_a_bar_line_past_its_bar_reads_did_not_hold_with_no_split_and_guessed_wo
     assert box["guessed"] == [fake.quote_words(quote("Xavier Dubois", "x"))]
     held = dict(insight, dimension="commercial.purchase_friction", name="Purchase friction")
     fear = {"n": 6, "choice": {"optionCounts": [{"code": "yes_long", "count": 4}]}}
-    assert rm.expected_box(held, fear)["head"][1] == "Holding up"
-    assert rm.expected_box(dict(insight, dimension="problem.importance"))["split"] == fake.SPLIT_NOTE
+    # spec 118 FR-1 re-pin (keel-cloud 182 FR-3): spec 118's fear is gone -- an amber Purchase friction past its bar
+    # *Did not hold* like every bar line (it read *Holding up* on a held fear)
+    assert rm.expected_box(held, fear)["head"][1] == "Did not hold"
+    # spec 118 re-pin (keel-web 155 T014): the split note is deleted -- no box owes it
+    assert rm.expected_box(dict(insight, dimension="problem.importance"))["split"] is None
 
 
 def test_frequencys_card_counts_the_served_gates_units_where_a_gate_is_stored():

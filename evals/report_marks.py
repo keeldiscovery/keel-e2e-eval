@@ -385,7 +385,8 @@ def expected_box(insight: dict, standing: dict | None = None, guessed: frozenset
     return {
         "key": insight.get("dimension"), "state": state, "dissent": bool(insight.get("dissent")),
         "head": [insight.get("name"), word],
-        "split": fake.SPLIT_NOTE if insight.get("status") == "PEOPLE_DISAGREE" and word != DID_NOT_HOLD else None,
+        # spec 118 FR-4 (keel-web 155 T014): the split note is gone -- the box says its served word and status line
+        "split": None,
         "concern": insight.get("rungHeading") or None,
         "frame": insight.get("frame") if insight.get("dissent") else None,
         "themes": themes,

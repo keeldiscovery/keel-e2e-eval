@@ -317,9 +317,10 @@ def test_the_lead_lines_follow_the_stage_status():
     drawn = rm.expected_overview(st)["panels"]
     assert drawn["PROBLEM"]["lead"] == ["4 of 4 holding."]
     assert drawn["COMMERCIAL"]["lead"] == [
-        # spec 117 FR-1 (keel-cloud 179): the card's line in the question's tense (was *needed ..., and it took ...*)
-        "Purchase friction · 2 of 5 would need the office manager's sign-off, and it would take a long time",
-        "Commitment · 2 of 5 would install the app · 1 more after a look at it on a demo first"]  # the fixture's smaller step (r14)
+        # spec 118 FR-1 re-pin (keel-cloud 182 FR-4): a list with no time says *said {step} would take a long time*,
+        # the number those against; (180 FR-7) every yes is Commitment's number, the second beside it *of them*
+        "Purchase friction · 2 of 5 said the office manager's sign-off would take a long time",
+        "Commitment · 3 of 5 would install the app · 1 of them after a look at it on a demo first"]  # the fixture's smaller step (r14)
     facts = copy.deepcopy(st["facts"])
     facts["vectors"][2]["verdict"] = "TOO_FEW_TO_CALL"
     for c in facts["cards"]:
@@ -664,7 +665,9 @@ def test_the_insights_words_are_keel_web_077s():
         pytest.skip("keel-web carries no report components yet (077 not on master)")
     text = (KEEL_WEB / "src" / "lib" / "translate.ts").read_text(encoding="utf-8") + "".join(
         p.read_text(encoding="utf-8") for p in source_dir.glob("*.ts*"))
-    for words in (fake.SPLIT_NOTE, fake.IN_THEIR_WORDS, fake.NOTHING_TO_READ_YET, fake.NOTHING_FAILING,
+    # spec 118 re-pin (keel-web 155 T014): the split note is deleted from the Insights box
+    assert fake.SPLIT_NOTE not in text
+    for words in (fake.IN_THEIR_WORDS, fake.NOTHING_TO_READ_YET, fake.NOTHING_FAILING,
                   fake.NOTHING_FAILING_LINE, ov.SHOULD_YOU_BUILD_IT, ov.EVERY_DIMENSION_HOLDS, ov.CARD_NEEDS,
                   ov.PRICE_TILE_LABEL, ov.PRICE_NOT_ASKED_LINE, ov.NOBODY_YET, ov.EVERY_ROW_OPENS,
                   rm.WHAT_THEY_AGREED, rm.DM_ONLY, rm.KEEL_NEVER_EMAILS, rm.NOBODY_SIGNED_UP,
@@ -704,9 +707,9 @@ def test_the_healthy_answers_are_against_on_no_rung():
             against = (dim.get("follow_up") or {}).get("against")
             pick = picks.get(dim["key"])
             if dim["key"] == "commercial.purchase_friction":
-                # keel-cloud 118 judgement call 9: every Purchase friction answer is owed a question (quick is against
-                # the fear, the long purchase its second stem) -- no green project is owed nothing on that link
-                assert pick in against + list((dim["follow_up"].get("also") or {}).get("on") or []), pick
+                # spec 118 re-pin (keel-cloud 182 FR-3 / FR-5): the lock's rule -- on a list with no time *quick* is for,
+                # owed nothing (118's fear, where every answer was owed a question, is gone)
+                assert against == "lock_rule" and pick == "yes_quick", pick
                 continue
             if isinstance(against, list) and isinstance(pick, str):
                 assert pick not in against, dim["key"]

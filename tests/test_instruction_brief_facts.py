@@ -64,10 +64,12 @@ def test_one_card_a_calibrated_dimension_in_registry_order(entry, b2b):
                                                           "worse": 0, "n": 9}}})["aLot"] == 4
     # spec 064 FR-7 (keel-cloud 118 FR-2): the plain yes is the number, the conditional yes beside it, apart
     assert (by_key["solution.adoption_friction"]["number"], by_key["solution.adoption_friction"]["line"]) == (
-        "5 of 8", "would clip a tag to the key ring · 1 more if it was clearly worth it")
+        # spec 118 FR-1 re-pin (keel-cloud 180 FR-1, no neutral): every yes is the number, the conditional ones beside it
+        "6 of 8", "would clip a tag to the key ring · 1 of them if it was clearly worth it")
     assert by_key["commercial.existing_sacrifice"]["line"] == "a month, what it costs them today"
     assert (by_key["commercial.commitment"]["number"], by_key["commercial.commitment"]["line"]) == (
-        "4 of 8", "would install the app · 2 more after trying it first")
+        # spec 118 FR-1 re-pin (keel-cloud 180 FR-7): every yes, and *on a condition* where no smaller step is named
+        "6 of 8", "would install the app · 2 of them on a condition")
     # spec 064 FR-5a (keel-cloud 117 FR-3): Current solution's bar names the rung above the line
     assert by_key["problem.current_solution_satisfaction"]["keelBar"] == \
         "holds if at least 2 in 3 land below 'Found them after a quick look'"
@@ -81,29 +83,51 @@ def test_one_card_a_calibrated_dimension_in_registry_order(entry, b2b):
 
 
 def test_purchase_friction_counts_the_fear_held(b2b):
-    """Spec 064 FR-7 (keel-cloud 118 FR-3, overturning 103 FR-9): Purchase friction is a fear -- the card counts the
-    people who said it would be needed and would take a long time, and carries the fear's Keel bar. Re-pinned by spec
-    117 FR-1: keel-cloud 179 (`BriefFacts.card`, `KEEL_BARS`, `frictionWords`) says every line in the tense of the
-    question every lock since keel-cloud 128 asks (*If you bought it, would it need ...?*); it said the past
-    (*needed ..., and it took a long time*, *slows it*, *was quick*) before, which no stranger was asked."""
+    """Spec 118 FR-1 re-pin (keel-cloud 182 FR-3, FR-4; spec 118's fear and 117's tense of it retired): the card counts
+    those against -- who expect the step to take longer than the founder's time, `n` less the FOR side -- and on a list
+    with no time (this fixture's, a lock before 182) *said {step} would take a long time*, with the undated bar; the fear's
+    words (*would slow it. Plan for it.*, *Not the blocker you expected.*) are never said; a held fear is never *Holding
+    up* on an amber."""
     card = next(c for c in bf.cards_for(b2b, fx.registry()) if c["key"] == "commercial.purchase_friction")
     standing = b2b.expected["standings"]["commercial.purchase_friction"]
     assert (bf._option_count(standing, "yes_long"), standing["n"]) == (2, 5)
+    assert b2b.duration() is None
     assert card["number"] == "2 of 5"
-    assert card["line"] == "would need the office manager's sign-off, and it would take a long time"
-    assert card["keelBar"] == bf.KEEL_BAR["commercial.purchase_friction"] == \
-        "holds if at least 2 in 3 say it would be needed and would take a long time"
-    held = dict(standing, optionCounts="yes_long=4, yes_quick=1, not_needed=0")
-    assert bf.friction_words("commercial.purchase_friction", held, "The office manager's sign-off", "x") == \
-        "Yes, the office manager's sign-off would slow it. Plan for it."
-    gone = dict(standing, optionCounts="yes_long=0, yes_quick=3, not_needed=2")
-    assert bf.friction_words("commercial.purchase_friction", gone, "The office manager's sign-off", "x") == (
-        "Your fear was the office manager's sign-off. 5 of 5 said it would be quick or not needed. Not the blocker "
-        "you expected.")
-    for card_ in (card, {"statusWords": bf.friction_words("commercial.purchase_friction", held, "X", "x")},
-                  {"statusWords": bf.friction_words("commercial.purchase_friction", gone, "X", "x")}):
+    assert card["line"] == "said the office manager's sign-off would take a long time"
+    assert card["keelBar"] == "holds if no more than 1 in 3 say it would take a long time" == bf.keel_bar(
+        b2b, "commercial.purchase_friction")
+    assert bf.KEEL_BAR["commercial.purchase_friction"] == \
+        "holds if no more than 1 in 3 say it would take longer than you expect"
+    held = dict(standing, optionCounts="yes_long=4, yes_quick=1, not_needed=0", status="PEOPLE_DISAGREE")
+    assert bf.friction_words("commercial.purchase_friction", held, "The office manager's sign-off", "x") == "x"
+    assert bf.bar_words("commercial.purchase_friction", held) == "Did not hold"
+    for card_ in (card,):
         said = " ".join(str(card_.get(k) or "") for k in ("line", "keelBar", "statusWords"))
-        assert not any(w in said for w in ("last time", "took", "was quick", "was needed", "slows it")), said
+        assert not any(w in said for w in ("would need", "Plan for it", "Not the blocker", "Your fear")), said
+
+
+def fx_backtest(entry_id: str):
+    """A back-test entry of keel-cloud's canon, bound to the registry of record (skipped where there is none)."""
+    keel_cloud = load_config(validate=False).keel_cloud
+    path = corpus_mod.backtest_dir(keel_cloud) / f"{entry_id}.yaml"
+    if not path.is_file():
+        pytest.skip(f"no {entry_id} at {path.parent}")
+    registry = cloud_mod.registry_of_record(keel_cloud)
+    return corpus_mod.load_file(path, registry=registry, backtest=True)
+
+
+def test_purchase_friction_on_a_timed_list_counts_those_who_expect_longer():
+    """Spec 118 FR-1 (keel-cloud 182 FR-4, `BriefFacts.card`): on 08-fresco's two weeks the card says *expect a trial
+    on one live job to take longer than 2 weeks*, the number the bands from 2 weeks on."""
+    fresco = fx_backtest("08-fresco")
+    standing = {"status": "PEOPLE_DISAGREE", "n": 8,
+                "optionCounts": "days_under_7=0, days_7_to_14=4, days_14_to_30=3, days_30_to_90=0, days_over_90=0, "
+                                "not_needed=1"}
+    card = bf.card(fresco, fresco.registry.by_key("commercial.purchase_friction"), standing)
+    assert card["number"] == "3 of 8"
+    assert card["line"] == "expect a trial on one live job to take longer than 2 weeks"
+    assert card["keelBar"] == "holds if no more than 1 in 3 say it would take longer than you expect"
+    assert card["statusWords"] == "Did not hold"
 
 
 # ------------------------------------------------------------------------- the price median (spec 052 FR-1)
@@ -283,8 +307,9 @@ def cloud_facts_at_104():
         pytest.skip("keel-cloud's build/brief-facts/ predates keel-cloud 145 (02-compliancelog's Buyer and payer card "
                     "does not read \"... had to agree, or they decided alone\") -- rerun its BriefFactsCorpusTest to "
                     "compare")
-    if not _at_179(cloud):
-        retense_179(cloud)
+    if not _at_182(cloud):
+        pytest.skip("keel-cloud's build/brief-facts/ predates keel-cloud 182 (a Purchase friction card still says the "
+                    "fear's *... , and it would take a long time*) -- rerun its BriefFactsCorpusTest to compare")
     return registry, corpus, cloud
 
 
@@ -314,72 +339,32 @@ def _at_145(cloud) -> bool:
     return card is not None and str(card.get("line") or "").endswith(DECIDED_ALONE_TAIL)
 
 
-#: Spec 117 FR-1: keel-cloud 179 (FR-2's table) moved the Purchase friction card's three served strings into the tense
-#: of the question every lock since keel-cloud 128 asks -- each pair is (before 179, from 179), the only words that
-#: moved on a card. Nothing else on any card moved.
-TENSE_179 = (("needed ", "would need "), (", and it took a long time", ", and it would take a long time"),
-             ("holds if at least 2 in 3 say it was needed last time and took a long time",
-              "holds if at least 2 in 3 say it would be needed and would take a long time"),
-             (" slows it. Plan for it.", " would slow it. Plan for it."),
-             (" said it was quick or not needed.", " said it would be quick or not needed."))
+#: Spec 118 FR-1: spec 117's tolerance for a `build/brief-facts/` written before keel-cloud 179 (`retense_179`,
+#: `TENSE_179`) is removed -- the build of record is keel-cloud-docs `f3f0d99e`'s (180-185), past 179 and past 182, which
+#: retired the fear's words altogether; a build that still says the fear (*would need ..., and it would take a long time*)
+#: is refused by name below, never re-worded.
 FRICTION = "commercial.purchase_friction"
+FEAR_LINE = ", and it would take a long time"
 
 
-def _at_179(cloud) -> bool:
-    """A `build/brief-facts/` a run of keel-cloud 179 or later wrote: no Purchase friction card says the past (*needed
-    ..., and it took a long time*). An export with no friction card at all is read as 179's (nothing to move)."""
+def _at_182(cloud) -> bool:
+    """A `build/brief-facts/` a run of keel-cloud 182 or later wrote: no Purchase friction card says spec 118's fear
+    (*... , and it would take a long time* / *needed ...*)."""
     lines = [str(c.get("line") or "") for f in cloud.facts.values() for c in (f or {}).get("cards") or []
              if c.get("key") == FRICTION]
-    return not any(line.startswith("needed ") or line.endswith("took a long time") for line in lines)
+    return not any(line.endswith(FEAR_LINE) or line.startswith(("needed ", "would need ")) for line in lines)
 
 
-def _retensed(text: str, field: str) -> str:
-    for old, new in TENSE_179:
-        if field == "line" and old == "needed " and text.startswith(old):
-            text = new + text[len(old):]
-        elif old != "needed ":
-            text = text.replace(old, new)
-    return text
-
-
-def retense_179(cloud) -> None:
-    """Spec 117 FR-1, the tolerance until keel-cloud's `build/brief-facts/` is rewritten: a Gradle output is a run's,
-    not the checkout's, and the one beside the checkout may predate 179 (a `BriefFactsCorpusTest` run is the
-    coordinator's -- never run here). Its Purchase friction cards' `line`, `keelBar` and `statusWords` are moved by
-    179's own table (`TENSE_179`) and nothing else, so the DRY compare still holds every other word to the byte and
-    these three to 179's words. A no-op on a build of 179 or later (`_at_179`)."""
-    for facts in cloud.facts.values():
-        for card_ in (facts or {}).get("cards") or []:
-            if card_.get("key") == FRICTION:
-                for field in ("line", "keelBar", "statusWords"):
-                    if card_.get(field):
-                        card_[field] = _retensed(str(card_[field]), field)
-
-
-def test_a_build_before_179_is_retensed_on_the_friction_card_alone():
-    """Spec 117 FR-1: the tolerance moves exactly the three strings 179 moved, on the Purchase friction card alone; a
-    build of 179 is read as written."""
-    old = {"key": FRICTION, "line": "needed the partners' sign-off, and it took a long time",
-           "keelBar": "holds if at least 2 in 3 say it was needed last time and took a long time",
-           "statusWords": "Your fear was the partners' sign-off. 5 of 7 said it was quick or not needed. Not the blocker "
-                          "you expected."}
-    held = {"key": FRICTION, "line": "needed switching suppliers, and it took a long time",
-            "statusWords": "Yes, switching suppliers slows it. Plan for it."}
-    other = {"key": "commercial.commitment", "line": "needed the step, and it took a long time"}
-    cloud = cloud_mod.CloudCorpus(facts={"a": {"cards": [old, other]}, "b": {"cards": [held]}})
-    assert not _at_179(cloud)
-    retense_179(cloud)
-    assert _at_179(cloud)
-    assert old == {"key": FRICTION, "line": "would need the partners' sign-off, and it would take a long time",
-                   "keelBar": "holds if at least 2 in 3 say it would be needed and would take a long time",
-                   "statusWords": "Your fear was the partners' sign-off. 5 of 7 said it would be quick or not needed. "
-                                  "Not the blocker you expected."}
-    assert held["line"] == "would need switching suppliers, and it would take a long time"
-    assert held["statusWords"] == "Yes, switching suppliers would slow it. Plan for it."
-    assert other["line"] == "needed the step, and it took a long time", "another card is never moved"
-    fresh = copy.deepcopy(old)
-    retense_179(cloud_mod.CloudCorpus(facts={"a": {"cards": [fresh]}}))
-    assert fresh == old, "a 179 build is a no-op"
+def test_the_179_tolerance_is_gone():
+    """Spec 118 FR-1: the DRY compare holds every word of the build to the byte -- `retense_179` and `TENSE_179` are
+    gone, and a build before 182 is told apart by its friction line."""
+    import tests.test_instruction_brief_facts as me                     # noqa: PLC0415
+    assert not hasattr(me, "retense_179") and not hasattr(me, "TENSE_179")
+    old = cloud_mod.CloudCorpus(facts={"a": {"cards": [{"key": FRICTION, "line": "would need the partners' sign-off"
+                                                                                  ", and it would take a long time"}]}})
+    new = cloud_mod.CloudCorpus(facts={"a": {"cards": [{"key": FRICTION, "line": "said the partners' sign-off would "
+                                                                                  "take a long time"}]}})
+    assert not _at_182(old) and _at_182(new)
 
 
 def test_keel_clouds_facts_agree_on_every_card_pilot_and_price_median_of_corpus_r12():

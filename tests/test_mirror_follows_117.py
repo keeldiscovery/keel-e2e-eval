@@ -45,20 +45,25 @@ def browser():
 # ----------------------------------------------------------------------------------- FR-1: keel-cloud 179's tense
 
 def test_the_briefs_bar_is_the_choose_bar_in_the_briefs_shape():
-    """keel-cloud 179 T005: the brief's `keelBar` is the page's Choose bar (keel-web 153) lower-cased and unstopped, as
-    it is drawn after *Keel's bar: *. So the founder reads one bar on the Choose screen and on the brief."""
+    """keel-cloud 179 T005: the brief's `keelBar` was the page's Choose bar (keel-web 153) lower-cased and unstopped.
+    Spec 118 re-pin (keel-cloud 182 FR-3): the brief's bar is the time against the founder's (*holds if no more than 1 in
+    3 say it would take longer than you expect*), while keel-web 155 still draws 153's fear bar on Purchase friction's
+    Choose (`HOLDS` in `translate.ts`, at keel-web `3c0db0c`) -- the two no longer agree, and the page's is keel-web's to
+    move (owed there, runs/DRIFT.md). Each mirror follows its own source."""
     choose = vs_screens.PURCHASE_FRICTION_CHOOSE_BAR
-    assert bf.KEEL_BAR[FRICTION] == choose[0].lower() + choose[1:-1]
+    assert choose == "Holds if at least 2 in 3 say it would be needed and would take a long time."
+    assert bf.KEEL_BAR[FRICTION] == "holds if no more than 1 in 3 say it would take longer than you expect"
+    assert bf.KEEL_BAR[FRICTION] != choose[0].lower() + choose[1:-1]
 
 
-@pytest.mark.parametrize("counts, want", [
-    ("yes_long=5, yes_quick=1, not_needed=1", "Yes, switching suppliers would slow it. Plan for it."),
-    ("yes_long=1, yes_quick=3, not_needed=3", "Your fear was switching suppliers. 6 of 7 said it would be quick or not "
-                                              "needed. Not the blocker you expected."),
-    ("yes_long=3, yes_quick=2, not_needed=2", "Did not hold")])
-def test_the_friction_words_are_179s_and_a_split_keeps_its_words(counts, want):
+@pytest.mark.parametrize("counts", ["yes_long=5, yes_quick=1, not_needed=1", "yes_long=1, yes_quick=3, not_needed=3",
+                                    "yes_long=3, yes_quick=2, not_needed=2"])
+def test_the_friction_words_are_179s_and_a_split_keeps_its_words(counts):
+    """Spec 118 re-pin (keel-cloud 182 FR-3, `BriefFacts.frictionWords` is Adoption friction's alone): Purchase
+    friction's fear words (179's *would slow it. Plan for it.* and *Not the blocker you expected.*) are gone -- every
+    count passes the status words through."""
     standing = {"status": "HOLDING_UP", "n": 7, "optionCounts": counts}
-    assert bf.friction_words(FRICTION, standing, "Switching suppliers", "Did not hold") == want
+    assert bf.friction_words(FRICTION, standing, "Switching suppliers", "Did not hold") == "Did not hold"
 
 
 def test_the_recorded_s006_read_is_the_old_tense_and_still_exports(tmp_path):

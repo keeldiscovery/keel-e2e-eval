@@ -292,10 +292,11 @@ def test_r6_is_a_column_on_respondent_rows_and_a_weak_r6_names_where_it_is_fixed
 
 
 def test_the_committed_table_is_built_at_version_2():
-    """Spec 109: the committed table is cycle 3's, at version 2, until cycle 4 -- the first at version 3 -- commits its
-    score files and builds it again (TABLE.md is never edited by hand)."""
+    """Spec 109: the committed table was cycle 3's, at version 2, until cycle 4 -- the first at version 3 -- committed
+    its score files and built it again (TABLE.md is never edited by hand). Spec 118 re-pin: cycle 4 did (master
+    `7d2026a`, 2026-10-31), so the committed table is at version 3; this test was stale on master since."""
     text = (Path(table.__file__).parent / "TABLE.md").read_text(encoding="utf-8")
-    assert "at RUBRIC_VERSION 2." in text and "| R5 | R6 | 0s |" in text
+    assert "at RUBRIC_VERSION 3." in text and "| R5 | R6 | 0s |" in text
 
 
 # --------------------------------------------------------------------------------------- FR-6 the adviser
