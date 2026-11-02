@@ -1,0 +1,824 @@
+{
+  "entry": "20-lemma",
+  "scope": "COMMERCIAL",
+  "bundle": "20261102T132730Z-backtest-20-lemma",
+  "cloud_sha": "1ce203fe",
+  "web_sha": "2b847585",
+  "routing_version": "16",
+  "rubric_version": 3,
+  "persona": {
+    "founder": "Your own public material (you are the founder it describes):\n\n# 20-lemma — sources\n\nBack-test entry `20-lemma.yaml`: Lemma, agents that learn from their production failures (YC Fall 2025, F25).\nWritten 2026-10-22 from public material only, read that day. Quotes are verbatim from the page named. \"Author's choice\"\nmarks the smallest plausible choice made where the public material is silent. The launch era is the Launch YC post of\n2025-11-05 and the site as archived the next day (the founder's gap-11 rule: every figure pinned to the launch era\nwhere one exists; anything later is marked as later and sits under *Status today* where it is a price or a pitch).\n\nMain sources (short names used below):\n- [LYC] Launch YC: \"Lemma: Continuous Learning for AI Agents\", 2025-11-05 (created_at in the page data) — https://www.ycombinator.com/launches/Oln-lemma-continuous-learning-for-ai-agents\n- [WB] uselemma.ai as archived 2025-11-06, the day after launch — https://web.archive.org/web/20251106020350/https://www.uselemma.ai/\n- [YCP] YC company page today, read 2026-10-22 — https://www.ycombinator.com/companies/uselemma\n- [SITE] uselemma.ai today, read 2026-10-22 (customer quotes curated by the vendor) — https://www.uselemma.ai/\n- [PRC] uselemma.ai/pricing, read 2026-10-22: HTTP 404; the Wayback Machine holds no capture of it — https://www.uselemma.ai/pricing\n- [P2] Pulse 2.0, \"Lemma Raises $2.3 Million Pre-Seed To Detect AI Agent Failures Before Users Find Them\", 2026-08-19 — https://pulse2.com/lemma-raises-2-3-million-pre-seed-to-detect-ai-agent-failures-before-users-find-them/\n- [BLS] BLS Occupational Outlook Handbook, software developers, read 2026-10-22 — https://www.bls.gov/ooh/computer-and-information-technology/software-developers.htm\n\nNo Launch HN exists (HN search for Lemma and uselemma, read 2026-10-22, finds no thread for this company).\n\n## Every figure, with its source and date\n\n| Figure in the entry | Where it is used | Source, date | Launch era? |\n|---|---|---|---|\n| agent performance \"drop ~40% in a few weeks\" | `statements.problem`; the cost's high end | [LYC] 2025-11-05 | yes |\n| \"resolve production drifts in minutes instead of days\" | Relative advantage (easier_recovery) | [LYC] 2025-11-05 | yes |\n| \"cut manual prompt iteration by 90%\" | Relative advantage (shorter_time) | [LYC] 2025-11-05 | yes (not in the entry's text) |\n| pre-seed to Series A, \"Head of AI/Eng or CTO\" | `context.segment`; the decider role | [LYC] 2025-11-05 | yes |\n| 10% to 40% of the agent's runs per agent a month | `commercial.existing_sacrifice` | author's reading of [LYC]'s 40 | derived |\n| $300 to $600 per agent a month | `commercial.price`, `statements.commercial` | **none**: the operator's reading | no price ever public |\n| $65 an hour | `hourly_rate` (recorded, not used by a RATE cost) | [BLS] May 2025 median, $135,980 a year | the author's stand-in |\n| \"unnoticed in prod for 20+ days\" | one respondent's grounding | [SITE] read 2026-10-22 | no (later) |\n| $2.3 million pre-seed | *Status today* only | [P2] 2026-08-19 | no |\n\n## The eight founder-emulation items\n\n1. **Who.** Engineers at AI-native startups keeping an LLM agent working for customers in production.\n   [LYC] \"Before starting Lemma, we were engineers at two high growth, AI-native startups: Tandem (AI for healthcare) and\n   Chipstack (AI agents for chip design).\" [LYC] \"If you're building with LLMs and run a ton of prompt or eval\n   experiments, we'd love for you to work with us.\" → `roles[engineer]`, `context.actor`, `actor_plural`.\n\n2. **What (the job).** Keep the agent doing what customers need as real traffic changes.\n   [LYC] \"AI agents don't learn from their mistakes. In fact, they get worse with use.\" [LYC] \"In production, prompts\n   and agents continuously degrade due to real-world input drift (new user behaviors or unseen edge cases).\"\n   → `statements.problem`, `context.job`, `interpretations.problem`.\n\n3. **When / where.** When the agent starts failing on real inputs nobody tested.\n   [LYC] \"Agent performance can often drop ~40% in a few weeks, and suddenly what worked in testing breaks in front of\n   customers.\" [LYC] \"When that happens, engineers are forced to dig through logs, collect failing examples, and manually\n   tweak prompts rather than building core product features.\" → `context.circumstance`, `occasion: agent failure`.\n   Author's choice: the window {5, WORKING_DAYS} and Frequency 3 to 5 working days out of 5; the launch says\n   \"continuously\" and gives no count. The daily rhythm is confirmed only later, by a customer quote on [SITE]: \"Every\n   morning, I check our frontend logs -> backend logs -> Lemma logs, then pipe any issues straight into Claude\".\n   Prevalence `p_60_80` (\"Most\") is the author's: not every team's agent fails every week.\n\n4. **Which people.** Engineers at US pre-seed to Series A startups with an agent serving customers.\n   [LYC] \"If you know a Head of AI/Eng or CTO at a pre-seed to Series A startup, we owe you lunch :)\" → `context.segment`,\n   `market: US` (author's choice: the founders are in the US batch and name no other market).\n\n5. **Who pays.** The startup; its CTO or head of AI decides.\n   [LYC] the ask above names the buyer, no payer or terms. → `persona.decision_maker: {role: founder}` (label\n   \"Startup CTOs and founders\"; the id reads \"The founder decides\" in the engine's sentence). Buyer and payer tests\n   \"Nobody else\" (at pre-seed the technical founder buys tools alone), with \"The CEO\" and \"The security lead\" listed:\n   author's choice. Purchase friction's three items (a security review of sending traces out — tested; a check against\n   the current observability tool; access to open pull requests) are the author's, drawn from [LYC]'s mechanism\n   (\"automatically open a PR in your codebase\") and [YCP]'s \"the silent failures your observability tools and evals\n   miss\". Commitment's step \"connect one agent's traces for a trial\": [LYC] \"book a live demo on our website\"; [WB]\n   \"Book a demo appointment to get started.\"; the trial on one agent is the author's next step after the demo.\n\n6. **Mechanism.** Failed runs found in live traffic; the cause traced; a prompt fix opened as a pull request.\n   [LYC] \"Step 1: Lemma detects failed outcomes directly from live traffic, and it automatically identifies the exact\n   cause in an agent chain.\" \"Step 2: Lemma alerts you, and with one click, it runs targeted prompt optimizations to fix\n   the failing behavior without any manual tracing or guesswork.\" \"Step 3: We give you back an improved prompt and\n   automatically open a PR in your codebase so your prompts can live where you want them.\" [LYC] \"Agent tracing\n   observability with live drift detection, regression alerts, and performance visibility across real user\n   interactions.\" → `statements.solution`, `solution_mechanism`, Compatibility (every run already traced — tested;\n   prompts in the repository; traces may leave the company) and Adoption friction (review and merge the prompt changes\n   it opens — tested; add its tracing to the agent's code). Relative advantage: [LYC] \"resolve production drifts in\n   minutes instead of days\" (easier_recovery) and \"cut manual prompt iteration by 90%\" (shorter_time); wording the\n   author's.\n\n7. **Price and cost.** No price is public at launch or since; the cost is a rate of failing runs.\n   [LYC] asks for demos and introductions and names no price; [WB] \"Book a demo appointment to get started.\"; [PRC] 404.\n   → `commercial.price` AMOUNT_PERIOD $300 to $600 per agent a month: **the operator's reading**, not a source. The\n   unit is the cost's (a chain price follows the cost's unit and period); the amount is the author's, a sum a CTO can\n   approve alone that sits well under one engineer-week ([BLS]). `statements.commercial` carries the same reading.\n   Existing sacrifice, RATE 10% to 40% of the agent's runs in production per agent a month, lossPhrase \"Runs that fail in\n   front of customers before anyone notices\": the top is [LYC]'s \"~40%\", read as a share of runs (the launch says\n   \"performance\"); the low end is the author's. Ability to pay is read `budget` by the engine (a percent of runs never\n   compares with dollars), so the six founders answer the registry's budget question.\n\n8. **Occasions.** The stories are scripted from these public accounts; no respondent is a real person.\n   [LYC] \"dig through logs, collect failing examples, and manually tweak prompts\". [YCP] \"We catch the silent failures\n   your observability tools and evals miss (think bad tool calls, lost context, and infinite loops) before your users\n   find them.\" (today's page, later than launch). [SITE] (customer, later) \"almost immediately it flagged an issue that\n   had gone unnoticed in prod for 20+ days\".\n\n## Respondents → the public account each is based on\n\nAI engineers (PRIMARY link, Parts 1 and 2):\n- Priya Venkataraman → [LYC] \"what worked in testing breaks in front of customers\"; the refund window from [SITE]'s demo incident (\"P0 — promising refunds outside 30-day policy\", later); the rest the author's.\n- Mateo Fernández → [YCP] \"infinite loops\" and \"bad tool calls\" (later page); the bill spike the author's.\n- Aisha Bello → author's invention, filling a gap: a team whose own eval suite catches regressions before they ship (against on Importance), so the problem is not a chorus.\n- Jonah Feldman → [LYC] \"collect failing examples, and manually tweak prompts\"; [YCP] \"lost context\".\n- Mei-Ling Zhou → author's invention, filling a gap: a chipped (rather_not_say) story, GUESSED by code.\n- Kwabena Asare → author's invention, filling a gap: a vague, habitual story with no one occasion (GUESSED; Frequency `cant_recall`).\n- Sofia Marchetti → author's invention: a gate No (her team's agent not yet live that week).\n- Ravi Shankar → author's invention: a gate No (on leave).\n- Daniel Kim → [SITE]'s demo failure mode (\"the agent invents placeholder identifiers instead of asking\"; \"Every one returned success, so nothing surfaced in error monitoring.\", later); he will not merge machine-written prompt changes (Adoption friction probably not).\n- Elena Petrova → [LYC] the founders' healthcare background (Tandem); author's invention: runs only sampled and patient details stripped, so the tested condition fails for her (Compatibility only with help).\n- Tyrone Jackson → author's invention, filling a gap: latency and cost, not wrong answers, are his week's problem (against on Importance).\n- Hannah Goldberg → [LYC] \"new user behaviors or unseen edge cases\"; the language mix-up the author's.\n- Omar Haddad → [P2] \"many existing agent monitoring systems depend heavily on developers deciding beforehand what they want to measure. This can include configuring specific judges, traces, evaluation criteria, alerts or known failure conditions.\" — a team whose own judges catch the known failures (Current solution mostly works).\n- Lucía Romero → [LYC] the manual prompt loop; [SITE]'s \"Agents can look like they're working even when they've failed.\" (later).\n\nStartup CTOs and founders (COMMERCIAL_B2B link, Part 3 only; no story by rule). Their picks are the author's, shaped by:\n- Nathan Cole → [LYC] the ask to \"a Head of AI/Eng or CTO at a pre-seed to Series A startup\"; pays below the founder's band per agent (several small agents; the per-agent price adds up), though he would start the trial.\n- Farah Siddiqui → author's invention: prices it below the band against the observability tool she already pays for, and wants a week on staging first (Commitment yes after trying).\n- Wei Zhang → [SITE] (customer, later) \"we switched over from raindrop a while back\": a buyer who already pays for an observability tool and prices this below it.\n- Isabel Duarte → [SITE] (customer, later) \"it flagged an issue that had gone unnoticed in prod for 20+ days\": a buyer who would pay above the band (beyond), with the CEO agreeing.\n- Marcus Oyelaran → author's invention, filling a gap: a low-volume agent read by hand, so Nothing as the cost and would not pay.\n- Chloe Bennett → [P2] agents \"in workflows where failures have financial, operational or customer-facing consequences\"; author's invention: a security lead who must clear any vendor seeing customer conversations, and a buyer who cannot say the cost or the price (both escapes).\n\nThe split (1 of the 5 founders who name a rung at $300 or above, the other four below it -- made harsher on\n2026-10-22 so the price fails; 3 of 5 cost boxes at 10% or more) is the author's\nreading of a crowded tooling market ([P2] \"The emerging AI observability market includes tools for tracing model calls,\nmeasuring latency, monitoring token usage, evaluating model responses and reviewing agent behavior.\") against the\nlaunch's claims. No respondent carries the name of a customer, commenter or founder in the sources.\n\n## Status today\n\nSame idea, re-led. The problem is unchanged (agents fail in production without anyone noticing); the lead product moved\nfrom \"Continuous Learning\" and automated prompt optimization ([LYC], [WB]) to monitoring: [SITE] \"Lemma | Production\nmonitoring for AI agents\"; \"Lemma audits every trace against your agent's instructions and groups recurring failures\ninto issues.\"; \"Pull context into your coding agent to resolve it without context-switching.\" Raised $2.3 million\npre-seed ([P2], 2026-08-19). Price today: none public ([PRC] 404; [SITE] \"Book a demo\").\n\n## Could not be sourced\n\n- **Any price, at any time.** The founder's $300 to $600 per agent a month is the operator's reading (item 7), recorded\n  as such in the entry's header and in `statements.commercial`. A run that reads the price line reads the author's\n  number, not Lemma's.\n- **A share of runs.** [LYC]'s 40 is a fall in \"performance\", not a share of failing runs; the RATE reading and its low\n  end of 10 are the author's (header).\n- **A buyer title in practice, the approvers and the purchase steps.** Only the launch ask names the buyer; the CEO and\n  security lead, the three Purchase friction items and the trial step are the author's.\n- **An engineer's hour.** [BLS]'s software developers' median stands in; a RATE cost does not use it.\n- **The daily rhythm at launch.** The launch says \"continuously\"; the morning-check quote is today's site.\n- **A Launch HN thread or first-person engineer accounts from the launch era.** None found; the customer quotes on\n  [SITE] are vendor-curated and later than launch.\n\nThe study you typed into Keel, as its context fields say it (your trade's words are plain to you; judge from inside your trade, your place and your time):\n  actor: AI engineer\n  actor_plural: engineers at AI startups running agents in production\n  job: keep the agent doing what customers need as real traffic changes\n  circumstance: the agent in production starts failing on real inputs that never came up in testing\n  segment: engineers at US pre-seed to Series A startups with an LLM agent serving customers\n  window: the last 5 working_days\n  where: US",
+    "respondent": {
+      "COMMERCIAL_B2B": "Your name is Nathan Cole.\nAbout you: ...Startup CTOs and founders (COMMERCIAL_B2B link, Part 3 only; no story by rule). Their picks are the author's, shaped by: - Nathan Cole → [LYC] the ask to \"a Head of AI/Eng or CTO at a pre-seed to Series A startup\"; pays below the founder's band per agent (several small agents; the per-agent price adds up), though he would start the trial. - Farah Siddiqui → author's invention: prices it below the band against the observ...\nYour role: Startup CTOs and founders -- the CTO or technical founder who chooses and pays for the tools the engineering team uses.\nYour title: Startup CTO. You decide on, and pay for, tools like the one in this study.\nThe project's what, where and when, in the founder's own words for your situation (given so you know your trade, your place and your time; they are not words you would necessarily use):\n  actor: AI engineer\n  actor_plural: engineers at AI startups running agents in production\n  job: keep the agent doing what customers need as real traffic changes\n  circumstance: the agent in production starts failing on real inputs that never came up in testing\n  segment: engineers at US pre-seed to Series A startups with an LLM agent serving customers\n  window: the last 5 working_days\n  where: US"
+    }
+  },
+  "spoken_guidelines": {
+    "source": "keel-cloud 1ce203fe (the bundle's)",
+    "sections": [
+      "2",
+      "3",
+      "5",
+      "16",
+      "17",
+      "18"
+    ],
+    "sha256": "0adcdb212fe20093d2c8d2b76c31c59aa144b4ed1b1bb7a6a9d4912032ba3496"
+  },
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 1.2313,
+  "probe_cost_usd": 0.0038,
+  "seconds": 151.2,
+  "scored_at": "2026-11-02T13:30:58+00:00",
+  "calls": 47,
+  "partial": false,
+  "selection": null,
+  "entry_yaml": {
+    "sha256": "788d2b8738f0696a8c489cacf35ff70af8a9ec9a35346bdfe92a0aea2f8d1d24",
+    "matches_bundle": true
+  },
+  "read_fraction": 0.286,
+  "unread": [
+    {
+      "n": 13,
+      "screen": "q-commercial.price",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.price",
+      "kind": "q",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 14,
+      "screen": "answer-commercial.buyer_payer_alignment",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.buyer_payer_alignment",
+      "kind": "answer",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 15,
+      "screen": "check-commercial.buyer_payer_alignment",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.buyer_payer_alignment",
+      "kind": "check",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 16,
+      "screen": "choose-commercial.buyer_payer_alignment",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.buyer_payer_alignment",
+      "kind": "choose",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 17,
+      "screen": "answer-commercial.purchase_friction",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.purchase_friction",
+      "kind": "answer",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 18,
+      "screen": "check-commercial.purchase_friction",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.purchase_friction",
+      "kind": "check",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 19,
+      "screen": "choose-commercial.purchase_friction",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.purchase_friction",
+      "kind": "choose",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 20,
+      "screen": "answer-commercial.commitment",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.commitment",
+      "kind": "answer",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 21,
+      "screen": "check-commercial.commitment",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.commitment",
+      "kind": "check",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 22,
+      "screen": "ready-pilot",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "ready-pilot",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 23,
+      "screen": "ready-interviewer",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "ready-interviewer",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 24,
+      "screen": "send-format",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "send-format",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 25,
+      "screen": "send-who",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "send-who",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 1,
+      "screen": "stage",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "stage",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 2,
+      "screen": "dimension-commercial.existing_sacrifice",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.existing_sacrifice",
+      "kind": "dimension",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 3,
+      "screen": "dimension-commercial.price",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.price",
+      "kind": "dimension",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 4,
+      "screen": "dimension-commercial.ability_to_pay",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.ability_to_pay",
+      "kind": "dimension",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 5,
+      "screen": "dimension-commercial.buyer_payer_alignment",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.buyer_payer_alignment",
+      "kind": "dimension",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 6,
+      "screen": "dimension-commercial.purchase_friction",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.purchase_friction",
+      "kind": "dimension",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 7,
+      "screen": "dimension-commercial.commitment",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.commitment",
+      "kind": "dimension",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 8,
+      "screen": "insights",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "insights-screen",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 1,
+      "screen": "idea",
+      "audience": "respondent",
+      "link": "COMMERCIAL_B2B",
+      "dimension": null,
+      "kind": "idea",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 2,
+      "screen": "item-commercial.existing_sacrifice",
+      "audience": "respondent",
+      "link": "COMMERCIAL_B2B",
+      "dimension": "commercial.existing_sacrifice",
+      "kind": "item",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 3,
+      "screen": "item-commercial.price",
+      "audience": "respondent",
+      "link": "COMMERCIAL_B2B",
+      "dimension": "commercial.price",
+      "kind": "item",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 4,
+      "screen": "follow_up",
+      "audience": "respondent",
+      "link": "COMMERCIAL_B2B",
+      "dimension": null,
+      "kind": "follow_up",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 5,
+      "screen": "item-commercial.buyer_payer_alignment",
+      "audience": "respondent",
+      "link": "COMMERCIAL_B2B",
+      "dimension": "commercial.buyer_payer_alignment",
+      "kind": "item",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 6,
+      "screen": "item-commercial.purchase_friction",
+      "audience": "respondent",
+      "link": "COMMERCIAL_B2B",
+      "dimension": "commercial.purchase_friction",
+      "kind": "item",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "n": 7,
+      "screen": "item-commercial.commitment",
+      "audience": "respondent",
+      "link": "COMMERCIAL_B2B",
+      "dimension": "commercial.commitment",
+      "kind": "item",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "insights": "commercial.price",
+      "link": "COMMERCIAL_B2B",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    {
+      "insights": "commercial.buyer_payer_alignment",
+      "link": "COMMERCIAL_B2B",
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    }
+  ],
+  "asked_again": 2,
+  "summary": {
+    "founder": {
+      "screens": 12,
+      "means": {
+        "r1": 2.0,
+        "r2": 1.833,
+        "r3": 2.0,
+        "r4": 1.75,
+        "r5": 1.417,
+        "r6": null,
+        "b1": null,
+        "b2": null,
+        "b3": null,
+        "b4": null,
+        "b5": null,
+        "b6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0,
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 0,
+        "b6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": 0.0,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "after_pct": null,
+      "score_pct": 90.2
+    },
+    "respondent": {
+      "screens": 0,
+      "means": {
+        "r1": null,
+        "r2": null,
+        "r3": null,
+        "r4": null,
+        "r5": null,
+        "r6": null,
+        "b1": null,
+        "b2": null,
+        "b3": null,
+        "b4": null,
+        "b5": null,
+        "b6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0,
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 0,
+        "b6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": null,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "after_pct": null,
+      "insight_lines": 0,
+      "insight_means": {
+        "g1": null,
+        "g2": null
+      },
+      "insight_zeros": {
+        "g1": 0,
+        "g2": 0
+      },
+      "insights_pct": null,
+      "score_pct": null
+    },
+    "overall": {
+      "screens": 12,
+      "means": {
+        "r1": 2.0,
+        "r2": 1.833,
+        "r3": 2.0,
+        "r4": 1.75,
+        "r5": 1.417,
+        "r6": null,
+        "b1": null,
+        "b2": null,
+        "b3": null,
+        "b4": null,
+        "b5": null,
+        "b6": null
+      },
+      "zeros": {
+        "r1": 0,
+        "r2": 0,
+        "r3": 0,
+        "r4": 0,
+        "r5": 0,
+        "r6": 0,
+        "b1": 0,
+        "b2": 0,
+        "b3": 0,
+        "b4": 0,
+        "b5": 0,
+        "b6": 0
+      },
+      "flagged": 0,
+      "flagged_pct": 0.0,
+      "out_of_place": 0,
+      "looks_stupid": 0,
+      "spoken_pct": null,
+      "after_pct": null,
+      "insight_lines": 0,
+      "insight_means": {
+        "g1": null,
+        "g2": null
+      },
+      "insight_zeros": {
+        "g1": 0,
+        "g2": 0
+      },
+      "insights_pct": null,
+      "score_pct": 90.2
+    }
+  },
+  "insights": [],
+  "insights_note": null,
+  "after_note": null,
+  "flow": {
+    "founder": {
+      "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+    },
+    "respondent": {
+      "COMMERCIAL_B2B": {
+        "error": "the CLI answered an error: You've hit your 5-hour limit · resets 10am (America/New_York)"
+      }
+    }
+  },
+  "screens": [
+    {
+      "n": 1,
+      "screen": "name",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "name",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": null,
+      "r5": 2,
+      "r6": null,
+      "why1": "Naming the project is the natural first step of a founder flow, before anything about customers or the problem is asked.",
+      "why2": "\"What should we call this project?\" is plain to any founder on first reading.",
+      "why3": "I named my own company and tagline, so I can answer this instantly.",
+      "why4": "A free-text box with no options, rows or chips.",
+      "why5": "What I typed, \"Lemma — agents that learn from their production failures\", is shown as I typed it, and a name screen leaks nothing to respondents.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 2,
+      "screen": "market",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "market",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": 2,
+      "r5": 2,
+      "r6": null,
+      "why1": "Right after naming the project, asking where I sell first is the obvious next setup question, and it fixes the market the study's segment and prices hang on.",
+      "why2": "\"Where will you sell this first?\" is plain to any founder on first read.",
+      "why3": "I know I'm selling to US pre-seed to Series A startups first, so I can answer it directly.",
+      "why4": "A country picker with an optional region fits; US was there and leaving region empty is right for a nationwide B2B dev tool.",
+      "why5": "It holds exactly what I typed (US, no region), and the kicker keeps my company's own tagline.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 3,
+      "screen": "context",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "context",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": 2,
+      "r5": 2,
+      "r6": null,
+      "why1": "Right after naming it and picking the market, pinning down who, what job, when and in which companies is the obvious next step before any belief gets tested.",
+      "why2": "Actor, job, circumstance and segment are each a phrase I'd say myself; 'LLM agent', 'in production' and 'pre-seed to Series A' are my trade's plain words, and the 'boundary' intro is clear enough on one read.",
+      "why3": "It asks me to describe my own customers and their week, which is exactly what my launch post already says.",
+      "why4": "The four phrase boxes and the recall-window count and unit picker cover the whole frame, with no overlap or missing slot; 5 working days fits a team that checks its agent daily.",
+      "why5": "The read-back keeps my segment, circumstance and job word for word, quietly fixing my typos ('changess', 'failng', 'sevring') without changing the meaning; it only leaves out the actor label and the 5-working-day window.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Keep the screen; have the read-back end with 'thinking back over the last 5 working days' so the window I set is confirmed too."
+    },
+    {
+      "n": 4,
+      "screen": "context-card",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "context-card",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": 2,
+      "r5": 2,
+      "r6": null,
+      "why1": "Reading back the who, when and job before any testing starts is the obvious place to confirm that Keel heard the context right.",
+      "why2": "Every word (LLM agent, production, real inputs, testing, pre-seed to Series A) is plain to me as an AI engineer turned founder, though the closing 'as real traffic changes' sits a bit redundantly after 'starts failing on real inputs'.",
+      "why3": "It is my own segment, occasion and job, so I can confirm it at a glance from what I know.",
+      "why4": "A confirm chip with Edit beside it is the right and complete choice for a read-back card, and 'Yes, that's it' fits.",
+      "why5": "It keeps my segment, circumstance and job word for word, and nothing has been added or bent.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 5,
+      "screen": "problem-seed",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "problem-seed",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": null,
+      "r5": 1,
+      "r6": null,
+      "why1": "Right after the context is pinned down, the problem step reads back the problem I typed, and that is exactly where it belongs.",
+      "why2": "Prompts, agents, edge cases, logs and failing examples are my everyday words as an AI engineer, and the cleaned-up spelling reads on the first pass.",
+      "why3": "This is the loop Jonah and I lived at Tandem and Chipstack, so I can judge every clause from my own week.",
+      "why4": "The screen is a statement to read back, with no options, rows, chips or value box.",
+      "why5": "It keeps my problem and fixes my typos, but my one hard number, \"about 40%\", is softened to \"drop steeply\", which loses the figure I lead the launch with; dropping the line about our own background is fine for a problem statement.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "AI engineers find that their agents do not learn from their mistakes; they get worse with use. In production, prompts and agents degrade as real users bring new behavior and edge cases nobody tested, and agent performance can drop about 40% in a few weeks, so what worked in testing breaks in front of customers. Engineers are then forced to dig through logs, collect failing examples and tweak prompts by hand instead of building the product."
+    },
+    {
+      "n": 6,
+      "screen": "problem-card",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "problem-card",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": 2,
+      "r5": 1,
+      "r6": null,
+      "why1": "Right after I seeded the problem, Keel hands me back its statement of it to confirm before building questions on it; that is exactly where this check belongs.",
+      "why2": "Prompts, edge cases, production, logs and failing examples are my everyday words, so I read it once and know it is my launch post.",
+      "why3": "It is the problem Tandem and Chipstack had: digging through logs and hand-tweaking prompts while agents drift. That is my life, not a guess.",
+      "why4": "Confirming with 'Yes, that's the problem' is the right chip for a card that restates my own words, and I need nothing else to say it fits.",
+      "why5": "Nearly verbatim from my launch, but my '~40% in a few weeks' became 'drop steeply'. That softens the one hard number I led with, so it has drifted a little.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Keep my figure: '...agent performance can often drop ~40% in a few weeks, so what worked in testing breaks in front of customers.'"
+    },
+    {
+      "n": 7,
+      "screen": "solution-seed",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "solution-seed",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": null,
+      "r5": 2,
+      "r6": null,
+      "why1": "Right after the problem card, Keel asks for my idea and plays back what I typed, which is the obvious next step.",
+      "why2": "Live traffic, agent chain, prompt optimization, pull request, eval sets, tracing and drift alerts are everyday words to me and to any AI engineer I'd send this to, and my typos are fixed.",
+      "why3": "It is my own product in my own words, so I can check it at a glance.",
+      "why4": "The screen is a playback card for approval and shows no options, chips or value box.",
+      "why5": "Every step I typed survives: watch, detect, find the cause, alert, one-click optimization, and a PR with the prompt; 'exact' and 'improved' moved into the belief line rather than being lost, and 'A tool' keeps my name out of the respondent's wording.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": ""
+    },
+    {
+      "n": 8,
+      "screen": "solution-card",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "solution-card",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": 2,
+      "r5": 1,
+      "r6": null,
+      "why1": "Right after I typed my mechanism, Keel shows back its reading of it for me to approve before anything goes to engineers, which is exactly where that check belongs.",
+      "why2": "Live traffic, agent chain, prompt optimization, pull request, eval sets, tracing and drift alerts are all everyday words to me as an AI engineer turned founder.",
+      "why3": "It is my own product described back to me, so I can judge every line from what I built and pitched.",
+      "why4": "Approve or edit is the right pair for a read-back card, and \"Looks right\" covers my answer with an edit path if it did not.",
+      "why5": "The first three sentences and the belief are my launch steps almost word for word, but \"brings your existing eval sets, tracing and drift alerts into one place\" makes Lemma sound like an aggregator of tools I already have, when I said Lemma itself does the tracing, live drift detection and regression alerts.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Keep the first three sentences and the belief; replace the last line with: \"It also traces every run, with live drift detection and regression alerts across real user interactions.\""
+    },
+    {
+      "n": 9,
+      "screen": "idea",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "idea",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": null,
+      "r5": 1,
+      "r6": null,
+      "why1": "Right after the idea is drafted, checking the three lines strangers will read before any idea question is the obvious next step.",
+      "why2": "Live traffic, agent chain, prompt optimization, pull request, eval sets, tracing and drift alerts are everyday words to me and to the engineers I'm selling to.",
+      "why3": "It describes my own product's mechanism, which I can check line by line.",
+      "why4": "The screen shows editable text lines, with no options, rows, chips or value box.",
+      "why5": "The how and belief keep my launch steps nearly word for word, but the what line is only the bare name 'Lemma', which tells a stranger nothing, against the screen's own hint, and the closing 'brings your existing eval sets ... into one place' is a claim I never made.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "what: a tool that catches an AI agent's failures in production and opens a prompt fix as a pull request; how: it watches live traffic, spots failed runs, traces the cause in the agent chain and alerts you, and one click tunes the failing prompt and opens a PR with it; belief: the people building it believe it would find the exact cause of a failure and hand back a prompt that fixes it."
+    },
+    {
+      "n": 10,
+      "screen": "persona",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "persona",
+      "r1": 2,
+      "r2": 1,
+      "r3": 2,
+      "r4": 1,
+      "r5": 1,
+      "r6": null,
+      "why1": "Asking who signs off before any price question is the right order, because at a seed-stage startup the engineer who feels the drift is often not the one holding the card.",
+      "why2": "The phrase 'use and pay for' is double-barrelled: my engineers decide what to wire into the agent, but the CTO approves the spend, so the question has two answers at once.",
+      "why3": "As the founder I know exactly who buys tooling at a pre-seed to Series A company: the CTO or head of AI.",
+      "why4": "The two options are distinct, but the most common real case is missing: the engineer picks the tool and the CTO approves the spend.",
+      "why5": "Keel kept 'Startup CTO' as the title, but the label it shows is 'Founder', which narrows my 'CTOs and founders' to one role.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Who approves paying for a tool like Lemma at your startup? -- The AI engineer alone / The engineer picks it, the CTO or head of AI approves the spend / Someone else decides (name the role)"
+    },
+    {
+      "n": 11,
+      "screen": "persona-who-answers",
+      "audience": "founder",
+      "link": null,
+      "dimension": null,
+      "kind": "persona-who-answers",
+      "r1": 2,
+      "r2": 2,
+      "r3": 2,
+      "r4": 1,
+      "r5": 1,
+      "r6": null,
+      "why1": "Right after I said someone other than the engineer decides, it is natural to name who answers the will-they-pay part, and that is the CTO or founder.",
+      "why2": "\"Founder\" and \"Startup CTO\" are the exact titles I use for my buyer, so I read this at once.",
+      "why3": "I know who signs off on tools at a pre-seed to Series A startup, because I pitch that person every day.",
+      "why4": "The label says only \"Founder\" while the title says \"Startup CTO\", so the two fields pull slightly apart instead of reading as one group of CTOs and founders.",
+      "why5": "My buyer is \"Startup CTOs and founders\" and the CTO is my main ask; the bare label \"Founder\" loses the CTO, so it has drifted a little.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "Who answers the paying questions: Startup CTOs and founders (title: CTO or technical founder at a pre-seed to Series A startup) — keep / edit"
+    },
+    {
+      "n": 12,
+      "screen": "q-commercial.existing_sacrifice",
+      "audience": "founder",
+      "link": null,
+      "dimension": "commercial.existing_sacrifice",
+      "kind": "q",
+      "r1": 2,
+      "r2": 1,
+      "r3": 2,
+      "r4": 2,
+      "r5": 1,
+      "r6": null,
+      "why1": "Right after naming who decides and pays, asking what the problem already costs the buyer is the obvious next step before the price.",
+      "why2": "The question is plain, but the equation's \"A count\" label above a percent and the stacked fragments (\"Between / and / % / of\") need a second read to see that I'm filling in a share of runs.",
+      "why3": "As the founder I know my own claim that agents drop ~40% in weeks and I chose the 10–40% share of runs, so this is answerable from what I know.",
+      "why4": "Money, time and a share lost cover the ways this cost shows up, they don't overlap, they read in my words, and \"I'm not sure\" is a fair escape.",
+      "why5": "My 10–40% of the agent's runs and the loss phrase are kept, but the belief line says it \"costs startup CTOs\" a share of runs, which drifts from the agent's runs to the CTOs, and \"per agent a month\" sits awkwardly after a percent.",
+      "why6": "",
+      "out_of_place": false,
+      "looks_stupid": false,
+      "instead": "What does this problem cost the startup today? Money they spend / Time it takes / A share of the agent's runs that fail — belief line: \"About 10% to 40% of each agent's production runs fail in front of customers each month before anyone notices.\""
+    }
+  ],
+  "typos": [
+    {
+      "field": "job",
+      "meant": "changes",
+      "typed": "changess",
+      "kind": "doubled"
+    },
+    {
+      "field": "circumstance",
+      "meant": "failing",
+      "typed": "failng",
+      "kind": "dropped"
+    },
+    {
+      "field": "segment",
+      "meant": "serving",
+      "typed": "sevring",
+      "kind": "transposed"
+    },
+    {
+      "field": "problem_seed",
+      "meant": "agents",
+      "typed": "agnts",
+      "kind": "dropped"
+    },
+    {
+      "field": "problem_seed",
+      "meant": "bring",
+      "typed": "bringg",
+      "kind": "doubled"
+    },
+    {
+      "field": "problem_seed",
+      "meant": "nobody",
+      "typed": "noboy",
+      "kind": "dropped"
+    },
+    {
+      "field": "problem_seed",
+      "meant": "collect",
+      "typed": "collectt",
+      "kind": "doubled"
+    },
+    {
+      "field": "problem_seed",
+      "meant": "examples",
+      "typed": "exmples",
+      "kind": "dropped"
+    },
+    {
+      "field": "problem_seed",
+      "meant": "instead",
+      "typed": "insteadd",
+      "kind": "doubled"
+    },
+    {
+      "field": "problem_seed",
+      "meant": "engineers",
+      "typed": "engineerss",
+      "kind": "doubled"
+    },
+    {
+      "field": "solution_seed",
+      "meant": "agent",
+      "typed": "agnt",
+      "kind": "dropped"
+    },
+    {
+      "field": "solution_seed",
+      "meant": "chain",
+      "typed": "cahin",
+      "kind": "transposed"
+    },
+    {
+      "field": "solution_seed",
+      "meant": "drift",
+      "typed": "dritf",
+      "kind": "transposed"
+    },
+    {
+      "field": "solution_seed",
+      "meant": "place",
+      "typed": "palce",
+      "kind": "transposed"
+    }
+  ],
+  "typo_leaks": []
+}
