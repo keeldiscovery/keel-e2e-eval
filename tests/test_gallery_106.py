@@ -467,7 +467,7 @@ def test_equal_or_above_the_last_accepted_passes(tmp_path):
     above = g.promote(scored(tmp_path / "c", scores, mark=2, day="20261102"), out, scores_dir=scores, cycle="c3",
                       provenance_dir=prov, exported_at="2026-11-02T09:00:00Z", say=lambda _: None)
     assert above["accepted"] == {"cycle": "c3", "score_pct": 100.0, "rubric_version": rubric.RUBRIC_VERSION,
-                                 "entry_mean_pct": 84.0}
+                                 "entry_mean_pct": 80.0}
     assert g.last_accepted(prov)["cycle"] == "c3"
 
 
@@ -491,7 +491,7 @@ def test_a_flagged_screen_no_longer_refuses_its_entry(tmp_path):
     result = g.promote(runs, tmp_path / "sample", scores_dir=scores, provenance_dir=tmp_path / "prov", exported_at=AT,
                        say=said.append)
     assert not any(line.startswith("refused") for line in said)
-    assert said[-1] == "1 entry accepted on a mean of at least 84.0, 0 refused"
+    assert said[-1] == "1 entry accepted on a mean of at least 80.0, 0 refused"
     assert [r["slug"] for r in result["index"]] == ["fresco"]
     flagged = json.loads(Path(result["provenance"]).read_text(encoding="utf-8"))["examples"][0]["flagged"]
     assert [(f["study"], f["criterion"]) for f in flagged] == [("money", "r1")]

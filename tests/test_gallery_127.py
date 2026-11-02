@@ -72,16 +72,16 @@ def real_screen(n: int) -> dict:
 # ------------------------------------------------------------------------------------------- FR-1 the line
 
 def test_the_line_is_committed_in_cycle_toml_and_read_by_both_commands():
-    assert cycle.load_config()["gallery"]["entry_mean_pct"] == 84.0
-    assert g.entry_mean_line() == 84.0
+    assert cycle.load_config()["gallery"]["entry_mean_pct"] == 80.0
+    assert g.entry_mean_line() == 80.0
     text = (REPO / "quality" / "cycle.toml").read_text(encoding="utf-8").split("[gallery]", 1)[1]
-    assert "entry_mean_pct = 84.0" in text and "If it's above 84%" in text, "committed with its why"
+    assert "entry_mean_pct = 80.0" in text and "80 instead of 84" in text, "committed with its why"
     assert cycle.load_config()["bar_pct"] == rubric.BAR_PCT == 90.0, "FR-3: the bar is untouched"
 
 
 @pytest.mark.parametrize("line", ["", "entry_mean_pct = \"high\"", "entry_mean_pct = 120.0", "entry_mean_pct = true"])
 def test_a_line_absent_or_not_a_percentage_is_refused_by_name(tmp_path, line):
-    text = (REPO / "quality" / "cycle.toml").read_text(encoding="utf-8").replace("entry_mean_pct = 84.0", line)
+    text = (REPO / "quality" / "cycle.toml").read_text(encoding="utf-8").replace("entry_mean_pct = 80.0", line)
     path = tmp_path / "cycle.toml"
     path.write_text(text, encoding="utf-8")
     with pytest.raises(cycle.Refused, match=r"\[gallery\] entry_mean_pct is .*\(spec 127 FR-1"):
@@ -125,7 +125,7 @@ def test_a_flagged_screen_no_longer_refuses_and_travels_in_the_provenance(tmp_pa
     result = g.promote(runs, tmp_path / "sample", scores_dir=scores, cycle="20261102-7021fd5",
                        provenance_dir=tmp_path / "prov", exported_at=AT, say=said.append)
     assert not any(line.startswith("refused") for line in said)
-    assert said[-1] == "1 entry accepted on a mean of at least 84.0, 0 refused"
+    assert said[-1] == "1 entry accepted on a mean of at least 80.0, 0 refused"
     assert [r["slug"] for r in result["index"]] == ["expanse"]
     row = json.loads(Path(result["provenance"]).read_text(encoding="utf-8"))["examples"][0]
     assert row["flagged"] == [{"study": "money", "screen": real_screen(5)["screen"], "criterion": "r2", "n": 5,
@@ -152,7 +152,7 @@ def test_a_missing_score_file_still_refuses_the_study_and_its_entry(tmp_path):
                        f"{rubric.RUBRIC_VERSION} under {scores} -- a bundle the readers have not passed is not an "
                        "example")
     assert any(line.startswith("refused 17-expanse: no money study (COMMERCIAL)") for line in said)
-    assert said[-1] == ("0 entries accepted on a mean of at least 84.0, 1 refused "
+    assert said[-1] == ("0 entries accepted on a mean of at least 80.0, 1 refused "
                         "(17-expanse no mean (money not scored))")
     assert not (tmp_path / "sample").exists() and not (tmp_path / "prov").exists()
 
@@ -164,7 +164,7 @@ def test_the_provenance_records_each_studys_score_the_mean_the_flags_and_the_lin
     runs = (entry_runs(tmp_path / "runs", "08-fresco", (81.7, 83.6, 86.5), scores)
             + entry_runs(tmp_path / "runs", "17-expanse", (87.2, 87.5, 86.0), scores, zero=("problem", 2, "r4")))
     result = g.promote(runs, tmp_path / "sample", scores_dir=scores, cycle="20261102-7021fd5",
-                       provenance_dir=tmp_path / "prov", exported_at=AT, say=lambda _: None)
+                       provenance_dir=tmp_path / "prov", exported_at=AT, entry_mean_pct=84.0, say=lambda _: None)
     data = json.loads(Path(result["provenance"]).read_text(encoding="utf-8"))
     assert data["accepted"] == {"cycle": "20261102-7021fd5", "score_pct": data["accepted"]["score_pct"],
                                 "rubric_version": rubric.RUBRIC_VERSION, "entry_mean_pct": 84.0}
@@ -186,7 +186,7 @@ def test_the_summary_line_names_the_refused_with_their_means(tmp_path):
             + entry_runs(tmp_path / "runs", "17-expanse", (87.2, 87.5, 86.0), scores)
             + entry_runs(tmp_path / "runs", "21-codyco", (90.0, 90.0, 90.0), scores, unscored=("solution",)))
     g.promote(runs, tmp_path / "sample", scores_dir=scores, provenance_dir=tmp_path / "prov", exported_at=AT,
-              say=said.append)
+              entry_mean_pct=84.0, say=said.append)
     assert "refused 10-palus 83.0 < 84.0 -- the mean of its three studies' score_pct (problem 80.8, solution 83.9, " \
            "money 84.2) is under the entry's line (spec 127 FR-1); the gallery keeps what it holds for it" in said
     assert said[-1] == ("1 entry accepted on a mean of at least 84.0, 2 refused (10-palus 83.0, "
@@ -205,7 +205,7 @@ def test_a_refused_entry_keeps_its_older_example_and_a_slug_with_none_stays_abse
             + entry_runs(tmp_path / "runs", "13-aircaps", (83.0, 85.5, 81.3), scores)
             + entry_runs(tmp_path / "runs", "17-expanse", (87.2, 87.5, 86.0), scores))
     result = g.promote(runs, out, scores_dir=scores, cycle="20261102-7021fd5", provenance_dir=tmp_path / "prov",
-                       exported_at=LATER, say=lambda _: None)
+                       exported_at=LATER, entry_mean_pct=84.0, say=lambda _: None)
     index = json.loads((out / "index.json").read_text(encoding="utf-8"))["examples"]
     assert [r["slug"] for r in index] == ["palus-finance", "karsa", "expanse"], \
         "FR-5: every older row in its place (karsa, not in the cycle, too), the new slug appended"
@@ -238,7 +238,7 @@ def test_a_cycle_of_two_entries_leaves_twelve_existing_rows_untouched(tmp_path):
     before = {p: p.read_bytes() for s in others for p in (out / s).rglob("*") if p.is_file()}
     runs = [r for entry, pcts in walked.items() for r in entry_runs(tmp_path / "runs", entry, pcts, scores)]
     result = g.promote(runs, out, scores_dir=scores, cycle="20261102-7021fd5", provenance_dir=tmp_path / "prov",
-                       exported_at=LATER, say=lambda _: None)
+                       exported_at=LATER, entry_mean_pct=84.0, say=lambda _: None)
     index = json.loads((out / "index.json").read_text(encoding="utf-8"))["examples"]
     assert [r["slug"] for r in index] == [n.slug for n in gallery], "every row in its place"
     for i, n in enumerate(gallery):

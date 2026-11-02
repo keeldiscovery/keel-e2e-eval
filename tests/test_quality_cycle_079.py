@@ -132,7 +132,7 @@ def test_the_settings_are_a_committed_file_held_to_the_rubric_and_the_readers():
     assert len(cfg["entries"]) == 5 and all(re.fullmatch(r"\d\d-[a-z0-9-]+", e) for e in cfg["entries"])
     # spec 106 FR-3 retired [gallery]'s refuse_flagged, refuse_under_bar and scope_order (the gate is the gallery's own
     # last score; an example is three studies), and FR-2 added people; spec 127 FR-1 added the entry's line
-    assert cfg["gallery"] == {"entry_mean_pct": 84.0} and cfg["people"] == 7 and cfg["cadence"]["days"] == 7
+    assert cfg["gallery"] == {"entry_mean_pct": 80.0} and cfg["people"] == 7 and cfg["cadence"]["days"] == 7
     assert "quality/cycle.toml" in (REPO / "quality" / "CYCLE.md").read_text(encoding="utf-8")
 
 
@@ -556,7 +556,7 @@ def test_accept_cuts_the_baseline_refuses_the_failing_bundles_by_name_and_builds
     # spec 106 FR-1: neither entry has its three studies -- refused by name, nothing written
     assert ("gallery: refused 08-fresco: no money study (COMMERCIAL) -- an example is three studies (problem, solution, "
             "money), never a partial one; nothing is written for it") in said
-    assert ("gallery: 0 entries accepted on a mean of at least 84.0, 2 refused (08-fresco no mean (money not scored), "
+    assert ("gallery: 0 entries accepted on a mean of at least 80.0, 2 refused (08-fresco no mean (money not scored), "
             "09-karsa no mean (problem, solution not scored))") in said
     assert "gallery: refused 09-karsa: no problem study (PROBLEM) and no solution study (SOLUTION)" in said
     assert "no entry has its three studies (problem, solution, money): nothing to build -- the gallery is left" in said

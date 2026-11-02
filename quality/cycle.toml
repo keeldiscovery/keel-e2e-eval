@@ -62,7 +62,10 @@ gate = "The gate"
 # score_pct is at or above this line. A flagged screen no longer refuses a study (the provenance records it); a study
 # with no score file still does; an entry below the line is refused by name and its older example stays. The cycle's
 # gate above (the gallery's last accepted score) stands; the bar and the weak rule are untouched.
-entry_mean_pct = 84.0
+# 2026-11-02 (the founder): "let's keep the mean as 80 instead of 84 ... the new one is better than what we have ... if
+# it passes 80 threshold, promote it to staging" -- the line is 80; every round walks, advises, fixes defects, shows
+# improvements, accepts the entries at or above it and deploys staging.
+entry_mean_pct = 80.0
 
 [cadence]
 # Spec 079 FR-7: a cycle is DUE after a registry or instruction change merged in keel-cloud, a routing table or model

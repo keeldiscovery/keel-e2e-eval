@@ -154,12 +154,12 @@ make quality-accept CYCLE=quality/cycles/<record>.md
   gallery SCORES=quality/scores`, no bar): **an entry is admitted on its mean** (spec 127, the founder 2026-11-01: *"If
   it's above 84%, we can accept it ... let it be the entry mean"*) -- its three studies each with a score file at the
   current rubric version, and the mean of their three score_pct at or above `cycle.toml`'s `[gallery] entry_mean_pct`
-  (84.0). A flagged screen no longer refuses (the provenance records it by study, screen and criterion); a bundle with
+  (80.0 since 2026-11-02; 84.0 on 2026-11-01). A flagged screen no longer refuses (the provenance records it by study, screen and criterion); a bundle with
   no score file is **refused by name**; an entry below the line is **refused by name with its mean** (*10-palus 83.0 <
   84.0*) and keeps whatever the gallery holds for it (an older example stays; a slug with none stays absent). **The
   gallery grows by new entries only** (the founder, 2026-11-01; spec 127 FR-5): every slug the cycle does not rewrite
   keeps its index row, in its place, and its folder, untouched; a new slug is appended. It says
-  *N entries accepted on a mean of at least 84.0, M refused (names and means)*. **Every entry is its three studies**
+  *N entries accepted on a mean of at least {line}, M refused (names and means)*. **Every entry is its three studies**
   -- problem, solution and money, each its own walk -- written under keel-web's
   `public/sample/<slug>/<problem|solution|money>/` (`OUT=`
   elsewhere), the index row's top-level fields the problem study's and `studies` each study's own decision, how sure,

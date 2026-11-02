@@ -25,3 +25,8 @@ cycle has refreshed the homepage examples (the gallery still dates from 2026-10-
 
 `make unit` ZERO failed. `make quality-accept CYCLE=quality/cycles/20261102-7021fd5.md` admits every entry of cycle 7
 whose mean is at or above 84.0 and names the rest; keel-web's `public/sample` is refreshed for those and committed there.
+
+
+## Amendment 2026-11-02 -- the line is 80
+
+The founder, 2026-11-02 morning, after cycle 8 (the fourteen on keel-cloud `1ce203f`, every entry between 80.8 and 86.4): *"let's keep the mean as 80 instead of 84, because ... the new one is better than what we have ... if it passes 80 threshold, promote it to staging."* `[gallery] entry_mean_pct = 80.0`; FR-1's rule is otherwise unchanged; the tests that pin the committed line are re-pinned (`test_gallery_127.py`); the tests that exercise the mechanism at an explicit `line=84.0` keep that fixture value. The round rule from here: walk, advise, defects fixed, improvements shown, entries at or above the line accepted, staging deployed; production on the founder's word.

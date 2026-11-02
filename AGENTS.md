@@ -899,7 +899,7 @@ would have published Fresco alone: tasks.md).
 
 **The gallery admits an entry on its mean** (spec `127-the-gallery-admits-an-entry-on-its-mean`, 2026-11-01; the
 founder: *"If it's above 84%, we can accept it ... let it be the entry mean rather than a single project"*). `quality/cycle.toml`
-`[gallery] entry_mean_pct = 84.0` (checked by `cycle.load_config`; `gallery.entry_mean_line()` for `make gallery`,
+`[gallery] entry_mean_pct = 80.0` (84.0 on 2026-11-01, 80.0 from 2026-11-02 on the founder's word) (checked by `cycle.load_config`; `gallery.entry_mean_line()` for `make gallery`,
 `--entry-mean` / `ENTRY_MEAN=` for one export). With `--scores`, `gallery.entry_gate` admits an entry whose three
 studies each have a score file when the mean of their three `score_pct` (exact, in decimals) is at or above the line,
 and refuses the rest by name, *10-palus 83.0 < 84.0*; a flagged screen no longer refuses (`score_gate(refuse_flagged=)`

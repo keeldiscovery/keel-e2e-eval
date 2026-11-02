@@ -72,12 +72,12 @@ single project"*) loosens the readers' gate to the entry's mean:
   file at the current rubric version, and the **mean of their three `score_pct`** (exact, in decimals) is **at or above
   the line** -- `quality/cycle.toml [gallery] entry_mean_pct` (`entry_mean_line`; `--entry-mean` for one export). A
   flagged screen no longer refuses a study (`score_gate`'s `refuse_flagged` is off by default); a study with no score
-  file still does. An entry below the line is refused by name with its mean and the line (*10-palus 83.0 < 84.0*) and
+  file still does. An entry below the line is refused by name with its mean and the line (*10-palus 79.0 < 80.0*) and
   keeps whatever the gallery holds for it (FR-5 below), and a slug with none stays absent.
 - **FR-2 The flagged screens travel.** Each accepted example's provenance row carries every study's `score_pct`, the
   entry's `mean` and `flagged: [{study, screen, criterion, n, audience}]` (one per 0 the reader gave); `accepted` carries
   the line (`entry_mean_pct`) and the file lists the rows `kept` as they were. `promote` says *N entries accepted on a
-  mean of at least 84.0, M refused (names and means)*.
+  mean of at least {line}, M refused (names and means)*.
 - **FR-3** Spec 106 FR-3's cycle gate (`gate`, `last_accepted`) stands unchanged.
 - **FR-5 The gallery grows by new entries only** (the founder's standing rule, 2026-11-01: a certified entry is never
   re-walked just to stay in; it supersedes spec 106's *left out of the index*). An export rewrites only the slugs it
@@ -1162,7 +1162,7 @@ def entry_gate(run_dirs: list[Path], scores_dir: Path, *, line: float,
     `score_gate` first: a study with no score file at the current rubric version is refused by name (and, with
     `bar_pct`, one under the bar); a flagged screen no longer refuses. Then, per entry whose three studies are each
     scored once, the mean of their three `score_pct` (exact, in decimals): at or above `line`, its three runs pass; under
-    it, the entry is refused, *10-palus 83.0 < 84.0*. An entry not whole (a study missing, unscored or given twice) has
+    it, the entry is refused, *10-palus 79.0 < 80.0*. An entry not whole (a study missing, unscored or given twice) has
     its scored runs passed on to `three_studies`, which names why, and a run of another scope passes on to be named
     there. The scores by entry: `{entry: {studies: {study: {score_pct, file}}, mean, flagged, accepted, missing}}`,
     `mean` None when not whole."""
@@ -1209,7 +1209,7 @@ def entry_gate(run_dirs: list[Path], scores_dir: Path, *, line: float,
 
 
 def entry_summary(scores: dict[str, dict], accepted: Iterable[str], line: float) -> str:
-    """Spec 127 FR-2: *N entries accepted on a mean of at least 84.0, M refused (names and means)*."""
+    """Spec 127 FR-2: *N entries accepted on a mean of at least {line}, M refused (names and means)*."""
     accepted = set(accepted)
     refused = [e for e in scores if e not in accepted]
     n = len([e for e in scores if e in accepted])
