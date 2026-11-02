@@ -72,11 +72,13 @@ sample: venv
 #   make gallery                                                  newest runs, into keel-web/public/sample/
 #   make gallery RUNS=runs/<a>,runs/<b>,runs/<c> OUT=/tmp/sample  those runs (one entry's three studies), elsewhere
 #   make gallery RUNS_DIR=/path/to/keel-e2e-eval/runs OUT=...      the newest runs of another checkout
-# Spec 079 FR-6 / 106 FR-3: SCORES=quality/scores puts the readers' gate in front: a run whose latest score file at the
-# current rubric version has a flagged screen (or that has no score file) is refused by name, and the runs' overall
-# score_pct is held to the gallery's own last accepted one (the newest provenance file that records one): below it the
-# export is refused and nothing is written; at or above, or with none yet, it is built and the score recorded. BAR=<pct>
-# is an optional stricter gate (a run under it is refused), off by default; CYCLE=<record name> is recorded in the
+# Spec 079 FR-6 / 106 FR-3 / 127: SCORES=quality/scores puts the readers' gate in front: a run with no score file at the
+# current rubric version is refused by name; an entry is an example when the mean of its three studies' score_pct is at
+# or above quality/cycle.toml [gallery] entry_mean_pct (ENTRY_MEAN=<pct> for one export), a flagged screen admitted and
+# recorded in the provenance, an entry below it refused by name with its mean (its older example kept); and the runs'
+# overall score_pct is held to the gallery's own last accepted one (the newest provenance file that records one): below
+# it the export is refused and nothing is written; at or above, or with none yet, it is built and the score recorded.
+# BAR=<pct> is an optional stricter gate (a run under it is refused), off by default; CYCLE=<record name> is recorded in the
 # provenance. `make quality-accept` runs it so, from one cycle's bundles, with SCORES alone.
 #   make gallery RUNS=runs/<a>,runs/<b>,runs/<c> SCORES=quality/scores OUT=/tmp/sample
 gallery: venv
@@ -84,7 +86,8 @@ gallery: venv
 	  --out "$(if $(OUT),$(OUT),$$($(PY) -c 'from stack.config import load_config; print(load_config(validate=False).keel_web / "public" / "sample")'))" \
 	  $(if $(RUNS),--runs "$(RUNS)",) $(if $(RUNS_DIR),--runs-dir "$(RUNS_DIR)",) \
 	  $(if $(PROVENANCE_DIR),--provenance-dir "$(PROVENANCE_DIR)",) \
-	  $(if $(SCORES),--scores "$(SCORES)",) $(if $(BAR),--bar "$(BAR)",) $(if $(CYCLE),--cycle "$(CYCLE)",)
+	  $(if $(SCORES),--scores "$(SCORES)",) $(if $(BAR),--bar "$(BAR)",) $(if $(CYCLE),--cycle "$(CYCLE)",) \
+	  $(if $(ENTRY_MEAN),--entry-mean "$(ENTRY_MEAN)",)
 
 # make backtest (spec 062) walks ONE BACK-TEST ENTRY -- a real founder's idea, written from public material in the
 # corpus schema with no golden expectations, in keel-cloud's `canon/designs/measured-beliefs/backtest/<ENTRY>.yaml` --
@@ -219,7 +222,8 @@ quality-advise: venv
 # one first (spec 106 FR-3: below it, refused -- nothing cut, nothing written; the first acceptance passes), then cuts
 # quality/BASELINE.md from the cycle's score files (the old one kept under quality/baselines/<date>.md), builds the
 # gallery from the cycle's bundles behind the readers' gate alone (`make gallery SCORES=quality/scores`, no bar: three
-# studies an example, a flagged screen refused) into keel-web's public/sample (OUT= elsewhere), records the score in
+# studies an example, admitted on their mean at or above cycle.toml's entry_mean_pct, spec 127; a flagged screen
+# admitted and recorded) into keel-web's public/sample (OUT= elsewhere), records the score in
 # the provenance, prints what changed in the snapshot and the sentence the keel-web refresh spec starts from. It
 # commits nothing anywhere. RUNS_DIR= says where the bundles are by name; QUALITY_OUT= writes the baseline elsewhere
 # and PROVENANCE_DIR= the provenance (a dry rehearsal: both, with OUT=).

@@ -897,6 +897,19 @@ accepted, examples: [{slug, entry, cycle, studies: {study: {scope, run, cloud, w
 4,543 / 0 / 56); cycle 4's walk and `make quality-accept` are the founder's word (read through 106's gate, cycle 3
 would have published Fresco alone: tasks.md).
 
+**The gallery admits an entry on its mean** (spec `127-the-gallery-admits-an-entry-on-its-mean`, 2026-11-01; the
+founder: *"If it's above 84%, we can accept it ... let it be the entry mean rather than a single project"*). `quality/cycle.toml`
+`[gallery] entry_mean_pct = 84.0` (checked by `cycle.load_config`; `gallery.entry_mean_line()` for `make gallery`,
+`--entry-mean` / `ENTRY_MEAN=` for one export). With `--scores`, `gallery.entry_gate` admits an entry whose three
+studies each have a score file when the mean of their three `score_pct` (exact, in decimals) is at or above the line,
+and refuses the rest by name, *10-palus 83.0 < 84.0*; a flagged screen no longer refuses (`score_gate(refuse_flagged=)`
+off by default), a missing score file still does. A refused entry keeps its older index row and folder (`export(held=)`;
+a slug with none stays absent); a slug not in the cycle is left out of the index as 106 left it. The provenance's
+example rows gain `studies[<study>].score_pct`, `mean` and `flagged: [{study, screen, criterion, n, audience}]`,
+`accepted` gains `entry_mean_pct`, the file `kept`; `promote` says *N entries accepted on a mean of at least 84.0, M
+refused (names and means)*. Spec 106 FR-3's cycle gate, the baseline cut, `[bar]` and the weak rule are unchanged. On
+cycle 7's score files: Expanse 86.9 accepted; Fresco 83.9, AirCaps 83.3, Palus 83.0, Codyco 83.9 refused.
+
 **The lock walk picks Yes or No on the pilot screen** (spec `114-the-lock-walk-picks-the-pilot`, 2026-10-31; keel-web 146
 FR-2 made the pilot screen a pick, so a plain *Continue* there is disabled). `Corridor.word_pilot_and_lock(pilot_yes=,
 step=)` reads the screen as it opens (`_pilot_opened`: the quoted *Your first step: {step}* where the money is in scope,

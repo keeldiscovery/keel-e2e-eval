@@ -1315,7 +1315,8 @@ def promote(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | N
         slug_of = {n.entry: n.slug for n in names}
         held = [slug_of[e] for e in scores if e not in whole and e in slug_of]
         if not run_dirs:
-            raise NothingToBuild(["every run was refused by the readers' gate (--scores): nothing to build"])
+            raise NothingToBuild(["every run was refused by the readers' gate (--scores: a study with no score file, "
+                                  f"or an entry's mean under {line:.1f}): nothing to build"])
     if not complete:
         raise NothingToBuild(["no entry has its three studies (problem, solution, money): nothing to build"])
     return export(complete, out_dir, names=names, exported_at=exported_at, provenance_dir=provenance_dir,

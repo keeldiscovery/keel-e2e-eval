@@ -151,15 +151,22 @@ make quality-accept CYCLE=quality/cycles/<record>.md
   with none recorded yet (or one at another rubric version) the first acceptance passes.
 - **What it does then**: rewrites `quality/BASELINE.md` from that cycle's score files (the old one kept under
   `quality/baselines/<date>.md`), then builds the gallery from that cycle's bundles behind the readers' gate alone (`make
-  gallery SCORES=quality/scores`, no bar): a bundle whose latest score file at the current rubric version has a flagged
-  screen, or that has no score file, is **refused by name**; **every entry is its three studies** -- problem, solution and
-  money, each its own walk -- written under keel-web's `public/sample/<slug>/<problem|solution|money>/` (`OUT=`
+  gallery SCORES=quality/scores`, no bar): **an entry is admitted on its mean** (spec 127, the founder 2026-11-01: *"If
+  it's above 84%, we can accept it ... let it be the entry mean"*) -- its three studies each with a score file at the
+  current rubric version, and the mean of their three score_pct at or above `cycle.toml`'s `[gallery] entry_mean_pct`
+  (84.0). A flagged screen no longer refuses (the provenance records it by study, screen and criterion); a bundle with
+  no score file is **refused by name**; an entry below the line is **refused by name with its mean** (*10-palus 83.0 <
+  84.0*) and keeps whatever the gallery holds for it (an older example stays; a slug with none stays absent). It says
+  *N entries accepted on a mean of at least 84.0, M refused (names and means)*. **Every entry is its three studies**
+  -- problem, solution and money, each its own walk -- written under keel-web's
+  `public/sample/<slug>/<problem|solution|money>/` (`OUT=`
   elsewhere), the index row's top-level fields the problem study's and `studies` each study's own decision, how sure,
   pilot, price, answered and invited; an entry lacking a study is **refused by name** and nothing is written for it. The
   disclaimer says each study's people in words (*seven people answered, all simulated*). A slug's `cover.jpg`, and the
   row's `title`, `image` and `tests`, are kept across the refresh. The cycle and its score_pct are recorded in the
-  provenance: the next cycle's gate.
-- **What it prints**: the gate's comparison, the slugs refreshed, added and left out of the index, those still missing a
+  provenance: the next cycle's gate -- and, per example, each study's score_pct, the mean and the flagged screens.
+- **What it prints**: the gate's comparison, the entries refused and the summary line, the slugs refreshed, added, kept
+  as they were (refused this cycle) and left out of the index, those still missing a
   `gallery_names.toml` row or a cover, and **the sentence the keel-web refresh spec starts from**.
 - **What it writes**: `quality/BASELINE.md` and `quality/baselines/` here (**commit them**); the snapshot in keel-web
   (committed there, by the keel-web spec below); the provenance file under `runs/gallery/` (never committed -- and the
