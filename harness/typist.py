@@ -338,3 +338,58 @@ def leak_line(leak: dict) -> str:
     """The cycle record's defect line: *typo leak: "withot" (meant "without") reached the PROBLEM question "..."*."""
     return (f"typo leak: \"{leak['typed']}\" (meant \"{leak['meant']}\") reached {_where(leak['screen'])} "
             f"\"{leak['text']}\"")
+
+
+# ------------------------------------------------------------------------------------- spec 128: held as spelt
+
+#: A text's words and the runs between them, as `instructions.spelling.words` splits them (the runs kept, so the
+#: punctuation is held too).
+_RUNS = re.compile(r"([^\w'’\-]+|_+)")
+
+
+def _runs(text: str) -> list[str]:
+    """`text`'s words at the even places and the runs between them at the odd ones, spaces collapsed, ends trimmed."""
+    return [" ".join(p.split()) if i % 2 and p.strip() else (" " if i % 2 else p)
+            for i, p in enumerate(_RUNS.split(" ".join(str(text).split())))]
+
+
+def as_spelt(typed, served) -> bool:
+    """Spec 128 FR-1: whether `served` is the founder's `typed` text read as spelt -- word by word through 125's mirror
+    of keel-cloud's `Spelling.sameWord` (`instructions.spelling.same_word`): the same words in the same number, each
+    served word equal to the typed one or within its edit allowance (one at four letters, two from five, none under
+    four or with a digit, the first letter the same), the punctuation between them the same. Since keel-cloud 196 the
+    cloud serves the typed text respelled (*rcord* -> *record*), which is the fix working; a served word that is another
+    word, or a word dropped or added, is still a fault. A value that is not text is held exactly."""
+    if not isinstance(typed, str) or not isinstance(served, str):
+        return typed == served
+    a, b = _runs(typed), _runs(served)
+    if len(a) != len(b):
+        return False
+    return all(x == y if i % 2 else (x == y or spelling.same_word(x, y)) for i, (x, y) in enumerate(zip(a, b)))
+
+
+def spelt_faults(typed_fields: dict, served_fields: dict, *, whole: bool = False) -> list[dict]:
+    """FR-1: `{field, typed, served}` for each typed field the served one does not read as spelt (`as_spelt`); `whole`
+    holds the key sets equal too (a served field the founder never typed is a fault), as a dict compare did. `[]` when
+    every field holds."""
+    typed_fields, served_fields = dict(typed_fields or {}), dict(served_fields or {})
+    keys = list(typed_fields) + ([k for k in served_fields if k not in typed_fields] if whole else [])
+    return [{"field": k, "typed": typed_fields.get(k), "served": served_fields.get(k)} for k in keys
+            if k not in typed_fields or k not in served_fields or not as_spelt(typed_fields[k], served_fields[k])]
+
+
+def respelled(typed_fields: dict, served_fields: dict) -> list[dict]:
+    """FR-2: `{field, typed, served}` for each word the cloud served spelt otherwise than the founder typed it, in the
+    fields' order -- the typos keel-cloud 196 corrected. A field whose words do not line up (a fault `spelt_faults`
+    names) is given whole."""
+    out = []
+    for k, typed in (typed_fields or {}).items():
+        served = (served_fields or {}).get(k)
+        if not isinstance(typed, str) or not isinstance(served, str) or typed == served:
+            continue
+        a, b = _runs(typed), _runs(served)
+        if len(a) != len(b):
+            out.append({"field": k, "typed": typed, "served": served})
+            continue
+        out += [{"field": k, "typed": x, "served": y} for i, (x, y) in enumerate(zip(a, b)) if not i % 2 and x != y]
+    return out

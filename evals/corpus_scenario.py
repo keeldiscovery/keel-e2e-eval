@@ -76,6 +76,7 @@ from evals import guide_marks
 from evals import report_marks
 from evals.preludes import create_project, own_ai_door
 from harness import interviewer_fake as fake
+from harness import typist
 from harness import vectors_script as vs
 from harness import interviewer_screens as ivs
 from harness import interviews_screens as iv_screens
@@ -475,9 +476,12 @@ def leg_context(j: Journey) -> None:
         view = j.get(j.project("/context")) or {}
         fields = view.get("fields") or {}
         stored = vs.segment_of(j.entry)
+        # spec 128 FR-2 (keel-cloud 196): the typed fields stay the want and the view the seen; `respelled` names each
+        # word the cloud served spelt otherwise -- the typos it corrected
+        respelled = typist.respelled(founder.context_fields, fields)
         h.record_assert({**founder.context_fields, "recallWindow": founder.window.as_wire() if windowed else None,
                          "understands": drawn, **({"segment.condition": stored["condition"]} if j.strict else {})},
-                        view)
+                        {**view, "respelled": respelled})
         assert view.get("state") == "CONFIRMED", view
         assert view.get("understands") == drawn, (view.get("understands"), drawn)
         if j.strict:
@@ -490,13 +494,16 @@ def leg_context(j: Journey) -> None:
             # spec 072 FR-2 (keel-cloud 135 FR-2): none was sent, keel-cloud stores its default and the read-back
             # leaves it out
             assert fields.get("recallWindow") == STORED_WINDOW_DEFAULT, fields
-        for key, value in founder.context_fields.items():
-            assert fields.get(key) == value, (key, fields)
+        # spec 128 FR-1 (keel-cloud 196): the four fields are read as spelt -- word by word through 125's mirror of
+        # `Spelling.sameWord`; a corrected typo is the fix working, a different, dropped or added word still a fault
+        unspelt = typist.spelt_faults(founder.context_fields, fields)
+        assert not unspelt, {"not as spelt": unspelt, "fields": fields}
         # spec 068 FR-5 (contract 36, keel-cloud 129 FR-11): `ContextFields.occasion` -- the founder's where they typed
         # one, else the noun the context job derived, absent for none or *time*; every PUT the page sent recorded
         j.changed["context_wire"] = {"occasion": fields.get("occasion"),
                                      "puts": [{"status": s.get("status"), "occasion": s.get("occasion")}
-                                              for s in j.corridor.saves]}
+                                              for s in j.corridor.saves],
+                                     **({"respelled": respelled} if respelled else {})}
         drawn_occasion = (j.changed.get("occasion_field") or {}).get("value")
         # spec 074 (keel-web 117 J-4): a card with no stem draws the occasion nowhere -- the noun Keel found is held on
         # the confirmed view instead (`occasion.noun`, keel-cloud 120)
@@ -504,7 +511,8 @@ def leg_context(j: Journey) -> None:
             noun = (view.get("occasion") or {}).get("noun")
             j.changed["context_wire"]["noun"] = noun
             assert noun == vs.occasion(j.entry), {"GET context occasion.noun": noun, "want": vs.occasion(j.entry)}
-        if drawn_occasion and fields.get("occasion") != drawn_occasion:
+        # spec 128 FR-1: the occasion read as spelt too (196 respells every copy of the typed text)
+        if drawn_occasion and not typist.as_spelt(drawn_occasion, fields.get("occasion")):
             if j.strict:
                 raise AssertionError({"GET context fields.occasion": fields.get("occasion"),
                                       "the card's occasion field": drawn_occasion})
@@ -618,11 +626,16 @@ def context_reopened(j: Journey) -> None:
     with _step(j, "the confirmed context re-opened: the sentence, Continue to the problem and Edit; Edit brings the "
                   "form back filled with what was confirmed, and nothing is saved (keel-web 113 FR-1)",
                party="founder") as h:
-        h.record_assert(want, seen)
+        edited = seen.get("edited") or {}
+        # spec 128 FR-1 (keel-cloud 196): the form is filled from the served fields, so it is read as spelt -- the four
+        # fields word by word through 125's mirror, and no field the founder never typed
+        refilled = typist.respelled(founder.context_fields, edited.get("fields") or {})
+        h.record_assert(want, {**seen, "respelled": refilled} if refilled else seen)
         assert {k: seen.get(k) for k in ("state", "understands", "continue", "edit", "boxes")} == \
             {k: want[k] for k in ("state", "understands", "continue", "edit", "boxes")}, seen
-        edited = seen.get("edited") or {}
-        assert edited.get("state") == "form" and edited.get("fields") == founder.context_fields, edited
+        unspelt = typist.spelt_faults(founder.context_fields, edited.get("fields") or {}, whole=True)
+        assert edited.get("state") == "form" and isinstance(edited.get("fields"), dict) and not unspelt, \
+            {"edited": edited, "not as spelt": unspelt}
         assert edited.get("window") == want["edited"]["window"], edited
         assert edited.get("save") == vs_screens.CONTEXT_SAVE, edited
         if windowed:
