@@ -214,7 +214,7 @@ def test_classify_sends_the_body_and_parses_past_thinking(monkeypatch):
 def test_the_makefile_says_the_classifier_as_it_is_called():
     make = (REPO / "Makefile").read_text(encoding="utf-8")
     comment = make[make.index("# make noise-check (spec 074 FR-3)"):make.index("\nnoise-check:")]
-    assert "claude-haiku-5-5 with no temperature, max_tokens 1,024 and adaptive thinking at effort low" in comment
+    assert "claude-haiku-5-5 with no temperature, max_tokens 1,024 and adaptive thinking at effort medium" in comment
 
 
 def test_no_test_or_fixture_names_the_old_light_id_but_the_v15_shape_above():
