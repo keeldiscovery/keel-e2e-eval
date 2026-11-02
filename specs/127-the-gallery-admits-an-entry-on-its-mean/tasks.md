@@ -12,7 +12,7 @@ after each commit.
 - [x] T003 `evals/gallery.py`: `entry_mean_line()` (cycle.toml's line, for `make gallery`), `entry_gate()` (the mean of
   three `score_pct`, exact, at or above the line), `score_gate(refuse_flagged=False)` by default; `promote(...,
   entry_mean_pct=)`; `make gallery --entry-mean` / `ENTRY_MEAN=`.
-- [x] T004 A refused entry keeps the gallery's row and folder for it (`export(held=)`); a slug with none stays absent.
+- [x] T004 A refused entry keeps the gallery's row and folder for it; a slug with none stays absent (widened by FR-5).
 
 ## FR-2 -- the flagged screens travel
 
@@ -24,6 +24,25 @@ after each commit.
 ## FR-3 -- the cycle gate stands
 
 - [x] T007 `gate` / `last_accepted` / the baseline cut untouched; `[bar]` and `[weak]` untouched.
+
+## FR-5 -- the gallery grows by new entries only (the coordinator's decision, 2026-11-01)
+
+The founder's standing rule (2026-11-01): the gallery grows by new entries only, and a certified entry is never re-walked
+just to stay in. So an accept on a cycle that walks some entries leaves every slug not in the cycle exactly as it is.
+**This supersedes spec 106's "left out of the index"** (106 FR-1 / FR-4 rewrote `index.json` with the exported slugs
+alone, so a cycle of five would have dropped the nine other certified examples from the homepage).
+
+- [x] T012 `gallery.export`: every row already in `index.json` stays whole and in its place (`existing_rows`), its
+  folder untouched; a rewritten slug is replaced in place (keel-web's `title`, `image`, `tests` kept on it); a new slug
+  is appended, the new ones among themselves in `gallery_order`. `export(held=)` / `_map_order` retired with it;
+  `result["kept"]` and the provenance's `kept` list the rows left as they were.
+- [x] T013 `quality-accept` / `make gallery` print *kept as they were (not rewritten this cycle)*; nothing is left out
+  of the index any more.
+- [x] T014 Re-pinned: spec 106's `test_accept_builds_the_three_studies_records_the_score_and_holds_the_next_cycle_to_it`
+  (karsa, not in the cycle, now keeps its row: *kept as they were ... karsa; left out of the index ... none*) -- the
+  founder's rule supersedes 106 here. New: `test_a_cycle_of_two_entries_leaves_twelve_existing_rows_untouched` (a
+  gallery of fourteen; a cycle walks fresco, refreshed in place, and palus, refused; the twelve others' rows and folders
+  byte for byte as they were, in order).
 
 ## FR-4 -- tests and docs
 

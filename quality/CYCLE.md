@@ -156,7 +156,9 @@ make quality-accept CYCLE=quality/cycles/<record>.md
   current rubric version, and the mean of their three score_pct at or above `cycle.toml`'s `[gallery] entry_mean_pct`
   (84.0). A flagged screen no longer refuses (the provenance records it by study, screen and criterion); a bundle with
   no score file is **refused by name**; an entry below the line is **refused by name with its mean** (*10-palus 83.0 <
-  84.0*) and keeps whatever the gallery holds for it (an older example stays; a slug with none stays absent). It says
+  84.0*) and keeps whatever the gallery holds for it (an older example stays; a slug with none stays absent). **The
+  gallery grows by new entries only** (the founder, 2026-11-01; spec 127 FR-5): every slug the cycle does not rewrite
+  keeps its index row, in its place, and its folder, untouched; a new slug is appended. It says
   *N entries accepted on a mean of at least 84.0, M refused (names and means)*. **Every entry is its three studies**
   -- problem, solution and money, each its own walk -- written under keel-web's
   `public/sample/<slug>/<problem|solution|money>/` (`OUT=`
@@ -166,7 +168,7 @@ make quality-accept CYCLE=quality/cycles/<record>.md
   row's `title`, `image` and `tests`, are kept across the refresh. The cycle and its score_pct are recorded in the
   provenance: the next cycle's gate -- and, per example, each study's score_pct, the mean and the flagged screens.
 - **What it prints**: the gate's comparison, the entries refused and the summary line, the slugs refreshed, added, kept
-  as they were (refused this cycle) and left out of the index, those still missing a
+  as they were (not rewritten this cycle), those still missing a
   `gallery_names.toml` row or a cover, and **the sentence the keel-web refresh spec starts from**.
 - **What it writes**: `quality/BASELINE.md` and `quality/baselines/` here (**commit them**); the snapshot in keel-web
   (committed there, by the keel-web spec below); the provenance file under `runs/gallery/` (never committed -- and the

@@ -20,10 +20,10 @@ screen), then spec 106 FR-3's cycle gate (`gate` against `last_accepted`), then 
    three studies are each scored once is admitted when the mean of their three `score_pct` (exact, in decimals) is at or
    above the line, else refused by name, *10-palus 83.0 < 84.0*; an entry not whole is passed on to `three_studies`,
    which names why, as today.
-3. **The older example stays** (FR-1). An entry refused (on its mean, or for a study unscored or missing) keeps its row
-   in the index and its folder as they were (`export(held=)`); a slug with none stays absent. Rows rewritten or held are
-   ordered by the map, as `gallery_order` says. A slug neither in the cycle nor refused is left out of the index, as spec
-   106 left it.
+3. **The older example stays** (FR-1, widened by FR-5). An export rewrites only the slugs it builds: every row already
+   in `index.json` stays whole and in its place, its folder untouched (`existing_rows`); a rewritten slug is replaced in
+   place, a new one appended (the new ones among themselves in `gallery_order`). A refused entry's older example is
+   one of them; a slug with none stays absent.
 4. **The provenance** (FR-2). Each accepted example's provenance row carries `studies[<study>].score_pct`, `mean` and
    `flagged: [{study, screen, criterion, n, audience}]` (one per 0 given); `accepted` carries `entry_mean_pct`; the file
    names the rows `kept` as they were.

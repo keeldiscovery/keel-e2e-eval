@@ -1260,7 +1260,7 @@ def accept(argv=None) -> int:
     files, then the gallery from the cycle's bundles through `evals.gallery.promote` with the readers' gate alone
     (`--scores`, no bar: a study with no score file refused by name; an entry admitted on the mean of its three
     studies' score_pct at or above `[gallery] entry_mean_pct`, a flagged screen admitted and recorded, an entry below
-    the line refused by name and its older example kept), three studies per entry (an entry lacking one set aside by
+    the line refused by name), every slug not rewritten kept as it was (FR-5), three studies per entry (an entry lacking one set aside by
     name), the score recorded in the gallery's provenance as the one the next cycle is held to."""
     from evals import gallery                                            # noqa: PLC0415
 
@@ -1344,13 +1344,13 @@ def accept(argv=None) -> int:
     no_cover = [s for s in after if not (out / s / "cover.jpg").is_file()]
     for row in result["index"]:
         if row["slug"] in kept:
-            print(f"gallery: {row['slug']:<14} kept as it was (its entry refused this cycle, spec 127 FR-1)")
+            print(f"gallery: {row['slug']:<14} kept as it was (not rewritten this cycle, spec 127 FR-5)")
             continue
         studies = " · ".join(f"{k} {v['decision']} ({v['answered']} of {v['invited']})"
                              for k, v in (row.get("studies") or {}).items())
         print(f"gallery: {row['slug']:<14} {studies} (cloud {row.get('cloud')}, web {row.get('web')})")
     print(f"snapshot {out}: refreshed {', '.join(refreshed) or 'none'}; added {', '.join(added) or 'none'}; "
-          + (f"kept as they were (refused this cycle) {', '.join(kept)}; " if kept else "")
+          + (f"kept as they were (not rewritten this cycle) {', '.join(kept)}; " if kept else "")
           + f"left out of the index (their folders stay under OUT) {', '.join(dropped) or 'none'}; missing a cover.jpg "
           f"{', '.join(no_cover) or 'none'}; still missing a gallery_names.toml row: "
           + (", ".join(sorted({line.split(':')[0] for line in set_aside if 'gallery_names' in line})) or "none"))

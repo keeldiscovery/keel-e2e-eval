@@ -576,7 +576,12 @@ def test_accept_builds_the_three_studies_records_the_score_and_holds_the_next_cy
     assert "SCOPE_ORDER" not in said and "--bar" not in said and " BAR=" not in said
     assert "gallery: fresco         problem BUILD (7 of 7) · solution NOT_YET (7 of 7) · money KEEP_INTERVIEWING " \
            "(8 of 8)" in said
-    assert "refreshed fresco; added none; left out of the index (their folders stay under OUT) karsa" in said
+    # spec 127 FR-5 (the founder's rule, 2026-11-01: the gallery grows by new entries only) supersedes 106's "left out
+    # of the index": karsa, not in this cycle, keeps its row in its place
+    assert ("refreshed fresco; added none; kept as they were (not rewritten this cycle) karsa; left out of the index "
+            "(their folders stay under OUT) none") in said
+    assert [r["slug"] for r in json.loads((tmp_path / "sample" / "index.json").read_text())["examples"]] == \
+        ["fresco", "karsa"]
     assert "three studies an example, public/sample/<slug>/<problem|solution|money>/" in said
     assert sorted(p.name for p in (out / "fresco").iterdir()) == ["cover.jpg", "money", "problem", "solution"]
     row = _row(out)

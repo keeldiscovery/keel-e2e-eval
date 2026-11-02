@@ -207,14 +207,46 @@ def test_a_refused_entry_keeps_its_older_example_and_a_slug_with_none_stays_abse
     result = g.promote(runs, out, scores_dir=scores, cycle="20261102-7021fd5", provenance_dir=tmp_path / "prov",
                        exported_at=LATER, say=lambda _: None)
     index = json.loads((out / "index.json").read_text(encoding="utf-8"))["examples"]
-    assert [r["slug"] for r in index] == ["palus-finance", "expanse"], "the map's order; karsa, not in the cycle, " \
-                                                                       "is left out of the index as spec 106 left it"
-    assert index[0] == old, "the older example stays as it was"
+    assert [r["slug"] for r in index] == ["palus-finance", "karsa", "expanse"], \
+        "FR-5: every older row in its place (karsa, not in the cycle, too), the new slug appended"
+    assert index[0] == old and index[1] == {"slug": "karsa", "b2b": True}, "the older examples stay as they were"
     assert (out / "palus-finance" / "standings.json").read_text() == '{"old": true}'
     assert not (out / "aircaps").exists(), "a refused slug with no example stays absent"
-    assert result["kept"] == ["palus-finance"] and list(result["slugs"]) == ["expanse"]
+    assert result["kept"] == ["palus-finance", "karsa"] and list(result["slugs"]) == ["expanse"]
     data = json.loads(Path(result["provenance"]).read_text(encoding="utf-8"))
-    assert data["kept"] == ["palus-finance"] and [r["slug"] for r in data["examples"]] == ["expanse"]
+    assert data["kept"] == ["palus-finance", "karsa"] and [r["slug"] for r in data["examples"]] == ["expanse"]
+
+
+def test_a_cycle_of_two_entries_leaves_twelve_existing_rows_untouched(tmp_path):
+    """FR-5 (the founder's rule, 2026-11-01: the gallery grows by new entries only; a certified entry is never re-walked
+    just to stay in): a gallery of fourteen, a cycle walking two of them -- one refreshed in place, one refused: the
+    twelve others' rows and folders are byte for byte as they were, in their order (a new slug appends:
+    `test_a_refused_entry_keeps_its_older_example_and_a_slug_with_none_stays_absent`)."""
+    scores, out = tmp_path / "scores", tmp_path / "sample"
+    names = g.load_names()
+    gallery = names[:14]
+    rows = [{"slug": n.slug, "name": n.name, "b2b": i % 2 == 0, "decision": "OLD", "title": f"{n.name}, certified"}
+            for i, n in enumerate(gallery)]
+    for n in gallery:
+        (out / n.slug / "problem").mkdir(parents=True)
+        (out / n.slug / "problem" / "standings.json").write_text(json.dumps({"slug": n.slug}))
+    (out / "index.json").write_text(json.dumps({"generatedAt": AT, "count": len(rows), "examples": rows}))
+    walked = {"08-fresco": (90.0, 90.0, 90.0), "10-palus": (80.8, 83.9, 84.2)}
+    assert {n.entry for n in gallery} >= {"08-fresco", "10-palus"} and len(gallery) == 14
+    others = [n.slug for n in gallery if n.entry not in walked]
+    assert len(others) == 12
+    before = {p: p.read_bytes() for s in others for p in (out / s).rglob("*") if p.is_file()}
+    runs = [r for entry, pcts in walked.items() for r in entry_runs(tmp_path / "runs", entry, pcts, scores)]
+    result = g.promote(runs, out, scores_dir=scores, cycle="20261102-7021fd5", provenance_dir=tmp_path / "prov",
+                       exported_at=LATER, say=lambda _: None)
+    index = json.loads((out / "index.json").read_text(encoding="utf-8"))["examples"]
+    assert [r["slug"] for r in index] == [n.slug for n in gallery], "every row in its place"
+    for i, n in enumerate(gallery):
+        if n.slug != "fresco":
+            assert index[i] == rows[i], n.slug                 # the twelve, and refused palus, untouched
+    assert index[0]["slug"] == "fresco" and index[0]["decision"] != "OLD" and index[0]["title"] == "Fresco, certified"
+    assert {p: p.read_bytes() for s in others for p in (out / s).rglob("*") if p.is_file()} == before
+    assert list(result["slugs"]) == ["fresco"] and len(result["kept"]) == 13
 
 
 # ------------------------------------------------------------------------------------------- FR-3 the cycle gate

@@ -73,13 +73,17 @@ single project"*) loosens the readers' gate to the entry's mean:
   the line** -- `quality/cycle.toml [gallery] entry_mean_pct` (`entry_mean_line`; `--entry-mean` for one export). A
   flagged screen no longer refuses a study (`score_gate`'s `refuse_flagged` is off by default); a study with no score
   file still does. An entry below the line is refused by name with its mean and the line (*10-palus 83.0 < 84.0*) and
-  keeps whatever the gallery holds for it: its index row and folder stay as they were (`export(held=)`), and a slug
-  with none stays absent.
+  keeps whatever the gallery holds for it (FR-5 below), and a slug with none stays absent.
 - **FR-2 The flagged screens travel.** Each accepted example's provenance row carries every study's `score_pct`, the
   entry's `mean` and `flagged: [{study, screen, criterion, n, audience}]` (one per 0 the reader gave); `accepted` carries
   the line (`entry_mean_pct`) and the file lists the rows `kept` as they were. `promote` says *N entries accepted on a
   mean of at least 84.0, M refused (names and means)*.
 - **FR-3** Spec 106 FR-3's cycle gate (`gate`, `last_accepted`) stands unchanged.
+- **FR-5 The gallery grows by new entries only** (the founder's standing rule, 2026-11-01: a certified entry is never
+  re-walked just to stay in; it supersedes spec 106's *left out of the index*). An export rewrites only the slugs it
+  builds: every row already in the snapshot's `index.json` stays, whole and in its place (a slug rewritten is replaced
+  in place, keel-web's `title`, `image` and `tests` kept on it), its folder untouched; a new slug is appended, the new
+  ones among themselves in `gallery_order`.
 
 A slug's directory is replaced whole; what keel-web adds to the snapshot by hand is kept across the refresh: the slug's
 `cover.jpg` (keel-web spec 103) and the index row's `title`, `image` and `tests` (keel-web 103 / 104 / 107; `KEPT_KEYS`).
@@ -944,27 +948,21 @@ def _grouped(runs: list[Run], by_entry: dict[str, GalleryName]) -> tuple[dict[st
     return groups, reasons
 
 
-def held_rows(out_dir: Path, slugs: Iterable[str]) -> list[dict]:
-    """Spec 127 FR-1: the snapshot's index rows, whole, of the slugs whose entry was refused this time -- the older
-    example stays as it was. A slug with no row has none to keep (it stays absent)."""
-    path, wanted = Path(out_dir) / INDEX, set(slugs)
+def existing_rows(out_dir: Path) -> list[dict]:
+    """Spec 127 FR-5: the snapshot's index rows, whole and in their order -- every one stays (the gallery grows by new
+    entries only). An index that is not there, or not JSON, has none."""
+    path = Path(out_dir) / INDEX
     try:
-        raw = _json(path) if path.is_file() and wanted else {}
+        raw = _json(path) if path.is_file() else {}
     except (OSError, ValueError):
         return []
     rows = raw if isinstance(raw, list) else (raw or {}).get("examples") or []
-    return [copy.deepcopy(r) for r in rows if isinstance(r, dict) and r.get("slug") in wanted]
-
-
-def _map_order(rows: list[dict], names: list[GalleryName]) -> list[dict]:
-    """The rows in the map's order (`gallery_order` keeps each side's order), a slug the map lacks last."""
-    place = {n.slug: i for i, n in enumerate(names)}
-    return sorted(rows, key=lambda r: place.get(r.get("slug"), len(place)))
+    return [copy.deepcopy(r) for r in rows if isinstance(r, dict) and isinstance(r.get("slug"), str)]
 
 
 def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | None = None,
            exported_at: str | None = None, provenance_dir: Path = PROVENANCE_DIR,
-           accepted: dict | None = None, scores: dict[str, dict] | None = None, held: Iterable[str] = ()) -> dict:
+           accepted: dict | None = None, scores: dict[str, dict] | None = None) -> dict:
     """FR-1 to FR-3a, three studies per entry (spec 106 FR-1): read every run, group them by entry and study (an entry
     lacking one, or given one twice, or a run of another scope refuses the export -- `three_studies` sets such entries
     aside first), prepare every slug, check the whole output and whatever else already sits under `out_dir`, and only
@@ -973,9 +971,9 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
     `out_dir` once more. The slug -> entry / study / run link and `accepted` (FR-3: the cycle and the score_pct the
     gallery was promoted on, when gated) go to `<provenance_dir>/provenance-<exportedAt>.json`, never under `out_dir`.
     Spec 127: `scores` (`entry_gate`'s, by entry) adds each study's `score_pct`, the entry's `mean` and its `flagged`
-    screens to the example's provenance row (FR-2); `held` names the slugs whose entry was refused, whose index rows
-    stay as they were (FR-1), the index then in the map's order. Returns `{index, slugs: {slug: {study: manifest +
-    written}}, dir, provenance, accepted, kept}`."""
+    screens to the example's provenance row (FR-2); every row already in the index stays in its place, a rewritten slug
+    replaced there and a new one appended (FR-5). Returns `{index, slugs: {slug: {study: manifest + written}}, dir,
+    provenance, accepted, kept}` (`kept`: the rows left as they were)."""
     names = load_names() if names is None else names
     by_entry = {n.entry: n for n in names}
     exported_at = exported_at or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -1006,8 +1004,7 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
                 figure["score_pct"] = (score["studies"].get(key) or {}).get("score_pct")
             s.provenance["mean"] = score["mean"]
             s.provenance["flagged"] = copy.deepcopy(score["flagged"])
-    rewritten = {s.name.slug for s in slugs}
-    held_index = [r for r in held_rows(out_dir, held) if r["slug"] not in rewritten]
+    existing = existing_rows(out_dir)
     reasons = check(slugs)
     needles = provenance_needles(slugs)
     replaced = [out_dir / s.name.slug for s in slugs] + [out_dir / INDEX]
@@ -1029,8 +1026,9 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
                                exported_at=exported_at)
             (target / key / se.MANIFEST).write_text(se._dumps(study.manifest), encoding="utf-8")  # replaces 060's own
             manifests[s.name.slug][key] = {**study.manifest, "written": written["files"]}
-    rows = [s.row for s in slugs]
-    index = gallery_order(_map_order(rows + held_index, names) if held_index else rows)
+    new = {s.name.slug: s.row for s in slugs}     # spec 127 FR-5: rewritten in place, new appended, the rest as they were
+    index = ([new.get(r["slug"], r) for r in existing]
+             + gallery_order([row for slug, row in new.items() if slug not in {r["slug"] for r in existing}]))
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / INDEX).write_text(se._dumps(index_file(index, exported_at)), encoding="utf-8")
     left = provenance_under(out_dir, needles)
@@ -1283,7 +1281,7 @@ def promote(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | N
     refused named through `say`; the cycle's score_pct (`score_pct`, else `cycle_score` of the runs) held to the
     gallery's last accepted one, a refusal of the whole -- then three studies per entry (an entry set aside named
     through `say`), the summary line said, then `export`: the score and the line recorded as `accepted` in the
-    provenance, each example's scores beside it, a refused entry's older row kept. Raises `NothingToBuild` when every
+    provenance, each example's scores beside it, every older row kept. Raises `NothingToBuild` when every
     study or entry was set aside, `GalleryRefused` on any other refusal; nothing is written then."""
     names = load_names() if names is None else names
     run_dirs = [Path(d) for d in run_dirs]
@@ -1308,19 +1306,16 @@ def promote(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | N
     complete, set_aside = three_studies(run_dirs)
     for reason in set_aside:
         say(f"refused {reason}")
-    held = []
     if scores is not None:
         whole = {(_record_of(d).get("entry") or {}).get("id") or d.name for d in complete}
         say(entry_summary(scores, whole, line))
-        slug_of = {n.entry: n.slug for n in names}
-        held = [slug_of[e] for e in scores if e not in whole and e in slug_of]
         if not run_dirs:
             raise NothingToBuild(["every run was refused by the readers' gate (--scores: a study with no score file, "
                                   f"or an entry's mean under {line:.1f}): nothing to build"])
     if not complete:
         raise NothingToBuild(["no entry has its three studies (problem, solution, money): nothing to build"])
     return export(complete, out_dir, names=names, exported_at=exported_at, provenance_dir=provenance_dir,
-                  accepted=accepted, scores=scores, held=held)
+                  accepted=accepted, scores=scores)
 
 
 # ------------------------------------------------------------------------------------------------ make gallery
@@ -1357,7 +1352,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     for row in result["index"]:
         if row["slug"] not in result["slugs"]:
-            print(f"gallery: {row['slug']:<13} kept as it was (its entry refused, spec 127 FR-1)")
+            print(f"gallery: {row['slug']:<13} kept as it was (not rewritten by this export, spec 127 FR-5)")
             continue
         files = sum(len(m["written"]) for m in result["slugs"][row["slug"]].values())
         decisions = " · ".join(f"{k} {v['decision']}" for k, v in row["studies"].items())

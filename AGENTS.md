@@ -903,8 +903,10 @@ founder: *"If it's above 84%, we can accept it ... let it be the entry mean rath
 `--entry-mean` / `ENTRY_MEAN=` for one export). With `--scores`, `gallery.entry_gate` admits an entry whose three
 studies each have a score file when the mean of their three `score_pct` (exact, in decimals) is at or above the line,
 and refuses the rest by name, *10-palus 83.0 < 84.0*; a flagged screen no longer refuses (`score_gate(refuse_flagged=)`
-off by default), a missing score file still does. A refused entry keeps its older index row and folder (`export(held=)`;
-a slug with none stays absent); a slug not in the cycle is left out of the index as 106 left it. The provenance's
+off by default), a missing score file still does. **FR-5, the gallery grows by new entries only** (the founder's
+standing rule, 2026-11-01; it supersedes 106's *left out of the index*): an export rewrites only the slugs it builds --
+every row already in `index.json` stays whole and in its place, its folder untouched (a refused entry's older example
+with them; a slug with none stays absent), a rewritten slug replaced in place, a new one appended. The provenance's
 example rows gain `studies[<study>].score_pct`, `mean` and `flagged: [{study, screen, criterion, n, audience}]`,
 `accepted` gains `entry_mean_pct`, the file `kept`; `promote` says *N entries accepted on a mean of at least 84.0, M
 refused (names and means)*. Spec 106 FR-3's cycle gate, the baseline cut, `[bar]` and the weak rule are unchanged. On
