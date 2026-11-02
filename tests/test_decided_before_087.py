@@ -73,8 +73,11 @@ def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens
     # spec 089 FR-6: the five recorded 0s, held for the founder (D-2026-10-30-01, spec-merged with no spec yet)
     # cycle 3 (2026-10-30, the founder: the top three consistent causes): D-2026-10-30-02 (167), -03 (168), -04 (web 146);
     # -05 (declined, never): the own-AI door's lock hint and greyed formats are that road's true screens, not faults
-    assert len(found) == 25 and [d["id"] for d in found] == [f"D-2026-10-29-{i:02d}" for i in range(1, 21)] + [
-        f"D-2026-10-30-{i:02d}" for i in range(1, 6)]
+    # 2026-11-02 (the founder on cycle 7's seven groups): D-2026-11-02-01..07 -- 197 cards, 198 stranger options, 199 founder
+    # beliefs, 200 follow-ups (taken, until merged); -05 insights line declined (never); -06 web 162 (taken); -07 the
+    # stage/dimension So lines held (never: parked by him)
+    assert len(found) == 32 and [d["id"] for d in found] == [f"D-2026-10-29-{i:02d}" for i in range(1, 21)] + [
+        f"D-2026-10-30-{i:02d}" for i in range(1, 6)] + [f"D-2026-11-02-{i:02d}" for i in range(1, 8)]
     records = {p.stem for p in cycle.record_files(REPO / "quality" / "cycles")}
     for d in found:
         assert d["cycle"] in records, f"{d['id']} names a committed cycle record"
@@ -399,8 +402,11 @@ def test_a_merged_decision_ends_its_snooze_on_the_file_of_record(capsys, at_the_
     # cycle 3 (2026-10-30): D-2026-10-30-02 (idea, solution-card, solution-seed, every scope) and -03 (context,
     # context-card) take rows of this cycle too, and D-08/D-16/D-17/D-10 are marked merged: 17 -> 19 snoozed, 45 -> 43 sent.
     # Later on 2026-10-30: -02 (167) and -03 (168) merged, so their rows go back to the adviser, and -04 narrowed to
-    # ready-pilot (-05, never, holds ready-interviewer and send-format): 19 -> 13 snoozed, 43 -> 49 sent
-    assert len(listed) == 13
+    # ready-pilot (-05, never, holds ready-interviewer and send-format): 19 -> 13 snoozed, 43 -> 49 sent.
+    # 2026-11-02: the seven decisions of D-2026-11-02 cover the cards, every respondent item/gate/screener, every founder
+    # answer/check/choose/q, the follow-ups, the insights screens, the window and market screens and every stage/dimension
+    # card, so 13 -> 50 of this fixture cycle's rows are snoozed until their specs merge
+    assert len(listed) == 50
     found = {d["id"]: d for d in dec.load()}
     for row, said_of in listed:
         ids = re.findall(r"\*\*(D-2026-10-\d\d-\d\d)\*\*", said_of)
