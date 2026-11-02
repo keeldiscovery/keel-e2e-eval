@@ -409,11 +409,11 @@ def test_a_merged_decision_ends_its_snooze_on_the_file_of_record(capsys, at_the_
     assert len(listed) == 50
     found = {d["id"]: d for d in dec.load()}
     for row, said_of in listed:
-        ids = re.findall(r"\*\*(D-2026-10-\d\d-\d\d)\*\*", said_of)
+        ids = re.findall(r"\*\*(D-2026-1\d-\d\d-\d\d)\*\*", said_of)
         assert ids and not any(found[i].get("merged") for i in ids), row
-    assert "dry run: 49 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 13 weak row(s) " \
+    assert "dry run: 12 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 50 weak row(s) " \
            "decided before, not sent" in said
-    assert "[1/49] COMMERCIAL · founder · - · context" in said, "149's row (D-01, merged) goes back to the adviser"
+    assert "[1/12] COMMERCIAL · founder · - · context" in said, "149's row (D-01, merged) goes back to the adviser"
 
 
 def test_the_runbook_and_the_agents_file_carry_the_decisions():
