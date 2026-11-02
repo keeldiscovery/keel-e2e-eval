@@ -65,6 +65,22 @@ of each can be printed there; and instead of twenty, seven agents answer it"*):
   {scope, run, cloud, web}}, renamed}]}`), outside OUT; no entry id, run name or source path is written under OUT --
   the check greps every byte under OUT for them.
 
+**Spec 127** (the founder, 2026-11-01: *"If it's above 84%, we can accept it ... let it be the entry mean rather than a
+single project"*) loosens the readers' gate to the entry's mean:
+
+- **FR-1 The entry's line.** With `--scores`, an entry is an example when it has its three studies, each with a score
+  file at the current rubric version, and the **mean of their three `score_pct`** (exact, in decimals) is **at or above
+  the line** -- `quality/cycle.toml [gallery] entry_mean_pct` (`entry_mean_line`; `--entry-mean` for one export). A
+  flagged screen no longer refuses a study (`score_gate`'s `refuse_flagged` is off by default); a study with no score
+  file still does. An entry below the line is refused by name with its mean and the line (*10-palus 83.0 < 84.0*) and
+  keeps whatever the gallery holds for it: its index row and folder stay as they were (`export(held=)`), and a slug
+  with none stays absent.
+- **FR-2 The flagged screens travel.** Each accepted example's provenance row carries every study's `score_pct`, the
+  entry's `mean` and `flagged: [{study, screen, criterion, n, audience}]` (one per 0 the reader gave); `accepted` carries
+  the line (`entry_mean_pct`) and the file lists the rows `kept` as they were. `promote` says *N entries accepted on a
+  mean of at least 84.0, M refused (names and means)*.
+- **FR-3** Spec 106 FR-3's cycle gate (`gate`, `last_accepted`) stands unchanged.
+
 A slug's directory is replaced whole; what keel-web adds to the snapshot by hand is kept across the refresh: the slug's
 `cover.jpg` (keel-web spec 103) and the index row's `title`, `image` and `tests` (keel-web 103 / 104 / 107; `KEPT_KEYS`).
 """
@@ -80,6 +96,7 @@ import sys
 import time
 import tomllib
 from dataclasses import dataclass, field
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -123,6 +140,10 @@ AXES = ("whoHasIt", "whoPays", "rhythm", "costMode", "priceShape", "firstStep", 
 #: (`runs/` is ignored by git, as every run file is).
 PROVENANCE_DIR = RUNS_DIR / "gallery"
 PROVENANCE_GLOB = "provenance-*.json"
+
+#: Spec 127 FR-1: the entry's line is committed in `quality/cycle.toml` `[gallery] entry_mean_pct` (the founder,
+#: 2026-11-01); `make gallery --scores` reads it there, `make quality-accept` through `quality.cycle.load_config`.
+CYCLE_TOML = REPO / "quality" / "cycle.toml"
 
 #: Keys never written into interview.json (FR-3a: tokens and ids withheld; the AI interviewer's forms are a later spec).
 _DROPPED = frozenset({"itemId", "optionId", "id", "token", "costItemId", "advantagesWhen", "spoken", "clip", "clips"})
@@ -923,9 +944,27 @@ def _grouped(runs: list[Run], by_entry: dict[str, GalleryName]) -> tuple[dict[st
     return groups, reasons
 
 
+def held_rows(out_dir: Path, slugs: Iterable[str]) -> list[dict]:
+    """Spec 127 FR-1: the snapshot's index rows, whole, of the slugs whose entry was refused this time -- the older
+    example stays as it was. A slug with no row has none to keep (it stays absent)."""
+    path, wanted = Path(out_dir) / INDEX, set(slugs)
+    try:
+        raw = _json(path) if path.is_file() and wanted else {}
+    except (OSError, ValueError):
+        return []
+    rows = raw if isinstance(raw, list) else (raw or {}).get("examples") or []
+    return [copy.deepcopy(r) for r in rows if isinstance(r, dict) and r.get("slug") in wanted]
+
+
+def _map_order(rows: list[dict], names: list[GalleryName]) -> list[dict]:
+    """The rows in the map's order (`gallery_order` keeps each side's order), a slug the map lacks last."""
+    place = {n.slug: i for i, n in enumerate(names)}
+    return sorted(rows, key=lambda r: place.get(r.get("slug"), len(place)))
+
+
 def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | None = None,
            exported_at: str | None = None, provenance_dir: Path = PROVENANCE_DIR,
-           accepted: dict | None = None) -> dict:
+           accepted: dict | None = None, scores: dict[str, dict] | None = None, held: Iterable[str] = ()) -> dict:
     """FR-1 to FR-3a, three studies per entry (spec 106 FR-1): read every run, group them by entry and study (an entry
     lacking one, or given one twice, or a run of another scope refuses the export -- `three_studies` sets such entries
     aside first), prepare every slug, check the whole output and whatever else already sits under `out_dir`, and only
@@ -933,7 +972,10 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
     `<out_dir>/index.json` (keel-web's `title`, `image` and `tests` kept on a refreshed row), then grep every byte under
     `out_dir` once more. The slug -> entry / study / run link and `accepted` (FR-3: the cycle and the score_pct the
     gallery was promoted on, when gated) go to `<provenance_dir>/provenance-<exportedAt>.json`, never under `out_dir`.
-    Returns `{index, slugs: {slug: {study: manifest + written}}, dir, provenance, accepted}`."""
+    Spec 127: `scores` (`entry_gate`'s, by entry) adds each study's `score_pct`, the entry's `mean` and its `flagged`
+    screens to the example's provenance row (FR-2); `held` names the slugs whose entry was refused, whose index rows
+    stay as they were (FR-1), the index then in the map's order. Returns `{index, slugs: {slug: {study: manifest +
+    written}}, dir, provenance, accepted, kept}`."""
     names = load_names() if names is None else names
     by_entry = {n.entry: n for n in names}
     exported_at = exported_at or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -958,6 +1000,14 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
     kept = kept_rows(out_dir)
     for s in slugs:
         s.row.update(kept.get(s.name.slug) or {})
+        score = (scores or {}).get(s.name.entry)
+        if score:                                    # spec 127 FR-2: what the entry was admitted on, flags and all
+            for key, figure in s.provenance["studies"].items():
+                figure["score_pct"] = (score["studies"].get(key) or {}).get("score_pct")
+            s.provenance["mean"] = score["mean"]
+            s.provenance["flagged"] = copy.deepcopy(score["flagged"])
+    rewritten = {s.name.slug for s in slugs}
+    held_index = [r for r in held_rows(out_dir, held) if r["slug"] not in rewritten]
     reasons = check(slugs)
     needles = provenance_needles(slugs)
     replaced = [out_dir / s.name.slug for s in slugs] + [out_dir / INDEX]
@@ -979,7 +1029,8 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
                                exported_at=exported_at)
             (target / key / se.MANIFEST).write_text(se._dumps(study.manifest), encoding="utf-8")  # replaces 060's own
             manifests[s.name.slug][key] = {**study.manifest, "written": written["files"]}
-    index = gallery_order([s.row for s in slugs])
+    rows = [s.row for s in slugs]
+    index = gallery_order(_map_order(rows + held_index, names) if held_index else rows)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / INDEX).write_text(se._dumps(index_file(index, exported_at)), encoding="utf-8")
     left = provenance_under(out_dir, needles)
@@ -988,19 +1039,39 @@ def export(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | No
     provenance_dir.mkdir(parents=True, exist_ok=True)
     provenance = provenance_dir / f"provenance-{exported_at}.json"
     by_slug = {s.name.slug: s.provenance for s in slugs}
+    kept_as_was = [r["slug"] for r in index if r["slug"] not in by_slug]
     provenance.write_text(se._dumps({"exportedAt": exported_at, "accepted": accepted,
-                                     "examples": [by_slug[r["slug"]] for r in index]}), encoding="utf-8")
+                                     "examples": [by_slug[r["slug"]] for r in index if r["slug"] in by_slug],
+                                     **({"kept": kept_as_was} if kept_as_was else {})}), encoding="utf-8")
     return {"index": index, "slugs": manifests, "dir": str(out_dir), "provenance": str(provenance),
-            "accepted": accepted}
+            "accepted": accepted, "kept": kept_as_was}
 
 
-# ----------------------------------------------------- spec 079 FR-6 / spec 106 FR-3: the readers' gate
+# ------------------------------------------- spec 079 FR-6 / spec 106 FR-3 / spec 127: the readers' gate
 
-#: Spec 106 FR-3 (spec 079 FR-6 amended): with `--scores`, a study is an example only when the readers passed it, and
-#: the gallery is promoted only when the cycle scores at or above the gallery's own last accepted score.
-SCORE_GATE = ("a bundle with no score file at the current rubric version, or whose latest has a flagged screen, is "
-              "refused by name; the cycle's overall score_pct below the gallery's last accepted one (its provenance) "
-              "refuses the export; equal or above passes, whatever the bar")
+#: Spec 127 (spec 106 FR-3 amended): with `--scores`, an entry is an example when its three studies are scored and their
+#: mean is at or above the entry's line, and the gallery is promoted only when the cycle scores at or above the
+#: gallery's own last accepted score.
+SCORE_GATE = ("an entry is an example when its three studies each have a score file at the current rubric version and "
+              "the mean of their three score_pct is at or above the entry's line (quality/cycle.toml [gallery] "
+              "entry_mean_pct, or --entry-mean; spec 127); a flagged screen no longer refuses, a bundle with no score "
+              "file still does, by name; the cycle's overall score_pct below the gallery's last accepted one (its "
+              "provenance) refuses the export; equal or above passes, whatever the bar")
+
+
+def entry_mean_line(path: Path = CYCLE_TOML) -> float:
+    """Spec 127 FR-1: the entry's line, `quality/cycle.toml` `[gallery] entry_mean_pct` -- refused by name when the file
+    cannot be read or the value is absent or not a percentage."""
+    path = Path(path)
+    try:
+        with path.open("rb") as handle:
+            raw = (tomllib.load(handle).get("gallery") or {}).get("entry_mean_pct")
+    except (OSError, tomllib.TOMLDecodeError) as reason:
+        raise GalleryRefused([f"the entry's line cannot be read from {path}: {reason}"]) from reason
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)) or not 0 <= raw <= 100:
+        raise GalleryRefused([f"{path.name} [gallery] entry_mean_pct is {raw!r}, not a percentage -- the entry's line "
+                              "(spec 127 FR-1)"])
+    return float(raw)
 
 
 def latest_score_file(run_dir: Path, scores_dir: Path) -> tuple[dict | None, list[str]]:
@@ -1031,11 +1102,11 @@ def latest_score_file(run_dir: Path, scores_dir: Path) -> tuple[dict | None, lis
 
 
 def score_gate(run_dirs: list[Path], scores_dir: Path, *, bar_pct: float | None = None,
-               refuse_flagged: bool = True) -> tuple[list[Path], list[str]]:
-    """Spec 079 FR-6 as spec 106 FR-3 leaves it: `(the runs the readers passed, one reason per refused run, naming
-    it)`. A run is refused when it has no score file at the current rubric version or when that file's latest has a
-    flagged screen (a screen the reader marked out of place or leaking is never published); with `bar_pct` (`--bar`,
-    off by default) also when its overall score_pct is under it."""
+               refuse_flagged: bool = False) -> tuple[list[Path], list[str]]:
+    """Spec 079 FR-6 as spec 127 leaves it: `(the runs the readers passed, one reason per refused run, naming it)`. A
+    run is refused when it has no score file at the current rubric version (the readers did not see it); with
+    `bar_pct` (`--bar`, off by default) also when its overall score_pct is under it. A flagged screen no longer refuses
+    (spec 127 FR-1: it travels in the provenance instead) unless `refuse_flagged` asks for spec 106's rule."""
     from quality import rubric                                       # noqa: PLC0415
 
     passing, refused = [], []
@@ -1061,6 +1132,99 @@ def score_gate(run_dirs: list[Path], scores_dir: Path, *, bar_pct: float | None 
         else:
             passing.append(run_dir)
     return passing, refused
+
+
+def flagged_screens(score_file: dict, study: str) -> list[dict]:
+    """Spec 127 FR-2: the screens the reader gave a 0, one `{study, screen, criterion, n, audience}` per 0, in the
+    file's order -- what a flagged screen was refused for until spec 127, recorded so it is still seen."""
+    from quality import rubric                                       # noqa: PLC0415
+
+    return [{"study": study, "screen": s.get("screen"), "criterion": crit, "n": s.get("n"), "audience": s.get("audience")}
+            for s in score_file.get("screens") or [] for crit in rubric.ALL_CRITERIA if s.get(crit) == 0]
+
+
+def _decimal(value) -> Decimal:
+    return Decimal(str(value))
+
+
+def mean_text(mean: Decimal | float, line: float) -> str:
+    """The entry's mean to one decimal (half up) -- to two where one would read as reaching a line it is under."""
+    mean, places = _decimal(mean), 1
+    while True:
+        shown = mean.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
+        if mean >= _decimal(line) or shown < _decimal(line) or places >= 4:
+            return str(shown)
+        places += 1
+
+
+def entry_gate(run_dirs: list[Path], scores_dir: Path, *, line: float,
+               bar_pct: float | None = None) -> tuple[list[Path], list[str], dict[str, dict]]:
+    """Spec 127 FR-1: `(the runs passed on, one reason per run or entry refused, by name, the scores by entry)`.
+
+    `score_gate` first: a study with no score file at the current rubric version is refused by name (and, with
+    `bar_pct`, one under the bar); a flagged screen no longer refuses. Then, per entry whose three studies are each
+    scored once, the mean of their three `score_pct` (exact, in decimals): at or above `line`, its three runs pass; under
+    it, the entry is refused, *10-palus 83.0 < 84.0*. An entry not whole (a study missing, unscored or given twice) has
+    its scored runs passed on to `three_studies`, which names why, and a run of another scope passes on to be named
+    there. The scores by entry: `{entry: {studies: {study: {score_pct, file}}, mean, flagged, accepted, missing}}`,
+    `mean` None when not whole."""
+    passing, refused = score_gate(run_dirs, scores_dir, bar_pct=bar_pct)
+    scored = set(passing)
+    by_entry: dict[str, dict[str, list[Path]]] = {}
+    other: list[Path] = []
+    for run_dir in map(Path, run_dirs):
+        record = _record_of(run_dir)
+        entry = (record.get("entry") or {}).get("id") or run_dir.name
+        study = SCOPE_STUDY.get(str(record.get("scope") or bt.DEFAULT_SCOPE))
+        by_entry.setdefault(entry, {})
+        if run_dir not in scored:
+            continue
+        if study is None:
+            other.append(run_dir)
+        else:
+            by_entry[entry].setdefault(study, []).append(run_dir)
+    keep, scores = set(other), {}
+    for entry, studies in by_entry.items():
+        files = {s: latest_score_file(runs[0], scores_dir)[0] for s, runs in studies.items() if len(runs) == 1}
+        pcts = {s: ((f.get("summary") or {}).get("overall") or {}).get("score_pct") for s, f in files.items()}
+        info = {"studies": {s: {"score_pct": pcts[s], "file": Path(files[s]["_path"]).name} for s in STUDIES
+                            if s in files},
+                "mean": None, "flagged": [], "accepted": False,
+                "missing": [s for s in STUDIES if s not in studies]}
+        scores[entry] = info
+        whole = set(files) == set(STUDIES) and all(isinstance(p, (int, float)) for p in pcts.values())
+        if not whole:
+            keep.update(r for runs in studies.values() for r in runs)          # three_studies names why
+            continue
+        mean = sum(_decimal(pcts[s]) for s in STUDIES) / len(STUDIES)
+        info["mean"] = float(mean.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+        info["flagged"] = [f for s in STUDIES for f in flagged_screens(files[s], s)]
+        if mean >= _decimal(line):
+            info["accepted"] = True
+            keep.update(studies[s][0] for s in STUDIES)
+        else:
+            figures = ", ".join(f"{s} {pcts[s]}" for s in STUDIES)
+            refused.append(f"{entry} {mean_text(mean, line)} < {float(line):.1f} -- the mean of its three studies' "
+                           f"score_pct ({figures}) is under the entry's line (spec 127 FR-1); the gallery keeps what it "
+                           "holds for it")
+    return [Path(d) for d in run_dirs if Path(d) in keep], refused, scores
+
+
+def entry_summary(scores: dict[str, dict], accepted: Iterable[str], line: float) -> str:
+    """Spec 127 FR-2: *N entries accepted on a mean of at least 84.0, M refused (names and means)*."""
+    accepted = set(accepted)
+    refused = [e for e in scores if e not in accepted]
+    n = len([e for e in scores if e in accepted])
+
+    def said(entry: str) -> str:
+        info = scores[entry]
+        if info["mean"] is not None:
+            return f"{entry} {mean_text(info['mean'], line)}"
+        missing = info["missing"]
+        return f"{entry} no mean" + (f" ({', '.join(missing)} not scored)" if missing else "")
+
+    return (f"{n} {'entry' if n == 1 else 'entries'} accepted on a mean of at least {float(line):.1f}, "
+            f"{len(refused)} refused" + (f" ({', '.join(said(e) for e in refused)})" if refused else ""))
 
 
 def cycle_score(run_dirs: list[Path], scores_dir: Path) -> float | None:
@@ -1113,40 +1277,49 @@ def gate(score_pct: float | None, last: dict | None) -> tuple[str | None, str]:
 def promote(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | None = None,
             scores_dir: Path | None = None, bar_pct: float | None = None, cycle: str | None = None,
             score_pct: float | None = None, provenance_dir: Path = PROVENANCE_DIR, exported_at: str | None = None,
-            say=print) -> dict:
-    """`make gallery` and `make quality-accept`'s one path (spec 106): behind the readers' gate when `scores_dir` is
-    given (every study refused named through `say`; the cycle's score_pct -- `score_pct`, else `cycle_score` of the
-    runs -- held to the gallery's last accepted one, a refusal of the whole), then three studies per entry (an entry
-    set aside named through `say`), then `export`, the score recorded as `accepted` in the provenance. Raises
-    `NothingToBuild` when every study or entry was set aside, `GalleryRefused` on any other refusal; nothing is
-    written then."""
+            entry_mean_pct: float | None = None, say=print) -> dict:
+    """`make gallery` and `make quality-accept`'s one path (spec 106 / 127): behind the readers' gate when `scores_dir`
+    is given -- `entry_gate` at the entry's line (`entry_mean_pct`, else `quality/cycle.toml`'s), every study or entry
+    refused named through `say`; the cycle's score_pct (`score_pct`, else `cycle_score` of the runs) held to the
+    gallery's last accepted one, a refusal of the whole -- then three studies per entry (an entry set aside named
+    through `say`), the summary line said, then `export`: the score and the line recorded as `accepted` in the
+    provenance, each example's scores beside it, a refused entry's older row kept. Raises `NothingToBuild` when every
+    study or entry was set aside, `GalleryRefused` on any other refusal; nothing is written then."""
     names = load_names() if names is None else names
     run_dirs = [Path(d) for d in run_dirs]
     if not run_dirs:
         raise NothingToBuild(["no run to build from: nothing to build"])
-    accepted = None
+    accepted, scores, line = None, None, None
     if scores_dir is not None:
         from quality import rubric                                   # noqa: PLC0415
 
+        line = entry_mean_line() if entry_mean_pct is None else float(entry_mean_pct)
         scored = cycle_score(run_dirs, scores_dir) if score_pct is None else score_pct
-        passing, refused = score_gate(run_dirs, Path(scores_dir), bar_pct=bar_pct)
+        passing, refused, scores = entry_gate(run_dirs, Path(scores_dir), line=line, bar_pct=bar_pct)
         for reason in refused:
             say(f"refused {reason}")
         refusal, compared = gate(scored, last_accepted(provenance_dir))
         if refusal:
             raise GalleryRefused([refusal])
         say(f"the gate: {compared}")
-        if not passing:
-            raise NothingToBuild(["every run was refused by the readers' gate (--scores): nothing to build"])
         run_dirs = passing
-        accepted = {"cycle": cycle, "score_pct": scored, "rubric_version": rubric.RUBRIC_VERSION}
+        accepted = {"cycle": cycle, "score_pct": scored, "rubric_version": rubric.RUBRIC_VERSION,
+                    "entry_mean_pct": line}
     complete, set_aside = three_studies(run_dirs)
     for reason in set_aside:
         say(f"refused {reason}")
+    held = []
+    if scores is not None:
+        whole = {(_record_of(d).get("entry") or {}).get("id") or d.name for d in complete}
+        say(entry_summary(scores, whole, line))
+        slug_of = {n.entry: n.slug for n in names}
+        held = [slug_of[e] for e in scores if e not in whole and e in slug_of]
+        if not run_dirs:
+            raise NothingToBuild(["every run was refused by the readers' gate (--scores): nothing to build"])
     if not complete:
         raise NothingToBuild(["no entry has its three studies (problem, solution, money): nothing to build"])
     return export(complete, out_dir, names=names, exported_at=exported_at, provenance_dir=provenance_dir,
-                  accepted=accepted)
+                  accepted=accepted, scores=scores, held=held)
 
 
 # ------------------------------------------------------------------------------------------------ make gallery
@@ -1163,6 +1336,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--bar", type=float, default=None, help="with --scores: an optional stricter gate -- a study whose "
                                                            "score_pct is under it is refused (off by default)")
     p.add_argument("--cycle", default="", help="with --scores: the cycle record's name, recorded in the provenance")
+    p.add_argument("--entry-mean", type=float, default=None,
+                   help="with --scores: the entry's line for this export (default quality/cycle.toml [gallery] "
+                        "entry_mean_pct, spec 127)")
     a = p.parse_args(argv)
     try:
         names = load_names()
@@ -1174,11 +1350,14 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"gallery: refused {reason}")
         result = promote(run_dirs, Path(a.out), names=names, scores_dir=Path(a.scores) if a.scores else None,
                          bar_pct=a.bar, cycle=a.cycle or None, provenance_dir=Path(a.provenance_dir),
-                         say=lambda line: print(f"gallery: {line}"))
+                         entry_mean_pct=a.entry_mean, say=lambda line: print(f"gallery: {line}"))
     except GalleryRefused as refusal:
         print(str(refusal), file=sys.stderr)
         return 1
     for row in result["index"]:
+        if row["slug"] not in result["slugs"]:
+            print(f"gallery: {row['slug']:<13} kept as it was (its entry refused, spec 127 FR-1)")
+            continue
         files = sum(len(m["written"]) for m in result["slugs"][row["slug"]].values())
         decisions = " · ".join(f"{k} {v['decision']}" for k, v in row["studies"].items())
         print(f"gallery: {row['slug']:<13} {row['name']:<13} {'B2B' if row['b2b'] else 'B2C'}  {decisions}  "

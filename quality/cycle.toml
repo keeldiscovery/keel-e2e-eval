@@ -57,6 +57,12 @@ gate = "The gate"
 # and the cycle's score_pct is held to the gallery's own last accepted one (recorded in its provenance), never to the
 # bar above. Every study of an entry is exported (FR-1: problem, solution, money); spec 079's refuse_flagged,
 # refuse_under_bar and scope_order are retired, and `make quality-*` refuses this file should one come back.
+# Spec 127 FR-1 (the founder, 2026-11-01: "If it's above 84%, we can accept it ... let it be the entry mean rather than
+# a single project"): an entry is an example when its three studies each have a score file and the mean of their three
+# score_pct is at or above this line. A flagged screen no longer refuses a study (the provenance records it); a study
+# with no score file still does; an entry below the line is refused by name and its older example stays. The cycle's
+# gate above (the gallery's last accepted score) stands; the bar and the weak rule are untouched.
+entry_mean_pct = 84.0
 
 [cadence]
 # Spec 079 FR-7: a cycle is DUE after a registry or instruction change merged in keel-cloud, a routing table or model

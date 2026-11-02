@@ -422,10 +422,13 @@ def test_the_gallery_names_map_writes_no_disclaimer():
 def test_the_first_acceptance_passes_whatever_the_bar_and_is_recorded(tmp_path):
     scores, said = tmp_path / "scores", []
     runs = scored(tmp_path / "runs", scores, mark=1)                                     # 50%: far under the 90% bar
+    # spec 127: the entry's line is the gallery's own (84.0 committed); this test is the cycle gate's, so a line of 50
     result = g.promote(runs, tmp_path / "sample", scores_dir=scores, cycle="20261031-aaaaaaa",
-                       provenance_dir=tmp_path / "prov", exported_at=AT, say=said.append)
-    assert said == ["the gate: no accepted score yet: the first acceptance passes (score_pct 50.0%)"]
-    assert result["accepted"] == {"cycle": "20261031-aaaaaaa", "score_pct": 50.0, "rubric_version": rubric.RUBRIC_VERSION}
+                       provenance_dir=tmp_path / "prov", exported_at=AT, entry_mean_pct=50.0, say=said.append)
+    assert said == ["the gate: no accepted score yet: the first acceptance passes (score_pct 50.0%)",
+                    "1 entry accepted on a mean of at least 50.0, 0 refused"]
+    assert result["accepted"] == {"cycle": "20261031-aaaaaaa", "score_pct": 50.0, "rubric_version": rubric.RUBRIC_VERSION,
+                                  "entry_mean_pct": 50.0}
     provenance = json.loads(Path(result["provenance"]).read_text(encoding="utf-8"))
     assert provenance["accepted"] == result["accepted"] and provenance["examples"][0]["cycle"] == "20261031-aaaaaaa"
     assert g.last_accepted(tmp_path / "prov") == {**result["accepted"], "file": f"provenance-{AT}.json"}
@@ -454,15 +457,17 @@ def test_a_cycle_below_the_last_accepted_is_refused_by_name_and_nothing_is_writt
 
 def test_equal_or_above_the_last_accepted_passes(tmp_path):
     scores, out, prov = tmp_path / "scores", tmp_path / "sample", tmp_path / "prov"
+    # spec 127: the cycle gate's test, so the entry's line is set at 50 for the 50% cycles
     g.promote(scored(tmp_path / "a", scores, mark=1), out, scores_dir=scores, cycle="c1", provenance_dir=prov,
-              exported_at=AT, say=lambda _: None)
+              exported_at=AT, entry_mean_pct=50.0, say=lambda _: None)
     said = []
     same = g.promote(scored(tmp_path / "b", scores, mark=1, day="20261101"), out, scores_dir=scores, cycle="c2",
-                     provenance_dir=prov, exported_at="2026-11-01T09:00:00Z", say=said.append)
-    assert same["accepted"]["score_pct"] == 50.0 and "at or above, promoted" in said[-1]
+                     provenance_dir=prov, exported_at="2026-11-01T09:00:00Z", entry_mean_pct=50.0, say=said.append)
+    assert same["accepted"]["score_pct"] == 50.0 and "at or above, promoted" in said[-2]
     above = g.promote(scored(tmp_path / "c", scores, mark=2, day="20261102"), out, scores_dir=scores, cycle="c3",
                       provenance_dir=prov, exported_at="2026-11-02T09:00:00Z", say=lambda _: None)
-    assert above["accepted"] == {"cycle": "c3", "score_pct": 100.0, "rubric_version": rubric.RUBRIC_VERSION}
+    assert above["accepted"] == {"cycle": "c3", "score_pct": 100.0, "rubric_version": rubric.RUBRIC_VERSION,
+                                 "entry_mean_pct": 84.0}
     assert g.last_accepted(prov)["cycle"] == "c3"
 
 
@@ -475,17 +480,23 @@ def test_the_gate_reads_the_cycles_score_over_its_studies(tmp_path):
     assert g.cycle_score(runs, tmp_path / "none") is None
 
 
-def test_a_flagged_screen_still_refuses_and_takes_its_entry_with_it(tmp_path):
+def test_a_flagged_screen_no_longer_refuses_its_entry(tmp_path):
+    """Spec 127 FR-1 re-pins spec 106's *a flagged screen still refuses*: the flagged money study is admitted with its
+    entry (the mean is at or above the line) and the flag travels in the provenance (FR-2); the rule as 106 had it is
+    still `score_gate(refuse_flagged=True)`'s."""
     scores, said = tmp_path / "scores", []
     runs = cycle_runs(tmp_path / "runs")
     for run in runs:
         score_file(scores, run, zero=run is runs[2])
-    with pytest.raises(g.NothingToBuild):
-        g.promote(runs, tmp_path / "sample", scores_dir=scores, provenance_dir=tmp_path / "prov", exported_at=AT,
-                  say=said.append)
-    assert said[0] == f"refused {runs[2].name} (08-fresco · COMMERCIAL): {runs[2].name}.json has 1 flagged screen(s)"
-    assert said[-1].startswith("refused 08-fresco: no money study (COMMERCIAL)")
-    assert not (tmp_path / "sample").exists() and not (tmp_path / "prov").exists()
+    result = g.promote(runs, tmp_path / "sample", scores_dir=scores, provenance_dir=tmp_path / "prov", exported_at=AT,
+                       say=said.append)
+    assert not any(line.startswith("refused") for line in said)
+    assert said[-1] == "1 entry accepted on a mean of at least 84.0, 0 refused"
+    assert [r["slug"] for r in result["index"]] == ["fresco"]
+    flagged = json.loads(Path(result["provenance"]).read_text(encoding="utf-8"))["examples"][0]["flagged"]
+    assert [(f["study"], f["criterion"]) for f in flagged] == [("money", "r1")]
+    _, refused = g.score_gate(runs, scores, refuse_flagged=True)
+    assert refused == [f"{runs[2].name} (08-fresco · COMMERCIAL): {runs[2].name}.json has 1 flagged screen(s)"]
 
 
 def test_the_bar_is_an_optional_stricter_gate_off_by_default(tmp_path):
@@ -499,8 +510,12 @@ def test_the_bar_is_an_optional_stricter_gate_off_by_default(tmp_path):
     assert g.main(["--runs", ",".join(map(str, runs)), "--out", str(tmp_path / "o"), "--provenance-dir",
                    str(tmp_path / "p"), "--scores", str(scores), "--bar", "80"]) == 1
     assert not (tmp_path / "o").exists()
+    # spec 127: a 50% entry is under the committed line of 84.0; the line set at 50 for this one export, it passes
     assert g.main(["--runs", ",".join(map(str, runs)), "--out", str(tmp_path / "o"), "--provenance-dir",
-                   str(tmp_path / "p"), "--scores", str(scores)]) == 0
+                   str(tmp_path / "p"), "--scores", str(scores)]) == 1
+    assert not (tmp_path / "o").exists()
+    assert g.main(["--runs", ",".join(map(str, runs)), "--out", str(tmp_path / "o"), "--provenance-dir",
+                   str(tmp_path / "p"), "--scores", str(scores), "--entry-mean", "50"]) == 0
 
 
 def test_a_last_score_at_another_rubric_version_or_before_106_is_never_compared(tmp_path):
@@ -612,8 +627,9 @@ def test_the_provenance_names_cycle_entry_study_and_run_per_slug_outside_out(tmp
     assert list(data) == ["exportedAt", "accepted", "examples"]
     assert data["examples"] == [{"slug": "fresco", "entry": "08-fresco", "cycle": "20261031-abcdef1",
                                  "studies": {st: {"scope": g.STUDY_SCOPE[st], "run": run.name, "cloud": "b2cf168",
-                                                  "web": "9f3845a"} for st, run in zip(g.STUDIES, runs)},
-                                 "renamed": {"from": [], "to": "Fresco"}}]
+                                                  "web": "9f3845a", "score_pct": 100.0}       # spec 127 FR-2
+                                             for st, run in zip(g.STUDIES, runs)},
+                                 "renamed": {"from": [], "to": "Fresco"}, "mean": 100.0, "flagged": []}]
     assert out not in Path(result["provenance"]).parents
     everything = b"".join(_bytes(out).values()).decode("utf-8").lower()
     for needle in ("08-fresco", "20261031-abcdef1", "-backtest-", "/users/", *(r.name.lower() for r in runs)):

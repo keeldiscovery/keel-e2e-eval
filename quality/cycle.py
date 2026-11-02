@@ -19,7 +19,8 @@
 - **`accept`** -- `make quality-accept CYCLE=<record>` (free, FR-6): spec 106 FR-3's gate first (the cycle's score_pct
   below the gallery's last accepted one refuses: nothing cut, nothing written), then `quality/BASELINE.md` rewritten
   from that cycle's score files (the old one kept under `quality/baselines/<date>.md`), then the gallery built from
-  that cycle's bundles behind the readers' gate (`evals/gallery.py --scores`, no bar), three studies per example, what
+  that cycle's bundles behind the readers' gate (`evals/gallery.py --scores`, no bar), three studies per example, an
+  entry admitted on the mean of its three studies' score_pct at or above `[gallery] entry_mean_pct` (spec 127), what
   changed in the snapshot, and the sentence the keel-web refresh spec starts from.
 - **`due`** -- `make quality-due` (free, FR-7): whether a cycle is due, and why; it runs nothing else.
 
@@ -134,8 +135,14 @@ def load_config(path: Path | None = None, *, readers_toml: Path | None = None) -
     retired = sorted(set(cfg["gallery"]) & {"refuse_flagged", "refuse_under_bar", "scope_order"})
     if retired:
         raise Refused(f"{path.name} [gallery] still says {retired} -- spec 106 retired them: the gallery's gate is the "
-                      "readers' (a flagged screen always refuses) and the gallery's own last accepted score, never the "
-                      "bar, and an example is three studies, not one scope picked by an order")
+                      "readers' (since spec 127 the entry's mean at or above entry_mean_pct) and the gallery's own last "
+                      "accepted score, never the bar, and an example is three studies, not one scope picked by an order")
+    line = cfg["gallery"].get("entry_mean_pct")
+    if isinstance(line, bool) or not isinstance(line, (int, float)) or not 0 <= line <= 100:
+        raise Refused(f"{path.name} [gallery] entry_mean_pct is {line!r} -- the entry's line, a percentage from 0 to "
+                      "100 (spec 127 FR-1: an entry is an example when the mean of its three studies' score_pct is at "
+                      "or above it)")
+    cfg["gallery"]["entry_mean_pct"] = float(line)
     cfg["cadence"].setdefault("days", 7)
     return cfg
 
@@ -1248,11 +1255,13 @@ def bundle_dir(study: dict, runs_dir: Path) -> Path | None:
 
 
 def accept(argv=None) -> int:
-    """FR-6 as spec 106 leaves it: the gate first (FR-3 -- the cycle's score_pct below the gallery's last accepted one
-    refuses the acceptance: no baseline cut, nothing written), then the baseline cut from the cycle's score files, then
-    the gallery from the cycle's bundles through `evals.gallery.promote` with the readers' gate alone (`--scores`: a
-    study with no score file or a flagged screen refused by name, no bar), three studies per entry (an entry lacking
-    one set aside by name), the score recorded in the gallery's provenance as the one the next cycle is held to."""
+    """FR-6 as spec 127 leaves it: the gate first (spec 106 FR-3 -- the cycle's score_pct below the gallery's last
+    accepted one refuses the acceptance: no baseline cut, nothing written), then the baseline cut from the cycle's score
+    files, then the gallery from the cycle's bundles through `evals.gallery.promote` with the readers' gate alone
+    (`--scores`, no bar: a study with no score file refused by name; an entry admitted on the mean of its three
+    studies' score_pct at or above `[gallery] entry_mean_pct`, a flagged screen admitted and recorded, an entry below
+    the line refused by name and its older example kept), three studies per entry (an entry lacking one set aside by
+    name), the score recorded in the gallery's provenance as the one the next cycle is held to."""
     from evals import gallery                                            # noqa: PLC0415
 
     p = argparse.ArgumentParser(prog="make quality-accept", description="Spec 079 FR-6 / 106: the acceptance.")
@@ -1264,7 +1273,7 @@ def accept(argv=None) -> int:
     p.add_argument("--today", default="", help=argparse.SUPPRESS)
     a = p.parse_args(argv)
     try:
-        load_config()                                  # refused, naming both files, when it disagrees with its homes
+        cfg = load_config()                            # refused, naming both files, when it disagrees with its homes
         record = load_record(a.cycle)
         files = cycle_files(record)
         out = Path(a.out) if a.out else checkouts()[1] / "public" / "sample"
@@ -1317,7 +1326,8 @@ def accept(argv=None) -> int:
     print(f"gallery: as `make gallery RUNS={','.join(str(r) for r in runs)} SCORES={_rel(scores_dir)} OUT={out}`")
     try:
         result = gallery.promote(runs, out, names=names, scores_dir=scores_dir, cycle=stem, score_pct=score,
-                                 provenance_dir=provenance_dir, say=lambda line: print(f"gallery: {line}"))
+                                 provenance_dir=provenance_dir, entry_mean_pct=cfg["gallery"]["entry_mean_pct"],
+                                 say=lambda line: print(f"gallery: {line}"))
     except gallery.NothingToBuild as nothing:
         print(f"gallery: {'; '.join(nothing.reasons)} -- the gallery is left as it is")
         return 0
@@ -1327,16 +1337,21 @@ def accept(argv=None) -> int:
               "again (it re-cuts the same baseline)")
         return 1
     after = [row["slug"] for row in result["index"]]
-    refreshed = [s for s in after if s in before]
+    kept = [s for s in after if s not in result["slugs"]]          # spec 127 FR-1: a refused entry's older example
+    refreshed = [s for s in after if s in before and s not in kept]
     added = [s for s in after if s not in before]
     dropped = [s for s in before if s not in after]
     no_cover = [s for s in after if not (out / s / "cover.jpg").is_file()]
     for row in result["index"]:
+        if row["slug"] in kept:
+            print(f"gallery: {row['slug']:<14} kept as it was (its entry refused this cycle, spec 127 FR-1)")
+            continue
         studies = " · ".join(f"{k} {v['decision']} ({v['answered']} of {v['invited']})"
                              for k, v in (row.get("studies") or {}).items())
         print(f"gallery: {row['slug']:<14} {studies} (cloud {row.get('cloud')}, web {row.get('web')})")
     print(f"snapshot {out}: refreshed {', '.join(refreshed) or 'none'}; added {', '.join(added) or 'none'}; "
-          f"left out of the index (their folders stay under OUT) {', '.join(dropped) or 'none'}; missing a cover.jpg "
+          + (f"kept as they were (refused this cycle) {', '.join(kept)}; " if kept else "")
+          + f"left out of the index (their folders stay under OUT) {', '.join(dropped) or 'none'}; missing a cover.jpg "
           f"{', '.join(no_cover) or 'none'}; still missing a gallery_names.toml row: "
           + (", ".join(sorted({line.split(':')[0] for line in set_aside if 'gallery_names' in line})) or "none"))
     print(f"provenance: {result['provenance']} (outside the snapshot, not committed) -- score_pct {score}% recorded "
