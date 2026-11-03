@@ -1886,7 +1886,12 @@ LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-
               # (2-5 words, no pronoun, no product or claim word, not the idea's name or the row, the people's words)
               "L29": "a row's hidden short name refused on the founder-lists draft (keel-cloud 200 FR-4)",
               "K9": "a row's hidden short name refused, or missing on a face-less row, on the asked job (keel-cloud 200 "
-                    "FR-4)"}
+                    "FR-4)",
+              # spec 131 (keel-cloud 203 FR-3, 204 FR-2): the Current solution scale's working rung, and the row cap on
+              # the founder's own words -- refused once, then noted (L30) or cut at the cap (L31)
+              "L30": "no rung above the line reads as today's way working (keel-cloud 203 FR-3)",
+              "L31": "a row of the founder's own words over the row cap, said in fewer of their words or cut "
+                     "(keel-cloud 204 FR-2)"}
 _NOTE = re.compile(r"\b(" + "|".join(LOCK_NOTES) + r"): ([^\n]{1,400})")
 
 

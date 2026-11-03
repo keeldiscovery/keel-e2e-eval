@@ -365,6 +365,44 @@ def cut_to_fit(step: str, most: int) -> str:
     return text
 
 
+#: keel-cloud 204 (`RowCap.DANGLING`): what a word-boundary cut never ends on.
+_DANGLING = frozenset({"and", "or", "but", "nor", "so", "the", "a", "an", "of", "to", "with", "on", "at", "for", "in",
+                       "from", "after", "before", "by", "during", "over", "across", "within", "into", "onto", "about",
+                       "than", "that", "which", "who", "whose", "while", "when", "where", "because", "as", "if",
+                       "against", "without", "through", "under", "per", "via", "their", "your", "its", "his", "her", "my",
+                       "our"})
+_EDGES = ";,.:|-–—/ "
+_ALTERNATIVE = re.compile(r"^(.+)\s+(?:or|and)\s+\S.*$", re.S)
+
+
+def row_cap_cut(label: str, most: int) -> str:
+    """keel-cloud 204 (`RowCap.cut`, spec 204 FR-2): a founder-list row cut to at most `most` words -- as it is where it
+    fits; else by its trailing phrases (`cut_to_fit`, 130's *They would have a bank account or wallet*), then a trailing
+    *or* / *and* alternative; else the first `most` words on a word boundary, a dangling joiner, article or preposition
+    and the separators at the end dropped. Never empty where the label has a word, never over the cap."""
+    if label is None or words(label) <= most:
+        return label
+    cut = cut_to_fit(label, most)
+    while words(cut) > most:
+        alternative = _ALTERNATIVE.match(cut)
+        if not alternative or words(alternative.group(1)) < 2:
+            return _at_boundary(label, most)
+        cut = cut_to_fit(alternative.group(1).strip(), most)
+    return cut
+
+
+def _at_boundary(label: str, most: int) -> str:
+    """`RowCap.atBoundary`: the first `most` words, a dangling last word and the separators at the end dropped."""
+    kept = str(label).strip().split()[:max(1, most)]
+    while len(kept) > 1 and (not kept[-1].strip(_EDGES) or kept[-1].strip(_EDGES).lower() in _DANGLING):
+        kept.pop()
+    text = " ".join(kept)
+    end = len(text)
+    while end > 1 and text[end - 1] in _EDGES:
+        end -= 1
+    return text[:end]
+
+
 def first_yes(step: str) -> str:
     """`ItemFrames.firstYes`: *Yes, I'd {step}*, the step cut to its share of the option's nine (129 FR-15)."""
     return "Yes, I'd " + cut_to_fit(_lower(str(step).strip()), OPTION_MAX_WORDS - 2)

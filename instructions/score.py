@@ -304,6 +304,11 @@ _SERIAL_LAST = re.compile(r"^(.+?)\s+(?:and|or)\s+(.+)$", re.I)
 _NAMES_NONE = re.compile(r"^(?:nothing(?:\s+else)?|none|no|nope|n/?a|nobody)[.!]?$", re.I)
 
 
+def _flat(text: str) -> str:
+    """A text as `L31` compares a row with the founder's Answer: lower case, one space, no closing stop."""
+    return " ".join(str(text or "").lower().split()).rstrip(".")
+
+
 def named_difficulties(answer) -> list[str]:
     """Spec 091 FR-1 (`founder-lists.md`'s `rival_list` bullet): the other difficulties the founder's Importance Answer
     names, in its order -- what Keel's draft writes after the problem itself, adding none. A list Answer is one difficulty
@@ -383,11 +388,17 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
                       f"({phrase[_YOUR_WAY_OF.match(phrase).end():].strip()!r})")
     suggested = 0
     allowed = set(_DIGITS.findall(sources))
+    typed = _flat(" ".join(_strings((answers or {}).get(dimension.key))))
     for i, item in enumerate(items):
         label = str(item.get("label") or "")
         count = words(label)
         if count == 0 or count > int(saves.get("max_words") or 9):
-            faults.append(f"L2: item {i + 1} is 1 to {saves.get('max_words')} words; {label!r} is {count}")
+            # spec 131 (keel-cloud 204 FR-2): a row of the founder's own words over the row cap -- a Current solution
+            # rung or a row typed in the Answer -- is L31 (refused once, then cut at the cap); Keel's own words L2
+            own = count > 0 and bool(typed) and _flat(label) in typed
+            faults.append(f"{'L31' if own else 'L2'}: item {i + 1} is 1 to {saves.get('max_words')} words; {label!r} "
+                          f"is {count}" + (" -- the founder's own words: say them in fewer of their words, in their "
+                                           "order, else cut at the cap" if own else ""))
         for text in (label, item.get("asked")):
             for number in _DIGITS.findall(str(text or "")):
                 if number not in allowed:

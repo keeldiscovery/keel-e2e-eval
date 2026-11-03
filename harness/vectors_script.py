@@ -61,6 +61,7 @@ from harness import interview_charge
 from harness import loss_line as ll
 from harness import qualifiers
 from harness import short_names as short_names_mod
+from harness import working_rung as working_rung_mod
 from instructions import chain as chain_mod
 from instructions import corpus as corpus_reader
 from instructions.registry import (COMMITMENT_KEY, FREQUENCY_MIN, IMPORTANCE_CONTROL, NOTHING_ELSE_CHIP,
@@ -1574,10 +1575,14 @@ def drafted_list(entry, key: str) -> dict:
     `asked` face on Compatibility and Adoption friction, and Current solution's `phrase`."""
     saved = founder_list(entry, key)
     items = []
+    cap = ROW_CAP.get(key)
     for item in saved["items"]:
         if key == "commercial.buyer_payer_alignment" and item.get("code") == NOBODY_ELSE[0]:
             continue
-        out = {"label": item["label"]}
+        # spec 131 (keel-cloud 204 FR-2): a corpus row over the row cap is refused once, then cut at the cap -- the
+        # scripted writer's draft carries it cut (`RowCap.cut`), so the Check screen is always saveable
+        from instructions import spoken as spoken_mod                 # noqa: PLC0415
+        out = {"label": spoken_mod.row_cap_cut(item["label"], cap) if cap else item["label"]}
         if key in ASKED_FACES:
             if not item.get("asked"):
                 raise VectorsScriptError(f"{entry.id}: {key} item {item['label']!r} carries no `asked` face (L4)")
@@ -1600,23 +1605,54 @@ def drafted_list(entry, key: str) -> dict:
         # spec 093 FR-1 (keel-cloud 161 FR-1): the draft writes the act bare, as the model now does -- the corpus's
         # *your way of ...* read with the opening stripped (`ItemFrames.bare`), so no scripted draft earns an `L1` note
         draft["phrase"] = bare_phrase(saved["phrase"])
-        # spec 064 FR-5a (keel-cloud 117): the leading rungs the founder typed, kept verbatim, and the line after D4's 2
+        # spec 064 FR-5a (keel-cloud 117): the leading rungs the founder typed, kept verbatim, and the line after D4's 2;
+        # spec 131 (keel-cloud 203 FR-1, FR-2): with Keel's working rung above them, the line under it (1)
         rungs = founder_rungs(entry)
         if rungs:
             draft["founder_rungs"] = rungs
-            draft["line"] = min(2, rungs)
+            draft["line"] = 1 if keels_working_first(entry) else min(2, rungs)
     return draft
+
+
+#: keel-cloud 204 (FR-1): each founder list's row cap, the registry's `founder.saves.max_words` (9; Compatibility's
+#: conditions 16; Buyer and payer's roles 4) -- held to the registry by test.
+ROW_CAP = {"problem.importance": 9, "problem.current_solution_satisfaction": 9, "solution.compatibility": 16,
+           "solution.relative_advantage": 9, "solution.adoption_friction": 9, "commercial.buyer_payer_alignment": 4,
+           "commercial.purchase_friction": 9, "commercial.commitment": 9}
+
+
+def keels_working_first(entry) -> bool:
+    """keel-cloud 203 (FR-1, `FoundersRungs.keelsWorkingFirst`): whether Current solution's first rung is Keel's working
+    outcome written above the founder's own -- where the entry's Answer types only shortfalls, its saved list carries
+    the working rung on top marked `keel: true` (the founder never typed it). Such a first rung must read as working and
+    the founder's first must be a shortfall (`WorkingRung`), else the entry is refused by name."""
+    saved = entry.founder_list("problem.current_solution_satisfaction") if hasattr(entry, "founder_list") else None
+    items = (saved or {}).get("items") or []
+    if not items or not items[0].get("keel"):
+        return False
+    if len(items) < 2 or not working_rung_mod.works(items[0]["label"]) or working_rung_mod.works(items[1]["label"]):
+        raise VectorsScriptError(f"{entry.id}: problem.current_solution_satisfaction's first rung is marked Keel's "
+                                 "(`keel: true`): it must read as today's way working and stand above founder rungs "
+                                 "that are shortfalls (keel-cloud 203 FR-1)")
+    return True
 
 
 def founder_rungs(entry) -> int:
     """How many of Current solution's outcomes the founder's Answer types (`answer_text`: the phrase, then as many whole
-    labels as fit in 25 words) -- keel-cloud 117's `founder_rungs` (2 or 3 on every golden entry)."""
+    labels as fit in 25 words) -- keel-cloud 117's `founder_rungs` (2 or 3 on every golden entry), counted from the top
+    (`FoundersRungs.leading`): below Keel's working rung where it stands first (keel-cloud 203), only the founder's own."""
     key = "problem.current_solution_satisfaction"
     saved = founder_list(entry, key)
-    labels = [i["label"] for i in saved["items"]]
+    top = 1 if keels_working_first(entry) else 0
+    labels = [i["label"] for i in saved["items"]][top:]
     # spec 118 (keel-cloud 184 FR-8b (a)): the rungs are typed in the second box, *how it goes*, as its own sentence
-    how = current_solution_boxes(entry)[1]
-    return sum(1 for label in labels if label in how.rstrip(".").split("; "))
+    typed = current_solution_boxes(entry)[1].rstrip(".").split("; ")
+    n = 0
+    for label in labels:
+        if label not in typed:
+            break
+        n += 1
+    return n
 
 
 def _same_words(a: str | None, b: str | None) -> bool:
@@ -1629,7 +1665,9 @@ def rungs_plan(entry, drawn: list[str], max_items: int) -> dict:
     positional (code's positional codes, `single_choice_5`), so the founder's rung i goes in row i: a drawn row that
     does not carry it word for word is **edited** over (`edit`: (row index, label) -- Karsa, 2026-10-23: Keel redrafted
     three of five and the walk stopped for want of room), a rung past the drawn rows is typed into a new row (`add`)
-    while the screen's `max_items` has room, and a rung past that stops the walk by name (`cannot`)."""
+    while the screen's `max_items` has room, and a rung past that stops the walk by name (`cannot`). Counted from the top
+    (keel-cloud 203): where the entry carries Keel's working rung first (`keels_working_first`), row 0 is it and the
+    founder's own rungs follow from row 1, as keel-cloud draws them."""
     labels = [i["label"] for i in founder_list(entry, "problem.current_solution_satisfaction")["items"]]
     plan = {"edit": [], "add": [], "cannot": []}
     for i, label in enumerate(labels):
@@ -1763,7 +1801,20 @@ def answer_drops(entry, key: str) -> list[str]:
 def check_answer_box(entry) -> None:
     """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): at load, no list label is over the Answer box's 25 words, and
     Importance's Answer names every difficulty it is to name inside it (Current solution's rungs past the box are typed
-    on the Check screen instead, FR-2) -- else the run stops here, naming the label, never after a paid walk."""
+    on the Check screen instead, FR-2) -- else the run stops here, naming the label, never after a paid walk. Spec 131
+    (keel-cloud 203): and Current solution's first rung reads as today's way working -- a list whose first rung is a
+    shortfall is refused at Save, so an entry whose Answer types only shortfalls carries the working rung on top
+    (`keels_working_first`)."""
+    current = entry.founder_list("problem.current_solution_satisfaction") if hasattr(entry, "founder_list") else None
+    if (current or {}).get("items") and not entry.unsure("problem.current_solution_satisfaction"):
+        keels_working_first(entry)
+        first = current["items"][0]["label"]
+        if not working_rung_mod.works(first):
+            raise VectorsScriptError(
+                f"{entry.id}: problem.current_solution_satisfaction's first rung {first!r} is a shortfall "
+                f"({working_rung_mod.shortfall(first)!r}): the scale opens on today's way getting the job done, and the "
+                "Save refuses a first rung that falls short -- where the Answer types only shortfalls, put the working "
+                "rung on top, marked `keel: true` (keel-cloud 203 FR-1, FR-2)")
     for key in (k for k in LIST_CONTROLS if (entry.founder_list(k) or {}).get("items")):
         for item in entry.founder_list(key)["items"]:
             if _words(item.get("label")) > ANSWER_MAX_WORDS:
@@ -1812,7 +1863,8 @@ def current_solution_boxes(entry) -> tuple[str, str]:
         what = _stopped(today)
     # the outcomes the Answer names are the ones it always named (the phrase and the labels within the box's 25 words,
     # so keel-cloud 117's `founder_rungs` -- the leading rungs typed, kept verbatim -- is unchanged), now in their own box
-    labels = [i["label"] for i in saved["items"]]
+    # spec 131 (keel-cloud 203 FR-1): Keel's working rung, where it stands first, is never typed by the founder
+    labels = [i["label"] for i in saved["items"]][1 if keels_working_first(entry) else 0:]
     named, typed = [], (what if today else str(saved.get("phrase") or "").strip())
     for label in labels:
         if _words("; ".join([typed] + named + [label])) > ANSWER_MAX_WORDS:
