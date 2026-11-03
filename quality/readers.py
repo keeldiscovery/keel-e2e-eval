@@ -336,8 +336,10 @@ def _after_body(s: dict, total: int) -> tuple[list[str], str]:
         if page.get("decider"):
             body.append(f"The banner: {page['decider']}")
         if page.get("tally"):
-            # spec 118 FR-5 (keel-web 155 T013, keel-cloud 180 T019): the served tally of the cards' words
-            body.append(f"The tally over the cards (how many hold, do not, did not hold, are split): {page['tally']}")
+            # spec 118 FR-5 (keel-web 155 T013, keel-cloud 180 T019): the served tally of the cards' words; spec 129
+            # (keel-cloud 202 D3): it counts beliefs (*6 beliefs: 2 holding · ... · 1 too few to call*), never people
+            body.append("The tally over the cards (how many of the beliefs hold, do not, did not hold, are split or are "
+                        f"too few to call): {page['tally']}")
         rows = page.get("rows") or []
         if rows:
             body.append("One card per dimension, as listed (its number and name, your belief, the status word with its "

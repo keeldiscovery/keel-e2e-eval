@@ -3522,9 +3522,47 @@ def subject_led(clause: str) -> str:
     return clause if len(words) > 2 and words[0].lower() in _SUBJECT_LED else f"you {clause}"
 
 
+#: keel-cloud 202 D4 (`RespondentQuestionsRules.TRAILING`): the words a trailing phrase of an occasion's clause opens on
+#: -- the prepositions, a relative, *due* (*patients due for a screening*); never *of*, which holds a noun to its head
+#: (*the day's list of patients*).
+TRAILING = ("with", "on", "at", "for", "in", "from", "after", "before", "by", "during", "over", "across", "within",
+            "who", "that", "which", "where", "when", "due")
+
+
+def fitted(clause: str | None, window: Window) -> str | None:
+    """keel-cloud 202 D4 (`RespondentQuestionsRules.fitted`): the occasion's clause cut by its trailing phrases, the
+    rightmost first (never before its fourth word), so the Frequency question served around it is within the spoken cap
+    (`STEM_MAX_WORDS`); None where the clause is absent, already fits, or no cut fits."""
+    if not clause or not clause.strip():
+        return None
+    served = _words(frequency_served(window, clause))
+    if served <= STEM_MAX_WORDS:
+        return None
+    budget = STEM_MAX_WORDS - (served - _words(clause))
+    words = clause.strip().split()
+    while len(words) > budget:
+        at = next((i for i in range(len(words) - 1, 2, -1) if words[i].lower() in TRAILING), -1)
+        if at < 0:
+            return None
+        words = words[:at]
+    cut = re.sub(r"[,;:]$", "", " ".join(words))
+    return None if cut == clause.strip() else cut
+
+
+def possessive_time(clause: str | None) -> str | None:
+    """keel-cloud 202 D4 (`RespondentQuestionsRules.possessiveTime`): a time word in the possessive names the occasion's
+    own thing, never a period (*the day's list of patients*), so E1 reads the clause without it."""
+    return None if clause is None else re.sub(r"(?i)\b(?:day|night|week|month|year|shift|morning|evening)'s\b",
+                                              "occasion's", clause)
+
+
 def gate_from_circumstance(window: Window, circumstance: str | None) -> str | None:
-    """keel-cloud 131 FR-1's gate on the circumstance's event (`WindowFrame.gate` over `circumstanceEvent`), or None."""
+    """keel-cloud 131 FR-1's gate on the circumstance's event (`WindowFrame.gate` over `circumstanceEvent`), or None.
+    Since keel-cloud 202 D4 (18-careforce, cycle 8) the event past the spoken cap is cut by its trailing phrases
+    (`fitted`) before the job is ever taken -- *In the last 5 working days, did you have to call the day's list of
+    patients?*, never the job's goal met (*did you get every one of them booked?*), which inverted the count."""
     clause = circumstance_event(circumstance)
+    clause = (fitted(clause, window) or clause) if clause else clause
     return f"In the last {window_words(window)}, did {subject_led(clause)}?" if clause else None
 
 
