@@ -886,8 +886,7 @@ not sure* allowed) · stranger `fixed_four` (part 3) · compare `first_supports`
 
 #### 1. What it measures
 
-Whether the person who uses it, the person who decides and the person who pays are one person, and who else has to
-agree.
+Whether the person who uses it, the person who decides and the person who pays are one person, and who else has to agree.
 
 #### 2. The options' shape
 
@@ -1054,8 +1053,7 @@ it. *It wouldn't be needed* is an answer, and counts for. The founder's side: *I
 
 #### 1. What it measures
 
-What they would actually do before paying: give their time, install it, share their data, introduce someone, put down a
-deposit or join a trial.
+What they would actually do before paying: give their time, install it, share their data, introduce someone, put down a deposit or join a trial.
 
 #### 2. The options' shape
 
