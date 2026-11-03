@@ -332,3 +332,35 @@ def skip_a_spoken_record_before_170(keel_cloud, registry) -> None:
                     f"{SACRIFICE_ESCAPE_BEFORE_170!r}; the registry of record names "
                     f"{spoken_mod.registry_escape(registry, SACRIFICE_KEY)!r}) -- rerun `./gradlew test --tests "
                     "'*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout to compare")
+
+
+#: keel-cloud 197's Buyer and payer first answer (`ItemFrames.buyerPayerLabel` with no role named, 128 to 197).
+BUYER_FIRST_BEFORE_198 = "Yes, someone else had to agree"
+
+
+def spoken_record_before_198(keel_cloud) -> bool:
+    """Spec 130: whether keel-cloud's `build/spoken-corpus.txt` was written before keel-cloud 198 -- a Buyer and payer item
+    whose options open on *Yes, someone else had to agree* or a Yes/No (198 FR-4 serves the person's own answer first,
+    *I decided on my own*), or an escape said *Or say you can't say.* (198 FR-2: *Or say: I can't say.*)."""
+    from instructions import cloud_corpus as cloud_mod                # noqa: PLC0415
+    from instructions.registry import BUYER_KEY                       # noqa: PLC0415
+    path = Path(keel_cloud) / cloud_mod.SPOKEN_FILE
+    record = path.read_text(encoding="utf-8") if path.is_file() else ""
+    return "escape=Or say you can't say." in record or any(
+        block.split("\n  options: [", 1)[-1].startswith(("Yes, ", "No, "))
+        for block in record.split(f"{BUYER_KEY} [part 3]\n")[1:])
+
+
+def skip_a_spoken_record_before_198(keel_cloud, registry) -> None:
+    """Spec 130 (keel-cloud 198 FR-2, FR-4): a record written before 198, read against the registry of record after it,
+    says Buyer and payer's four in 128's words and order and *Or say you can't say.* -- the record's age, not a fault of
+    S3-S8. Such a record is skipped by name (rerun its SpokenGuidelinesCorpusTest to compare)."""
+    import pytest                                                     # noqa: PLC0415
+    from instructions.registry import BUYER_KEY                       # noqa: PLC0415
+    if spoken_record_before_198(keel_cloud) and registry is not None and registry.has(BUYER_KEY) \
+            and [a.get("label") for a in registry.by_key(BUYER_KEY).fixed_answers][:1] != ["No, I decided on my own"] \
+            and registry.by_key(BUYER_KEY).fixed_answer_codes[:1] == ["decided_alone"]:
+        pytest.skip("keel-cloud's build/spoken-corpus.txt predates keel-cloud 198 (Buyer and payer said in 128's words, "
+                    "*Or say you can't say.*; the registry of record opens on "
+                    f"{registry.by_key(BUYER_KEY).fixed_answers[0].get('label')!r}) -- rerun `./gradlew test --tests "
+                    "'*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout to compare")

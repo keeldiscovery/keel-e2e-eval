@@ -144,7 +144,7 @@ import yaml
 from . import chain as chain_mod
 from . import friction as friction_mod
 from . import text as text_mod
-from .registry import (DURATION_CONTROL, RECORDED_CONTROLS, ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BENEFIT_CONTROL, BENEFIT_KEY,
+from .registry import (DURATION_CONTROL, RECORDED_CONTROLS, ABILITY_BANDS, ABILITY_KEY, BENEFIT_CODES, BUYER_KEY, BENEFIT_CONTROL, BENEFIT_KEY,
                        BENEFIT_MAX_TICKS, COMMITMENT_KEY, COMPATIBILITY_KEY, COST_MODES, COST_TOTAL_CONTROL,
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, PURCHASE_FRICTION_KEY, SACRIFICE_KEY, VECTORS, RecallWindow, words)
@@ -1199,8 +1199,12 @@ def _check_cost_first(raw: dict, entry_id, path: Path, in_chain: bool = False) -
 
 # ------------------------------------------------------------------- revision 13: the chain (rule C)
 
-#: The B2B budget item's codes (the registry's four budget sources, asked on the decision-maker's link on every reading).
-B2B_BUDGET_CODES = ("existing_line", "new_line_signed_off", "taken_from_other_spend", "no_budget")
+#: The B2B budget item's codes (the registry's budget sources, asked on the decision-maker's link on every reading) --
+#: the five since keel-cloud 198 FR-5 (`no_budget` retired, read as before; revision 22 records the four, read through
+#: `spec198_codes`).
+B2B_BUDGET_CODES = ("existing_line", "charged_to_users", "new_line_signed_off", "outside_funding",
+                    "taken_from_other_spend")
+B2B_BUDGET_CODES_197 = ("existing_line", "new_line_signed_off", "taken_from_other_spend", "no_budget")
 
 
 def _chain_answers(raw: dict, path=None) -> tuple:
@@ -1501,7 +1505,8 @@ def _check_row(entry: Entry, registry, key: str, row: dict) -> None:
     if not recorded_escape_is(key, row.get("escape"), escape):
         raise _refuse(entry.id, f"respondent_questions[{key}].escape is {row.get('escape')!r}; the registry's one "
                                 f"escape is {escape!r}", entry.path)
-    codes = list(row.get("codes") or [])
+    # spec 130 (keel-cloud 198 FR-4, FR-5): revision 22's Buyer and payer and Ability to pay codes read as 198 fixes them
+    codes = list(spec198_codes(key, row.get("codes") or [], dimension.fixed_answer_codes) or [])
     if key == COMPATIBILITY_KEY and codes == list(FACT_CODES):
         # spec 118 FR-4c(c) (keel-cloud 185 FR-1, revision 21): a fact is served three -- never *Only with help or
         # approval* -- on the registry's codes; held to code's reading of the tested condition (`conditionKind`)
@@ -1611,7 +1616,9 @@ def _check_pick(entry: Entry, registry, person: dict, key: str, pick) -> None:
                                     + (" (Commitment has none)" if key == COMMITMENT_KEY else ""), entry.path)
         return
     control = row.get("control")
-    codes = [str(c) for c in row.get("codes") or []]
+    fixed = registry.by_key(key).fixed_answer_codes
+    codes = [str(c) for c in spec198_codes(key, row.get("codes") or [], fixed) or []]
+    pick = spec198_pick(key, pick, fixed)                 # spec 130 (keel-cloud 198 FR-5): no_budget is outside_funding
     if control in RECORDED_CONTROLS["pick_one_then_one"]:
         # the corpus records two picks (keel-cloud 158: two picks are stored as the same two codes; one pick and
         # Nothing else, which the corpus never records, is stored as the one code)
@@ -1864,6 +1871,61 @@ def spec174_escape(key: str, recorded):
         return recorded
     read = (SPEC174_ESCAPES.get(key) or {}).get(recorded.lower())
     if read is None:
+        return recorded
+    return read.upper() if recorded.isupper() else read
+
+
+# ------------------------------------------------- spec 130: revision 22 read through keel-cloud 198's one rule
+
+#: keel-cloud 198 FR-4 / FR-5 (the registry, `RespondentItems`): Buyer and payer's four reordered alone first, and Ability
+#: to pay's five sources in place of the four -- revision 22 records the codes as they were. `(recorded, registry)`.
+BUYER_CODES_197 = ("had_to_agree", "decided_alone", "someone_else_agreed", "someone_else_decided")
+BUYER_CODES_198 = ("decided_alone", "had_to_agree", "someone_else_agreed", "someone_else_decided")
+ABILITY_CODES_197 = ("existing_line", "new_line_signed_off", "taken_from_other_spend", "no_budget")
+ABILITY_CODES_198 = ("existing_line", "charged_to_users", "new_line_signed_off", "outside_funding",
+                     "taken_from_other_spend")
+SPEC198_CODES = {BUYER_KEY: (BUYER_CODES_197, BUYER_CODES_198), ABILITY_KEY: (ABILITY_CODES_197, ABILITY_CODES_198)}
+#: keel-cloud 198 FR-5 (its `commercial-chain/*.json` inputs, *one rule*): a recorded `no_budget` pick is
+#: `outside_funding` -- the new source that, like no budget, counts against (`BUDGET_SUPPORTS` holds neither).
+SPEC198_PICKS = {ABILITY_KEY: {"no_budget": "outside_funding"}}
+#: keel-cloud 198 FR-3 (`CommercialChain.valueBoxEscapes`): the value box's one escape on every link -- a recorded
+#: consumer `rather_not_say` chip on Existing sacrifice is answered with it, `dont_know` (*I can't recall*), apart as before.
+SPEC198_CHIPS = {SACRIFICE_KEY: {"rather_not_say": "dont_know"}}
+
+
+def spec198_chip(key: str, recorded):
+    """Spec 130 (keel-cloud 198 FR-3): a recorded value-box chip read as the one escape served since 198 -- `rather_not_say`
+    on Existing sacrifice is `dont_know`; any other chip as it is. Case kept."""
+    if not isinstance(recorded, str):
+        return recorded
+    read = (SPEC198_CHIPS.get(key) or {}).get(recorded.lower())
+    if read is None:
+        return recorded
+    return read.upper() if recorded.isupper() else read
+
+
+def spec198_codes(key: str, recorded, registry_codes=None):
+    """Spec 130 (keel-cloud 198 FR-4, FR-5; spec 141's pattern, no corpus revision): a row's codes revision 22 records in
+    the registry's words before 198, read as the registry fixes them since -- Buyer and payer alone first, Ability to
+    pay's five sources. Only where the registry handed (`registry_codes`, None: any) is 198's; any other list is returned
+    as it is. The record is never rewritten."""
+    if recorded is None:
+        return recorded
+    was, now = SPEC198_CODES.get(key, (None, None))
+    if was is None or [str(c) for c in recorded] != list(was):
+        return recorded
+    if registry_codes is not None and [str(c) for c in registry_codes] != list(now):
+        return recorded
+    return list(now)
+
+
+def spec198_pick(key: str, recorded, registry_codes=None):
+    """Spec 130 (keel-cloud 198 FR-5): one recorded pick code read as the registry codes it since 198 -- `no_budget` on
+    Ability to pay is `outside_funding` where the registry carries it (None: any); any other code as it is. Case kept."""
+    if not isinstance(recorded, str):
+        return recorded
+    read = (SPEC198_PICKS.get(key) or {}).get(recorded.lower())
+    if read is None or (registry_codes is not None and read not in [str(c) for c in registry_codes]):
         return recorded
     return read.upper() if recorded.isupper() else read
 

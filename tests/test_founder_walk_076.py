@@ -72,9 +72,14 @@ def test_the_role_takes_its_the_as_belief_sentence_reads_it():
 def test_the_buyer_labels_give_an_acronym_role_its_the():
     """keel-cloud 145 FR-2 (`ItemFrames.buyerPayerLabel`, `buyerPayerAtPriceLabel`): *Yes, the CEO had to agree*,
     *No, the CEO would have to agree*."""
-    labels = spoken.buyer_answers("CEO")
+    # spec 130 re-pin (keel-cloud 198 FR-4): 128's labels are read on a lock stored before 198 (`buyer_answers_128`);
+    # since 198 the role still takes its *the* -- *The CEO had to agree*, *The CEO would have to agree*
+    labels = spoken.buyer_answers_128("CEO")
     assert labels[0] == "Yes, the CEO had to agree" and labels[2] == "No, the CEO would have to agree"
-    assert spoken.buyer_answers(None)[0] == "Yes, someone else had to agree"
+    assert spoken.buyer_answers_128(None)[0] == "Yes, someone else had to agree"
+    labels = spoken.buyer_answers("CEO")
+    assert labels[1] == "The CEO had to agree" and labels[5] == "The CEO would have to agree"
+    assert spoken.buyer_answers(None)[1] == "Someone else had to agree"
 
 
 def test_the_brief_line_and_the_said_line_on_a_named_role(corpus):
@@ -149,9 +154,11 @@ def test_the_budget_bars_draw_the_supports_on_and_the_said_line_is_the_counts_se
     assert cs.budget_bars_faults(_budget_row(founderSaid="Keel reads your price against what the problem costs "
                                                          "them today."), [], "", True) == []
     chain = _cloud("src/main/java/com/keeldiscovery/cloud/domain/vectors/CommercialChain.java")
-    assert 'BUDGET_SUPPORTS = List.of(FROM_SPEND, "existing_line", "taken_from_other_spend")' in chain
+    # spec 130 re-pin (keel-cloud 198 FR-5): charged to the teams that use it is money already there
+    assert re.search(r'BUDGET_SUPPORTS = List\.of\(FROM_SPEND, "existing_line", "charged_to_users",\s*'
+                     r'"taken_from_other_spend"\)', chain)
     assert 'FROM_SPEND = "from_spend"' in chain
-    assert cs.vs_screens.BUDGET_SUPPORTS == ("from_spend", "existing_line", "taken_from_other_spend")
+    assert cs.vs_screens.BUDGET_SUPPORTS == ("from_spend", "existing_line", "charged_to_users", "taken_from_other_spend")
     said = _cloud("src/main/java/com/keeldiscovery/cloud/application/StandingsAssembler.java")
     # spec 118 re-pin (keel-cloud 181 FR-4, T014): the said line names the reading's own sides (`countsSentence(derived,
     # b2b)`, the budget readings' spec 141 sentence as before)

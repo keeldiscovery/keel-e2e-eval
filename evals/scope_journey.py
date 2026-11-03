@@ -84,7 +84,8 @@ BUYER_BELIEF = "The restaurant owner decides, and nobody else has to agree."
 #: 174, `cant_tell` -- spec 115 FR-1 -- where 05-paidly's record keeps `cant_recall`).
 B2B_QUESTIONS = {
     "commercial.ability_to_pay": {"part": 3, "control": "single_choice",
-                                  "codes": ["existing_line", "new_line_signed_off", "taken_from_other_spend", "no_budget"],
+                                  # keel-cloud 198 FR-5: the five sources (no_budget retired)
+                                  "codes": list(corpus_mod.ABILITY_CODES_198),
                                   "escape": "cant_recall_one"},
     "commercial.purchase_friction": {"part": 3, "control": "fixed_three", "codes": ["yes_long", "yes_quick", "not_needed"],
                                      "escape": "cant_tell"},
@@ -96,7 +97,7 @@ OWNER_PICKS = {
     "Hana Yoshida": ("new_line_signed_off", "yes_quick"),
     "Daniel Achebe": ("existing_line", "not_needed"),
     "Sofia Reyes": ("existing_line", "yes_quick"),
-    "Tom Okafor": ("no_budget", "yes_long"),
+    "Tom Okafor": ("outside_funding", "yes_long"),          # keel-cloud 198 FR-5: no_budget read as outside_funding
     "Aisha Rahman": ("existing_line", "not_needed"),
     "Ben Carter": ("taken_from_other_spend", "yes_quick"),
     "Lena Fischer": ("existing_line", "not_needed"),

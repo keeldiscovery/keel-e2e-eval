@@ -319,8 +319,10 @@ def test_the_labels_an_item_may_be_served_with_are_the_registrys():
     assert set(spoken_mod.ABILITY_ANSWERS.values()) <= set(compatibility)
     commitment = spoken_mod.served_labels(REG, "commercial.commitment", _entry(steps=("Start a paid pilot",
                                                                                       "A free trial")))
-    assert commitment[-2:] == ["Yes, I'd start a paid pilot", "Yes, after a free trial first"]
-    assert spoken_mod.served_labels(REG, "commercial.commitment", _entry(steps=("IT sign-off",)))[-1] == \
+    # spec 130 re-pin (keel-cloud 198 FR-1): the soft yes, *Probably, after ... first*; 118's on a lock stored before 198
+    assert commitment[-4:] == ["Yes, I'd start a paid pilot", "Probably, after a free trial first",
+                               "Yes, after a free trial first", "Yes, after trying it first"]
+    assert spoken_mod.served_labels(REG, "commercial.commitment", _entry(steps=("IT sign-off",)))[-2] == \
         "Yes, I'd IT sign-off", "an acronym keeps its capitals"
     assert spoken_mod.served_labels(None, "solution.compatibility") == []
     assert spoken_mod.served_labels(REG, "problem.frequency") == []
@@ -479,6 +481,7 @@ def test_the_corpus_record_keeps_every_rule_and_nothing_is_known_apart(real):
     corpus, cloud = real
     fx.skip_a_spoken_record_before_170(_keel_cloud(), corpus.entries[0].registry)    # spec 110 FR-2
     fx.skip_a_spoken_record_before_174(_keel_cloud(), corpus.entries[0].registry)    # spec 115 FR-0
+    fx.skip_a_spoken_record_before_198(_keel_cloud(), corpus.entries[0].registry)    # spec 130 (keel-cloud 198)
     score = spoken_mod.score(cloud, corpus)
     assert sorted((f["entry"], f["unit"]) for f in score.faults) == FIVE_ADOPTION_K2, score.faults
     assert all(f["key"] == "solution.adoption_friction" and f["evidence"].startswith('K2: framed, it reads "To use it')
@@ -492,6 +495,7 @@ def test_the_record_follows_registry_revision_13s_five_changes(real):
     """Spec 065 FR-2: each of the five changes, as the record carries it and the registry of record names it."""
     corpus, cloud = real
     registry = corpus.entries[0].registry
+    fx.skip_a_spoken_record_before_198(_keel_cloud(), registry)       # spec 130 (keel-cloud 198)
     items = {(i.entry, i.key): i for e in corpus.entries for i in cloud.items_of(e.id)}
     lullaby = lambda key: items[("03-lullaby", key)]                  # noqa: E731
     assert spoken_mod.registry_escape(registry, "problem.current_solution_satisfaction") == "Someone else did it"

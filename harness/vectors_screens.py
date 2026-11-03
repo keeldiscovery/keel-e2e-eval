@@ -579,7 +579,7 @@ COUNTS_SENTENCE = {True: "Counts for you: a budget line they already had, or oth
                    False: "Counts for you: money they already spend. Counts against: new money, or couldn't pay it."}
 #: keel-cloud 145 FR-1 (`CommercialChain.BUDGET_SUPPORTS`): the budget question's answers that count for the founder --
 #: the bars drawn on (green) on a row read off the budget question, every other bar muted.
-BUDGET_SUPPORTS = ("from_spend", "existing_line", "taken_from_other_spend")
+BUDGET_SUPPORTS = ("from_spend", "existing_line", "charged_to_users", "taken_from_other_spend")  # + keel-cloud 198 FR-5
 #: keel-cloud's sub-line for a named set's other bars -- never on a fixed set (145 FR-1: the budget bars).
 DIDNT_NAME = "which you didn't name"
 #: keel-web `priceCostBox`: the Price step's cost box around the served `costEstimate.said`.

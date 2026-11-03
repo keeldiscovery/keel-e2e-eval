@@ -488,7 +488,9 @@ MAX_FOLLOW_UPS = 2
 #: Buyer and payer's fixed answers and the one that supports when "Nobody else" is tested (`Compare.BUYER_DECIDED_ALONE`)
 #: -- with a named role tested the registry's `supports`: since keel-cloud 145 FR-2 (spec 076 FR-2) direction-aware,
 #: `had_to_agree` and `decided_alone` both (the two *someone else* answers count against).
-BUYER_ANSWERS = ("had_to_agree", "decided_alone", "someone_else_agreed", "someone_else_decided")
+#: Since keel-cloud 198 FR-4 the four in the registry's new order, the person's own answer first (`decided_alone`); the
+#: codes and supports unmoved.
+BUYER_ANSWERS = ("decided_alone", "had_to_agree", "someone_else_agreed", "someone_else_decided")
 BUYER_ALONE = "decided_alone"
 BUYER_SUPPORTS = ("had_to_agree", "decided_alone")
 #: `PriceLadder.POINTS` and its escape below every band.

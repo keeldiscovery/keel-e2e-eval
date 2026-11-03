@@ -166,9 +166,31 @@ PURCHASE_ANSWERS = {"yes_long": "Yes, and it would take a long time", "yes_quick
 
 
 def buyer_answers(role: str | None) -> list:
-    """keel-cloud 128 FR-5 / FR-18 / FR-19 (`ItemFrames.buyerPayerLabel`, `buyerPayerAtPriceLabel`): Buyer and payer's
-    labels beside the registry's -- the consumer link's past answers and the decision-maker's for this purchase at the
-    founder's price -- with the role the founder named (`None`: *Nobody else* tested)."""
+    """keel-cloud 198 FR-4 (`ItemFrames.buyerPayerLabel`, `buyerPayerAtPriceLabel`): Buyer and payer's labels beside the
+    registry's, in its order, the person's own answer first and no Yes or No in front -- the consumer link's past answers
+    (*I decided on my own · {The role} had to agree · Several people had to agree · It was someone else's call*, the
+    registry's own but the named role) and the decision-maker's for this purchase at the founder's price (*I could sign
+    off myself · {The role} would have to agree · Several people would have to agree · It's someone else's call*), with the
+    role the founder named (`None`: *Nobody else* tested, the second *Someone else ...*). 128's six, served before 198,
+    are `buyer_answers_128`."""
+    from instructions.chain import the_role                           # noqa: PLC0415
+    past_who = None if role is None else re.sub(r"^(?:their|your) ", "my ", the_role(role))
+    who = None if role is None else the_role(role)
+    return ["I decided on my own",
+            "Someone else had to agree" if past_who is None else f"{_upper_first(past_who)} had to agree",
+            "Several people had to agree", "It was someone else's call",
+            "I could sign off myself",
+            "Someone else would have to agree" if who is None else f"{_upper_first(who)} would have to agree",
+            "Several people would have to agree", "It's someone else's call"]
+
+
+def _upper_first(text: str) -> str:
+    return text[:1].upper() + text[1:] if text else text
+
+
+def buyer_answers_128(role: str | None) -> list:
+    """keel-cloud 128 FR-5 / FR-18 / FR-19 (`ItemFrames.buyerPayerLabel`, `buyerPayerAtPriceLabel`) as served from 128 to
+    197 -- read only on an item a lock stored before 198 (its labels are stored)."""
     # keel-cloud 145 FR-2 (spec 076 FR-2): the role with its *the* (`BeliefSentence.theRole`) -- an acronym takes it,
     # *Yes, the CEO had to agree*, never *Yes, CEO had to agree*
     from instructions.chain import the_role                           # noqa: PLC0415
@@ -181,6 +203,11 @@ def buyer_answers(role: str | None) -> list:
             # keel-cloud 131 FR-13: *No, someone else would have to agree instead* overlapped a named party and is
             # served no more -- *several people* is the third option either way
             "No, it would be someone else's decision"]
+
+
+#: keel-cloud 197's registry labels for Buyer and payer's four (read only on an item a lock stored before 198).
+BUYER_LABELS_197 = ("Yes, they had to agree", "No, I decided on my own", "Someone else had to agree instead",
+                    "No, someone else decided for me")
 
 
 def _lower(label: str) -> str:
@@ -297,17 +324,26 @@ def served_labels(registry, key: str, entry=None) -> list:
         labels += [FACT_ANSWERS_128.get(code, label) for code, label in zip(dimension.fixed_answer_codes, fixed)]
     if key == PURCHASE_FRICTION_KEY:
         labels += list(PURCHASE_ANSWERS.values())
+    if key == ADOPTION_KEY and entry is not None:
+        # keel-cloud 198 FR-9 (`RespondentItems.onlyIfOptions`): the conditional yes is the stranger's own condition,
+        # *Only if {condition}*, where the tested item carries one (the registry's fixed yes where none)
+        tested = entry.tested(key) if callable(getattr(entry, "tested", None)) else None
+        condition = (tested or {}).get("condition") or (tested or {}).get("only_if")
+        if condition:
+            labels.append(ONLY_IF + " ".join(str(condition).split()).rstrip("."))
     if key == BUYER_KEY:
         roles = [i.get("label") for i in (((entry.founder_list(key) or {}).get("items") or []) if entry else [])
                  if i.get("label") and i.get("code") != "nobody_else"]
         for role in roles + [None]:
-            labels += buyer_answers(role)
+            labels += buyer_answers(role) + buyer_answers_128(role)       # spec 130: 198's, and 128's on an older lock
+        labels += list(BUYER_LABELS_197)
     if key == COMMITMENT_KEY and entry is not None:
         steps = [i.get("label") for i in ((entry.founder_list(key) or {}).get("items") or []) if i.get("label")]
         if steps:
             labels.append(first_yes(steps[0]))
         if len(steps) > 1:
-            labels.append(second_yes(steps[1]))
+            labels += [second_yes(steps[1]), second_yes_118(steps[1])]   # spec 130: 198's soft yes, 118's on an older lock
+        labels.append(COMMITMENT_SECOND_YES_197)
     return labels
 
 
@@ -335,12 +371,43 @@ def first_yes(step: str) -> str:
 
 
 def second_yes(smaller_step: str) -> str:
-    """`ItemFrames.secondYes`: *Yes, after {smaller step} first*, cut to fit nine, never *first first* (129 FR-9,
-    FR-15)."""
+    """`ItemFrames.secondYes` since keel-cloud 198 FR-1: the soft yes, *Probably, after {smaller step} first*, cut to fit
+    nine, never *first first* (129 FR-9, FR-15); with no smaller step the registry's *Probably yes*
+    (`ItemFrames.PROBABLY_YES`, served on every list since 198)."""
+    return "Probably, after " + _second_step(smaller_step)
+
+
+def second_yes_118(smaller_step: str) -> str:
+    """`ItemFrames.secondYes` from 118 to 197: *Yes, after {smaller step} first* -- read only on an item a lock stored
+    before 198."""
+    return "Yes, after " + _second_step(smaller_step)
+
+
+def _second_step(smaller_step: str) -> str:
     said_step = _lower(str(smaller_step).strip())
     first = re.search(r"\bfirst$", said_step, re.IGNORECASE) is not None
     step = cut_to_fit(said_step, OPTION_MAX_WORDS - (2 if first else 3))
-    return "Yes, after " + step + ("" if re.search(r"\bfirst$", step, re.IGNORECASE) else " first")
+    return step + ("" if re.search(r"\bfirst$", step, re.IGNORECASE) else " first")
+
+
+#: keel-cloud 198 FR-1 (`ItemFrames.PROBABLY_YES`, the registry's `yes_after_trying` label): the soft yes where the list
+#: carries no smaller step; the registry's label before 198, on an item stored before it.
+PROBABLY_YES = "Probably yes"
+COMMITMENT_SECOND_YES_197 = "Yes, after trying it first"
+#: keel-cloud 198 FR-9 (`SavedList.ONLY_IF`): Adoption friction's conditional yes, the stranger's own condition after it.
+ONLY_IF = "Only if "
+#: keel-cloud 198 FR-2 (`SpokenForm.escapeLine`): *I can't say* said as itself, *Or say: I can't say.*
+CANT_SAY = "I can't say"
+
+
+def escape_line(escape) -> str | None:
+    """keel-cloud `SpokenForm.escapeLine` (198 FR-2): the one escape said last, turned to the person -- *Or say you
+    can't tell.* -- and *I can't say* as itself, *Or say: I can't say.*; None where there is none."""
+    if escape is None:
+        return None
+    if str(escape).strip().lower() == CANT_SAY.lower():
+        return f"Or say: {CANT_SAY}."
+    return "Or say " + _lower(said_label(escape)) + "."
 
 
 #: §4: the three transforms, by dimension; every other item is `none`.
@@ -450,7 +517,7 @@ def item_faults(item, registry, entry=None) -> list:
             if _form(escape) in forms:
                 faults.append(f"S6: the escape {escape!r} is also an option")
         if spoken is not None:
-            match = re.match(r"^Or say (.+)\.$", item.escape_line or "")
+            match = re.match(r"^Or say:? (.+)\.$", item.escape_line or "")    # keel-cloud 198 FR-2: "Or say: I can't say."
             if not match or said(match.group(1)) != said(spoken):
                 faults.append(f"S6: the escape line is {item.escape_line!r}; §3 says 'Or say {{escape}}.' last, "
                               f"the escape served {spoken!r}")

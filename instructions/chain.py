@@ -44,7 +44,7 @@ WOULD_NOT_PAY = "would_not_pay"
 CONSUMER_BUDGET = ("from_spend", "new_money", "could_not")
 CONSUMER_BUDGET_ESCAPE = "cant_say"
 #: What supports on a budget reading: money already there (keel-cloud 115 judgement call 12).
-BUDGET_SUPPORTS = ("from_spend", "existing_line", "taken_from_other_spend")
+BUDGET_SUPPORTS = ("from_spend", "existing_line", "charged_to_users", "taken_from_other_spend")  # + keel-cloud 198 FR-5
 READINGS = ("compare", "out_of_gain", "from_what_comes_back", "free", "budget")
 CHAIN_FIELDS_COST = frozenset({"mode", "low", "high", "rate", "period", "currency", "measure", "base", "unit",
                                "lossPhrase"})

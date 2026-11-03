@@ -416,7 +416,8 @@ def test_the_buyer_set_never_says_someone_else_instead():
     """131 FR-13: *No, the CFO would have to agree · Yes, I could sign off on it myself · No, several people would have
     to agree · No, it would be someone else's decision*."""
     from instructions import spoken as sp                               # noqa: PLC0415
-    labels = sp.buyer_answers("the CFO")
+    # spec 130 re-pin (keel-cloud 198 FR-4): 131's words are 128's set, read on a lock stored before 198
+    labels = sp.buyer_answers_128("the CFO")
     assert "No, someone else would have to agree instead" not in labels
     assert labels[2:] == ["No, the CFO would have to agree", "Yes, I could sign off on it myself",
                           "No, several people would have to agree", "No, it would be someone else's decision"]

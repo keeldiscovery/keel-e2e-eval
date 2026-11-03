@@ -369,18 +369,20 @@ def test_the_label_is_one_plain_phrase(cost, occasion, role, team, label):
 
 
 def test_the_value_boxs_spoken_line_names_the_label_and_its_chips_are_none_and_i_cant_recall():
+    # spec 130 re-pin (keel-cloud 198 FR-3): the unit alone -- never *a low and a high* or *none is 0* -- and one escape on
+    # every link (the consumer's *I'd rather not say* gone); 170's line is read on a lock stored before 198
     assert vs.value_box_answer_line(_rate("%", "x", "y", "month", None), "% of GPU hours last month") == \
-        "A percent of GPU hours last month, or a low and a high; none is 0."
+        "A percent of GPU hours last month."
     assert vs.value_box_answer_line({"mode": "HOURS"}, "hours per site last month") == \
-        "A number of hours per site last month, or a low and a high; none is 0."
-    assert vs.value_box_answer_line({"mode": "MONEY"}, "per call minute") == \
+        "A number of hours per site last month."
+    assert vs.value_box_answer_line({"mode": "MONEY"}, "per call minute") == "An amount per call minute."
+    assert vs.value_box_answer_line(_rate("%", None, None, "month", None), "%") == "A percent."
+    assert vs.value_box_answer_line_170({"mode": "MONEY"}, "per call minute") == \
         "An amount per call minute, or a low and a high; none is 0."
-    assert vs.value_box_answer_line(_rate("%", None, None, "month", None), "%") == \
-        "A percent, or a low and a high; none is 0."
     assert vs.VALUE_BOX_LABELS == {"NOTHING": "None", "DONT_KNOW": "I can't recall",
                                    "RATHER_NOT_SAY": "I'd rather not say"}
     assert vs.VALUE_BOX_CHIPS == {"nothing": "NOTHING", "dont_know": "DONT_KNOW", "rather_not_say": "RATHER_NOT_SAY"}
-    assert vs.value_box_escapes(True) == ["DONT_KNOW", "RATHER_NOT_SAY"] and vs.value_box_escapes(False) == ["DONT_KNOW"]
+    assert vs.value_box_escapes(True) == ["DONT_KNOW"] and vs.value_box_escapes(False) == ["DONT_KNOW"]
 
 
 def test_the_chip_words_mirror_commercial_chain():
@@ -388,7 +390,9 @@ def test_the_chip_words_mirror_commercial_chain():
     for name, code in (("NOTHING_LABEL", "NOTHING"), ("DONT_KNOW_LABEL", "DONT_KNOW"),
                        ("RATHER_NOT_SAY_LABEL", "RATHER_NOT_SAY")):
         assert re.search(rf'{name} = "{re.escape(vs.VALUE_BOX_LABELS[code])}";', text), name
-    assert '", or a low and a high; none is 0."' in text and '"A percent "' in text
+    # spec 130 re-pin (keel-cloud 198 FR-3): the line closes on the unit; the value box's escapes are one list
+    assert '", or a low and a high; none is 0."' not in text and 'return what + ".";' in text and '"A percent "' in text
+    assert "return List.of(DONT_KNOW);" in text
 
 
 def _java_set(text: str, name: str) -> set[str]:

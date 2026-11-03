@@ -293,8 +293,21 @@ def friction_words(key: str, standing: dict, tested: str | None, words: str) -> 
 
 #: keel-cloud 180 FR-7 (`Compare.ON_A_CONDITION`, `BriefFacts.secondYes`): the second yes with no smaller step named.
 ON_A_CONDITION = "on a condition"
-#: keel-cloud 184 FR-7 (`BriefFacts.onlyIfWords`): Adoption friction's conditional yes, the plain option.
+#: keel-cloud 198 FR-1 (`BriefFacts.PROBABLY`): the soft yes of a Commitment list with no smaller step, as counted
+#: (180's *on a condition*, `ON_A_CONDITION`, until 198).
+SAID_PROBABLY = "said probably"
+#: keel-cloud 184 FR-7 (`BriefFacts.onlyIfWords`): Adoption friction's conditional yes, the plain option -- since 198
+#: FR-9 where the tested item carries no condition of the stranger's (`only_if_words`).
 ONLY_IF_WORDS = "if it was clearly worth it"
+
+
+def only_if_words(tested: dict | None) -> str:
+    """keel-cloud 198 FR-9 (`BriefFacts.onlyIfWords`): Adoption friction's conditional yes as served -- *only if
+    {condition}* where the tested item carries the stranger's condition (`condition`, spec 155's `only_if` read as the
+    same), *if it was clearly worth it* where it carries none."""
+    condition = (tested or {}).get("condition") or (tested or {}).get("only_if") or (tested or {}).get("onlyIf")
+    condition = " ".join(str(condition or "").split()).rstrip(".")
+    return f"only if {condition}" if condition else ONLY_IF_WORDS
 
 
 def friction_against(entry, standing: dict) -> int:
@@ -349,7 +362,7 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
         apart = _option_count(standing, "yes_if_worth_it")
         out.update(number=f"{_option_count(standing, 'yes') + apart} of {standing.get('n')}",
                    line=f"would {lower((entry.tested(key) or {}).get('label'))}"
-                        + (f" · {apart} of them {ONLY_IF_WORDS}" if apart else ""))
+                        + (f" · {apart} of them {only_if_words(entry.tested(key))}" if apart else ""))
     elif key == SACRIFICE_KEY:
         cost = entry.cost() or {}
         out.update(number=corpus_mod.money_text(standing.get("median"), cost.get("currency")),
@@ -382,10 +395,11 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
         smaller = (entry.founder_list(key) or {}).get("items") or []
         second = lower(smaller[1]["label"]) if len(smaller) > 1 else None
         # spec 118 FR-1 (keel-cloud 180 FR-7): every yes is the number, the yes after the smaller step split beside
-        # it (*· 2 of them after a free trial first*; *on a condition* where the list names no smaller step)
+        # it; spec 130 (keel-cloud 198 FR-1, `BriefFacts.secondYes`): the soft yes as served -- *· 2 of them probably,
+        # after a free trial first*, *· 2 of them said probably* where the list names no smaller step
         out.update(number=f"{_option_count(standing, 'yes_start') + apart} of {standing.get('n')}",
                    line=f"would {lower((entry.tested(key) or {}).get('label') or 'take the step')}"
-                        + (f" · {apart} of them {'after ' + second + ' first' if second else ON_A_CONDITION}"
+                        + (f" · {apart} of them {'probably, after ' + second + ' first' if second else SAID_PROBABLY}"
                            if apart else ""))
     out.update(status=status, statusWords=bar_words(key, standing))
     if key == ADOPTION_KEY and standing.get("n"):

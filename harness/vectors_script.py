@@ -1036,6 +1036,7 @@ PICKED = {"solution.compatibility", "solution.adoption_friction", "commercial.bu
           "commercial.purchase_friction"}
 #: `saves.asked`: each item carries the stranger's face (keel-cloud 088 FR-003).
 ASKED_FACES = {"solution.compatibility", "solution.adoption_friction"}
+ADOPTION_KEY = "solution.adoption_friction"
 #: Buyer and payer's fixed first item, code's (keel-cloud `SavedList.NOBODY_ELSE`).
 NOBODY_ELSE = ("nobody_else", "Nobody else")
 #: Every escape the registry gives an item (registry 4 `respondent.escape.code`).
@@ -1055,9 +1056,9 @@ ANSWERS_VIEW_NOTHING = VALUE_BOX_LABELS["NOTHING"]
 
 
 def value_box_escapes(consumer: bool) -> list[str]:
-    """`CommercialChain.valueBoxEscapes`: the chips recorded apart, as served codes -- *I can't recall*, and *I'd rather
-    not say* on a consumer link."""
-    return ["DONT_KNOW", "RATHER_NOT_SAY"] if consumer else ["DONT_KNOW"]
+    """`CommercialChain.valueBoxEscapes`: the chips recorded apart, as served codes -- *I can't recall* on every link
+    since keel-cloud 198 FR-3 (the consumer's *I'd rather not say* gone; `consumer` kept for the callers)."""
+    return ["DONT_KNOW"]
 
 
 # ------------------------------------------------------- the stranger's cost item (keel-cloud 170 FR-5, mirrored)
@@ -1346,8 +1347,9 @@ def cost_item(entry) -> dict | None:
 
 def value_box_answer_line(cost: dict, label) -> str:
     """`CommercialChain.valueBoxAnswerLine` (keel-cloud 170 FR-5): the value box's spoken answer line names the label --
-    *A percent of GPU hours last month, or a low and a high; none is 0.* -- where `SpokenForm.VALUE_BOX_ANSWER_LINE`
-    said *in the unit on the screen*."""
+    *A percent of GPU hours last month.* -- where `SpokenForm.VALUE_BOX_ANSWER_LINE` said *in the unit on the screen*.
+    Since keel-cloud 198 FR-3 the unit alone (it read *..., or a low and a high; none is 0.*, `value_box_answer_line_170`
+    on a lock stored before 198)."""
     text = "" if label is None else str(label).strip()
     if cost.get("mode") in _MONEY_MODES:
         what = "An amount" + ("" if not text else " " + text)
@@ -1357,7 +1359,12 @@ def value_box_answer_line(cost: dict, label) -> str:
         what = "A percent"
     else:
         what = "A number" + ("" if not text else " of " + text)
-    return what + ", or a low and a high; none is 0."
+    return what + "."
+
+
+def value_box_answer_line_170(cost: dict, label) -> str:
+    """keel-cloud 170 to 197's answer line, *..., or a low and a high; none is 0.* (read on a lock stored before 198)."""
+    return value_box_answer_line(cost, label)[:-1] + ", or a low and a high; none is 0."
 #: The gate story's chips (spec 064 FR-4 / 6a: keel-cloud 123 FR-3 serves RATHER_NOT_SAY again beside CANT_RECALL).
 STORY_CHIPS = {"cant_recall": "CANT_RECALL", "rather_not_say": "RATHER_NOT_SAY"}
 #: Contract 33's `GateItem.chips`, in the order drawn.
@@ -1920,8 +1927,17 @@ def asked_result(entry, key: str) -> dict:
     index, the corpus's own `asked` (K1: one face per index handed). The journey saves every list untouched,
     so code vouches for every face and no ASKED job runs; the entry is here so one would be answered."""
     saved = founder_list(entry, key)
-    return {"items": [{"index": i, "asked": item["asked"]} for i, item in enumerate(saved["items"])
-                      if item.get("asked")]}
+    items = [{"index": i, "asked": item["asked"]} for i, item in enumerate(saved["items"]) if item.get("asked")]
+    if key == ADOPTION_KEY:
+        # spec 130 (keel-cloud 198 FR-9, screen response contract 25): Adoption friction's own condition is `condition`
+        # (155's `only_if` retired) -- written where the entry records one; an item without one meets K8 once, then is
+        # served with the fixed yes (the corpus records none, so no golden walk runs an ASKED job for it)
+        for out in items:
+            raw = saved["items"][out["index"]]
+            condition = raw.get("condition") or raw.get("only_if")
+            if condition:
+                out["condition"] = str(condition).strip()
+    return {"items": items}
 
 
 def hourly_rate(entry) -> float | None:
@@ -2486,6 +2502,9 @@ def _pick(entry, key: str, raw) -> Pick:
             raise VectorsScriptError(f"{entry.id}: {key}'s chip {chip!r} is not an escape at contract 14")
         # spec 115 FR-0 (keel-cloud 174 FR-2): revision 19's Purchase friction `cant_recall` is read as `cant_tell`
         # through the reader's one rule; `served_escape_picks` then sends the code served
+        # spec 130 (keel-cloud 198 FR-3): a value box's `rather_not_say` is its one escape since 198, `dont_know`
+        if key == "commercial.existing_sacrifice" and entry.chain():
+            chip = corpus_reader.spec198_chip(key, chip)
         return Pick(dimension=key, chip=corpus_reader.spec174_escape(key, chip).upper())
     if key == "commercial.existing_sacrifice" and entry.chain():
         # spec 064 FR-3 (keel-cloud 115 FR-2): the value box, in the founder's unit and period as the r13 pick is
@@ -2506,9 +2525,10 @@ def _pick(entry, key: str, raw) -> Pick:
     # spec 089 FR-1 (keel-cloud 159, revision 19): Relative advantage's pick is one code of the scale, sent as it is
     if key == "problem.frequency":
         return Pick(dimension=key, scale=int(raw))
+    # spec 130 (keel-cloud 198 FR-5): revision 22's Ability to pay `no_budget` is answered `outside_funding` (the one rule)
     if isinstance(raw, list):
-        return Pick(dimension=key, codes=[on_the_wire(entry, key, str(c)) for c in raw])
-    return Pick(dimension=key, codes=[on_the_wire(entry, key, str(raw))])
+        return Pick(dimension=key, codes=[on_the_wire(entry, key, corpus_reader.spec198_pick(key, str(c))) for c in raw])
+    return Pick(dimension=key, codes=[on_the_wire(entry, key, corpus_reader.spec198_pick(key, str(raw)))])
 
 
 # ---------------------------------------------------------------- spec 051: the founder's side of the ladder
