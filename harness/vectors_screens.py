@@ -2516,7 +2516,7 @@ class Corridor:
                 # spec 130 (keel-cloud 199 FR-4): the founder's time *not sure* -- the page's own control, else (a
                 # keel-web that draws none, owed) the recorded time typed and the gap recorded
                 box = self.page.get_by_test_id(DURATION_UNSURE_TESTID)
-                unsure = "ticked" if box.count() else "not drawn"
+                unsure = "ticked" if box.count() else ("not drawn, default typed" if duration.get("default") else "not drawn")
                 if box.count():
                     box.first.check() if box.first.get_attribute("type") == "checkbox" else box.first.click()
             if duration and drawn_duration.count() and unsure != "ticked":

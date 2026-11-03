@@ -1692,13 +1692,22 @@ def time_sourced(entry) -> bool:
     return False
 
 
+#: Spec 130: the walker's own time for a golden entry that names none, typed only where the page draws no *not sure*.
+GOLDEN_DEFAULT_DURATION = {"count": 2, "unit": "WEEKS"}
+
+
 def walker_duration(entry) -> dict | None:
     """Spec 130 (keel-cloud 199 FR-4: the time is the founder's alone, asked, *not sure* an answer): what the walker
     answers on Purchase friction's time box -- the entry's own time where its sources give one (`founder_duration`);
     *not sure* (`{unsure: True}`, the recorded time beside it for a page that draws no *not sure*) where they give none;
     None where the entry names no time."""
     duration = founder_duration(entry)
-    if duration is None or time_sourced(entry):
+    if duration is None:
+        # a golden entry names no time (S-016 and its sharing journeys S-018..S-020, 2026-11-02 21:44 ET: all three
+        # stopped at Purchase friction's Choose by spec 119's name): the walker answers *not sure*; where the page
+        # draws no such control yet (keel-web owes it) the walker's OWN default is typed and the gap recorded
+        return {"unsure": True, "default": True, **GOLDEN_DEFAULT_DURATION}
+    if time_sourced(entry):
         return duration
     return {"unsure": True, **duration}
 

@@ -206,7 +206,9 @@ def test_the_walker_answers_not_sure_where_the_sources_give_no_time():
     assert vs.walker_duration(fresco) == {"unsure": True, "count": 2, "unit": "WEEKS"}
     codyco = _backtest("21-codyco")
     assert not vs.time_sourced(codyco), "its bookings *in 4 weeks* is no purchase time"
-    assert vs.walker_duration(_golden("05-paidly")) is None, "a golden entry names no time"
+    # 2026-11-02 21:44 ET: S-016 and the sharing journeys stopped at Purchase friction's Choose by spec 119's name, so a
+    # golden entry answers *not sure* with the walker's own default beside it for a page that draws no such control
+    assert vs.walker_duration(_golden("05-paidly")) == {"unsure": True, "default": True, **vs.GOLDEN_DEFAULT_DURATION}
 
 
 def test_the_fixed_three_where_the_time_was_not_sure_read_the_band_back():
@@ -229,6 +231,6 @@ def test_the_choose_screen_ticks_not_sure_where_drawn():
     import inspect                                                      # noqa: PLC0415
     source = inspect.getsource(vs_screens)
     assert 'DURATION_UNSURE_TESTID = "duration-unsure"' in source
-    assert '"duration_unsure": unsure' in source and 'unsure = "ticked" if box.count() else "not drawn"' in source
+    assert '"duration_unsure": unsure' in source and 'unsure = "ticked" if box.count() else ("not drawn, default typed" if duration.get("default") else "not drawn")' in source
     assert re.search(r"duration = vs\.walker_duration\(j\.entry\)", inspect.getsource(
         __import__("evals.corpus_scenario", fromlist=["x"])))
