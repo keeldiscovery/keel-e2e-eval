@@ -366,7 +366,9 @@ def test_cycle_1_is_read_from_its_studies_and_score_files_and_never_rewritten(mo
     rendered = table.render(files, cycle=cycle.table_head(record))
     assert "  - 2 of 15 walks reached their end; 13 stopped early (08-fresco · PROBLEM -- " in rendered
     assert "  - keel-cloud moved mid-cycle: 88bfce8 -> f7b0e05 from 10-palus · COMMERCIAL" in rendered
-    assert "respondent: score_pct 84.6%, spoken_pct 75.0%, insights_pct 93.8%, flagged 0.0% of 12 screens" in rendered
+    # spec 131: the head names fits_pct (R7 alone), – where no screen was sent a dimension card
+    assert "respondent: score_pct 84.6%, spoken_pct 75.0%, fits_pct –%, insights_pct 93.8%, flagged 0.0% of 12 screens" \
+        in rendered
 
 
 def test_the_walk_records_each_studys_sha_and_names_a_move_without_refusing(tmp_path, capsys):

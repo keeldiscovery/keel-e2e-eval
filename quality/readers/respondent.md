@@ -66,11 +66,12 @@ common it is elsewhere. Judge R2 (plain) and R3 (about your life) from inside th
 ## Your answer
 
 Reply with ONE JSON object and nothing else -- no prose before or after it, no code fence (R6 is required on every
-screen of this link):
+screen of this link; R7 is required where you were sent this screen's dimension card above, and null where you were
+not):
 
 {"r1": 0|1|2, "why1": "one sentence", "r2": 0|1|2, "why2": "one sentence", "r3": 0|1|2, "why3": "one sentence",
  "r4": 0|1|2|null, "why4": "one sentence", "r5": 0|1|2, "why5": "one sentence", "r6": 0|1|2, "why6": "one sentence",
- "instead": "one line, or empty"}
+ "r7": 0|1|2|null, "why7": "one sentence, or empty", "instead": "one line, or empty"}
 <!-- screen:end -->
 
 <!-- flow:begin -->

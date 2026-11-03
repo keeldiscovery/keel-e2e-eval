@@ -7,7 +7,8 @@ in `quality/RUBRIC.md`. Scores of two rubric versions are never averaged (`aggre
 
 `quality/RUBRIC.md` is the one source of the criteria: `prompt_rubric()` pastes the text between its `prompt` markers
 into both readers' prompts, `prompt_spoken()` the text between its `prompt-r6` markers into the respondent-reader's
-alone, and `criteria()` reads both tables back so a test holds the six rows and their anchors.
+alone, and `criteria()` reads both tables back so a test holds the seven rows and their anchors (R7 in the `prompt`
+part since version 5).
 
 **Version 2** (spec 081, the founder 2026-10-28): R2 is judged from inside the persona (*plain to this person*: the
 trade's own words are plain to them, a word of another trade is not), and **R6, said aloud**, is scored on every
@@ -15,8 +16,8 @@ respondent screen against keel-cloud's `spoken-questions-guidelines.md` §2, §3
 the AI interviewer, so no respondent screen is exempt); the founder-reader has no R6. A score file at version 1 is
 refused by name (`RETIRED`).
 
-**One score** (FR-4) is one JSON object a screen: `screen`, `audience`, `link`, `dimension`, `kind`, `n`, `r1`..`r6`,
-`why1`..`why6`, `out_of_place`, `looks_stupid`, `instead`. The reader gives the scores, the whys and the instead line;
+**One score** (FR-4) is one JSON object a screen: `screen`, `audience`, `link`, `dimension`, `kind`, `n`,
+`dimension_card` (version 5), `r1`..`r7`, `why1`..`why7`, `out_of_place`, `looks_stupid`, `instead`. The reader gives the scores, the whys and the instead line;
 code derives the two booleans (`out_of_place` = R1 is 0, `looks_stupid` = R2, R4 or R6 is 0), so they can never
 disagree with the scores. R4 is `None` only on a screen that shows nothing to pick (`has_options` false); R6 is a
 score on every respondent screen and `None` on every founder screen -- a respondent answer without it and a founder
@@ -39,13 +40,22 @@ respondent-reader's R2 on a follow-up screen alone also reads whether the row th
 the person would say it (`prompt_follow_up()`, RUBRIC.md's `prompt-f` part, one line). A version-3 file is set aside, as
 a version-2 one was at 3 (cycles 4-8 stay of record), never compared with a version-4 one.
 
-**Spec 131 FR-2**: a screen's score names the dimension card its reader was sent (`dimension_card`: the key, or None),
-required of a file from the version that writes it (`KEY_SINCE`), so an older file read at its own version is never
-asked for it.
+**Version 5** (spec 131; the founder 2026-11-03: *"our agent should be dimension aware ... do the options meet the
+criteria for that dimension, including the option?"*): **R7, fits the dimension** -- both readers are sent the screen's
+dimension card (`quality/readers/dimensions.md`, `quality/cards.py`) and, on every screen it was sent, score R7 from it,
+asking the card's questions in order (FR-1c): the measure, the shape, the balance (*could the belief ever be supported
+by these options? could it ever be refuted?*), the escape. R7 is `None` on a screen sent no card (`dimension_card`
+None) and a score on every other -- a reader's answer with it missing where a card was sent, or given where none was,
+is refused. It is a criterion like any other: a 0 flags the screen, the weak rule reads it, it folds into `score_pct`,
+and `fits_pct` is the same over R7 alone, beside it. A screen's score names the card it was sent (`dimension_card`), and
+`r7` / `why7` / `dimension_card` are required of a file from version 5 (`KEY_SINCE`), so an older file read at its own
+version is never asked for them. A version-4 file is set aside, as a version-3 one was at 4, never compared with a
+version-5 one.
 
-**The score as one number** (the coordinator's decision 2): `score_pct` = the sum of every r1..r6 and b1..b6 given over
-2 x their count x 100 (a `None` R4, R6, B2 or B6 is in neither); `spoken_pct` = the same over R6 alone, beside it (spec
-081 FR-4); `after_pct` the same over B alone (spec 109); `flagged_pct` = the screens with any 0 over the screens x 100.
+**The score as one number** (the coordinator's decision 2): `score_pct` = the sum of every r1..r7 and b1..b6 given over
+2 x their count x 100 (a `None` R4, R6, R7, B2 or B6 is in neither); `spoken_pct` = the same over R6 alone, beside it
+(spec 081 FR-4); `fits_pct` the same over R7 alone (spec 131); `after_pct` the same over B alone (spec 109);
+`flagged_pct` = the screens with any 0 over the screens x 100.
 """
 
 from __future__ import annotations
@@ -54,7 +64,7 @@ import json
 import re
 from pathlib import Path
 
-RUBRIC_VERSION = 4
+RUBRIC_VERSION = 5
 
 #: The rubric versions a score file is refused at, by name (spec 081 FR-1) -- never set aside, never read.
 RETIRED = {1: "before spec 081: R2 judged against the general public, no R6 said aloud, no persona block"}
@@ -62,11 +72,14 @@ RETIRED = {1: "before spec 081: R2 judged against the general public, no R6 said
 QUALITY_DIR = Path(__file__).resolve().parent
 RUBRIC_PATH = QUALITY_DIR / "RUBRIC.md"
 
-#: The six criteria in score order; R1-R5 both readers', R6 the respondent-reader's alone (spec 081 FR-4).
-CRITERIA = ("r1", "r2", "r3", "r4", "r5", "r6")
-WHYS = ("why1", "why2", "why3", "why4", "why5", "why6")
+#: The seven criteria in score order; R1-R5 both readers', R6 the respondent-reader's alone (spec 081 FR-4), R7 both
+#: readers' on a screen sent a dimension card alone (spec 131 FR-3).
+CRITERIA = ("r1", "r2", "r3", "r4", "r5", "r6", "r7")
+WHYS = ("why1", "why2", "why3", "why4", "why5", "why6", "why7")
 SHARED = CRITERIA[:5]
 SPOKEN = "r6"
+#: Spec 131 FR-3: R7, fits the dimension -- scored where the screen was sent its dimension card, None elsewhere.
+FITS = "r7"
 AUDIENCES = ("founder", "respondent")
 
 #: §B (spec 109): the founder-reader's six criteria on the screens after the answers -- the stage page, each dimension
@@ -100,7 +113,7 @@ AFTER_SCORE_KEYS = ("n", "screen", "audience", "link", "dimension", "kind", "dim
                     "out_of_place", "looks_stupid", "instead")
 #: The version a score key is required from (spec 131): a file of an earlier version, read at its own version (a test
 #: reading cycle 7's files at 3), is never asked for a key its version did not write.
-KEY_SINCE = {"dimension_card": 5}
+KEY_SINCE = {"dimension_card": 5, "r7": 5, "why7": 5}
 
 
 def required(keys: tuple, version: int) -> list[str]:
@@ -220,19 +233,21 @@ def g_criteria(text: str | None = None) -> list[dict]:
 
 
 def criteria(text: str | None = None) -> list[dict]:
-    """The six criteria with their anchors: R1-R5 off the table in the prompt part of RUBRIC.md, R6 off the table in
-    its `prompt-r6` part."""
-    rows = []
-    for line in (prompt_rubric(text) + "\n" + prompt_spoken(text)).splitlines():
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) == 5 and re.fullmatch(r"R[1-6]", cells[0]):
-            name = re.match(r"\*\*(.+?)\*\*", cells[1])
-            rows.append({"id": cells[0].lower(), "name": name.group(1).rstrip(".") if name else cells[1],
-                         "question": cells[1], "2": cells[2], "1": cells[3], "0": cells[4]})
-    if [r["id"] for r in rows] != list(CRITERIA):
-        raise RubricError(f"RUBRIC.md's tables must carry R1..R5, then R6 in its own part; found "
-                          f"{[r['id'] for r in rows]}")
-    return rows
+    """The seven criteria with their anchors, in score order: R1-R5 and R7 off the table in the prompt part of RUBRIC.md
+    (both readers'; R7 since version 5, spec 131), R6 off the table in its `prompt-r6` part."""
+    shared, spoken = [], []
+    for part, rows in ((prompt_rubric(text), shared), (prompt_spoken(text), spoken)):
+        for line in part.splitlines():
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if len(cells) == 5 and re.fullmatch(r"R[1-7]", cells[0]):
+                name = re.match(r"\*\*(.+?)\*\*", cells[1])
+                rows.append({"id": cells[0].lower(), "name": name.group(1).rstrip(".") if name else cells[1],
+                             "question": cells[1], "2": cells[2], "1": cells[3], "0": cells[4]})
+    if [r["id"] for r in shared] != [*SHARED, FITS] or [r["id"] for r in spoken] != [SPOKEN]:
+        raise RubricError(f"RUBRIC.md's tables must carry R1..R5 and R7 in its prompt part, then R6 in its own part; "
+                          f"found {[r['id'] for r in shared]} and {[r['id'] for r in spoken]}")
+    by_id = {r["id"]: r for r in shared + spoken}
+    return [by_id[c] for c in CRITERIA]
 
 
 # --------------------------------------------------------------------------------------- a reader's answer
@@ -266,9 +281,11 @@ def _mark(value, name: str, *, nullable: bool):
     return int(value)
 
 
-def parse_answer(raw: str, *, has_options: bool, audience: str) -> dict:
+def parse_answer(raw: str, *, has_options: bool, audience: str, has_card: bool = False) -> dict:
     """A reader's reply as the scores, the whys and the instead line -- or `RubricError`. The respondent-reader's
-    carries R6 on every screen; the founder-reader's never does (spec 081 FR-4): either way round is refused."""
+    carries R6 on every screen; the founder-reader's never does (spec 081 FR-4): either way round is refused. Either
+    reader's carries R7 where the screen was sent its dimension card (`has_card`) and never where it was not (spec 131
+    FR-3): either way round is refused."""
     if audience not in AUDIENCES:
         raise RubricError(f"audience {audience!r}")
     body = extract_json(raw)
@@ -287,6 +304,17 @@ def parse_answer(raw: str, *, has_options: bool, audience: str) -> dict:
         if body.get(SPOKEN) is not None:
             raise RubricError("r6 on a founder screen: the founder-reader has no R6 (spec 081 FR-4)")
         out[SPOKEN], out["why6"] = None, ""
+    if has_card:
+        if body.get(FITS) is None:
+            raise RubricError("r7 is missing: a screen sent its dimension card is scored on R7, fits the dimension "
+                              "(spec 131 FR-3)")
+        out[FITS] = _mark(body.get(FITS), FITS, nullable=False)
+        out["why7"] = str(body.get("why7") or "").strip()
+    else:
+        if body.get(FITS) is not None:
+            raise RubricError("r7 on a screen sent no dimension card: R7 is scored from the card, null elsewhere "
+                              "(spec 131 FR-3)")
+        out[FITS], out["why7"] = None, ""
     out["instead"] = str(body.get("instead") or "").strip()
     return out
 
@@ -354,8 +382,9 @@ def flagged(score: dict) -> bool:
 # --------------------------------------------------------------------------------------------- summaries
 
 def summary(scores: list[dict], insights: list[dict] | None = None) -> dict:
-    """The twelve means (R1-R6, then §B's B1-B6, spec 109), the zeros per criterion, `score_pct`, `spoken_pct` (R6 alone,
-    spec 081 FR-4; `None` where no respondent screen is given), `after_pct` (B alone; `None` where no §B screen is given)
+    """The thirteen means (R1-R7, then §B's B1-B6, spec 109), the zeros per criterion, `score_pct`, `spoken_pct` (R6
+    alone, spec 081 FR-4; `None` where no respondent screen is given), `fits_pct` (R7 alone, spec 131; `None` where no
+    screen was sent a card), `after_pct` (B alone; `None` where no §B screen is given)
     and `flagged_pct` over the given screen scores -- and, when insight readings are given (§G), their two means and
     `insights_pct`, **folded into `score_pct`** by the same 2 x count arithmetic."""
     means, zeros, total, count = {}, {}, 0, 0
@@ -366,6 +395,7 @@ def summary(scores: list[dict], insights: list[dict] | None = None) -> dict:
         total += sum(given)
         count += len(given)
     spoken = [s[SPOKEN] for s in scores if s.get(SPOKEN) is not None]
+    fits = [s[FITS] for s in scores if s.get(FITS) is not None]
     after = [s[c] for s in scores for c in B_CRITERIA if s.get(c) is not None]
     screens = len(scores)
     flags = sum(1 for s in scores if flagged(s))
@@ -374,6 +404,8 @@ def summary(scores: list[dict], insights: list[dict] | None = None) -> dict:
            "out_of_place": sum(1 for s in scores if s.get("out_of_place")),
            "looks_stupid": sum(1 for s in scores if s.get("looks_stupid")),
            "spoken_pct": round(100.0 * sum(spoken) / (2 * len(spoken)), 1) if spoken else None,
+           # spec 131 FR-5: R7 alone, beside it (None where no screen was sent a card)
+           "fits_pct": round(100.0 * sum(fits) / (2 * len(fits)), 1) if fits else None,
            "after_pct": round(100.0 * sum(after) / (2 * len(after)), 1) if after else None}
     if insights is not None:
         g_total, g_count, g_means, g_zeros = 0, 0, {}, {}
@@ -460,6 +492,15 @@ def validate_file(obj: dict, *, name: str | None = None) -> dict:
         elif score[SPOKEN] is not None:
             raise RubricError(f"founder screen {score['screen']!r} carries an R6: the founder-reader has none "
                               "(spec 081 FR-4)")
+        if obj["rubric_version"] >= KEY_SINCE[FITS]:
+            if score["dimension_card"]:
+                if score[FITS] is None:
+                    raise RubricError(f"screen {score['screen']!r} was sent the {score['dimension_card']} card and "
+                                      "has no R7 (spec 131 FR-3)")
+                _mark(score[FITS], FITS, nullable=False)
+            elif score[FITS] is not None:
+                raise RubricError(f"screen {score['screen']!r} was sent no dimension card and carries an R7 "
+                                  "(spec 131 FR-3)")
     for reading in obj.get("insights") or []:
         absent = [k for k in INSIGHT_KEYS if k not in reading]
         if absent:

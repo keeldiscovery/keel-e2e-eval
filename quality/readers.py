@@ -779,9 +779,13 @@ def dimension_block(screen: Screen) -> str:
     key = screen.card
     if not key:
         return ""
+    use = ("On a card opened after the answers its For / Against / Neither is the yardstick for the card's rule line, "
+           "its strip and its count line (B1-B5); there is no R7 here." if screen.after else
+           "Score R7 (fits the dimension) against it, asking its questions in order; it never replaces who you are: "
+           "whether the words are plain is still yours to judge (R2).")
     return (f"{DIMENSION_HEADING}\n\nWhat this dimension measures, the shape its options must have, which answers count "
             "for the belief this screen tests and which against, and its escape -- from keel-cloud's registry, by hand. "
-            "Read the screen against it. A point it lists under *Open* is never a fault of the screen.\n\n"
+            f"{use} A point it lists under *Open* is never a fault of the screen.\n\n"
             + cards.card(key) + "\n")
 
 
@@ -1091,8 +1095,8 @@ def run(argv=None) -> int:
     scores, unread, asked_again = [], [], 0
     for screen, prompt in work["screens"]:
         parse = ((lambda raw, k=screen.kind: rubric.parse_after(raw, kind=k)) if screen.after else
-                 (lambda raw, o=screen.has_options, a=screen.audience: rubric.parse_answer(raw, has_options=o,
-                                                                                            audience=a)))
+                 (lambda raw, o=screen.has_options, a=screen.audience, c=bool(screen.card):
+                  rubric.parse_answer(raw, has_options=o, audience=a, has_card=c)))
         try:
             answer, again = ask_twice(reader, screen.label(), prompt, parse)
             asked_again += int(again)

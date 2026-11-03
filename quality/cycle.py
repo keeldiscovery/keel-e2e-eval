@@ -476,6 +476,11 @@ def _head_of(files: list[dict]) -> dict | None:
     if typed:
         extra.update(typos=len(typed), typo_fields=len({(key, t.get("field")) for key, t in typed}),
                      typo_leaks=sum(len(f.get("typo_leaks") or []) for f in latest.values() if isinstance(f, dict)))
+    # spec 131 (FR-5): R7 alone, over the screens sent a dimension card -- said only where one was, so a record of files
+    # before rubric version 5 is 126's to the byte
+    if s["overall"].get("fits_pct") is not None:
+        extra["fits"] = {"fits_pct": s["overall"]["fits_pct"], "founder": s["founder"].get("fits_pct"),
+                         "respondent": s["respondent"].get("fits_pct"), "zeros": s["overall"]["zeros"].get("r7", 0)}
     return {"score_pct": top["score_pct"], "flagged_pct": s["overall"]["flagged_pct"], "screens": s["overall"]["screens"],
             **extra,
             "founder": {"score_pct": s["founder"]["score_pct"], "flagged_pct": s["founder"]["flagged_pct"]},
@@ -647,6 +652,9 @@ def render_record(d: dict) -> str:
              f"{_pct((head.get('respondent') or {}).get('score_pct'))}"
              + "".join(f"; {k} {_pct(v['score_pct'])}" for k, v in (head.get("by_scope") or {}).items()) + ")",
              *table.walks_lines(d.get("walks")),
+             *([f"  - R7, fits the dimension (spec 131): fits_pct {_pct(head['fits']['fits_pct'])} over the screens sent "
+                f"a dimension card (founder {_pct(head['fits']['founder'])}, respondent "
+                f"{_pct(head['fits']['respondent'])}); {head['fits']['zeros']} scored 0"] if head.get("fits") else []),
              *([f"  - {head['asked_again']} screens read on a second ask (spec 122); {head.get('unread', 0)} unread"]
                if head.get("asked_again") else []),
              *([f"  - typos: {head['typos']} typed on {head.get('typo_fields', 0)} fields; "

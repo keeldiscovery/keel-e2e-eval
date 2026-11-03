@@ -262,7 +262,7 @@ def test_the_markdown_lists_the_screens_after_the_answers():
 
 def test_the_rubric_is_at_version_3_and_says_what_changed_and_why():
     # spec 129: the rubric is at 4 now (the follow-up's reference back); version 3's account stands under *Versions*
-    assert rubric.RUBRIC_VERSION == 4 == rubric.file_version()
+    assert rubric.RUBRIC_VERSION == 5 == rubric.file_version()
     assert 2 not in rubric.RETIRED and 3 not in rubric.RETIRED, "versions 2 and 3 are set aside, never refused"
     three = rubric.rubric_text().split("## Versions", 1)[1].split("- **2**", 1)[0]
     assert "- **3** (spec 109" in three and "§B, after the answers" in three
@@ -426,7 +426,7 @@ def test_a_run_scores_the_after_screens_on_section_b_and_folds_them_into_the_fou
     w = wired_after
     assert readers.run(["--run", str(w.bundle), "--out", str(w.out), "--scores-dir", str(w.scores)]) == 0
     path = next(w.scores.glob("99-fixture/*.json"))
-    assert re.fullmatch(r"\d{8}-PROBLEM-r4-abcdef1-v13-claude-opus-5-5\.json", path.name)
+    assert re.fullmatch(r"\d{8}-PROBLEM-r5-abcdef1-v13-claude-opus-5-5\.json", path.name)
     obj = rubric.load_file(path)
     after = [s for s in obj["screens"] if rubric.is_after(s["kind"])]
     assert [(s["kind"], s["dimension"]) for s in after] == [("stage", None), ("dimension", "problem.prevalence"),
@@ -453,7 +453,7 @@ def test_a_bundle_walked_before_109_says_so_and_is_not_penalised(wired_after):
 
 
 def test_a_version_3_file_with_a_section_b_screen_out_of_shape_is_refused():
-    obj = json.loads(next((REPO / "tests" / "fixtures" / "quality" / "scores").glob("aa-alpha/*-r4-*.json")).read_text())
+    obj = json.loads(next((REPO / "tests" / "fixtures" / "quality" / "scores").glob("aa-alpha/*-r5-*.json")).read_text())
     meta = {"n": 1, "screen": "insights", "audience": "founder", "link": None, "dimension": None,
             "kind": "insights-screen"}
     good = rubric.screen_score(meta, rubric.parse_after(json.dumps(B_INSIGHTS), kind="insights-screen"))
@@ -481,7 +481,7 @@ def _scores(tmp_path, b_alpha: dict, b_beta: dict) -> Path:
     root = tmp_path / "scores"
     fx = REPO / "tests" / "fixtures" / "quality" / "scores"
     for entry, b in (("aa-alpha", b_alpha), ("bb-beta", b_beta)):
-        src = sorted(fx.glob(f"{entry}/*-r4-*.json"))[-1]
+        src = sorted(fx.glob(f"{entry}/*-r5-*.json"))[-1]
         (root / entry).mkdir(parents=True)
         (root / entry / src.name).write_text(json.dumps(_with_after(src, entry, b)))
     return root
@@ -549,12 +549,12 @@ def test_the_cycle_scores_the_three_kinds_and_a_decision_may_name_them():
 def test_a_previous_cycle_at_another_rubric_version_is_named_and_never_compared(tmp_path):
     from tests import test_quality_cycle_079 as c079                # noqa: PLC0415
     shutil.copy(c079.EARLIER, tmp_path / c079.EARLIER.name)
-    old = (tmp_path / c079.EARLIER.name).read_text(encoding="utf-8").replace('"rubric_version": 4', '"rubric_version": 2')
+    old = (tmp_path / c079.EARLIER.name).read_text(encoding="utf-8").replace('"rubric_version": 5', '"rubric_version": 2')
     (tmp_path / c079.EARLIER.name).write_text(old, encoding="utf-8")
     _, data = c079.compose_the_fixture(cycles_dir=tmp_path)
     prev = data["previous"]
     assert prev["record"] == "20261025-0000aaa" and prev["studies"] == {} and prev["verdict"] == "not compared"
-    assert "rubric version 2 and this one at 4" in prev["why"]
+    assert "rubric version 2 and this one at 5" in prev["why"]
 
 
 # ------------------------------------------------------------------------------------------------- FR-4 the cost

@@ -1,11 +1,11 @@
 {
   "entry": "08-fresco",
-  "scope": "SOLUTION",
-  "bundle": "20261101T110000Z-backtest-08-fresco",
+  "scope": "PROBLEM",
+  "bundle": "20261101T100000Z-backtest-08-fresco",
   "cloud_sha": "abcdef1",
   "web_sha": "1234567",
   "routing_version": "13",
-  "rubric_version": 4,
+  "rubric_version": 5,
   "persona": {
     "founder": "(fixture) 08-fresco's sources and context",
     "respondent": {
@@ -30,7 +30,7 @@
   "cost_usd": 0.4,
   "probe_cost_usd": 0.01,
   "seconds": 120.0,
-  "scored_at": "2026-11-01T12:30:00+00:00",
+  "scored_at": "2026-11-01T12:00:00+00:00",
   "calls": 5,
   "partial": false,
   "selection": null,
@@ -70,24 +70,24 @@
       "screens": 2,
       "means": {
         "r1": 2.0,
-        "r2": 2.0,
-        "r3": 2.0,
-        "r4": 2.0,
+        "r2": 1.0,
+        "r3": 1.5,
+        "r4": 1.5,
         "r5": 2.0,
         "r6": 2.0
       },
       "zeros": {
         "r1": 0,
-        "r2": 0,
+        "r2": 1,
         "r3": 0,
         "r4": 0,
         "r5": 0,
         "r6": 0
       },
-      "flagged": 0,
-      "flagged_pct": 0.0,
+      "flagged": 1,
+      "flagged_pct": 50.0,
       "out_of_place": 0,
-      "looks_stupid": 0,
+      "looks_stupid": 1,
       "spoken_pct": 100.0,
       "insight_lines": 0,
       "insight_means": {
@@ -99,30 +99,30 @@
         "g2": 0
       },
       "insights_pct": null,
-      "score_pct": 100.0
+      "score_pct": 83.3
     },
     "overall": {
       "screens": 3,
       "means": {
         "r1": 2.0,
-        "r2": 2.0,
-        "r3": 2.0,
-        "r4": 2.0,
+        "r2": 1.333,
+        "r3": 1.667,
+        "r4": 1.667,
         "r5": 2.0,
         "r6": 2.0
       },
       "zeros": {
         "r1": 0,
-        "r2": 0,
+        "r2": 1,
         "r3": 0,
         "r4": 0,
         "r5": 0,
         "r6": 0
       },
-      "flagged": 0,
-      "flagged_pct": 0.0,
+      "flagged": 1,
+      "flagged_pct": 33.3,
       "out_of_place": 0,
-      "looks_stupid": 0,
+      "looks_stupid": 1,
       "spoken_pct": 100.0,
       "insight_lines": 0,
       "insight_means": {
@@ -134,7 +134,7 @@
         "g2": 0
       },
       "insights_pct": null,
-      "score_pct": 100.0
+      "score_pct": 88.2
     }
   },
   "insights": [],
@@ -163,12 +163,14 @@
       "r4": 2,
       "r5": 2,
       "r6": null,
+      "r7": null,
       "why1": "q-problem.importance: why 1",
       "why2": "q-problem.importance: why 2",
       "why3": "q-problem.importance: why 3",
       "why4": "q-problem.importance: why 4",
       "why5": "q-problem.importance: why 5",
       "why6": "",
+      "why7": "",
       "out_of_place": false,
       "looks_stupid": false,
       "instead": ""
@@ -187,39 +189,43 @@
       "r4": 2,
       "r5": 2,
       "r6": 2,
+      "r7": null,
       "why1": "gate: why 1",
       "why2": "gate: why 2",
       "why3": "gate: why 3",
       "why4": "gate: why 4",
       "why5": "gate: why 5",
       "why6": "gate: why 6",
+      "why7": "",
       "out_of_place": false,
       "looks_stupid": false,
       "instead": ""
     },
     {
       "n": 2,
-      "screen": "item-solution.relative_advantage",
+      "screen": "item-problem.importance",
       "audience": "respondent",
       "link": "PRIMARY",
-      "dimension": "solution.relative_advantage",
+      "dimension": "problem.importance",
       "kind": "item",
       "dimension_card": null,
       "r1": 2,
-      "r2": 2,
-      "r3": 2,
-      "r4": 2,
+      "r2": 0,
+      "r3": 1,
+      "r4": 1,
       "r5": 2,
       "r6": 2,
-      "why1": "item-solution.relative_advantage: why 1",
-      "why2": "item-solution.relative_advantage: why 2",
-      "why3": "item-solution.relative_advantage: why 3",
-      "why4": "item-solution.relative_advantage: why 4",
-      "why5": "item-solution.relative_advantage: why 5",
-      "why6": "item-solution.relative_advantage: why 6",
+      "r7": null,
+      "why1": "item-problem.importance: why 1",
+      "why2": "item-problem.importance: why 2",
+      "why3": "item-problem.importance: why 3",
+      "why4": "item-problem.importance: why 4",
+      "why5": "item-problem.importance: why 5",
+      "why6": "item-problem.importance: why 6",
+      "why7": "",
       "out_of_place": false,
-      "looks_stupid": false,
-      "instead": ""
+      "looks_stupid": true,
+      "instead": "When the crew is short on site, which of these comes first for you?"
     }
   ]
 }

@@ -61,6 +61,8 @@ class FakeCli:
             answer = self.screen
             if isinstance(answer, dict) and "## R6, said aloud" in input and "r6" not in answer:
                 answer = {**answer, "r6": 2, "why6": "says well"}           # the respondent-reader's R6
+            if isinstance(answer, dict) and readers.DIMENSION_HEADING in input and "r7" not in answer:
+                answer = {**answer, "r7": 2, "why7": "fits the card"}       # spec 131: R7 where a card was sent
             result = answer if isinstance(answer, str) else json.dumps(answer)
         body = {"type": "result", "is_error": self.error, "result": result, "total_cost_usd": 0.01,
                 "modelUsage": {"claude-opus-5-5": {}}}
@@ -90,17 +92,18 @@ def _run(w, *extra):
 # --------------------------------------------------------------------------------------- FR-1 the rubric
 
 def test_the_rubric_file_says_its_version_and_the_constant_agrees():
-    assert rubric.RUBRIC_VERSION == 4 == rubric.file_version()           # spec 129 (was 3, spec 109; 2, spec 081)
+    assert rubric.RUBRIC_VERSION == 5 == rubric.file_version()  # spec 131 (was 4, spec 129; 3, spec 109; 2, spec 081)
     assert rubric.RETIRED == {1: rubric.RETIRED[1]} and "R6" in rubric.RETIRED[1]
 
 
 def test_the_rubric_parses_into_six_criteria_with_their_anchors_as_the_design_has_them():
     """Spec 081: R1-R5 off the shared table, R6 off its own part; every anchor word for word in the design of record
-    as amended 2026-10-28 (R2 plain to this person, R6 said aloud)."""
+    as amended 2026-10-28 (R2 plain to this person, R6 said aloud). Spec 131: R7, fits the dimension, in the shared
+    table after R5 (its own test, `test_readers_know_the_dimension_131`), read back in score order."""
     rows = rubric.criteria()
-    assert [r["id"] for r in rows] == ["r1", "r2", "r3", "r4", "r5", "r6"]
+    assert [r["id"] for r in rows] == ["r1", "r2", "r3", "r4", "r5", "r6", "r7"]
     assert [r["name"] for r in rows] == ["Fits here", "Plain to this person", "About their life", "The options",
-                                         "The founder's words, kept", "Said aloud"]
+                                         "The founder's words, kept", "Said aloud", "Fits the dimension"]
     assert (rows[1]["2"], rows[1]["1"], rows[1]["0"]) == (
         "yes, in their own words", "needs a second read, or one word they would not use",
         "confusing, double-barrelled, or words of another trade")
@@ -111,7 +114,7 @@ def test_the_rubric_parses_into_six_criteria_with_their_anchors_as_the_design_ha
     assert rows[4]["0"] == "wrong, or leaks"
     if DESIGN.is_file():                                     # the design of record, read only, beside the worktree
         design = DESIGN.read_text(encoding="utf-8")
-        for row in rows:
+        for row in rows[:6]:                                 # R7's anchors are spec 131's, not the design's
             for anchor in ("2", "1", "0"):
                 assert row[anchor] in design, (row["id"], anchor)
 
@@ -177,7 +180,7 @@ def test_score_pct_is_the_sum_over_two_times_the_count_and_insights_fold_in():
 
 def test_two_rubric_versions_are_never_averaged():
     files = [rubric.load_file(p) for p in sorted(SCORES.glob("bb-beta/*.json"))]
-    assert {f["rubric_version"] for f in files} == {2, 4}
+    assert {f["rubric_version"] for f in files} == {2, 5}
     with pytest.raises(rubric.RubricMismatch):
         rubric.aggregate(files)
     with pytest.raises(rubric.RubricMismatch):
@@ -253,9 +256,9 @@ def test_a_run_writes_one_score_file_named_by_scope_and_it_round_trips(wired, ca
     files = list(wired.scores.glob("99-fixture/*.json"))
     assert len(files) == 1
     name = files[0].name
-    assert re.fullmatch(r"\d{8}-PROBLEM-r4-abcdef1-v13-claude-opus-5-5\.json", name), name
+    assert re.fullmatch(r"\d{8}-PROBLEM-r5-abcdef1-v13-claude-opus-5-5\.json", name), name
     obj = rubric.load_file(files[0])
-    assert obj["entry"] == "99-fixture" and obj["scope"] == "PROBLEM" and obj["rubric_version"] == 4
+    assert obj["entry"] == "99-fixture" and obj["scope"] == "PROBLEM" and obj["rubric_version"] == 5
     assert obj["cloud_sha"] == "abcdef12" and obj["web_sha"] == "1234567" and obj["routing_version"] == "13"
     assert obj["reader"] == {"model": "claude-opus-5-5", "effort": "medium", "vendor": "anthropic",
                              "door": "claude CLI"}
@@ -393,7 +396,8 @@ def test_the_table_head_gives_score_pct_per_audience_and_scope_against_the_bar(t
     text = table.render(files)
     assert "**Overall score_pct 91.2%**" in text and "meets the bar of **90%**" in text
     assert "- scope PROBLEM: score_pct 91.2%" in text
-    assert "- respondent: score_pct 89.6%, spoken_pct 100.0%, insights_pct 75.0%" in text, "spec 081 FR-5"
+    assert "- respondent: score_pct 89.6%, spoken_pct 100.0%, fits_pct –%, insights_pct 75.0%" in text, \
+        "spec 081 FR-5; spec 131: no fixture screen was sent a card"
     assert "Set aside (another rubric version, never averaged)" in text
     assert "| **WEAK** | PROBLEM | respondent | problem.importance | item |" in text
     assert "## Insights" in text and "| **WEAK** | PROBLEM | problem.importance | insights |" in text
@@ -435,7 +439,7 @@ def test_a_baseline_cut_compares_same_with_itself_and_worse_when_a_row_turns_wea
     table.cut_baseline(table.load_scores(root), None, path=base, archive_dir=tmp_path / "baselines",
                        today="2026-10-28")
     data = table.read_baseline(base)
-    assert data["studies"] == ["aa-alpha · PROBLEM", "bb-beta · PROBLEM"] and data["rubric_version"] == 4
+    assert data["studies"] == ["aa-alpha · PROBLEM", "bb-beta · PROBLEM"] and data["rubric_version"] == 5
     current, _ = table.split_by_version(table.load_scores(root))
     assert table.compare(data, table.latest_per_entry(current))["verdict"] == "same"
     # a later file for bb-beta where the founder's prevalence screen falls to 0 twice over: worse
@@ -444,7 +448,7 @@ def test_a_baseline_cut_compares_same_with_itself_and_worse_when_a_row_turns_wea
         if s["audience"] == "founder":
             s.update(r2=0, r3=0)
     newer["scored_at"] = "2026-10-31T12:00:00+00:00"
-    (root / "bb-beta" / "20261031-PROBLEM-r4-abcdef1-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
+    (root / "bb-beta" / "20261031-PROBLEM-r5-abcdef1-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
     current, _ = table.split_by_version(table.load_scores(root))
     result = table.compare(data, table.latest_per_entry(current))
     assert result["verdict"] == "worse" and "PROBLEM · founder · problem.prevalence · q" in result["why"]
@@ -461,7 +465,7 @@ def test_a_baseline_compares_like_with_like_and_better_when_a_weak_row_mends(tmp
         s.update({c: 2 for c in rubric.CRITERIA if s[c] is not None})
     newer["insights"][0].update(g1=2)
     newer["scored_at"] = "2026-10-31T12:00:00+00:00"
-    (root / "aa-alpha" / "20261031-PROBLEM-r4-bcdef12-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
+    (root / "aa-alpha" / "20261031-PROBLEM-r5-bcdef12-v13-claude-opus-5-5.json").write_text(json.dumps(newer))
     current, _ = table.split_by_version(table.load_scores(root))
     result = table.compare(data, table.latest_per_entry(current))
     assert result["verdict"] == "better"
@@ -480,7 +484,7 @@ def test_a_new_cut_keeps_the_old_baseline(tmp_path):
 def test_a_baseline_at_another_rubric_version_is_refused(tmp_path):
     base = tmp_path / "BASELINE.md"
     table.cut_baseline(table.load_scores(SCORES), None, path=base, today="2026-10-28")
-    base.write_text(base.read_text().replace('"rubric_version": 4', '"rubric_version": 2'))
+    base.write_text(base.read_text().replace('"rubric_version": 5', '"rubric_version": 2'))
     with pytest.raises(table.TableRefused, match="never compared"):
         table.read_baseline(base)
 
@@ -492,7 +496,7 @@ def test_read_is_reported_from_the_latest_score_file_and_not_measured_otherwise(
     assert got["aa-alpha"]["measured"] and got["aa-alpha"]["file"].startswith("20261029-PROBLEM")
     assert got["aa-alpha"]["flagged"] == 1 and got["aa-alpha"]["means"]["r4"] == 1.0
     assert got["aa-alpha"]["insights_pct"] == 75.0 and got["aa-alpha"]["scope"] == "PROBLEM"
-    assert got["bb-beta"]["measured"] and got["bb-beta"]["file"].startswith("20261028-PROBLEM-r4")
+    assert got["bb-beta"]["measured"] and got["bb-beta"]["file"].startswith("20261028-PROBLEM-r5")
     assert got["01-countly"] == {"measured": False, "why": "not measured: no score file for this entry"}
 
 
@@ -500,7 +504,7 @@ def test_read_names_a_score_file_at_another_rubric_version_as_not_measured(tmp_p
     (tmp_path / "cc-gamma").mkdir()
     shutil.copy(next(SCORES.glob("bb-beta/*-r2-*.json")), tmp_path / "cc-gamma" / "x.json")
     assert marks_mod.read_rows(["cc-gamma"], tmp_path)["cc-gamma"] == {
-        "measured": False, "why": "not measured: rubric version [2], not 4"}
+        "measured": False, "why": "not measured: rubric version [2], not 5"}
 
 
 # ---------------------------------------------------------------------------------- FR-8 nothing else moves

@@ -1,6 +1,7 @@
 # The question-quality rubric
 
-**RUBRIC_VERSION 4** (spec 129, 2026-11-03; version 3 was spec 109's, version 2 spec 081's, version 1 spec 078's). The design of record is
+**RUBRIC_VERSION 5** (spec 131, 2026-11-03; version 4 was spec 129's, version 3 spec 109's, version 2 spec 081's,
+version 1 spec 078's). The design of record is
 keel-cloud-docs `canon/designs/question-quality-rubric-2026-10-28.md` §3 as amended 2026-10-28 (the criteria and their
 anchors: R2 plain to *this* person, R6 said aloud) and §4 (the weak rule), and spec 109 for §B (the screens after the
 answers); this file is the one source of the criteria -- `quality/rubric.py` pastes the part between the two `prompt`
@@ -30,9 +31,13 @@ trade is not, however common it is elsewhere.
 | R3 | **About their life.** Is it answerable from what this person actually knows and does? | yes | partly, they would guess | no, it asks about someone else's job or a thing they never see |
 | R4 | **The options.** Complete, distinct, in the person's words, no stupid or missing one; the escape chip fits | all four | one option odd or overlapping | an option is nonsense, two mean the same, or the true answer is missing |
 | R5 | **The founder's words, kept.** The founder-reader: does the screen still mean what I typed? The respondent-reader: is nothing of the founder's product or roles leaking to me? | kept | drifted a little | wrong, or leaks |
+| R7 | **Fits the dimension.** Do the options meet this dimension's own rules, as its card above says them, and does the belief this screen will test make sense against them? Ask the card's questions in order: **the measure** -- is every option on the one measure the card names? **the shape** -- the count, the order, the first and the last, the founder's own row? **the balance** -- could the belief ever be supported by these options? could it ever be refuted? **the escape** -- there where the card requires one, absent where it forbids one? | all met | one rule bent | a rule broken: every option counts one way, a scale with no working rung, options that cannot answer the belief, a missing escape the card requires |
 
 R4 is `null` only on a screen that shows no options, rows, chips or value box at all (a card to read, a box to type
-in); every other criterion is always scored.
+in). R7 is scored on every screen you were sent a dimension card for (*The dimension this screen tests*, above the
+rubric) -- a screen of rows to write or a box to type in is read against what the card says the rows or the box must be
+-- and is `null` on a screen you were sent none. A point the card lists under *Open* is never a fault of the screen.
+Every other criterion is always scored.
 
 ## The instead line
 
@@ -130,6 +135,8 @@ disagree with them:
 - `out_of_place` = R1 is 0; on a §B screen, B1 is 0 (version 3).
 - `looks_stupid` = R2 is 0, R4 is 0 or R6 is 0 (R6 since version 2); on a §B screen, B2 or B5 is 0 (version 3).
 
+R7 is in neither (version 5 moved no boolean): a 0 on it flags the screen like any other 0.
+
 ## The three whole-flow questions
 
 Once per study, per audience (the founder-reader once; the respondent-reader once per link), after every screen is
@@ -142,13 +149,16 @@ scored, the reader is shown the whole walk as a compact list and answers:
 
 ## The score as one number
 
-- `score_pct` = (the sum of every r1..r6 and b1..b6 given over the screens, plus every g1 and g2 of the insight lines)
-  / (2 x the count of those scores) x 100 -- a `null` R4 (nothing to pick), R6 (a founder screen), B2 (the Insights
-  screen) or B6 (the stage page, a card) is not a score and is in neither sum; R6 and the insight readings are the
+- `score_pct` = (the sum of every r1..r7 and b1..b6 given over the screens, plus every g1 and g2 of the insight lines)
+  / (2 x the count of those scores) x 100 -- a `null` R4 (nothing to pick), R6 (a founder screen), R7 (a screen sent
+  no dimension card), B2 (the Insights screen) or B6 (the stage page, a card) is not a score and is in neither sum;
+  R7 is both readers', so it counts in the founder's, the respondent's and the overall `score_pct`; R6 and the insight readings are the
   respondent-reader's, so they count in the respondent's and the overall `score_pct`, never the founder's; B1-B6 are
   the founder-reader's, so they count in the founder's and the overall, never the respondent's.
 - `spoken_pct` = the same over R6 alone, beside it (version 2), per audience where there is an R6 and overall; the
   head of `TABLE.md` shows it beside `insights_pct`.
+- `fits_pct` = the same over R7 alone, beside it (version 5), per audience where there is an R7 and overall; the head
+  of `TABLE.md` shows it on both readers' lines, and the cycle record's head beside the score.
 - `insights_pct` = the same over the g1 and g2 alone, beside it. Per audience and overall, on every score file and in `TABLE.md`.
 - `after_pct` = the same over b1..b6 alone, beside it (version 3), per audience where there is a §B screen and overall;
   the head of `TABLE.md` shows it on the founder's line.
@@ -165,12 +175,13 @@ when, on any one criterion,
 - the **mean is under 1.5**.
 
 R6 is a criterion like the others under this rule (version 2 did not move the rule), and so is each of B1-B6 on a §B
-row (version 3 did not move it either). The weak rule is a first guess (the design's open item 4) and moves only with a
+row (version 3 did not move it either), and R7 (version 5 did not move it): a row whose screens were sent no card has
+no R7 mean and is never weak on it. The weak rule is a first guess (the design's open item 4) and moves only with a
 version bump.
 
 ## The verdict against the baseline
 
-`make read-table BASELINE=1` compares each row with `BASELINE.md`'s: the deltas (the six criteria; G1 and G2 on an
+`make read-table BASELINE=1` compares each row with `BASELINE.md`'s: the deltas (the seven criteria; G1 and G2 on an
 insights row; B1-B6 on a §B row), and one verdict line --
 
 - **worse** when any row is weak now that was not weak in the baseline, or the overall `score_pct` fell by a point or more;
@@ -180,6 +191,24 @@ insights row; B1-B6 on a §B row), and one verdict line --
 
 ## Versions
 
+- **5** (spec 131, 2026-11-03; the founder, 2026-11-03: *"the agents which are evaluating the quality of the founder's
+  questions ... and the questions shown to the respondent need to be re-evaluated ... our agent should be dimension
+  aware ... is this question valid -- do the options meet the criteria for that dimension, including the option?"*;
+  and at 08:50 ET: *"ensure that that's foolproof"*):
+  - **R7, fits the dimension**, in the `prompt` part (both readers): scored on every screen the reader was sent the
+    screen's dimension card for (`quality/readers/dimensions.md`, sent after the persona and before the screen: the
+    founder's q, answer, check and choose screens, the stranger's gate and items), asking the card's questions in order
+    -- the measure, the shape, the balance (*could the belief ever be supported? ever refuted?*), the escape --; 2 all
+    met, 1 one rule bent, 0 a rule broken (a scale where every option counts one way, a scale with no working rung,
+    options that cannot answer the belief, a missing escape the card requires); `null` where no card was sent. A 0
+    flags the screen; the weak rule, `score_pct` and the baseline read it as any criterion; `fits_pct` beside. The
+    booleans, R1-R6, §B, §G and the weak rule are unmoved. Why: on cycle 8 all fourteen Current solution Check screens
+    were scored R4 1 or 2 for overlap and coverage and none said *no rung where today's way works* -- nothing told the
+    readers what the dimension measures, the shape its options must have, or which answers count for and against the
+    belief (keel-cloud 203).
+  - A screen's score names the card it was sent (`dimension_card`).
+  - **Version-4 files are set aside, never compared and never refused**, as version 3's were at 4: none of record was
+    written at 4; the next walk is the first at 5. Nothing is re-scored.
 - **4** (spec 129, 2026-11-03; keel-cloud 200, the founder 2026-11-02: *"when we shorten it, we have to ensure that it
   fits with what the persona would say"*):
   - **R2 on a follow-up screen reads the reference back**: one line (the `prompt-f` part) handed to the

@@ -31,6 +31,11 @@ the head's founder line carries `after_pct` (B alone) beside its `score_pct`, wh
 are the stage page's and the chart's words (keel-web) and the verdict lines keel-cloud serves (`BriefFacts`), and for
 the Insights screen themes.md and keel-web's Insights tab (`fix_location`).
 
+**Spec 131 (rubric version 5)**: R7, fits the dimension, is a column of the rows, the trend, the baseline and the
+comparison, read by the weak rule as any criterion (a row of screens sent no dimension card has no R7 mean and shows –);
+the head's two readers' lines carry `fits_pct` (R7 alone); a row weak on R7 is fixed where the options' shape is written,
+held to the dimension's card (`CRITERION_FIX`).
+
 **Spec 079 FR-3** (the quality cycle): `--cycle <record>` (`make read-table CYCLE=`) tops the table with the three lines
 the founder reads after a walk -- *this cycle* (score_pct, flagged_pct), *the baseline* (the same), *the bar* -- and,
 with `--baseline`, a section of the rows that moved since the baseline (a mean by `MOVED_MEAN` or more, or turned weak,
@@ -176,11 +181,14 @@ CRITERION_FIX = {
     "r6": "R6 -- the registry row's wording or the spoken transform (code: keel-cloud's spoken rendering)",
     "r2": ("R2 -- the registry row, or the instruction gains the trade's words: the writer handed the persona "
            "(*in the words of {actor_plural}*), never a condition on one trade"),
+    # spec 131 FR-5: a row weak on R7 is fixed where the options' shape is written, held to the dimension's card
+    "r7": ("R7 -- the registry row's option rule and guidance, or the code that draws the options, held to the "
+           "dimension's card (quality/readers/dimensions.md: its shape, its for / against, its escape)"),
 }
 
 
 def criterion_fixes(weak_on: list[str]) -> list[str]:
-    return [CRITERION_FIX[c] for c in ("r6", "r2") if c in weak_on]
+    return [CRITERION_FIX[c] for c in ("r7", "r6", "r2") if c in weak_on]
 
 
 # ------------------------------------------------------------------------------------------------ rows
@@ -200,7 +208,7 @@ def rows(latest: dict) -> list[dict]:
             grouped.items(), key=lambda kv: (kv[0][0], kv[0][2], kv[0][1], kv[0][3])):
         scores = [s for _, s in pairs]
         stats = rubric.summary(scores)
-        # spec 109: a §B row is read on B1-B6, every other on R1-R6
+        # spec 109: a §B row is read on B1-B6, every other on R1-R7 (R7 since spec 131)
         crits = rubric.B_CRITERIA if rubric.is_after(kind) else rubric.CRITERIA
         means = {c: stats["means"][c] for c in crits}
         zero_entries = {c: sorted({e for e, s in pairs if s.get(c) == 0}) for c in crits}
@@ -357,11 +365,13 @@ def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | N
         lines += [f"**Overall score_pct {_num(top['score_pct'], 1)}%** over the latest file of each of "
                   f"{top['entries']} studies (entry · scope) -- {verdict} of **{rubric.BAR_PCT:.0f}%** the founder named before the "
                   "remaining entries are walked.", "",
-                  f"- founder: score_pct {_num(by['founder']['score_pct'], 1)}%, after_pct "
+                  f"- founder: score_pct {_num(by['founder']['score_pct'], 1)}%, fits_pct "
+                  f"{_num(by['founder'].get('fits_pct'), 1)}%, after_pct "
                   f"{_num(by['founder'].get('after_pct'), 1)}%, flagged "
                   f"{_num(by['founder']['flagged_pct'], 1)}% of {by['founder']['screens']} screens",
                   f"- respondent: score_pct {_num(by['respondent']['score_pct'], 1)}%, spoken_pct "
-                  f"{_num(by['respondent'].get('spoken_pct'), 1)}%, insights_pct "
+                  f"{_num(by['respondent'].get('spoken_pct'), 1)}%, fits_pct "
+                  f"{_num(by['respondent'].get('fits_pct'), 1)}%, insights_pct "
                   f"{_num(by['respondent'].get('insights_pct'), 1)}%, flagged "
                   f"{_num(by['respondent']['flagged_pct'], 1)}% of {by['respondent']['screens']} screens",
                   *[f"- scope {scope}: score_pct {_num(sc['score_pct'], 1)}%, flagged {_num(sc['flagged_pct'], 1)}% "
@@ -375,9 +385,10 @@ def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | N
     lines += ["## The rows", "",
               "Weak = a 0 on one criterion in two or more entries, or a mean under 1.5 (RUBRIC.md). "
               f"{len(weak)} of {len(table)} rows are weak.", "",
-              "R6 (said aloud) is the respondent-reader's alone: a founder row shows –.", "",
-              "| | scope | audience | dimension | kind | n | R1 | R2 | R3 | R4 | R5 | R6 | 0s | entries with a 0 | fix |",
-              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+              "R6 (said aloud) is the respondent-reader's alone: a founder row shows –. R7 (fits the dimension) is scored "
+              "where the screen was sent its dimension card (spec 131): a row of screens sent none shows –.", "",
+              "| | scope | audience | dimension | kind | n | R1 | R2 | R3 | R4 | R5 | R6 | R7 | 0s | entries with a 0 | fix |",
+              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in [r for r in table if r["kind"] != "insights" and not rubric.is_after(r["kind"])]:
         zeros = sum(r["zeros"].values())
         with_zero = sorted({e for c in rubric.CRITERIA for e in r["zero_entries"][c]})
@@ -425,7 +436,7 @@ def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | N
             lines.append("")
     lines += ["", "## The trend per study (entry · scope; the last three score files)", "",
               "| study | file | scored | cloud | founder % | respondent % | overall % | spoken % | flagged % | R1 | R2 "
-              "| R3 | R4 | R5 | R6 |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+              "| R3 | R4 | R5 | R6 | R7 |", "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for entry, runs in history_per_entry(current).items():
         before = None
         for f in runs:
@@ -446,9 +457,9 @@ def render(files: list[dict], *, comparison: dict | None = None, cycle: dict | N
                   f"{comparison['why']}", "",
                   f"Baseline: {comparison['baseline']['cut']} ({comparison['baseline']['score_pct']}%), now "
                   f"{comparison['score_pct']}%.", "",
-                  "| row | ΔR1 / ΔG1 / ΔB1 | ΔR2 / ΔG2 / ΔB2 | ΔR3 / ΔB3 | ΔR4 / ΔB4 | ΔR5 / ΔB5 | ΔR6 / ΔB6 | weak then "
-                  "| weak now |",
-                  "|---|---|---|---|---|---|---|---|---|"]
+                  "| row | ΔR1 / ΔG1 / ΔB1 | ΔR2 / ΔG2 / ΔB2 | ΔR3 / ΔB3 | ΔR4 / ΔB4 | ΔR5 / ΔB5 | ΔR6 / ΔB6 | ΔR7 "
+                  "| weak then | weak now |",
+                  "|---|---|---|---|---|---|---|---|---|---|"]
         for d in comparison["rows"]:
             deltas = list(d["delta"].values()) + [None] * (len(rubric.CRITERIA) - len(d["delta"]))
             lines.append("| " + " | ".join([_cell(d["row"]), *[_num(v) for v in deltas],
@@ -491,8 +502,8 @@ def render_baseline(data: dict) -> str:
              f"- score files: {', '.join(data['files'])}",
              f"- cloud sha(s): {', '.join(data['cloud_shas'])}; routing version(s): {', '.join(data['routing_versions'])}",
              f"- reader(s): {', '.join(data['readers'])}", "",
-             "| row | R1 / G1 / B1 | R2 / G2 / B2 | R3 / B3 | R4 / B4 | R5 / B5 | R6 / B6 | weak |",
-             "|---|---|---|---|---|---|---|---|"]
+             "| row | R1 / G1 / B1 | R2 / G2 / B2 | R3 / B3 | R4 / B4 | R5 / B5 | R6 / B6 | R7 | weak |",
+             "|---|---|---|---|---|---|---|---|---|"]
     for key, row in data["rows"].items():
         means = list(row["means"].values()) + [None] * (len(rubric.CRITERIA) - len(row["means"]))
         lines.append("| " + " | ".join([_cell(key), *[_num(v) for v in means],

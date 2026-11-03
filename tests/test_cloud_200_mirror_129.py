@@ -225,7 +225,7 @@ def test_l29_and_k9_are_reported_by_name():
 def test_the_readers_one_line_is_handed_on_a_follow_up_screen_alone():
     line = rubric.prompt_follow_up()
     assert "\n" not in line and "reference back" in line and "as you would say it" in line
-    assert rubric.RUBRIC_VERSION == 4 == rubric.file_version()
+    assert rubric.RUBRIC_VERSION == 5 == rubric.file_version()
     versions = rubric.rubric_text().split("## Versions", 1)[1].split("- **3**", 1)[0]
     assert "- **4** (spec 129" in versions and "Version-3 files are set aside" in versions
     assert line not in rubric.prompt_rubric() and line not in rubric.prompt_spoken(), "never on another screen"

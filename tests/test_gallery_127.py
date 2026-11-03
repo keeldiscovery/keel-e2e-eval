@@ -42,8 +42,13 @@ def real_score(scores: Path, run: Path, pct: float, *, zero: tuple[int, str] | N
     record = json.loads((run / "backtest.json").read_text(encoding="utf-8"))
     obj.update(entry=record["entry"]["id"], scope=record["scope"], bundle=run.name, scored_at=scored_at)
     # spec 129: the real file's shape at the current rubric version (cycle 7's file is version 3's; RUBRIC_VERSION 4
-    # moved no key of a score file)
+    # moved no key of a score file); spec 131: version 5's three keys, as a screen sent no dimension card writes them
     obj["rubric_version"] = rubric.RUBRIC_VERSION
+    for s in obj["screens"]:
+        if not rubric.is_after(s.get("kind")):
+            s.setdefault("dimension_card", None), s.setdefault("r7", None), s.setdefault("why7", "")
+        else:
+            s.setdefault("dimension_card", None)
     if zero:
         screen = next(s for s in obj["screens"] if s["n"] == zero[0] and s["audience"] == "founder")
         screen[zero[1]] = 0

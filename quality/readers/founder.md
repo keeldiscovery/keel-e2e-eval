@@ -51,10 +51,12 @@ is elsewhere. Judge R2 (plain) and R3 (about your life) from inside that.
 ## Your answer
 
 Reply with ONE JSON object and nothing else -- no prose before or after it, no code fence (no R6: it is the
-respondent-reader's alone):
+respondent-reader's alone; R7 is required where you were sent this screen's dimension card above, and null where you
+were not):
 
 {"r1": 0|1|2, "why1": "one sentence", "r2": 0|1|2, "why2": "one sentence", "r3": 0|1|2, "why3": "one sentence",
- "r4": 0|1|2|null, "why4": "one sentence", "r5": 0|1|2, "why5": "one sentence", "instead": "one line, or empty"}
+ "r4": 0|1|2|null, "why4": "one sentence", "r5": 0|1|2, "why5": "one sentence", "r7": 0|1|2|null,
+ "why7": "one sentence, or empty", "instead": "one line, or empty"}
 <!-- screen:end -->
 
 <!-- flow:begin -->
