@@ -43,3 +43,34 @@ coverage; none said *no rung where today's way works*. The adviser has the same 
 ## Not in this spec
 
 A walk (none until the founder's word); changing R1-R6; the readers' model or effort.
+
+## Amendment 2026-11-03 08:50 ET -- the cards are the whole of it
+
+The founder: *"while writing the dimension check ... spend a good amount of time for how each dimension would look like,
+and how the options should look like, how much of them should be for and how much should be against, and ensure that
+that's foolproof."*
+
+- **FR-1a Each card carries, in this order, for the founder's screens and the respondent's item alike:**
+  1. **What it measures**, one sentence, from the registry's `meaning`.
+  2. **The options' shape**: how many, in what order, on what one measure, what the first and the last must be
+     (Current solution: the first is today's way getting the job done, the last today's way failing outright, the
+     founder's line between; Commitment: the founder's step as a firm yes, a probable yes, probably not, no; Importance:
+     the founder's own difficulty locked first, then rivals the same people meet in the same circumstance, each distinct,
+     none the whole job; Prevalence: yes / no over the window, no unsure; Frequency: the window's units as bands; the
+     money rows exactly as specs 115, 180, 181, 182 and 198 shaped them), with the registry's `control`,
+     `option_rule` and `fixed_answers` as the source.
+  3. **Which answers count for the belief, which against, which neither**, by the registry's `answers` block
+     (`compare_rule`, `supports`, `conditional`, the `against` sets, the `floor`): the card names them in plain words
+     (*for: the first rung and the ones above the founder's line; against: every rung below it; the escape counts
+     nobody*) and says what a healthy scale therefore needs (*at least one rung above the line, else nothing can count
+     for today's way and the belief is tested against nothing*).
+  4. **The escape**: which chip, what it means, when it must be there and when it must not (Prevalence's gate has none).
+  5. **Two examples**: one scale that meets the card and one that breaks it, each with the words that break it named
+     (the angel-group scale of 2026-11-03 is Current solution's bad example).
+- **FR-1b Foolproof by test.** For every card a test reads the registry row and asserts: the counts and order in the
+  card's shape match `option_rule` / `fixed_answers`; the for / against / neither lists equal the codes the registry's
+  `answers` block counts; the escape matches `escape` / `left_out`; the bad example is scored R7 0 by a scripted reader
+  and the good one 2. A card that drifts from the registry fails `make unit`.
+- **FR-1c R7's wording asks the reader the card's own questions**, in order: the measure, the shape, the for/against
+  balance (*could the belief ever be supported by these options? could it ever be refuted?*), the escape. A scale where
+  every option counts one way is a 0.
