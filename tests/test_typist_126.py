@@ -22,7 +22,7 @@ FX = Path(__file__).parent / "fixtures"
 #: 21-codyco's PROBLEM walk of cycle 6 (`runs/20261101T111212Z-backtest-21-codyco`), its served parts kept as recorded.
 WALK = FX / "typist" / "backtest-21-codyco-PROBLEM.json"
 CYCLE_FX = FX / "quality" / "cycle"
-SCORE = CYCLE_FX / "scores" / "08-fresco" / "20261101-SOLUTION-r3-abcdef1-v13-claude-opus-5-5.json"
+SCORE = CYCLE_FX / "scores" / "08-fresco" / "20261101-SOLUTION-r4-abcdef1-v13-claude-opus-5-5.json"
 RECORD = REPO / "quality" / "cycles" / "20261101-d096da9.md"
 KEEL_CLOUD = Path(load_config(validate=False).keel_cloud)
 

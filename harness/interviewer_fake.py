@@ -503,7 +503,99 @@ FILL_DEFAULTS = {"{their_picks}": "other difficulties", "{founder_item}": "this 
                  "{their_answer}": "today's way works", "{condition}": "do that", "{would}": "be hard",
                  "{benefit}": "it", "{occasion}": "time", "{effort}": "doing that", "{band}": "less than we asked",
                  "{smaller_step}": "that first step", "{job}": "doing this", "{solution_name}": "it",
-                 "{step}": "that step", "{phrase}": "the way you do it"}
+                 "{step}": "that step", "{phrase}": "the way you do it",
+                 # keel-cloud 200 (spec 129): never read -- a named wording is said only where its short name is present
+                 "{short_name}": "that", "{smaller_name}": "that first step"}
+#: keel-cloud 200 FR-3 (spec 129; registry `follow_up.named`, `FollowUpBlock.Named`): the wordings a rung says where the
+#: row it refers back to carries its hidden short name -- `{short_name}` (Commitment's second stem `{smaller_name}`), two
+#: to five words in the persona's words, never shown to the founder. Importance counts the stranger's picks (`one` for
+#: one, `several` for two; `text` where none was picked) in its text alone: the clip (`spoken`) is recorded at the lock,
+#: before anyone picks, so it never counts. Today's wordings (`LADDER`, `ALSO`) are the fallback where a row has none.
+NAMED: dict[str, dict[str, str]] = {
+    "problem.importance": {
+        "text": "You did not pick {short_name}. What made you choose differently?",
+        "spoken": "You did not pick {short_name}. What made you choose differently?",
+        "one": "You did not pick {short_name}. What made the one you picked more pressing for you?",
+        "several": "You did not pick {short_name}. What made the ones you picked more pressing for you?"},
+    "problem.current_solution_satisfaction": {
+        "text": "You said {short_name} works for you. What keeps it working?",
+        "spoken": "You said {short_name} works for you. What keeps it working?"},
+    "solution.relative_advantage": {
+        "text": "You said {solution_name} wouldn't make much difference on your last {occasion}. What would make "
+                "{short_name} better for you, if anything?",
+        "spoken": "You said {solution_name} wouldn't make much difference on your last {occasion}. What would make "
+                  "{short_name} better for you, if anything?"},
+    "solution.adoption_friction": {
+        "text": "What makes {short_name} too much trouble for you?",
+        "spoken": "What makes {short_name} too much trouble for you?"},
+    "commercial.commitment": {
+        "text": "What would you start with instead of {short_name}?",
+        "spoken": "What would you start with instead of {short_name}?"},
+}
+#: keel-cloud 200 FR-3: the second stems' named wordings (`also.named`) -- Compatibility's *What steps did it take?*
+#: filled, never a bare *it*; Commitment's smaller step by its own short name.
+ALSO_NAMED: dict[str, dict[str, str]] = {
+    "solution.compatibility": {"text": "What steps went into {short_name} for that {occasion}?",
+                               "spoken": "What steps went into {short_name} for that {occasion}?"},
+    "commercial.commitment": {"text": "What would {smaller_name} have to show you?",
+                              "spoken": "What would {smaller_name} have to show you?"},
+}
+#: `FollowUpComposer.SHORT_NAMES`: the placeholders a named wording says a short name by.
+SHORT_NAMES = ("{short_name}", "{smaller_name}")
+#: `ItemFrames.NOTHING_ELSE`: Importance's *Nothing else*, never counted among the picks.
+NOTHING_ELSE_CODE = "nothing_else"
+
+
+def named_of(dimension: str, values: dict, *, also: bool = False) -> dict | None:
+    """keel-cloud 200 (`FollowUpComposer.named`): the stem's named wordings where every short name they say is in
+    `values`; None otherwise (today's wording: a project confirmed before 200, a row with no short name)."""
+    block = (ALSO_NAMED if also else NAMED).get(dimension)
+    if not block:
+        return None
+    for wording in block.values():
+        for placeholder in re.findall(r"\{[a-z_]+\}", wording):
+            if placeholder in SHORT_NAMES and not str(values.get(placeholder) or "").strip():
+                return None
+    return block
+
+
+def named_text(block: dict, picks: int) -> str:
+    """`FollowUpBlock.Named.text(picks)`: `one` for one pick, `several` for more, else `text`."""
+    if picks == 1 and block.get("one"):
+        return block["one"]
+    return block["several"] if picks > 1 and block.get("several") else block["text"]
+
+
+def picks_counted(dimension: str, codes) -> int:
+    """`FollowUpComposer.picks`: how many of Importance's rows the stranger picked -- *Nothing else* aside; 0 on a chip
+    (*None of these*) and on every other dimension."""
+    if dimension != "problem.importance":
+        return 0
+    return sum(1 for code in codes or [] if code != NOTHING_ELSE_CODE)
+
+
+def fill_wording(wording: str, values: dict) -> str:
+    """`FollowUpComposer.fill(wording, values)`: every placeholder a wording holds, from `values` or its default."""
+    for placeholder in re.findall(r"\{[a-z_]+\}", wording):
+        value = values.get(placeholder)
+        wording = wording.replace(placeholder, value if value and str(value).strip() else FILL_DEFAULTS[placeholder])
+    return wording
+
+
+def named_pattern(dimension: str, values: dict, *, also: bool = False) -> re.Pattern | None:
+    """A served wording read as a named one whatever short name the model wrote (a back-test runs on the model, whose
+    hidden names the walk never sees): each named wording of the stem, its short names any two to five words, its other
+    placeholders filled from `values`."""
+    block = ALSO_NAMED.get(dimension) if also else NAMED.get(dimension)
+    if not block:
+        return None
+    shapes = []
+    for wording in dict.fromkeys(block.values()):
+        parts = re.split(r"(\{[a-z_]+\})", wording)
+        shapes.append("".join(r"\S+(?: \S+){1,4}" if part in SHORT_NAMES
+                              else re.escape(fill_wording(part, values)) if part.startswith("{")
+                              else re.escape(part) for part in parts))
+    return re.compile("^(?:" + "|".join(shapes) + ")$")
 WOULD_NOT_PAY_BAND = "nothing"
 #: keel-cloud 130 FR-7 (`FollowUpComposer.WORTH_MORE`): Price's follow-up question after its said-back pick; 154 FR-2:
 #: *to you*.
@@ -858,7 +950,11 @@ def spoken_of(dimension: str, *, also: bool = False) -> str:
 
 def spoken_filled(dimension: str, values: dict[str, str | None], *, also: bool = False) -> str:
     """keel-cloud 154 FR-1 (`FollowUpComposer.spoken`): the stem's spoken line with the project's words filled, a missing
-    value its plain default -- what `ask` serves as `spoken` and the clip recorded at the lock says."""
+    value its plain default -- what `ask` serves as `spoken` and the clip recorded at the lock says. Since keel-cloud 200
+    (spec 129) the named spoken line where the row carries its short name (`named_of`), never counting."""
+    named = named_of(dimension, values, also=also)
+    if named:
+        return fill_wording(named["spoken"], values)
     text = spoken_of(dimension, also=also)
     for placeholder in re.findall(r"\{[a-z_]+\}", text):
         value = values.get(placeholder)

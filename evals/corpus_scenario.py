@@ -4007,11 +4007,13 @@ def _hold_the_follow_up(j: Journey, person, interview: dict, walked: dict, plan:
             body = r.get("body") or {}
             assert body.get("dimension") == a["dimension"], body
             if getattr(j, "camera", None) is not None and body.get("spoken") != a["spoken"]:
-                # spec 062 FR-4 on the back-test: the product's follow-up wording is the finding, not a stop
-                j.findings.append({"what": f"{person.person}: the {a['dimension']} follow-up's words are the product's, "
-                                           "not the harness's composition",
-                                   "served": {"route": body.get("text"), "spoken": body.get("spoken"),
-                                              "harness": a["text"]}})
+                # spec 062 FR-4 on the back-test: the product's follow-up wording is the finding, not a stop -- since
+                # keel-cloud 200 (spec 129) a named wording, said by the model's own hidden short name, is none
+                if not vs.named_said(j.entry, interview, a["dimension"], body.get("spoken"), also=a.get("also")):
+                    j.findings.append({"what": f"{person.person}: the {a['dimension']} follow-up's words are the "
+                                               "product's, not the harness's composition",
+                                       "served": {"route": body.get("text"), "spoken": body.get("spoken"),
+                                                  "harness": a["text"]}})
             else:
                 assert body.get("spoken") == a["spoken"], body
             assert body.get("itemId") and "clip" not in body, body                  # a text link plays nothing

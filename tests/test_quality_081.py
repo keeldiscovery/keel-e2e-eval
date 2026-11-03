@@ -37,8 +37,9 @@ def _work(**over):
 # ------------------------------------------------------------------------------------------ FR-1 the version
 
 def test_the_rubric_says_what_version_2_changed_and_why():
-    """Spec 109 moved the rubric to version 3 (its own test, `test_quality_after_109`); version 2's account stands."""
-    assert rubric.RUBRIC_VERSION == 3 == rubric.file_version()
+    """Spec 109 moved the rubric to version 3 (its own test, `test_quality_after_109`) and spec 129 to 4; version 2's
+    account stands."""
+    assert rubric.RUBRIC_VERSION == 4 == rubric.file_version()
     versions = rubric.rubric_text().split("## Versions", 1)[1]
     two = versions.split("- **2**", 1)[1].split("- **1**", 1)[0]
     two = "- **2**" + two
@@ -68,11 +69,11 @@ def test_a_file_at_another_unretired_version_is_still_set_aside_not_refused():
 
 
 def test_the_fixtures_are_at_the_current_version_with_r6_on_every_respondent_screen():
-    """Spec 081 moved the fixtures to version 2, spec 109 to version 3 (no screen of theirs moved)."""
+    """Spec 081 moved the fixtures to version 2, spec 109 to version 3, spec 129 to 4 (no screen of theirs moved)."""
     paths = sorted(SCORES.glob("*/*.json")) + sorted((Path(__file__).parent / "fixtures" / "quality" / "cycle" /
                                                       "scores").glob("*/*.json"))
-    current = [json.loads(p.read_text()) for p in paths if "-r3-" in p.name]
-    assert len(current) == 7 and all(f["rubric_version"] == 3 for f in current)
+    current = [json.loads(p.read_text()) for p in paths if "-r4-" in p.name]
+    assert len(current) == 7 and all(f["rubric_version"] == 4 for f in current)
     for f in current:
         assert set(f["persona"]) == {"founder", "respondent"} and f["spoken_guidelines"]["sections"] == ["2", "3", "5"]
         for s in f["screens"]:
@@ -264,7 +265,7 @@ def test_the_dry_run_prints_each_persona_block_once_and_r6_in_every_respondent_p
 def _weak_on_r6(tmp_path):
     root = tmp_path / "scores"
     for entry in ("aa-alpha", "bb-beta"):
-        src = next(SCORES.glob(f"{entry}/*-r3-*.json"))
+        src = sorted(SCORES.glob(f"{entry}/*-r4-*.json"))[-1]      # the latest (a glob's order is the disk's)
         obj = json.loads(src.read_text())
         for s in obj["screens"]:
             if s["audience"] == "respondent" and s["kind"] == "reveal":

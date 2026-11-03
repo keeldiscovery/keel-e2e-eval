@@ -60,6 +60,7 @@ from datetime import datetime, timezone
 from harness import interview_charge
 from harness import loss_line as ll
 from harness import qualifiers
+from harness import short_names as short_names_mod
 from instructions import chain as chain_mod
 from instructions import corpus as corpus_reader
 from instructions.registry import (COMMITMENT_KEY, FREQUENCY_MIN, IMPORTANCE_CONTROL, NOTHING_ELSE_CHIP,
@@ -1584,7 +1585,15 @@ def drafted_list(entry, key: str) -> dict:
         items.append(out)
     if key == "problem.importance":
         items = items[:1 + len(importance_named(entry))]     # Keel adds only what the Answer named (097 F9)
+    # spec 129 (keel-cloud 200 FR-1): each row's hidden short name where the scripted writer can name it
+    names = row_short_names(entry, key)
+    for out in items:
+        if names.get(out["label"]):
+            out["short_name"] = names[out["label"]]
     draft: dict = {"items": items}
+    own = list_short_name(entry, key)
+    if own:
+        draft["short_name"] = own
     if key == "problem.current_solution_satisfaction":
         if not saved.get("phrase"):
             raise VectorsScriptError(f"{entry.id}: {key} carries no phrase (L1)")
@@ -1920,8 +1929,94 @@ def importance_typed(entry) -> list[str]:
 
 def importance_first_draft(entry) -> dict:
     """keel-cloud 097 (F9, judgement call 10): Keel's first draft of Importance, before the founder's Answer, is the
-    own item alone (`L1`: exactly one) -- the others come from the Answer and Keel adds none."""
-    return {"items": [{"label": founder_list(entry, "problem.importance")["items"][0]["label"]}]}
+    own item alone (`L1`: exactly one) -- the others come from the Answer and Keel adds none. Spec 129 (keel-cloud 200):
+    with its short name where the scripted writer names the list's rows."""
+    label = founder_list(entry, "problem.importance")["items"][0]["label"]
+    name = row_short_names(entry, "problem.importance").get(label)
+    return {"items": [{"label": label, **({"short_name": name} if name else {})}]}
+
+
+# ----------------------------------------------------------------- spec 129: keel-cloud 200's hidden short names
+
+def _short_name_ideas(entry) -> tuple[str, ...]:
+    """The idea's names a short name never says (`ScreenResultApplier.ideaNames`): the typed name and the title."""
+    try:
+        typed = _typed_idea_name(entry)
+    except (AttributeError, KeyError, TypeError):                       # an entry with no idea read: no name
+        typed = None
+    return tuple(n for n in (typed, getattr(entry, "title", None)) if n and str(n).strip())
+
+
+def row_short_names(entry, key: str) -> dict[str, str]:
+    """Spec 129 (keel-cloud 200 FR-1): the scripted founder-lists writer's hidden short name of each row of `key` (one of
+    `ShortName.ROWS`), by label -- `short_names.compose`, the row cut down in its own words; Adoption friction's efforts
+    and Commitment's step said as -ing phrases. **All or nothing where the founder types rows of his own** (Importance's
+    typed rows, `importance_typed`): such a row is owed its short name by the `asked` job (`needsShortName`), which the
+    script answers for every typed row or for none, so where one typed row cannot be named the list carries none and
+    owes nothing (today's wording). A golden walk alone: a back-test entry runs on the model, whose names are its own."""
+    if key not in short_names_mod.ROWS or getattr(entry, "backtest", False):
+        return {}
+    try:
+        items = founder_list(entry, key)["items"]
+    except VectorsScriptError:
+        return {}
+    ideas = _short_name_ideas(entry)
+    out: dict[str, str] = {}
+    for i, item in enumerate(items):
+        turn = gerund if (key == ADOPTION_KEY or (key == COMMITMENT_KEY and i == 0)) else None
+        name = short_names_mod.compose(item.get("label"), ideas, gerund=turn)
+        if name:
+            out[item["label"]] = name
+    if key == "problem.importance" and any(label not in out for label in importance_typed(entry)):
+        return {}
+    return out
+
+
+def list_short_name(entry, key: str) -> str | None:
+    """Spec 129 (keel-cloud 200 FR-1, `ShortName.LISTS`): the list's own hidden short name -- Current solution's phrase,
+    Relative advantage's job (as the rung says it, `job_gerund`) -- as the scripted writer names it, or None."""
+    if key not in short_names_mod.LISTS or getattr(entry, "backtest", False):
+        return None
+    if key == "problem.current_solution_satisfaction":
+        row = bare_phrase((entry.founder_list(key) or {}).get("phrase"))
+    else:
+        row = job_gerund(_ctx(entry).get("job"))
+    return short_names_mod.compose(row, _short_name_ideas(entry)) if row else None
+
+
+def importance_asked_result(entry) -> dict | None:
+    """Spec 129 (keel-cloud 200 FR-1, `AskedRules`): the `ASKED` result for Importance's rows the founder types on the
+    Check screen -- a face-less job (`frame` null) writing each handed row's `short_name` alone, by its index in the
+    saved list; None where no row is typed or the list carries no short names (nothing is owed)."""
+    typed = importance_typed(entry)
+    names = row_short_names(entry, "problem.importance")
+    if not typed or not names:
+        return None
+    labels = [item["label"] for item in founder_list(entry, "problem.importance")["items"]]
+    return {"items": [{"index": labels.index(label), "short_name": names[label]} for label in typed]}
+
+
+def tested_short_name(entry, rung: str) -> str | None:
+    """Spec 129 (keel-cloud 200 FR-1, `FollowUpComposer.shortName`): the short name a rung's follow-up says -- the
+    list's own on Current solution and Relative advantage, the tested row's elsewhere (Importance's own item, the
+    condition, the effort, the step) -- or None (today's wording)."""
+    if rung in short_names_mod.LISTS:
+        return list_short_name(entry, rung)
+    if rung not in short_names_mod.ROWS:
+        return None
+    if rung == "problem.importance":
+        label = founder_list(entry, rung)["items"][0]["label"]
+    else:
+        label = (entry.tested(rung) or {}).get("label")
+    return row_short_names(entry, rung).get(label) if label else None
+
+
+def smaller_short_name(entry) -> str | None:
+    """Spec 129 (keel-cloud 200 FR-1): Commitment's smaller step's short name (`{smaller_name}`), or None."""
+    saved = entry.founder_list(COMMITMENT_KEY) or {}
+    items = saved.get("items") or []
+    label = items[1].get("label") if len(items) > 1 else None
+    return row_short_names(entry, COMMITMENT_KEY).get(label) if label else None
 
 
 def first_draft(entry, key: str) -> dict:
@@ -2068,6 +2163,12 @@ def asked_result(entry, key: str) -> dict:
     so code vouches for every face and no ASKED job runs; the entry is here so one would be answered."""
     saved = founder_list(entry, key)
     items = [{"index": i, "asked": item["asked"]} for i, item in enumerate(saved["items"]) if item.get("asked")]
+    # spec 129 (keel-cloud 200 FR-1): each faced row's hidden short name beside its face, where the writer names it
+    names = row_short_names(entry, key)
+    for out in items:
+        name = names.get(saved["items"][out["index"]].get("label"))
+        if name:
+            out["short_name"] = name
     if key == ADOPTION_KEY:
         # spec 130 (keel-cloud 198 FR-9, screen response contract 25): Adoption friction's own condition is `condition`
         # (155's `only_if` retired) -- written where the entry records one; an item without one meets K8 once, then is
@@ -2237,6 +2338,12 @@ def generate(entry) -> GeneratedScript:
                                    for vector, only in calibration_jobs(entry)]
     asked = [_completed(asked_result(entry, key)) for key in ("solution.compatibility", "solution.adoption_friction")
              if not entry.unsure(key)] if "SOLUTION" in vectors else []
+    # spec 129 (keel-cloud 200 FR-1): the founder's typed Importance rows are owed their short names by an ASKED job at
+    # the problem stage's Save -- the first ASKED job a walk runs, so its entry is first
+    importance = importance_asked_result(entry) if "PROBLEM" in vectors and not entry.unsure("problem.importance") \
+        else None
+    if importance:
+        asked = [_completed(importance)] + asked
     if asked:
         screens[ASKED_SCREEN] = asked
     for part, link in respondent_jobs(entry):
@@ -2996,7 +3103,11 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         fact = label("only_with_help") == "Partly" or spoken_mod.is_fact(tested.get("asked") or tested.get("label"),
                                                                           tested.get("label"))
         said = fact_said(tested.get("label")) if fact and code in ("only_with_help", "no") else None
-        if said:
+        if said and values.get("{short_name}"):
+            # keel-cloud 200 FR-3 (spec 129): the fact said back by its short name -- *You said no to getting your
+            # phone online. What got in the way?*
+            values[WHOLE_TEXT] = short_name_said_back(code, label(code), values["{short_name}"])
+        elif said:
             values[WHOLE_TEXT] = fact_said_back(code, label(code), said)
         # keel-cloud 129 FR-6: a have-fact answered No is said back as the fact (Karsa's bank account)
         if code == "no" and fact:
@@ -3042,12 +3153,21 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
             values[WHOLE_TEXT] = f"What would take the time in buying {fake.named(name)}?" if codes[0] == "yes_long" \
                 else f"What would slow down buying {fake.named(name)}, if anything?"
     whole = values.pop(WHOLE_TEXT, None)
-    # keel-cloud 154 FR-1: the spoken line is filled too -- the project's words, as the clip says them
+    # keel-cloud 154 FR-1: the spoken line is filled too -- the project's words, as the clip says them (since keel-cloud
+    # 200 the named one where the row carries its short name)
     filled = fake.spoken_filled(rung, values, also=also)
-    text = whole if whole is not None else fake.fill(rung, values, also=also)
+    # keel-cloud 200 FR-3 (spec 129): where the row the stem refers back to carries its hidden short name, the named
+    # wording -- on Importance by the count of the stranger's picks; today's wording otherwise (the fallback)
+    named = fake.named_of(rung, values, also=also)
+    if whole is not None:
+        text = whole
+    elif named:
+        text = fake.fill_wording(fake.named_text(named, fake.picks_counted(rung, codes)), values)
+    else:
+        text = fake.fill(rung, values, also=also)
     # keel-cloud 129 FR-3: Current solution's and Relative advantage's text is their spoken line (the filled text pasted
     # the pick or the benefit labels); a text composed whole keeps its words
-    if whole is None and not also and rung in SAID_AS_SPOKEN:
+    if whole is None and not also and rung in SAID_AS_SPOKEN and not named:
         text = filled
     would_not_pay = rung == "commercial.price" and codes[:1] == [fake.WOULD_NOT_PAY] and not also
     if would_not_pay:
@@ -3060,6 +3180,20 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         and fake.FILL_DEFAULTS["{condition}"] not in text
     spoken = text if whole is not None or would_not_pay or said_back else filled
     return {"dimension": rung, "text": text, "spoken": spoken, "also": also}
+
+
+def short_name_said_back(code: str | None, pick: str | None, name: str) -> str:
+    """keel-cloud 200 FR-3 (`FollowUpComposer.values`, Compatibility's fact): the fact said back by its short name --
+    *You said no to {name}.*, *You said only partly to {name}.* (Partly, or no label), *You said {pick} to {name}.* --
+    then *What got in the way?*."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    if code != "only_with_help":
+        lead = "You said no to "
+    elif pick in (None, "Partly"):
+        lead = "You said only partly to "
+    else:
+        lead = f"You said {fake.lower(pick)} to "
+    return f"{lead}{name}. What got in the way?"
 
 
 def _typed_idea_name(entry) -> str | None:
@@ -3100,7 +3234,20 @@ def lock_values(entry, interview: dict | None, rung: str, founder_item: str | No
         values["{step}"] = gerund(fake.lower(step.strip())) if step and step.strip() else None
         smaller = smaller_step(entry)
         values["{smaller_step}"] = the_step(smaller) if smaller else None
+        values["{smaller_name}"] = smaller_short_name(entry)
+    # spec 129 (keel-cloud 200 FR-3): the hidden short name of the row the rung refers back to, where the script wrote
+    # one (a golden walk); None reads today's wording
+    values["{short_name}"] = tested_short_name(entry, rung)
     return values
+
+
+def named_said(entry, interview: dict | None, rung: str, said: str | None, *, also: bool = False) -> bool:
+    """Spec 129 (keel-cloud 200 FR-3): whether a served follow-up (`said`, its text or its spoken line) is one of the
+    stem's named wordings, whatever short name the model wrote -- a back-test runs on the model, whose hidden names the
+    walk never sees, so a named wording there is the product's, never a finding."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    pattern = fake.named_pattern(rung, lock_values(entry, interview, rung), also=bool(also))
+    return bool(pattern and said and pattern.match(" ".join(str(said).split())))
 
 
 def follow_up_clip(entry, interview: dict | None, rung: str, *, also: bool = False) -> str:

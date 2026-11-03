@@ -181,8 +181,10 @@ def test_the_scripted_asked_result_writes_condition_and_never_only_if():
                               {"code": "b", "label": "Keep a phone", "asked": "keep a phone near the door"}]}
 
     out = vs.asked_result(Entry(), "solution.adoption_friction")
-    assert out["items"][0] == {"index": 0, "asked": "scan each delivery", "condition": "it works offline"}
-    assert out["items"][1] == {"index": 1, "asked": "keep a phone near the door"}
+    # spec 129 (keel-cloud 200 FR-1): a faced row also carries its hidden short name where the scripted writer names it
+    assert out["items"][0] == {"index": 0, "asked": "scan each delivery", "condition": "it works offline",
+                               "short_name": "scanning each delivery"}
+    assert out["items"][1] == {"index": 1, "asked": "keep a phone near the door", "short_name": "keeping a phone"}
     assert all("only_if" not in i for i in out["items"])
     assert "condition" not in vs.asked_result(Entry(), "solution.compatibility")["items"][0]
 

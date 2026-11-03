@@ -1,5 +1,5 @@
 """Spec 109: after everyone has answered, the walk shoots the stage page, each dimension card and the Insights screen,
-and the founder-reader judges them on §B (RUBRIC_VERSION 3) -- with no model, no stack and no network.
+and the founder-reader judges them on §B (RUBRIC_VERSION 3, 4 since spec 129) -- with no model, no stack and no network.
 
 The walk is held against `FakePage`, a stand-in for the founder's page that answers the back-test camera's reads
 (`STAGE_JS`, `CARD_JS`, `INSIGHTS_JS`, `FOLD_JS`) and the leg's clicks as keel-web's stage page and Insights tab
@@ -261,8 +261,9 @@ def test_the_markdown_lists_the_screens_after_the_answers():
 # ------------------------------------------------------------------------------------ FR-2 the rubric, version 3
 
 def test_the_rubric_is_at_version_3_and_says_what_changed_and_why():
-    assert rubric.RUBRIC_VERSION == 3 == rubric.file_version()
-    assert 2 not in rubric.RETIRED, "version 2 is set aside, never refused (cycles 1-3 stay of record)"
+    # spec 129: the rubric is at 4 now (the follow-up's reference back); version 3's account stands under *Versions*
+    assert rubric.RUBRIC_VERSION == 4 == rubric.file_version()
+    assert 2 not in rubric.RETIRED and 3 not in rubric.RETIRED, "versions 2 and 3 are set aside, never refused"
     three = rubric.rubric_text().split("## Versions", 1)[1].split("- **2**", 1)[0]
     assert "- **3** (spec 109" in three and "§B, after the answers" in three
     assert "never compared and never refused" in three and "cycle 4 is the first at 3" in three
@@ -425,7 +426,7 @@ def test_a_run_scores_the_after_screens_on_section_b_and_folds_them_into_the_fou
     w = wired_after
     assert readers.run(["--run", str(w.bundle), "--out", str(w.out), "--scores-dir", str(w.scores)]) == 0
     path = next(w.scores.glob("99-fixture/*.json"))
-    assert re.fullmatch(r"\d{8}-PROBLEM-r3-abcdef1-v13-claude-opus-5-5\.json", path.name)
+    assert re.fullmatch(r"\d{8}-PROBLEM-r4-abcdef1-v13-claude-opus-5-5\.json", path.name)
     obj = rubric.load_file(path)
     after = [s for s in obj["screens"] if rubric.is_after(s["kind"])]
     assert [(s["kind"], s["dimension"]) for s in after] == [("stage", None), ("dimension", "problem.prevalence"),
@@ -452,7 +453,7 @@ def test_a_bundle_walked_before_109_says_so_and_is_not_penalised(wired_after):
 
 
 def test_a_version_3_file_with_a_section_b_screen_out_of_shape_is_refused():
-    obj = json.loads(next((REPO / "tests" / "fixtures" / "quality" / "scores").glob("aa-alpha/*-r3-*.json")).read_text())
+    obj = json.loads(next((REPO / "tests" / "fixtures" / "quality" / "scores").glob("aa-alpha/*-r4-*.json")).read_text())
     meta = {"n": 1, "screen": "insights", "audience": "founder", "link": None, "dimension": None,
             "kind": "insights-screen"}
     good = rubric.screen_score(meta, rubric.parse_after(json.dumps(B_INSIGHTS), kind="insights-screen"))
@@ -480,7 +481,7 @@ def _scores(tmp_path, b_alpha: dict, b_beta: dict) -> Path:
     root = tmp_path / "scores"
     fx = REPO / "tests" / "fixtures" / "quality" / "scores"
     for entry, b in (("aa-alpha", b_alpha), ("bb-beta", b_beta)):
-        src = sorted(fx.glob(f"{entry}/*-r3-*.json"))[-1]
+        src = sorted(fx.glob(f"{entry}/*-r4-*.json"))[-1]
         (root / entry).mkdir(parents=True)
         (root / entry / src.name).write_text(json.dumps(_with_after(src, entry, b)))
     return root
@@ -548,12 +549,12 @@ def test_the_cycle_scores_the_three_kinds_and_a_decision_may_name_them():
 def test_a_previous_cycle_at_another_rubric_version_is_named_and_never_compared(tmp_path):
     from tests import test_quality_cycle_079 as c079                # noqa: PLC0415
     shutil.copy(c079.EARLIER, tmp_path / c079.EARLIER.name)
-    old = (tmp_path / c079.EARLIER.name).read_text(encoding="utf-8").replace('"rubric_version": 3', '"rubric_version": 2')
+    old = (tmp_path / c079.EARLIER.name).read_text(encoding="utf-8").replace('"rubric_version": 4', '"rubric_version": 2')
     (tmp_path / c079.EARLIER.name).write_text(old, encoding="utf-8")
     _, data = c079.compose_the_fixture(cycles_dir=tmp_path)
     prev = data["previous"]
     assert prev["record"] == "20261025-0000aaa" and prev["studies"] == {} and prev["verdict"] == "not compared"
-    assert "rubric version 2 and this one at 3" in prev["why"]
+    assert "rubric version 2 and this one at 4" in prev["why"]
 
 
 # ------------------------------------------------------------------------------------------------- FR-4 the cost

@@ -118,8 +118,11 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     assert mechanism["idea_belief"].startswith(vs.BELIEF_FRAME)
     assert 3 <= len(mechanism["mechanism_terms"]) <= 8
     asked = [e["result"] for e in screens[vs.ASKED_SCREEN]]
-    assert asked == [vs.asked_result(entry, "solution.compatibility"),
-                     vs.asked_result(entry, "solution.adoption_friction")]
+    # spec 129 (keel-cloud 200 FR-1): where the founder types Importance rows of his own (01-countly) and the writer
+    # names them, the problem stage's face-less ASKED job comes first
+    importance = vs.importance_asked_result(entry)
+    assert asked == ([importance] if importance else []) + [vs.asked_result(entry, "solution.compatibility"),
+                                                             vs.asked_result(entry, "solution.adoption_friction")]
 
 
 def test_the_lock_starts_one_job_on_either_persona_and_part_three_stays_the_decision_makers():

@@ -207,10 +207,12 @@ def test_paidlys_owed_relative_advantage_follow_up_reads_as_the_route_serves_it(
     owed = vs.follow_up_question(paidly, [vs.Pick(dimension="solution.relative_advantage", codes=["no_difference"])],
                                  vs.LINK_PRIMARY, interview, "tok")
     assert owed["dimension"] == "solution.relative_advantage"
-    # spec 089 FR-4 (keel-cloud 159 T011): the rung on the scale's last two, Paidly's occasion said
+    # spec 089 FR-4 (keel-cloud 159 T011): the rung on the scale's last two, Paidly's occasion said. Re-pinned by spec
+    # 129 (keel-cloud 200 FR-3): the job's hidden short name in the job's place, as the scripted writer names it
+    assert vs.list_short_name(paidly, "solution.relative_advantage") == "getting paid for finished work"
     assert owed["text"] == owed["spoken"] == ("You said invoice payout service wouldn't make much difference on your "
-                                              "last invoice. What would make getting paid for finished work in time to "
-                                              "cover the month better for you, if anything?")
+                                              "last invoice. What would make getting paid for finished work better "
+                                              "for you, if anything?")
     worse = vs.follow_up_question(paidly, [vs.Pick(dimension="solution.relative_advantage", codes=["worse"])],
                                   vs.LINK_PRIMARY, dict(interview, reveal={"what": "Imagine Paidly."}), "tok")
     assert worse["text"] == worse["spoken"] == "You said Paidly would have made things worse. What would have helped instead?"

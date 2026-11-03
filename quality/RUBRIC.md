@@ -1,12 +1,13 @@
 # The question-quality rubric
 
-**RUBRIC_VERSION 3** (spec 109, 2026-10-31; version 2 was spec 081's, version 1 spec 078's). The design of record is
+**RUBRIC_VERSION 4** (spec 129, 2026-11-03; version 3 was spec 109's, version 2 spec 081's, version 1 spec 078's). The design of record is
 keel-cloud-docs `canon/designs/question-quality-rubric-2026-10-28.md` §3 as amended 2026-10-28 (the criteria and their
 anchors: R2 plain to *this* person, R6 said aloud) and §4 (the weak rule), and spec 109 for §B (the screens after the
 answers); this file is the one source of the criteria -- `quality/rubric.py` pastes the part between the two `prompt`
 markers below into both readers' prompts, the part between the two `prompt-r6` markers into the respondent-reader's
-alone, and the part between the two `prompt-b` markers into the founder-reader's prompts for the screens after the
-answers, so a reader can never be scoring a different rubric from the one written here.
+alone, the part between the two `prompt-b` markers into the founder-reader's prompts for the screens after the
+answers, and the part between the two `prompt-f` markers into the respondent-reader's prompt on a follow-up screen
+alone, so a reader can never be scoring a different rubric from the one written here.
 
 **A change to a criterion, an anchor, the booleans, the weak rule or `score_pct` bumps `RUBRIC_VERSION`** (in
 `quality/rubric.py`), and this file says under *Versions* what changed and why -- the pattern of `MARKS_VERSION`.
@@ -56,6 +57,16 @@ R6 is scored on every screen of this link, the cards to read and the boxes to ty
 too). It is your judgement of how it sounds; the code's own `spoken_form` mark (a word cap and three transforms) is a
 different check.
 <!-- prompt-r6:end -->
+
+## The follow-up's reference back (the respondent-reader, a follow-up screen alone)
+
+keel-cloud 200 (the founder, 2026-11-02: *"when we shorten it, we have to ensure that it fits with what the persona
+would say"*): a follow-up refers back to a row of the founder's by a hidden short name in the people's words. On a
+follow-up screen (*One more thing*) the respondent-reader's R2 reads one more thing, and on no other screen:
+
+<!-- prompt-f:begin -->
+On this follow-up, R2 also reads the reference back to what you picked or said: said as you would say it is a 2; the founder's long row pasted in, or a bare *it* you have to work out, is a 1 at most.
+<!-- prompt-f:end -->
 
 ## §G The Insights grouping (the respondent-reader, once per follow-up line)
 
@@ -169,6 +180,15 @@ insights row; B1-B6 on a §B row), and one verdict line --
 
 ## Versions
 
+- **4** (spec 129, 2026-11-03; keel-cloud 200, the founder 2026-11-02: *"when we shorten it, we have to ensure that it
+  fits with what the persona would say"*):
+  - **R2 on a follow-up screen reads the reference back**: one line (the `prompt-f` part) handed to the
+    respondent-reader on a follow-up screen alone -- the row the follow-up refers back to said as the person would say
+    it is a 2; the founder's long row pasted in, or a bare *it*, a 1 at most. Every other screen, criterion, anchor,
+    boolean, the weak rule and `score_pct` are unmoved. Why: keel-cloud 200 says a hidden short name in the row's place,
+    and the ruler must read whether it sounds like the person (R2 and R6 on the follow-up screens against cycle 7's).
+  - **Version-3 files are set aside, never compared and never refused**, as version 2's were at 3: cycles 4 to 8 stay
+    of record; the next walk of the fourteen is the first at 4. Nothing is re-scored.
 - **3** (spec 109, 2026-10-31; the founder, 2026-10-30: *"till now we have only been judging the respondent and the
   founder screens ... we have not been judging the problem and solution screens ... After everyone has answered, go
   back to the problem screen and the insight screen, per project, and ask: does it make sense?"*):

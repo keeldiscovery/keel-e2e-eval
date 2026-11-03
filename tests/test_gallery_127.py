@@ -40,6 +40,9 @@ def real_score(scores: Path, run: Path, pct: float, *, zero: tuple[int, str] | N
     obj = json.loads(REAL.read_text(encoding="utf-8"))
     record = json.loads((run / "backtest.json").read_text(encoding="utf-8"))
     obj.update(entry=record["entry"]["id"], scope=record["scope"], bundle=run.name, scored_at=scored_at)
+    # spec 129: the real file's shape at the current rubric version (cycle 7's file is version 3's; RUBRIC_VERSION 4
+    # moved no key of a score file)
+    obj["rubric_version"] = rubric.RUBRIC_VERSION
     if zero:
         screen = next(s for s in obj["screens"] if s["n"] == zero[0] and s["audience"] == "founder")
         screen[zero[1]] = 0
@@ -275,10 +278,12 @@ def test_accept_hands_the_committed_line_to_the_gallery():
 
 # ------------------------------------------------------------------------------- cycle 7, on its own score files
 
-def test_cycle_7_admits_expanse_alone_on_its_committed_score_files(tmp_path):
+def test_cycle_7_admits_expanse_alone_on_its_committed_score_files(tmp_path, monkeypatch):
     """The acceptance's expectation on cycle 7's five entries (`quality/cycles/20261102-7021fd5.md`, the score files
     under `quality/scores/`, read only): Expanse 86.9 accepted; Fresco 83.9, AirCaps 83.3, Palus 83.0, Codyco 83.9
-    refused. The bundles are stand-ins named as the record names them (the gate reads their entry, scope and name)."""
+    refused. The bundles are stand-ins named as the record names them (the gate reads their entry, scope and name).
+    Spec 129: cycle 7's files are read at their own version (3), as spec 109 read cycles 1 and 2 at theirs."""
+    monkeypatch.setattr(rubric, "RUBRIC_VERSION", 3)
     record = cycle.load_record(CYCLE7)
     runs = []
     for s in record["studies"]:

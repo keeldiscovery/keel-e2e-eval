@@ -34,6 +34,11 @@ stage page and each dimension card on B1-B5 and the Insights screen on B1, B3, B
 derives `out_of_place` = B1 is 0 and `looks_stupid` = B2 or B5 is 0. A version-2 file is set aside by the table and the
 cycle, never refused (cycles 1-3 stay of record) and never compared with a version-3 one.
 
+**Version 4** (spec 129; keel-cloud 200, the founder 2026-11-02): **the follow-up's reference back** -- the
+respondent-reader's R2 on a follow-up screen alone also reads whether the row the follow-up refers back to is said as
+the person would say it (`prompt_follow_up()`, RUBRIC.md's `prompt-f` part, one line). A version-3 file is set aside, as
+a version-2 one was at 3 (cycles 4-8 stay of record), never compared with a version-4 one.
+
 **The score as one number** (the coordinator's decision 2): `score_pct` = the sum of every r1..r6 and b1..b6 given over
 2 x their count x 100 (a `None` R4, R6, B2 or B6 is in neither); `spoken_pct` = the same over R6 alone, beside it (spec
 081 FR-4); `after_pct` the same over B alone (spec 109); `flagged_pct` = the screens with any 0 over the screens x 100.
@@ -45,7 +50,7 @@ import json
 import re
 from pathlib import Path
 
-RUBRIC_VERSION = 3
+RUBRIC_VERSION = 4
 
 #: The rubric versions a score file is refused at, by name (spec 081 FR-1) -- never set aside, never read.
 RETIRED = {1: "before spec 081: R2 judged against the general public, no R6 said aloud, no persona block"}
@@ -141,6 +146,20 @@ def prompt_spoken(text: str | None = None) -> str:
     if text.count(_R6_BEGIN) != 1 or text.count(_R6_END) != 1 or text.index(_R6_BEGIN) > text.index(_R6_END):
         raise RubricError("RUBRIC.md must carry one `prompt-r6:begin` marker and one `prompt-r6:end` marker after it")
     return text.split(_R6_BEGIN, 1)[1].split(_R6_END, 1)[0].strip()
+
+
+def prompt_follow_up(text: str | None = None) -> str:
+    """Version 4 (spec 129, keel-cloud 200): the one line the respondent-reader is sent on a follow-up screen alone --
+    everything between the `prompt-f` markers."""
+    text = text if text is not None else rubric_text()
+    begin, end = "<!-- prompt-f:begin -->", "<!-- prompt-f:end -->"
+    if text.count(begin) != 1 or text.count(end) != 1 or text.index(begin) > text.index(end):
+        raise RubricError("RUBRIC.md must carry one `prompt-f:begin` marker and one `prompt-f:end` marker after it")
+    return text.split(begin, 1)[1].split(end, 1)[0].strip()
+
+
+#: The screen kind the `prompt-f` line is handed on (spec 129): the respondent's follow-up (*One more thing*).
+FOLLOW_UP_KIND = "follow_up"
 
 
 def prompt_insights(text: str | None = None) -> str:

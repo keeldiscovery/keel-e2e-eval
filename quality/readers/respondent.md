@@ -5,7 +5,8 @@ The prompt the respondent-reader is sent, once per served respondent screen and 
 081 FR-3) -- the person the back-test walked on that link (the first the entry names for it), their line from the
 entry's `.sources.md`, their role, and the project's what / where / when as the entry's context fields say it (actor,
 actor_plural, job, circumstance, segment, window, the market's country); the score file records it once in its header
--- `{{rubric}}` is `quality/RUBRIC.md` between its `prompt` markers, `{{rubric_r6}}` the same file between its
+-- `{{rubric}}` is `quality/RUBRIC.md` between its `prompt` markers (on a follow-up screen alone, its `prompt-f` line
+after them: spec 129, RUBRIC_VERSION 4), `{{rubric_r6}}` the same file between its
 `prompt-r6` markers (R6, said aloud: this reader's alone), `{{spoken_rules}}` keel-cloud's
 `canon/designs/spoken-questions-guidelines.md` §2, §3 and §5 pasted whole by the runner, and its dated amendments §16,
 §17 and §18 where the guidelines read carry them (spec 118: the two steps of Price and of Purchase friction's six, the

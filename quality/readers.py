@@ -924,7 +924,11 @@ def plan(bundle: dict, entry: dict, *, only: str | None = None, limit: int | Non
     for link, screen in chosen:
         screens = links[link]
         earlier = "\n".join(s.compact for s in screens if s.n < screen.n) or "(none: this is the first screen)"
-        jobs.append((screen, fill(respondent_t, {"persona": blocks[link], "rubric": rubric_part,
+        # spec 129 (RUBRIC_VERSION 4, keel-cloud 200): on a follow-up screen alone, R2's one more line -- the reference
+        # back said as the person would say it
+        part = rubric_part + "\n\n" + rubric.prompt_follow_up() if screen.kind == rubric.FOLLOW_UP_KIND \
+            else rubric_part
+        jobs.append((screen, fill(respondent_t, {"persona": blocks[link], "rubric": part,
                                                  "rubric_r6": rubric_r6, "spoken_rules": guidelines["text"],
                                                  "earlier": earlier, "screen": screen.full})))
     if not (only or limit):

@@ -1881,7 +1881,12 @@ LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-
               "L26": "a Compatibility condition the segment already settles (keel-cloud 199 FR-8)",
               "L27": "a term the founder typed that no drafted Commitment row keeps (keel-cloud 199 FR-5)",
               "L28": "an Adoption friction row said to *you* (keel-cloud 199 FR-9)",
-              "W11": "an offer named as a person or a bare verb of relief (keel-cloud 199 FR-3, FR-11)"}
+              "W11": "an offer named as a person or a bare verb of relief (keel-cloud 199 FR-3, FR-11)",
+              # spec 129 (keel-cloud 200 FR-4): the hidden short name a follow-up says in the row's place, held by code
+              # (2-5 words, no pronoun, no product or claim word, not the idea's name or the row, the people's words)
+              "L29": "a row's hidden short name refused on the founder-lists draft (keel-cloud 200 FR-4)",
+              "K9": "a row's hidden short name refused, or missing on a face-less row, on the asked job (keel-cloud 200 "
+                    "FR-4)"}
 _NOTE = re.compile(r"\b(" + "|".join(LOCK_NOTES) + r"): ([^\n]{1,400})")
 
 

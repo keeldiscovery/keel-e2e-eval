@@ -188,8 +188,11 @@ def test_the_problem_study_s_expected_walk(countly):
     no mechanism and no faces; each manager asked part 1 alone and never the pilot; the gate counted."""
     seed = sj.problem_entry(countly)
     script = vs.generate(seed).screens
+    # spec 129 (keel-cloud 200 FR-1): the founder's typed Importance rows are owed their short names -- one ASKED job,
+    # the problem's own, face-less (no faces: no solution list is drafted)
     assert set(script) == {"CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "CALIBRATION_QUESTIONS", "RESPONDENT_QUESTIONS",
-                           "INTERPRET", "THEMES"}
+                           "INTERPRET", "THEMES", "ASKED"}
+    assert [e["result"] for e in script["ASKED"]] == [vs.importance_asked_result(seed)]
     assert [r["result"]["vector"] for r in script["CALIBRATION_QUESTIONS"]] == ["PROBLEM"] * 3
     (questions,) = script["RESPONDENT_QUESTIONS"]
     assert [i["key"] for i in questions["result"]["items"]] == vs.plan_keys(countly, 1, vs.LINK_PRIMARY)

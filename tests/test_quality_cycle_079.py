@@ -6,7 +6,7 @@ The fixtures (`tests/fixtures/quality/cycle/`):
 - `scores/` -- four score files over two entries: 08-fresco PROBLEM of 25 October (every screen 2: the earlier cycle and
   the baseline), and of 1 November 08-fresco PROBLEM (the stranger's Importance item turns weak on R2 -- a flagged
   screen, 88.2% under the bar; 86.7% before spec 081 gave every respondent screen an R6 of 2), 08-fresco SOLUTION and
-  09-karsa COMMERCIAL (100%); all at rubric version 3 (spec 109; were 2);
+  09-karsa COMMERCIAL (100%); all at rubric version 4 (spec 129; were 3, spec 109; 2 before);
 - `BASELINE.md` -- cut from the 25 October file; `cycles/20261025-0000aaa.md` and `cycles/20261101-abcdef1.md` -- two
   records `compose` wrote, the second naming a fourth study (08-fresco COMMERCIAL) walked and never read;
 - `keel-cloud/` -- a registry with two rows, `respondent-questions.md` with named sections, three entry ids.
@@ -43,7 +43,7 @@ WEAK_ROW = "PROBLEM · respondent · problem.importance · item"
 
 
 def _score(entry: str, day: str, scope: str, sha: str = "abcdef1") -> str:
-    return f"{SCORES_REL}/{entry}/{day}-{scope}-r3-{sha}-v13-claude-opus-5-5.json"
+    return f"{SCORES_REL}/{entry}/{day}-{scope}-r4-{sha}-v13-claude-opus-5-5.json"
 
 
 def studies_of_the_fixture() -> list[cycle.Study]:
@@ -319,7 +319,7 @@ def test_the_record_is_composed_from_the_score_files_the_baseline_and_the_previo
     assert data["against_baseline"]["verdict"] == "worse" and data["against_baseline"]["moved"] == [WEAK_ROW]
     assert data["previous"]["record"] == "20261025-0000aaa" and data["previous"]["verdict"] == "worse"
     assert data["previous"]["studies"] == {"08-fresco · PROBLEM": {"then": 100.0, "now": 88.2, "delta": -11.8}}
-    assert data["weak_rows"] == [WEAK_ROW] and data["bar_pct"] == 90.0 and data["rubric_version"] == 3
+    assert data["weak_rows"] == [WEAK_ROW] and data["bar_pct"] == 90.0 and data["rubric_version"] == 4
     assert data["cost"] == {"walk_usd": 1.84, "read_usd": 1.1, "total_usd": 2.94}
     assert "make read-screens exited 2" in text and "make quality-advise CYCLE=quality/cycles/20261101-abcdef1.md" in text
     assert "make quality-accept CYCLE=quality/cycles/20261101-abcdef1.md" in text
@@ -551,7 +551,7 @@ def test_accept_cuts_the_baseline_refuses_the_failing_bundles_by_name_and_builds
     # longer refuses; spec 106: no bar)
     assert "20261101T100000Z-backtest-08-fresco (08-fresco · PROBLEM)" not in said
     assert ("gallery: refused 20261101T130000Z-backtest-08-fresco (08-fresco · COMMERCIAL): no score file at rubric "
-            "version 3") in said
+            "version 4") in said
     assert "gallery: the gate: no accepted score yet: the first acceptance passes (score_pct 95.6%)" in said
     # spec 106 FR-1: neither entry has its three studies -- refused by name, nothing written
     assert ("gallery: refused 08-fresco: no money study (COMMERCIAL) -- an example is three studies (problem, solution, "
@@ -618,7 +618,7 @@ def test_make_gallery_with_scores_refuses_by_name_and_retires_the_scope_order(tm
     assert "no entry has its three studies" in captured.err and not (tmp_path / "out").exists()
     assert gallery.main(base + ["--bar", "95"]) == 1
     assert "gallery: refused 20261101T100000Z-backtest-08-fresco (08-fresco · PROBLEM): " \
-           "20261101-PROBLEM-r3-abcdef1-v13-claude-opus-5-5.json has score_pct 88.2% under the bar of 95%\n" \
+           "20261101-PROBLEM-r4-abcdef1-v13-claude-opus-5-5.json has score_pct 88.2% under the bar of 95%\n" \
         in capsys.readouterr().out
     for retired in (["--scope-order", "SOLUTION,PROBLEM,COMMERCIAL"], ["--keep-flagged"], ["--keep-under-bar"]):
         with pytest.raises(SystemExit):
