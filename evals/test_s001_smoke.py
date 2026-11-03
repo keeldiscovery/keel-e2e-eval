@@ -182,6 +182,16 @@ def test_s001_smoke(stack, founder_one, browser, run_dir):
                 f"the region box does not say it is optional: "
                 f"{market_step.region_placeholder()!r}")
 
+        # spec 129 (keel-web 162 FR-2): the step says what it asks, and the region box what a region is
+        from harness import vectors_screens as vs_screens
+        with recorder.step("§1.1: the market screen asks where the people who would buy this are, and the region "
+                            "box's hint says what a region is (keel-web 162 FR-2)", party="founder",
+                            kind="assert") as h:
+            said = {"question": " ".join(market_step.question().split()), "hint": market_step.region_hint()}
+            want = {"question": vs_screens.MARKET_QUESTION, "hint": vs_screens.MARKET_REGION_HINT}
+            h.record_assert(want, said)
+            assert said == want, said
+
         market_step.fill(founder.market.country, founder.market.region)
         with recorder.step("§1.1: the market screen says, in the founder's own words, what the "
                             "people they ask will see", party="founder", kind="assert") as h:

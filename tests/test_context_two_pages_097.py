@@ -79,8 +79,8 @@ function render() {
     body = `<div class="understands"><p class="understands__big">${S.big}</p><div class="actions cbtns">
       <button class="btn primary">Yes, that's it</button><button class="btn">Edit</button></div></div>`;
   } else if (win) {
-    body = `<section data-testid="context-window-page"><h1 class="ccard__title" id="context-window-label">How recent
-      should an episode be to count?</h1>${windowControls()}</section>`;
+    body = `<section data-testid="context-window-page"><h1 class="ccard__title" id="context-window-label">How far
+      back should restaurant managers look for the last time it happened?</h1>${windowControls()}</section>`;
     foot = `<button class="btn" data-testid="context-back">Back</button>
       <button class="btn primary" data-testid="context-save">Save and continue</button>`;
   } else {
@@ -160,7 +160,9 @@ def test_the_walker_fills_the_fields_continues_and_picks_the_window_on_its_own_p
     assert page["via"] == via
     assert page["drawn"] == {"count": "", "unit": "", "chips": ["7 nights", "7 days", "5 working days", "30 days"],
                              "pressed": [], "screen": "window", "counter": "2 of 2",
-                             "question": "How recent should an episode be to count?", "back": "Back"}
+                             # spec 129 (keel-web 162 FR-1): the first pass's question in the founder's people
+                             "question": "How far back should restaurant managers look for the last time it "
+                                         "happened?", "back": "Back"}
     assert (page["picked"]["count"], page["picked"]["unit"]) == (str(window["count"]), window["unit"])
     assert page["picked"]["pressed"] == (["7 nights"] if via == "chip" else [])
     assert cs.window_page_faults(page, window) == []
@@ -297,3 +299,33 @@ def test_the_walkers_words_are_keel_web_141s():
     assert "BEFORE_COUNTER = (n: number, of = 3): string => `${n} of ${of}`" in translate
     assert re.search(r"/\\/define\\/context\\/window\\/\?\$/", step), "the window page's URL test"
     assert re.fullmatch(vs_screens.CONTEXT_WINDOW_PATH.replace("/?$", "/?"), "/define/context/window")
+
+
+def test_the_window_page_asks_in_the_founders_circumstance_since_162():
+    """Spec 129 (keel-web 162 FR-1): 2 of 2's heading is *How far back should {actor_plural} look for {occasion
+    clause}?*; 141's *How recent should an episode be to count?* is a fault."""
+    window = {"count": 7, "unit": "NIGHTS"}
+    drawn = {"screen": "window", "counter": "2 of 2", "count": "", "unit": "", "pressed": [],
+             "question": vs_screens.recall_window_label("site superintendents", "the last time the day's site walks "
+                                                                                 "were done")}
+    page = {"drawn": drawn, "picked": {"count": "7", "unit": "NIGHTS"}}
+    assert cs.window_page_faults(page, window) == []
+    old = {**page, "drawn": {**drawn, "question": vs_screens.RECALL_WINDOW_QUESTION_141}}
+    assert cs.window_page_faults(old, window) == [{"question": vs_screens.RECALL_WINDOW_QUESTION_141,
+                                                   "want": "How far back should {actor_plural} look for "
+                                                           "{occasion clause}?"}]
+    assert vs_screens.recall_window_label(vs_screens.RECALL_WINDOW_PEOPLE, vs_screens.RECALL_WINDOW_LAST_TIME) == (
+        "How far back should people look for the last time it happened?")
+
+
+def test_the_market_step_says_162s_words():
+    """Spec 129 (keel-web 162 FR-2): the market question, the region placeholder with and without examples, the hint."""
+    assert vs_screens.MARKET_QUESTION == "Where are the people who would buy this?"
+    assert vs_screens.region_placeholder("Texas, California, New York") == (
+        "A state, a metro or any place — Texas, California, New York (optional)")
+    assert vs_screens.region_placeholder() == "A state, a metro or any place (optional)"
+    assert vs_screens.MARKET_REGION_HINT.endswith("Leave it empty for the whole country.")
+    import inspect                                                      # noqa: PLC0415
+    from evals import test_s001_smoke                                   # noqa: PLC0415
+    source = inspect.getsource(test_s001_smoke)
+    assert '"question": vs_screens.MARKET_QUESTION, "hint": vs_screens.MARKET_REGION_HINT' in source

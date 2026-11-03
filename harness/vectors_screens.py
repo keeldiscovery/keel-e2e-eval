@@ -71,6 +71,37 @@ CONTEXT_WINDOW_PAGE = "[data-testid=context-window-page]"
 CONTEXT_WINDOW_PATH = r"/define/context/window/?$"
 #: keel-web `RECALL_WINDOW_UNIT_PLACEHOLDER`: the unit pick's words until one is chosen.
 RECALL_UNIT_CHOOSE = "Choose"
+#: Spec 129 (keel-web 162 FR-1, `recallWindowLabel(people, clause)`): the window's question in the founder's
+#: circumstance -- *How far back should {actor_plural} look for {occasion clause}?* -- on 2 of 2's heading
+#: (`#context-window-label`) and the field under the card. The clause is the card's occasion stem said of the people,
+#: else its occasion noun with its article, else `RECALL_WINDOW_LAST_TIME` (on a first pass, before any read: 2 of 2 as
+#: the walk meets it); the people are spec 150's `peoplePlural`, `RECALL_WINDOW_PEOPLE` where no WHO is typed. It read
+#: `RECALL_WINDOW_QUESTION_141` until 162.
+RECALL_WINDOW_QUESTION_141 = "How recent should an episode be to count?"
+RECALL_WINDOW_LAST_TIME = "the last time it happened"
+RECALL_WINDOW_PEOPLE = "people"
+RECALL_WINDOW_QUESTION = re.compile(r"^How far back should (?P<people>\S.*?) look for (?P<clause>\S.*?)\?$")
+
+
+def recall_window_label(people: str, clause: str) -> str:
+    """keel-web 162 `recallWindowLabel`."""
+    return f"How far back should {people} look for {clause}?"
+
+
+#: Spec 129 (keel-web 162 FR-2): the market step's question (`.guided-step__question`, the country select's name too;
+#: was *Where will you sell this first?*), the region box's placeholder (`regionPlaceholder`: the country's examples
+#: where it has them) and the hint under it (`market-region-hint`, the box's `aria-describedby`; not drawn on *Another
+#: country*).
+MARKET_QUESTION = "Where are the people who would buy this?"
+MARKET_QUESTION_BEFORE_162 = "Where will you sell this first?"
+MARKET_REGION_HINT = "A state, a metro or any place inside the country. Leave it empty for the whole country."
+MARKET_REGION_HINT_TESTID = "market-region-hint"
+
+
+def region_placeholder(examples: str | None = None) -> str:
+    """keel-web 162 `regionPlaceholder`."""
+    return (f"A state, a metro or any place \u2014 {examples} (optional)" if examples
+            else "A state, a metro or any place (optional)")
 #: keel-web `CONTEXT_READING`, `CONTEXT_CONTINUE_LABEL` and `CARD_EDIT` (the card's and the confirmed state's *Edit*).
 CONTEXT_READING = "Keel is reading your four answers."
 CONTEXT_CONTINUE = "Continue to the problem"

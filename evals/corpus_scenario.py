@@ -559,7 +559,8 @@ def context_states_faults(states: list[dict], drawn: str) -> list:
 def window_page_faults(page: dict | None, window: dict) -> list:
     """Spec 097 FR-1 (keel-web 141 FR-1): 2 of 2 as the walk found it and left it -- *2 of 2*, its screen named
     `window`, nothing pre-filled (no chip pressed, the count blank, the unit unpicked), and after the pick the count and
-    the unit the entry's window. `[]` when it was so."""
+    the unit the entry's window; spec 129 (keel-web 162 FR-1): its heading asks *How far back should {actor_plural}
+    look for {occasion clause}?*. `[]` when it was so."""
     if not page:
         return [{"window page": None, "want": "2 of 2 drawn at define/context/window"}]
     drawn, picked = page.get("drawn") or {}, page.get("picked") or {}
@@ -571,6 +572,12 @@ def window_page_faults(page: dict | None, window: dict) -> list:
                        "want": "no chip pressed, the count blank, the unit unpicked"})
     if (picked.get("count"), picked.get("unit")) != (str(window["count"]), window["unit"]):
         faults.append({"picked": {k: picked.get(k) for k in ("count", "unit")}, "want": window})
+    # spec 129 (keel-web 162 FR-1): the heading asks in the founder's circumstance, *How far back should
+    # {actor_plural} look for {occasion clause}?* -- never 141's *How recent should an episode be to count?*
+    question = " ".join(str(drawn.get("question") or "").split())
+    if question and not vs_screens.RECALL_WINDOW_QUESTION.match(question):
+        faults.append({"question": question,
+                       "want": vs_screens.recall_window_label("{actor_plural}", "{occasion clause}")})
     return faults
 
 

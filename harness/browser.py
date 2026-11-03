@@ -2262,6 +2262,12 @@ class MarketStep:
     def region_placeholder(self) -> str:
         return self._region_input().get_attribute("placeholder") or ""
 
+    def region_hint(self) -> str:
+        """Spec 129 (keel-web 162 FR-2): the hint under the region box (`market-region-hint`), "" where none is drawn
+        (*Another country*, or a keel-web before 162)."""
+        hint = self.page.get_by_test_id("market-region-hint")
+        return " ".join(_safe_text(lambda: hint.first.inner_text()).split()) if hint.count() else ""
+
     def described_sentence(self, *, timeout_s: float = 10) -> str:
         """`Market.described`, off `GET /v2/markets/{country}` -- *"So the questions will be in
         American English, in dollars and cents, miles, feet and working days."* (`/v2/markets/US`,
