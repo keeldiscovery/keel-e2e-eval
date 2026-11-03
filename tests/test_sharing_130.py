@@ -115,9 +115,10 @@ def test_every_selector_is_drawn_by_keel_web():
 # ----------------------------------------------------------------------------- harness/sharing.py's rules
 
 def test_the_lines_are_composed_as_keel_web_composes_them():
-    assert sharing.share_summary(link_on=True, viewers=0, co_founders=0) == "link on"
-    assert sharing.share_summary(link_on=True, viewers=2, co_founders=1) == "link on · 2 can view · 1 works on it"
-    assert sharing.share_summary(link_on=False, viewers=0, co_founders=3) == "3 work on it"
+    # keel-web 163 amendment 2026-11-02 22:55 ET: the count of grants beside *Shared*, not a summary line
+    assert sharing.share_summary(link_on=True, viewers=0, co_founders=0) == "· 1"
+    assert sharing.share_summary(link_on=True, viewers=2, co_founders=1) == "· 4"
+    assert sharing.share_summary(link_on=False, viewers=0, co_founders=3) == "· 3"
     assert sharing.share_summary(link_on=False, viewers=0, co_founders=0) == ""
     assert sharing.shared_brand("Paidly", "Daphne", "United States") == "Paidly (shared by Daphne) · United States"
     assert sharing.shared_brand("Paidly", "Daphne", None) == "Paidly (shared by Daphne)"

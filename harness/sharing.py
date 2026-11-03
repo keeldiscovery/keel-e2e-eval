@@ -156,7 +156,7 @@ def person_fields_out(payload: Any) -> list[str]:
 # --------------------------------------------------------------------------------------------- the screens
 
 #: keel-web 163 *Owed elsewhere*: the selectors for eval 130.
-TESTIDS = ("share", "share-line", "share-sheet", "share-what-overview", "share-what-project", "share-next", "share-back",
+TESTIDS = ("share", "share-count", "tab-share", "share-sheet", "share-what-overview", "share-what-project", "share-next", "share-back",
            "share-done", "share-cancel", "share-close", "share-more", "share-link-switch", "share-link-url",
            "share-copy", "share-link-since", "share-address", "share-add", "share-refusal", "share-chip",
            "share-remove", "share-who-viewers", "share-who-coFounders", "nav-interviews-not-shared",
@@ -181,10 +181,11 @@ _TAB_WORDS = {"mine": "My projects", "sharedProjects": "Projects shared with me"
 
 
 def share_summary(*, link_on: bool, viewers: int, co_founders: int) -> str:
-    """keel-web 163 `shareSummary`: the one line under *Shared*, each part only when present."""
-    parts = (["link on"] if link_on else []) + ([f"{viewers} can view"] if viewers else []) + (
-        [f"{co_founders} {'works' if co_founders == 1 else 'work'} on it"] if co_founders else [])
-    return " · ".join(parts)
+    """keel-web 163 amendment 2026-11-02 22:55 ET (`shareCount`, `shareGrants`): beside *Shared* in the side nav and
+    the phone's tab, the count of grants -- the link counts one while on, each address one -- as *· N*; empty when
+    nothing is shared (the entry then reads *Share* with no count)."""
+    grants = (1 if link_on else 0) + viewers + co_founders
+    return f"· {grants}" if grants else ""
 
 
 def shared_brand(name: str, first: str, country: str | None) -> str:
@@ -238,8 +239,10 @@ class ShareSheet:
         self.page.get_by_test_id("share").first.wait_for(state="visible", timeout=30_000)
 
     def control(self) -> dict:
-        """The control as drawn: its word (*Share* / *Shared*) and the line under it."""
-        return {"label": _text(self.page.get_by_test_id("share")), "line": _text(self.page.get_by_test_id("share-line"))}
+        """The control as drawn (the side nav's entry): its word (*Share* / *Shared*) and the count beside it
+        (`share-count`, absent until something is shared)."""
+        count = self.page.get_by_test_id("share-count")
+        return {"label": _text(self.page.get_by_test_id("share")), "line": _text(count) if count.count() else ""}
 
     def _sheet(self, step: str):
         sheet = self.page.locator(f"[data-testid=share-sheet][data-step={step}]").first
