@@ -370,3 +370,47 @@ fix = "*"
 decision = "held"
 until = "never"
 why = "PARKED by the founder 2026-11-01 morning (improvement A, 'what to do next'): the stage pages' and dimension cards' So lines and headlines saying what the result means and what to do. Fourteen proposals a cycle land here; shown to him on the proposals page of 2026-11-02 and left parked. The COUNTING faults on the same screens (picks vs people, a bar stated two ways, '1 of 1' read as met, answered vs counted, a reversed claim) are DEFECTS and are fixed outside this hold. Reopened by his word: edit this entry."
+
+[[decision]]
+id = "D-2026-11-03-01"
+cycle = "20261103-09d0784"
+proposals = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 22, 23, 24, 25, 26, 27, 39, 40, 41, 42, 43, 44, 45]
+row = { scope = "*", audience = "founder", dimension = "*", screen = ["answer", "check", "choose", "q"] }
+fix = "*"
+decision = "taken"
+spec = ["keel-cloud 205"]
+until = "spec-merged"
+why = "DEFECTS (the founder, 2026-11-03: 'defects, feel free to fix it'): the founder's lists break the dimension cards' rules (R7 0 named per card). 11's price ladder stays parked; 14's hold-Save is a product gap shown to the founder, not taken here."
+
+[[decision]]
+id = "D-2026-11-03-02"
+cycle = "20261103-09d0784"
+proposals = [17, 18, 19, 29, 30, 31, 32, 48, 49, 50, 51]
+row = { scope = "*", audience = "respondent", dimension = "*", screen = ["item", "gate"] }
+fix = "*"
+decision = "taken"
+spec = ["keel-cloud 206"]
+until = "spec-merged"
+why = "DEFECTS: the strangers' items and the gate break the cards' rules (the gate asks the circumstance; frequency's event a standing state; compatibility's clause without a subject; commitment's step without its terms). Spoken-form line in the spec."
+
+[[decision]]
+id = "D-2026-11-03-03"
+cycle = "20261103-09d0784"
+proposals = [1, 2, 4, 16, 21, 33, 35, 37, 38, 47]
+row = { scope = "*", audience = "*", dimension = "-", screen = ["context", "idea", "problem-card", "solution-card", "reveal"] }
+fix = "*"
+decision = "taken"
+spec = ["keel-cloud 207"]
+until = "spec-merged"
+why = "DEFECTS: the shared writers drift from the founder's seed (R5) and the idea card / reveal run long by ear; 1's intro count is one keel-web string owed."
+
+[[decision]]
+id = "D-2026-11-03-04"
+cycle = "20261103-09d0784"
+proposals = [15, 28, 46]
+row = { scope = "*", audience = "respondent", dimension = "-", screen = "follow_up" }
+fix = "*"
+decision = "taken"
+spec = ["keel-cloud 208"]
+until = "spec-merged"
+why = "DEFECT of spec 200's intent: the follow-up reads the band label back ('$250 to under $599', '0.1% to under 0.25%') and the whole row, with an opening negative; code's words."
