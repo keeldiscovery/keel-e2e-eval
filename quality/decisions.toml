@@ -300,6 +300,7 @@ fix = "*"
 decision = "taken"
 spec = ["keel-cloud 197"]
 until = "spec-merged"
+merged = "e01baa5a"
 why = "DECIDED 2026-11-02 (the founder: 'I agree with 1 ... we should still keep the Name, what it does ... Codyco, An AI reservation agent for missed hotel calls'). Card fidelity: the problem card keeps the founder's numbers, lists and qualifiers; the solution card keeps the seed's holders, devices and launch scope and the belief its figures with comparator; the idea card's first line is always '{Name}, {what it is}', never the bare name. Confirmed on the fourteen by cycle 8 (proposals 1, 5, 7, 23, 24, 33, 51, 53, 54, 66)."
 
 [[decision]]
@@ -311,6 +312,7 @@ fix = "*"
 decision = "taken"
 spec = ["keel-cloud 198"]
 until = "spec-merged"
+merged = "45857fdd"
 why = "DECIDED 2026-11-02 (the founder: 'I agree with 2 aswell'). The strangers' options as a stranger would answer them: commitment gains Probably yes; price drops leaning words, bands around the founder's price, the spoken escape reworded; existing sacrifice names the concrete thing in the person's unit; buyer-payer Yes first with the approver named; ability to pay's sources of money; current solution and importance items on one act in the person's verbs; compatibility clauses whole; relative advantage on the occasion where the job was at stake; adoption friction with the stranger's own condition; the gate's event and the screener in the founder's meaning, spelled right. Spoken-form guidelines hold; the escape chips stay (D-2026-10-29-20). Cycle 8 added the purchase-friction item's frame (30) and the screener's qualifiers (67)."
 
 [[decision]]
@@ -322,6 +324,7 @@ fix = "*"
 decision = "taken"
 spec = ["keel-cloud 199"]
 until = "spec-merged"
+merged = "374dd712"
 why = "DECIDED 2026-11-02 (the founder: 'take it', after the fuller explanation). The founder's beliefs keep every role, benefit and term typed; no number or word of Keel's own (the purchase-friction time, commitment's 'now'); the Check rows measure the cost the founder named inside their circumstance, drop what the segment already settles and add the condition the pitch rests on; the money screens keep the founder's mode, numbers and payer. Cycle 8 added the frequency/prevalence/importance founder questions (39, 40, 44) and adoption friction's Choose (57)."
 
 [[decision]]
@@ -333,6 +336,7 @@ fix = "*"
 decision = "taken"
 spec = ["keel-cloud 200"]
 until = "spec-merged"
+merged = "c8657d39"
 why = "DECIDED 2026-11-02 (the founder: 'I like the idea of shortening the options ... I don't think we have to show it to the user ... when we shorten it, we have to ensure that it fits with what the persona would say'). Keel writes a short name per Check row in the persona's words, hidden from the founder, and the follow-up refers back with it, one wording for one pick and another for several, never a bare 'it'; the eval measures the fit. Per-person written follow-ups HELD."
 
 [[decision]]
@@ -354,6 +358,7 @@ fix = "*"
 decision = "taken"
 spec = ["keel-web 162"]
 until = "spec-merged"
+merged = "c5f52eac"
 why = "DECIDED 2026-11-02 (the founder: 'agree with 6'). The window screen asks in the founder's own circumstance and drops 'episode' (all fourteen founders stopped on it in cycle 8); the market picker asks where the buyers are and says what a region is and that empty means the whole country."
 
 [[decision]]
