@@ -19,3 +19,17 @@ owes. Builds on 129, 130, 131.
 - **FR-5 Pins.** Commitment's drift template and the two moved Answer questions (Purchase friction: *What must the
   buyer's own side clear before they pay?*; Commitment: *What's the first real step you'd want them to take, and where
   would any money go?*) wherever this harness pins them. `make unit` green.
+
+## Amended for keel-cloud 206 (master b177a4bd)
+
+- **FR-6 More rules by name.** `E9` (a gate clause of *could/would/should have* refused once, then noted), `K10` (a
+  compatibility clause with a bare verb after the auxiliary, or *had* before a possessive) and the draft-side `K8`
+  (an adoption friction item without its condition) are reported by name where L-rules are.
+- **FR-7 The fake writer's adoption friction rows** carry an `only_if` condition tied to the step's risk, so the
+  scripted founder does not spend a repair turn per item.
+- **FR-8 The walker types the Purchase friction time** from the corpus entry (the step's own time), never leaves the
+  box empty; where the corpus has none, it picks *I'm not sure*.
+- **FR-9 Pins.** The new Existing sacrifice stems (*what percent of …*, *go without*, *fell through*; never *miss*)
+  and Commitment's first label *Yes, I would* wherever pinned; the `vs_screens` mirror of the window label's third
+  clause (*the last time {circumstance}*, keel-web 166) and of Purchase friction's held Choose (`keeltest-waiting`, no
+  `.keeltest__b` before a time).
