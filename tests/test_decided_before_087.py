@@ -337,7 +337,7 @@ def test_the_advice_page_lists_the_snoozed_rows_at_its_end_and_counts_only_the_a
 def test_a_proposal_that_reopens_a_declined_decision_is_refused_naming_it(monkeypatch, tmp_path):
     declined = entry(id="D-7", fix="a third persona option", why="FIXTURE-DECLINED-WHY: leave it as it is.")
     answer = json.dumps({"new_text": "Add a third option.", "why": "y", "rung": "words", "persona_aware": True,
-                         "reopens": ["D-7"]})
+                         "fits_card": True, "reopens": ["D-7"]})                 # spec 131 FR-4: the row's card
     code, out, fake = _advise(monkeypatch, tmp_path, answer, write(tmp_path / "d.toml", declined))
     assert code == 0 and len(fake.seen) == 2
     text = out.read_text(encoding="utf-8")

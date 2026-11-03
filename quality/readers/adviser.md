@@ -9,7 +9,9 @@ read from the keel-cloud checkout stack.toml names: the registry row's `founder`
 `follow_up`), or the named section of the instruction file, or a line saying no model writes these words. `{{ladder}}`
 is the design's §5 ladder. `{{declined}}` (spec 087 FR-3) is what the founder has already said no to on this row:
 the declined decisions of `quality/decisions.toml` whose `row` matches it (a `*` row matches every row), each with
-its `why` in full. Nothing above the first marker is sent. A change to these words is a change to the adviser:
+its `why` in full. `{{card}}` (spec 131 FR-4) is the dimension card of the row it advises -- `quality/readers/dimensions.md`
+between that dimension's two markers, the same card the readers were sent -- or a line saying the row has none. Nothing
+above the first marker is sent. A change to these words is a change to the adviser:
 say why in the commit.
 
 **The adviser never proposes a special case** (spec 081 FR-6; keel-cloud-docs
@@ -24,6 +26,12 @@ and we decided not to go ahead should be recorded, so that it's kind of snoozed 
 `reopens`, the ids of the quoted decisions its edit goes against; `quality/cycle.py` refuses a proposal that names
 one (`reopened`) and records the refusal by row, naming the decision, as it refuses a special case. A weak row the
 founder has decided is never sent at all: it is listed under *Decided before*.
+
+**The adviser never contradicts the dimension's card** (spec 131 FR-4, extending spec 081 FR-6). It is handed the row's
+card and its answer carries `fits_card` -- whether the edit keeps the card's measure, shape, for / against balance and
+escape; `quality/cycle.py` refuses a proposal marked false as a special case and records the refusal by row, as it
+refuses a proposal that is not persona-aware: a fix that breaks the dimension's rules for one study is a special case
+too.
 
 The adviser **proposes and never applies** (spec 079 judgement call 1): its answer is written to
 `quality/cycles/<record>-advice.md`, the founder says which proposals to take, and a taken one becomes a keel-cloud
@@ -60,6 +68,10 @@ those screens, so that the row stops being weak.
 
 {{declined}}
 
+## The dimension's card (what its options must be, for every study)
+
+{{card}}
+
 ## The ladder (propose the lowest rung that will fix it)
 
 {{ladder}}
@@ -87,6 +99,16 @@ on. Say whether your edit is persona-aware in `persona_aware`: `true` when it ha
 that hold for every trade, `false` when it adds a condition on who the people are. A proposal with `false`, or with such
 a condition in its text, is refused and recorded as refused, not taken.
 
+## The fix keeps to the dimension's card
+
+The card above says what this dimension measures, the shape its options must have, which answers count for the belief
+and which against, and its escape -- for every study at once, held to keel-cloud's registry. Your edit must keep to it:
+no option off the card's one measure, no scale without the rung the card requires, no set of options where every answer
+counts one way, no escape the card forbids and none dropped that it requires. A point the card lists under *Open* is not
+a rule to enforce. Say whether your edit keeps to the card in `fits_card`: `true` when it does, `false` when it bends or
+breaks one of its rules. A proposal with `false` is refused as a special case and recorded as refused, not taken. When
+the row has no card, `fits_card` is `true`.
+
 ## What the founder has declined stays declined
 
 The decisions quoted under *What the founder has already said no to* were made by the founder, with his reasons. Your
@@ -99,5 +121,5 @@ is then recorded as refused, naming the decision, and the founder sees it. When 
 
 Reply with ONE JSON object and nothing else -- no prose before or after it, no code fence:
 
-{"new_text": "the whole new text for the location", "why": "three sentences: what fails, what the edit changes, why it will hold on the other entries", "rung": "words" | "effort" | "split", "persona_aware": true | false, "reopens": [] | ["<decision id>", ...]}
+{"new_text": "the whole new text for the location", "why": "three sentences: what fails, what the edit changes, why it will hold on the other entries", "rung": "words" | "effort" | "split", "persona_aware": true | false, "fits_card": true | false, "reopens": [] | ["<decision id>", ...]}
 <!-- advise:end -->

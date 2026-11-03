@@ -16,6 +16,8 @@
   text at that location** read from the keel-cloud checkout; the proposals go to `quality/cycles/<record>-advice.md`,
   **never applied**. A weak row the founder has already decided (`quality/decisions.toml`, spec 087) is snoozed:
   listed under *Decided before* with the decision's word and why, not sent; the adviser is told what he declined.
+  Spec 131 FR-4: the adviser is handed the row's dimension card (the readers' card), and a proposal it marks as
+  contradicting the card (`fits_card` false) is refused as a special case and recorded by row (081 FR-6's refusal).
 - **`accept`** -- `make quality-accept CYCLE=<record>` (free, FR-6): `quality/BASELINE.md` rewritten
   from that cycle's score files (the old one kept under `quality/baselines/<date>.md`), then the gallery built from
   that cycle's bundles behind the readers' gate (`evals/gallery.py --scores`, no bar), three studies per example, an
@@ -46,7 +48,7 @@ from pathlib import Path
 
 from harness import typist
 from quality import decisions as dec
-from quality import readers, rubric, table
+from quality import cards, readers, rubric, table
 
 REPO = Path(__file__).resolve().parent.parent
 QUALITY = REPO / "quality"
@@ -1024,13 +1026,26 @@ def adviser_prompt(row: dict, files: list[dict], *, cloud: Path, cfg: dict, sha:
         "current": f"{current['where']}:\n\n{current['text']}",
         "ladder": LADDER,
         "declined": dec.prompt_lines(declined or []),
+        "card": row_card(row) or NO_CARD,
     }
     return readers.fill(template or adviser_template(), values)
 
 
-def parse_advice(raw: str, *, declined_ids: tuple | list = ()) -> dict:
+#: Spec 131 FR-4: what the adviser is handed where its row tests no one dimension.
+NO_CARD = "(this row has no dimension card: its screens test no one dimension -- keep to the rules above)"
+
+
+def row_card(row: dict) -> str | None:
+    """Spec 131 FR-4: the dimension card of the row the adviser advises (the readers' card, `quality/cards.py`), or
+    None where the row has no dimension or the cards none for it."""
+    return cards.card_for(None if row.get("dimension") in (None, "-") else row["dimension"])
+
+
+def parse_advice(raw: str, *, declined_ids: tuple | list = (), has_card: bool = False) -> dict:
     """The adviser's answer. `reopens` (spec 087 FR-3) is the ids of the declined decisions the edit goes against:
-    required as a list when the prompt quoted any, else optional (an answer of 079's shape reads as reopening none)."""
+    required as a list when the prompt quoted any, else optional (an answer of 079's shape reads as reopening none).
+    `fits_card` (spec 131 FR-4) is whether the edit keeps to the row's dimension card: required as true or false when
+    the prompt handed one (`has_card`), else optional (true)."""
     body = rubric.extract_json(raw)
     rung = str(body.get("rung") or "").strip().lower()
     if rung not in RUNGS:
@@ -1046,8 +1061,14 @@ def parse_advice(raw: str, *, declined_ids: tuple | list = ()) -> dict:
         reopens = []
     if not isinstance(reopens, list) or not all(isinstance(i, str) for i in reopens):
         raise rubric.RubricError(f"reopens must be a list of decision ids (spec 087 FR-3); got {reopens!r}")
+    fits = body.get("fits_card")
+    if fits is None and not has_card:
+        fits = True
+    if not isinstance(fits, bool):
+        raise rubric.RubricError(f"fits_card must be true or false where the row's dimension card was handed (spec 131 "
+                                 f"FR-4); got {fits!r}")
     return {"new_text": str(body.get("new_text") or "").strip(), "why": why, "rung": rung, "persona_aware": aware,
-            "reopens": [i.strip() for i in reopens if i.strip()]}
+            "fits_card": fits, "reopens": [i.strip() for i in reopens if i.strip()]}
 
 
 #: Spec 081 FR-6 (design §5a): a proposal that adds a condition on an industry, a role, a country or a product -- *if
@@ -1064,9 +1085,13 @@ _CONDITION = re.compile(
 
 def special_case(proposal: dict) -> str | None:
     """Why a proposal is refused as a special case (spec 081 FR-6), or None: the adviser marked it not persona-aware,
-    or its text adds a condition on who the people are, their trade, their country or the product."""
+    or its text adds a condition on who the people are, their trade, their country or the product -- or (spec 131 FR-4)
+    the adviser marked it as contradicting the dimension's card it was handed."""
     if proposal.get("persona_aware") is not True:
         return "the adviser marked it persona_aware false: a special case, not the persona handed to the writer"
+    if proposal.get("fits_card") is False:
+        return ("the adviser marked it fits_card false: it contradicts the dimension's card (its measure, shape, "
+                "for / against or escape) -- a special case, never a rule for every study (spec 131 FR-4)")
     found = _CONDITION.search(proposal.get("new_text") or "")
     if found:
         return (f"its text adds a condition on who the people are ({found.group(0)!r}): a special case -- the fix is "
@@ -1221,12 +1246,13 @@ def advise(argv=None, *, runner=subprocess.run) -> int:
     for i, ((row, prompt), no) in enumerate(zip(prompts, declined), 1):
         current = current_text(row, cloud=cloud, cfg=cfg, sha=sha)
         entry = {"row": table.row_key(row), "weak_on": row["weak_on"], "fix": row["fix"], "where": current["where"],
-                 "current": current["text"]}
+                 "current": current["text"], "card": row["dimension"] if row_card(row) else None}
         said = reader.ask(f"advise-{i:02d}", prompt)
         try:
             if said["error"]:
                 raise rubric.RubricError(said["error"])
-            entry.update(parse_advice(said["answer"], declined_ids=[d["id"] for d in no]))
+            entry.update(parse_advice(said["answer"], declined_ids=[d["id"] for d in no],
+                                      has_card=row_card(row) is not None))
             refused = special_case(entry)
             if refused:
                 entry["refused"] = refused

@@ -330,7 +330,8 @@ def test_persona_aware_is_required_and_a_special_case_is_refused_whatever_the_fl
 
 def test_a_special_case_is_recorded_by_row_and_never_written_as_a_proposal(monkeypatch, tmp_path, capsys):
     answer = json.dumps({"new_text": "If the people are night porters, say the night desk; otherwise say the front "
-                                     "desk.", "why": "One. Two. Three.", "rung": "words", "persona_aware": True})
+                                     "desk.", "why": "One. Two. Three.", "rung": "words", "persona_aware": True,
+                         "fits_card": True})
     code, out, _ = _advise(monkeypatch, tmp_path, answer)
     assert code == 0 and "REFUSED: a special case" in capsys.readouterr().out
     text = out.read_text(encoding="utf-8")

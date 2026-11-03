@@ -317,3 +317,51 @@ def test_the_cycle_records_head_carries_r7_where_a_card_was_sent(tmp_path):
     text = cycle.render_record({**data, "head": {**data["head"], "fits": head["fits"]}})
     assert ("  - R7, fits the dimension (spec 131): fits_pct 50.0% over the screens sent a dimension card (founder "
             "50.0%, respondent –); 1 scored 0") in text
+
+
+# ------------------------------------------------------------------------------------- FR-4 the adviser's card
+
+def test_the_adviser_is_handed_the_rows_card_and_the_rule_to_keep_to_it():
+    from quality import cycle                                            # noqa: PLC0415
+    from tests import test_quality_cycle_079 as c079                    # noqa: PLC0415
+    files = cycle.cycle_files(cycle.load_record(c079.RECORD))
+    row = cycle.weak_rows(files)[0]
+    assert row["dimension"] == "problem.importance"
+    prompt = cycle.adviser_prompt(row, files, cloud=c079.CLOUD, cfg=cycle.load_config(), sha="abcdef1")
+    assert "## The dimension's card (what its options must be, for every study)" in prompt
+    assert cards.card("problem.importance") in prompt
+    assert all(cards.card(k) not in prompt for k in cards.keys() if k != "problem.importance")
+    assert "## The fix keeps to the dimension's card" in prompt and '"fits_card": true | false' in prompt
+    assert prompt.index("## The current text at that location") < prompt.index("## The dimension's card")
+    bare = cycle.adviser_prompt({**row, "dimension": "-"}, files, cloud=c079.CLOUD, cfg=cycle.load_config(),
+                                sha="abcdef1")
+    assert cycle.NO_CARD in bare and "**Registry:**" not in bare
+
+
+def test_a_proposal_that_contradicts_the_card_is_refused_as_a_special_case():
+    from quality import cycle                                            # noqa: PLC0415
+    base = {"new_text": "Five outcomes, each how it fell short.", "why": "w", "rung": "words", "persona_aware": True}
+    with pytest.raises(rubric.RubricError, match="fits_card"):
+        cycle.parse_advice(json.dumps(base), has_card=True)
+    assert cycle.parse_advice(json.dumps(base))["fits_card"] is True, "a row with no card: an answer without it reads"
+    kept = cycle.parse_advice(json.dumps({**base, "fits_card": True}), has_card=True)
+    assert cycle.special_case(kept) is None
+    broke = cycle.parse_advice(json.dumps({**base, "fits_card": False}), has_card=True)
+    assert "contradicts the dimension's card" in cycle.special_case(broke) and "spec 131 FR-4" in cycle.special_case(broke)
+    assert "persona_aware false" in cycle.special_case({**broke, "persona_aware": False}), "081's reason first"
+
+
+def test_a_card_contradicting_proposal_is_recorded_by_row_and_never_written_as_one(monkeypatch, tmp_path, capsys):
+    from quality import cycle                                            # noqa: PLC0415
+    from tests import test_quality_cycle_079 as c079                    # noqa: PLC0415
+    monkeypatch.setattr(cycle, "DECISIONS", tmp_path / "no-decisions.toml")     # 079's cycle, no decision on file
+    answer = json.dumps({"new_text": "Think of your last night. Which of these was hardest?", "why": "One. Two. Three.",
+                         "rung": "words", "persona_aware": True, "fits_card": False})
+    code, out, _ = c079._advise(monkeypatch, tmp_path, answer)
+    assert code == 0 and "REFUSED: a special case" in capsys.readouterr().out
+    text = out.read_text(encoding="utf-8")
+    section = text.split(f"## 1. {c079.WEAK_ROW}", 1)[1]
+    assert "**Refused -- not a proposal** (spec 081 FR-6)" in section and "contradicts the dimension's card" in section
+    assert "The proposed text:" not in section
+    data = json.loads(text.split("<!-- advice:data -->", 1)[1].split("```json", 1)[1].split("```", 1)[0])
+    assert data["proposals"][0]["card"] == "problem.importance" and data["proposals"][0]["fits_card"] is False

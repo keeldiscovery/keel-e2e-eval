@@ -463,7 +463,8 @@ def test_the_dry_adviser_prints_the_prompt_and_calls_nothing(monkeypatch, tmp_pa
 
 def test_the_adviser_writes_its_proposals_and_applies_nothing(monkeypatch, tmp_path):
     answer = json.dumps({"new_text": "On that day, which two of these would you most like made easier?",
-                         "why": "One. Two. Three.", "rung": "words", "persona_aware": True})
+                         "why": "One. Two. Three.", "rung": "words", "persona_aware": True,
+                         "fits_card": True})                                     # spec 131 FR-4: the row's card
     before = (CLOUD / cycle.REGISTRY_REL).read_bytes()
     code, out, fake = _advise(monkeypatch, tmp_path, answer)
     assert code == 0 and len(fake.seen) == 2, "the probe, then one call for the one weak row"
