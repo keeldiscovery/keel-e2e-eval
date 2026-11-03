@@ -1633,6 +1633,7 @@ def leg_interpret_solution(j: Journey) -> None:
         # walk accepted (or the founder's own), which the strangers' card composes beside the name
         j.idea_what_it_is = idea.get("whatItIs")
         j.idea_line = idea.get("line") or None
+        _note_what_it_is(j, idea)                                       # spec 130 (keel-cloud 197 FR-3)
         # spec 064 FR-5b (keel-cloud 121 J1, keel-web 097): the idea's notes are recomputed on every read and never
         # refuse. Spec 107 (keel-cloud 175): a word the founder typed is never noted -- 05-paidly's scripted how says
         # *platform*, but so does its own solution seed, so its card carries no J1 note, like every other golden card
@@ -2851,6 +2852,18 @@ def leg_lock(j: Journey) -> None:
 
 
 # ----------------------------------------------------------------- spec 114 FR-1: the pilot screen is a pick
+
+def _note_what_it_is(j, idea: dict) -> None:
+    """Spec 130 (keel-cloud 197 FR-3): the idea card's plain words (`IdeaView.whatItIs`, Keel's short name accepted, or
+    the founder's own) held to 197's rule -- never empty, at most eight words, the kind of thing rather than the outcome
+    (`vs.what_it_is_faults` against the mechanism's output) -- each fault a finding, never a stop (the cloud refuses or
+    repairs the draft itself; a card served before 197 may say five words of outcome)."""
+    output = idea.get("output") or (getattr(j.entry, "solution_mechanism", None) or {}).get("output")
+    faults = vs.what_it_is_faults(idea.get("whatItIs"), output)
+    if faults and hasattr(j, "findings"):
+        j.findings.append({"what": "the idea card's what it is (keel-cloud 197 FR-3)", "faults": faults,
+                           "served": {k: idea.get(k) for k in ("what", "whatItIs", "shortName", "line")}})
+
 
 def commitment_step(view: dict | None) -> str | None:
     """keel-web 146 `commitmentStep` (`lib/founderLists.ts`): the founder's Commitment step as the COMMERCIAL calibration

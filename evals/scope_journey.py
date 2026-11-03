@@ -301,6 +301,7 @@ def leg_idea_card(j: cs.Journey) -> None:
         # composed without them, *Imagine Palus.* beside the served *Imagine Palus, a managed reserve portfolio.*)
         j.idea_what_it_is = idea.get("whatItIs")
         j.idea_line = idea.get("line") or None
+        cs._note_what_it_is(j, idea)                                    # spec 130 (keel-cloud 197 FR-3)
 
 
 def drift_97(j: cs.Journey) -> None:

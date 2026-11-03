@@ -751,6 +751,72 @@ def what_it_is(words: str | None) -> str | None:
     return text
 
 
+#: keel-cloud 197 FR-3 (`Wording.SHORT_NAME_MAX_WORDS`): the model's short name -- the kind of thing and what it does --
+#: is at most eight words, its article counted (five until 197); the founder's own name keeps spec 090's five
+#: (`IdeaLines.NAME_MAX_WORDS`, `corpus.IDEA_NAME_MAX_WORDS`, keel-web's *Name it in up to five words*).
+SHORT_NAME_MAX_WORDS = 8
+SHORT_NAME_MAX_WORDS_196 = 5
+#: `IdeaLines.CLOSES_THE_PHRASE` (keel-cloud 197): the grammar words that close a phrase's first noun phrase.
+CLOSES_THE_PHRASE = frozenset((
+    "to through into from in on at by with for of over under about across after before between during inside onto per "
+    "via without within around against like near that which who whom whose where when while and or but so if as than "
+    "because the a an your their its his her our my them it you they we this these those is are was were will would can "
+    "could may might should does do has have then every each").split())
+
+
+def _phrase_of(phrase) -> list[str]:
+    """`IdeaLines.phraseOf` (keel-cloud 197 FR-3): the words of a phrase's first noun phrase, lower-cased, a leading
+    article skipped, closed by a grammar word or by a comma or full stop after a word; a hyphenated word by its last
+    part (*missed-call* is *call*)."""
+    kept: list[str] = []
+    for raw in str(phrase or "").strip().split():
+        bare = re.sub(r"^[^\w]+|[^\w]+$", "", raw).lower()
+        if not bare:
+            break
+        if bare in CLOSES_THE_PHRASE:
+            if kept:
+                break
+            continue
+        kept.append(re.split(r"[-\u2010\u2011]", bare)[-1])
+        if re.search(r"[,;:.!?)\u2014]$", raw):
+            break
+    return kept
+
+
+def _singular(word: str) -> str:
+    if word.endswith("ies") and len(word) > 4:
+        return word[:-3] + "y"
+    if word.endswith("s") and not word.endswith("ss") and len(word) > 3:
+        return word[:-1]
+    return word
+
+
+def is_an_outcome(short_name, output) -> bool:
+    """keel-cloud 197 FR-3 (`IdeaLines.isAnOutcome`, `W3`): a short name names what the person gets back when its head
+    noun (the last word of its first noun phrase) is a word of the output's first noun phrase, a plural aside --
+    *missed-call bookings* against *the confirmed booking written straight into the PMS*; never *an AI reservation
+    agent for missed hotel calls*."""
+    said = _phrase_of(short_name)
+    if not said:
+        return False
+    head = _singular(said[-1])
+    return any(_singular(w) == head for w in _phrase_of(output))
+
+
+def what_it_is_faults(what_it_is, output) -> list[str]:
+    """Spec 130 (keel-cloud 197 FR-3): what the idea card's plain words owe -- never empty on a drafted idea (`L6`), at
+    most `SHORT_NAME_MAX_WORDS` words, and the kind of thing, never the outcome (`W3`). A finding, never a stop."""
+    text = " ".join(str(what_it_is or "").split())
+    if not text:
+        return ["L6: the idea card's what it is is empty (keel-cloud 197 FR-3: never served empty)"]
+    faults = []
+    if len(text.split()) > SHORT_NAME_MAX_WORDS:
+        faults.append(f"W3: '{text}' is {len(text.split())} words; at most {SHORT_NAME_MAX_WORDS}")
+    if output and is_an_outcome(text, output):
+        faults.append(f"W3: '{text}' names what the person gets back ('{output}'), not the kind of thing")
+    return faults
+
+
 def idea_card(name: str, what: str | None = None) -> str:
     """keel-cloud `IdeaLines.card` (spec 090): the strangers' what line, composed by code -- *Imagine {name}.* Spec 118
     FR-4c(d) (keel-cloud 185 FR-2, `IdeaLines.card(name, whatItIs)`): with the plain words, *Imagine {name}, {what it
