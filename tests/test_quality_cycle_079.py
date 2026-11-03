@@ -552,7 +552,8 @@ def test_accept_cuts_the_baseline_refuses_the_failing_bundles_by_name_and_builds
     assert "20261101T100000Z-backtest-08-fresco (08-fresco · PROBLEM)" not in said
     assert ("gallery: refused 20261101T130000Z-backtest-08-fresco (08-fresco · COMMERCIAL): no score file at rubric "
             "version 4") in said
-    assert "gallery: the gate: no accepted score yet: the first acceptance passes (score_pct 95.6%)" in said
+    # spec 129 FR-1: the cycle against the last accepted, said as information (none yet here)
+    assert "gallery: the cycle: 95.6%; no accepted score before it -- information, never a refusal (spec 129: the entry's line is the only gate)" in said
     # spec 106 FR-1: neither entry has its three studies -- refused by name, nothing written
     assert ("gallery: refused 08-fresco: no money study (COMMERCIAL) -- an example is three studies (problem, solution, "
             "money), never a partial one; nothing is written for it") in said

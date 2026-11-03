@@ -885,8 +885,8 @@ agents answer it"*; keel-web 151 draws it). `evals/gallery.py` exports each entr
 `invited`. An entry lacking a study, given one twice, or a run of another scope is refused by name and nothing is written
 for it (`three_studies`); 079's `--scope-order` / `one_per_entry` are retired. The disclaimer says the study's own people
 in words (`people_words`: *seven people answered, all simulated*), never twenty. **The gate is the gallery's own last
-score** (FR-3): `--scores` refuses a study with no score file or a flagged screen; the cycle's score_pct below the last
-accepted one (the newest `runs/gallery/provenance-*.json` recording `accepted`) refuses the export, nothing written;
+score** (FR-3; **retired by spec 129**, an information line since): `--scores` refuses a study with no score file or a flagged screen; the cycle's score_pct below the last
+accepted one (the newest `runs/gallery/provenance-*.json` recording `accepted`) refused the export, nothing written;
 equal or above passes whatever the 90% bar says, the first passes, `--bar` is optional. `make quality-accept` holds that
 gate before it cuts the baseline and calls `gallery.promote` with the scores alone. Provenance is `{exportedAt,
 accepted, examples: [{slug, entry, cycle, studies: {study: {scope, run, cloud, web}}, renamed}]}`; keel-web's
@@ -909,8 +909,35 @@ every row already in `index.json` stays whole and in its place, its folder untou
 with them; a slug with none stays absent), a rewritten slug replaced in place, a new one appended. The provenance's
 example rows gain `studies[<study>].score_pct`, `mean` and `flagged: [{study, screen, criterion, n, audience}]`,
 `accepted` gains `entry_mean_pct`, the file `kept`; `promote` says *N entries accepted on a mean of at least 84.0, M
-refused (names and means)*. Spec 106 FR-3's cycle gate, the baseline cut, `[bar]` and the weak rule are unchanged. On
+refused (names and means)*. Spec 106 FR-3's cycle gate (retired by spec 129), the baseline cut, `[bar]` and the weak rule are unchanged. On
 cycle 7's score files: Expanse 86.9 accepted; Fresco 83.9, AirCaps 83.3, Palus 83.0, Codyco 83.9 refused.
+
+**One gate: the entry's line, and the referee follows keel-web 162-164 and keel-cloud 200 / 202** (spec
+`129-one-gate-the-entrys-line`, 2026-11-03; the founder 2026-11-02: *"if it passes 80 threshold, promote it to
+staging"*). **FR-1..FR-3**: the entry's line (127 FR-1, `[gallery] entry_mean_pct` 80.0) is the only gate of `make
+quality-accept` / `make gallery --scores`; 106 FR-3's cycle gate is retired (`gallery.gate` gone): `promote` says
+`gallery.against_last` -- *the cycle: 84.5% against 84.8% last time (cycle ..., provenance-....json) -- information,
+never a refusal* -- and the acceptance cuts the baseline with no gate before it; the provenance still records
+`accepted.score_pct`, informational (`last_accepted`), so a record of fewer entries (Code Four alone) sets no bar.
+**The mirrors** (one commit each): keel-web 164 -- `CARD_JS` reads the legend chip by chip (joined with *·*), the
+median's word apart from the tick row (`midwords`, the drawing's words without it and without the strips), the strip's
+own line (`bar-strip-people`); `STAGE_JS` the kicker by `stage-kicker`; `READ_JS` an option's `.fmt__name` and
+`.fmt__d` apart (*name -- line*); the walker presses `duration-unsure` (a button, `aria-pressed`; *not drawn, default
+typed* the fallback); `said_faults` holds Purchase friction's Choose bar in the card's framing
+(`vs_screens.purchase_friction_choose_bar`: *under your time*, *under {time}*, *quick or not needed*) and a single
+question's intro naming the escape only where the chip is drawn. keel-web 162 -- the window page's question *How far
+back should {actor_plural} look for {occasion clause}?* (`window_page_faults`), the market question, placeholder and
+hint (`vs_screens`; S-001). keel-web 163's amendments -- *no Share* counts `share` + `tab-share`; `share-line` and the
+stepper read nowhere (`sharing.RETIRED`). keel-cloud 202 -- the gate's occasion clause cut by its trailing phrases past
+the spoken cap (`vs.fitted`, `possessive_time`; Careforce *did you have to call the day's list of patients?*); the
+readers told the tally counts beliefs. keel-cloud 200 -- the named follow-up wordings (`interviewer_fake.NAMED` /
+`ALSO_NAMED`, Importance by the count of picks, its clip count-free), `ShortName.fault` restated
+(`harness/short_names.py`), the scripted writer's hidden short names on the drafts and faced ASKED rows and a
+face-less ASKED job for the founder's typed Importance rows, today's wording where a row has none (a back-test's
+model-written names read by `named_pattern`, no finding), `L29` / `K9` in `backtest.LOCK_NOTES`. **`RUBRIC_VERSION` 4**:
+the respondent-reader's R2 on a follow-up screen alone reads whether the reference back is said as the persona would
+say it (RUBRIC.md's `prompt-f` line); version-3 files (cycles 4-8) are set aside, never compared; the next walk of the
+fourteen is the first at 4. `MARKS_VERSION` stands.
 
 **The lock walk picks Yes or No on the pilot screen** (spec `114-the-lock-walk-picks-the-pilot`, 2026-10-31; keel-web 146
 FR-2 made the pilot screen a pick, so a plain *Continue* there is disabled). `Corridor.word_pilot_and_lock(pilot_yes=,

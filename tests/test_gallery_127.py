@@ -4,7 +4,8 @@ The founder, 2026-11-01: *"If it's above 84%, we can accept it ... let it be the
 project."* `quality/cycle.toml [gallery] entry_mean_pct = 84.0`; with `--scores` an entry is an example when its three
 studies each have a score file and the mean of their three `score_pct` is at or above the line (FR-1); a flagged screen
 no longer refuses, a missing score file still does; the provenance carries each study's `score_pct`, the mean and the
-flagged screens, and `promote` says the summary line (FR-2); spec 106 FR-3's cycle gate stands (FR-3).
+flagged screens, and `promote` says the summary line (FR-2); spec 106 FR-3's cycle gate stood (FR-3) until spec 129
+retired it to an information line (the entry's line the only gate).
 
 The score files here are real ones' shape: cycle 7's `17-expanse` SOLUTION file (`quality/scores/`, read only) with its
 header rewritten and its overall `score_pct` set; cycle 7's own five entries are read on their committed files.
@@ -252,26 +253,31 @@ def test_a_cycle_of_two_entries_leaves_twelve_existing_rows_untouched(tmp_path):
     assert list(result["slugs"]) == ["fresco"] and len(result["kept"]) == 13
 
 
-# ------------------------------------------------------------------------------------------- FR-3 the cycle gate
+# ------------------------------------------------------- FR-3 the cycle gate (retired by spec 129: one gate, the line)
 
-def test_the_cycle_gate_stands_over_entries_above_the_line(tmp_path):
+def test_a_cycle_below_the_last_accepted_is_admitted_on_the_entrys_line(tmp_path):
+    """Spec 129 FR-1 / FR-2 (re-pins 127 FR-3's *the cycle gate stands*): Code Four's one-entry record (84.8%) is the last
+    accepted; the next fourteen-cycle at 84.5% is promoted on the entry's line -- every entry at or above 80 admitted,
+    below it refused by name -- and the comparison is said as information."""
     scores, out, prov = tmp_path / "scores", tmp_path / "sample", tmp_path / "prov"
-    g.promote(entry_runs(tmp_path / "a", "17-expanse", (95.0, 95.0, 95.0), scores), out, scores_dir=scores,
-              cycle="c1", score_pct=95.0, provenance_dir=prov, exported_at=AT, say=lambda _: None)
-    before = {p: p.read_bytes() for p in out.rglob("*") if p.is_file()}
-    with pytest.raises(g.GalleryRefused) as refused:
-        g.promote(entry_runs(tmp_path / "b", "17-expanse", (90.0, 90.0, 90.0), scores, day="20261109"), out,
-                  scores_dir=scores, cycle="c2", score_pct=90.0, provenance_dir=prov, exported_at=LATER,
-                  say=lambda _: None)
-    assert "below the gallery's last accepted 95.0%" in refused.value.reasons[0]
-    assert {p: p.read_bytes() for p in out.rglob("*") if p.is_file()} == before
+    g.promote(entry_runs(tmp_path / "a", "14-code-four", (82.2, 87.0, 84.8), scores), out, scores_dir=scores,
+              cycle="20261102-1ce203f-2", score_pct=84.8, provenance_dir=prov, exported_at=AT, say=lambda _: None)
+    runs = entry_runs(tmp_path / "b", "17-expanse", (86.0, 86.0, 86.0), scores, day="20261109") + \
+        entry_runs(tmp_path / "b", "10-palus", (79.0, 79.0, 79.0), scores, day="20261109")
+    said = []
+    result = g.promote(runs, out, scores_dir=scores, cycle="c2", score_pct=84.5, provenance_dir=prov,
+                       exported_at=LATER, say=said.append)
+    assert (f"the cycle: 84.5% against 84.8% last time (cycle 20261102-1ce203f-2, provenance-{AT}.json) -- "
+            "information, never a refusal (spec 129: the entry's line is the only gate)") in said
+    assert any(line.startswith("refused 10-palus 79.0 < 80.0") for line in said)
+    assert list(result["slugs"]) == ["expanse"] and result["accepted"]["score_pct"] == 84.5
 
 
 def test_accept_hands_the_committed_line_to_the_gallery():
     source = (REPO / "quality" / "cycle.py").read_text(encoding="utf-8")
     body = source.split("\ndef accept(argv=None) -> int:\n", 1)[1].split("\ndef _snapshot_slugs", 1)[0]
     assert 'entry_mean_pct=cfg["gallery"]["entry_mean_pct"]' in body
-    assert body.index("gallery.gate(") < body.index("table.cut_baseline(")
+    assert "gallery.gate(" not in body, "spec 129: the entry's line is the only gate"
     assert "ENTRY_MEAN" in (REPO / "Makefile").read_text(encoding="utf-8").split("\ngallery: venv\n", 1)[1] \
         .split("\n\n", 1)[0]
 

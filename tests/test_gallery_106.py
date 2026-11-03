@@ -418,6 +418,9 @@ def test_the_gallery_names_map_writes_no_disclaimer():
 
 
 # --------------------------------------------------------------------------- FR-3: the gallery's own last score
+#
+# Spec 129 FR-3: 106's cycle gate is retired -- these are now tests of the information line (`against_last`): the
+# cycle's score_pct said against the last accepted one, never a refusal, the provenance still recording it.
 
 def test_the_first_acceptance_passes_whatever_the_bar_and_is_recorded(tmp_path):
     scores, said = tmp_path / "scores", []
@@ -425,7 +428,7 @@ def test_the_first_acceptance_passes_whatever_the_bar_and_is_recorded(tmp_path):
     # spec 127: the entry's line is the gallery's own (84.0 committed); this test is the cycle gate's, so a line of 50
     result = g.promote(runs, tmp_path / "sample", scores_dir=scores, cycle="20261031-aaaaaaa",
                        provenance_dir=tmp_path / "prov", exported_at=AT, entry_mean_pct=50.0, say=said.append)
-    assert said == ["the gate: no accepted score yet: the first acceptance passes (score_pct 50.0%)",
+    assert said == ["the cycle: 50.0%; no accepted score before it -- information, never a refusal (spec 129: the entry's line is the only gate)",
                     "1 entry accepted on a mean of at least 50.0, 0 refused"]
     assert result["accepted"] == {"cycle": "20261031-aaaaaaa", "score_pct": 50.0, "rubric_version": rubric.RUBRIC_VERSION,
                                   "entry_mean_pct": 50.0}
@@ -434,25 +437,23 @@ def test_the_first_acceptance_passes_whatever_the_bar_and_is_recorded(tmp_path):
     assert g.last_accepted(tmp_path / "prov") == {**result["accepted"], "file": f"provenance-{AT}.json"}
 
 
-def test_a_cycle_below_the_last_accepted_is_refused_by_name_and_nothing_is_written(tmp_path):
+def test_a_cycle_below_the_last_accepted_is_said_and_promoted_on_the_entrys_line(tmp_path):
+    """Spec 129 FR-1 (re-pins 106's *refused by name and nothing is written*): a cycle below the last accepted score is
+    promoted wherever its entries clear the line, the comparison said as information and recorded."""
     scores, out, prov = tmp_path / "scores", tmp_path / "sample", tmp_path / "prov"
     first = scored(tmp_path / "runs", scores, mark=2)                                     # 100%
     g.promote(first, out, scores_dir=scores, cycle="20261031-aaaaaaa", provenance_dir=prov, exported_at=AT,
               say=lambda _: None)
-    before = _bytes(out)
     lower = scored(tmp_path / "runs2", scores, mark=1, day="20261107")                   # 50%
-    with pytest.raises(g.GalleryRefused) as refused:
-        g.promote(lower, out, scores_dir=scores, cycle="20261107-bbbbbbb", provenance_dir=prov, exported_at=LATER,
-                  say=lambda _: None)
-    assert refused.value.reasons == [
-        f"the cycle's score_pct 50.0% is below the gallery's last accepted 100.0% (cycle 20261031-aaaaaaa, "
-        f"provenance-{AT}.json) -- not promoted (spec 106 FR-3: the gate is the gallery's own last score); nothing "
-        "is written"]
-    assert not isinstance(refused.value, g.NothingToBuild)
-    assert _bytes(out) == before and [p.name for p in prov.iterdir()] == [f"provenance-{AT}.json"]
-    assert g.main(["--runs", ",".join(map(str, lower)), "--out", str(out), "--provenance-dir", str(prov),
-                   "--scores", str(scores)]) == 1
-    assert _bytes(out) == before
+    said = []
+    result = g.promote(lower, out, scores_dir=scores, cycle="20261107-bbbbbbb", provenance_dir=prov,
+                       exported_at=LATER, entry_mean_pct=50.0, say=said.append)
+    assert said[0] == (f"the cycle: 50.0% against 100.0% last time (cycle 20261031-aaaaaaa, provenance-{AT}.json) -- "
+                       "information, never a refusal (spec 129: the entry's line is the only gate)")
+    assert result["accepted"]["score_pct"] == 50.0 and g.last_accepted(prov)["cycle"] == "20261107-bbbbbbb"
+    # the entry's line is the gate: at the committed 80.0 the 50% entry is refused by name, and nothing else is
+    assert g.main(["--runs", ",".join(map(str, lower)), "--out", str(tmp_path / "o"), "--provenance-dir",
+                   str(tmp_path / "p2"), "--scores", str(scores)]) == 1
 
 
 def test_equal_or_above_the_last_accepted_passes(tmp_path):
@@ -463,7 +464,7 @@ def test_equal_or_above_the_last_accepted_passes(tmp_path):
     said = []
     same = g.promote(scored(tmp_path / "b", scores, mark=1, day="20261101"), out, scores_dir=scores, cycle="c2",
                      provenance_dir=prov, exported_at="2026-11-01T09:00:00Z", entry_mean_pct=50.0, say=said.append)
-    assert same["accepted"]["score_pct"] == 50.0 and "at or above, promoted" in said[-2]
+    assert same["accepted"]["score_pct"] == 50.0 and said[-2].startswith("the cycle: 50.0% against 50.0% last time")
     above = g.promote(scored(tmp_path / "c", scores, mark=2, day="20261102"), out, scores_dir=scores, cycle="c3",
                       provenance_dir=prov, exported_at="2026-11-02T09:00:00Z", say=lambda _: None)
     assert above["accepted"] == {"cycle": "c3", "score_pct": 100.0, "rubric_version": rubric.RUBRIC_VERSION,
@@ -524,14 +525,14 @@ def test_a_last_score_at_another_rubric_version_or_before_106_is_never_compared(
     (prov / "provenance-2026-10-23T00:00:00Z.json").write_text(json.dumps([{"slug": "fresco"}]))       # 063's list
     (prov / "provenance-2026-10-24T00:00:00Z.json").write_text(json.dumps({"accepted": None, "examples": []}))
     assert g.last_accepted(prov) is None
-    refusal, compared = g.gate(10.0, None)
-    assert refusal is None and "the first acceptance passes" in compared
+    assert g.against_last(10.0, None) == "10.0%; " + "no accepted score before it -- information, never a refusal (spec 129: the entry's line is the only gate)"
     (prov / "provenance-2026-10-25T00:00:00Z.json").write_text(json.dumps(
         {"accepted": {"cycle": "old", "score_pct": 99.0, "rubric_version": rubric.RUBRIC_VERSION - 1}}))
-    refusal, compared = g.gate(10.0, g.last_accepted(prov))
-    assert refusal is None and "never compared" in compared
-    refusal, _ = g.gate(None, {"cycle": "c", "score_pct": 50.0, "rubric_version": rubric.RUBRIC_VERSION, "file": "f"})
-    assert "has no score_pct" in refusal
+    said = g.against_last(10.0, g.last_accepted(prov))
+    assert "never compared" in said and said.endswith(g.INFORMATION)
+    said = g.against_last(None, {"cycle": "c", "score_pct": 50.0, "rubric_version": rubric.RUBRIC_VERSION, "file": "f"})
+    assert said.startswith("no score_pct at rubric version") and said.endswith(g.INFORMATION)
+    assert not hasattr(g, "gate"), "spec 129: 106's cycle gate is retired"
 
 
 # --------------------------------------------------------------------------- FR-3 in make quality-accept
@@ -560,7 +561,7 @@ def _accept(tmp_path: Path, record: Path, today: str) -> int:
                          "--today", today])
 
 
-def test_accept_builds_the_three_studies_records_the_score_and_holds_the_next_cycle_to_it(tmp_path, capsys):
+def test_accept_builds_the_three_studies_records_the_score_and_says_the_next_cycle_against_it(tmp_path, capsys):
     scores = tmp_path / "scores"
     (tmp_path / "sample" / "fresco").mkdir(parents=True)
     (tmp_path / "sample" / "fresco" / "cover.jpg").write_bytes(b"JPEG")
@@ -572,7 +573,7 @@ def test_accept_builds_the_three_studies_records_the_score_and_holds_the_next_cy
     assert _accept(tmp_path, first, "2026-10-31") == 0
     said = capsys.readouterr().out
     out = tmp_path / "sample"
-    assert "gallery: the gate: no accepted score yet: the first acceptance passes (score_pct 100.0%)" in said
+    assert "gallery: the cycle: 100.0%; no accepted score before it -- information, never a refusal (spec 129: the entry's line is the only gate)" in said
     assert "SCOPE_ORDER" not in said and "--bar" not in said and " BAR=" not in said
     assert "gallery: fresco         problem BUILD (7 of 7) · solution NOT_YET (7 of 7) · money KEEP_INTERVIEWING " \
            "(8 of 8)" in said
@@ -590,14 +591,15 @@ def test_accept_builds_the_three_studies_records_the_score_and_holds_the_next_cy
     assert g.last_accepted(tmp_path / "prov")["cycle"] == "20261031-abcdef1"
     assert table_cut(tmp_path) == "2026-10-31"
     before = _bytes(out)
-    # the next cycle scores lower: refused before anything is cut or written
+    # spec 129 FR-1: the next cycle scores lower -- said against the last accepted as information, never refused on it:
+    # the baseline is cut, and its 50% entry is refused by the entry's line alone (80.0), the gallery left as it is
     lower = _record(tmp_path, "20261107-abcdef1", scored(tmp_path / "runs", scores, mark=1, day="20261107"), scores)
-    assert _accept(tmp_path, lower, "2026-11-07") == 1
+    assert _accept(tmp_path, lower, "2026-11-07") == 0
     captured = capsys.readouterr()
-    assert ("make quality-accept refuses: the cycle's score_pct 50.0% is below the gallery's last accepted 100.0% "
-            "(cycle 20261031-abcdef1") in captured.err
-    assert "the baseline is not cut and the gallery is left as it is" in captured.err
-    assert table_cut(tmp_path) == "2026-10-31" and _bytes(out) == before
+    assert ("gallery: the cycle: 50.0% against 100.0% last time (cycle 20261031-abcdef1, provenance-") in captured.out
+    assert "information, never a refusal" in captured.out and "refuses" not in captured.err
+    assert "08-fresco 50.0 < 80.0" in captured.out
+    assert table_cut(tmp_path) == "2026-11-07" and _bytes(out) == before
     # an equal one passes
     same = _record(tmp_path, "20261114-abcdef1", scored(tmp_path / "runs", scores, mark=2, day="20261114"), scores)
     assert _accept(tmp_path, same, "2026-11-14") == 0
@@ -615,7 +617,7 @@ def test_accept_passes_the_scores_alone():
     body = source.split("\ndef accept(argv=None) -> int:\n", 1)[1].split("\ndef _snapshot_slugs", 1)[0]
     assert "gallery.promote(runs, out, names=names, scores_dir=scores_dir, cycle=stem, score_pct=score," in body
     assert "bar_pct" not in body and "one_per_entry" not in body and "scope_order" not in body
-    assert body.index("gallery.gate(") < body.index("table.cut_baseline(")
+    assert "gallery.gate(" not in body, "spec 129: no cycle gate before the baseline"
     makefile = (REPO / "Makefile").read_text(encoding="utf-8")
     assert "BAR" not in makefile.split("\nquality-accept: venv\n", 1)[1].split("\n\n", 1)[0]
 

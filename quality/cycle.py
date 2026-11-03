@@ -16,12 +16,12 @@
   text at that location** read from the keel-cloud checkout; the proposals go to `quality/cycles/<record>-advice.md`,
   **never applied**. A weak row the founder has already decided (`quality/decisions.toml`, spec 087) is snoozed:
   listed under *Decided before* with the decision's word and why, not sent; the adviser is told what he declined.
-- **`accept`** -- `make quality-accept CYCLE=<record>` (free, FR-6): spec 106 FR-3's gate first (the cycle's score_pct
-  below the gallery's last accepted one refuses: nothing cut, nothing written), then `quality/BASELINE.md` rewritten
+- **`accept`** -- `make quality-accept CYCLE=<record>` (free, FR-6): `quality/BASELINE.md` rewritten
   from that cycle's score files (the old one kept under `quality/baselines/<date>.md`), then the gallery built from
   that cycle's bundles behind the readers' gate (`evals/gallery.py --scores`, no bar), three studies per example, an
-  entry admitted on the mean of its three studies' score_pct at or above `[gallery] entry_mean_pct` (spec 127), what
-  changed in the snapshot, and the sentence the keel-web refresh spec starts from.
+  entry admitted on the mean of its three studies' score_pct at or above `[gallery] entry_mean_pct` (spec 127) -- the
+  only gate since spec 129 (106 FR-3's cycle gate is an information line: the cycle's score_pct against the last
+  accepted, never a refusal) -- what changed in the snapshot, and the sentence the keel-web refresh spec starts from.
 - **`due`** -- `make quality-due` (free, FR-7): whether a cycle is due, and why; it runs nothing else.
 
 No key is ever read, named or passed: the presence of `KEEL_ANTHROPIC_API_KEY` is checked for DOOR=keel (as `make
@@ -1255,13 +1255,13 @@ def bundle_dir(study: dict, runs_dir: Path) -> Path | None:
 
 
 def accept(argv=None) -> int:
-    """FR-6 as spec 127 leaves it: the gate first (spec 106 FR-3 -- the cycle's score_pct below the gallery's last
-    accepted one refuses the acceptance: no baseline cut, nothing written), then the baseline cut from the cycle's score
-    files, then the gallery from the cycle's bundles through `evals.gallery.promote` with the readers' gate alone
+    """FR-6 as spec 129 leaves it: the baseline cut from the cycle's score files (spec 129 FR-1: no cycle gate before
+    it -- 106 FR-3's comparison with the gallery's last accepted score is said by `promote` as information, never a
+    refusal), then the gallery from the cycle's bundles through `evals.gallery.promote` with the readers' gate alone
     (`--scores`, no bar: a study with no score file refused by name; an entry admitted on the mean of its three
     studies' score_pct at or above `[gallery] entry_mean_pct`, a flagged screen admitted and recorded, an entry below
     the line refused by name), every slug not rewritten kept as it was (FR-5), three studies per entry (an entry lacking one set aside by
-    name), the score recorded in the gallery's provenance as the one the next cycle is held to."""
+    name), the score recorded in the gallery's provenance for the record (spec 129 FR-2: it sets no bar)."""
     from evals import gallery                                            # noqa: PLC0415
 
     p = argparse.ArgumentParser(prog="make quality-accept", description="Spec 079 FR-6 / 106: the acceptance.")
@@ -1283,12 +1283,9 @@ def accept(argv=None) -> int:
     stem = record["record"]
     provenance_dir = Path(a.provenance_dir)
     score = (_head_of(files) or {}).get("score_pct")
-    # spec 106 FR-3: the gallery's own last score is the gate -- below it the cycle is not accepted at all
-    refusal, compared = gallery.gate(score, gallery.last_accepted(provenance_dir))
-    if refusal:
-        print(f"make quality-accept refuses: {refusal} -- the baseline is not cut and the gallery is left as it is",
-              file=sys.stderr)
-        return 1
+    compared = gallery.against_last(score, gallery.last_accepted(provenance_dir))
+    # spec 129 FR-1: no cycle gate -- the entry's line is the only gate; `promote` says the cycle against the last
+    # accepted score (`gallery.against_last`) as information
     quality_out = Path(a.quality_out)
     baseline_path = quality_out / "BASELINE.md"
     today = a.today or dt.date.today().isoformat()
@@ -1355,7 +1352,7 @@ def accept(argv=None) -> int:
           f"{', '.join(no_cover) or 'none'}; still missing a gallery_names.toml row: "
           + (", ".join(sorted({line.split(':')[0] for line in set_aside if 'gallery_names' in line})) or "none"))
     print(f"provenance: {result['provenance']} (outside the snapshot, not committed) -- score_pct {score}% recorded "
-          "as the gallery's last accepted, the next cycle's gate")
+          "as the gallery's last accepted, for the record (spec 129: the next cycle's information line, never its gate)")
     sentence = (f"keel-web spec: refresh the example gallery from keel-e2e-eval quality cycle {stem} (accepted {today}; "
                 f"score_pct {score}% at RUBRIC_VERSION {rubric.RUBRIC_VERSION}, {compared}; keel-cloud "
                 f"{record.get('cloud_sha')}) -- commit public/sample as `make quality-accept` wrote it (three studies an "

@@ -144,11 +144,13 @@ make quality-advise CYCLE=quality/cycles/<record>.md
 make quality-accept CYCLE=quality/cycles/<record>.md
 ```
 
-- **The gate first** (spec 106 FR-3, the founder 2026-10-30: *"we don't have to wait till 90 ... the only time we should
-  not do it is if the next rating comes below what we already have"*): the cycle's overall score_pct is held to **the
-  gallery's own last accepted one** -- the newest `runs/gallery/provenance-*.json` that records one. Below it, the
-  acceptance is **refused by name: no baseline cut, nothing written**. Equal or above passes, whatever the 90% bar says;
-  with none recorded yet (or one at another rubric version) the first acceptance passes.
+- **One gate: the entry's line** (spec 129, the founder 2026-11-02: *"if it passes 80 threshold, promote it to
+  staging"*). Spec 106 FR-3's cycle gate -- the cycle's overall score_pct held to the gallery's last accepted one -- is
+  **retired**: it was stricter than the founder's rule and moved by the shape of a record (Code Four's one-entry
+  84.8% would have refused a fourteen-cycle at 84.5% though every entry cleared 80). The acceptance now **says** the
+  cycle's score_pct against the last accepted one -- *gallery: the cycle: 84.5% against 84.8% last time (cycle ...,
+  provenance-....json) -- information, never a refusal* -- and never refuses on it; the provenance still records the
+  cycle's score_pct and the gallery's history, and a record of fewer entries than the gallery holds sets no bar.
 - **What it does then**: rewrites `quality/BASELINE.md` from that cycle's score files (the old one kept under
   `quality/baselines/<date>.md`), then builds the gallery from that cycle's bundles behind the readers' gate alone (`make
   gallery SCORES=quality/scores`, no bar): **an entry is admitted on its mean** (spec 127, the founder 2026-11-01: *"If
@@ -166,13 +168,14 @@ make quality-accept CYCLE=quality/cycles/<record>.md
   pilot, price, answered and invited; an entry lacking a study is **refused by name** and nothing is written for it. The
   disclaimer says each study's people in words (*seven people answered, all simulated*). A slug's `cover.jpg`, and the
   row's `title`, `image` and `tests`, are kept across the refresh. The cycle and its score_pct are recorded in the
-  provenance: the next cycle's gate -- and, per example, each study's score_pct, the mean and the flagged screens.
-- **What it prints**: the gate's comparison, the entries refused and the summary line, the slugs refreshed, added, kept
+  provenance for the record (the next cycle's information line, never its gate: spec 129) -- and, per example, each
+  study's score_pct, the mean and the flagged screens.
+- **What it prints**: the cycle against the last accepted (information), the entries refused and the summary line, the slugs refreshed, added, kept
   as they were (not rewritten this cycle), those still missing a
   `gallery_names.toml` row or a cover, and **the sentence the keel-web refresh spec starts from**.
 - **What it writes**: `quality/BASELINE.md` and `quality/baselines/` here (**commit them**); the snapshot in keel-web
-  (committed there, by the keel-web spec below); the provenance file under `runs/gallery/` (never committed -- and the
-  gate's memory: run the acceptance on the checkout whose `runs/` holds it).
+  (committed there, by the keel-web spec below); the provenance file under `runs/gallery/` (never committed -- the
+  information line's memory: run the acceptance on the checkout whose `runs/` holds it).
 - **The keel-web side** is a keel-web spec per acceptance, light gate, in this shape -- never invented: (1) commit
   `public/sample` as `make quality-accept` wrote it; (2) for an added slug, its `instructions/gallery_names.toml` row (in
   keel-e2e-eval, attribution, launch-era words, today's status) and a 1200x800 `cover.jpg` (keel-web spec 103); (3)

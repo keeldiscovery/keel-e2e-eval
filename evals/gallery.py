@@ -38,7 +38,8 @@ and refuses anything else. Since spec 106 it is the problem study's, PROBLEM.
 `--scores quality/scores` puts the readers' gate in front of the export -- a run is an example only when its latest
 score file (spec 078, matched by the file's `bundle` header, at the current `RUBRIC_VERSION`) has no flagged screen; a
 run refused is named with its reason. Spec 106 FR-3 replaced its bar with the gallery's own last accepted score and
-retired `--scope-order`. Without `--scores` there is no gate.
+retired `--scope-order`; spec 129 retired that cycle gate (the entry's line is the only gate). Without `--scores` there
+is no gate.
 
 **Spec 106** (the founder, 2026-10-30: *"reduce it to three toggles -- problem, solution and commercial -- so the output
 of each can be printed there; and instead of twenty, seven agents answer it"*):
@@ -54,7 +55,7 @@ of each can be printed there; and instead of twenty, seven agents answer it"*):
   answered, all simulated*; *six of the seven people invited answered* where one did not), read from the study's
   invitation register -- never a fixed twenty. Each study's manifest says its own; the row says the problem study's.
 - **FR-3 The gate is the gallery's own last score** (the founder: *"the only time we should not do it is if the next
-  rating comes below what we already have"*). With `--scores`, a study with no score file at the current rubric
+  rating comes below what we already have"*) -- **retired by spec 129** (below): what follows is 106's account. With `--scores`, a study with no score file at the current rubric
   version, or with a flagged screen, is refused by name (spec 079 FR-6, kept); then the cycle's overall score_pct (the
   cycle record's head, or the runs' latest score files read as one) is held to the last accepted one, which every gated
   export records in its provenance file (`accepted`): **below it, the export is refused by name and nothing is
@@ -78,12 +79,24 @@ single project"*) loosens the readers' gate to the entry's mean:
   entry's `mean` and `flagged: [{study, screen, criterion, n, audience}]` (one per 0 the reader gave); `accepted` carries
   the line (`entry_mean_pct`) and the file lists the rows `kept` as they were. `promote` says *N entries accepted on a
   mean of at least {line}, M refused (names and means)*.
-- **FR-3** Spec 106 FR-3's cycle gate (`gate`, `last_accepted`) stands unchanged.
+- **FR-3** Spec 106 FR-3's cycle gate (`gate`, `last_accepted`) stood unchanged -- until spec 129.
 - **FR-5 The gallery grows by new entries only** (the founder's standing rule, 2026-11-01: a certified entry is never
   re-walked just to stay in; it supersedes spec 106's *left out of the index*). An export rewrites only the slugs it
   builds: every row already in the snapshot's `index.json` stays, whole and in its place (a slug rewritten is replaced
   in place, keel-web's `title`, `image` and `tests` kept on it), its folder untouched; a new slug is appended, the new
   ones among themselves in `gallery_order`.
+
+**Spec 129** (one gate: the entry's line; the founder, 2026-11-02: *"if it passes 80 threshold, promote it to
+staging"*). The same morning Code Four's one-entry record (84.8%) became the gallery's last accepted, so the next
+fourteen-cycle would have been refused at 84.5% though every entry cleared 80 -- two gates, one stricter than the
+founder's rule and moved by the shape of a record, not by quality.
+
+- **FR-1** The entry's line (127 FR-1) is the only gate. 106's cycle gate is retired: `promote` says the cycle's
+  score_pct against the last accepted one as information -- `against_last`: *84.5% against 84.8% last time (cycle ...,
+  provenance-....json) -- information, never a refusal* -- and never refuses on it; the provenance still records the
+  cycle's `accepted.score_pct` and the gallery's history.
+- **FR-2** A record of fewer entries than the gallery holds (Code Four alone) never sets a bar for the next:
+  `accepted.score_pct` is kept for the record and `last_accepted` is informational, read by `against_last` alone.
 
 A slug's directory is replaced whole; what keel-web adds to the snapshot by hand is kept across the refresh: the slug's
 `cover.jpg` (keel-web spec 103) and the index row's `title`, `image` and `tests` (keel-web 103 / 104 / 107; `KEPT_KEYS`).
@@ -1226,7 +1239,7 @@ def entry_summary(scores: dict[str, dict], accepted: Iterable[str], line: float)
 
 
 def cycle_score(run_dirs: list[Path], scores_dir: Path) -> float | None:
-    """Spec 106 FR-3: the overall score_pct of the runs read as one cycle -- the latest score file of each study at the
+    """Spec 106 FR-3 (an information line since spec 129): the overall score_pct of the runs read as one cycle -- the latest score file of each study at the
     current rubric version, read together as the cycle record's head reads them (`quality.table.head`); None with
     none."""
     from quality import table                                        # noqa: PLC0415
@@ -1238,7 +1251,9 @@ def cycle_score(run_dirs: list[Path], scores_dir: Path) -> float | None:
 def last_accepted(provenance_dir: Path = PROVENANCE_DIR) -> dict | None:
     """Spec 106 FR-3: the gallery's own last score -- the newest provenance file that records one (`accepted`: the
     cycle, its score_pct, the rubric version), with the file's name; None when no gated export was ever recorded (an
-    export without `--scores`, and every provenance file before spec 106, records none)."""
+    export without `--scores`, and every provenance file before spec 106, records none). **Informational since spec 129
+    FR-2**: it sets no bar (a record of one entry, Code Four's, is no measure of a fourteen-cycle); `against_last`
+    alone reads it."""
     for path in sorted(Path(provenance_dir).glob(PROVENANCE_GLOB), reverse=True):
         try:
             data = _json(path)
@@ -1250,39 +1265,41 @@ def last_accepted(provenance_dir: Path = PROVENANCE_DIR) -> dict | None:
     return None
 
 
-def gate(score_pct: float | None, last: dict | None) -> tuple[str | None, str]:
-    """Spec 106 FR-3 (the founder, 2026-10-30): `(refusal, what was compared)` -- a refusal only when the cycle's
-    score_pct is below the gallery's last accepted one at the same rubric version; equal or above passes, whatever the
-    90% bar says; no accepted score yet passes (the first acceptance), and so does one at another rubric version (two
-    rubric versions are never compared, spec 078 FR-1)."""
+#: Spec 129 FR-1: what the information line says of itself -- it never refuses.
+INFORMATION = "information, never a refusal (spec 129: the entry's line is the only gate)"
+
+
+def against_last(score_pct: float | None, last: dict | None) -> str:
+    """Spec 129 FR-1 (106 FR-3's cycle gate retired): the cycle's score_pct against the gallery's last accepted one, as
+    information -- *84.5% against 84.8% last time (cycle ..., provenance-....json)* -- never a refusal, above, equal or
+    below; with none accepted yet, or one at another rubric version (two rubric versions are never compared, spec 078
+    FR-1), or a cycle with no score_pct, it says so."""
     from quality import rubric                                       # noqa: PLC0415
 
+    now = "no score_pct" if score_pct is None else f"{score_pct}%"
     if last is None:
-        return None, f"no accepted score yet: the first acceptance passes (score_pct {score_pct}%)"
-    then = f"{last['score_pct']}% (cycle {last.get('cycle') or 'not named'}, {last['file']})"
+        return f"{now}; no accepted score before it -- {INFORMATION}"
+    then = f"{last['score_pct']}% last time (cycle {last.get('cycle') or 'not named'}, {last['file']})"
     if last.get("rubric_version") != rubric.RUBRIC_VERSION:
-        return None, (f"the last accepted score {then} is at rubric version {last.get('rubric_version')}, the scores at "
-                      f"{rubric.RUBRIC_VERSION}: never compared -- the first acceptance at this version passes")
+        return (f"{now} at rubric version {rubric.RUBRIC_VERSION}; {then} at rubric version "
+                f"{last.get('rubric_version')}, never compared -- {INFORMATION}")
     if score_pct is None:
-        return (f"the cycle has no score_pct to hold to the gallery's last accepted {then} (no score file at rubric "
-                f"version {rubric.RUBRIC_VERSION}) -- not promoted; nothing is written"), then
-    if score_pct < last["score_pct"]:
-        return (f"the cycle's score_pct {score_pct}% is below the gallery's last accepted {then} -- not promoted "
-                "(spec 106 FR-3: the gate is the gallery's own last score); nothing is written"), then
-    return None, f"score_pct {score_pct}% against the last accepted {then}: at or above, promoted"
+        return f"{now} at rubric version {rubric.RUBRIC_VERSION} against {then} -- {INFORMATION}"
+    return f"{now} against {then} -- {INFORMATION}"
 
 
 def promote(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | None = None,
             scores_dir: Path | None = None, bar_pct: float | None = None, cycle: str | None = None,
             score_pct: float | None = None, provenance_dir: Path = PROVENANCE_DIR, exported_at: str | None = None,
             entry_mean_pct: float | None = None, say=print) -> dict:
-    """`make gallery` and `make quality-accept`'s one path (spec 106 / 127): behind the readers' gate when `scores_dir`
-    is given -- `entry_gate` at the entry's line (`entry_mean_pct`, else `quality/cycle.toml`'s), every study or entry
-    refused named through `say`; the cycle's score_pct (`score_pct`, else `cycle_score` of the runs) held to the
-    gallery's last accepted one, a refusal of the whole -- then three studies per entry (an entry set aside named
-    through `say`), the summary line said, then `export`: the score and the line recorded as `accepted` in the
-    provenance, each example's scores beside it, every older row kept. Raises `NothingToBuild` when every
-    study or entry was set aside, `GalleryRefused` on any other refusal; nothing is written then."""
+    """`make gallery` and `make quality-accept`'s one path (spec 106 / 127 / 129): behind the readers' gate when
+    `scores_dir` is given -- `entry_gate` at the entry's line (`entry_mean_pct`, else `quality/cycle.toml`'s), every
+    study or entry refused named through `say`; the cycle's score_pct (`score_pct`, else `cycle_score` of the runs) said
+    against the gallery's last accepted one as information (`against_last`, spec 129 FR-1: never a refusal) -- then
+    three studies per entry (an entry set aside named through `say`), the summary line said, then `export`: the score
+    and the line recorded as `accepted` in the provenance, each example's scores beside it, every older row kept.
+    Raises `NothingToBuild` when every study or entry was set aside, `GalleryRefused` on any other refusal; nothing is
+    written then."""
     names = load_names() if names is None else names
     run_dirs = [Path(d) for d in run_dirs]
     if not run_dirs:
@@ -1296,10 +1313,8 @@ def promote(run_dirs: list[Path], out_dir: Path, *, names: list[GalleryName] | N
         passing, refused, scores = entry_gate(run_dirs, Path(scores_dir), line=line, bar_pct=bar_pct)
         for reason in refused:
             say(f"refused {reason}")
-        refusal, compared = gate(scored, last_accepted(provenance_dir))
-        if refusal:
-            raise GalleryRefused([refusal])
-        say(f"the gate: {compared}")
+        # spec 129 FR-1: the cycle against the last accepted, said and never held to it -- the entry's line decides
+        say(f"the cycle: {against_last(scored, last_accepted(provenance_dir))}")
         run_dirs = passing
         accepted = {"cycle": cycle, "score_pct": scored, "rubric_version": rubric.RUBRIC_VERSION,
                     "entry_mean_pct": line}

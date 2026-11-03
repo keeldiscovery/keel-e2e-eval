@@ -83,9 +83,9 @@ sample: venv
 # Spec 079 FR-6 / 106 FR-3 / 127: SCORES=quality/scores puts the readers' gate in front: a run with no score file at the
 # current rubric version is refused by name; an entry is an example when the mean of its three studies' score_pct is at
 # or above quality/cycle.toml [gallery] entry_mean_pct (ENTRY_MEAN=<pct> for one export), a flagged screen admitted and
-# recorded in the provenance, an entry below it refused by name with its mean (its older example kept); and the runs'
-# overall score_pct is held to the gallery's own last accepted one (the newest provenance file that records one): below
-# it the export is refused and nothing is written; at or above, or with none yet, it is built and the score recorded.
+# recorded in the provenance, an entry below it refused by name with its mean (its older example kept) -- the only
+# gate since spec 129: the runs' overall score_pct is said against the gallery's last accepted one (the newest
+# provenance file that records one) as information, never a refusal, and recorded.
 # BAR=<pct> is an optional stricter gate (a run under it is refused), off by default; CYCLE=<record name> is recorded in the
 # provenance. `make quality-accept` runs it so, from one cycle's bundles, with SCORES alone.
 #   make gallery RUNS=runs/<a>,runs/<b>,runs/<c> SCORES=quality/scores OUT=/tmp/sample
@@ -226,13 +226,12 @@ quality-advise: venv
 	@if [ -z "$(CYCLE)" ]; then echo "make quality-advise refuses: no CYCLE -- name a cycle record, \`CYCLE=quality/cycles/<yyyymmdd>-<cloud7>.md\` (spec 079 FR-4)"; exit 2; fi
 	PYTHONPATH=. $(PY) -m quality.cycle advise --cycle "$(CYCLE)" $(if $(DRY),--dry-run,)
 
-# make quality-accept (FREE, on the founder's word only) holds the cycle's score_pct to the gallery's own last accepted
-# one first (spec 106 FR-3: below it, refused -- nothing cut, nothing written; the first acceptance passes), then cuts
-# quality/BASELINE.md from the cycle's score files (the old one kept under quality/baselines/<date>.md), builds the
+# make quality-accept (FREE, on the founder's word only) cuts quality/BASELINE.md from the cycle's score files (spec
+# 129: no cycle gate first -- 106 FR-3's comparison with the gallery's last accepted score is an information line) (the old one kept under quality/baselines/<date>.md), builds the
 # gallery from the cycle's bundles behind the readers' gate alone (`make gallery SCORES=quality/scores`, no bar: three
 # studies an example, admitted on their mean at or above cycle.toml's entry_mean_pct, spec 127; a flagged screen
-# admitted and recorded) into keel-web's public/sample (OUT= elsewhere), records the score in
-# the provenance, prints what changed in the snapshot and the sentence the keel-web refresh spec starts from. It
+# admitted and recorded; the entry's line the only gate, spec 129) into keel-web's public/sample (OUT= elsewhere),
+# records the score in the provenance (for the record, never a bar), prints what changed in the snapshot and the sentence the keel-web refresh spec starts from. It
 # commits nothing anywhere. RUNS_DIR= says where the bundles are by name; QUALITY_OUT= writes the baseline elsewhere
 # and PROVENANCE_DIR= the provenance (a dry rehearsal: both, with OUT=).
 #   make quality-accept CYCLE=quality/cycles/<record>.md
