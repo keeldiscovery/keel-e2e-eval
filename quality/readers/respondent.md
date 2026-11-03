@@ -16,7 +16,10 @@ that commit has it, else from the checkout),
 coordinator's decision 3), `{{screen}}` the screen in full, as served, with how the AI interviewer says it -- since spec
 118 every line the voice says, from the served spoken form: the anchor, the stem, the count line, the options line,
 the escape line, and on a ladder in two steps the second step's two lines (the side's two bands) -- since spec 119 on
-either link, the bundle recording each item's served spoken form whichever link the person walked. The `insights` prompt is sent once per follow-up line of the link (§G): `{{line}}`
+either link, the bundle recording each item's served spoken form whichever link the person walked. `{{dimension}}`
+(spec 131 FR-2) is the screen's dimension card -- `quality/readers/dimensions.md` between that dimension's two `card:`
+markers, under its heading -- on the gate and on every item, after the persona and before the screen; empty on a screen
+with no dimension (the screener, the idea or reveal card, a follow-up). The `insights` prompt is sent once per follow-up line of the link (§G): `{{line}}`
 is the line -- its dimension, its question, every answer on it, the groups Keel made with their names and answers, the
 answers left on their own -- and `{{rubric_g}}` is RUBRIC.md's §G between its `prompt-g` markers. Nothing above the
 first marker is sent. A change to these words is a change to the reader: say why in the commit.
@@ -39,6 +42,7 @@ The yardstick is you -- your trade, your place, your time of life -- never the g
 uses are plain to you, however odd they would sound elsewhere; a word from outside your trade is not plain, however
 common it is elsewhere. Judge R2 (plain) and R3 (about your life) from inside that.
 
+{{dimension}}
 ## The rubric
 
 {{rubric}}

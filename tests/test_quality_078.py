@@ -354,7 +354,8 @@ def test_the_dry_run_prints_every_prompt_calls_nothing_and_writes_no_score(wired
     out = capsys.readouterr().out
     assert wired.cli.seen == [] and not wired.scores.exists()
     prompts = sorted((wired.out / "prompts").glob("*.prompt.txt"))
-    assert len(prompts) == 10 + 3 + 1 and out.count("=" * 100) == 2 * len(prompts) + 4, "+ the two heads (081)"
+    assert len(prompts) == 10 + 3 + 1 and out.count("=" * 100) == 2 * len(prompts) + 6, \
+        "+ the two heads (081) and the cards' (131)"
     assert "no call made, no score written" in out
 
 

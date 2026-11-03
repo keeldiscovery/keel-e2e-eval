@@ -39,6 +39,10 @@ respondent-reader's R2 on a follow-up screen alone also reads whether the row th
 the person would say it (`prompt_follow_up()`, RUBRIC.md's `prompt-f` part, one line). A version-3 file is set aside, as
 a version-2 one was at 3 (cycles 4-8 stay of record), never compared with a version-4 one.
 
+**Spec 131 FR-2**: a screen's score names the dimension card its reader was sent (`dimension_card`: the key, or None),
+required of a file from the version that writes it (`KEY_SINCE`), so an older file read at its own version is never
+asked for it.
+
 **The score as one number** (the coordinator's decision 2): `score_pct` = the sum of every r1..r6 and b1..b6 given over
 2 x their count x 100 (a `None` R4, R6, B2 or B6 is in neither); `spoken_pct` = the same over R6 alone, beside it (spec
 081 FR-4); `after_pct` the same over B alone (spec 109); `flagged_pct` = the screens with any 0 over the screens x 100.
@@ -88,11 +92,20 @@ WEAK_ZERO_ENTRIES = 2
 WEAK_MEAN = 1.5
 
 #: The keys of one screen's score, in the order a score file writes them.
-SCORE_KEYS = ("n", "screen", "audience", "link", "dimension", "kind", *CRITERIA, *WHYS,
+#: Spec 131 FR-2: `dimension_card` -- the key of the dimension card the screen was sent, or None (none was).
+SCORE_KEYS = ("n", "screen", "audience", "link", "dimension", "kind", "dimension_card", *CRITERIA, *WHYS,
               "out_of_place", "looks_stupid", "instead")
 #: Spec 109: the keys of one §B screen's score -- the B criteria in place of the R.
-AFTER_SCORE_KEYS = ("n", "screen", "audience", "link", "dimension", "kind", *B_CRITERIA, *B_WHYS,
+AFTER_SCORE_KEYS = ("n", "screen", "audience", "link", "dimension", "kind", "dimension_card", *B_CRITERIA, *B_WHYS,
                     "out_of_place", "looks_stupid", "instead")
+#: The version a score key is required from (spec 131): a file of an earlier version, read at its own version (a test
+#: reading cycle 7's files at 3), is never asked for a key its version did not write.
+KEY_SINCE = {"dimension_card": 5}
+
+
+def required(keys: tuple, version: int) -> list[str]:
+    """The keys of `keys` a score file at `version` must carry (`KEY_SINCE`)."""
+    return [k for k in keys if KEY_SINCE.get(k, 0) <= version]
 
 
 def is_after(kind: str | None) -> bool:
@@ -318,7 +331,7 @@ def screen_score(meta: dict, answer: dict) -> dict:
     """One screen's score object: the screen's identity, the reader's answer, the two booleans code derives. A §B
     screen (spec 109) carries the B criteria in place of the R: `out_of_place` = B1 is 0, `looks_stupid` = B2 or B5 is
     0."""
-    score = {key: meta.get(key) for key in ("n", "screen", "audience", "link", "dimension", "kind")}
+    score = {key: meta.get(key) for key in ("n", "screen", "audience", "link", "dimension", "kind", "dimension_card")}
     if is_after(meta.get("kind")):
         for key in (*B_CRITERIA, *B_WHYS):
             score[key] = answer.get(key)
@@ -431,9 +444,9 @@ def validate_file(obj: dict, *, name: str | None = None) -> dict:
         raise RubricError(f"a version-{RUBRIC_VERSION} score file without {absent} (spec 081 FR-3 / FR-4)")
     for score in obj["screens"]:
         if is_after(score.get("kind")):
-            _validate_after(score)
+            _validate_after(score, obj["rubric_version"])
             continue
-        absent = [k for k in SCORE_KEYS if k not in score]
+        absent = [k for k in required(SCORE_KEYS, obj["rubric_version"]) if k not in score]
         if absent:
             raise RubricError(f"screen {score.get('screen')!r} has no {absent}")
         if score["audience"] not in AUDIENCES:
@@ -456,9 +469,9 @@ def validate_file(obj: dict, *, name: str | None = None) -> dict:
     return obj
 
 
-def _validate_after(score: dict) -> None:
+def _validate_after(score: dict, version: int = RUBRIC_VERSION) -> None:
     """One §B screen of a version-3 file (spec 109): the founder's, its kind's B criteria each 0-2 and no other."""
-    absent = [k for k in AFTER_SCORE_KEYS if k not in score]
+    absent = [k for k in required(AFTER_SCORE_KEYS, version) if k not in score]
     if absent:
         raise RubricError(f"§B screen {score.get('screen')!r} has no {absent} (spec 109)")
     if score["audience"] != "founder":

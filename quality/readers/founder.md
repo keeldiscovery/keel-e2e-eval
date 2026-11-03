@@ -11,7 +11,11 @@ entry's `.sources.md` whole (the YC material) and the project's what / where / w
 (actor, actor_plural, job, circumstance, segment, window, the market's country); the score file records it once in its
 header -- `{{rubric}}` is `quality/RUBRIC.md` between its `prompt` markers (one source of the criteria; the founder-reader
 has no R6), `{{earlier}}` the screens before this one as a compact list (kicker and question only -- the coordinator's
-decision 3), `{{screen}}` the screen in full. Nothing above the first marker is sent. A change to these words is a
+decision 3), `{{screen}}` the screen in full. `{{dimension}}` (spec 131 FR-2) is the screen's dimension card --
+`quality/readers/dimensions.md` between that dimension's two `card:` markers, under its heading -- on every screen whose
+dimension is set (the q, answer, check and choose screens; on the `after` prompt, a dimension's card opened after the
+answers), after the persona and before the screen; empty on a screen with none (the name, the context, the problem and
+idea cards, the stage page, the Insights screen). Nothing above the first marker is sent. A change to these words is a
 change to the reader: say why in the commit.
 
 <!-- screen:begin -->
@@ -31,6 +35,7 @@ The yardstick is you -- your trade, your place, your time of life -- never the g
 are plain to you, however odd they would sound elsewhere; a word from outside your trade is not plain, however common it
 is elsewhere. Judge R2 (plain) and R3 (about your life) from inside that.
 
+{{dimension}}
 ## The rubric
 
 {{rubric}}
@@ -100,6 +105,7 @@ know whether your belief held and what to do about it.
 The yardstick is you -- your trade, your place, your time of life -- never the general public. Judge every criterion
 from inside that, and from what the screen itself says: nothing you know from elsewhere counts as on the screen.
 
+{{dimension}}
 ## The rubric (after the answers)
 
 {{rubric_b}}

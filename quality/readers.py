@@ -21,6 +21,13 @@ study's stage page, each dimension card opened with its chart, the Insights scre
 on the way in (`checked_beliefs`), and folded into the founder's `score_pct`. A bundle walked before spec 109 has none:
 its score file says so (`after_note`) and is not penalised.
 
+**Spec 131 FR-2 (the readers know the dimension)**: every screen whose dimension the cards carry -- the founder's q,
+answer, check and choose screens, the stranger's gate and items, a dimension's card opened after the answers -- is sent
+that dimension's card (`quality/readers/dimensions.md` between its two markers, `quality/cards.py`) as `{{dimension}}`,
+after the persona and before the screen; a screen with none (the name, the context, the problem and idea cards, the
+screener, the reveal, a follow-up, the stage page, the Insights screen) is sent no block. Each screen's score records
+the card it was sent (`dimension_card`, its key, or null); the dry run prints each card sent once and names it in place.
+
 **The door is the `claude` CLI, exactly as `instructions/judge.py` calls it** (`_ARGV`, `judge_env`), plus `--model`
 and `--effort` from `quality/readers.toml` (the coordinator's decision 1). No key is read, named or passed. A run
 refuses before its first screen when the binary is missing or `claude -p` cannot answer a one-word probe. The calls are
@@ -58,7 +65,7 @@ import yaml
 
 from instructions.judge import _ARGV as JUDGE_ARGV, judge_env
 from instructions.spoken import reveal_aloud
-from quality import rubric
+from quality import cards, rubric
 
 REPO = Path(__file__).resolve().parent.parent
 QUALITY = REPO / "quality"
@@ -214,9 +221,15 @@ class Screen:
     #: Spec 109: a screen read after everyone answered (§B), numbered on its own from 1.
     after: bool = False
 
+    @property
+    def card(self) -> str | None:
+        """Spec 131 FR-2: the key of the dimension card this screen is sent -- its dimension's, where the cards carry
+        one (`quality/cards.card_for`) -- or None (context, idea, send, the stage page, the Insights screen)."""
+        return self.dimension if cards.card_for(self.dimension) is not None else None
+
     def meta(self) -> dict:
         return {"n": self.n, "screen": self.screen, "audience": self.audience, "link": self.link,
-                "dimension": self.dimension, "kind": self.kind}
+                "dimension": self.dimension, "kind": self.kind, "dimension_card": self.card}
 
     def label(self) -> str:
         if self.after:
@@ -753,6 +766,25 @@ def spoken_guidelines(bundle: dict, cloud: Path | None = None) -> dict:
             "sha256": hashlib.sha256(part.encode("utf-8")).hexdigest()}
 
 
+# ------------------------------------------------------------------------------------ the dimension card (131)
+
+#: Spec 131 FR-2: the heading the card is sent under, in both readers' prompts, after the persona and before the screen.
+DIMENSION_HEADING = "## The dimension this screen tests -- its card"
+
+
+def dimension_block(screen: Screen) -> str:
+    """Spec 131 FR-2: what fills `{{dimension}}` -- the screen's dimension card whole (the text between its two markers
+    in `quality/readers/dimensions.md`) under its heading, on every screen whose dimension the cards carry (answer,
+    check, choose, q, the stranger's item and gate, the card after the answers); '' on a screen with none."""
+    key = screen.card
+    if not key:
+        return ""
+    return (f"{DIMENSION_HEADING}\n\nWhat this dimension measures, the shape its options must have, which answers count "
+            "for the belief this screen tests and which against, and its escape -- from keel-cloud's registry, by hand. "
+            "Read the screen against it. A point it lists under *Open* is never a fault of the screen.\n\n"
+            + cards.card(key) + "\n")
+
+
 # --------------------------------------------------------------------------------------------- the calls
 
 #: Spec 122 (FR-1): the tail of the second ask, the first answer's fault named.
@@ -913,11 +945,13 @@ def plan(bundle: dict, entry: dict, *, only: str | None = None, limit: int | Non
             part = "after-insights" if screen.kind == "insights-screen" else "after"
             jobs.append((screen, fill(template("founder", part, readers_dir),
                                       {"persona": founder_block, "rubric_b": rubric.prompt_after(),
+                                       "dimension": dimension_block(screen),
                                        "beliefs": checked_beliefs(bundle), "earlier": earlier,
                                        "screen": screen.full})))
             continue
         earlier = "\n".join(s.compact for s in founder if s.n < screen.n) or "(none: this is the first screen)"
         jobs.append((screen, fill(founder_t, {"persona": founder_block, "rubric": rubric_part,
+                                              "dimension": dimension_block(screen),
                                               "earlier": earlier, "screen": screen.full})))
     chosen = [(link, s) for link, screens in links.items() for s in _select(screens, only, None)]
     chosen = chosen[:limit] if limit else chosen
@@ -929,6 +963,7 @@ def plan(bundle: dict, entry: dict, *, only: str | None = None, limit: int | Non
         part = rubric_part + "\n\n" + rubric.prompt_follow_up() if screen.kind == rubric.FOLLOW_UP_KIND \
             else rubric_part
         jobs.append((screen, fill(respondent_t, {"persona": blocks[link], "rubric": part,
+                                                 "dimension": dimension_block(screen),
                                                  "rubric_r6": rubric_r6, "spoken_rules": guidelines["text"],
                                                  "earlier": earlier, "screen": screen.full})))
     if not (only or limit):
@@ -947,8 +982,10 @@ def plan(bundle: dict, entry: dict, *, only: str | None = None, limit: int | Non
             block = blocks.get(line["link"]) or persona(entry, bundle, line["link"])
             insights.append((line, fill(insights_t, {"persona": block, "line": render_line(line),
                                                      "rubric_g": rubric_g})))
+    sent = sorted({s.card for s, _ in jobs if s.card}, key=lambda k: cards.keys().index(k))
     return {"screens": jobs, "flows": flows, "insights": insights, "after": len(after),
             "persona": {"founder": founder_block, "respondent": blocks},
+            "cards": {key: cards.card(key) for key in sent},           # spec 131 FR-2: printed once by the dry run
             "spoken_guidelines": {k: guidelines[k] for k in ("source", "sections", "sha256")},
             "_guidelines_text": guidelines["text"]}
 
@@ -959,6 +996,8 @@ def named_in_place(prompt: str, work: dict) -> str:
     blocks = [("the founder's persona block, printed above", work["persona"]["founder"])]
     blocks += [(f"the {link} persona block, printed above", b) for link, b in work["persona"]["respondent"].items()]
     blocks.append(("the spoken-question guidelines §2, §3 and §5, printed above", work.get("_guidelines_text") or ""))
+    # spec 131 FR-2: each dimension card, printed once above, named where it is sent
+    blocks += [(f"the {key} card, printed above", text) for key, text in (work.get("cards") or {}).items()]
     for name, text in sorted(blocks, key=lambda nb: -len(nb[1])):
         if text:
             prompt = prompt.replace(text, f"[{name}]")
@@ -1024,6 +1063,13 @@ def run(argv=None) -> int:
               "pasted whole into every respondent prompt)")
         print("=" * 100)
         print(work["_guidelines_text"])
+        print("=" * 100)
+        print(f"THE DIMENSION CARDS (spec 131 FR-2: each sent after the persona and before the screen, on every screen of "
+              f"its dimension; quality/readers/dimensions.md): {', '.join(work.get('cards') or {}) or 'none'}")
+        print("=" * 100)
+        for key, text in (work.get("cards") or {}).items():
+            print(f"--- {key} ---")
+            print(text)
         for i, (label, prompt) in enumerate(jobs, 1):
             print("=" * 100)
             print(f"[{i}/{len(jobs)}] {label}")
