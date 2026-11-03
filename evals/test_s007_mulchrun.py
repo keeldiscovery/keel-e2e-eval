@@ -19,8 +19,13 @@ revision-9 question offers a physical unit, spec 039 D-6); what survives is the 
 
 from __future__ import annotations
 
+import pytest
+
 from evals import corpus_scenario
 from harness import vectors_script as vs
+
+#: Spec 130: one of the remote six (`make remote`).
+pytestmark = pytest.mark.remote
 
 ENTRY_ID = "07-mulchrun"
 

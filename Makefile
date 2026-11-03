@@ -5,7 +5,7 @@ PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
         matrix-check keels-ai sample backtest gallery noise-check read-screens read-table \
-        quality-walk quality-advise quality-accept quality-due
+        quality-walk quality-advise quality-accept quality-due remote
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -33,6 +33,14 @@ down: venv
 # (relay-design.md §12.5: two profiles never share ports, a database, or now a runtime home).
 eval: venv
 	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) $(PY) -m pytest evals -q -m "not live" $(if $(K),-k "$(K)",)
+
+# make remote (spec 130): the journeys the coordinator runs on the staging twin -- every scenario marked `remote` (the
+# remote six, S-005 S-006 S-007 S-014 S-015 S-016, and the three sharing journeys S-018 S-019 S-020), on the remote
+# profile, never a local stack. K= narrows it to one (`make remote K=s018`), as `make eval K=s018 PROFILE=remote` does.
+# Needs KEEL_REMOTE_WEB_URL and the gate pair in the shell (README's *remote profile*) and `make up PROFILE=remote`
+# first. Not paid (the scripted runtime, the owner's own AI), but it writes to staging: the coordinator's to run.
+remote: venv
+	KEEL_EVAL_PROFILE=remote $(PY) -m pytest evals -q -m "remote and not live" $(if $(K),-k "$(K)",)
 
 # make sample (spec 060; keel-cloud `canon/designs/landing-page-design.md` §18.11) runs S-006 on the local stack with
 # the export on: the finished 05-paidly project at its twenty answers -- overview, plan, standings, roles, people,

@@ -17,8 +17,13 @@ Countly is the corpus's B2C entry with the most people (twelve), and it earns it
 
 from __future__ import annotations
 
+import pytest
+
 from evals import contacts_leg, corpus_scenario, interviewer_leg
 from harness import vectors_script as vs
+
+#: Spec 130: one of the remote six (`make remote`).
+pytestmark = pytest.mark.remote
 
 ENTRY_ID = "01-countly"
 FLOOR = 5

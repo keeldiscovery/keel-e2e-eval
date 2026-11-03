@@ -1112,6 +1112,32 @@ and held (`brand_plate_faults`: none before the name, the mark as typed, the str
 read whole (`_line_text`, `textContent`) around `idea-mark`. `make unit` 4,917 passed / 0 failed / 0 errors / 54 skipped
 against keel-cloud-docs `2d848360` and keel-web `2b84758` (master `39a9ccb`: 4,717 / 154 / 2 / 55).
 
+**Sharing, and the referee follows keel-cloud 197-199 and 201** (spec `130-sharing-journeys`, 2026-11-02; keel-cloud-docs
+`cd0d736d`, keel-web `cdd99d0d`). **The mirrors** (one commit each): 201's contract 58 and document version 36
+(`harness/sharing.py`: the owner's six sharing routes, `GET /v2/me/projects`, the public `/v2/s/{token}` reads,
+`Overview.access` / `credits` / `sharedBy`, keel-web 163's words and selectors; `tests/test_sharing_130.py`); 197's
+short name at most eight words and never an outcome (`vs.SHORT_NAME_MAX_WORDS`, `is_an_outcome`, `what_it_is_faults`,
+a finding on the served idea card; the founder's own name keeps five); 198's options -- Ability to pay's five sources
+and Buyer and payer alone first read off revision 22 through **one rule** (`corpus.spec198_codes`, `spec198_pick`: a
+recorded `no_budget` is `outside_funding`; `spec198_chip`: the value box's `rather_not_say` is `dont_know`), the budget
+supports with `charged_to_users`, Buyer and payer's words with no Yes or No (`spoken.buyer_answers`; 128's kept as
+`buyer_answers_128`), Commitment's *Probably yes* / *Probably, after ... first* (the brief's *said probably*), *Or say:
+I can't say.* (`spoken.escape_line`, S6), the value box's one escape and unit-alone line, Adoption friction's
+`condition` (screen response contract 25, the scripted ASKED result's field) and *Only if {condition}*; 199's beliefs --
+the recorded sentences read through `corpus.spec199_reads` (keel-cloud's `spec199Reads`; `engine_belief` reads it):
+every role, every benefit, no *now*, Compatibility subjectless, Importance at the moment, no *quickly*, the B2B payer
+*the buyer's organisation*, the base said once (`chain.unit_beside`); the rule names `L25`-`L28` and `W11` in
+`backtest.LOCK_NOTES`; the walker answers the Purchase friction time box *not sure* where the entry's sources give no
+time (`vs.walker_duration`, `time_sourced`: every timed back-test entry's time is an author's choice) -- the Choose
+screen ticks `duration-unsure` where drawn, else types the recorded time and records `duration_unsure: "not drawn"`
+(keel-web owes the control), and a person's band is read back to the fixed three where those are served
+(`served_friction_picks`). **No corpus revision 23**: the record lives in keel-cloud-docs and is read through the rules,
+never rewritten (spec 141's pattern). A spoken record or a `build/brief-facts` written before 198 is skipped by name.
+**The journeys**: S-018 (the link), S-019 (a viewer), S-020 (a co-founder) -- `evals/sharing_leg.py` on S-016's
+money-alone walk from a fresh owner (`scope_journey.run(..., after=, before_lock=, label=)`), FR-3's pager (six own,
+*Page 1 of 2*) in S-018 and the search's narrowing in S-019; marked `remote` with the remote six, run by `make remote`
+(`make remote K=s018`); the coordinator's, on the twin.
+
 **The founder types like a person** (spec `126-the-founder-types-like-a-person`, 2026-11-01; the founder: *"ensure the
 agent emulates a human by making small typos in their statements"*). **FR-1**: `harness/typist.py` `typos(text, seed)`
 -> `(typed, [Typo(meant, typed, kind)])`, seeded `<entry id>:<field>` through sha256 (no `random`): about one typo every

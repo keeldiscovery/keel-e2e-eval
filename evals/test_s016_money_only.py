@@ -16,7 +16,12 @@ and meets the exit, counted apart on the wire, the People rows and Sent's mark. 
 
 from __future__ import annotations
 
+import pytest
+
 from evals import scope_journey
+
+#: Spec 130: one of the remote six (`make remote`).
+pytestmark = pytest.mark.remote
 
 
 def test_s016_money_only(stack, founder_one, browser, run_dir):

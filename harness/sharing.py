@@ -108,6 +108,17 @@ class Wire:
         method, path = owner_route(name, project_id, email)
         return self.call(method, path, body)
 
+    def state_until(self, project_id: str, holds, *, timeout_s: float = 15) -> dict:
+        """The owner's `SharingState`, read until `holds(state)` (a switch or a removal the sheet sent lands on the
+        wire a moment after the press), else the last read."""
+        import time                                                     # noqa: PLC0415
+        deadline, state = time.monotonic() + timeout_s, {}
+        while True:
+            _, state, _ = self.owner("state", project_id)
+            if holds(state or {}) or time.monotonic() > deadline:
+                return state or {}
+            time.sleep(0.5)
+
 
 def bare_404(status: int, text: str) -> bool:
     """Spec 031's ownership refusal: 404 and an empty body -- indistinguishable from an id that exists nowhere."""
@@ -256,12 +267,19 @@ class ShareSheet:
 
     def add(self, email: str) -> dict:
         """One address typed and *Add* pressed: the chips after, and any refusal line."""
+        import time                                                     # noqa: PLC0415
+        chips = lambda: [" ".join(t.split()) for t in self.page.get_by_test_id("share-chip").all_inner_texts()]  # noqa: E731
+        before = chips()
         box = self.page.get_by_test_id("share-address").first
         box.fill(email)
         self.page.get_by_test_id("share-add").first.click()
-        self.page.wait_for_timeout(600)
-        return {"refusal": _text(self.page.get_by_test_id("share-refusal")),
-                "chips": [" ".join(t.split()) for t in self.page.get_by_test_id("share-chip").all_inner_texts()]}
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:                              # a refusal is local; an add waits on the POST
+            refusal = _text(self.page.get_by_test_id("share-refusal"))
+            if refusal or chips() != before:
+                break
+            self.page.wait_for_timeout(250)
+        return {"refusal": _text(self.page.get_by_test_id("share-refusal")), "chips": chips()}
 
     def done(self) -> None:
         self.page.get_by_test_id("share-done").first.click()
@@ -280,9 +298,9 @@ class ShareSheet:
 
     def remove(self, email: str) -> None:
         """✕ beside one chip on *Who has it* (immediate)."""
-        chip = self.page.get_by_test_id("share-chip").filter(has_text=email).first
-        chip.get_by_test_id("share-remove").first.click()
-        self.page.wait_for_timeout(600)
+        chip = self.page.get_by_test_id("share-chip").filter(has_text=email)
+        chip.first.get_by_test_id("share-remove").first.click()
+        chip.first.wait_for(state="detached", timeout=15_000)
 
     def close(self) -> None:
         if self.page.get_by_test_id("share-close").count():

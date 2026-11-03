@@ -105,7 +105,7 @@ def test_every_scoped_journey_holds_the_clip_after_the_project():
 
     from evals import scope_journey
     source = inspect.getsource(scope_journey.run)
-    assert source.index("cs.leg_project(j)") < source.index("cs.hold_the_welcome_clip(j)") < source.index("walk(j)")
+    assert source.index("cs.leg_project(j)") < source.index("cs.hold_the_welcome_clip(j)") < source.index("walk(j, before_lock=")
 
 
 def test_the_four_scoped_clips_are_in_keel_webs_manifest_with_their_files():

@@ -20,8 +20,13 @@ What only this journey says, on top of everything the corpus legs hold:
 
 from __future__ import annotations
 
+import pytest
+
 from evals import corpus_scenario, preludes
 from evals import report_marks
+
+#: Spec 130: one of the remote six (`make remote`).
+pytestmark = pytest.mark.remote
 
 ENTRY_ID = preludes.HEALTHY_FROM
 

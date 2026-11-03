@@ -9,7 +9,12 @@ ship; the decision by the rule (Current solution split them: *Not yet*). SC1-SC8
 
 from __future__ import annotations
 
+import pytest
+
 from evals import scope_journey
+
+#: Spec 130: one of the remote six (`make remote`).
+pytestmark = pytest.mark.remote
 
 
 def test_s015_problem_only(stack, founder_one, browser, run_dir):

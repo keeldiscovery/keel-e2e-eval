@@ -57,6 +57,12 @@ EXPECTED = {
     # spec 092 (keel-cloud 162, keel-web 136): one open link for a group -- three strangers registered on the local stub
     # issuer sign in with Google. Deterministic (the scripted executor and the stack's fakes), never live, local only.
     "test_s017_open_link.py",
+    # spec 130 (keel-cloud 201, keel-web 163): sharing -- the Overview by a link, to a named viewer, and the project to a
+    # co-founder, each on S-016's money-alone walk from a fresh owner. Deterministic, never live; remote journeys
+    # (`make remote`), run on the twin by the coordinator.
+    "test_s018_share_link.py",
+    "test_s019_share_viewer.py",
+    "test_s020_share_co_founder.py",
 }
 
 
@@ -65,8 +71,9 @@ def _scenario_files() -> set[str]:
 
 
 def test_there_are_seventeen_scenarios():
+    # spec 130: twenty since S-018..S-020 (the test keeps its name; README.md and AGENTS.md say the three)
     assert _scenario_files() == EXPECTED, (
-        "the scenario set moved; README.md and AGENTS.md name these seventeen by number")
+        "the scenario set moved; README.md and AGENTS.md name these twenty by number")
 
 
 def test_the_open_link_journey_is_deterministic_and_refuses_the_remote_profile():

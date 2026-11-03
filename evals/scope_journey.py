@@ -412,12 +412,14 @@ def leg_scoped_report(j: cs.Journey) -> dict:
     return card
 
 
-def walk(j: cs.Journey, *, lap=None) -> dict:
+def walk(j: cs.Journey, *, lap=None, before_lock=None) -> dict:
     """A study of one scope from the context step to the scored Overview (the project already created on the choose
     screen with `j.scope`): the problem chat in every scope; the problem's calibrations where the problem is in scope;
     the solution's seed, idea card and calibrations where the solution is, the idea card alone on money alone; who
     decides and the money's calibrations where the money is; the lock, the links, the interviews, the scoped reading.
-    S-015 / S-016 walk it strict; a back-test under `--scope` (spec 071 FR-4) walks it with `strict=False`."""
+    S-015 / S-016 walk it strict; a back-test under `--scope` (spec 071 FR-4) walks it with `strict=False`. Spec 130:
+    `before_lock(j)`, where given, runs once the corridor is saved and before the lock (S-020's co-founder edits a row
+    there)."""
     lap = lap or (lambda _name: None)
     vectors = vs.scope_vectors(j.entry)
     cs.leg_context(j)
@@ -439,6 +441,8 @@ def walk(j: cs.Journey, *, lap=None) -> dict:
         cs.leg_calibrate(j, "COMMERCIAL")
         lap("leg_calibrate COMMERCIAL")
     drift_97(j)
+    if before_lock is not None:
+        before_lock(j)
     cs.leg_lock(j)
     lap("leg_lock")
     cs.leg_invite(j)
@@ -491,12 +495,15 @@ def one_kind(j: cs.Journey) -> None:
 
 # ------------------------------------------------------------------------------------------------ the run
 
-def run(stack, founder_one, browser, run_dir, *, scope: str, entry_from, slug: str) -> None:
+def run(stack, founder_one, browser, run_dir, *, scope: str, entry_from, slug: str, after=None, before_lock=None,
+        label: str | None = None) -> None:
     """One scoped journey, start to the Overview. `scope` is the one the choose screen is answered with; `entry_from`
-    derives the seed from 01-countly (`problem_entry`, `money_entry`)."""
+    derives the seed from 01-countly (`problem_entry`, `money_entry`). Spec 130: `after(j)`, where given, runs on the
+    finished project inside the journey's bundle (the sharing journeys, `evals/sharing_leg.py`), `before_lock(j)` before
+    the lock (`walk`), and `label` names the cell's owner on the twin's picker."""
     recorder = Recorder(run_dir)
     web_base = stack.web_base_url
-    cell_label = f"{remote.cell_name()} · scope {slug} · {time.strftime('%Y-%m-%d', time.gmtime())}"
+    cell_label = label or f"{remote.cell_name()} · scope {slug} · {time.strftime('%Y-%m-%d', time.gmtime())}"
     founder_one = remote.identity_to_sign_in_as(stack, cell_label, fallback=founder_one)
     corpus, entry = vs.entry_for(stack.keel_cloud, SCOPED_FROM)
     entry = entry_from(entry)
@@ -526,7 +533,9 @@ def run(stack, founder_one, browser, run_dir, *, scope: str, entry_from, slug: s
         own_ai_door(page, recorder, stack, j.get, through_the_code_story=bool(user_code))
         cs.leg_project(j)
         cs.hold_the_welcome_clip(j)             # spec 073 FR-4: the welcome per scope (keel-web 114)
-        walk(j)
+        walk(j, before_lock=before_lock)
+        if after is not None:
+            after(j)                            # spec 130: the sharing journeys, on the finished project
         if j.deferred:
             with recorder.step(f"spec 064: {len(j.deferred)} golden reading(s) the build moved", party="stack",
                                kind="assert") as h:

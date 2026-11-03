@@ -27,10 +27,15 @@ median 2).
 
 from __future__ import annotations
 
+import pytest
+
 from functools import partial
 
 from evals import contacts_leg, corpus_scenario, interviewer_leg, sample_export
 from harness import vectors_script as vs
+
+#: Spec 130: one of the remote six (`make remote`).
+pytestmark = pytest.mark.remote
 
 ENTRY_ID = "05-paidly"
 FLOOR = 5
