@@ -606,6 +606,16 @@ READ_JS = """() => {
   const one = (sel) => { const e = document.querySelector(sel); return e ? (e.innerText || e.value || "").trim() : ""; };
   const all = (sel) => Array.from(document.querySelectorAll(sel))
       .map((e) => (e.innerText || e.value || "").replace(/\\s+/g, " ").trim()).filter(Boolean);
+  // spec 129 (keel-web 164 W4): an option drawn as a name over its line (`.fmt__name`, `.fmt__d`: Send-who, the pilot,
+  // the share sheet) is read as the two apart -- *name -- line* -- never one run of words
+  const said = (e) => (e.innerText || e.value || "").replace(/\\s+/g, " ").trim();
+  const option = (e) => {
+    const name = e.querySelector(".fmt__name");
+    if (!name) return said(e);
+    const line = e.querySelector(".fmt__d");
+    return [said(name), line ? said(line) : ""].filter(Boolean).join(" -- ");
+  };
+  const options = (sel) => Array.from(document.querySelectorAll(sel)).map(option).filter(Boolean);
   const rows = Array.from(document.querySelectorAll("li.listrow")).map((li) => {
       const ta = li.querySelector("textarea"); return ((ta && ta.value) || li.innerText || "").replace(/\\s+/g, " ").trim();
   }).filter(Boolean);
@@ -619,7 +629,7 @@ READ_JS = """() => {
   return {kicker: one(".corridor__kicker, .iv-kicker, .guided-step__kicker"),
           question: one("[role=dialog] h2, h1.calib__q, h1.iv-q, .guided-step__question, h1"),
           hint: one(".calib__hint, .iv-tick, .iv-note, .ccard__sub"),
-          options: all((dialog ? "[role=dialog] " : "") + "[role=radio], " + (dialog ? "[role=dialog] " : "") + "[role=checkbox]"),
+          options: options((dialog ? "[role=dialog] " : "") + "[role=radio], " + (dialog ? "[role=dialog] " : "") + "[role=checkbox]"),
           rows: rows, chips: all(".calib__chip, .iv-chips button"),
           title: one(".listcheck__title") || null, intro: one(".corridor__intro") || null,
           time_box: box ? {question: one("[data-testid=duration-input] .calib__durationq"),
@@ -668,7 +678,10 @@ STAGE_JS = """() => {
           : !!row.querySelector("button.dimrow__head"),
       open: row.getAttribute("data-open") === "true"}));
   const within = (sel) => one(sel, root || undefined);
-  return {page: {kicker: within(".corridor__kicker"), title: within(".ccard__title"),
+  // spec 129 (keel-web 164 W7): the kicker by its id (`stage-kicker`, *THE PROBLEM · 7 PEOPLE ANSWERED · 3 to 7
+  // counted*), the class where a keel-web before 164 draws none
+  return {page: {kicker: t(document.querySelector("[data-testid=stage-kicker]")) || within(".corridor__kicker"),
+                 title: within(".ccard__title"),
                  headline: t(either("stage-verdict", ".answers p.answers__headline")),
                  statement: within(".ccard__sub"), foot: within(".rfoot"), decider: within("p.decider-banner"),
                  tally: t(document.querySelector("[data-testid=stage-tally]")) || null,
@@ -703,14 +716,35 @@ CARD_JS = """(key) => {
             label: t(el.querySelector("[data-testid=bar-strip-label]")) || null,
             marker: t(el.querySelector("[data-testid=bar-strip-marker]")) || null,
             axis: t(el.querySelector("[data-testid=bar-strip-axis]")) || null,
+            // spec 129 (keel-web 164 W2, W3): the strip's own scale on its own line, *one cell per person · 7 counted[ ·
+            // 2 empty until 5 are counted]* -- drawn under a value chart or a pick-two card's bars, none elsewhere
+            people: t(el.querySelector("[data-testid=bar-strip-people]")) || null,
             sides: by("data-side"), kinds: by("data-kind"), cells: cells.length};
   };
+  // spec 129 (keel-web 164 W3): the legend's chips one by one, joined with *·* (*at what you said · short of it*), never
+  // one run of words; the legend's whole text where it draws no chip
+  const legendEl = row.querySelector(".achart__legend");
+  const chips = legendEl ? Array.from(legendEl.querySelectorAll(":scope > span")).map(t).filter(Boolean) : [];
+  // spec 129 (keel-web 164 W3): the median's word under its tick (`.achart__midword`) apart from the tick row -- the
+  // tick it labels and its word -- and the drawing's words without it (*0 1 2 3 4 5 6 7*, never *6 median 7*); the bar
+  // strips are read apart (`strips`), so a chart's drawing does not run on into them
+  const hiding = (els, read) => {
+      const was = els.map((e) => e.style.display);
+      els.forEach((e) => { e.style.display = "none"; });
+      try { return read(); } finally { els.forEach((e, i) => { e.style.display = was[i]; }); }
+  };
+  const words = drawing ? Array.from(drawing.querySelectorAll(".achart__midword")) : [];
+  const midwords = words.map((m) => ({tick: m.parentElement ? hiding([m], () => t(m.parentElement)) : null,
+                                      word: t(m)}));
+  const drawingWords = drawing ? hiding(words.concat(kind !== "strip"
+      ? Array.from(drawing.querySelectorAll("[data-testid=bar-strip]")) : []), () => t(drawing)) : "";
   return {chart: {title: one(".dimrow__name"), belief: one(".dimrow__belief"), verdict: t(verdict),
                   insight: t(verdict && verdict.querySelector(".status__insight")),
                   count: t(either("dimension-count", "span.status .sub")),
                   asked: one(".dimrow__asked"), bar: one(".dimrow__said"), chart: kind,
-                  caption: one(".achart__caption"), legend: one(".achart__legend"), line: one(".achart__linelabel"),
-                  drawing: t(drawing),
+                  caption: one(".achart__caption"), legend: chips.length ? chips.join(" · ") : one(".achart__legend"),
+                  line: one(".achart__linelabel"),
+                  drawing: drawingWords, midwords: midwords,
                   rule: one("[data-testid=dimension-rule]") || null,
                   count_line: one("[data-testid=dimension-count-line]") || null,
                   so: one("[data-testid=dimension-so]") || null,

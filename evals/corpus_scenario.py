@@ -2022,7 +2022,9 @@ def said_faults(screen: dict | None, key: str, *, b2b: bool) -> list[dict]:
     screens of Purchase friction and Compatibility the title *Which one do you want to test?* (`CHOOSE_PROMPT`; Buyer
     and payer's is `choose_faults`'), Purchase friction's intro and its bar before and after the pick, and the box's
     kept-conditions line on Compatibility alone (before and after the pick); Frequency's range hint under its boxes.
-    Every miss is one fault `{what, drawn, want}`."""
+    Spec 129 (keel-web 164 W5, W8): Purchase friction's bar is the stage card's framing, by the time box as walked
+    (`vectors_screens.purchase_friction_choose_bar`), and a single question's intro says the escape only where the
+    question draws the chip, in its words. Every miss is one fault `{what, drawn, want}`."""
     if not screen:
         return []
     faults: list[dict] = []
@@ -2048,15 +2050,25 @@ def said_faults(screen: dict | None, key: str, *, b2b: bool) -> list[dict]:
             fault("the Choose title", screen.get("prompt"), vs_screens.CHOOSE_PROMPT[key])
         if key == PURCHASE_FRICTION_KEY:
             fault("the Choose intro", screen.get("intro"), vs_screens.PURCHASE_FRICTION_CHOOSE_INTRO)
+            # spec 129 (keel-web 164 W8): the bar in the stage card's framing -- before the time is typed *under your
+            # time*, then *under {the time as typed}*, *quick or not needed* where no time is asked or it is not sure
+            timed = bool(screen.get("duration_drawn"))
+            said = None if screen.get("duration_unsure") == "ticked" else vs_screens.duration_said(screen.get("duration"))
             fault("the bar before a pick", (screen.get("test_before") or {}).get("bar"),
-                  vs_screens.PURCHASE_FRICTION_CHOOSE_BAR)
+                  vs_screens.purchase_friction_choose_bar(timed))
             fault("the bar after the pick", (screen.get("test") or {}).get("bar"),
-                  vs_screens.PURCHASE_FRICTION_CHOOSE_BAR)
+                  vs_screens.purchase_friction_choose_bar(timed, said))
         kept = vs_screens.COMPATIBILITY_KEPT_NOTE if key == COMPATIBILITY_KEY else ""
         fault("the box's line before a pick", screen.get("note_before") or "", kept)
         fault("the box's line after the pick", screen.get("note") or "", kept)
     elif kind == "single" and key == FREQUENCY_KEY:
         fault("the range hint", screen.get("range_hint"), vs_screens.FREQUENCY_RANGE_HINT)
+    if kind == "single" and screen.get("intro") and "chip_served" in screen:
+        # spec 129 (keel-web 164 W5): the intro's escape only where the question draws the chip, in its words
+        found = vs_screens.CALIBRATION_ESCAPE_ANY.search(screen["intro"])
+        chip = screen.get("chip_served")
+        fault("the intro's escape", found.group(0) if found else None,
+              vs_screens.CALIBRATION_ESCAPE.format(chip=chip) if chip else None)
     return faults
 
 

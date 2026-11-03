@@ -232,5 +232,7 @@ def test_the_choose_screen_ticks_not_sure_where_drawn():
     source = inspect.getsource(vs_screens)
     assert 'DURATION_UNSURE_TESTID = "duration-unsure"' in source
     assert '"duration_unsure": unsure' in source and 'unsure = "ticked" if box.count() else ("not drawn, default typed" if duration.get("default") else "not drawn")' in source
+    # spec 129 (keel-web 164 W6): the control is drawn, a button with aria-pressed -- pressed and held
+    assert "unsure = self._press_duration_unsure(box.first)" in source
     assert re.search(r"duration = vs\.walker_duration\(j\.entry\)", inspect.getsource(
         __import__("evals.corpus_scenario", fromlist=["x"])))

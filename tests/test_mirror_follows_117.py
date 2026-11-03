@@ -47,11 +47,17 @@ def browser():
 def test_the_briefs_bar_is_the_choose_bar_in_the_briefs_shape():
     """keel-cloud 179 T005: the brief's `keelBar` is the page's Choose bar lower-cased and unstopped. Spec 118 found them
     apart (keel-cloud 182 moved the brief's bar to the time against the founder's while keel-web 155 still drew 153's
-    fear bar -- DRIFT #102); keel-web 157 (`2a202d8`) moved the page's, and the two agree again."""
-    choose = vs_screens.PURCHASE_FRICTION_CHOOSE_BAR
+    fear bar -- DRIFT #102); keel-web 157 (`2a202d8`) moved the page's, and the two agreed again.
+
+    Re-pinned by spec 129 (keel-web 164 W8, keel-cloud 202 D1(b)): the page's Choose bar moved to the stage card's
+    framing (*Holds if at least 2 in 3 say under {time} or not needed.*) while keel-cloud 202 kept `BriefFacts.keelBar`
+    in 182's words -- so the brief's bar is 157's Choose bar in the brief's shape, and the page's is no longer it."""
+    choose = vs_screens.PURCHASE_FRICTION_CHOOSE_BAR_157
     assert choose == "Holds if no more than 1 in 3 say it would take longer than you expect."
     assert bf.KEEL_BAR[FRICTION] == "holds if no more than 1 in 3 say it would take longer than you expect"
     assert bf.KEEL_BAR[FRICTION] == choose[0].lower() + choose[1:-1]
+    assert vs_screens.purchase_friction_choose_bar(True, "4 weeks") == (
+        "Holds if at least 2 in 3 say under 4 weeks or not needed.")
 
 
 @pytest.mark.parametrize("counts", ["yes_long=5, yes_quick=1, not_needed=1", "yes_long=1, yes_quick=3, not_needed=3",
@@ -130,7 +136,8 @@ render();
 ROWS = ["The office manager's sign-off", "Switching suppliers"]
 SCREENS = {
     FRICTION: {"vector": "COMMERCIAL", "intro": vs_screens.PURCHASE_FRICTION_CHOOSE_INTRO, "title": WANT_TITLE,
-               "bar": vs_screens.PURCHASE_FRICTION_CHOOSE_BAR, "note": ""},
+               # spec 129 (keel-web 164 W8): this stand-in draws no time box, so its bar is the undated one
+               "bar": vs_screens.PURCHASE_FRICTION_CHOOSE_BAR_UNDATED, "note": ""},
     COMPAT: {"vector": "SOLUTION", "intro": "Strangers get one question for this test. Pick the condition most likely "
                                             "to stop them; nothing is reworded here.", "title": WANT_TITLE,
              "bar": "Holds if no more than 1 in 3 say only with help or approval, or no.",

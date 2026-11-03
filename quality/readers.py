@@ -362,12 +362,21 @@ def _after_body(s: dict, total: int) -> tuple[list[str], str]:
                 body.append(f"{label}: {card[key]}")
         if card.get("drawing"):
             body.append(f"The chart ({card.get('chart') or 'drawn'}), its words: {card['drawing']}")
+        # spec 129 (keel-web 164 W3): the word under a tick (*median*), named with the tick it labels, apart from the
+        # tick row
+        for mid in card.get("midwords") or []:
+            if mid.get("word"):
+                tick = f"the tick {mid['tick']}" if mid.get("tick") else "a tick"
+                body.append(f"Under {tick} on the chart's tick row: {mid['word']}")
         # spec 118 FR-5 (keel-web 155 FR-1, FR-2, FR-9): the strip under the chart (one cell a person, for / against /
         # not yet counted, the marker at your bar), the count line and the So line -- named so the reader scores what
         # the card says, not their absence
         for i, strip in enumerate(card.get("strips") or []):
             sides = ", ".join(f"{k.lower()} {v}" for k, v in (strip.get("sides") or {}).items())
-            body.append(f"The strip under the chart{'' if i == 0 else f' ({i + 1})'}: {strip.get('label') or ''}"
+            # spec 129 (keel-web 164 W2): the strip's own scale on its own line (*one cell per person · 7 counted*)
+            body.append(f"The strip under the chart{'' if i == 0 else f' ({i + 1})'}: "
+                        + (f"its own line: {strip['people']}; " if strip.get("people") else "")
+                        + f"{strip.get('label') or ''}"
                         + (f" -- cells: {sides}" if sides else "")
                         + (f" -- the marker at {strip.get('bar')}" if strip.get("bar") else "")
                         + (f" -- its axis: {strip['axis']}" if strip.get("axis") else ""))

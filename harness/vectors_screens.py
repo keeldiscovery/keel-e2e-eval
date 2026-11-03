@@ -171,15 +171,57 @@ CHOOSE_PROMPT = {"commercial.buyer_payer_alignment": BUYER_PAYER_CHOOSE_PROMPT,
 #: intro (153's was *..., would this step be needed, and how long would it take. ...*; DRIFT #102).
 PURCHASE_FRICTION_CHOOSE_INTRO = ("The person who decides gets one question for this: if they bought it, how long would "
                                   "this step take before it went through. Pick the one step.")
-#: keel-web 157 FR-1 (`HOLDS` / `purchaseFrictionBar(true)`, `.keeltest__b`): Purchase friction's Choose bar, before and
-#: after the pick, on every lock that serves `CalibrationQuestion.duration` (keel-cloud 182: every lock since) -- the
-#: brief's `keelBar` is keel-cloud 182's, the same words in the brief's shape (`instructions/brief_facts.KEEL_BAR`;
-#: DRIFT #102 resolved). 153's fear bar (*Holds if at least 2 in 3 say it would be needed and would take a long time.*)
-#: is gone.
-PURCHASE_FRICTION_CHOOSE_BAR = "Holds if no more than 1 in 3 say it would take longer than you expect."
-#: keel-web 157 FR-1 (`PURCHASE_FRICTION_BAR_UNDATED`): the same bar on a lock from before keel-cloud 182, which serves no
-#: duration (test data only; no walk of this harness locks one).
-PURCHASE_FRICTION_CHOOSE_BAR_UNDATED = "Holds if no more than 1 in 3 say it would take a long time."
+#: keel-web 157 FR-1 (`HOLDS` / `purchaseFrictionBar(true)`, `.keeltest__b`): Purchase friction's Choose bar from 157
+#: to 164 -- keel-cloud 182's words (*... say it would take longer than you expect*), history since spec 129. The brief's
+#: `keelBar` keeps them (`instructions/brief_facts.KEEL_BAR`; keel-cloud 202 D1(b): *`BriefFacts.keelBar` unchanged*).
+PURCHASE_FRICTION_CHOOSE_BAR_157 = "Holds if no more than 1 in 3 say it would take longer than you expect."
+PURCHASE_FRICTION_CHOOSE_BAR_UNDATED_157 = "Holds if no more than 1 in 3 say it would take a long time."
+#: Spec 129 (keel-web 164 W8, keel-cloud 202 D1(b) `PurchaseFriction.cardBar`): the Choose bar in the stage card's
+#: framing, the count within the founder's time -- before the time is typed (`LIST_HOLDS`' entry) ...
+PURCHASE_FRICTION_CHOOSE_BAR_YOUR_TIME = "Holds if at least 2 in 3 say under your time or not needed."
+#: ... with no time asked (a lock before keel-cloud 182) or the founder *not sure* (`PURCHASE_FRICTION_BAR_UNDATED`) ...
+PURCHASE_FRICTION_CHOOSE_BAR_UNDATED = "Holds if at least 2 in 3 say quick or not needed."
+#: ... and with the time as typed (`durationSaid`: *6 weeks*, *1 month*).
+PURCHASE_FRICTION_CHOOSE_BAR_TIMED = "Holds if at least 2 in 3 say under {said} or not needed."
+#: keel-web `DURATION_UNIT_WORDS`.
+DURATION_UNIT_WORDS = {"DAYS": ("day", "days"), "WEEKS": ("week", "weeks"), "MONTHS": ("month", "months")}
+
+
+def duration_said(duration: dict | None) -> str:
+    """keel-web `durationSaid`: the founder's time as said -- *6 weeks*, *1 month* -- or "" where none is typed whole."""
+    if not isinstance(duration, dict) or str(duration.get("unit") or "") not in DURATION_UNIT_WORDS:
+        return ""
+    try:
+        count = int(str(duration.get("count") or "").strip())
+    except ValueError:
+        return ""
+    return f"{count} {DURATION_UNIT_WORDS[str(duration['unit'])][0 if count == 1 else 1]}"
+
+
+def purchase_friction_choose_bar(timed: bool, said: str | None = "") -> str:
+    """Spec 129 (keel-web 164 W8, `purchaseFrictionBar(timed, said)`): the bar no time is asked for (`timed` False) or
+    the founder is not sure of (`said` None) -- *quick or not needed*; with the time said, *under {said}*; before it is
+    typed (`said` ""), *under your time*."""
+    if not timed or said is None:
+        return PURCHASE_FRICTION_CHOOSE_BAR_UNDATED
+    return PURCHASE_FRICTION_CHOOSE_BAR_TIMED.format(said=said) if said else PURCHASE_FRICTION_CHOOSE_BAR_YOUR_TIME
+
+
+#: Spec 129 (keel-web 164 W5, `calibrationIntro(vector, n, chip)` / `unsureChipOf`): a single question's intro says the
+#: escape only where the screen draws the chip, in the chip's words -- *I'm not sure*, Price's *No price yet* --
+#: and none on a question served `unsureAllowed: false` (Prevalence, founder decision 11).
+CALIBRATION_ESCAPE = 'Pick "{chip}" and Keel leaves that dimension out of the study.'
+CALIBRATION_ESCAPE_ANY = re.compile(r'Pick "[^"]*" and Keel leaves that dimension out of the study\.')
+
+
+def unsure_chip_of(question: dict | None) -> str | None:
+    """keel-web 164 `unsureChipOf`: the chip a single question draws -- None where `unsureAllowed` is false, *No price
+    yet* on Price's `price_range`, else *I'm not sure*."""
+    if not (question or {}).get("unsureAllowed"):
+        return None
+    return PRICE_NONE_CHIP if (question or {}).get("control") == "price_range" else UNSURE_CHIP
+
+
 #: keel-web 153 FR-1 (`commitmentHolds`, `KEEL_TEST_SET_BY_KEEL`): Commitment's Check bar -- on a B2B study (the page's
 #: `hourlyRate`, keel-cloud's `isB2b()`) *Set by Keel. Holds if no more than 1 in 3 {deciders} say probably not or no.*,
 #: `{deciders}` the persona's title (else role) plural (149's `deciderPlural`; not held to a word, as 116 holds Buyer
@@ -2123,7 +2165,10 @@ class Corridor:
             else:
                 raise AssertionError(f"no single screen for the calibration control {control!r} ({name})")
             seen = {"screen": "single", "frame": self.frame(), "question": _first_text(self.page, "h1.calib__q"),
-                    "belief": _first_text(self.page, ".calib__belief-text"), **seen_chain}
+                    "belief": _first_text(self.page, ".calib__belief-text"), **seen_chain,
+                    # spec 129 (keel-web 164 W5): the intro over the question and the chip the question is served
+                    "intro": " ".join(_first_text(self.page, ".corridor__intro").split()) or None,
+                    "chip_served": unsure_chip_of(question)}
             seen.update(boxes)
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(f"calibration-{name}"))
@@ -2472,6 +2517,22 @@ class Corridor:
             h.add_screenshot(self._b.screenshot(f"check-{name}-smaller-step-removed"))
         return label
 
+    def _press_duration_unsure(self, chip) -> str:
+        """Spec 129 (keel-web 164 W6): the time box's *I'm not sure* pressed -- a button with `aria-pressed` (164), a
+        checkbox ticked (a stand-in) -- and held: *ticked* once it reads pressed, *pressed, not held* where it never
+        does within five seconds (the walk then types the time, as on a page that draws none)."""
+        if chip.get_attribute("type") == "checkbox":
+            chip.check()
+            return "ticked"
+        if chip.get_attribute("aria-pressed") != "true":
+            chip.click()
+        try:
+            self.page.locator(f"[data-testid={DURATION_UNSURE_TESTID}][aria-pressed=true]").first.wait_for(
+                state="attached", timeout=5_000)
+        except Exception:  # noqa: BLE001 - recorded: the walk types the time instead
+            return "pressed, not held"
+        return "ticked"
+
     def list_choose(self, question: dict, label: str, duration: dict | None = None) -> dict:
         """*Choose* (FR-006): none pre-picked; the radio named `label` picked; the *Keel will test* box
         read with the pick; the primary (*Continue*, or the stage's exit). Returns what it read.
@@ -2514,11 +2575,13 @@ class Corridor:
             unsure = None
             if duration and duration.get("unsure") and drawn_duration.count():
                 # spec 130 (keel-cloud 199 FR-4): the founder's time *not sure* -- the page's own control, else (a
-                # keel-web that draws none, owed) the recorded time typed and the gap recorded
+                # keel-web that draws none) the recorded time typed and the gap recorded. Spec 129 (keel-web 164 W6):
+                # the control is drawn -- *I'm not sure* beside the time box, a button with `aria-pressed` -- so the
+                # walker presses it; *not drawn, default typed* is the fallback for a keel-web before 164 alone
                 box = self.page.get_by_test_id(DURATION_UNSURE_TESTID)
                 unsure = "ticked" if box.count() else ("not drawn, default typed" if duration.get("default") else "not drawn")
                 if box.count():
-                    box.first.check() if box.first.get_attribute("type") == "checkbox" else box.first.click()
+                    unsure = self._press_duration_unsure(box.first)
             if duration and drawn_duration.count() and unsure != "ticked":
                 self.page.get_by_test_id(DURATION_COUNT_TESTID).first.fill(str(duration["count"]))
                 self.page.get_by_test_id(DURATION_UNIT_TESTID).first.select_option(value=str(duration["unit"]))
