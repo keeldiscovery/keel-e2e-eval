@@ -134,7 +134,13 @@ def test_the_golden_record_stands_and_reads_as_the_engine_writes(entry_id):
     assert recorded["belief_phrase"].startswith("given them ")
     first = vs.saved_list(entry, ADVANTAGE)["items"][0]["label"]
     want = corpus_mod.advantage_belief(first, vs.occasion(entry))
-    assert corpus_mod.engine_belief(entry, ADVANTAGE) == want
+    # spec 130 re-pin (keel-cloud 199 FR-2): 173's reading is `spec174_reads`; the engine's is 199's -- every benefit
+    assert corpus_mod.spec174_reads(entry, ADVANTAGE) == want
+    benefits = [corpus_mod.advantage_benefit(i["label"]) for i in vs.saved_list(entry, ADVANTAGE)["items"]]
+    if want.startswith("For most, their last "):
+        occasion = want[len("For most, their last "):].split(" would have gone better with it: ")[0]
+        assert corpus_mod.engine_belief(entry, ADVANTAGE) == (
+            f"For most, with it, their last {occasion} would have given them {corpus_mod.joined(benefits)}.")
     assert corpus_mod.spec173_reads(recorded["belief_phrase"]) == corpus_mod.advantage_benefit(first)
     # spec 115 FR-1 re-pin: keel-cloud 174 moved Importance's belief (two sentences, `spec174_reads`), so the row that
     # stands as recorded is one 174 did not move -- Current solution's

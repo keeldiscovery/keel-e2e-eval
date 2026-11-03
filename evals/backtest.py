@@ -1840,7 +1840,14 @@ def cloud_131(j) -> dict:
 LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-5)",
               "L21": "a drafted condition in place of the founder's own (keel-cloud 130 FR-1)",
               "M5": "a trade word or a design note in the reveal (keel-cloud 130 FR-9)",
-              "X12": "a condition code drew from the founder's people (keel-cloud 130 FR-8)"}
+              "X12": "a condition code drew from the founder's people (keel-cloud 130 FR-8)",
+              # spec 130 (keel-cloud 199): the founder's beliefs keep the founder's words -- the rules code holds where it
+              # can see them, reported by name wherever an interaction's note or repair turn names one
+              "L25": "a role the founder named that no drafted row carries (keel-cloud 199 FR-1)",
+              "L26": "a Compatibility condition the segment already settles (keel-cloud 199 FR-8)",
+              "L27": "a term the founder typed that no drafted Commitment row keeps (keel-cloud 199 FR-5)",
+              "L28": "an Adoption friction row said to *you* (keel-cloud 199 FR-9)",
+              "W11": "an offer named as a person or a bare verb of relief (keel-cloud 199 FR-3, FR-11)"}
 _NOTE = re.compile(r"\b(" + "|".join(LOCK_NOTES) + r"): ([^\n]{1,400})")
 
 

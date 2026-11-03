@@ -27,7 +27,9 @@ LONG = "yes_long"
 UNDATED_CODES = (LONG, "yes_quick", NOT_NEEDED)
 #: keel-cloud 182 FR-1 (registry `belief_template`, `PurchaseFriction.UNDATED_BELIEF`).
 BELIEF_TEMPLATE = "Most {deciders} would get through {value} within about {duration}, or not need it."
-UNDATED_BELIEF = "Most {deciders} would get through {value} quickly, or not need it."
+#: Since keel-cloud 199 FR-4 a list with no time says none -- no *quickly* (`UNDATED_BELIEF_182`, before 199).
+UNDATED_BELIEF = "Most {deciders} would get through {value}, or not need it."
+UNDATED_BELIEF_182 = "Most {deciders} would get through {value} quickly, or not need it."
 #: keel-cloud 182 FR-3 (`PurchaseFriction.BAR`, `BAR_UNDATED`): the card's bar, after *Keel's bar: *.
 BAR = "holds if no more than 1 in 3 say it would take longer than you expect"
 BAR_UNDATED = "holds if no more than 1 in 3 say it would take a long time"
@@ -165,7 +167,7 @@ def longer(code, founder: Duration | None) -> bool:
 
 def belief(deciders: str | None, step: str, founder: Duration | None) -> str:
     """`PurchaseFriction.belief`: *Most {deciders} would get through {step} within about {duration}, or not need it.*;
-    *Most would ...* with no decider word; *... quickly, or not need it.* with no time."""
+    *Most would ...* with no decider word; *..., or not need it.* with no time (keel-cloud 199 FR-4: no *quickly*)."""
     def lower(text: str) -> str:
         return text if len(text) > 1 and text[1].isupper() else text[:1].lower() + text[1:]
 

@@ -699,6 +699,7 @@ def test_the_brief_mirrors_are_180s_and_182s(registry):
     lullaby = _golden("03-lullaby", registry)
     cards = {c["key"]: c for c in bf.cards_for(lullaby, registry)}
     assert cards["solution.adoption_friction"]["line"].endswith("· 2 of them if it was clearly worth it")
-    assert cards["commercial.commitment"]["line"].endswith("· 4 of them after a look at how it listens first")
+    # spec 130 re-pin (keel-cloud 198 FR-1): the soft yes as served, *probably, after ... first*
+    assert cards["commercial.commitment"]["line"].endswith("· 4 of them probably, after a look at how it listens first")
     assert bf.VERDICT_WORDS["NOT_REACHED"] == "Not reached"
     assert not hasattr(bf, "retense_179")

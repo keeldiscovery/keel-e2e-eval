@@ -79,7 +79,8 @@ FRICTION = {"answer": {"items": [{"code": "pos_setup", "label": "Setting it up w
                                  {"code": "card_on_file", "label": "Putting a card on file"}],
                        "picked": 0},
             "belief_sentence": "Setting it up with the POS provider can slow or stop the purchase."}
-BUYER_BELIEF = "The restaurant owner decides, and nobody else has to agree."
+#: keel-cloud 199 FR-1: *{decider} decides, and {value} must agree first.* (was *... has to agree.*)
+BUYER_BELIEF = "The restaurant owner decides, and nobody else must agree first."
 #: The two B2B-only rows of the plan (05-paidly's own shapes; Purchase friction's escape the registry's since keel-cloud
 #: 174, `cant_tell` -- spec 115 FR-1 -- where 05-paidly's record keeps `cant_recall`).
 B2B_QUESTIONS = {

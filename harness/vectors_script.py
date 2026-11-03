@@ -1597,6 +1597,71 @@ def founder_duration(entry) -> dict | None:
     return found.as_wire() if found else None
 
 
+_NUMBER_WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven",
+                 "twelve")
+
+
+def time_sourced(entry) -> bool:
+    """Spec 130 (keel-cloud 199 FR-4, *Not foreseen*: *the about 2 weeks cycle 7's readers saw came from the back-test
+    entries' recorded `duration` ..., author's choices the sources do not give*): whether the entry's own sources say the
+    founder's time -- a line of its `{id}.sources.md` beside the yaml names the count and the unit (*2 weeks*, *two
+    weeks*, *2-week*) beside Purchase friction (the row's name, its key, or *the founder's time*); a figure the sources
+    give for something else (21-codyco's bookings *in 4 weeks*) is not the founder's time. A golden entry (no sources
+    file) names no time and is never asked one."""
+    found = entry.duration() if hasattr(entry, "duration") else None
+    path = getattr(entry, "path", None)
+    if found is None or path is None:
+        return found is not None
+    from pathlib import Path                                            # noqa: PLC0415
+    sources = Path(path).parent / f"{entry.id}.sources.md"
+    if not sources.is_file():
+        return True                                                     # nothing to read it against: as recorded
+    unit = found.said().split(" ", 1)[1].rstrip("s")
+    counts = [str(found.count)] + ([_NUMBER_WORDS[found.count]] if found.count < len(_NUMBER_WORDS) else [])
+    for line in sources.read_text(encoding="utf-8").lower().splitlines():
+        if not any(w in line for w in ("purchase friction", "purchase_friction", "founder's time")):
+            continue
+        if any(re.search(rf"\b{re.escape(c)}[ -]{re.escape(unit)}s?\b", line) for c in counts):
+            return True
+    return False
+
+
+def walker_duration(entry) -> dict | None:
+    """Spec 130 (keel-cloud 199 FR-4: the time is the founder's alone, asked, *not sure* an answer): what the walker
+    answers on Purchase friction's time box -- the entry's own time where its sources give one (`founder_duration`);
+    *not sure* (`{unsure: True}`, the recorded time beside it for a page that draws no *not sure*) where they give none;
+    None where the entry names no time."""
+    duration = founder_duration(entry)
+    if duration is None or time_sourced(entry):
+        return duration
+    return {"unsure": True, **duration}
+
+
+def served_friction_picks(entry, person: "PersonInputs", items: dict) -> tuple["PersonInputs", list[str]]:
+    """Spec 130 (keel-cloud 199 FR-4): where the founder answered the time *not sure*, Purchase friction is served the
+    fixed three (`yes_long · yes_quick · not_needed`) and a person's recorded duration band is answered by revision 20's
+    one rule turned back -- a band within the recorded time *quick*, a band from it *a long time*, *not needed* and a
+    chip as they were; each re-expression named. With the bands served, or nothing served, the person is unchanged."""
+    import dataclasses                                                 # noqa: PLC0415
+    from instructions import friction as friction_mod                  # noqa: PLC0415
+    served = items.get(PURCHASE_FRICTION_KEY) or {}
+    offered = [str(o.get("optionId") or o.get("code") or "") for o in served.get("options") or []]
+    if not offered or set(offered) - set(friction_mod.UNDATED_CODES):
+        return person, []
+    founder = entry.duration() if hasattr(entry, "duration") else None
+    picks, notes = [], []
+    for pick in person.picks:
+        if pick.dimension == PURCHASE_FRICTION_KEY and pick.codes and pick.codes[0] not in offered:
+            was = pick.codes[0]
+            code = friction_mod.NOT_NEEDED if was == friction_mod.NOT_NEEDED else (
+                "yes_quick" if friction_mod.within(was, founder) else friction_mod.LONG)
+            notes.append(f"{person.person}: Purchase friction is served the fixed three (the founder's time not sure), "
+                         f"so the recorded band '{was}' is answered '{code}'")
+            pick = dataclasses.replace(pick, codes=[code])
+        picks.append(pick)
+    return (dataclasses.replace(person, picks=picks), notes) if notes else (person, [])
+
+
 #: keel-web's Answer box on a list dimension: *Up to 25 words* (the founder's words Keel drafts the list from).
 ANSWER_MAX_WORDS = 25
 

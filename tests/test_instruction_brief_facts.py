@@ -9,6 +9,8 @@ median -- 101 checks on the seven entries, the insight half of `statusWords` the
 
 from __future__ import annotations
 
+import re
+
 import copy
 import dataclasses
 
@@ -68,8 +70,9 @@ def test_one_card_a_calibrated_dimension_in_registry_order(entry, b2b):
         "6 of 8", "would clip a tag to the key ring · 1 of them if it was clearly worth it")
     assert by_key["commercial.existing_sacrifice"]["line"] == "a month, what it costs them today"
     assert (by_key["commercial.commitment"]["number"], by_key["commercial.commitment"]["line"]) == (
-        # spec 118 FR-1 re-pin (keel-cloud 180 FR-7): every yes, and *on a condition* where no smaller step is named
-        "6 of 8", "would install the app · 2 of them on a condition")
+        # spec 118 FR-1 re-pin (keel-cloud 180 FR-7): every yes, and *on a condition* where no smaller step is named;
+        # spec 130 re-pin (keel-cloud 198 FR-1): the soft yes as served, *said probably*
+        "6 of 8", "would install the app · 2 of them said probably")
     # spec 064 FR-5a (keel-cloud 117 FR-3): Current solution's bar names the rung above the line
     assert by_key["problem.current_solution_satisfaction"]["keelBar"] == \
         "holds if at least 2 in 3 land below 'Found them after a quick look'"
@@ -310,7 +313,19 @@ def cloud_facts_at_104():
     if not _at_182(cloud):
         pytest.skip("keel-cloud's build/brief-facts/ predates keel-cloud 182 (a Purchase friction card still says the "
                     "fear's *... , and it would take a long time*) -- rerun its BriefFactsCorpusTest to compare")
+    if not _at_198(cloud):
+        pytest.skip("keel-cloud's build/brief-facts/ predates keel-cloud 198 (a Commitment card counts the second yes "
+                    "*after ... first* or *on a condition*, not the soft yes *probably*) -- rerun its BriefFactsCorpusTest "
+                    "to compare")
     return registry, corpus, cloud
+
+
+def _at_198(cloud) -> bool:
+    """Spec 130: a `build/brief-facts/` a run of keel-cloud 198 or later wrote -- no Commitment card counts the second
+    yes in 180's words (*· k of them after ... first*, *· k of them on a condition*); 198 says *probably*."""
+    lines = [str(c.get("line") or "") for f in cloud.facts.values() for c in (f or {}).get("cards") or []
+             if c.get("key") == "commercial.commitment"]
+    return not any(re.search(r"· \d+ of them (?:after |on a condition)", line) for line in lines)
 
 
 #: Spec 076 FR-2 (keel-cloud 145 FR-2): the named role's card line since 145.

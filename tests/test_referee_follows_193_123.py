@@ -139,8 +139,10 @@ def test_every_back_test_entry_loads_and_seventeen_are_amended(registry):
     directory = corpus_mod.backtest_dir(KEEL_CLOUD)
     corpus = corpus_mod.load(KEEL_CLOUD, registry=registry, backtest=True)
     assert corpus.entries
+    # spec 130 re-pin (keel-cloud 199 FR-10): three of the seventeen carry 199's note above 193's, so the note is read
+    # in the header, not only at its head
     amended = [p.name for p in sorted(directory.glob("*.yaml"))
-               if p.read_text(encoding="utf-8").startswith("# AMENDED IN PLACE (keel-cloud spec 193 FR-1")]
+               if "# AMENDED IN PLACE (keel-cloud spec 193 FR-1" in p.read_text(encoding="utf-8").split("\nid:", 1)[0]]
     assert len(amended) == 17, amended
 
 

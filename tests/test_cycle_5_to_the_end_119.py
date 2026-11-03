@@ -278,6 +278,8 @@ TODAY = {f"{n:02d}-" for n in range(8, 22)}
 
 #: Spec 123 FR-1: the head of every back-test entry keel-cloud 193 amended in place (revision 22 kept).
 AMENDED_193 = "# AMENDED IN PLACE (keel-cloud spec 193 FR-1"
+#: Spec 130: keel-cloud 199 FR-10's note, at the head of the three it amended in place again (above 193's).
+AMENDED_199 = "# AMENDED IN PLACE (keel-cloud spec 199 FR-10"
 ES = "commercial.existing_sacrifice"
 
 
@@ -289,7 +291,7 @@ def test_revision_22_moves_exactly_187s_edits():
     for rev in ("corpus-r21", "backtest-r21"):
         if not (MIRROR / rev).is_dir():
             pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no {rev} record")
-    moved, today, strays, amended = 0, set(), [], set()
+    moved, today, strays, amended, amended_199 = 0, set(), [], set(), set()
     for kind, canon in (("corpus", corpus_mod.corpus_dir(KEEL_CLOUD)), ("backtest", corpus_mod.backtest_dir(KEEL_CLOUD))):
         for path in sorted(canon.glob("*.yaml")):
             before, after = _load(MIRROR / f"{kind}-r21" / path.name), _load(path)
@@ -305,8 +307,15 @@ def test_revision_22_moves_exactly_187s_edits():
                     today.add(entry)
                 elif kind == "backtest" and entry in TIMED_22 and p == ("founder_calibration", PF, "answer", "duration"):
                     assert old is _ABSENT and (new["count"], new["unit"]) == TIMED_22[entry], (entry, new)
+                elif kind == "backtest" and p == ("founder_calibration", ES, "belief_phrase") \
+                        and path.read_text(encoding="utf-8").startswith(AMENDED_199):
+                    # spec 130 (keel-cloud 199 FR-10): amended in place again -- the base said once, *per {unit}* dropped
+                    # where the base names the unit (17-expanse, 20-lemma, 23-taiga)
+                    unit = (after["founder_calibration"][ES]["answer"] or {}).get("unit")
+                    assert old.replace(f" per {unit}", "") == new, (entry, old, new)
+                    amended_199.add(entry)
                 elif kind == "backtest" and p == ("founder_calibration", ES, "belief_sentence") \
-                        and path.read_text(encoding="utf-8").startswith(AMENDED_193):
+                        and AMENDED_193 in path.read_text(encoding="utf-8"):
                     # spec 123 FR-1 (keel-cloud 193 FR-1): revision 22 amended in place -- the Existing sacrifice
                     # sentence names who really spends; the load holds it to the engine's (`chain.cost_belief`)
                     assert old != new and ("already" in new or new.startswith("About ")), (entry, new)
@@ -330,6 +339,8 @@ def test_revision_22_moves_exactly_187s_edits():
     assert len(today) == 14 and moved == 80, (sorted(today), moved)
     # keel-cloud 193's 17 entries (08-14, 16-23, 26, 28), each with its AMENDED IN PLACE note
     assert len(amended) == 17, sorted(amended)
+    # spec 130: keel-cloud 199 FR-10's three, the belief phrase amended in place beside 193's sentence
+    assert sorted(amended_199) == ["17-expanse", "20-lemma", "23-taiga"], sorted(amended_199)
 
 
 def test_every_entry_loads_at_22_and_21_is_refused_by_name(tmp_path, registry):

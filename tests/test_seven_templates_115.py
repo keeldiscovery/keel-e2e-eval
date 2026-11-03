@@ -217,7 +217,25 @@ def test_the_leg_records_the_escape_served_for_the_dimension_the_note_names():
 def test_the_slice_says_174s_words(key, side, field):
     rows = _rows()
     sliced = {d["key"]: d for d in yaml.safe_load(SLICE.read_text(encoding="utf-8"))["dimensions"]}
-    assert sliced[key][side][field] == rows[key][side][field]
+    # spec 130 re-pin (keel-cloud 199): the slice is a registry before 199 and keeps 174's words; the registry of record
+    # says 199's where 199 moved them (Frequency's one act, Importance's moment, Compatibility's subjectless sentence,
+    # Commitment without *now*), and 174's elsewhere
+    if key in MOVED_BY_199.get(side, {}).get(field, {}):
+        assert rows[key][side][field] == MOVED_BY_199[side][field][key](sliced[key][side][field])
+    else:
+        assert sliced[key][side][field] == rows[key][side][field]
+
+
+#: Spec 130: what keel-cloud 199 made of each slice field it moved, as a function of 174's words.
+MOVED_BY_199 = {"founder": {
+    "guidance": {"problem.frequency": lambda was: was.replace(
+        "one plain event that happened on a given one or did not,",
+        "one act that happened on a given one or did not, in the simple past, one act alone (no state, cause or result; "
+        "nothing the actor does not see),")},
+    "belief_template": {IMPORTANCE: lambda was: corpus_mod.IMPORTANCE_BELIEF_TEMPLATE_199,
+                        COMPATIBILITY: lambda was: corpus_mod.COMPATIBILITY_BELIEF_TEMPLATE_199,
+                        COMMITMENT: lambda was: was.replace(" now.", ".")},
+    "belief_template_decider": {COMMITMENT: lambda was: was.replace(" now.", ".")}}}
 
 
 def test_the_slice_keeps_174s_friction_and_the_registry_says_182s():
@@ -252,12 +270,16 @@ def test_invariant_4_holds_the_decider_template_to_one_value(tmp_path):
 
 def test_the_four_templates_are_the_registrys():
     rows = _rows()
-    assert rows[COMMITMENT]["founder"]["belief_template_decider"] == corpus_mod.COMMITMENT_DECIDER_TEMPLATE
+    # spec 130 re-pin (keel-cloud 199 FR-5, FR-7, FR-8): Commitment without *now*, Importance at the moment,
+    # Compatibility read whole after *Most {actor_plural}* (174's sentence kept for a condition with its own subject)
+    assert rows[COMMITMENT]["founder"]["belief_template_decider"] == corpus_mod.COMMITMENT_DECIDER_TEMPLATE_199
+    assert rows[COMMITMENT]["founder"]["belief_template"] == corpus_mod.COMMITMENT_TEMPLATE_199
     # spec 118 re-pin (keel-cloud 182 FR-1): Purchase friction's template is the positive form
     from instructions import friction as friction_mod                  # noqa: PLC0415
     assert rows[FRICTION]["founder"]["belief_template"] == friction_mod.BELIEF_TEMPLATE
-    assert rows[COMPATIBILITY]["founder"]["belief_template"] == corpus_mod.COMPATIBILITY_BELIEF_TEMPLATE
-    assert rows[IMPORTANCE]["founder"]["belief_template"] == corpus_mod.IMPORTANCE_BELIEF_TEMPLATE
+    assert rows[COMPATIBILITY]["founder"]["belief_template"] == corpus_mod.COMPATIBILITY_BELIEF_TEMPLATE_199
+    assert corpus_mod.COMPATIBILITY_OWN_SUBJECT == corpus_mod.COMPATIBILITY_BELIEF_TEMPLATE
+    assert rows[IMPORTANCE]["founder"]["belief_template"] == corpus_mod.IMPORTANCE_BELIEF_TEMPLATE_199
 
 
 def test_the_rule_is_the_clouds_own():
@@ -300,7 +322,9 @@ def test_the_rule_is_the_clouds_own():
 def test_the_record_reads_as_the_engine_writes(entry_id, key, recorded, read):
     entry = _entry(entry_id)
     assert entry.founder_calibration[key]["belief_sentence"] == recorded, "never rewritten"
-    assert corpus_mod.spec174_reads(entry, key) == corpus_mod.engine_belief(entry, key) == read
+    # spec 130 re-pin (keel-cloud 199): 174's reading is `spec174_reads`; the engine's is 199's on top of it
+    assert corpus_mod.spec174_reads(entry, key) == read
+    assert corpus_mod.engine_belief(entry, key) == corpus_mod.spec199_reads(entry, key)
 
 
 def test_a_row_174_did_not_move_reads_as_recorded_and_173_still_reads_first():
@@ -308,7 +332,7 @@ def test_a_row_174_did_not_move_reads_as_recorded_and_173_still_reads_first():
     key = "problem.current_solution_satisfaction"
     assert corpus_mod.engine_belief(lullaby, key) == lullaby.founder_calibration[key]["belief_sentence"]
     advantage = "solution.relative_advantage"
-    assert corpus_mod.engine_belief(lullaby, advantage) == \
+    assert corpus_mod.spec174_reads(lullaby, advantage) == \
         corpus_mod.spec173_reads(lullaby.founder_calibration[advantage]["belief_sentence"])
     assert corpus_mod.spec174_reads(types.SimpleNamespace(founder_calibration={}), FRICTION) is None
 
@@ -325,9 +349,11 @@ def test_the_decider_takes_the(role, said):
 def test_every_b2b_golden_commitment_names_the_decider():
     for entry_id in ("05-paidly", "06-repeatline", "07-mulchrun"):
         entry = _golden(entry_id)
-        read = corpus_mod.engine_belief(entry, COMMITMENT)
+        read = corpus_mod.spec174_reads(entry, COMMITMENT)
         assert entry.b2b() and read.startswith(f"In most cases {corpus_mod.belief_the(entry.decision_maker_role())} "
                                                "would ") and read.endswith(" now."), read
+        # spec 130 (keel-cloud 199 FR-5): the engine's says no *now*
+        assert corpus_mod.engine_belief(entry, COMMITMENT) == read[:-len(" now.")] + "."
 
 
 def test_the_importance_box_counts_in_174s_first_sentence():

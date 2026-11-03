@@ -2128,7 +2128,8 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                     raise
             # spec 118 FR-2 (keel-cloud 182 FR-1, keel-web 155 T021): Purchase friction's Choose takes the founder's time
             # beside the step -- the entry's own `duration`, sent on the save
-            duration = vs.founder_duration(j.entry) if key == vs.PURCHASE_FRICTION_KEY else None
+            # spec 130 (keel-cloud 199 FR-4): *not sure* where the entry's sources give no time (`walker_duration`)
+            duration = vs.walker_duration(j.entry) if key == vs.PURCHASE_FRICTION_KEY else None
             seen.append(j.corridor.list_choose(question, label, duration=duration))
             seen[-1]["row"] = row       # spec 116 FR-1: the drafted row the label was found at
         j.framing[key] = seen
@@ -3564,6 +3565,12 @@ def _answer_one(j: Journey, person, token: str) -> None:
         # served (keel-cloud refuses the other way out), and each re-expression is named; spec 115 FR-0 (keel-cloud 174):
         # Purchase friction's the same way
         person, sent_as = vs.served_escape_picks(person, items)
+        # spec 130 (keel-cloud 199 FR-4): the fixed three where the founder's time was not sure, the band read back
+        person, friction_as = vs.served_friction_picks(j.entry, person, items)
+        for note in friction_as:
+            j.findings.append({"what": note, "person": person.person,
+                               "served": [o.get("optionId") for o in (items.get(vs.PURCHASE_FRICTION_KEY) or {})
+                                          .get("options") or []]})
         for note in sent_as:
             key = vs.PURCHASE_FRICTION_KEY if note.startswith(f"{person.person}: Purchase friction") \
                 else vs.CURRENT_SOLUTION_KEY

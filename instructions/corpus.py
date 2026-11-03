@@ -2006,9 +2006,116 @@ def advantage_drift_clause(founder, observed, n, a_lot) -> str:
 
 def engine_belief(entry, key: str):
     """The belief sentence the engine writes for `key`, as a journey holds the wire to it: the entry's recorded
-    `belief_sentence` read through 173's and 174's rules (`spec174_reads`; spec 113 FR-1, spec 115 FR-1); None where none
-    is recorded."""
-    return spec174_reads(entry, key)
+    `belief_sentence` read through 173's, 174's and 199's rules (`spec199_reads`; spec 113 FR-1, spec 115 FR-1, spec
+    130); None where none is recorded."""
+    return spec199_reads(entry, key)
+
+
+# ------------------------------------------------- spec 130: revision 22 read through keel-cloud 199's belief rules
+
+#: keel-cloud 199's moved templates (the registry, `BeliefSentence.OWN_SUBJECT`, `PurchaseFriction.UNDATED_BELIEF`).
+COMMITMENT_TEMPLATE_199 = "Most {actor_plural} would {value}."
+COMMITMENT_DECIDER_TEMPLATE_199 = "In most cases {decider} would {value}."
+COMPATIBILITY_BELIEF_TEMPLATE_199 = "Most {actor_plural} {value}."
+#: `BeliefSentence.OWN_SUBJECT`: a condition that names its own subject keeps 174's sentence.
+COMPATIBILITY_OWN_SUBJECT = "For most {actor_plural}, {value}."
+IMPORTANCE_BELIEF_TEMPLATE_199 = ("{actor_plural} have {list_size} things that are hard when {circumstance}. {value} is "
+                                  "one of the two they would most like made easier.")
+ADVANTAGE_BELIEF_TEMPLATE_199 = "For most, with it, their last {occasion} would have given them {value}."
+BUYER_BELIEF_TEMPLATE_199 = "{decider} decides, and {value} must agree first."
+FRICTION_UNDATED_BELIEF_199 = "Most {deciders} would get through {value}, or not need it."
+#: `CostEstimate.B2B_PAYER` (keel-cloud 152, 199 FR-10): who pays the cost on a B2B study, as the cost question names it.
+B2B_PAYER = "the buyer's organisation"
+
+_BUYER_197 = re.compile(r"^(.*? decides, and )(.+) has to agree\.$")
+_ADVANTAGE_173 = re.compile(r"^For most, their last (.+?) would have gone better with it: (.+)\.$")
+_COST_PAYER = "The problem already costs the payer "
+
+#: `BeliefSentence.SUBJECT_LEADS` / `VERB_LEADS` (keel-cloud 199 FR-8).
+SUBJECT_LEADS = frozenset({"their", "the", "a", "an", "its", "his", "her", "our", "my", "your", "this", "that", "these",
+                           "those", "every", "each", "there", "it", "most", "some", "all", "no", "you", "we", "i", "he",
+                           "she", "people"})
+VERB_LEADS = frozenset({"could", "can", "couldn't", "can't", "would", "will", "should", "might", "may", "must", "do",
+                        "does", "did", "have", "has", "had", "is", "are", "was", "were", "already", "still"})
+
+
+def subjectless(condition):
+    """keel-cloud 199 FR-8 (`BeliefSentence.subjectless`): Compatibility's condition as a verb phrase with no subject of
+    its own, read whole after *Most {actor_plural}* -- a leading *They* dropped, a verb phrase kept lower-cased; None
+    where the condition names its own subject (*Their phone ...*, *Staff could ...*), which reads `COMPATIBILITY_OWN_SUBJECT`."""
+    if condition is None or not str(condition).strip():
+        return None
+    said = _lower_first(re.sub(r"[.]+$", "", str(condition).strip()).strip())
+    folded = said.lower()
+    if folded.startswith("they ") or folded.startswith("they'"):
+        rest = said[len("they "):].strip() if folded.startswith("they ") else said[len("they"):].strip()
+        return None if rest.startswith("'") else rest
+    words = folded.split()
+    first = re.sub(r"[^a-z']", "", words[0])
+    if first in VERB_LEADS:
+        return said
+    if first in SUBJECT_LEADS:
+        return None
+    for at in range(1, min(len(words), 4)):
+        if re.sub(r"[^a-z']", "", words[at]) in VERB_LEADS:
+            return None
+    return said
+
+
+def joined(parts: list) -> str:
+    """`VectorCorpusFixture.joined` / `BeliefSentence.joined`: *a*, *a and b*, *a, b and c*."""
+    return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+
+
+def spec199_reads(entry, key: str):
+    """keel-cloud `VectorCorpusFixture.spec199Reads` (spec 199 FR-1, FR-2, FR-4, FR-5, FR-8, FR-10; spec 130): the
+    recorded sentence read by 173's and 174's rules (`spec174_reads`), then by exactly 199's -- Commitment's two
+    templates without *now*; Purchase friction with no time and no *quickly*; Existing sacrifice's who on B2B the payer
+    the cost question names (*the buyer's organisation*); Buyer and payer's *... must agree first.* over every role on the
+    founder's list; Relative advantage's *For most, with it, their last {occasion} would have given them {value}.* over
+    every benefit; Compatibility's *Most {actor_plural} {value}.* where the condition reads as a verb phrase. Any other
+    text as 174 reads it; the record is never rewritten (no corpus revision -- spec 141's pattern)."""
+    recorded = spec174_reads(entry, key)
+    if recorded is None:
+        return None
+    context = getattr(entry, "context", None) or {}
+    plural = str(context.get("actor_plural") or "")
+    b2b = isinstance(((getattr(entry, "persona", None) or {}).get("decision_maker")), dict)
+    if key == COMMITMENT_KEY:
+        return recorded[:-len(" now.")] + "." if recorded.endswith(" now.") else recorded
+    if key == PURCHASE_FRICTION_KEY:
+        return recorded.replace(" quickly, or not need it.", ", or not need it.")
+    if key == SACRIFICE_KEY:
+        if b2b and recorded.startswith(_COST_PAYER):
+            return "The problem already costs " + B2B_PAYER + " " + recorded[len(_COST_PAYER):]
+        return recorded
+    if key == BUYER_KEY:
+        m = _BUYER_197.match(recorded)
+        if not m:
+            return recorded
+        saved = entry.founder_list(key) if callable(getattr(entry, "founder_list", None)) else None
+        items = (saved or {}).get("items") or []
+        tested = entry.tested(key) if callable(getattr(entry, "tested", None)) else None
+        nobody = not items or tested is None or str(tested.get("label") or "").strip().lower() == "nobody else"
+        roles = [] if nobody else [chain_mod.the_role(str(i.get("label"))) for i in items
+                                   if str(i.get("label") or "").strip().lower() != "nobody else"
+                                   and str(i.get("label") or "").strip()]
+        return m.group(1) + (joined(roles) if roles else m.group(2)) + " must agree first."
+    if key == ADVANTAGE_KEY:
+        m = _ADVANTAGE_173.match(recorded)
+        if not m:
+            return recorded
+        saved = entry.founder_list(key) if callable(getattr(entry, "founder_list", None)) else None
+        benefits = [b for b in (advantage_benefit(i.get("label")) for i in (saved or {}).get("items") or []) if b]
+        return (f"For most, with it, their last {m.group(1)} would have given them "
+                f"{joined(benefits) if benefits else m.group(2)}.")
+    if key == COMPATIBILITY_KEY:
+        head = f"For most {plural}, "
+        if not recorded.startswith(head) or not recorded.endswith("."):
+            return recorded
+        bare = subjectless(recorded[len(head):-1])
+        return recorded if bare is None else f"Most {plural} {bare}."
+    return recorded
 
 
 # ------------------------------------------------- spec 115 FR-1: revision 19 read through keel-cloud 174's belief rules

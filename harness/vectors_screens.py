@@ -270,6 +270,13 @@ IDEA_LINES_DRAWN = ("() => ['#idea-how', '#idea-belief'].every((sel) => "
 DURATION_INPUT_TESTID = "duration-input"
 DURATION_COUNT_TESTID = "duration-count"
 DURATION_UNIT_TESTID = "duration-unit"
+#: Spec 130 (keel-cloud 199 FR-8, `AnswerPrompts`): Compatibility's Answer question -- never *the way they work* of
+#: people whose use is not work (it read *How does it fit into the way they work today?*).
+COMPATIBILITY_ANSWER_QUESTION = "How does it fit into what they already do today?"
+COMPATIBILITY_ANSWER_QUESTION_198 = "How does it fit into the way they work today?"
+#: Spec 130 (keel-cloud 199 FR-4, owed by keel-web): the time box's *not sure* -- ticked where the founder's time is not
+#: sure (`vectors_script.walker_duration`); a page that draws none is typed the recorded time and says so.
+DURATION_UNSURE_TESTID = "duration-unsure"
 
 
 def sent_duration(writes: list[dict], dimension: str | None) -> dict | None:
@@ -2504,13 +2511,22 @@ class Corridor:
                 raise AssertionError(f"{name}'s Choose draws the founder's time box (Continue waits for it) and the "
                                      "entry names no time -- corpus revision 22 times every B2B back-test entry "
                                      "(keel-cloud 187 FR-4 (a)); a golden entry names none")
-            if duration and drawn_duration.count():
+            unsure = None
+            if duration and duration.get("unsure") and drawn_duration.count():
+                # spec 130 (keel-cloud 199 FR-4): the founder's time *not sure* -- the page's own control, else (a
+                # keel-web that draws none, owed) the recorded time typed and the gap recorded
+                box = self.page.get_by_test_id(DURATION_UNSURE_TESTID)
+                unsure = "ticked" if box.count() else "not drawn"
+                if box.count():
+                    box.first.check() if box.first.get_attribute("type") == "checkbox" else box.first.click()
+            if duration and drawn_duration.count() and unsure != "ticked":
                 self.page.get_by_test_id(DURATION_COUNT_TESTID).first.fill(str(duration["count"]))
                 self.page.get_by_test_id(DURATION_UNIT_TESTID).first.select_option(value=str(duration["unit"]))
                 typed_duration = {"count": _value(self.page.get_by_test_id(DURATION_COUNT_TESTID).first),
                                   "unit": self.page.get_by_test_id(DURATION_UNIT_TESTID).first.input_value()}
             seen = {"screen": "choose", "frame": self.frame(), "options": options, "label": label,
                     "duration_drawn": drawn_duration.count() > 0, "duration": typed_duration,
+                    **({"duration_unsure": unsure} if unsure else {}),
                     "drawn_index": options.index(label) if label in options else None,
                     "picked_before": [i for i, c in enumerate(before) if c == "true"],
                     "test_before": empty, "test": self._keel_test(),

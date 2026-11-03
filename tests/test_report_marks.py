@@ -320,7 +320,8 @@ def test_the_lead_lines_follow_the_stage_status():
         # spec 118 FR-1 re-pin (keel-cloud 182 FR-4): a list with no time says *said {step} would take a long time*,
         # the number those against; (180 FR-7) every yes is Commitment's number, the second beside it *of them*
         "Purchase friction · 2 of 5 said the office manager's sign-off would take a long time",
-        "Commitment · 3 of 5 would install the app · 1 of them after a look at it on a demo first"]  # the fixture's smaller step (r14)
+        # spec 130 re-pin (keel-cloud 198 FR-1): the soft yes, *probably, after ... first* (the fixture's smaller step)
+        "Commitment · 3 of 5 would install the app · 1 of them probably, after a look at it on a demo first"]
     facts = copy.deepcopy(st["facts"])
     facts["vectors"][2]["verdict"] = "TOO_FEW_TO_CALL"
     for c in facts["cards"]:

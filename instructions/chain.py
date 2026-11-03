@@ -185,11 +185,24 @@ def unit_of(cost, role_word):
     return u.strip() if isinstance(u, str) and u.strip() else (role_word.strip() if role_word else None)
 
 
+def unit_beside(unit, base, period):
+    """keel-cloud 199 FR-10 (`CommercialChain.unitBeside`): the founder's unit, or None where the base already names it
+    (the unit's word, or its plural or possessive, in the base), so the sentence says it once -- *the cluster's GPU hours
+    a month*, never *... per cluster a month*. A unit of two words or more, and a cost *each* time, keep their unit."""
+    if not unit or not str(unit).strip() or not base or not str(base).strip() or " " in str(unit).strip() \
+            or period == "each":
+        return unit
+    pattern = r"(?i)\b" + re.escape(str(unit).strip()) + r"(?:'s|s|es)?\b"
+    return None if re.search(pattern, str(base)) else unit
+
+
 def cost_said(cost: dict, occasion, role_word) -> str:
-    """CommercialChain.costSaid: the phrase the drift clause quotes (the belief phrase)."""
+    """CommercialChain.costSaid: the phrase the drift clause quotes (the belief phrase). Since keel-cloud 199 FR-10 a
+    rate's unit is dropped where its base names it (`unit_beside`)."""
     unit, lo, hi = unit_of(cost, role_word), dec(cost["low"]), dec(cost["high"])
     if cost["mode"] == "RATE":
         of = base_of(cost, occasion)
+        unit = unit_beside(unit, of, cost["period"])
         return "about " + figure(cost, lo, hi) + ("" if of is None else " of " + of) + " " + per(unit, cost["period"])
     return ("about " if is_money(cost) else "") + figure(cost, lo, hi) + " " + per(unit, cost["period"])
 
@@ -329,11 +342,12 @@ def cost_belief(cost: dict, occasion, role_word, deciders_words=None, b2b: bool 
     number once; the loss line is dropped where it only repeats the base."""
     who = "They" if not deciders_words or not str(deciders_words).strip() else _upper(str(deciders_words).strip())
     actors = "They" if not actor_plural or not str(actor_plural).strip() else _upper(str(actor_plural).strip())
-    unit = unit_of(cost, role_word) if b2b else None
+    of = base_of(cost, occasion)
+    # keel-cloud 199 FR-10: the base said once -- no *per cluster* after *the cluster's GPU hours*
+    unit = unit_beside(unit_of(cost, role_word) if b2b else None, of, cost["period"])
     lo, hi = dec(cost["low"]), dec(cost["high"])
     words = per(unit, cost["period"])
     tail = "" if not words else " " + words
-    of = base_of(cost, occasion)
     if cost["mode"] == "RATE":
         loss_text = cost.get("lossPhrase")
         loss = None
