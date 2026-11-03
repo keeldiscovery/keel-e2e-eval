@@ -61,8 +61,7 @@ that's foolproof."*
      `option_rule` and `fixed_answers` as the source.
   3. **Which answers count for the belief, which against, which neither**, by the registry's `answers` block
      (`compare_rule`, `supports`, `conditional`, the `against` sets, the `floor`): the card names them in plain words
-     (*for: the first rung and the ones above the founder's line; against: every rung below it; the escape counts
-     nobody*) and says what a healthy scale therefore needs (*at least one rung above the line, else nothing can count
+     (Current solution: the belief is *their way still falls short*, so *for the belief: every rung below the founder's line; against: the rungs above it, where today's way did the job; the escape counts nobody* -- the registry's `below_line` is the source, as the card says; the review of 2026-11-03 corrected this spec's first sketch, which had the direction reversed) and says what a healthy scale therefore needs (*at least one rung above the line, else nothing can count
      for today's way and the belief is tested against nothing*).
   4. **The escape**: which chip, what it means, when it must be there and when it must not (Prevalence's gate has none).
   5. **Two examples**: one scale that meets the card and one that breaks it, each with the words that break it named
