@@ -149,3 +149,22 @@ def test_the_wire_helpers():
     assert sharing.names_out(payload, ["Priya Natarajan", "Tom Okafor"]) == ["Priya Natarajan"]
     assert sharing.names_out({"line": "Person 2 skipped"}, ["Priya Natarajan"]) == []
     assert sharing.person_fields_out(payload) == ["$.people[1].email"]
+
+
+def test_the_amendments_retired_reads_are_read_nowhere():
+    """Spec 129 (keel-web 163's amendments): *no Share* counts the side nav's entry and the phone's tab; nothing in the
+    harness reads the summary line or the stepper, and keel-web's project shell draws no stepper."""
+    import inspect                                                      # noqa: PLC0415
+    assert 'self.page.get_by_test_id("share").count() + self.page.get_by_test_id("tab-share").count()' in \
+        inspect.getsource(sharing.SharedPages.marks)
+    root = Path(__file__).resolve().parents[1]
+    for folder in ("harness", "evals", "quality"):
+        for path in (root / folder).rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            if path.name == "sharing.py":                               # the list itself
+                text = text.replace(text[text.index("RETIRED = "):].split("\n", 1)[0], "")
+            for retired in sharing.RETIRED:
+                assert retired not in text, f"{path.relative_to(root)} reads {retired}"
+    shell = KEEL_WEB / "src/routes/founder/ProjectShell.tsx"
+    if shell.is_file():
+        assert "<JourneyRail" not in shell.read_text(encoding="utf-8")

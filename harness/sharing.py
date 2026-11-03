@@ -155,6 +155,10 @@ def person_fields_out(payload: Any) -> list[str]:
 
 # --------------------------------------------------------------------------------------------- the screens
 
+#: Spec 129 (keel-web 163's amendments of 2026-11-02): the reads the harness must no longer make -- the summary line
+#: under *Shared* (its test id, now `share-count`) and the project stepper (keel-web's `JourneyRail`, class `jrail`: no
+#: project page draws it since the 23:00 ET amendment, A002) -- as code would write them.
+RETIRED = ('"share-line"', "testid=share-line", ".jrail")
 #: keel-web 163 *Owed elsewhere*: the selectors for eval 130.
 TESTIDS = ("share", "share-count", "tab-share", "share-sheet", "share-what-overview", "share-what-project", "share-next", "share-back",
            "share-done", "share-cancel", "share-close", "share-more", "share-link-switch", "share-link-url",
@@ -363,8 +367,10 @@ class SharedPages:
         return binding.locator("article.page.rp-page").count()
 
     def marks(self) -> dict:
-        """What a shared page must and must not draw: no Share, Interviews greyed, *Try Keel* / *Log in*."""
-        return {"share": self.page.get_by_test_id("share").count(),
+        """What a shared page must and must not draw: no Share, Interviews greyed, *Try Keel* / *Log in*. Spec 129
+        (keel-web 163 amendment 22:55 ET, J-10): Share is the side nav's entry (`share`) and the phone's tab
+        (`tab-share`), both in the DOM at every width, so *no Share* counts the two."""
+        return {"share": self.page.get_by_test_id("share").count() + self.page.get_by_test_id("tab-share").count(),
                 "interviews_not_shared": self.page.get_by_test_id("nav-interviews-not-shared").count()
                 + self.page.get_by_test_id("tab-interviews-not-shared").count(),
                 "try_keel": self.page.get_by_test_id("try-keel").count(),
