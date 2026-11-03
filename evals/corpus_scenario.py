@@ -2188,7 +2188,14 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 continue
             mismatches.append({"dimension": key, "keel will test": box["belief"], "corpus": sentence})
         h.record_assert([], mismatches)
-        assert not mismatches, json.dumps(mismatches, indent=2)
+        # spec 130 amendment (2026-11-02 22:50 ET): the sharing journeys S-018..S-020 walk S-016's study with
+        # strict=False -- a belief the golden corpus words differently is a finding there, never a stop; S-016 itself
+        # and the corpus scenarios stay strict
+        if j.strict:
+            assert not mismatches, json.dumps(mismatches, indent=2)
+        elif mismatches:
+            j.findings.append({"what": "the golden corpus words a belief differently (read as a note, strict=False)",
+                               "mismatches": mismatches})
     if lower_case:
         # runs/DRIFT.md #79, closed by keel-web 066 (fillBelief capitalises): spec 041 held the preview equal but for
         # its first letter. Spec 042 fails the journey if the lower-case head is ever drawn again.

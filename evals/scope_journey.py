@@ -496,7 +496,7 @@ def one_kind(j: cs.Journey) -> None:
 # ------------------------------------------------------------------------------------------------ the run
 
 def run(stack, founder_one, browser, run_dir, *, scope: str, entry_from, slug: str, after=None, before_lock=None,
-        label: str | None = None) -> None:
+        label: str | None = None, strict: bool = True) -> None:
     """One scoped journey, start to the Overview. `scope` is the one the choose screen is answered with; `entry_from`
     derives the seed from 01-countly (`problem_entry`, `money_entry`). Spec 130: `after(j)`, where given, runs on the
     finished project inside the journey's bundle (the sharing journeys, `evals/sharing_leg.py`), `before_lock(j)` before
@@ -526,7 +526,7 @@ def run(stack, founder_one, browser, run_dir, *, scope: str, entry_from, slug: s
         if getattr(stack, "is_remote", False):
             page.set_default_navigation_timeout(90_000)
         j = cs.open_journey(recorder, page, context, browser, stack, entry, founder, people, script=script,
-                            registry=exported.registry)
+                            registry=exported.registry, strict=strict)
         j.scope = scope
         j.stack, j.founder_identity = stack, founder_one
         user_code = cs._connect(stack, recorder, page, founder_one, web_base, run_dir, keys_path)

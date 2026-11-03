@@ -551,20 +551,20 @@ class CoFounder:
 # ------------------------------------------------------------------------------------------- the runs
 
 def run_link(stack, founder_one, browser, run_dir) -> None:
-    scope_journey.run(stack, founder_one, browser, run_dir, scope=SCOPE, entry_from=ENTRY_FROM, slug="s018-share-link",
+    scope_journey.run(stack, founder_one, browser, run_dir, scope=SCOPE, entry_from=ENTRY_FROM, strict=False, slug="s018-share-link",
                       after=link, label=f"{remote.cell_name()} · sharing owner (link) · {_day()}")
 
 
 def run_viewer(stack, founder_one, founder_two, browser, run_dir) -> None:
     identity = _identity(stack, "viewer", founder_two)
-    scope_journey.run(stack, founder_one, browser, run_dir, scope=SCOPE, entry_from=ENTRY_FROM,
+    scope_journey.run(stack, founder_one, browser, run_dir, scope=SCOPE, entry_from=ENTRY_FROM, strict=False,
                       slug="s019-share-viewer", after=lambda j: viewer(j, identity),
                       label=f"{remote.cell_name()} · sharing owner (viewer) · {_day()}")
 
 
 def run_co_founder(stack, founder_one, founder_two, browser, run_dir) -> None:
     co = CoFounder(_identity(stack, "co-founder", founder_two))
-    scope_journey.run(stack, founder_one, browser, run_dir, scope=SCOPE, entry_from=ENTRY_FROM,
+    scope_journey.run(stack, founder_one, browser, run_dir, scope=SCOPE, entry_from=ENTRY_FROM, strict=False,
                       slug="s020-share-co-founder", before_lock=co.before_lock, after=co.after,
                       label=f"{remote.cell_name()} · sharing owner (co-founder) · {_day()}")
 
