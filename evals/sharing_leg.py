@@ -542,7 +542,8 @@ class CoFounder:
                                  "chip": self.identity.email.lower()}, {"line": line, "who": who})
                 assert line["line"] == sharing.share_summary(link_on=False, viewers=0, co_founders=1), line
                 assert any(self.identity.email.lower() in c for c in who["chips"]), who
-                assert who["coFounders"].startswith("Work on the project · 1"), who
+                # the heading is drawn in small caps (CSS text-transform), so inner_text reads it upper-cased: case aside
+                assert who["coFounders"].lower().startswith("work on the project · 1"), who
         finally:
             if self.context is not None:
                 self.context.close()
