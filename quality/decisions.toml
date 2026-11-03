@@ -414,3 +414,24 @@ decision = "taken"
 spec = ["keel-cloud 208"]
 until = "spec-merged"
 why = "DEFECT of spec 200's intent: the follow-up reads the band label back ('$250 to under $599', '0.1% to under 0.25%') and the whole row, with an opening negative; code's words."
+
+[[decision]]
+id = "D-2026-11-03-05"
+cycle = "20261103-09d0784"
+proposals = [20, 34]
+row = { scope = "*", audience = "founder", dimension = "-", screen = "context-window" }
+fix = "*"
+decision = "taken"
+spec = ["keel-web 166"]
+until = "spec-merged"
+why = "The founder, 2026-11-03: 'Let's fix 2 and 4': the window label names the moment (the circumstance clause) instead of 'the last time it happened'."
+
+[[decision]]
+id = "D-2026-11-03-06"
+cycle = "20261103-09d0784"
+proposals = [3, 36]
+row = { scope = "*", audience = "founder", dimension = "-", screen = ["persona", "market"] }
+fix = "*"
+decision = "declined"
+until = "never"
+why = "The founder, 2026-11-03: 'other let it be as it is' -- the persona screen's 'decide to use and pay for' and the market screen's shape stay."
