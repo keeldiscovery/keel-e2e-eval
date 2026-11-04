@@ -20,7 +20,7 @@ and what is scored here by code against the registry keel-cloud exports:
 - `score_calibration` (`CALIBRATION_QUESTIONS`, `founder-lists.md`) -- coverage: one entry a dimension of the vector's
   answered slice, in order (C1); validity: Prevalence's `event` (E1-E3) and its five fifths (C2-C4), Frequency / Price
   / Existing sacrifice their key and note alone (C2), and **every list dimension's draft** held to `L1`-`L5` against
-  the registry's `founder.saves` -- with the `asked` face of a Compatibility or Adoption friction item held to the
+  the registry's `founder.saves` (a Purchase friction step naming the founder's own offer `L32`, spec 132) -- with the `asked` face of a Compatibility or Adoption friction item held to the
   `K` rules too, because a drafted face the founder keeps reaches a stranger unchanged (keel-cloud 088 FR-003's
   vouching; call 85); no_leak: sweep A over the PROBLEM job's written words (Prevalence's clause and fifths,
   Importance's five, Current solution's phrase and outcomes);
@@ -48,6 +48,7 @@ import re
 from dataclasses import dataclass, field
 
 from . import context as context_mod
+from . import friction as friction_mod
 from . import spoken as spoken_mod
 from . import text as text_mod
 from . import wording as wording_mod
@@ -405,6 +406,13 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
                     faults.append(f"L3: {number!r} in item {i + 1} is a number the founder did not write")
         if _is_not_sure_label(label):
             faults.append(f"C3: {label!r} is a not-sure item; the chip is UI")
+        offer = friction_mod.founders_offer(label) if dimension.key == PURCHASE_FRICTION_KEY else None
+        if offer:
+            # spec 132 FR-1 (keel-cloud 205 FR-1, `PurchaseFriction.foundersOffer`): a step naming the founder's own
+            # offer is the founder's side, never one the buyer's side clears -- refused once, then noted (L32)
+            faults.append(f"L32: {label!r} names the founder's own offer ({offer!r}); a step here is one the buyer's "
+                          "side must clear before paying -- leave the founder's offer out, even where the founder "
+                          "typed it")
         if saves.get("asked"):
             asked = str(item.get("asked") or "")
             if not 1 <= words(asked) <= ASKED_MAX_WORDS or "?" in asked:

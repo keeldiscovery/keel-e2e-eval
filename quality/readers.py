@@ -284,6 +284,7 @@ def founder_screens(bundle: dict) -> list[Screen]:
         body += _lines("Rows", s.get("rows"))
         body += _lines("Chips (the escape)", s.get("chips"))
         body += _choose_boxes(s)
+        body += _idea_boxes(s)
         if s.get("keel read back"):
             body.append("What Keel wrote on this screen:\n" + _said(s["keel read back"]))
         if s.get("answer") not in (None, "", {}, []):
@@ -296,6 +297,24 @@ def founder_screens(bundle: dict) -> list[Screen]:
                           compact=_compact(int(s.get("n") or len(out) + 1), s.get("kicker"), s.get("question")
                                            or s.get("hint"), name)))
     return out
+
+
+#: Spec 132 FR-13: the idea screen's boxes, as the founder-reader is told them, in the order drawn.
+IDEA_BOXES = (("name", "Its name"), ("whatItIs", "What it is (the box beside the name)"), ("how", "How it works"),
+              ("belief", "The belief"))
+
+
+def _idea_boxes(s: dict) -> list[str]:
+    """Spec 132 FR-13 (keel-cloud 207's owed item): the idea screen's boxes as drawn -- the name, the what-it-is box
+    (Keel's suggestion, `idea_what` since keel-cloud 207), the how and the belief -- so the founder-reader scores the
+    words in them (cycle 9's readers saw only *what: {name}* while the what-it-is box held Keel's words). Nothing where
+    the screen drew none."""
+    boxes = s.get("idea_boxes") if isinstance(s.get("idea_boxes"), dict) else None
+    if not boxes:
+        return []
+    said = [f"- {label}: {boxes[key] if boxes.get(key) else '(empty as drawn)'}" for key, label in IDEA_BOXES
+            if key in boxes and boxes.get(key) is not None]
+    return ["The idea's boxes, as drawn:", *said] if said else []
 
 
 def _choose_boxes(s: dict) -> list[str]:

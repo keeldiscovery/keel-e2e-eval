@@ -15,6 +15,7 @@ Nothing here is the eval's own: every function restates `PurchaseFriction` (keel
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 
 UNITS = ("DAYS", "WEEKS", "MONTHS")
@@ -36,6 +37,24 @@ BAR_UNDATED = "holds if no more than 1 in 3 say it would take a long time"
 #: keel-cloud 182 FR-5: the one follow-up, asked of a band above the founder's time alone (no second stem).
 FOLLOW_UP_HEADING = "What would take the time?"
 FOLLOW_UP = "What would take the time in buying {solution_name}?"
+
+#: Spec 132 FR-1 (keel-cloud 205 FR-1, `PurchaseFriction.OFFER`, `foundersOffer`; rule `L32`): the words that name what
+#: the founder gives -- a closed vocabulary, no trade's word, matched whole (no letter or hyphen either side). A step
+#: carrying one is the founder's side, never a brake the buyer's side clears: a drafted row naming one is refused once,
+#: then noted; a row the founder typed naming one is left out with a note (never `L23`).
+OFFER = re.compile(r"(?i)(?<![^\W\d_])(?<!-)(trials?|pilots?|guarantees?|onboarding|money[- ]back)(?![^\W\d_])(?!-)")
+#: keel-cloud 205 (`FounderReason` L32): the note the founder is shown where a row of theirs was left out.
+OFFER_NOTE = ("Your own offer (a trial, a pilot, a guarantee) is not a step the buyer's side must clear, so it stays off "
+              "this list.")
+
+
+def founders_offer(step) -> str | None:
+    """`PurchaseFriction.foundersOffer`: the word of `OFFER` a step names (as written), or None."""
+    if step is None:
+        return None
+    found = OFFER.search(str(step))
+    return found.group(1) if found else None
+
 
 _MULTIPLIER = {"DAYS": 1, "WEEKS": 7, "MONTHS": 30}
 _UNIT_WORD = {"DAYS": "day", "WEEKS": "week", "MONTHS": "month"}

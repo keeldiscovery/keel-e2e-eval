@@ -626,6 +626,11 @@ READ_JS = """() => {
   const box = document.querySelector("[data-testid=duration-input]");
   const unit = box && box.querySelector("[data-testid=duration-unit]");
   const keel = document.querySelector(".keeltest");
+  // spec 132 FR-13 (keel-cloud 207's owed item; cycle 9 read only *what: {name}*): the idea screen's four boxes as they
+  // stand -- the name, the what-it-is box (Keel's suggestion since 185, `idea_what` since 207), the how and the belief
+  const value = (sel) => { const e = document.querySelector(sel); return e ? (e.value || "").trim() : null; };
+  const idea = document.querySelector("#idea-what") ? {name: value("#idea-what"),
+      whatItIs: value("[data-testid=idea-what-it-is]"), how: value("#idea-how"), belief: value("#idea-belief")} : null;
   return {kicker: one(".corridor__kicker, .iv-kicker, .guided-step__kicker"),
           question: one("[role=dialog] h2, h1.calib__q, h1.iv-q, .guided-step__question, h1"),
           hint: one(".calib__hint, .iv-tick, .iv-note, .ccard__sub"),
@@ -640,6 +645,7 @@ READ_JS = """() => {
                            hint: one("[data-testid=duration-input] .calib__hint")} : null,
           keel_test: keel ? {belief: one(".keeltest .keeltest__t"), bar: one(".keeltest .keeltest__b"),
                              note: one("[data-testid=keeltest-note]") || null} : null,
+          idea_boxes: idea,
           text: (scope.innerText || "").slice(0, 6000)};
 }"""
 
@@ -1467,7 +1473,10 @@ def read_back(j, slug: str, wire: dict) -> Any:
         return {"statement": (wire.get("review/PROBLEM") or {}).get("statement")}
     if slug in ("solution-seed", "solution-card", "idea"):
         idea = wire.get("idea") or {}
-        return {k: idea.get(k) for k in ("what", "how", "belief", "shortName", "approved")}
+        # spec 132 FR-13 (keel-cloud 207): the name, the what-it-is words beside it (`whatItIs`, Keel's `idea_what`
+        # where it holds) and the line strangers read -- never the bare *what: {name}* cycle 9's readers saw
+        return {k: idea.get(k) for k in ("what", "name", "whatItIs", "line", "how", "belief", "shortName", "approved")
+                if k in idea}
     if slug in ("persona", "persona-who-answers"):
         persona = wire.get("persona") or {}
         return {"respondentTypes": [{k: t.get(k) for k in ("label", "commercialLink")}
@@ -1519,7 +1528,7 @@ def founder_screens(j, cam: Camera | None, wire: dict) -> list[dict]:
                     "chips": shot.get("chips") or [],
                     # spec 119 FR-3: what a Choose screen draws beyond the list -- its title and intro, the founder's
                     # time box and the *Keel will test* box (only where drawn)
-                    **{k: shot[k] for k in ("title", "intro", "time_box", "keel_test") if shot.get(k)},
+                    **{k: shot[k] for k in ("title", "intro", "time_box", "keel_test", "idea_boxes") if shot.get(k)},
                     "answer": _safe(lambda s=slug: founder_answer(j, s)),
                     "keel read back": _safe(lambda s=slug: read_back(j, s, wire)),
                     **({"camera error": shot["error"]} if shot.get("error") else {})})
@@ -1891,7 +1900,22 @@ LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-
               # the founder's own words -- refused once, then noted (L30) or cut at the cap (L31)
               "L30": "no rung above the line reads as today's way working (keel-cloud 203 FR-3)",
               "L31": "a row of the founder's own words over the row cap, said in fewer of their words or cut "
-                     "(keel-cloud 204 FR-2)"}
+                     "(keel-cloud 204 FR-2)",
+              # spec 132 (keel-cloud 205 FR-1): a Purchase friction step naming the founder's own offer (a trial, a
+              # pilot, a guarantee, onboarding, money back) -- refused once, then noted; typed and left out, a note
+              "L32": "a Purchase friction step that is the founder's own trial, pilot, guarantee, onboarding or "
+                     "money-back offer (keel-cloud 205 FR-1)",
+              # spec 132 (keel-cloud 206 FR-1, FR-4): the gate's clause and the solution items' faces and conditions
+              "E9": "a gate clause of what might have been -- could, would or should have (keel-cloud 206 FR-1)",
+              "K10": "a Compatibility clause with a bare verb after its auxiliary, or *had* before a possessive "
+                     "(keel-cloud 206 FR-4)",
+              "K8": "an Adoption friction item drafted without its condition, `only_if` (keel-cloud 206 FR-4)",
+              # spec 132 (keel-cloud 207 FR-2, FR-3): the writers keep the founder's seed
+              "W12": "the idea's what-it-is line (`idea_what`): over twelve words, a claim, or a name inside "
+                     "(keel-cloud 207 FR-3)",
+              "M7": "a how line of more than five sentences (keel-cloud 207 FR-3)",
+              "M8": "a belief saying two or more of the how line's names again (keel-cloud 207 FR-3)",
+              "P6": "a misspelt number word at an end of a range or choice of figures (keel-cloud 207 FR-2)"}
 _NOTE = re.compile(r"\b(" + "|".join(LOCK_NOTES) + r"): ([^\n]{1,400})")
 
 
