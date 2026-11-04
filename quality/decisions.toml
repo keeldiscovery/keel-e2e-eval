@@ -461,3 +461,36 @@ fix = "*"
 decision = "held"
 until = "never"
 why = "IMPROVEMENTS for the founder's word (2026-11-04 morning): ability-to-pay's two labels (18, a 198 decision), send-who's wording (4, 24), the follow-up ladder's top rung with the step and each pick in its own sentence (16, 31). Reopen on his word."
+
+[[decision]]
+id = "D-2026-11-04-03"
+cycle = "20261104-e485abe"
+proposals = [10, 12, 17, 18, 19]
+row = { scope = "*", audience = "*", dimension = ["problem.prevalence", "problem.frequency", "solution.compatibility", "solution.relative_advantage"], screen = "*" }
+fix = "*"
+decision = "taken"
+spec = ["keel-cloud 212", "keel-cloud 213"]
+until = "spec-merged"
+why = "The founder, 2026-11-04 morning: 'we have to write the act that hurts'. One event: the founder's Prevalence clause is the strangers' gate and Frequency by code, held to the act that hurts with its test (212); Compatibility shows its settled_by and its question is guarded (212); the advantage item names the idea (213)."
+
+[[decision]]
+id = "D-2026-11-04-04"
+cycle = "20261104-e485abe"
+proposals = [6, 9, 11]
+row = { scope = "*", audience = "*", dimension = ["commercial.existing_sacrifice", "commercial.price", "problem.current_solution_satisfaction", "problem.importance", "commercial.buyer_payer_alignment", "commercial.commitment", "commercial.purchase_friction", "solution.adoption_friction"], screen = "*" }
+fix = "*"
+decision = "taken"
+spec = ["keel-cloud 213", "keel-e2e-eval 134", "keel-web 173"]
+until = "spec-merged"
+why = "The founder, 2026-11-04: 'clearly, the pricing and existing sacrifice' and 'we need to fix this' on the improvements read closely: the money beliefs keep every term (213), Keel's strings and the Commitment Check block (213, web 173), the harness read-back and the corpus entries' own words (134)."
+
+[[decision]]
+id = "D-2026-11-04-05"
+cycle = "20261104-52fd0f7"
+proposals = [6, 9, 10, 11, 12, 19, 20, 21]
+row = { scope = "*", audience = "*", dimension = "*", screen = "*" }
+fix = "*"
+decision = "taken"
+spec = ["keel-cloud 212", "keel-cloud 213", "keel-e2e-eval 134"]
+until = "spec-merged"
+why = "Cycle 12 (the review turn ON) lost the same points on the same rows as cycle 11; the same specs take them. The review turn stays off (it changed none of these)."

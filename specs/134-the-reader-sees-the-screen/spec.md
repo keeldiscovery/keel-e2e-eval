@@ -28,3 +28,15 @@ screens 0 on R7; eight of them were the harness's, not Keel's (the page of recor
 - **FR-5 Nothing else moves**; the readers' prompts, rubric 5 and the cards are unchanged by this spec (the one-clause
   rule of keel-cloud 212 is the next eval spec's, with the mirrors). `make unit` green; a dry walk of one entry
   (`BUILD` any) shows the new read-back on a Check screen.
+
+## Amended 2026-11-04 (the founder: "which means we need to fix this")
+
+- **FR-4, grown.** The same five entries' other typed words that the readers faulted against the cards are reworded
+  in the corpus (`instructions/screen_entries.py` and the gallery fixtures that quote them): Importance's rivals are
+  difficulties at that moment, not the job as a whole, none the cause of another, the own row the problem alone
+  (Fresco: *Keeping the job on schedule*, *Keeping the site safe* go; *Finding the right photo for a note*, *Getting
+  the log in before the PM's cut-off* fit); Relative advantage's rows carry one gain each (Palus' *Higher yield without
+  hiring for treasury* is two); Adoption friction's rows one effort each, none on Compatibility's ground (Aircaps'
+  *wear the glasses and pair them to the phone*, *keep the phone with them*). The readers' `instead` notes in the
+  cycle 11 score files are the starting point; every other word of the entries stays. Expected-interview fixtures and
+  the mirror tests that quote these rows move with them.
