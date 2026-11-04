@@ -85,7 +85,8 @@ MEASURED_CLASSES = ("context", "frame", "calibration", "respondent", "reading", 
 #: /v2/examples/match`, routed `light` in table v13) is the cloud's last class; it runs on no project, so no case of this
 #: eval measures it and it is tolerated like the four above -- the live journey s012 refused table v13 by its name
 #: (2026-10-30) while it was missing. `tests/test_instruction_models.py` reads the live table's classes against these.
-DORMANT_CLASSES = ("assumptions", "reframe", "questions", "brief", "example_match")
+DORMANT_CLASSES = ("assumptions", "reframe", "questions", "brief", "example_match",
+                   "respondent_review")  # keel-cloud 209 (routing v17): the review turn's class, no screen names it
 
 CLASSES = MEASURED_CLASSES + DORMANT_CLASSES
 
