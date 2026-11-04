@@ -230,20 +230,21 @@ def test_revision_21_moves_exactly_185s_edits():
     assert moved == 13
 
 
-def test_every_canon_entry_loads_at_22_and_19_20_and_21_are_refused_by_name(tmp_path, registry):
-    """Spec 119 re-pin (keel-cloud 187, revision 22): canon loads at 22; 19, 20 and 21 are refused by name."""
+def test_every_canon_entry_loads_at_23_and_19_to_22_are_refused_by_name(tmp_path, registry):
+    """Spec 119 re-pin (keel-cloud 187, revision 22); spec 132 FR-11 (keel-cloud 207, revision 23): canon loads at 23;
+    19, 20, 21 and 22 are refused by name."""
     for path in sorted(corpus_mod.corpus_dir(KEEL_CLOUD).glob("*.yaml")):
-        assert corpus_mod.load_file(path, registry=registry).revision == 22
+        assert corpus_mod.load_file(path, registry=registry).revision == 23
     for path in sorted(corpus_mod.backtest_dir(KEEL_CLOUD).glob("*.yaml")):
-        assert corpus_mod.load_file(path, registry=registry, backtest=True).revision == 22
-    for rev in ("r19", "r20", "r21"):
+        assert corpus_mod.load_file(path, registry=registry, backtest=True).revision == 23
+    for rev in ("r19", "r20", "r21", "r22"):
         record = MIRROR / f"corpus-{rev}" / "03-lullaby.yaml"
         if not record.is_file():
             pytest.skip(f"no {rev} record")
         target = tmp_path / rev
         target.mkdir()
         (target / "03-lullaby.yaml").write_text(record.read_text(encoding="utf-8"), encoding="utf-8")
-        with pytest.raises(corpus_mod.CorpusError, match=f"revision is {rev[1:]}; this eval reads revision 22 only"):
+        with pytest.raises(corpus_mod.CorpusError, match=f"revision is {rev[1:]}; this eval reads revision 23 only"):
             corpus_mod.load_file(target / "03-lullaby.yaml", registry=registry)
 
 

@@ -379,6 +379,8 @@ def test_the_header_names_the_seven_r19_digests_and_keeps_v13s_counted_denominat
         if record.is_file():
             assert hashlib.sha256(record.read_bytes()).hexdigest() in header, name
     assert "The seven revision-21 files, by sha256" in header and "keel-cloud-docs\n`f3f0d99e`" in header
+    # spec 132 FR-11 re-pin: canon is at revision 23 -- its seven digests are the revision-23 paragraph's
+    assert "The seven revision-23 files, by sha256" in header and "keel-cloud-docs `7c96988d`" in header
     assert "The seven revision-12\nfiles, by sha256" in header and "The seven revision-11 files, by sha256" in header
     assert "The seven revision-13 files, by sha256" in header and "**v20 stands**: this spec bumps nothing" in header
     assert "The seven revision-14 files, by sha256" in header and "**v20\nstands**: this cut bumps nothing" in header

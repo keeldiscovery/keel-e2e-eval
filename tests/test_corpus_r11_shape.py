@@ -55,7 +55,7 @@ def corpus():
 def test_the_seven_entries_are_all_at_revision_eighteen_and_none_states_the_chain(corpus):
     assert [e.id for e in corpus.entries] == list(ENTRIES)
     for entry in corpus.entries:
-        assert entry.revision == 22, entry.id               # spec 086: keel-cloud 152; 089: 159; 118: 181/182/185; 119: 187
+        assert entry.revision == 23, entry.id               # spec 086: keel-cloud 152; 089: 159; 118: 181/182/185; 119: 187; 132: 207
         assert not entry.chain() and entry.reading() is None, entry.id      # read as r12 (keel-cloud 124 T001)
     assert Path(corpus.directory) == fx.canon_dir()
 
@@ -441,7 +441,7 @@ def test_the_corpus_reads_the_same_through_the_exported_registry(corpus):
     exported = registry_mod.load(path)
     for entry in corpus.entries:
         corpus_mod.load_file(entry.path, registry=exported)
-    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 22      # spec 086; 089; 118; 119
+    assert yaml.safe_load(Path(corpus.entries[0].path).read_text())["revision"] == 23      # spec 086; 089; 118; 119; 132
 
 
 #: 105 FR-1's market lines: every entry the US, two with a state.

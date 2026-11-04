@@ -1,4 +1,11 @@
-"""**Revision 22 read** (spec 119 FR-6; keel-cloud 187 FR-4, keel-cloud-docs `bc172359`): revision 21's rules, and test data
+"""**Revision 23 read** (spec 132 FR-11; keel-cloud 207, keel-cloud-docs `3ab9aa03`): revision 22's rules, and on the
+five cycle-9 back-test entries (08-fresco, 10-palus, 13-aircaps, 17-expanse, 21-codyco) `solution_mechanism.idea_what`
+-- what the idea is beside the founder's name, in at most twelve words the people know (keel-cloud 207 FR-3's
+`idea_what`, held by `W12`), read by `Entry.idea_what()` and sent by the scripted writer
+(`vectors_script.mechanism_result`). The golden seven moved by their revision line alone. A revision-22 file is refused
+by name.
+
+**Revision 22 read** (spec 119 FR-6; keel-cloud 187 FR-4, keel-cloud-docs `bc172359`): revision 21's rules, and test data
 the walks need -- every B2B back-test entry names the founder's time beside its Purchase friction step
 (`founder_calibration.commercial.purchase_friction.answer.duration`, `Entry.duration()`), so no back-test row is the
 fixed three (the golden seven name none and keep them), and the 14 entries 08-21 carry a top-level
@@ -149,7 +156,7 @@ from .registry import (DURATION_CONTROL, RECORDED_CONTROLS, ABILITY_BANDS, ABILI
                        FREQUENCY_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY, PERIODS, PRICE_KEY,
                        PRICE_PERIODS, PURCHASE_FRICTION_KEY, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
-REVISION = 22
+REVISION = 23
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -188,7 +195,9 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                 20: "MARKS_VERSION 24's corpus before keel-cloud 185 (a fact's Compatibility row on the four codes with "
                     "`only_with_help` picks, no `screeners.decider`)",
                 21: "MARKS_VERSION 24's corpus before keel-cloud 187 (13 B2B back-test entries with no founder's time on "
-                    "Purchase friction -- the fixed three -- and no `current_solution.today`)"}
+                    "Purchase friction -- the fixed three -- and no `current_solution.today`)",
+                22: "MARKS_VERSION 24's corpus before keel-cloud 207 (no `solution_mechanism.idea_what` on the five "
+                    "cycle-9 back-test entries)"}
 
 #: Spec 067 FR-6 (keel-cloud 128 FR-11, `check_corpus_r15.py`'s rule Q): a person's answer to the segment's condition
 #: chip -- inside or outside -- where the entry's context records a condition; on the primary link only.
@@ -694,6 +703,12 @@ class Entry:
         items = (self.founder_list("solution.relative_advantage") or {}).get("items") or []
         label = str((items[0] or {}).get("label") or "").strip() if items else ""
         return label or None
+
+    def idea_what(self) -> str | None:
+        """Spec 132 FR-11 (keel-cloud 207 FR-3, revision 23): what the idea is beside its name, in the people's words
+        (`solution_mechanism.idea_what`, at most twelve words), or None on an entry that records none."""
+        what = (self.solution_mechanism or {}).get("idea_what")
+        return " ".join(what.split()) if isinstance(what, str) and what.strip() else None
 
     def mechanism_one_liner(self) -> str:
         """The judge's clause (marks §2.3), composed by code from the golden mechanism's four

@@ -288,11 +288,14 @@ def test_revision_22_moves_exactly_187s_edits():
     time beside Purchase friction, its belief in the dated form, the row (control, codes, escape) code's six and every
     pick moved by 182's one rule (Transload's chip read `cant_tell`); `current_solution.today` on the 14 entries 08-21;
     the golden seven their revision line alone; nothing else, no `expected` anywhere."""
-    for rev in ("corpus-r21", "backtest-r21"):
+    # spec 132 FR-11 re-pin (keel-cloud 207, corpus revision 23): canon has moved on to 23, so the revision-22 records
+    # (`corpus-r22/`, `backtest-r22/`, kept by 207) stand for revision 22 here; 22 -> 23 is
+    # `test_cloud_205_208_mirror_132.py`'s
+    for rev in ("corpus-r21", "backtest-r21", "corpus-r22", "backtest-r22"):
         if not (MIRROR / rev).is_dir():
             pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no {rev} record")
     moved, today, strays, amended, amended_199 = 0, set(), [], set(), set()
-    for kind, canon in (("corpus", corpus_mod.corpus_dir(KEEL_CLOUD)), ("backtest", corpus_mod.backtest_dir(KEEL_CLOUD))):
+    for kind, canon in (("corpus", MIRROR / "corpus-r22"), ("backtest", MIRROR / "backtest-r22")):
         for path in sorted(canon.glob("*.yaml")):
             before, after = _load(MIRROR / f"{kind}-r21" / path.name), _load(path)
             entry = after["id"]
@@ -348,7 +351,7 @@ def test_every_entry_loads_at_22_and_21_is_refused_by_name(tmp_path, registry):
     if not record.is_file():
         pytest.skip("no r21 record")
     (tmp_path / "21-codyco.yaml").write_text(record.read_text(encoding="utf-8"), encoding="utf-8")
-    with pytest.raises(corpus_mod.CorpusError, match="revision is 21; this eval reads revision 22 only -- revision 21 "
+    with pytest.raises(corpus_mod.CorpusError, match="revision is 21; this eval reads revision 23 only -- revision 21 "
                                                      "is MARKS_VERSION 24's corpus before keel-cloud 187"):
         corpus_mod.load_file(tmp_path / "21-codyco.yaml", registry=registry, backtest=True)
 

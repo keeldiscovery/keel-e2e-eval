@@ -124,6 +124,20 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Corpus revision 23 (2026-11-03, keel-cloud 207; eval 132, the harness half)**: the five cycle-9 back-test entries
+(08-fresco, 10-palus, 13-aircaps, 17-expanse, 21-codyco) record `solution_mechanism.idea_what` -- what the idea is
+beside the founder's name, in at most twelve words the people know (keel-cloud 207 FR-3, held by `W12`) -- and every
+entry moves its revision line. No belief, standing, drift, inside, n or verdict moved. The reader reads **revision 23**
+and refuses revision 22 by name. **v24 stands**: no mark reads `idea_what`. The seven revision-23 files, by sha256
+(keel-cloud canon's own bytes at keel-cloud-docs `7c96988d`, equal to `src/test/resources/keel/corpus-r23/`):
+`01-countly.yaml` `a8bd83db6875943ea428202f480f5d83b54547bb9c86555800ea1637d678d07d`; `02-compliancelog.yaml`
+`c11d672a23d068e3941c0afc63b67d97d3500389542e56b3e24778c1060b2f83`; `03-lullaby.yaml`
+`1c50fb0d25426f7520a73ba1458087f67c8ab83a6da3210febe9ce905b5a65cc`; `04-linerly.yaml`
+`7e3f93e499f4f3256ff4938a9495f5450a4fc555828df9cf54f75f1eb07d3a92`; `05-paidly.yaml`
+`cb01652bf2b701b7c69577a801759e6fcf4bf482894005c222d8b308ac057dad`; `06-repeatline.yaml`
+`01c63d8afeeec79cdf30f196d24d73df6e45e819f335467466f9b6b6000326f3`; `07-mulchrun.yaml`
+`f7b6374d3773973a2549beef0253caab6aaf32dabe32ed4f3e2a9565582eec0d`.
+
 **Corpus revision 22 (2026-11-01, keel-cloud 187; eval 119, the harness half)**: test data the walks need. Every B2B
 back-test entry names the founder's time beside its Purchase friction step (13 more: code's six duration bands, 80 picks
 moved by 182's one rule, Transload's `cant_recall` chip the row's `cant_tell`; nobody changes side) and the 14 entries

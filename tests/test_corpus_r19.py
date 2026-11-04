@@ -382,7 +382,7 @@ def test_a_revision_18_file_is_refused_by_name(tmp_path):
     """r18's 03-lullaby is refused by name (spec 118: every canon entry's load at 21 is `tests/test_corpus_r21.py`'s)."""
     _need_mirrors("r18")
     raw = _load(MIRROR / "corpus-r18" / "03-lullaby.yaml")
-    with pytest.raises(corpus_mod.CorpusError, match="revision is 18; this eval reads revision 22 only -- revision 18 "
+    with pytest.raises(corpus_mod.CorpusError, match="revision is 18; this eval reads revision 23 only -- revision 18 "
                                                      "is MARKS_VERSION 21's corpus before keel-cloud 159"):
         corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="03-lullaby.yaml"), registry=fx.registry())
 
