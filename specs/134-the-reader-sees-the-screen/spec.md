@@ -40,3 +40,14 @@ screens 0 on R7; eight of them were the harness's, not Keel's (the page of recor
   *wear the glasses and pair them to the phone*, *keep the phone with them*). The readers' `instead` notes in the
   cycle 11 score files are the starting point; every other word of the entries stays. Expected-interview fixtures and
   the mirror tests that quote these rows move with them.
+
+- **FR-4, all fourteen.** The founder, 2026-11-04: "fix for all 14 of them so that when we rerun, the fix holds good."
+  The corpus review of FR-4 covers every entry in the gallery (the fourteen of `gallery-roster-2026-11-01`, the five
+  and the nine not walked under rubric 5), row by row against the cards in quality/readers/dimensions.md: Current
+  solution's rungs (one measure, working first, outright failure last, no joined states, the stem's occasion matching
+  the options), Importance's rivals (at that moment, not the whole job, no cause pairs, the own row the problem alone),
+  Relative advantage's rows (one gain each), Adoption friction's rows (one effort each, none on Compatibility's or
+  Purchase friction's ground), Compatibility's conditions (none the segment already settles, the step the idea depends
+  on among them), Purchase friction's steps (the buyer's own brakes, never the founder's offer). A row that fits stays
+  as it is; a row that breaks a rule is reworded in the entry's own voice, the meaning kept. tasks.md lists every
+  reworded row (entry, dimension, before, after, the rule). Fixtures and pins that quote a row move with it.
