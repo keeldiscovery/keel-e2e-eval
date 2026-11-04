@@ -420,7 +420,8 @@ def test_nothing_else_in_the_cards_moved_and_the_clouds_copy_is_owed():
     Commitment card's good example alike. Spec 136 FR-1 (keel-cloud 212): the one-clause lines under Prevalence and
     Frequency are in both. Spec 137 FR-1 (keel-cloud 213 FR-11b): the cloud's copy now carries spec 135's corpus
     writer's law at its head and 212's cap as its code holds it (*at most 9 words, 8 on a working-days window*), so
-    the two files are byte for byte one at `e3cdea00...`."""
+    the two files are byte for byte one at `e3cdea00...`; and (keel-cloud 214 FR-2) at `0ab29614...`, Relative
+    advantage's stranger line the hard case."""
     vendored = KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md"
     if not vendored.is_file():
         pytest.skip(f"no vendored cards at {KEEL_CLOUD}")

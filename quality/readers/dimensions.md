@@ -528,8 +528,8 @@ What your idea must do better than their way today before they would bother to s
   drop; no number the founder did not write. The belief carries every kept benefit, in the order typed, joined with
   *and*: *For most, with it, their last {occasion} would have given them {value}.* -- the occasion the kind the
   advantage is for (the missed one, the hard case).
-- **The stranger's item:** *Think of the last {occasion} when you had to {job}. Would {Name}, {what it is}, have done
-  that better for you, or not?* -- the last time this person's own job was at stake, never any occasion; one thing
+- **The stranger's item:** *Think of the last {occasion} when {circumstance}. Would {Name}, {what it is}, have done
+  that better for you, or not?* -- the hard case the advantage is for, never any occasion; one thing
   asked, how much better or not; no benefit of the founder's named in the question or the options. **Fixed answers, in
   order and in these words, code's:** `a_lot_better` *A lot better* · `a_little_better` *A little better* ·
   `no_difference` *No difference* · `worse` *Worse*; then *I can't tell*. **One measure:** better or not, and how much.

@@ -689,8 +689,20 @@ def context_result(entry) -> dict:
     120), the plain occasion noun, `window.proposed` null; no `understands` -- the sentence is code's since 122."""
     ctx = _ctx(entry)
     return {"actor": ctx["actor"], "actor_plural": ctx["actor_plural"], "job": ctx["job"],
-            "circumstance": ctx["circumstance"], "segment": scripted_segment(entry), "occasion": occasion(entry),
-            "window": {"proposed": None}}
+            "circumstance": ctx["circumstance"], "segment": scripted_segment(entry),
+            "occasion": scripted_occasion(entry), "window": {"proposed": None}}
+
+
+def scripted_occasion(entry) -> str:
+    """Spec 137 FR-2 (keel-cloud 214 FR-2, `X14`; the coordinator's word, 2026-11-04): the occasion the scripted writer
+    writes -- the corpus's own noun where it holds X14 (`writers_rules.occasion_fault`), else *time*, as the cloud's own
+    fixtures now write it (10-palus' recorded *cash decision*; owed to a corpus revision), so no X14 note is served."""
+    from instructions import writers_rules as writers_mod                # noqa: PLC0415
+    noun = occasion(entry)
+    circumstance = _ctx(entry).get("circumstance")
+    if writers_mod.occasion_fault(noun, None, circumstance, False) is None:
+        return noun
+    return "time" if writers_mod.occasion_fault("time", None, circumstance, False) is None else noun
 
 
 def problem_result(entry) -> dict:

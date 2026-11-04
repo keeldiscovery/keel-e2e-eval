@@ -37,6 +37,7 @@ KEEL_CLOUD = Path(CONFIG.keel_cloud)
 KEEL_WEB = Path(CONFIG.keel_web)
 VECTORS = "src/main/java/com/keeldiscovery/cloud/domain/vectors/"
 CARDS_SHA256_213 = "e3cdea00e2267ec0fcb6dc447d1a43497f85925060bd4996ba3c176e8566f594"
+CARDS_SHA256_214 = "0ab29614dee596b55da9e1e9b1033d81a2328c08fa2cea0571c0160536c6f172"
 BASE = "http://keel.test"
 PALUS_STEP = "move a small part of the reserve"
 
@@ -68,17 +69,22 @@ def _golden(entry_id: str):
 
 # ------------------------------------------------------------------------------------------------ FR-1 the cards
 
-def test_the_cards_are_the_vendored_copy_at_213s_digest():
-    """FR-1 (keel-cloud 213 FR-11b): the cloud's copy carries the corpus writer's law at its head and 212's cap as its
-    code holds it, so the eval's cards are byte for byte the vendored file at `e3cdea00...`."""
+def test_the_cards_are_the_vendored_copy_at_the_clouds_digest():
+    """FR-1 (keel-cloud 213 FR-11b, then 214 FR-2): the cloud's copy carries the corpus writer's law at its head, 212's
+    cap as its code holds it and (214) Relative advantage's hard case, so the eval's cards are byte for byte the
+    vendored file -- `e3cdea00...` at 213, `0ab29614...` at 214."""
     ours = cards.CARDS_PATH.read_bytes()
-    assert hashlib.sha256(ours).hexdigest() == CARDS_SHA256_213
     review = _cloud("src/main/java/com/keeldiscovery/cloud/application/RespondentReview.java")
-    assert f'CARDS_SHA256 = "{CARDS_SHA256_213}"' in review
+    sha = re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1)
+    assert hashlib.sha256(ours).hexdigest() == sha
+    assert sha in (CARDS_SHA256_213, CARDS_SHA256_214)
     assert (KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md").read_bytes() == ours
     text = " ".join(ours.decode("utf-8").split())
     assert text.count("at most 9 words, 8 on a working-days window: 20 spoken words minus the strangers' frame") == 2
     assert "at most 8 words" not in text
+    if sha == CARDS_SHA256_214:
+        assert "*Think of the last {occasion} when {circumstance}. Would {Name}, {what it is}, have done that better " \
+               "for you, or not?* -- the hard case the advantage is for" in text
 
 
 # ------------------------------------------------------------------------------------ FR-2 the price, whole

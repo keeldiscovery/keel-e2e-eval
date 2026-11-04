@@ -221,7 +221,7 @@ def test_the_lock_notes_read_214s_rules_by_name():
 #: The corpus's own words that break a 214 rule, as the scripted writer drafts them (214's *Owed*: a corpus revision
 #: rewords them) -- findings, never failures; the rule named.
 FINDINGS = {"05-paidly": ["L37"], "07-mulchrun": ["L37"], "08-fresco": ["L37"], "09-karsa": ["L37"],
-            "10-palus": ["X14"], "17-expanse": ["L38"], "22-andy-ai": ["L37"], "23-taiga": ["L38"],
+            "17-expanse": ["L38"], "22-andy-ai": ["L37"], "23-taiga": ["L38"],
             "25-bidflow": ["L37"], "27-blacksmith": ["L38"], "28-relvy-ai": ["L38"], "32-frizzle": ["L38"],
             "33-cardboard": ["L37"]}
 
@@ -238,12 +238,21 @@ def _answer(entry, key: str, vector: str):
     return next((a.text for a in vs.calibration_answers(entry, vector) if a.dimension == key), None)
 
 
+def test_palus_scripted_occasion_is_time(entries):
+    """The coordinator's word, 2026-11-04 (keel-cloud 214 FR-6: `ReadBackReadsOnceApplierTest`'s *cash decision* ->
+    *time*): the scripted CONTEXT_INTERPRET result writes *time* where the corpus's noun is an X14 stand-in."""
+    palus = next(e for e in entries if e.id == "10-palus")
+    assert vs.occasion(palus) == "cash decision" and vs.context_result(palus)["occasion"] == "time"
+    assert {e.id for e in entries if vs.context_result(e)["occasion"] != vs.occasion(e)} == {"10-palus"}
+
+
 def test_the_scripted_drafts_break_214s_rules_only_in_the_corpus_words(entries):
     found = {}
     for entry in entries:
         ctx = vs._ctx(entry)
         rules = []
-        if w.occasion_fault(vs.occasion(entry), None, ctx.get("circumstance"), False):
+        # the coordinator's word (2026-11-04): the scripted occasion is *time* where the corpus's noun breaks X14
+        if w.occasion_fault(vs.context_result(entry)["occasion"], None, ctx.get("circumstance"), False):
             rules.append("X14")
         for key, vector in (("problem.importance", "PROBLEM"), ("problem.current_solution_satisfaction", "PROBLEM"),
                             ("commercial.purchase_friction", "COMMERCIAL"), ("commercial.commitment", "COMMERCIAL")):
