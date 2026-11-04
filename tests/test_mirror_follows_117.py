@@ -200,15 +200,22 @@ def test_the_choose_words_before_153_and_179_are_faults(browser, tmp_path):
 
 # ------------------------------------------------------------------- FR-3: the Answer hints and Commitment's bar
 
-COMPAT_HINT = ("What must already be true at first-time parents in the US with a baby under six months for this to "
-               "work? Tools they use, time they can wait, rules they work under. Two to four things. Up to 25 words.")
+COMPAT_HINT_153 = ("What must already be true at first-time parents in the US with a baby under six months for this to "
+                   "work? Tools they use, time they can wait, rules they work under. Two to four things. Up to 25 "
+                   "words.")
+#: Spec 132 FR-10 re-pin (keel-web 168 FR-1): the people once, by their short name, the list's own count and cap -- no
+#: *Up to 25 words*, never *true at* the segment; *of them* where the screen reads no people.
+COMPAT_HINT = ('What must already be true in their day for this to work? Two to four lines of up to 16 words, each '
+               'reading on from "Most first-time parents ...", e.g. "have their phone with them at that moment".')
 
 
 @pytest.mark.parametrize("key, hint, faults", [
     ("problem.importance", vs_screens.IMPORTANCE_ANSWER_HINT, []),
     ("problem.importance", "Name the other difficulties of the same moment. Up to 25 words.", ["the Answer hint"]),
+    ("problem.importance", vs_screens.IMPORTANCE_ANSWER_HINT_153, ["the Answer hint"]),
     (COMPAT, COMPAT_HINT, []),
-    (COMPAT, COMPAT_HINT.replace(" at first-time parents in the US with a baby under six months", ""), []),
+    (COMPAT, COMPAT_HINT.replace("Most first-time parents", "Most of them"), []),
+    (COMPAT, COMPAT_HINT_153, ["the Answer hint"]),
     (COMPAT, "What they already have or do that it plugs into. Up to 25 words.", ["the Answer hint"]),
     (ADOPTION, "Anything at all.", [])])
 def test_the_answer_hints_are_153s(key, hint, faults):

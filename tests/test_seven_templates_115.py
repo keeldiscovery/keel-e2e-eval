@@ -227,11 +227,16 @@ def test_the_slice_says_174s_words(key, side, field):
 
 
 #: Spec 130: what keel-cloud 199 made of each slice field it moved, as a function of 174's words.
+#: Spec 132 FR-5 re-pin (keel-cloud 205 FR-1, proposal 24): Frequency's founder guidance is 205's whole -- the event is
+#: Prevalence's clause, framed by code window first (`WindowFrame.frequencyFounder`), its rules Prevalence's.
+FREQUENCY_GUIDANCE_205 = (
+    "On how many {window_unit} {actor_plural} face it, asked by code window first around Prevalence's event: 'In "
+    "{window}, on how many nights did a typical {actor} ...?' (the window's own unit, said once); never 'Think of one who "
+    "...', 'that person' or 'they'. The event, held to Prevalence's rules, happened on a given one or did not, in the "
+    "simple past, one act alone (no state, cause or result; nothing the actor does not see), on the verb a {actor} would "
+    "say aloud, any tool or list in it named as {actor_plural} name it.")
 MOVED_BY_199 = {"founder": {
-    "guidance": {"problem.frequency": lambda was: was.replace(
-        "one plain event that happened on a given one or did not,",
-        "one act that happened on a given one or did not, in the simple past, one act alone (no state, cause or result; "
-        "nothing the actor does not see),")},
+    "guidance": {"problem.frequency": lambda was: FREQUENCY_GUIDANCE_205},
     "belief_template": {IMPORTANCE: lambda was: corpus_mod.IMPORTANCE_BELIEF_TEMPLATE_199,
                         COMPATIBILITY: lambda was: corpus_mod.COMPATIBILITY_BELIEF_TEMPLATE_199,
                         COMMITMENT: lambda was: was.replace(" now.", ".")},

@@ -1951,10 +1951,13 @@ BUYER_PAYER_KEY = "commercial.buyer_payer_alignment"
 def choose_faults(choose: dict | None, key: str, *, row: int | None) -> list[dict]:
     """Spec 116 FR-1 (keel-web 149): one Choose as the walk read it -- the radio found by its label (spec 104) and the
     `pickedIndex` the press PUT equal to `row`, the drafted row that label was found at (`_choose_label`), never the
-    drawn position; on Buyer and payer the title *Which one do you want to test?*, *Nobody else* drawn last, the recall
-    line naming the roles, a belief under each radio, and the bar's case -- *the one you pick* before a pick, the
-    picked role in a sentence, *nobody else* on Nobody else (`vs_screens.buyer_payer_bar`). Every miss is one fault
-    `{what, drawn, want}`."""
+    drawn position. Buyer and payer since spec 132 FR-10 (keel-web 168 FR-3): picked by index, never by label -- two
+    options at most, *Nobody else* first (index 0) and one option holding every role joined with *and*
+    (`vs_screens.roles_joined`, index 1), the served index the one pressed (`row`); the title *Which one do you want to
+    test?*, the recall line naming the roles, a belief under each option, and the bar's case -- *the one you pick* before
+    a pick, the roles in a sentence, *nobody else* on Nobody else (`vs_screens.buyer_payer_bar`); a list holding only
+    *Nobody else* no radiogroup but the statement (`BUYER_PAYER_CONFIRM_ONLY`) and its belief, sent as 0. Every miss is
+    one fault `{what, drawn, want}`."""
     if not choose:
         return [{"what": "no Choose screen was read", "drawn": choose, "want": "the pick"}]
     faults: list[dict] = []
@@ -1964,26 +1967,38 @@ def choose_faults(choose: dict | None, key: str, *, row: int | None) -> list[dic
             faults.append({"what": what, "drawn": drawn, "want": want})
 
     label, options = choose.get("label"), list(choose.get("options") or [])
-    fault("the pick by label", label in options, True)
-    fault("the served pickedIndex", choose.get("served_index"), row)
     if key != BUYER_PAYER_KEY:
+        fault("the pick by label", label in options, True)
+        fault("the served pickedIndex", choose.get("served_index"), row)
         return faults
     nobody = vs.NOBODY_ELSE[1]
+    fault("the served pickedIndex", choose.get("served_index"), row)
+    if choose.get("confirm"):
+        # keel-web 168 T006: only *Nobody else* -- a statement to confirm, no radiogroup, Continue sends 0
+        fault("the statement", choose.get("statement"), vs_screens.BUYER_PAYER_CONFIRM_ONLY)
+        fault("the pick", row, vs_screens.BUYER_PAYER_NOBODY_INDEX)
+        fault("a belief under the statement", len(choose.get("beliefs") or []), 1)
+        return faults
+    fault("the pick by index", choose.get("index"), row)
     fault("the Choose title", choose.get("prompt"), vs_screens.BUYER_PAYER_CHOOSE_PROMPT)
-    fault("Nobody else drawn last", options[-1:], [nobody])
-    roles = [o for o in options if o != nobody]
+    fault("Nobody else drawn first", options[:1], [nobody])
+    fault("two options at most", len(options) <= 2, True)
+    roles = list(choose.get("roles") or [])
+    joined = vs_screens.roles_joined(roles)
     if roles:
+        drawn = " ".join((options[1] if len(options) > 1 else "").split())
+        fault("one option holding every role", drawn.startswith(joined), True)
         tail = f"Who else has to agree: {', '.join(roles)}, from your last answer."
         recall = choose.get("recall") or ""
         if not recall.endswith(tail):
             faults.append({"what": "the recall line", "drawn": recall, "want": f"... {tail}"})
-    fault("a belief under each row", len(choose.get("beliefs") or []), len(options))
+    fault("a belief under each option", len(choose.get("beliefs") or []), len(options))
     before = vs_screens.buyer_payer_bar((choose.get("test_before") or {}).get("bar"))
     fault("the bar before a pick", (before or {}).get("case"), "unpicked")
     after = vs_screens.buyer_payer_bar((choose.get("test") or {}).get("bar"))
     fault("the bar after the pick", ((after or {}).get("case"), (after or {}).get("who")),
-          ("nobody", vs_screens.BUYER_PAYER_NOBODY) if label == nobody
-          else ("role", vs_screens.role_in_sentence(label or "")))
+          ("nobody", vs_screens.BUYER_PAYER_NOBODY) if row == vs_screens.BUYER_PAYER_NOBODY_INDEX
+          else ("role", vs_screens.role_in_sentence(joined)))
     return faults
 
 
@@ -2046,9 +2061,9 @@ def said_faults(screen: dict | None, key: str, *, b2b: bool) -> list[dict]:
         if key == IMPORTANCE_KEY:
             fault("the Answer hint", hint, vs_screens.IMPORTANCE_ANSWER_HINT)
         elif key == COMPATIBILITY_KEY and not vs_screens.COMPATIBILITY_ANSWER_HINT.match(hint):
+            # spec 132 FR-10 (keel-web 168 FR-1): the people once, the list's own count and cap, no *Up to 25 words*
             faults.append({"what": "the Answer hint", "drawn": hint,
-                           "want": "What must already be true[ at {segment}] for this to work? Tools they use, time "
-                                   "they can wait, rules they work under. Two to four things. Up to 25 words."})
+                           "want": vs_screens.COMPATIBILITY_ANSWER_HINT_WANT})
     elif kind == "check" and key == COMMITMENT_KEY:
         bar = vs_screens.commitment_bar((screen.get("test") or {}).get("bar"))
         fault("the Commitment bar", (bar or {}).get("case"), "decider" if b2b else "same")
@@ -2061,8 +2076,18 @@ def said_faults(screen: dict | None, key: str, *, b2b: bool) -> list[dict]:
             # time*, then *under {the time as typed}*, *quick or not needed* where no time is asked or it is not sure
             timed = bool(screen.get("duration_drawn"))
             said = None if screen.get("duration_unsure") == "ticked" else vs_screens.duration_said(screen.get("duration"))
-            fault("the bar before a pick", (screen.get("test_before") or {}).get("bar"),
-                  vs_screens.purchase_friction_choose_bar(timed))
+            # spec 132 FR-9 (keel-web 166 FR-2): where the time is asked, the box holds its belief and bar until the
+            # time is given -- before a pick the pending line and no bar; after the pick the muted line naming the
+            # step (`keeltest-waiting`) and no `.keeltest__b`; then the bar for the time typed, or *not sure*'s
+            fault("the bar before a pick", (screen.get("test_before") or {}).get("bar") or "",
+                  "" if timed else vs_screens.purchase_friction_choose_bar(timed))
+            if timed:
+                waiting = screen.get("waiting") or ""
+                held = waiting.startswith("Say how long ") and waiting.endswith(
+                    " takes on their side, or that you're not sure.")
+                fault("the held box's line before the time", waiting if not held else "held",
+                      "held")
+                fault("no bar before the time", screen.get("waiting_bar") or "", "")
             fault("the bar after the pick", (screen.get("test") or {}).get("bar"),
                   vs_screens.purchase_friction_choose_bar(timed, said))
         kept = vs_screens.COMPATIBILITY_KEPT_NOTE if key == COMPATIBILITY_KEY else ""
@@ -2137,6 +2162,16 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         if key in vs.PICKED:
             if not j.strict:
                 _name_keel_added(j, key, question, answer)
+            if key == BUYER_PAYER_KEY:
+                # spec 132 FR-3 / FR-10 (keel-web 168 FR-3): Buyer and payer's Choose is picked by index -- 1, every role
+                # the Answer names joined, wherever it names one (never *Nobody else*: Palus's board); 0 where it names
+                # nobody (a statement to confirm) -- never by a role's label
+                pick = vs.buyer_payer_pick(j.entry)
+                seen.append(j.corridor.list_choose(question, None, index=pick))
+                seen[-1]["row"] = pick
+                seen[-1]["roles"] = vs.buyer_payer_roles(j.entry)
+                j.framing[key] = seen
+                continue
             try:
                 label, row = _choose_label(j, question, answer)
             except vs.VectorsScriptError:
@@ -2187,7 +2222,8 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 continue
             check = next(s for s in seen if s["screen"] == "check")
             choose = next((s for s in seen if s["screen"] == "choose"), None)
-            if choose is not None:
+            if choose is not None and not choose.get("confirm"):
+                # spec 132 FR-10 (keel-web 168 T006): a Nobody-else-only list is a statement, opened on its one answer
                 if choose["picked_before"] or choose["test_before"]["belief"] != KEEL_TEST_PENDING:
                     mismatches.append({"dimension": key, "choose": "something was pre-picked", "seen": choose})
             if not j.strict:
@@ -2677,7 +2713,9 @@ def _hold_the_cost_fill(j: Journey, cost: dict, filled: dict, drawn_rate: dict |
         owed = {"unit": want["unit"], "unit_help": vs_screens.CHAIN_UNIT_HELP}
         if mode in ("HOURS", "RATE"):
             owed["base"] = want["base"] or ""
-            owed["base_help"] = vs_screens.CHAIN_HOURS_BASE_HELP if mode == "HOURS" else vs_screens.CHAIN_BASE_HELP
+            # spec 132 FR-10 (keel-web 168 FR-6): the rate's line names the base as the box holds it
+            owed["base_help"] = vs_screens.CHAIN_HOURS_BASE_HELP if mode == "HOURS" else \
+                vs_screens.chain_base_help(filled.get("base") or want["base"])
         if rate_owed is not None:
             owed.update(rate_owed)
         h.record_assert(owed, {**filled, "hourlyRate before the save": drawn_rate})

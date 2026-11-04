@@ -993,10 +993,17 @@ def mechanism_result(entry) -> dict:
             if len(word) > 3 and word not in terms:
                 terms.append(word)
     idea = idea_lines(entry)
-    return {"actor": m["actor"], "trigger": m["trigger"], "mechanism": m["mechanism"],
-            "output": m["output"], "not_assumed": list(m.get("not_assumed") or []),
-            "mechanism_terms": terms, "short_name": short_name(entry),
-            "idea_how": idea["how"], "idea_belief": idea["belief"]}
+    out = {"actor": m["actor"], "trigger": m["trigger"], "mechanism": m["mechanism"],
+           "output": m["output"], "not_assumed": list(m.get("not_assumed") or []),
+           "mechanism_terms": terms, "short_name": short_name(entry),
+           "idea_how": idea["how"], "idea_belief": idea["belief"]}
+    # spec 132 FR-11 (keel-cloud 207 FR-3, corpus revision 23): the writer's optional `idea_what` -- what the idea is
+    # beside its name -- sent where the entry records one (the five cycle-9 back-test entries); none elsewhere, as a
+    # result before 207 reads
+    what = entry.idea_what() if hasattr(entry, "idea_what") else None
+    if what:
+        out["idea_what"] = what
+    return out
 
 
 # ---------------------------------------------------------------------- the founder's calibration
@@ -1161,8 +1168,24 @@ def _who(team: bool, pasted) -> str:
     return "your team" if team and not ll.third_person(pasted) else "you"
 
 
+#: keel-cloud 198 FR-3 / 206 FR-5 (`CommercialChain.LOSS_WORDS`): the forms of *lose* -- and since 206 of *miss* -- a
+#: stranger's cost question never says (the lock guard's `S15`, `loss_word`).
+LOSS_WORDS = frozenset(("lose", "loses", "lost", "losing", "miss", "misses", "missed", "missing"))
+
+
+def loss_word(stem: str | None) -> str | None:
+    """`CommercialChain.lossWord`: the first form of *lose* or *miss* a stem says, or None."""
+    if stem is None:
+        return None
+    return next((w for w in re.split(r"[^a-z']+", stem.lower()) if w in LOSS_WORDS), None)
+
+
 def _held(ladder: list[str]) -> str:
-    return next((stem for stem in ladder if ll.words(stem) <= STEM_MAX_WORDS), ladder[-1])
+    """`CommercialChain.held`: the first rung within the spoken cap, of the rungs that say no form of *lose* or *miss*
+    (keel-cloud 198 FR-3, 206 FR-5; all of them where every rung says one); the last where none fits."""
+    said = [stem for stem in ladder if loss_word(stem) is None]
+    rungs = said or ladder
+    return next((stem for stem in rungs if ll.words(stem) <= STEM_MAX_WORDS), rungs[-1])
 
 
 def _in_their_past(text: str, team: bool) -> str:
@@ -1236,11 +1259,78 @@ def same_words(a, b) -> bool:
     return norm(a) == norm(b)
 
 
-def _loss_count(ladder, opening, team, loss) -> None:
+#: Spec 132 FR-9 (keel-cloud 206 FR-5, `CommercialChain.GONE_WITHOUT`, `WENT_WRONG`, `PERCENT_OF`): the verb the stranger's
+#: cost question says where the founder's loss line carries none of its own, or only *lose*'s or *miss*'s -- what the
+#: person saw happen, never *miss*: money, time or a thing they *went without*; a counted thing that *fell through*; and
+#: the question words that name a percent box's unit (never *how much* before a percent). English's words, no trade's.
+GONE_WITHOUT = "go without"
+WENT_WRONG = "fell through"
+PERCENT_OF = "what percent of "
+#: keel-cloud 206 (`CommercialChain.LOSS_OR_MISS`): the line's own verbs that say the thing went without naming what the
+#: person saw.
+LOSS_OR_MISS = frozenset(("lost", "lose", "loses", "missed", "miss", "misses"))
+_SEEN_OPENERS = frozenset(("when", "whenever", "if", "as"))
+
+
+def _without(thing: str) -> str:
+    """`CommercialChain.without`: the thing gone without after a share's base -- *in interest* (a bare noun), *the value
+    of the rupees ...* (a determiner first: the thing itself)."""
+    first = ll.clean(thing.strip().split()[0])
+    return thing if first in ll.DETERMINERS else "in " + thing
+
+
+def without_the_measure(thing: str, measure: str) -> str:
+    """`CommercialChain.withoutTheMeasure`: a thing's own *of* tail that names the counted measure again is said once --
+    *the thread of the conversation*, counted in conversations, reads *the thread*."""
+    m = re.fullmatch(r"(?i)(.+?)\s+of\s+(?:the |a |an |your |their )?((?:[^\W\d_]|['-])+)", thing.strip())
+    if not m:
+        return thing.strip()
+    noun, counted = m.group(2).lower(), measure.strip().lower()
+    return m.group(1).strip() if counted in (noun, noun + "s", noun + "es") else thing.strip()
+
+
+def one_verb(clause):
+    """`CommercialChain.oneVerb`: a verb clause that joins two verbs, the second negated, keeps the one the person sees
+    -- *reserve and never use* reads *never use*; any other clause as it is."""
+    if clause is None:
+        return None
+    m = re.fullmatch(r"(?i)(?:[^\W\d_]|['-])+\s+(?:and|or)\s+((?:never|not)\s+.+)", clause.strip())
+    return m.group(1) if m else clause
+
+
+def seen_event(loss, counted):
+    """`CommercialChain.seenEvent`: a line whose own verb is *lose*'s or *miss*'s (*Bookings lost when a call rings out
+    after hours ...*) names the event the person saw in the clause it opens -- *when a call rings out ...* -- where that
+    clause's subject is the thing the box counts (*a call*, the base *the reservation calls*): the event from its verb on
+    (*rings out after hours ...*), else None."""
+    if loss is None or counted is None or loss.shape != ll.DONE:
+        return None
+    w = loss.clause.strip().split()
+    if len(w) < 4 or ll.clean(w[0]) not in LOSS_OR_MISS:
+        return None
+    if ll.clean(w[1]) not in _SEEN_OPENERS:
+        return None
+    verb = ll.first_verb(w, 2, 4)
+    if verb < 3:
+        return None
+    head = ll.clean(w[verb - 1])
+    base = counted.strip().lower().split()
+    base_head = ll.clean(base[-1])
+    return " ".join(w[verb:]) if base_head in (head, head + "s", head + "es") else None
+
+
+def _loss_count(ladder, opening, team, loss, measure) -> None:
     if loss is None or loss.shape == ll.NONE:
         return
     thing = _said(loss.thing, team)
-    for clause in _clauses(loss.clause):
+    # spec 132 FR-9 (keel-cloud 206 FR-5): a lost or missed thing is asked by the event the line names after it, where
+    # that event happens to the thing counted (*how many calls rang out*)
+    event = seen_event(loss, measure)
+    if event is not None:
+        for clause in _clauses(event):
+            for about in (", about how many ", ", how many "):
+                ladder.append(opening + about + measure + " " + _in_their_past(ll.past(clause), team) + "?")
+    for clause in _clauses(one_verb(loss.clause)):
         if loss.shape == ll.DOES:
             asked = thing + " " + _in_their_past(ll.past(clause), team)
         elif loss.shape == ll.DONE:
@@ -1253,18 +1343,29 @@ def _loss_count(ladder, opening, team, loss) -> None:
 
 def _loss_share(ladder, opening, team, loss, base) -> None:
     be = " were " if count_noun(base) or _plural_head(base) else " was "
-    for clause in _clauses(loss.clause):
+    # spec 132 FR-9 (keel-cloud 206 FR-5): the event the line names after a lost or missed share, where it happens to the
+    # base (*what percent of the reservation calls rang out*)
+    event = seen_event(loss, base)
+    if event is not None:
+        for clause in _clauses(event):
+            for about in (", about " + PERCENT_OF, ", " + PERCENT_OF):
+                ladder.append(opening + about + base + " " + _in_their_past(ll.past(clause), team) + "?")
+    for clause in _clauses(one_verb(loss.clause)):
         if loss.shape == ll.DOES:
             asked = base + " " + _in_their_past(ll.past(clause), team)
         elif loss.shape == ll.DONE:
             asked = base + be + _in_their_past(ll.past(clause), team)
         else:
             asked = base + " did " + _subject_said(loss.subject, team) + " " + _in_their_past(ll.after_did(clause), team)
-        for about in (", about what share of ", ", what share of "):
+        # keel-cloud 206 (FR-5): the question words name the box's unit, a percent
+        for about in (", about " + PERCENT_OF, ", " + PERCENT_OF):
             ladder.append(opening + about + asked + "?")
 
 
-def _loss_missed(ladder, opening, team, loss) -> None:
+def _loss_gone_without(ladder, opening, team, loss, base) -> None:
+    """`CommercialChain.lossGoneWithout` (keel-cloud 206 FR-5; `lossMissed` before): a loss line with no verb of its own,
+    asked with *go without* -- the box's unit named first where there is a base (*what percent of the balance did you go
+    without in interest*), else *how much ... did you go without*."""
     thing = _said(loss.thing, team)
     rest = "" if not loss.clause.strip() else _in_their_past(ll.past(loss.clause), team)
     forms = []
@@ -1276,30 +1377,41 @@ def _loss_missed(ladder, opening, team, loss) -> None:
         cut = ll.without_its_clause(rest)
         if cut is not None:
             forms.append((thing, cut))
+        forms.append((thing, ""))
     else:
         whole = (thing + " " + rest).strip()
         forms.append((whole, ""))
         shorter = without_purpose(whole)
         if shorter is not None:
             forms.append((shorter, ""))
+    if base is not None:
+        for said, where in forms:
+            tail = "" if not where.strip() else " " + where
+            for about in (", about " + PERCENT_OF, ", " + PERCENT_OF):
+                ladder.append(opening + about + base + " did " + LOSER + " " + GONE_WITHOUT + " " + _without(said)
+                              + tail + "?")
+        return
     for said, where in forms:
+        tail = "" if not where.strip() else " " + where
         for about in (", about how much ", ", how much "):
-            # spec 118 (keel-cloud 184 FR-8b (c), `CommercialChain.LOSER`): the person asked is the one who misses it --
-            # *you*, never *your team*
-            ladder.append(opening + about + _much(said) + " did " + LOSER + " miss"
-                          + ("" if not where.strip() else " " + where) + "?")
+            # spec 118 (keel-cloud 184 FR-8b (c), `CommercialChain.LOSER`): the person asked is the one who goes without
+            # it -- *you*, never *your team*
+            ladder.append(opening + about + _much(said) + " did " + LOSER + " " + GONE_WITHOUT + tail + "?")
 
 
-#: keel-cloud 184 FR-8b (c) (`CommercialChain.LOSER`): a loss with the measure's neutral verb is the person's own to miss.
+#: keel-cloud 184 FR-8b (c) (`CommercialChain.LOSER`): a loss with the measure's neutral verb is the person's own.
 LOSER = "you"
 
 
 def cost_question(team: bool, occasion, job, cost: dict) -> str:
     """`CommercialChain.costQuestion(team, circumstance, occasion, job, period, cost)` on a chain cost (spec 110 FR-3,
     keel-cloud 170 FR-5): the stranger's cost question in their own terms, held to the spoken cap by each frame's
-    give-way ladder. HOURS *spend on* the thing (or the time gone without, *miss*); RATE the founder's loss line's verb
-    and thing (`LossLine`) -- a share of the base, a count of the thing -- else the measure's neutral *miss*; MONEY
-    *what did ... cost*. No frame says *lose* by default. `team` is the decision-maker's link (`corridor.isB2b()`)."""
+    give-way ladder. HOURS *spend on* the thing (or the time gone without); RATE the founder's loss line's verb and thing
+    (`LossLine`) -- a share of the base, a count of the thing; MONEY *what did ... cost*. Spec 132 FR-9 (keel-cloud 206
+    FR-5): never *miss* -- a line whose verb is *lose*'s or *miss*'s asked by the event it names (*rang out*), a two-part
+    verb by its seen half (*never use*), a line with no verb of its own *go without* (time, money, a thing) or *fell
+    through* (a counted thing); a percent box asked *what percent of*, never *how much*. `team` is the decision-maker's
+    link (`corridor.isB2b()`)."""
     over = cost.get("period") if cost.get("period") in _COST_OPENERS else "month"
     opening = _COST_OPENERS[over]
     base = None if _blank(cost.get("base")) else _said(str(cost["base"]), team)
@@ -1310,7 +1422,8 @@ def cost_question(team: bool, occasion, job, cost: dict) -> str:
     if cost.get("mode") == "HOURS":
         missed = None if cost.get("base") is None else gone_without(cost.get("base"))
         if missed is not None:
-            ladder.append(f"{opening}, about how many hours of {_said(missed, team)} did {_who(team, missed)} miss?")
+            ladder.append(f"{opening}, about how many hours of {_said(missed, team)} did {_who(team, missed)} "
+                          f"{GONE_WITHOUT}?")
         elif base is not None or noun is not None:
             thing = base if base is not None else ll.plural(noun)
             if unit is not None and ll.words(unit) <= 2:
@@ -1327,8 +1440,11 @@ def cost_question(team: bool, occasion, job, cost: dict) -> str:
         if loss is not None and same_words(cost.get("lossPhrase"), base):
             loss = None
         if not share:
-            _loss_count(ladder, opening, team, loss)
-            ladder.append(f"{opening}, about how many {measure.strip()} did {LOSER} miss?")
+            _loss_count(ladder, opening, team, loss, measure.strip())
+            if loss is not None and loss.shape == ll.NONE:
+                thing = without_the_measure(_said(loss.thing, team), measure.strip())
+                ladder.append(f"{opening}, in about how many {measure.strip()} did {LOSER} {GONE_WITHOUT} {thing}?")
+            ladder.append(f"{opening}, about how many {measure.strip()} {WENT_WRONG}?")
         else:
             loss_open = f"On your last {noun}" if not team and noun is not None else opening
             openings = [opening] if loss_open == opening else [loss_open, opening]
@@ -1337,11 +1453,11 @@ def cost_question(team: bool, occasion, job, cost: dict) -> str:
                     _loss_share(ladder, each, team, loss, base)
             elif loss is not None and loss.shape == ll.NONE:
                 for each in openings:
-                    _loss_missed(ladder, each, team, loss)
+                    _loss_gone_without(ladder, each, team, loss, base)
             if base is not None:
-                ladder.append(opening + (", about what share of " if count_noun(base) else ", about how much of ")
-                              + base + " did " + LOSER + " miss?")
-        ladder.append(f"{opening}, about how much did {LOSER} miss?")
+                ladder.append(opening + ", about " + PERCENT_OF + base
+                              + (" " + WENT_WRONG if count_noun(base) else " did " + LOSER + " " + GONE_WITHOUT) + "?")
+        ladder.append(f"{opening}, about what percent did {LOSER} {GONE_WITHOUT}?")
         return _held(ladder)
     if over == "each" and noun is not None:
         thing = base if base is not None else "it"
@@ -1477,6 +1593,61 @@ def founder_list(entry, key: str) -> dict:
     return saved
 
 
+def offer_rows(entry) -> list[str]:
+    """Spec 132 FR-2 (keel-cloud 205 FR-1, `L32`): the Purchase friction rows the entry types that name the founder's own
+    offer (a trial, a pilot, a guarantee, onboarding, money back: `instructions.friction.founders_offer`), in its order --
+    what keel-cloud leaves off the list with a note (`FounderReason` L32), never an `L23`. Eight back-test entries type
+    one (08-fresco's *A trial on one live job*, 17-expanse's *A budget line for the department's pilot* ...); no golden
+    entry does."""
+    from instructions import friction as friction_mod                  # noqa: PLC0415
+    saved = entry.founder_list(PURCHASE_FRICTION_KEY) if hasattr(entry, "founder_list") else None
+    return [i["label"] for i in (saved or {}).get("items") or [] if friction_mod.founders_offer(i.get("label"))]
+
+
+def kept_items(entry, key: str) -> list[tuple[int, dict]]:
+    """Spec 132 FR-2: the entry's list items the cloud keeps, `(index in the entry's list, item)` -- every item, but on
+    Purchase friction the rows naming the founder's own offer (`offer_rows`), left out by keel-cloud 205's `L32`."""
+    items = list(enumerate(founder_list(entry, key)["items"]))
+    if key != PURCHASE_FRICTION_KEY:
+        return items
+    offers = set(offer_rows(entry))
+    return [(i, item) for i, item in items if item.get("label") not in offers]
+
+
+def kept_picked(entry, key: str) -> int | None:
+    """Spec 132 FR-2 / FR-3 / FR-10: the picked index on the list as the cloud keeps it (`kept_items`) -- the entry's own
+    pick; on Purchase friction, where the entry picked a row naming the founder's own offer (left out, `L32`), the
+    first row kept (08-fresco and 14-code-four picked their trial); on Buyer and payer the walker's pick
+    (`buyer_payer_pick`). None where the list picks nothing."""
+    saved = founder_list(entry, key)
+    picked = saved.get("picked")
+    if key == BUYER_PAYER_KEY:
+        return buyer_payer_pick(entry)
+    if picked is None or key != PURCHASE_FRICTION_KEY:
+        return None if picked is None else int(picked)
+    kept = [i for i, _ in kept_items(entry, key)]
+    return kept.index(int(picked)) if int(picked) in kept else (0 if kept else None)
+
+
+#: keel-cloud's Buyer and payer key (spec 132 FR-3 / FR-10).
+BUYER_PAYER_KEY = "commercial.buyer_payer_alignment"
+
+
+def buyer_payer_roles(entry) -> list[str]:
+    """The roles the entry's Buyer and payer Answer names (every label but *Nobody else*), in its order."""
+    saved = entry.founder_list(BUYER_PAYER_KEY) if hasattr(entry, "founder_list") else None
+    return [i["label"] for i in (saved or {}).get("items") or [] if i.get("code") != NOBODY_ELSE[0]]
+
+
+def buyer_payer_pick(entry) -> int:
+    """Spec 132 FR-3 / FR-10 (keel-cloud 205's card, keel-web 168 FR-3): the index the walker picks on Buyer and payer's
+    Choose -- 1, the one option holding every role the Answer names, wherever it names one (never *Nobody else*: Palus's
+    corpus picks *Nobody else* beside *The board*, and the card says the board must agree first); 0, *Nobody else*,
+    only where the Answer names nobody (then the list holds only *Nobody else* and the screen is a statement to
+    confirm, sent as 0). Never by a role's label."""
+    return 1 if buyer_payer_roles(entry) else 0
+
+
 #: The list dimensions a stranger picks among the founder's own items; every other dimension's codes are
 #: the registry's fixed ones and pass through unchanged.
 #: Spec 089 FR-4 (keel-cloud 159): Relative advantage left this list -- the stranger answers the scale's four, never the
@@ -1576,7 +1747,9 @@ def drafted_list(entry, key: str) -> dict:
     saved = founder_list(entry, key)
     items = []
     cap = ROW_CAP.get(key)
-    for item in saved["items"]:
+    # spec 132 FR-2 (keel-cloud 205 FR-1): the scripted writer leaves a Purchase friction row naming the founder's own
+    # offer out, as the cloud's applier asks (`L32`: drafted, one repair turn; typed and left out, a note, never `L23`)
+    for _, item in kept_items(entry, key):
         if key == "commercial.buyer_payer_alignment" and item.get("code") == NOBODY_ELSE[0]:
             continue
         # spec 131 (keel-cloud 204 FR-2): a corpus row over the row cap is refused once, then cut at the cap -- the
@@ -1587,6 +1760,10 @@ def drafted_list(entry, key: str) -> dict:
             if not item.get("asked"):
                 raise VectorsScriptError(f"{entry.id}: {key} item {item['label']!r} carries no `asked` face (L4)")
             out["asked"] = item["asked"]
+        if key == ADOPTION_KEY:
+            # spec 132 FR-7 (keel-cloud 206 FR-4, `K8` on the draft): every Adoption friction item carries its
+            # condition, so the scripted founder spends no repair turn an item
+            out["only_if"] = adoption_condition(item)
         items.append(out)
     if key == "problem.importance":
         items = items[:1 + len(importance_named(entry))]     # Keel adds only what the Answer named (097 F9)
@@ -1612,6 +1789,38 @@ def drafted_list(entry, key: str) -> dict:
             draft["founder_rungs"] = rungs
             draft["line"] = 1 if keels_working_first(entry) else min(2, rungs)
     return draft
+
+
+#: keel-cloud 206 (`AskedRules.ONLY_IF_MAX_WORDS`, K7): a condition is 1 to 7 words read after *Only if*.
+ONLY_IF_MAX_WORDS = 7
+#: keel-cloud 198 FR-9 / 206 (`AskedRules.EVERY_STEP`, `WORTH`): what a condition never says -- true of every step.
+_EVERY_STEP = re.compile(r"(?i)\b(?:easy|easier|simple|quick|quickly|saved? (?:me |us )?(?:time|money)|saves (?:me |us )?"
+                         r"(?:time|money)|it worked well|it works well|worked well|helped me|helps me)\b|\bworth")
+#: The scripted condition's tail: what the step risks in their work (keel-cloud 206 `ONLY_IF_RULE`: *what this step
+#: risks or clashes with in their work, never true of every step*).
+_CONDITION_TAIL = "never slowed my work"
+
+
+def adoption_condition(item: dict) -> str:
+    """Spec 132 FR-7 (keel-cloud 206 FR-4, `ONLY_IF_RULE`): the scripted writer's `only_if` for one Adoption friction
+    item -- the entry's own condition where it records one (`condition` / `only_if`), else one tied to the step's risk:
+    the step said as an -ing phrase (`gerund`) and *never slowed my work* -- what this step could break or slow in their
+    work -- within K7's seven words (a step over three words said by its verb alone, or its two joined verbs: *wearing
+    never slowed my work*, *checking and fixing never slowed my work*), never a word true of every step (*easy*,
+    *quick*, *saves time*, *worth*). No trade's word: the step's own."""
+    own = item.get("condition") or item.get("only_if")
+    if own and str(own).strip():
+        return str(own).strip()
+    room = ONLY_IF_MAX_WORDS - len(_CONDITION_TAIL.split())
+    said = gerund(str(item.get("label") or "")).split()
+    if 0 < len(said) <= room:
+        head = " ".join(said)
+    elif len(said) >= 3 and said[1].lower() == "and":
+        head = " ".join(said[:3])                                  # *checking and fixing*
+    else:
+        head = said[0] if said else "it"
+    condition = f"{head} {_CONDITION_TAIL}"
+    return condition if not _EVERY_STEP.search(condition) else f"it {_CONDITION_TAIL}"
 
 
 #: keel-cloud 204 (FR-1): each founder list's row cap, the registry's `founder.saves.max_words` (9; Compatibility's
@@ -1688,12 +1897,15 @@ def saved_list(entry, key: str) -> dict:
     phrase as Keel drafted it, the act without *your way of*."""
     saved = founder_list(entry, key)
     items = []
-    for i, item in enumerate(saved["items"]):
+    # spec 132 FR-2 (keel-cloud 205 FR-1): a Purchase friction row naming the founder's own offer is left off the list
+    # the cloud stores (`L32`), and a pick of it moves to the first row kept; FR-3 / FR-10 (keel-web 168): Buyer and
+    # payer's pick is the walker's -- 1, every role named, wherever the Answer names one; 0, *Nobody else*, else
+    for i, (_, item) in enumerate(kept_items(entry, key)):
         out = {"code": wire_code(key, i), "label": item["label"]}
         if key in ASKED_FACES and item.get("asked"):
             out["asked"] = item["asked"]
         items.append(out)
-    picked = saved.get("picked")
+    picked = kept_picked(entry, key)
     out = {"items": items, "pickedIndex": int(picked) if key in PICKED and picked is not None else None,
            "phrase": bare_phrase(saved.get("phrase")) if key == "problem.current_solution_satisfaction" else None}
     if key == PURCHASE_FRICTION_KEY and founder_duration(entry):
@@ -1745,18 +1957,19 @@ GOLDEN_DEFAULT_DURATION = {"count": 2, "unit": "WEEKS"}
 
 def walker_duration(entry) -> dict | None:
     """Spec 130 (keel-cloud 199 FR-4: the time is the founder's alone, asked, *not sure* an answer): what the walker
-    answers on Purchase friction's time box -- the entry's own time where its sources give one (`founder_duration`);
-    *not sure* (`{unsure: True}`, the recorded time beside it for a page that draws no *not sure*) where they give none;
-    None where the entry names no time."""
+    answers on Purchase friction's time box. Spec 132 FR-8 (keel-cloud 206 *Owed elsewhere*: in cycle 9 the walker left
+    the box empty on Palus, Expanse and Codyco, so the cloud saved the list with no time and served the fixed three): the
+    walker types the entry's own time, the step's own (`founder_duration`: 10-palus 4 weeks, 17-expanse 6 weeks), and
+    never leaves the box empty -- spec 130's `time_sourced` read no longer turns a recorded time into *not sure*; where
+    the corpus records none, *I'm not sure* (`{unsure: True}`, the walker's own default beside it for a page that draws
+    no such control)."""
     duration = founder_duration(entry)
     if duration is None:
         # a golden entry names no time (S-016 and its sharing journeys S-018..S-020, 2026-11-02 21:44 ET: all three
         # stopped at Purchase friction's Choose by spec 119's name): the walker answers *not sure*; where the page
         # draws no such control yet (keel-web owes it) the walker's OWN default is typed and the gap recorded
         return {"unsure": True, "default": True, **GOLDEN_DEFAULT_DURATION}
-    if time_sourced(entry):
-        return duration
-    return {"unsure": True, **duration}
+    return duration
 
 
 def served_friction_picks(entry, person: "PersonInputs", items: dict) -> tuple["PersonInputs", list[str]]:
@@ -2850,8 +3063,9 @@ def founder_side(entry, *, line: int | None = None):
     buyer = entry.founder_list("commercial.buyer_payer_alignment")
     supports = None
     if buyer and buyer["items"]:
-        tested = entry.tested("commercial.buyer_payer_alignment") or {}
-        supports = (fake.BUYER_ALONE,) if tested.get("code") == NOBODY_ELSE[0] else fake.BUYER_SUPPORTS
+        # spec 132 FR-3 / FR-10: the tested item is the walker's pick -- every role named (1) wherever the Answer names
+        # one, *Nobody else* (0) only where it names nobody (Palus's corpus picks *Nobody else* beside the board)
+        supports = (fake.BUYER_ALONE,) if buyer_payer_pick(entry) == 0 else fake.BUYER_SUPPORTS
     # keel-cloud 128 FR-21: an up-front-then price is held on both steps -- the up front's own low as well
     upfront = float(price["upfrontLow"]) if chain and chain_mod.two_steps(price) and price.get("upfrontLow") is not None \
         else None

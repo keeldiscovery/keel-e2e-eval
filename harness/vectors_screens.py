@@ -88,6 +88,38 @@ def recall_window_label(people: str, clause: str) -> str:
     return f"How far back should {people} look for {clause}?"
 
 
+def said_of_the_people(clause: str) -> str | None:
+    """keel-web 162 `saidOfThePeople`: a clause's second person said of the people (*the last time you* -> *they*,
+    *you're* -> *they're*, *your* -> *their*, *when you* -> *when they*); None where a *you* is left that grammar alone
+    cannot place."""
+    said = re.sub(r"(?i)^the last time you\b", "the last time they", clause)
+    said = re.sub(r"(?i)\byou(['\u2019])(re|ve|d|ll)\b", r"they\1\2", said)
+    said = re.sub(r"(?i)\byour\b", "their", said)
+    said = re.sub(r"(?i)\b(when|while|after|before|since|until|and) you\b", r"\1 they", said)
+    return None if re.search(r"(?i)\byou(rs|rself|rselves)?\b", said) else said
+
+
+#: Spec 132 FR-9 (keel-web 166 FR-1, `circumstanceClauseOf`): the window question's third clause -- where the context
+#: carries no occasion clause and the read's *Keel understands* sentence a *When* clause (keel-cloud `ReadBack`'s fixed
+#: shape, *... When {circumstance}, they want to {job}. ...*), the moment itself: *the last time {circumstance}*, said of
+#: the people. `RECALL_WINDOW_QUESTION`'s pattern already matches it. Order (`windowLabelOf`): 162's occasion clause,
+#: then this, then `RECALL_WINDOW_LAST_TIME` -- which the walk's 2 of 2 still meets on a first pass (166 J-2: no read
+#: before Save).
+_WHEN_CLAUSE = re.compile(r"(?:^|[.!?]\s)When (\S.*?), they\b")
+
+
+def circumstance_clause_of(understands: str | None) -> str | None:
+    """keel-web 166 `circumstanceClauseOf`: *the last time {the clause after When}*, its trailing stop dropped and said
+    of the people; None where the sentence has no such clause or a *you* is left unplaced."""
+    sentence = " ".join(str(understands or "").split())
+    found = _WHEN_CLAUSE.search(sentence)
+    if not found:
+        return None
+    when = re.sub(r"[.,;:\s]+$", "", found.group(1).strip())
+    said = said_of_the_people(re.sub(r"(?i)^when\s+", "", when))
+    return f"the last time {said}" if said else None
+
+
 #: Spec 129 (keel-web 162 FR-2): the market step's question (`.guided-step__question`, the country select's name too;
 #: was *Where will you sell this first?*), the region box's placeholder (`regionPlaceholder`: the country's examples
 #: where it has them) and the hint under it (`market-region-hint`, the box's `aria-describedby`; not drawn on *Another
@@ -162,6 +194,34 @@ BUYER_PAYER_BAR = re.compile(r"^Holds if at least 2 in 3(?: (?P<deciders>.+?))? 
 #: keel-web 149 FR-1 / FR-2: the recall line under the title and the belief under each radio.
 CHOOSE_RECALL_TESTID = "choose-recall"
 CHOOSE_BELIEF_TESTID = "choose-belief"
+#: Spec 132 FR-10 (keel-web 168 FR-3, T004-T006): Buyer and payer's Choose holds two options at most -- *Nobody else*
+#: (index 0) first, then one option (index 1) holding every role named, joined with *and*, tagged *· has to agree*
+#: outside the radio's name; a list holding only *Nobody else* draws no radiogroup but a statement to confirm, and
+#: Continue sends 0. The walker picks by index, never by a role's label.
+CHOOSE_CONFIRM_TESTID = "choose-confirm"
+#: Spec 132 FR-9 (keel-web 166 FR-2, `KeelTest`'s `waiting`): Purchase friction's Choose holds the belief and the bar
+#: until the founder gives the time -- one muted line in their place (`PURCHASE_FRICTION_TIME_OWED`, the picked step
+#: filled; `KEEL_TEST_PENDING` before a step is picked) and no `.keeltest__b`.
+KEEL_TEST_WAITING_TESTID = "keeltest-waiting"
+PURCHASE_FRICTION_TIME_OWED = "Say how long {value} takes on their side, or that you're not sure."
+KEEL_TEST_PENDING = "Pick one and the test appears here."
+CHOOSE_STATEMENT_TESTID = "choose-statement"
+NOBODY_ELSE_LABEL = "Nobody else"
+BUYER_PAYER_CONFIRM_ONLY = ("You named nobody else who has to agree, so there is nothing to pick. Continue to test this, "
+                            "or go back and name who has to agree.")
+BUYER_PAYER_NOBODY_INDEX, BUYER_PAYER_ROLES_INDEX = 0, 1
+
+
+def roles_joined(roles: list[str]) -> str:
+    """keel-web 168 `agreeingRoles` / `joined` (keel-cloud `BeliefSentence.agreeing`): the one option holding every role,
+    each as the clause's subject, joined with *and* -- *The CFO and the project executive*; three or more with commas,
+    the last with *and*. The label is capitalised (the radio's name: the words alone, the tag `aria-hidden`)."""
+    from instructions import chain as chain_mod                       # noqa: PLC0415
+    said = [chain_mod.the_role(r) for r in roles if r and r.strip()]
+    if not said:
+        return ""
+    text = said[0] if len(said) == 1 else ", ".join(said[:-1]) + " and " + said[-1]
+    return text[0].upper() + text[1:]
 #: The two calibration writes the walk keeps: Choose's `PUT calibration/{vector}` (the list with its `pickedIndex`) and
 #: an Answer's `POST calibration/{vector}/draft` (`{dimension, answer}`).
 CALIBRATION_PUT = re.compile(r"/v2/projects/[^/?#]+/calibration/(?:PROBLEM|SOLUTION|COMMERCIAL)$")
@@ -172,7 +232,10 @@ ANSWER_WHAT_TESTID = "answer-what"
 ANSWER_HOW_TESTID = "answer-how"
 ANSWER_HOW_Q_TESTID = "answer-how-q"
 CURRENT_SOLUTION_HOW_QUESTION = "And how well does that usually go?"
-CURRENT_SOLUTION_HOW_HINT = "Where it falls short, in a sentence. Up to 25 words."
+#: Spec 132 FR-10 (keel-web 168 FR-1, proposal 22): the second prompt -- how the act goes, from good to bad, and where
+#: good enough stops (150's *Where it falls short, in a sentence. Up to 25 words.*, `CURRENT_SOLUTION_HOW_HINT_150`).
+CURRENT_SOLUTION_HOW_HINT = "How it usually goes, from a good time to a bad one, and where good enough stops."
+CURRENT_SOLUTION_HOW_HINT_150 = "Where it falls short, in a sentence. Up to 25 words."
 #: keel-web 150 FR-1 (`currentSolutionQuestion`): *How do {actor_plural} {job} today?*.
 CURRENT_SOLUTION_ASKED = re.compile(r"^How do \S.* \S.* today\?$")
 #: keel-web 150 FR-3 (`splitAnswer`): a full stop followed by a space ends the first box's sentence.
@@ -182,14 +245,28 @@ _FIRST_STOP = re.compile(r"\.\s+")
 
 #: Spec 117 FR-3 (keel-web 153 FR-4, `ANSWER_HINT` + `answerHint`): Importance's Answer hint, the page's word limit after
 #: it (was *Name the other difficulties of the same moment. Up to 25 words.*).
-IMPORTANCE_ANSWER_HINT = "Name up to four other difficulties they meet around this. Up to 25 words."
+#: Spec 132 FR-10 (keel-web 168 FR-1, `ANSWER_HINT_OF`): no hint says *Up to 25 words* -- the list's own count and row
+#: cap (the served `saves`: Importance's four besides its own item, nine words each); 153's
+#: (`IMPORTANCE_ANSWER_HINT_153`) read *... around this. Up to 25 words.*
+IMPORTANCE_ANSWER_HINT = "Name up to four other difficulties they meet around this, each up to 9 words."
+IMPORTANCE_ANSWER_HINT_153 = "Name up to four other difficulties they meet around this. Up to 25 words."
 #: keel-web 153 FR-3 (`compatibilityHint`): *What must already be true at {segment} for this to work? Tools they use,
 #: time they can wait, rules they work under. Two to four things.* then *Up to 25 words.* -- `{segment}` the context's
 #: `segment.core` (else the typed segment) as a sentence takes it, and no *at ...* where the context gives none (was
 #: *What they already have or do that it plugs into. Up to 25 words.*).
-COMPATIBILITY_ANSWER_HINT = re.compile(r"^What must already be true(?: at (?P<segment>.+?))? for this to work\? Tools "
-                                       r"they use, time they can wait, rules they work under\. Two to four things\. "
-                                       r"Up to 25 words\.$")
+COMPATIBILITY_ANSWER_HINT_153 = re.compile(r"^What must already be true(?: at (?P<segment>.+?))? for this to work\? "
+                                           r"Tools they use, time they can wait, rules they work under\. Two to four "
+                                           r"things\. Up to 25 words\.$")
+#: Spec 132 FR-10 (keel-web 168 FR-1, proposal 41): the people once, by their short name (never the whole segment, never
+#: *true at* it), the list's own count and cap (Compatibility's two to four rows of up to 16 words) -- *What must
+#: already be true in their day for this to work? Two to four lines of up to 16 words, each reading on from "Most
+#: {people} ...", e.g. "have their phone with them at that moment".* -- *of them* where no people are read.
+COMPATIBILITY_ANSWER_HINT = re.compile(r'^What must already be true in their day for this to work\? Two to four lines '
+                                       r'of up to 16 words, each reading on from "Most (?P<people>.+?) \.\.\.", e\.g\. '
+                                       r'"have their phone with them at that moment"\.$')
+COMPATIBILITY_ANSWER_HINT_WANT = ('What must already be true in their day for this to work? Two to four lines of up to 16 '
+                                  'words, each reading on from "Most {people} ...", e.g. "have their phone with them at '
+                                  'that moment".')
 #: Spec 117 FR-1 / FR-3: the Choose title the walk reads (`.listcheck__title`) on the three Choose screens that moved --
 #: Buyer and payer (keel-web 149, spec 116), Purchase friction (keel-web 153 FR-2, was *Which one is most likely to slow
 #: it down?*) and Compatibility (keel-cloud 179 FR-1's served `choose.prompt`, `SavedList.COMPATIBILITY_CHOOSE_PROMPT`,
@@ -210,8 +287,11 @@ PURCHASE_FRICTION_CHOOSE_BAR_UNDATED_157 = "Holds if no more than 1 in 3 say it 
 #: Spec 129 (keel-web 164 W8, keel-cloud 202 D1(b) `PurchaseFriction.cardBar`): the Choose bar in the stage card's
 #: framing, the count within the founder's time -- before the time is typed (`LIST_HOLDS`' entry) ...
 PURCHASE_FRICTION_CHOOSE_BAR_YOUR_TIME = "Holds if at least 2 in 3 say under your time or not needed."
-#: ... with no time asked (a lock before keel-cloud 182) or the founder *not sure* (`PURCHASE_FRICTION_BAR_UNDATED`) ...
-PURCHASE_FRICTION_CHOOSE_BAR_UNDATED = "Holds if at least 2 in 3 say quick or not needed."
+#: ... with no time asked (a lock before keel-cloud 182) or the founder *not sure* (`PURCHASE_FRICTION_BAR_UNDATED`):
+#: spec 132 FR-10 (keel-web 168 FR-4, cycle 9's proposal 14: never *quick*) -- keel-cloud 182's `BAR_UNDATED` in the
+#: screen's tense, 157's words again (164 W8's *quick or not needed* is `PURCHASE_FRICTION_CHOOSE_BAR_UNDATED_164`) ...
+PURCHASE_FRICTION_CHOOSE_BAR_UNDATED = PURCHASE_FRICTION_CHOOSE_BAR_UNDATED_157
+PURCHASE_FRICTION_CHOOSE_BAR_UNDATED_164 = "Holds if at least 2 in 3 say quick or not needed."
 #: ... and with the time as typed (`durationSaid`: *6 weeks*, *1 month*).
 PURCHASE_FRICTION_CHOOSE_BAR_TIMED = "Holds if at least 2 in 3 say under {said} or not needed."
 #: keel-web `DURATION_UNIT_WORDS`.
@@ -231,8 +311,9 @@ def duration_said(duration: dict | None) -> str:
 
 def purchase_friction_choose_bar(timed: bool, said: str | None = "") -> str:
     """Spec 129 (keel-web 164 W8, `purchaseFrictionBar(timed, said)`): the bar no time is asked for (`timed` False) or
-    the founder is not sure of (`said` None) -- *quick or not needed*; with the time said, *under {said}*; before it is
-    typed (`said` ""), *under your time*."""
+    the founder is not sure of (`said` None) -- *no more than 1 in 3 say it would take a long time* since keel-web 168
+    FR-4 (*quick or not needed* before); with the time said, *under {said}*; before it is typed (`said` ""), *under your
+    time* -- which keel-web 166 FR-2 no longer draws on Choose (the held box: `KEEL_TEST_WAITING_TESTID`)."""
     if not timed or said is None:
         return PURCHASE_FRICTION_CHOOSE_BAR_UNDATED
     return PURCHASE_FRICTION_CHOOSE_BAR_TIMED.format(said=said) if said else PURCHASE_FRICTION_CHOOSE_BAR_YOUR_TIME
@@ -347,6 +428,13 @@ DURATION_UNIT_TESTID = "duration-unit"
 #: people whose use is not work (it read *How does it fit into the way they work today?*).
 COMPATIBILITY_ANSWER_QUESTION = "How does it fit into what they already do today?"
 COMPATIBILITY_ANSWER_QUESTION_198 = "How does it fit into the way they work today?"
+#: Spec 132 FR-5 (keel-cloud 205 FR-1, `AnswerPrompts`): the two Answer questions 205 moved -- Purchase friction's the
+#: buyer's own steps before paying, never the founder's trial (it read *What could slow down or stop a purchase?*), and
+#: Commitment's the step and where any money goes (it read *What's the first real step you'd want them to take?*).
+PURCHASE_FRICTION_ANSWER_QUESTION = "What must the buyer's own side clear before they pay?"
+PURCHASE_FRICTION_ANSWER_QUESTION_204 = "What could slow down or stop a purchase?"
+COMMITMENT_ANSWER_QUESTION = "What's the first real step you'd want them to take, and where would any money go?"
+COMMITMENT_ANSWER_QUESTION_204 = "What's the first real step you'd want them to take?"
 #: Spec 130 (keel-cloud 199 FR-4, owed by keel-web): the time box's *not sure* -- ticked where the founder's time is not
 #: sure (`vectors_script.walker_duration`); a page that draws none is typed the recorded time and says so.
 DURATION_UNSURE_TESTID = "duration-unsure"
@@ -450,6 +538,44 @@ CHAIN_PRICE_CHOICE = {("AMOUNT_PERIOD", None): "chain-shape-AMOUNT_PERIOD", ("SH
                       ("SHARE", "RECOVERED"): "chain-share-RECOVERED",
                       ("UPFRONT_THEN", False): "chain-shape-UPFRONT_THEN", ("UPFRONT_THEN", True): "chain-then-nothing",
                       ("FREE", None): "chain-shape-FREE"}
+
+
+def idea_boxes_text(lines: dict | None) -> str:
+    """Spec 132 FR-13: the idea screen's boxes as drawn, one a line -- *Name: ...*, *What it is: ...* (the box beside the
+    name, Keel's `idea_what` since keel-cloud 207), *How: ...*, *Belief: ...*; a box the page did not draw left out."""
+    lines = lines or {}
+    said = (("Name", lines.get("what")), ("What it is", lines.get("whatItIs")), ("How", lines.get("how")),
+            ("Belief", lines.get("belief")))
+    return "\n".join(f"{label}: {text}" for label, text in said if text is not None)
+
+
+#: Spec 132 FR-14 (keel-web 169 FR-1, `contextIntro(windowShown)`): the context screen's intro counts the answers the
+#: step holds -- five where the recall window is drawn (`servesGate(scope)`: every scope but money alone -- ALL, PROBLEM,
+#: SOLUTION, SOLUTION_COMMERCIAL), four on money alone (COMMERCIAL), the shared second sentence once.
+CONTEXT_INTRO_BOUNDARY = ("Every belief you give later, and every answer a stranger gives, is read inside this boundary "
+                          "and nowhere else.")
+CONTEXT_INTRO = f"Four short answers, a phrase each. {CONTEXT_INTRO_BOUNDARY}"
+CONTEXT_INTRO_WITH_WINDOW = f"Five short answers, a phrase each. {CONTEXT_INTRO_BOUNDARY}"
+
+
+def context_intro(scope: str = "ALL") -> str:
+    """keel-web 169 `contextIntro(servesGate(scope))`: *Five ...* on a scope with a gate, *Four ...* on money alone."""
+    return CONTEXT_INTRO if str(scope or "ALL").upper() == "COMMERCIAL" else CONTEXT_INTRO_WITH_WINDOW
+
+
+#: Spec 132 FR-10 (keel-web 168 FR-5, J-4): *A percent of what it gets back* -- absent on a fresh study (the wire serves
+#: no name for RECOVERED as the payers say it; owed by keel-cloud), drawn only over a saved price that holds it.
+CHAIN_RECOVERED_TESTID = "chain-share-RECOVERED"
+RECOVERED_NOT_DRAWN = ("the price is a percent of what it gets back, and keel-web 168 draws no `chain-share-RECOVERED` on "
+                       "a fresh study (J-4: keel-cloud owes the payers' name for it) -- the entry's price shape cannot "
+                       "be picked")
+
+
+def recovered_drawn_faults(seen: dict | None, fresh: bool = True) -> list[str]:
+    """Spec 132 FR-10: on a fresh study the price step draws no `chain-share-RECOVERED` (`seen["recovered_drawn"]`)."""
+    if not seen or "recovered_drawn" not in seen or not fresh:
+        return []
+    return ["chain-share-RECOVERED is drawn on a fresh study (keel-web 168 FR-5)"] if seen["recovered_drawn"] else []
 
 
 #: keel-web 134 T002: the period chips (`chain-period-<period>`), not their label `chain-period-label`.
@@ -648,7 +774,18 @@ MAKE_THEIR_LINK = "Make their link"
 #: keel-web 123 (spec 075 FR-2), `translate.ts`: the chain cost step's helper lines and the rate's default note.
 CHAIN_UNIT_HELP = "What you count it against: a person, a site, a company."
 CHAIN_HOURS_BASE_HELP = "What the time goes on."
-CHAIN_BASE_HELP = "What they lose a share of."
+#: Spec 132 FR-10 (keel-web 168 FR-6, `chainBaseHelp(base)`): the rate's line under *of* names the base as the box holds
+#: it -- *The part of the balance they lose.*, *The part they lose.* with none (`chain_base_help`); 123's *What they
+#: lose a share of.* is `CHAIN_BASE_HELP_123`. The count chip (`chain-measure-count`, clicked by id) reads the count word.
+CHAIN_BASE_HELP = "The part of {base} they lose."
+CHAIN_BASE_HELP_NONE = "The part they lose."
+CHAIN_BASE_HELP_123 = "What they lose a share of."
+
+
+def chain_base_help(base: str | None) -> str:
+    """keel-web 168 `chainBaseHelp`: *The part of {base} they lose.*, the base trimmed; *The part they lose.* with none."""
+    said = str(base or "").strip()
+    return CHAIN_BASE_HELP.format(base=said) if said else CHAIN_BASE_HELP_NONE
 HOURLY_RATE_DEFAULTED = "Keel's default for this market. Change it if yours differs."
 #: keel-cloud 141 (`CommercialChain.KEEL_READS`, `countsSentence`): Keel's own reading of Ability to pay, and which of the
 #: budget question's answers count, by kind of study. Since keel-cloud 145 FR-1 (spec 076 FR-1) the said line of a row
@@ -2081,6 +2218,9 @@ class Corridor:
             # spec 125 FR-3 (keel-web 161 FR-1): no brand plate while the name box is empty
             plate = {"before": self.brand_plate()}
             h.capture_text("stage_screen", _text(self.page))
+            # spec 132 FR-13 (keel-cloud 207): the boxes' own words beside the page text -- the what-it-is box holds
+            # Keel's suggestion (`idea_what`), which the page's text alone never carries
+            h.capture_text("stage_screen", idea_boxes_text(lines))
             h.add_screenshot(self._b.screenshot("idea-check"))
             self._shot("idea")
             if name:
@@ -2295,6 +2435,12 @@ class Corridor:
         page = self.page
         shape = price["shape"]
         choice = chain_price_choice(price)
+        # spec 132 FR-10 (keel-web 168 FR-5, J-4): on a fresh study the bare *A percent of what it gets back* is not drawn
+        # (`chain-share-RECOVERED` only over a saved price that holds it), nor `chain-shape-SHARE` where the wire serves
+        # no SHARE -- read before the pick; a price of that shape stops by name, never on a click's timeout
+        recovered = page.get_by_test_id(CHAIN_RECOVERED_TESTID).count() > 0
+        if choice == CHAIN_RECOVERED_TESTID and not recovered:
+            raise AssertionError(RECOVERED_NOT_DRAWN)
         page.get_by_test_id(choice).click()
         if shape == "AMOUNT_PERIOD":
             page.get_by_test_id("chain-price-low").fill(_number(price["low"]))
@@ -2305,7 +2451,8 @@ class Corridor:
             page.get_by_test_id("chain-upfront").fill(_number(price["upfrontLow"]))
             if not price.get("thenNothing"):
                 page.get_by_test_id("chain-plan").fill(_number(price["low"]))
-        return {"chain": True, "locked": _first_text(page, "[data-testid=chain-locked]"), "choice": choice}
+        return {"chain": True, "locked": _first_text(page, "[data-testid=chain-locked]"), "choice": choice,
+                "recovered_drawn": recovered}
 
     # ------------------------------------------- calibration: a list's Answer, Check and save, Choose
 
@@ -2564,7 +2711,8 @@ class Corridor:
             return "pressed, not held"
         return "ticked"
 
-    def list_choose(self, question: dict, label: str, duration: dict | None = None) -> dict:
+    def list_choose(self, question: dict, label: str | None, duration: dict | None = None, *,
+                    index: int | None = None) -> dict:
         """*Choose* (FR-006): none pre-picked; the radio named `label` picked; the *Keel will test* box
         read with the pick; the primary (*Continue*, or the stage's exit). Returns what it read.
 
@@ -2582,20 +2730,47 @@ class Corridor:
         picked step (`duration-input`, Purchase friction's Choose), `duration` (`{count, unit}`, the entry's own) is typed
         into `duration-count` and picked in `duration-unit` before the press -- the save sends it as
         `SavedList.duration`; what the box read back is `seen["duration"]`, what the PUT carried `seen["duration_sent"]`.
-        A screen that draws no box (a keel-web before 155) records `duration_drawn: False`."""
+        A screen that draws no box (a keel-web before 155) records `duration_drawn: False`.
+
+        Spec 132 FR-10 (keel-web 168 FR-3): Buyer and payer's Choose is picked by `index` -- 1, the one option holding
+        every role joined with *and*; 0, *Nobody else* -- never by a role's label; a list holding only *Nobody else*
+        draws no radiogroup but a statement to confirm (`choose-confirm`, `choose-statement`, `confirm: True`), and
+        Continue sends 0. FR-9 (keel-web 166 FR-2): on Purchase friction's Choose, between the pick and the time, the
+        box holds its belief and bar -- the muted line (`keeltest-waiting`) read as `waiting`, with no `.keeltest__b`
+        (`waiting_bar`) -- until the time is typed or *I'm not sure* is pressed."""
         name = question.get("dimension")
-        with self._b.step(f"founder picks the one item strangers are asked about: {label!r} ({name})") as h:
+        said = f"option {index}" if index is not None else repr(label)
+        with self._b.step(f"founder picks the one item strangers are asked about: {said} ({name})") as h:
             _wait_url(self.page, r"/choose")
-            group = self.page.locator(".listcheck [role=radiogroup]").first
-            group.wait_for(state="visible", timeout=20_000)
+            self.page.locator(f".listcheck [role=radiogroup], [data-testid={CHOOSE_CONFIRM_TESTID}]").first.wait_for(
+                state="visible", timeout=20_000)
             self._shot(f"choose-{name}")
+            confirm = self.page.get_by_test_id(CHOOSE_CONFIRM_TESTID)
+            if confirm.count():
+                # spec 132 FR-10 (keel-web 168 T006): a list holding only *Nobody else* is a statement to confirm
+                return self._choose_confirm(question, h)
+            group = self.page.locator(".listcheck [role=radiogroup]").first
             radios = group.get_by_role("radio")
             before = [radios.nth(i).get_attribute("aria-checked") for i in range(radios.count())]
             options = [_safe_text(lambda r=radios.nth(i): r.inner_text()).strip() for i in range(radios.count())]
             empty = self._keel_test()
             note_before = _first_text(self.page, f"[data-testid={KEEL_TEST_NOTE_TESTID}]")
-            group.get_by_role("radio", name=label, exact=True).click()
+            if index is not None:
+                radios.nth(index).click()
+                label = options[index] if index < len(options) else None
+            else:
+                group.get_by_role("radio", name=label, exact=True).click()
             drawn_duration = self.page.get_by_test_id(DURATION_INPUT_TESTID)
+            # spec 132 FR-9 (keel-web 166 FR-2): the held Choose -- the muted line, and no bar, before the time
+            if drawn_duration.count():
+                try:
+                    self.page.locator(f"[data-testid={KEEL_TEST_WAITING_TESTID}]").first.wait_for(
+                        state="attached", timeout=3_000)
+                except Exception:  # noqa: BLE001 - recorded: a page before keel-web 166 draws the bar at once
+                    pass
+            waiting = _first_text(self.page, f"[data-testid={KEEL_TEST_WAITING_TESTID}]") if drawn_duration.count() \
+                else ""
+            waiting_bar = _first_text(self.page, ".keeltest__b") if drawn_duration.count() else ""
             typed_duration = None
             if drawn_duration.count() and not duration:
                 # spec 119 FR-3: the screen asks the founder's time and Continue waits for it -- an entry that names
@@ -2619,6 +2794,9 @@ class Corridor:
                 typed_duration = {"count": _value(self.page.get_by_test_id(DURATION_COUNT_TESTID).first),
                                   "unit": self.page.get_by_test_id(DURATION_UNIT_TESTID).first.input_value()}
             seen = {"screen": "choose", "frame": self.frame(), "options": options, "label": label,
+                    **({"index": index} if index is not None else {}),
+                    **({"waiting": " ".join(waiting.split()), "waiting_bar": waiting_bar}
+                       if drawn_duration.count() else {}),
                     "duration_drawn": drawn_duration.count() > 0, "duration": typed_duration,
                     **({"duration_unsure": unsure} if unsure else {}),
                     "drawn_index": options.index(label) if label in options else None,
@@ -2639,6 +2817,30 @@ class Corridor:
             seen["served_index"] = served_picked_index(seen["writes"], name)
             seen["duration_sent"] = sent_duration(seen["writes"], name)
             return seen
+
+    def _choose_confirm(self, question: dict, h) -> dict:
+        """Spec 132 FR-10 (keel-web 168 T006): Buyer and payer's Choose where the list holds only *Nobody else* -- no
+        radiogroup; the recall line, the statement (`choose-statement`, `BUYER_PAYER_CONFIRM_ONLY`) and the belief
+        (`choose-belief`) read; Continue pressed, which sends `pickedIndex` 0."""
+        name = question.get("dimension")
+        seen = {"screen": "choose", "frame": self.frame(), "confirm": True, "options": [], "index": 0,
+                "label": NOBODY_ELSE_LABEL, "duration_drawn": False, "duration": None, "drawn_index": None,
+                "picked_before": [], "test_before": self._keel_test(), "test": self._keel_test(),
+                "prompt": None,
+                "statement": " ".join(_first_text(self.page, f"[data-testid={CHOOSE_STATEMENT_TESTID}]").split()),
+                "recall": " ".join(_first_text(self.page, f"[data-testid={CHOOSE_RECALL_TESTID}]").split()),
+                "beliefs": [" ".join(t.split()) for t in
+                            self.page.locator(f"[data-testid={CHOOSE_BELIEF_TESTID}]").all_inner_texts()],
+                "intro": " ".join(_first_text(self.page, ".corridor__intro").split()),
+                "note_before": "", "note": ""}
+        h.capture_text("stage_screen", _text(self.page))
+        h.add_screenshot(self._b.screenshot(f"choose-{name}"))
+        with self._keeping("PUT", CALIBRATION_PUT) as writes:
+            seen["primary"] = self._press_primary()
+        seen["writes"] = [_request_row(r) for r in writes]
+        seen["served_index"] = served_picked_index(seen["writes"], name)
+        seen["duration_sent"] = None
+        return seen
 
     # --------------------------------------------------------------------------------- persona
 

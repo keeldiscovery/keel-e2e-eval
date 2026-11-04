@@ -318,8 +318,15 @@ def test_the_money_only_walk_holds_one_kind():
 
 def test_the_cost_step_words_are_keel_webs():
     text = _web("src/lib/translate.ts")
-    for name in ("CHAIN_UNIT_HELP", "CHAIN_HOURS_BASE_HELP", "CHAIN_BASE_HELP"):
+    for name in ("CHAIN_UNIT_HELP", "CHAIN_HOURS_BASE_HELP"):
         assert re.search(rf'export const {name} = "([^"]*)";', text).group(1) == getattr(vs_screens, name), name
+    # spec 132 FR-10 re-pin (keel-web 168 FR-6): `CHAIN_BASE_HELP` is gone -- `chainBaseHelp(base)` names the base
+    assert "export const CHAIN_BASE_HELP" not in text
+    said = re.search(r"export const chainBaseHelp = \(base: string \| undefined\): string => \(base\?\.trim\(\) \? "
+                     r"`([^`]*)` : \"([^\"]*)\"\);", text)
+    assert said and said.group(1).replace("${base.trim()}", "{base}") == vs_screens.CHAIN_BASE_HELP
+    assert said.group(2) == vs_screens.CHAIN_BASE_HELP_NONE
+    assert vs_screens.chain_base_help(" the balance ") == "The part of the balance they lose."
     # spec 118 re-pin (keel-cloud 180 FR-9, keel-web 155 FR-8): the hourly rate, its box and its default note are gone
     assert "export const HOURLY_RATE_DEFAULTED" not in text
     frame = re.search(r"export const priceCostBox = \(said: string\): string => `([^`]*)`;", text).group(1)

@@ -280,26 +280,29 @@ def _asked(team, occasion, cost):
 #: then the counts, then the neutral verbs where no line (or no verb) was typed. Spec 118 re-pin (keel-cloud 184 FR-8b
 #: (c), `CommercialChain.LOSER`, `CostQuestionInTheirWordsTest` at keel-cloud-docs f3f0d99e): a loss with the measure's
 #: neutral verb is the person's own to miss -- *you*, never *your team* (who still *spend* hours on the daily log).
+#: Spec 132 FR-9 re-pin (keel-cloud 206 FR-5, `CostQuestionInTheirWordsTest` at keel-cloud-docs 7c96988d): never *miss* --
+#: a lose/miss line by the event it names (*rang out*), a two-part verb by its seen half (*never use*), no verb of its own
+#: *go without* or *fell through*, a percent box *what percent of*.
 FRAMES = [
     (True, "job submission", _rate("%", "the cluster's GPU hours", "cluster", "month",
                                    "GPU hours and memory that jobs reserve and never use"),
-     "Last month, about what share of the cluster's GPU hours did jobs reserve and never use?"),
+     "Last month, about what percent of the cluster's GPU hours did jobs never use?"),
     (True, "cash decision", _rate("%", "the balance", "company", "year",
                                   "Interest on cash that sits in the operating account"),
-     "Last year, about how much interest did you miss on cash that sat in the operating account?"),
+     "Last year, about what percent of the balance did you go without in interest?"),
     (True, "reservation shift", _rate("%", "the reservation calls", "hotel", "month",
                                       "Bookings lost when a call rings out after hours, at peak or on a holiday"),
-     "Last month, about what share of the reservation calls were lost?"),
+     "Last month, about what percent of the reservation calls rang out after hours, at peak or on a holiday?"),
     (True, "release", _rate("%", "the agent's runs in production", "agent", "month",
                             "Runs that fail in front of customers before anyone notices"),
-     "Last month, about what share of the agent's runs in production failed in front of customers before anyone "
+     "Last month, about what percent of the agent's runs in production failed in front of customers before anyone "
      "noticed?"),
     (False, "search", _rate("questions", "the questions they search", "person", "month",
                             "Questions they give up on because search shows only sellers' pages"),
      "Last month, about how many questions did you give up on because search showed only sellers' pages?"),
     (True, "quote", _rate("deals", "the deals they quote", "sales team", "month",
                           "Deals lost or signed on worse terms because the pricing was worked out by hand"),
-     "Last month, how many deals were lost or signed on worse terms because the pricing was worked out by hand?"),
+     "Last month, about how many deals fell through?"),
     (False, "reading session", _rate("days", "reading with no one listening", "child", "month",
                                      "School days the child reads with no one listening"),
      "Last month, about how many school days did the child read with no one listening?"),
@@ -307,12 +310,12 @@ FRAMES = [
      "Last month, about how many hours per site did your team spend on the daily log?"),
     (False, "group conversation", _rate("conversations", "the conversations they are in", "person", "month",
                                         "The thread of the conversation, and the moment with the people in it"),
-     "Last month, about how many conversations did you miss?"),
+     "Last month, in about how many conversations did you go without the thread?"),
     (True, "billing cycle", _rate("%", "the practice's collections", "practice", "month",
                                   "What billing staff or a billing company costs, plus claims rejected and never paid"),
-     "Last month, about what share of the practice's collections did you miss?"),
+     "Last month, about what percent of the practice's collections fell through?"),
     (True, "shipment", _rate("%", "the shipments", "terminal", "month", None),
-     "Last month, about what share of the shipments did you miss?"),
+     "Last month, about what percent of the shipments fell through?"),
 ]
 
 
@@ -322,17 +325,21 @@ def test_the_cost_frame_is_keel_cloud_170s(team, occasion, cost, question):
 
 
 def test_with_no_loss_line_the_frame_says_the_measures_neutral_verb():
-    # a share and a count with no line: *miss*; hours: *spend on*; a line that says *now* keeps its present
+    # a share and a count with no line: *fell through* (spec 132 FR-9, keel-cloud 206 FR-5: never *miss*); hours:
+    # *spend on*; a line that says *now* keeps its present
     assert _asked(True, "shipment", _rate("%", "the shipments", "terminal", "month", None)).endswith(
-        "did you miss?")
+        "fell through?")
     assert _asked(False, "x", _rate("conversations", None, None, "month", None)) == \
-        "Last month, about how many conversations did you miss?"
+        "Last month, about how many conversations fell through?"
     assert _asked(True, "x", {"mode": "HOURS", "base": None, "unit": "site", "period": "month"}) == \
         "Last month, about how many hours per site did your team spend on xes?", "the occasion's plural, as code makes it"
     assert _asked(True, "time", {"mode": "HOURS", "base": None, "unit": None, "period": "week"}) == \
         "Last week, about how many hours did your team spend on this?"
-    assert "the sites you sell on now" in _asked(False, "sale", _rate("%", "the sales", "seller", "month",
-                                                                      "Fees on every sale, on the sites they sell on now"))
+    # spec 132 FR-9 re-pin (keel-cloud 206 FR-5): the percent form names the box's unit and gives way to the cap by its
+    # place clause -- the present of *now* never turned (*sold*)
+    now = _asked(False, "sale", _rate("%", "the sales", "seller", "month",
+                                      "Fees on every sale, on the sites they sell on now"))
+    assert now == "On your last sale, about what percent of the sales did you go without in fees?" and "sold" not in now
     assert ll.read(None) is None and ll.read("  ") is None
     assert ll.read("What billing staff costs, plus claims never paid") is None, "a free relative names no thing"
 
@@ -456,12 +463,13 @@ def _backtest(entry_id: str):
 
 
 @pytest.mark.parametrize("entry_id, question, label", [
-    ("10-palus", "Last year, about how much interest did you miss on cash that sat in the operating account?",
+    # spec 132 FR-9 re-pin (keel-cloud 206 FR-5): never *miss* -- each entry's line as 206 asks it
+    ("10-palus", "Last year, about what percent of the balance did you go without in interest?",
      "% of the balance last year"),
-    ("17-expanse", "Last month, about what share of the cluster's GPU hours did jobs reserve and never use?",
+    ("17-expanse", "Last month, about what percent of the cluster's GPU hours did jobs never use?",
      "% of GPU hours last month"),
-    ("21-codyco", "Last month, about what share of the reservation calls were lost?",
-     "% of the reservation calls last month"),
+    ("21-codyco", "Last month, about what percent of the reservation calls rang out after hours, at peak or on a "
+                  "holiday?", "% of the reservation calls last month"),
 ])
 def test_the_three_entries_cost_items_are_170s_lines(entry_id, question, label):
     """170's tasks.md (FR-5 T014, not foreseen 6): Palus *your team* ... interest missed, Expanse word for word, Codyco

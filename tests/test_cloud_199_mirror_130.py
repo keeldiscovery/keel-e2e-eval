@@ -200,12 +200,15 @@ def test_the_notes_name_l25_to_l28_and_w11():
 # ----------------------------------------------------------------------- the time box, not sure (FR-4)
 
 def test_the_walker_answers_not_sure_where_the_sources_give_no_time():
+    # spec 132 FR-8 re-pin (keel-cloud 206 *Owed elsewhere*): the walker types the corpus entry's own time, never leaves
+    # the box empty -- `time_sourced` still reads the sources, but no longer turns a recorded time into *not sure*
     fresco = _backtest("08-fresco")
     assert vs.founder_duration(fresco) == {"count": 2, "unit": "WEEKS"}
     assert not vs.time_sourced(fresco), "08-fresco's 2 weeks is an author's choice"
-    assert vs.walker_duration(fresco) == {"unsure": True, "count": 2, "unit": "WEEKS"}
+    assert vs.walker_duration(fresco) == {"count": 2, "unit": "WEEKS"}
     codyco = _backtest("21-codyco")
     assert not vs.time_sourced(codyco), "its bookings *in 4 weeks* is no purchase time"
+    assert vs.walker_duration(codyco) == vs.founder_duration(codyco)
     # 2026-11-02 21:44 ET: S-016 and the sharing journeys stopped at Purchase friction's Choose by spec 119's name, so a
     # golden entry answers *not sure* with the walker's own default beside it for a page that draws no such control
     assert vs.walker_duration(_golden("05-paidly")) == {"unsure": True, "default": True, **vs.GOLDEN_DEFAULT_DURATION}

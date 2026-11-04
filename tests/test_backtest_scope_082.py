@@ -260,8 +260,9 @@ def test_the_step_and_the_docstring_say_when_the_box_is_read():
     source = inspect.getsource(cs._hold_the_cost_fill)
     assert "before anything is typed; " in source and "the equation is drawn (keel-web 123)" in source
     assert "Spec 082 FR-2" in source
-    assert ('owed["base_help"] = vs_screens.CHAIN_HOURS_BASE_HELP if mode == "HOURS" else '
-            'vs_screens.CHAIN_BASE_HELP') in source
+    # spec 132 FR-10 re-pin (keel-web 168 FR-6, `chainBaseHelp(base)`): the rate's line names the base as the box holds it
+    assert ('owed["base_help"] = vs_screens.CHAIN_HOURS_BASE_HELP if mode == "HOURS" else \\\n'
+            '                vs_screens.chain_base_help(filled.get("base") or want["base"])') in source
     # re-pinned by spec 096 FR-2: the rate's note and order are held in `cost_fill_rate_faults`, against the view as it
     # was before the screen's own save -- the note drawn iff `defaulted`, the order unchanged
     rate = inspect.getsource(cs.cost_fill_rate_faults) + inspect.getsource(cs.cost_fill_rate_owed)

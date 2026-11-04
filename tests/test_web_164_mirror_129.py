@@ -125,19 +125,27 @@ def test_an_option_drawn_as_a_name_over_its_line_is_read_as_the_two_apart(browse
 
 #: keel-web 164's Purchase friction Choose, as far as the walker reads it: the radios, then (once a step is picked) the
 #: time box with its count, its unit and *I'm not sure* (`duration-unsure`, `aria-pressed`), and the *Keel will test*
-#: box whose bar is `purchaseFrictionBar(true, said)`.
+#: box whose bar is `purchaseFrictionBar(true, said)`. Spec 132 FR-9 / FR-10 re-draw (keel-web 166 FR-2, 168 FR-4): the
+#: box holds its belief and bar until the time is given -- the pending line before a pick, then the muted line naming
+#: the step (`keeltest-waiting`), no `.keeltest__b` -- and *not sure* reads 182's undated bar, never *quick*.
 _CHOOSE_164 = """<!doctype html><html><head><meta charset="utf-8"></head><body><div id="app"></div><script>
 const O = %(opts)s;
 let pick = null, count = '', unit = 'WEEKS', unsure = false;
 const words = {DAYS: ['day', 'days'], WEEKS: ['week', 'weeks'], MONTHS: ['month', 'months']};
 const pid = location.pathname.split('/')[2];
 function bar() {
-  if (unsure) return 'Holds if at least 2 in 3 say quick or not needed.';
+  if (unsure) return 'Holds if no more than 1 in 3 say it would take a long time.';
   const n = parseInt(count, 10);
-  return n > 0 ? `Holds if at least 2 in 3 say under ${n} ${words[unit][n === 1 ? 0 : 1]} or not needed.`
-               : 'Holds if at least 2 in 3 say under your time or not needed.';
+  return `Holds if at least 2 in 3 say under ${n} ${words[unit][n === 1 ? 0 : 1]} or not needed.`;
 }
-function paint() { document.querySelector('.keeltest__b').textContent = bar(); }
+function keel() {
+  const owed = pick === null || (!unsure && !(parseInt(count, 10) > 0));
+  if (owed) return `<div class="keeltest"><p class="keeltest__t keeltest__t--empty" data-testid="keeltest-waiting">${
+    pick === null ? 'Pick one and the test appears here.'
+                  : "Say how long " + O.rows[pick].toLowerCase() + " takes on their side, or that you're not sure."}</p></div>`;
+  return `<div class="keeltest"><p class="keeltest__t">${O.rows[pick]} gets through.</p><p class="keeltest__b">${bar()}</p></div>`;
+}
+function paint() { document.getElementById('kt').innerHTML = keel(); }
 function render() {
   const app = document.getElementById('app');
   if (/\\/next$/.test(location.pathname)) { app.innerHTML = '<main><h1>Next</h1></main>'; return; }
@@ -150,8 +158,7 @@ function render() {
   app.innerHTML = `<main class="corridor"><p class="corridor__intro">${O.intro}</p><section class="ccard"><div class="ccard__body">
     <div class="listcheck"><p class="listcheck__title" id="t">Which one do you want to test?</p>
     <div role="radiogroup" aria-labelledby="t">${radios}</div></div>${box}
-    <div class="keeltest"><p class="keeltest__t">${pick === null ? 'Pick one and the test appears here.' : O.rows[pick] + ' can slow or stop the purchase.'}</p>
-      <p class="keeltest__b"></p></div></div>
+    <div id="kt"></div></div>
     <div class="ccard__foot"><button type="button" class="btn primary" ${pick === null ? 'disabled' : ''}>Continue</button></div>
     </section></main>`;
   paint();
@@ -198,11 +205,16 @@ def _choose(browser, tmp_path, duration, **opts):
         page.close()
 
 
-def test_the_walker_presses_not_sure_and_the_bar_says_quick_or_not_needed(browser, tmp_path):
+def test_the_walker_presses_not_sure_and_the_bar_says_a_long_time(browser, tmp_path):
+    # spec 132 FR-9 / FR-10 re-pin (keel-web 166 FR-2, 168 FR-4): no bar before the time; *not sure* reads 182's
+    # undated bar in the screen's tense -- never *quick*
     seen, sent = _choose(browser, tmp_path, {"unsure": True, "count": 4, "unit": "WEEKS"})
     assert seen["duration_unsure"] == "ticked" and seen["duration"] is None
-    assert seen["test_before"]["bar"] == vs_screens.PURCHASE_FRICTION_CHOOSE_BAR_YOUR_TIME
-    assert seen["test"]["bar"] == "Holds if at least 2 in 3 say quick or not needed."
+    assert seen["test_before"]["bar"] == "" and seen["test_before"]["belief"] == vs_screens.KEEL_TEST_PENDING
+    assert seen["waiting"] == "Say how long a trial at one hotel first takes on their side, or that you're not sure."
+    assert seen["waiting_bar"] == ""
+    assert seen["test"]["bar"] == "Holds if no more than 1 in 3 say it would take a long time." \
+        == vs_screens.PURCHASE_FRICTION_CHOOSE_BAR_UNDATED
     assert "duration" not in sent[0]["answers"][0]["list"], "the pick is sent with no time"
     assert cs.said_faults(seen, FRICTION, b2b=True) == []
 
@@ -216,6 +228,9 @@ def test_a_time_typed_reads_under_that_time(browser, tmp_path):
     moved = {**seen, "test": {**seen["test"], "bar": vs_screens.PURCHASE_FRICTION_CHOOSE_BAR_157}}
     assert [f["what"] for f in cs.said_faults(moved, FRICTION, b2b=True)] == ["the bar after the pick"], \
         "157's *longer than you expect* is a fault on a 164 page"
+    unheld = {**seen, "waiting": "", "waiting_bar": vs_screens.PURCHASE_FRICTION_CHOOSE_BAR_YOUR_TIME}
+    assert [f["what"] for f in cs.said_faults(unheld, FRICTION, b2b=True)] == [
+        "the held box's line before the time", "no bar before the time"], "keel-web 166 holds the box until the time"
 
 
 def test_a_page_before_164_draws_no_not_sure_and_the_walker_types_its_default(browser, tmp_path):
