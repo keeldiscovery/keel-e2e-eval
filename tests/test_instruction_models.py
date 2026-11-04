@@ -663,7 +663,8 @@ def test_classes_carry_every_class_the_live_routing_table_names():
     unknown = [c for c in document["classes"] if c not in models_mod.CLASSES]
     assert not unknown, f"model-routing.json v{document.get('version')} names {unknown}; add them to CLASSES"
     models_mod.parse(document)
-    assert models_mod.CLASSES[-1] == "example_match" and "example_match" in models_mod.DORMANT_CLASSES
+    # keel-cloud 209 (routing v17): `respondent_review` is the newest class, after `example_match`
+    assert models_mod.CLASSES[-1] == "respondent_review" and "example_match" in models_mod.DORMANT_CLASSES
     assert "example_match" not in models_mod.REPORTED_CLASSES, "no case measures it"
 
 
@@ -672,5 +673,5 @@ def test_the_validators_message_names_example_match():
     table = json.loads(json.dumps(TABLE))
     table["classes"]["gallery"] = "light"
     with pytest.raises(models_mod.ModelsUnavailable, match=r"classes names 'gallery'; the classes are exactly "
-                                                             r"context, frame, .*brief, example_match$"):
+                                                             r"context, frame, .*brief, example_match, respondent_review$"):
         models_mod.parse(table)

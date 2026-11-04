@@ -79,9 +79,11 @@ def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens
     # 2026-11-03 (the founder on cycle 9, quality decisions 59e5ead / 3705813): D-2026-11-03-01..04 keel-cloud 205-208
     # and -05 keel-web 166 (taken, until merged); -06 persona + market declined (never). Re-pinned by spec 132 (the gate
     # at its head: the file of record had moved past this pin)
-    assert len(found) == 38 and [d["id"] for d in found] == [f"D-2026-10-29-{i:02d}" for i in range(1, 21)] + [
+    # 2026-11-04 (cycle 10's advice, eval b9cc660): D-2026-11-04-01 code defects taken (keel-cloud 211, keel-web 171),
+    # -02 improvements held for the founder; D-2026-11-03-01..05 carry their merged shas (205-208, web 166).
+    assert len(found) == 40 and [d["id"] for d in found] == [f"D-2026-10-29-{i:02d}" for i in range(1, 21)] + [
         f"D-2026-10-30-{i:02d}" for i in range(1, 6)] + [f"D-2026-11-02-{i:02d}" for i in range(1, 8)] + [
-        f"D-2026-11-03-{i:02d}" for i in range(1, 7)]
+        f"D-2026-11-03-{i:02d}" for i in range(1, 7)] + [f"D-2026-11-04-{i:02d}" for i in range(1, 3)]
     records = {p.stem for p in cycle.record_files(REPO / "quality" / "cycles")}
     for d in found:
         assert d["cycle"] in records, f"{d['id']} names a committed cycle record"
@@ -95,7 +97,9 @@ def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens
     # spec 085 FR-4 (087's duty, written on master at c474dfe): the coordinator marks a spec-merged entry `merged` when
     # the spec it names lands -- nothing had when the file was written; eight have since, D-01 keel-cloud 149's
     merged = {d["id"]: d["merged"] for d in found if d.get("merged")}
-    assert merged == {"D-2026-10-29-01": "73426a67", "D-2026-10-29-02": "1b33643f", "D-2026-10-29-03": "0eb15f8f",
+    assert merged == {"D-2026-11-03-01": "5b8f0fc9", "D-2026-11-03-02": "b177a4bd", "D-2026-11-03-03": "3ab9aa03",
+                      "D-2026-11-03-04": "7c96988d", "D-2026-11-03-05": "bdb63e72",  # 2026-11-04: cycle 9's specs merged
+                      "D-2026-10-29-01": "73426a67", "D-2026-10-29-02": "1b33643f", "D-2026-10-29-03": "0eb15f8f",
                       "D-2026-10-29-05": "21395ab0", "D-2026-10-29-13": "e3d34831", "D-2026-10-29-14": "e3d34831",
                       "D-2026-10-30-01": "48621fd",  # 090 FR-3: the five 0s sent as 1 (2026-10-30)
                       "D-2026-10-29-15": "1cf2ebc3", "D-2026-10-29-19": "078fe157",
@@ -416,14 +420,18 @@ def test_a_merged_decision_ends_its_snooze_on_the_file_of_record(capsys, at_the_
     # 2026-11-03 (re-pinned by spec 132): -01..-04 and -06 merged (78056c1) send their rows back, and the six decisions of
     # D-2026-11-03 (keel-cloud 205-208, keel-web 166 taken, -06 declined) snooze the rows they cover -- 207's context
     # among them, so 149's context row is snoozed again: 50 -> 52 snoozed, 12 -> 10 sent
-    assert len(listed) == 52
+    # 2026-11-04: D-2026-11-03-01..05 merged (their rows compete again) and D-2026-11-04-01/-02 snooze the code-defect
+    # and improvement rows: 52 -> 43 snoozed.
+    assert len(listed) == 43
     found = {d["id"]: d for d in dec.load()}
     for row, said_of in listed:
         ids = re.findall(r"\*\*(D-2026-1\d-\d\d-\d\d)\*\*", said_of)
         assert ids and not any(found[i].get("merged") for i in ids), row
-    assert "dry run: 10 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 52 weak row(s) " \
+    assert "dry run: 19 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 43 weak row(s) " \
            "decided before, not sent" in said
-    assert "[1/10] COMMERCIAL · founder · - · context-card" in said, "the context card's row goes back to the adviser"
+    # 2026-11-04: D-2026-11-04-01 (keel-cloud 211 / keel-web 171) snoozes the context rows again until it merges, so
+    # the context card is listed as decided before and the first row sent is another
+    assert "[1/19] " in said and any(r.endswith("context-card") for r, _ in listed), "the context card is snoozed by -01"
 
 
 def test_the_runbook_and_the_agents_file_carry_the_decisions():
