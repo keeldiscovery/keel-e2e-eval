@@ -89,6 +89,11 @@ How many of the people you are studying had the problem in the period you chose.
   counted, never the circumstance; never names the idea. **Fixed answers, in order:** `yes` *Yes* · `no` *No*. The stem
   must name the window and the problem as one act the person did or met, so a person without the problem can truly say
   No and a person with it Yes. A Yes opens the story; a No ends the interview, and the person is still counted.
+- **One clause (keel-cloud 212).** The strangers' event is the founder's clause, by code: the gate and the Frequency
+  item carry the founder's Prevalence event, turned to the second person by code, never a second writer's. The founder's
+  writer writes it from `went_wrong` (the one part of the problem a person with it had to do or put up with), beside
+  `routine` (what every one of the people does whether or not the problem struck): the act that hurts, at most 8 words,
+  never the routine, a lasting state, a judgement, or a cause or result packed in.
 
 - **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point): the
   founder's question screen carries belief_template as it stands ('... had this at least once in {window}'); the card
@@ -177,6 +182,9 @@ How often someone who has the problem runs into it.
   **The options:** one button per unit, *1* first, the window's count last (*1 · 2 · 3 · 4 · 5 · 6 · 7*) when the count
   is at most 7; a number box of at least 1 for a longer window. Never a 0 (a Yes at the gate means at least one), never
   the founder's range, never bands. Spoken past five steps: *Say a number from 1 to {N}.* Then the one escape.
+- **One clause (keel-cloud 212).** The strangers' event is the founder's clause, by code: the founder's Frequency
+  question and the stranger's item ask the founder's Prevalence event, the stranger's turned to the second person by
+  code -- the same act, so a count of the strangers' units reads against the founder's range.
 
 - **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point): the
   founder's question screen carries belief_template as it stands ('{actor_plural} face this on {value}.'); the card

@@ -235,8 +235,15 @@ FREQUENCY_GUIDANCE_205 = (
     "...', 'that person' or 'they'. The event, held to Prevalence's rules, happened on a given one or did not, in the "
     "simple past, one act alone (no state, cause or result; nothing the actor does not see), on the verb a {actor} would "
     "say aloud, any tool or list in it named as {actor_plural} name it.")
+#: Spec 136 FR-1 re-pin (keel-cloud 212 FR-5): Frequency's founder guidance is 212's -- the event's rules said once
+#: (Prevalence's), *happened on a given one or did not* and the tool-or-list clause dropped.
+FREQUENCY_GUIDANCE_212 = (
+    "On how many {window_unit} {actor_plural} face it, asked by code window first around Prevalence's event: 'In "
+    "{window}, on how many nights did a typical {actor} ...?' (the window's own unit, said once); never 'Think of one who "
+    "...', 'that person' or 'they'. The event, held to Prevalence's rules, in the simple past, one act alone (no state, "
+    "cause or result; nothing the actor does not see), on the verb a {actor} would say aloud.")
 MOVED_BY_199 = {"founder": {
-    "guidance": {"problem.frequency": lambda was: FREQUENCY_GUIDANCE_205},
+    "guidance": {"problem.frequency": lambda was: FREQUENCY_GUIDANCE_212},
     "belief_template": {IMPORTANCE: lambda was: corpus_mod.IMPORTANCE_BELIEF_TEMPLATE_199,
                         COMPATIBILITY: lambda was: corpus_mod.COMPATIBILITY_BELIEF_TEMPLATE_199,
                         COMMITMENT: lambda was: was.replace(" now.", ".")},

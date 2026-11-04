@@ -413,7 +413,8 @@ def test_the_commitment_cards_good_example_carries_its_free_smaller_step():
 
 def test_nothing_else_in_the_cards_moved_and_the_clouds_copy_is_owed():
     """FR-4: the eval's cards differ from keel-cloud's vendored copy (`keel/dimension-cards.md`, at `CARDS_SHA256`)
-    only in the Commitment card's good example; the cloud's copy and digest move in their own commit, owed."""
+    only in the Commitment card's good example; the cloud's copy and digest move in their own commit, owed. Spec 136
+    FR-1 (keel-cloud 212): the one-clause lines under Prevalence and Frequency are in both, at `877a5d80...`."""
     vendored = KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md"
     if not vendored.is_file():
         pytest.skip(f"no vendored cards at {KEEL_CLOUD}")
