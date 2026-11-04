@@ -380,6 +380,7 @@ fix = "*"
 decision = "taken"
 spec = ["keel-cloud 205"]
 until = "spec-merged"
+merged = "5b8f0fc9"
 why = "DEFECTS (the founder, 2026-11-03: 'defects, feel free to fix it'): the founder's lists break the dimension cards' rules (R7 0 named per card). 11's price ladder stays parked; 14's hold-Save is a product gap shown to the founder, not taken here."
 
 [[decision]]
@@ -391,6 +392,7 @@ fix = "*"
 decision = "taken"
 spec = ["keel-cloud 206"]
 until = "spec-merged"
+merged = "b177a4bd"
 why = "DEFECTS: the strangers' items and the gate break the cards' rules (the gate asks the circumstance; frequency's event a standing state; compatibility's clause without a subject; commitment's step without its terms). Spoken-form line in the spec."
 
 [[decision]]
@@ -402,6 +404,7 @@ fix = "*"
 decision = "taken"
 spec = ["keel-cloud 207"]
 until = "spec-merged"
+merged = "3ab9aa03"
 why = "DEFECTS: the shared writers drift from the founder's seed (R5) and the idea card / reveal run long by ear; 1's intro count is one keel-web string owed."
 
 [[decision]]
@@ -413,6 +416,7 @@ fix = "*"
 decision = "taken"
 spec = ["keel-cloud 208"]
 until = "spec-merged"
+merged = "7c96988d"
 why = "DEFECT of spec 200's intent: the follow-up reads the band label back ('$250 to under $599', '0.1% to under 0.25%') and the whole row, with an opening negative; code's words."
 
 [[decision]]
@@ -424,6 +428,7 @@ fix = "*"
 decision = "taken"
 spec = ["keel-web 166"]
 until = "spec-merged"
+merged = "bdb63e72"
 why = "The founder, 2026-11-03: 'Let's fix 2 and 4': the window label names the moment (the circumstance clause) instead of 'the last time it happened'."
 
 [[decision]]
