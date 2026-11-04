@@ -2003,7 +2003,17 @@ LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-
               # with a note (*L2: '...' dropped -- Keel's own row, N words over the screen's 9, is never cut
               # mid-sentence*) -- a cloud before 213 noted *'...' cut to '...'*, read by the same name
               "L2": "a row of Keel's own over the screen's word cap, dropped with a note and never cut mid-sentence "
-                    "(keel-cloud 213 FR-3a)"}
+                    "(keel-cloud 213 FR-3a)",
+              # spec 137 (keel-cloud 214): the writers keep the cards' rules -- each refused once, then noted (spec 114)
+              "L37": "Importance's own row that is the job or the circumstance said again (keel-cloud 214 FR-1)",
+              "X14": "an occasion that is a decision, a bare call, or *time* where the circumstance names a moment, or "
+                     "a stem naming no word of the circumstance (keel-cloud 214 FR-2)",
+              "L38": "a Current solution rung of Keel's joining two outcomes (keel-cloud 214 FR-3)",
+              "L39": "two Current solution rungs of one set of words (keel-cloud 214 FR-3)",
+              "L40": "Keel's suggested Purchase friction step naming the idea, the product or the founder's paper "
+                     "(keel-cloud 214 FR-4)",
+              "L15": "a Commitment step that drops a number or term the founder typed, served in the founder's words "
+                     "(keel-cloud 214 FR-5)"}
 _NOTE = re.compile(r"\b(" + "|".join(LOCK_NOTES) + r"): ([^\n]{1,400})")
 
 

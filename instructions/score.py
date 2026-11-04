@@ -55,8 +55,9 @@ from . import spoken as spoken_mod
 from . import step_cost as step_cost_mod
 from . import text as text_mod
 from . import wording as wording_mod
-from .registry import (ADOPTION_KEY, BUYER_KEY, COMMITMENT_KEY, COMPATIBILITY_KEY, DEFAULT_WINDOW, GATE_KEY,
-                       PURCHASE_FRICTION_KEY, words)
+from . import writers_rules as writers_mod
+from .registry import (ADOPTION_KEY, BUYER_KEY, COMMITMENT_KEY, COMPATIBILITY_KEY, CURRENT_SOLUTION_KEY,
+                       DEFAULT_WINDOW, GATE_KEY, IMPORTANCE_KEY, PURCHASE_FRICTION_KEY, words)
 
 
 # ------------------------------------------------------------------------------------ compare
@@ -394,12 +395,16 @@ def untyped_role(items: list, answer: str | None, named=()) -> str | None:
 
 
 def list_faults(question: dict, dimension, *, sources: str = "", occasion: str | None = None,
-                answers: dict | None = None, named=()) -> list:
+                answers: dict | None = None, named=(), context: dict | None = None, names=()) -> list:
     """`L1`-`L5` on one list dimension's draft (keel-cloud 087 `ScreenResultApplier.draft`, restated), and on a
     Compatibility or Adoption friction item's `asked` face the `K` rules (call 85). `answers` is the job's `answers`
     slot (`{}` on the seed-time job; the founder's Answer by key on a redraft): Importance's count reads it (spec 091).
     Spec 133 (keel-cloud 211): `L33` on Buyer and payer where the Answer is typed (`named`: the decider's words and
-    role, the person with the problem), `L34` on Commitment."""
+    role, the person with the problem), `L34` on Commitment. Spec 137 (keel-cloud 214, `writers_rules`): `L37` on
+    Importance's own row (`context`: the job and the circumstance), `L38` / `L39` on Current solution's rungs of Keel's,
+    `L40` on Purchase friction's suggested step (`names`: the idea's), `L15` on a Commitment step that drops a number
+    the founder typed -- each a row the founder typed in the Answer aside; and W9 never reads the money the founder
+    typed in Commitment's Answer."""
     faults = []
     saves = dimension.saves
     draft = question.get("list")
@@ -489,10 +494,54 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
         fault = step_cost_mod.l34([str(i.get("label") or "") for i in items])
         if fault:
             faults.append(fault)
-    hit = wording_mod.money(" ".join([str(draft.get("phrase") or "")] + [
-        str(t) for i in items for t in (i.get("label"), i.get("asked")) if t]))
+    answer = (answers or {}).get(dimension.key)
+    answer = answer if isinstance(answer, str) else None
+    faults += writers_faults(dimension.key, items, answer, context, names)
+    said = " ".join([str(draft.get("phrase") or "")] + [str(t) for i in items for t in (i.get("label"), i.get("asked"))
+                                                         if t])
+    if dimension.key == COMMITMENT_KEY:
+        # spec 137 (keel-cloud 214 FR-5, `refuseMoney`): the money the founder typed in this Answer is theirs
+        for own in wording_mod.money_all(answer):
+            said = said.replace(own, " ")
+    hit = wording_mod.money(said)
     if hit:
         faults.append(f"W9: {hit!r} is money; code renders every amount")
+    return faults
+
+
+_DIGITS_214 = re.compile(r"\d+(?:[.,]\d+)?")
+
+
+def writers_faults(key: str, items: list, answer: str | None, context: dict | None, names=()) -> list:
+    """Spec 137 FR-2 (keel-cloud 214, `ScreenResultApplier` over `WritersRules`): the writers keep the cards' rules --
+    `L37` Importance's own row never the job or the circumstance said again (a row typed in the Answer is the
+    founder's); `L38` a Keel rung of Current solution never joins two outcomes, `L39` no two rungs one set of words (a
+    rung typed in the Answer is the founder's, read only as the other of a pair); `L40` Purchase friction's suggested
+    step never the idea, the product or the founder's paper; `L15` Commitment's step keeps every number the founder
+    typed. The faults in the cloud's words; `[]` where every rule holds."""
+    labels = [str(i.get("label") or "") for i in items]
+    ctx = context if isinstance(context, dict) else {}
+    faults: list = []
+    if key == IMPORTANCE_KEY and labels and ctx and not writers_mod.typed_in_answer(labels[0], answer):
+        fault = writers_mod.own_row_fault(labels[0], ctx.get("job"), ctx.get("circumstance"),
+                                          str(ctx.get("actor") or ""), str(ctx.get("actor_plural") or ""))
+        if fault:
+            faults.append(fault)
+    if key == CURRENT_SOLUTION_KEY and labels:
+        faults += writers_mod.rung_faults(labels, [not writers_mod.typed_in_answer(r, answer) for r in labels])
+    if key == PURCHASE_FRICTION_KEY:
+        for item in items:
+            if item.get("suggested"):
+                fault = writers_mod.founders_side_fault(str(item.get("label") or ""), list(names or ()))
+                if fault:
+                    faults.append(fault)
+    if key == COMMITMENT_KEY and labels and answer:
+        drafted = _DIGITS_214.findall(" | ".join(labels))
+        for number in _DIGITS_214.findall(answer):
+            if number not in drafted:
+                faults.append(f"L15: the founder's step says '{number}' (\"{answer.strip()}\"); the step keeps every "
+                              "number the founder typed, as typed")
+                break
     return faults
 
 
@@ -547,7 +596,7 @@ def act_that_hurts(question: dict, *, actor_plural: str | None = None) -> list:
 
 def calibration_checks(question: dict, dimension, *, window=DEFAULT_WINDOW, sources: str = "",
                        occasion: str | None = None, answers: dict | None = None,
-                       actor_plural: str | None = None) -> list:
+                       actor_plural: str | None = None, context: dict | None = None, names=()) -> list:
     """Every structural rule the founder-lists job is held to, for one dimension's entry; `[]` is valid.
 
     Prevalence owes its `event` clause (E1-E3; since keel-cloud 212 E2 at the window's cap, `event_max_words`), its
@@ -559,7 +608,8 @@ def calibration_checks(question: dict, dimension, *, window=DEFAULT_WINDOW, sour
     faults = []
     key = dimension.key
     if dimension.founder_list:
-        return list_faults(question, dimension, sources=sources, occasion=occasion, answers=answers)
+        return list_faults(question, dimension, sources=sources, occasion=occasion, answers=answers, context=context,
+                           names=names)
     if question.get("list"):
         faults.append(f"L1: {key} is no list; a draft is written only for the seven list dimensions")
     options = question.get("options")
@@ -667,6 +717,12 @@ def score_calibration(case, entry, registry, result, *, judge=None,
     answers = (sent if isinstance(sent, dict) and sent else built or {}).get("answers") or {}
     # spec 136 FR-2 (keel-cloud 212, `contextActorPlural`): E7 reads the event without the people's own words
     actor_plural = _actor_plural(sent if isinstance(sent, dict) and sent else built, entry)
+    # spec 137 (keel-cloud 214): the writers' rules read the job's context (the job, the circumstance, the people) and
+    # the idea's names
+    job_context = (sent if isinstance(sent, dict) and sent else built or {}).get("context")
+    if not isinstance(job_context, dict) or not job_context:
+        job_context = entry.context if isinstance(getattr(entry, "context", None), dict) else None
+    idea_names = [n for n in (getattr(entry, "idea_name", None),) if isinstance(n, str) and n.strip()]
     for question in questions:
         key = question.get("key")
         if key not in slice_keys:
@@ -674,7 +730,8 @@ def score_calibration(case, entry, registry, result, *, judge=None,
         dimension = registry.by_key(key)
         score.validity_of += 1
         checks = calibration_checks(question, dimension, window=window, sources=sources,
-                                    occasion=entry.occasion(), answers=answers, actor_plural=actor_plural)
+                                    occasion=entry.occasion(), answers=answers, actor_plural=actor_plural,
+                                    context=job_context, names=idea_names)
         if checks:
             score.faults.append({"key": key, "check": "option_validity", "evidence": "; ".join(checks)})
         else:

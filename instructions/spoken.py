@@ -1392,15 +1392,37 @@ def what_head(what: str) -> str | None:
     return m.group(1).strip() if m and _spoken_words(m.group(1)) >= 2 else None
 
 
-def advantage_stem(occasion: str | None, name: str | None, what_it_is: str | None, job: str | None) -> str | None:
-    """keel-cloud 213 FR-6 (`ScaleFour.question(occasion, stem, name, whatItIs, job)`, the at-stake path of 198 / 206):
-    Relative advantage's stranger stem -- the anchor (`held_anchor`), then *Would {Name}, {what it is}, have done that
-    better for you, or not?* as the card says: the whole what where the question fits the 20 spoken words, else the what
-    cut by its trailing phrases (`cut_to_fit`), else its head (`what_head`); the bare name only where there is no what;
-    *it* last. None where there is no job or no anchor fits (the cloud then serves 173's frame)."""
-    if job is None or not job.strip():
+def hard_case(occasion: str | None, stem: str | None) -> str | None:
+    """keel-cloud 214 FR-2 (`ScaleFour.hardCase`): the hard case the advantage is for -- *Think of the last {occasion}
+    when {the stem's when clause}.*, *Think of the most recent time {clause}.* where the clause says the occasion's word
+    again or there is no noun; None with no stem, no clause, or past the spoken cap."""
+    from . import writers_rules as writers_mod                          # noqa: PLC0415 - it reads this module
+    if stem is None or not stem.strip():
         return None
-    anchor = held_anchor(occasion, job)
+    when = writers_mod.when_clause(stem)
+    if when is None or not when.strip():
+        return None
+    when = re.sub(r"[.,;:!?]+$", "", when.strip()).strip()
+    noun = None if occasion is None or not occasion.strip() or occasion.strip().lower() in ("time", "times") \
+        else occasion.strip()
+    again = set() if noun is None else set(writers_mod.roots(noun)) & set(writers_mod.roots(when))
+    anchor = f"Think of the most recent time {when}." if noun is None or again else \
+        f"Think of the last {noun} when {when}."
+    return anchor if _spoken_words(anchor) <= STEM_MAX_WORDS else None
+
+
+def advantage_stem(occasion: str | None, name: str | None, what_it_is: str | None, job: str | None,
+                   stem: str | None = None) -> str | None:
+    """keel-cloud 213 FR-6 (`ScaleFour.question(occasion, stem, name, whatItIs, job)`): Relative advantage's stranger
+    stem -- the anchor, then *Would {Name}, {what it is}, have done that better for you, or not?* as the card says: the
+    whole what where the question fits the 20 spoken words, else the what cut by its trailing phrases (`cut_to_fit`),
+    else its head (`what_head`); the bare name only where there is no what; *it* last. keel-cloud 214 FR-2: the anchor
+    is the hard case (`hard_case`, the occasion stem's when clause), the job's at-stake anchor (`held_anchor`, 198 /
+    206) only where there is no stem or it does not fit. None where no anchor fits (the cloud then serves 173's
+    frame)."""
+    anchor = hard_case(occasion, stem)
+    if anchor is None and job is not None and job.strip():
+        anchor = held_anchor(occasion, job)
     if anchor is None:
         return None
     named = None if not name or not name.strip() else name.strip()

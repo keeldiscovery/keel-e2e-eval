@@ -70,7 +70,8 @@ def test_the_calibration_block_is_the_registry_in_order_beside_the_founder(tmp_p
     assert prevalence["belief_phrase"] == "6 to 7 in 10"
     assert prevalence["belief_sentence"].startswith("6 to 7 in 10 of these parents")
     importance = rows[2]
-    assert importance["list"]["items"][0]["label"] == "Finding the keys on the way out", "the model's draft"
+    # spec 137 (keel-cloud 214 FR-1, L37): the good draft's own row is the difficulty at that moment
+    assert importance["list"]["items"][0]["label"] == "Finding the keys in a hurry", "the model's draft"
     assert importance["belief_phrase"] == corpus.entries[0].tested("problem.importance")["label"], \
         "a list's chosen phrase is the founder's tested item"
 

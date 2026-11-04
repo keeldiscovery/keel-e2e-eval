@@ -260,6 +260,15 @@ def money(text) -> str | None:
     return None
 
 
+def money_all(text) -> list[str]:
+    """keel-cloud 214 FR-5 (`Wording.moneyAll`): every money word in `text` as `money` reads them (a symbol, an
+    upper-case ISO code, an amount in words), in order -- the founder's own, which a Commitment step keeps as typed."""
+    if text is None:
+        return []
+    return [m.group() for m in _MONEY.finditer(str(text))
+            if not re.fullmatch(r"[a-zA-Z]{3}", m.group()) or m.group() == m.group().upper()]
+
+
 # ------------------------------------------------------------- the recall words (call 62; keel-cloud 074)
 
 #: `Period.recallWords` (keel-cloud 074): the words a respondent recalls what the problem cost over, by the

@@ -148,7 +148,9 @@ class FakeJudge:
 GOOD_LISTS = {
     # spec 091 FR-1 (founder-lists.md's `rival_list`): the seed-time job's `answers` is `{}`, so a draft that meets
     # every L rule is the problem itself alone; the four rivals were the save's count (`saves`), never the draft's
-    "problem.importance": {"items": [{"label": "Finding the keys on the way out"}]},
+    # spec 137 (keel-cloud 214 FR-1, L37): the own row is the difficulty at that moment, a word beyond the circumstance
+    # (*the morning they cannot find their keys*) -- *Finding the keys on the way out* says it again
+    "problem.importance": {"items": [{"label": "Finding the keys in a hurry"}]},
     # spec 093 FR-3 (keel-cloud 161 L1): a draft that meets every L rule writes the act bare
     "problem.current_solution_satisfaction": {"phrase": "finding them",
                                               "items": [{"label": "Found them straight away"},
