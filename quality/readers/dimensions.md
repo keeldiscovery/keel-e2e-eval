@@ -92,8 +92,9 @@ How many of the people you are studying had the problem in the period you chose.
 - **One clause (keel-cloud 212).** The strangers' event is the founder's clause, by code: the gate and the Frequency
   item carry the founder's Prevalence event, turned to the second person by code, never a second writer's. The founder's
   writer writes it from `went_wrong` (the one part of the problem a person with it had to do or put up with), beside
-  `routine` (what every one of the people does whether or not the problem struck): the act that hurts, at most 8 words,
-  never the routine, a lasting state, a judgement, or a cause or result packed in.
+  `routine` (what every one of the people does whether or not the problem struck): the act that hurts, at most 9 words,
+  8 on a working-days window: 20 spoken words minus the strangers' frame -- never the routine, a lasting state, a
+  judgement, or a cause or result packed in.
 
 - **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point): the
   founder's question screen carries belief_template as it stands ('... had this at least once in {window}'); the card
@@ -184,7 +185,8 @@ How often someone who has the problem runs into it.
   the founder's range, never bands. Spoken past five steps: *Say a number from 1 to {N}.* Then the one escape.
 - **One clause (keel-cloud 212).** The strangers' event is the founder's clause, by code: the founder's Frequency
   question and the stranger's item ask the founder's Prevalence event, the stranger's turned to the second person by
-  code -- the same act, so a count of the strangers' units reads against the founder's range.
+  code -- the same act, so a count of the strangers' units reads against the founder's range; the clause is at most 9
+  words, 8 on a working-days window: 20 spoken words minus the strangers' frame.
 
 - **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point): the
   founder's question screen carries belief_template as it stands ('{actor_plural} face this on {value}.'); the card

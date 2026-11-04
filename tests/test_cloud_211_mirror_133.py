@@ -137,9 +137,11 @@ def test_step_cost_reads_the_steps_words():
     assert step_cost_mod.of("let us run a trial on their cluster data").kind == step_cost_mod.DATA
     assert step_cost_mod.of("sign a letter of intent for the agent").kind == step_cost_mod.SIGNATURE
     for free in ("allow it to use the microphone at night", "a free trial at one hotel", "a demo on sample data",
-                 "a look at a working unit", "a short call about the agent", "sign up for the free plan",
-                 "move idle cash in order to see the rate"):
+                 "a look at a working unit", "a short call about the agent", "sign up for the free plan"):
         assert step_cost_mod.of(free) is None, free
+    # spec 137 FR-2 (keel-cloud 213 FR-8, `CycleTenCodeDefectsTest` re-pinned likewise): moved money is money --
+    # *in order to* is still no order
+    assert step_cost_mod.of("move idle cash in order to see the rate") == step_cost_mod.Cost(step_cost_mod.MONEY, "move")
 
 
 def test_l34_a_priced_step_takes_a_free_one():
@@ -220,9 +222,11 @@ def test_x8_every_founder_word_lands():
 
 #: The back-test entries whose Commitment step costs the person money, data or a signature (`StepCost`), alone on the
 #: corpus list -- each drafted and saved with Keel's free smaller step.
-PRICED = {"08-fresco": "paid", "09-karsa": "buy", "11-issen": "pay", "13-aircaps": "order", "15-voltair": "pay",
-          "21-codyco": "€", "23-taiga": "access", "25-bidflow": "paying", "30-realroots": "buy", "32-frizzle": "pay",
-          "34-wideframe": "pay"}
+#: Spec 137 FR-2 (keel-cloud 213 FR-8, `StepCost.moved`): Palus' *move a small part of the reserve* is moved money --
+#: a priced step, so it owes Keel's free smaller step (L34).
+PRICED = {"08-fresco": "paid", "09-karsa": "buy", "10-palus": "move", "11-issen": "pay", "13-aircaps": "order",
+          "15-voltair": "pay", "21-codyco": "€", "23-taiga": "access", "25-bidflow": "paying", "30-realroots": "buy",
+          "32-frizzle": "pay", "34-wideframe": "pay"}
 
 
 def test_every_scripted_commitment_draft_passes_l34_and_l7(entries):
@@ -412,9 +416,11 @@ def test_the_commitment_cards_good_example_carries_its_free_smaller_step():
 
 
 def test_nothing_else_in_the_cards_moved_and_the_clouds_copy_is_owed():
-    """FR-4: the eval's cards differ from keel-cloud's vendored copy (`keel/dimension-cards.md`, at `CARDS_SHA256`)
-    only in the Commitment card's good example; the cloud's copy and digest move in their own commit, owed. Spec 136
-    FR-1 (keel-cloud 212): the one-clause lines under Prevalence and Frequency are in both, at `877a5d80...`."""
+    """FR-4: the eval's cards and keel-cloud's vendored copy (`keel/dimension-cards.md`, at `CARDS_SHA256`) carry the
+    Commitment card's good example alike. Spec 136 FR-1 (keel-cloud 212): the one-clause lines under Prevalence and
+    Frequency are in both. Spec 137 FR-1 (keel-cloud 213 FR-11b): the cloud's copy now carries spec 135's corpus
+    writer's law at its head and 212's cap as its code holds it (*at most 9 words, 8 on a working-days window*), so
+    the two files are byte for byte one at `e3cdea00...`."""
     vendored = KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md"
     if not vendored.is_file():
         pytest.skip(f"no vendored cards at {KEEL_CLOUD}")
@@ -424,16 +430,15 @@ def test_nothing_else_in_the_cards_moved_and_the_clouds_copy_is_owed():
     sha = re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1)
     assert hashlib.sha256(theirs.encode("utf-8")).hexdigest() == sha
     good = re.compile(r"- \*\*Good \(R7 2\)\*\* -- Fresco: step \*start a paid pilot on one site\*.*?last two\.\n", re.S)
-    # spec 135 FR-3: the pointer to the corpus writer's constitution at the head of the eval's cards (above the first
-    # card marker, so never handed to a reader or the review turn); the cloud's copy owes it with 211's example
+    assert len(good.findall(ours)) == 1
+    # spec 135 FR-3: the pointer to the corpus writer's constitution at the head (above the first card marker, so
+    # never handed to a reader or the review turn); keel-cloud 213 FR-11b vendored it
     law = re.compile(r"\n\*\*The corpus writer's law\*\* \(spec 135 FR-3.*?so they can\.\n", re.S)
-    assert len(law.findall(ours)) == 1
-    assert good.sub("", theirs) == good.sub("", law.sub("", ours))
+    assert len(law.findall(ours)) == 1 and len(law.findall(theirs)) == 1
+    assert theirs == ours
+    assert hashlib.sha256(ours.encode("utf-8")).hexdigest() == sha
     for key in cards_keys(ours):
-        if key != "commercial.commitment":
-            assert cards.card(key, theirs) == cards.card(key, ours), key
-    for n in (1, 2, 3, 4, 6):
-        assert cards.section(cards.card(COMMITMENT, theirs), n) == cards.section(cards.card(COMMITMENT, ours), n), n
+        assert cards.card(key, theirs) == cards.card(key, ours), key
 
 
 def cards_keys(text: str) -> list[str]:
