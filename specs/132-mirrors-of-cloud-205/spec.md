@@ -55,3 +55,8 @@ owes. Builds on 129, 130, 131.
 - **FR-13 The founder-reader's idea screen.** Cycle 9's readers saw only *what: {name}* while the what-it-is box held
   Keel's words: the screen capture for the idea screen includes the what-it-is box's text (and now `idea_what`), with a
   test on Codyco's served card.
+
+## Amended for keel-web 169
+
+- **FR-14** `tests/fixtures/typist/backtest-21-codyco-PROBLEM.json` and any pin of the context intro read *Five short
+  answers, a phrase each.* on a scope with a gate (ALL, PROBLEM, SOLUTION) and *Four* on COMMERCIAL.
