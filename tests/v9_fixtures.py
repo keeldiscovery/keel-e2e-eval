@@ -156,10 +156,11 @@ GOOD_LISTS = {
                                                         {"label": "It took a full search"},
                                                         {"label": "Found them only after being late"},
                                                         {"label": "Never found them that morning"}]},
+    # spec 136 FR-3 (keel-cloud 212 FR-4, L35): every condition shows its test, settled by nobody
     "solution.compatibility": {"items": [{"label": "They had a phone to hand",
-                                          "asked": "did you have your phone to hand"},
+                                          "asked": "did you have your phone to hand", "settled_by": "nobody"},
                                          {"label": "Their keys were on one ring",
-                                          "asked": "were your keys all on one ring"}]},
+                                          "asked": "were your keys all on one ring", "settled_by": "nobody"}]},
     "solution.relative_advantage": {"items": [{"label": "A shorter search"}]},
     "solution.adoption_friction": {"items": [{"label": "Clip a tag to the key ring",
                                               "asked": "you'd clip a tag to your key ring, once"}]},
@@ -174,12 +175,20 @@ FIFTHS = [("Fewer than 2 in 10", "Only a few"), ("2 to 4 in 10", "A minority"), 
           ("6 to 8 in 10", "Most"), ("8 to 10 in 10", "Nearly all")]
 
 
+#: Spec 136 FR-3 (keel-cloud 212 FR-2): what every one of the fixture's people does in the window, problem or not, and the
+#: one part of the problem they had to put up with -- the event is written from the second, never the first.
+ROUTINE = "leave the house in the morning"
+WENT_WRONG = "could not find their keys on the way out"
+
+
 def calibration_question(dimension, *, b2b=False) -> dict:
     """An entry that meets every rule the founder-lists job is held to for `dimension` (calls 83, 85)."""
     import copy                                                       # noqa: PLC0415
     note = "asked of the stranger in their own words"
     if dimension.key == "problem.prevalence":
-        return {"key": dimension.key, "event": "could not find their keys on the way out",
+        # spec 136 FR-3 (keel-cloud 212 FR-2): the event written from `went_wrong`, beside `routine` (E7, E8)
+        return {"key": dimension.key, "routine": ROUTINE, "went_wrong": WENT_WRONG,
+                "event": "could not find their keys on the way out",
                 "options": [{"label": label, "belief_phrase": phrase} for label, phrase in FIFTHS],
                 "respondent_note": note}
     if dimension.founder_list:
@@ -203,8 +212,10 @@ def calibration_case(entry, vector, run_index=1):
 
 
 def respondent_item(entry, key) -> dict:
-    """An item meeting keel-cloud 088's respondent rule: the key alone, and on the gate its `event` clause."""
-    if key == "problem.prevalence":
+    """An item meeting the respondent rule: the key alone -- since keel-cloud 212 (spec 136 FR-3) the gate too, where the
+    job is handed the founder's clause (`problem`); only where it is null does the gate carry its `event` clause."""
+    from instructions import context as context_mod                   # noqa: PLC0415
+    if key == "problem.prevalence" and not context_mod.problem_of(entry):
         return {"key": key, "event": "lose your keys on the way out"}
     return {"key": key}
 

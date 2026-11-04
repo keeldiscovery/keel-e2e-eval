@@ -475,6 +475,9 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
                 # note the harness does not count, call 124)
                 faults.append(f"L5: item {i + 1}: the suggested step carries suggested_why -- what in the Answer or "
                               "the idea calls for it, in one sentence")
+    if dimension.key == COMPATIBILITY_KEY and items:
+        # spec 136 FR-2 (keel-cloud 212 FR-4, `ScreenResultApplier.settledRows`, L35): every condition shows its test
+        faults += settled_faults(items)
     if dimension.key == BUYER_KEY and isinstance((answers or {}).get(BUYER_KEY), str):
         # spec 133 FR-1 (keel-cloud 211 FR-2, L33): a row is a role typed in this Answer, never one from elsewhere
         fault = untyped_role(items, answers[BUYER_KEY], named)
@@ -493,11 +496,63 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
     return faults
 
 
+def settled_faults(items: list) -> list:
+    """Spec 136 FR-2 (keel-cloud 212 FR-4, `ScreenResultApplier.settledRows`, `L35`): every Compatibility row carries
+    `settled_by` (`nobody`, `the segment` or `the usual way` -- the writer's answer to *does everyone in the segment, or
+    anyone doing the job the usual way, already meet it?*); a `suggested` row is settled by nobody; a list whose answered
+    rows are all settled by the segment or the usual way tests nothing."""
+    faults, any_nobody, any_answered = [], False, False
+    for item in items:
+        label = str(item.get("label") or "")
+        settled = str(item.get("settled_by") or "").strip().lower() or None
+        if settled not in wording_mod.SETTLED_BY:
+            faults.append(f"L35: write settled_by on {label!r} -- does everyone in the segment, or anyone doing the job "
+                          "the usual way, already meet it? nobody, the segment or the usual way")
+            continue
+        any_answered = True
+        if settled == "nobody":
+            any_nobody = True
+        elif item.get("suggested"):
+            faults.append(f"L35: {label!r} is settled by {settled}, so it tests nothing; the suggested condition is one "
+                          "settled by nobody")
+    if any_answered and not any_nobody:
+        faults.append("L35: every condition is settled by the segment or the usual way, so none tests anything; write "
+                      "the step the idea depends on that some of them would truly answer No to, settled_by nobody")
+    return faults
+
+
+def act_that_hurts(question: dict, *, actor_plural: str | None = None) -> list:
+    """Spec 136 FR-2 (keel-cloud 212 FR-2, `ScreenResultApplier.actThatHurts`): Prevalence's `event` is written from
+    `went_wrong` beside `routine` -- both written (`E7`, the missing one named), never the routine (`E7`,
+    `WindowFrame.routineFault`), never a cause, result, judgement or lasting state packed in (`E8`, `packedFault`)."""
+    event = question.get("event")
+    if not isinstance(event, str) or not event.strip():
+        return []
+    faults = []
+    routine = question.get("routine") if isinstance(question.get("routine"), str) and question["routine"].strip() \
+        else None
+    went_wrong = question.get("went_wrong") if isinstance(question.get("went_wrong"), str) \
+        and question["went_wrong"].strip() else None
+    if not routine or not went_wrong:
+        missing = "went_wrong" if routine else "routine" if went_wrong else "routine and went_wrong"
+        faults.append(f"E7: write {missing} beside event: routine, what every one of them does in the window whether "
+                      "or not the problem struck; went_wrong, the one part of the problem a person with it had to do "
+                      "or put up with -- event is written from went_wrong")
+    for fault in (wording_mod.routine_fault(event, routine, went_wrong, actor_plural),
+                  wording_mod.packed_fault(event, went_wrong)):
+        if fault:
+            faults.append(fault)
+    return faults
+
+
 def calibration_checks(question: dict, dimension, *, window=DEFAULT_WINDOW, sources: str = "",
-                       occasion: str | None = None, answers: dict | None = None) -> list:
+                       occasion: str | None = None, answers: dict | None = None,
+                       actor_plural: str | None = None) -> list:
     """Every structural rule the founder-lists job is held to, for one dimension's entry; `[]` is valid.
 
-    Prevalence owes its `event` clause (E1-E3) and its five fifths, each a label and a belief phrase (C2-C4);
+    Prevalence owes its `event` clause (E1-E3; since keel-cloud 212 E2 at the window's cap, `event_max_words`), its
+    `routine` and `went_wrong` with E7 / E8 (`act_that_hurts`, `actor_plural` the context's), and its five fifths, each
+    a label and a belief phrase (C2-C4);
     Frequency, Price and Existing sacrifice owe their key and note alone (C2) -- anything else is code's; every list
     dimension owes its draft (`list_faults`). A `question` the model writes anywhere is not read (keel-cloud 087:
     the list dimensions' questions are their Answer prompts, code's), so it is never a fault."""
@@ -527,6 +582,7 @@ def calibration_checks(question: dict, dimension, *, window=DEFAULT_WINDOW, sour
             fault = wording_mod.event_fault(event, window)
             if fault:
                 faults.append(fault)
+            faults += act_that_hurts(question, actor_plural=actor_plural)
         hit = wording_mod.money(" ".join(str(t) for t in [event] + [
             v for o in options or [] if isinstance(o, dict) for v in (o.get("label"), o.get("belief_phrase"))] if t))
         if hit:
@@ -609,6 +665,8 @@ def score_calibration(case, entry, registry, result, *, judge=None,
         sources = sources or sources_of(built)
     # spec 091 FR-1: the job's `answers` slot (`{}` on the seed-time job) -- Importance's draft count reads it
     answers = (sent if isinstance(sent, dict) and sent else built or {}).get("answers") or {}
+    # spec 136 FR-2 (keel-cloud 212, `contextActorPlural`): E7 reads the event without the people's own words
+    actor_plural = _actor_plural(sent if isinstance(sent, dict) and sent else built, entry)
     for question in questions:
         key = question.get("key")
         if key not in slice_keys:
@@ -616,7 +674,7 @@ def score_calibration(case, entry, registry, result, *, judge=None,
         dimension = registry.by_key(key)
         score.validity_of += 1
         checks = calibration_checks(question, dimension, window=window, sources=sources,
-                                    occasion=entry.occasion(), answers=answers)
+                                    occasion=entry.occasion(), answers=answers, actor_plural=actor_plural)
         if checks:
             score.faults.append({"key": key, "check": "option_validity", "evidence": "; ".join(checks)})
         else:
@@ -694,17 +752,38 @@ class RespondentScore(CalibrationScore):
     link: str = "PRIMARY"
 
 
-def respondent_checks(item: dict, dimension, *, window=DEFAULT_WINDOW) -> list:
-    """The gate's clause (keel-cloud 088 FR-002): `event` present, E1-E3 (`WindowFrame.fault`) and E4 (framed, the
-    gate and the Frequency question at most 20 words each), W9 (no money). Every other item is code's whole: its
-    key is all the model owes, and nothing else it writes is read."""
+def _actor_plural(context: dict | None, entry) -> str | None:
+    """`ScreenResultApplier.contextActorPlural`: the job context's `context.actor_plural`, else the entry's own."""
+    inner = (context or {}).get("context") if isinstance(context, dict) else None
+    said = inner.get("actor_plural") if isinstance(inner, dict) else None
+    if isinstance(said, str) and said.strip():
+        return said
+    try:
+        said = context_mod.context_of(entry).get("actor_plural")
+    except (AttributeError, KeyError, TypeError):
+        return None
+    return said if isinstance(said, str) and said.strip() else None
+
+
+def respondent_checks(item: dict, dimension, *, window=DEFAULT_WINDOW, founders: bool = False) -> list:
+    """The gate (keel-cloud 088 FR-002; 212 FR-1). Since keel-cloud 212 the gate is code's whole where the study holds
+    the founder's Prevalence clause (`founders`, the job's `problem` given): the item is its key alone, and an `event`
+    written is `E10` (the cloud ignores and notes it; the instruction says write none). Where `problem` is null the
+    writer's clause stands as before: `event` present, E1-E3 (`WindowFrame.fault` at `CLAUSE_MAX_WORDS`, as
+    `RespondentQuestionsRules.gate` holds it) and E4 (framed, the gate and the Frequency question at most 20 words
+    each), W9 (no money). Every other item is code's whole: its key is all the model owes."""
     if dimension.key != GATE_KEY:
         return []
     event = item.get("event")
+    if founders:
+        if isinstance(event, str) and event.strip():
+            return [f"E10: '{event.strip()}' is ignored; the gate asks the founder's own Prevalence clause, said to "
+                    "them by code"]
+        return []
     if not event:
         return ["E2: the gate carries `event`, the clause of what happened; code writes the question around it"]
     faults = []
-    fault = wording_mod.event_fault(event, window)
+    fault = wording_mod.event_fault(event, window, wording_mod.CLAUSE_MAX_WORDS)
     if fault:
         faults.append(fault)
     else:
@@ -715,6 +794,19 @@ def respondent_checks(item: dict, dimension, *, window=DEFAULT_WINDOW) -> list:
     if hit:
         faults.append(f"W9: {hit!r} is money; code renders every amount")
     return faults
+
+
+def _founders_clause(case, entry, part) -> str | None:
+    """Spec 136 FR-2 (keel-cloud 212 FR-1): the founder's Prevalence clause the part-1 job was handed (`problem`) --
+    the sent context's where the case carries one, else the one `context.build_respondent` hands (`problem_of`)."""
+    if part != 1:
+        return None
+    sent = case.payload.get("context") if isinstance(getattr(case, "payload", None), dict) else None
+    if isinstance(sent, dict) and "problem" in sent:
+        problem = sent.get("problem")
+    else:
+        problem = context_mod.problem_of(entry)
+    return problem if isinstance(problem, str) and problem.strip() else None
 
 
 def score_respondent(case, entry, registry, plan, result, *, judge=None,
@@ -741,6 +833,7 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
     for fault in coverage:
         score.faults.append({"key": None, "check": "dimension_coverage", "evidence": fault})
     window = context_mod.window_of(entry)
+    founders = bool(_founders_clause(case, entry, part))
     for item in items:
         key = item.get("key")
         if key not in keys or key != GATE_KEY:
@@ -748,7 +841,7 @@ def score_respondent(case, entry, registry, plan, result, *, judge=None,
         dimension = registry.by_key(key)
         founder = entry.founder_calibration.get(key) or {}
         score.validity_of += 1
-        checks = respondent_checks(item, dimension, window=window)
+        checks = respondent_checks(item, dimension, window=window, founders=founders)
         if checks:
             score.faults.append({"key": key, "check": "option_validity", "evidence": "; ".join(checks)})
         else:

@@ -391,6 +391,9 @@ def _drafted_from(entry, registry, vector) -> dict:
                 items = items[:1]    # spec 091 FR-1: with `answers` `{}` the draft is the problem itself alone
             # spec 093 FR-3 (keel-cloud 161): the job drafts the act bare -- the stored *your way of ...* read bare
             phrase = score_mod._YOUR_WAY_OF.sub("", saved.get("phrase") or "").strip()
+            if d.key == "solution.compatibility":
+                # spec 136 FR-3 (keel-cloud 212 FR-4, L35): the writer answers each condition's test, settled by nobody
+                items = [i | {"settled_by": "nobody"} for i in items]
             draft = {"items": items} | ({"phrase": phrase} if phrase else {})
             questions.append({"key": d.key, "list": draft, "respondent_note": "x"})
         else:
@@ -418,12 +421,17 @@ def test_the_corpus_lists_as_a_draft_score_clean(lullaby, registry, vector):
 
 # --------------------------------------------- respondent: the gate's clause (calls 30-32, 83)
 
-def _respond(entry, registry, part, mutate=None, *, link="PRIMARY", judge=None):
+def _respond(entry, registry, part, mutate=None, *, link="PRIMARY", judge=None, problem=...):
+    """`problem`: the founder's clause the part-1 job is handed -- left out, the one `context.problem_of` hands (spec 136:
+    the gate is then its key alone); `None`, a study with no founder's clause, where the writer writes the gate's
+    `event` (keel-cloud 212 FR-1, plan call 11)."""
     result = fx.respondent_result(entry, part, link=link)
     if mutate:
         mutate(result)
-    return score_mod.score_respondent(fx.respondent_case(entry, part, link=link), entry,
-                                      registry, entry.plan(), result, judge=judge)
+    case = fx.respondent_case(entry, part, link=link)
+    if problem is not ...:
+        case.payload["context"] = {"problem": problem}
+    return score_mod.score_respondent(case, entry, registry, entry.plan(), result, judge=judge)
 
 
 def _item(result, key):
@@ -458,16 +466,29 @@ def test_respondent_coverage_is_absolute(entry, registry, name, mutate, words):
     ("have to search the whole flat for your keys before you can leave for work", "E4"),
     ("lose a spare that cost GBP", "W9")])
 def test_the_gate_clause_fails_each_rule_once(entry, registry, event, rule):
+    """Spec 136 re-pin (keel-cloud 212 FR-1): the writer's clause, its rules kept, only where `problem` is null."""
     def mutate(r):
         gate = _item(r, GATE)
         if event is None:
-            gate.pop("event")
+            gate.pop("event", None)
         else:
             gate["event"] = event
-    score = _respond(entry, registry, 1, mutate)
+    score = _respond(entry, registry, 1, mutate, problem=None)
     validity = [f for f in score.faults if f["check"] == "option_validity"]
     assert len(validity) == 1 and validity[0]["evidence"].startswith(rule + ":"), score.faults
     assert (score.validity_hit, score.validity_of) == (0, 1)
+
+
+def test_the_gate_is_its_key_alone_where_the_founders_clause_is_held(entry, registry):
+    """Spec 136 FR-2 (keel-cloud 212 FR-1, E10): handed the founder's clause, the gate is its key alone -- valid with no
+    `event`; one written is E10, ignored by the cloud and counted here; with `problem` null, the key alone is E2."""
+    assert fx.respondent_result(entry, 1)["items"][0] == {"key": GATE}
+    score = _respond(entry, registry, 1)
+    assert (score.validity_hit, score.validity_of) == (1, 1), score.faults
+    score = _respond(entry, registry, 1, lambda r: _item(r, GATE).update(event="lose your keys on the way out"))
+    assert [f["evidence"][:4] for f in score.faults if f["check"] == "option_validity"] == ["E10:"]
+    score = _respond(entry, registry, 1, problem=None)
+    assert [f["evidence"][:3] for f in score.faults if f["check"] == "option_validity"] == ["E2:"]
 
 
 def test_anything_written_on_another_item_is_not_read(entry, registry):

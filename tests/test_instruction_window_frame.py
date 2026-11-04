@@ -34,7 +34,9 @@ FOUR_WEEKS = RecallWindow(4, "WEEKS")
     ("have to work out why your baby was crying", SEVEN_NIGHTS),      # the gate's base form
 ])
 def test_the_designs_own_clauses_pass_e1_to_e3(event, window):
-    assert wording_mod.event_fault(event, window) is None
+    """Spec 136 re-pin (keel-cloud 212 FR-3): read at `CLAUSE_MAX_WORDS`, the cap E1-E3 were set against -- the payroll
+    clause (16 words) is past its window's cap (`test_the_founders_clause_is_held_to_its_windows_cap`)."""
+    assert wording_mod.event_fault(event, window, wording_mod.CLAUSE_MAX_WORDS) is None
 
 
 @pytest.mark.parametrize("event, window, rule, words", [
@@ -53,9 +55,24 @@ def test_the_designs_own_clauses_pass_e1_to_e3(event, window):
     ("how many parents had to guess", SEVEN_NIGHTS, "E3", "'how many'"),
 ])
 def test_each_of_e1_to_e3_refuses_for_its_own_reason(event, window, rule, words):
-    fault = wording_mod.event_fault(event, window)
+    fault = wording_mod.event_fault(event, window, wording_mod.CLAUSE_MAX_WORDS)
     assert fault is not None and fault.startswith(rule + ":"), fault
     assert words in fault, fault
+
+
+@pytest.mark.parametrize("window, cap", [
+    (SEVEN_NIGHTS, 9), (THIRTY_DAYS, 9), (FOUR_WEEKS, 9), (RecallWindow(3, "MONTHS"), 9),
+    (RecallWindow(5, "WORKING_DAYS"), 8)])
+def test_the_founders_clause_is_held_to_its_windows_cap(window, cap):
+    """Spec 136 FR-2 (keel-cloud 212 FR-3, `WindowFrame.eventMaxWords`): the founder's clause is at most the words the
+    window's frame leaves of 20 -- 9, 8 on working days -- so the strangers' Frequency item it fills is within 20."""
+    assert wording_mod.event_max_words(window) == cap
+    fits = " ".join(["word"] * cap)
+    assert wording_mod.event_fault(fits, window) is None
+    assert len(wording_mod.frequency_respondent(window, fits).split()) == 20
+    fault = wording_mod.event_fault(fits + " more", window)
+    assert fault.startswith(f"E2: the clause is {cap + 1} words; at most {cap} in {window.words()}, so the strangers' "
+                            f"question '{wording_mod.frequency_respondent(window, '{event}')}' is within 20"), fault
 
 
 def test_the_clause_is_trimmed_as_the_frame_holds_it():

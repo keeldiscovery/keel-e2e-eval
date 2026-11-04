@@ -6,7 +6,10 @@ aggregate for every answer); `option_validity` scores the accepted answer the wa
 it, so the structural rules it checks are ported here line for line, each beside the Java it comes
 from -- the same arrangement the v9 checks have with C2-C4:
 
-- `event_fault` is `WindowFrame.fault` (E1-E3) with `WindowFrame.clause`;
+- `event_fault` is `WindowFrame.fault` (E1-E3) with `WindowFrame.clause`; since keel-cloud 212 (spec 136 FR-2) E2's
+  cap is the window's (`event_max_words`, the founder's Prevalence clause) or `CLAUSE_MAX_WORDS` (a clause code
+  takes in its place, the respondent writer's), and `packed_fault` (E8) / `routine_fault` (E7) are
+  `WindowFrame.packedFault` / `routineFault`, the act that hurts;
 - `money` is `Wording.money` (W9). `tick_all` (W7) and `carries` (W3 / W8's *verbatim*) retired at v18 (call 83):
   the model writes no question text for them to read;
 - `NUMBER_WORDS` is `Vocabulary.NUMBER_WORDS`, `first_word` is `Vocabulary.firstWord`;
@@ -61,8 +64,10 @@ def first_number(text):
 
 # ------------------------------------------------------------------- WindowFrame (E1-E3, mirrored)
 
-#: `WindowFrame.EVENT_MAX_WORDS` (E2).
-EVENT_MAX_WORDS = 25
+#: `WindowFrame.CLAUSE_MAX_WORDS` (E2; keel-cloud 212 FR-3): the cap of a clause code takes in the founder's place, and of
+#: the respondent writer's clause where the study holds no founder's clause -- `EVENT_MAX_WORDS` (25) before 212. The
+#: founder's Prevalence clause is held to `event_max_words(window)`.
+CLAUSE_MAX_WORDS = 25
 #: `WindowFrame.TIME_WORDS` (E1): the frame owns the period.
 TIME_WORDS = ("last", "past", "recent", "recently", "ago", "today", "yesterday", "week", "weeks",
               "month", "months", "year", "years", "day", "days", "night", "nights", "shift",
@@ -82,11 +87,22 @@ def clause(event) -> str:
     return text
 
 
-def event_fault(event, window) -> str | None:
+def event_max_words(window) -> int:
+    """keel-cloud 212 FR-3 (amended; `WindowFrame.eventMaxWords`): the founder's Prevalence clause is at most the words the
+    project's own window's frame leaves of the spoken cap -- the longest question it fills is the strangers' Frequency
+    item, *In {window}, on how many {unit} did you {event}?*: 11 words of frame on nights, days, weeks and months (so 9),
+    12 on working days (so 8). No floor."""
+    return SPOKEN_STEM_MAX_WORDS - len(f"In {window.words()}, {counted_in(window)} how many {short_unit(window)} "
+                                       "did you".split())
+
+
+def event_fault(event, window, max_words: int | None = None) -> str | None:
     """`WindowFrame.fault`: E1-E3 on one model-written clause, the first fault with its rule id, or
     `None`. E1: no digit, no number word, no time word and none of the window unit's words. E2: one
-    clause, not a question -- no `?`, no sentence break, at most 25 words. E3: it does not open
-    with the frame's words."""
+    clause, not a question -- no `?`, no sentence break, at most `max_words` words: since keel-cloud 212 (FR-3)
+    `event_max_words(window)` when none is given (`fault(event, window)`), `CLAUSE_MAX_WORDS` on a clause code takes in
+    the founder's place. E3: it does not open with the frame's words."""
+    cap = event_max_words(window) if max_words is None else max_words
     text = clause(event)
     if not text.strip():
         return ("E2: the clause is empty; write what happened, as one clause that completes the "
@@ -105,13 +121,111 @@ def event_fault(event, window) -> str | None:
     if re.search(r"[.!;:]\s+\S", text, re.DOTALL) or "\n" in text:
         return "E2: the clause is more than one sentence; write one clause"
     words = len(text.split())
-    if words > EVENT_MAX_WORDS:
-        return f"E2: the clause is {words} words; at most {EVENT_MAX_WORDS}"
+    if words > cap:
+        return (f"E2: the clause is {words} words; at most {cap}"
+                + (f" in {window.words()}, so the strangers' question '{frequency_respondent(window, '{event}')}' is "
+                   f"within {SPOKEN_STEM_MAX_WORDS} spoken words" if cap == event_max_words(window) else ""))
     lower = text.lower()
     for opening in FRAME_OPENINGS:
         if lower == opening or lower.startswith(opening + " ") or lower.startswith(opening + ","):
             return (f"E3: the clause begins with '{opening}', the frame's own words; begin with "
                     "what happened")
+    return None
+
+
+# ------------------------------------------------- keel-cloud 212: the act that hurts (E7, E8; spec 136 FR-2)
+
+#: `WindowFrame.STATE_WORDS` (E8): the words that make a clause a lasting state, not an act seen on a given unit.
+STATE_WORDS = ("sitting", "idle", "left", "stay", "stays", "stayed", "staying")
+#: `WindowFrame.PACKED` (E8): a cause, a purpose, a time beside the act -- *after* or *from* only before an *-ing* word.
+_PACKED = re.compile(r"\b(because|so that|while)\b|\b(?:after|from)\s+[a-z]+ing\b", re.IGNORECASE)
+#: `WindowFrame.JUDGEMENT` (E8): a judgement on the act -- *found it too fast*, *too noisy to follow*.
+_JUDGEMENT = re.compile(r"\b(?:found|find|felt|feel|thought|seemed|considered)\b.*\btoo\b|\btoo\s+[a-z]+\s+to\b",
+                        re.IGNORECASE)
+#: `WindowFrame.STILL_HAVE` (E8): *still have* in any tense, the act's own words only where `went_wrong` says it.
+_STILL_HAVE = re.compile(r"\bstill\s+(?:have|has|had|having)\b", re.IGNORECASE)
+
+#: keel-cloud 212 FR-4 (`SavedList.SETTLED_BY`, L35): the three answers a Compatibility row's `settled_by` takes.
+SETTLED_BY = ("nobody", "the segment", "the usual way")
+
+
+def packed_fault(event, went_wrong) -> str | None:
+    """`WindowFrame.packedFault` (E8): the founder's event is one act, seen on a given unit or not -- never a cause or a
+    result packed in, never a judgement, never a lasting state (*still have* only where `went_wrong` carries it). The
+    first fault, naming the field; `None` when the event passes."""
+    text = clause(event)
+    if not text.strip():
+        return None
+    packed = _PACKED.search(text)
+    if packed:
+        return (f"E8: event '{text}' packs a cause or a result in ('{packed.group()}'); write event from went_wrong: "
+                "the one act, in the simple past, seen on a given day or not")
+    judged = _JUDGEMENT.search(text)
+    if judged:
+        return (f"E8: event '{text}' is a judgement on the act ('{judged.group().strip()}'), not the act; write event "
+                "from went_wrong: what they did or had to put up with, one act a person sees happen on a given day or "
+                "not")
+    state = first_word(text, STATE_WORDS)
+    if state is not None:
+        return (f"E8: event '{text}' says '{state}', a lasting state, not an act; write event from went_wrong: the one "
+                "act a person sees happen on a given day or not")
+    still = _STILL_HAVE.search(text)
+    if still and (went_wrong is None or not _STILL_HAVE.search(str(went_wrong))):
+        return (f"E8: event '{text}' says '{still.group()}', a lasting state unless went_wrong names it as the act; "
+                "write event from went_wrong")
+    return None
+
+
+def base_of(past: str) -> str | None:
+    """`WindowFrame.baseOf`: the base of a past -- `StrangerGrammar.baseOfPast` where code is sure, else a regular *-ed*
+    undone (a doubled consonant single, an *-e* put back where English drops it), `None` where it is no *-ed* word."""
+    from instructions import spoken as spoken_mod                       # noqa: PLC0415
+    sure = spoken_mod.base_of_past(past)
+    if sure is not None:
+        return sure
+    if not past.endswith("ed") or len(past) < 4:
+        return None
+    stem = past[:-2]
+    if len(stem) > 3 and re.fullmatch(r".*([bdgmnprt])\1", stem):
+        return stem[:-1]
+    if re.fullmatch(r".*(eed|ored|ared|ured|ired|ated|ized|ised|uced|aded|oded|ided|uded|iked|aked|oked|aved|ived"
+                    r"|oved|ased|used|nged|aged|dged|iced|nced|uged)", past):
+        return past[:-1]
+    if len(re.findall(r"[aeiouy]+", stem)) == 1 and re.fullmatch(r"[^aeiouy]*[aeiouy][^aeiouywx]", stem):
+        return stem + "e"
+    return stem
+
+
+def _based(words_: list[str]) -> list[str]:
+    """`WindowFrame.based` (E7): each word in its base where it is a past code knows (*wrote* *write*, *rang*)."""
+    from instructions import spoken as spoken_mod                       # noqa: PLC0415
+    out = []
+    for word in words_:
+        base = base_of(word) if word.endswith("ed") or spoken_mod.base_of_past(word) is not None else None
+        out.append(word if base is None else base)
+    return out
+
+
+def routine_fault(event, routine, went_wrong, actor_plural) -> str | None:
+    """`WindowFrame.routineFault` (E7): the event is the routine -- every content word of it (`FounderWords`' stop words
+    and `actor_plural`'s own out, each in its base) is in `routine`, and none is in what `went_wrong` says beyond the
+    routine (212 plan, call 9). The fault names both fields; `None` when the event is not the routine or a field is
+    blank."""
+    from harness import qualifiers                                      # noqa: PLC0415
+    if not all(isinstance(t, str) and t.strip() for t in (event, routine, went_wrong)):
+        return None
+    own = _based(qualifiers.dropped(event, actor_plural or ""))
+    if not own:
+        return None
+    joined = " ".join(own)
+    routine_words = " ".join(_based(qualifiers.words(routine)))
+    all_routine = not qualifiers.dropped(joined, routine_words)
+    went_wrong_own = qualifiers.dropped(" ".join(_based(qualifiers.words(went_wrong))), routine_words)
+    none_went_wrong = not went_wrong_own or len(qualifiers.dropped(joined, " ".join(went_wrong_own))) == len(own)
+    if all_routine and none_went_wrong:
+        return (f"E7: event '{clause(event)}' is the routine ('{routine.strip()}'), what every one of them does whether "
+                "or not the problem struck -- everyone would answer Yes; write event from went_wrong "
+                f"('{went_wrong.strip()}'), the act that hurts")
     return None
 
 

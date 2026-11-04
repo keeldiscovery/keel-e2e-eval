@@ -347,7 +347,10 @@ def respondent_probe_mark(probe_id: str, plant: RespondentPlant, *, outcome, res
             faults.append(f"{len(events)} `event` clauses on {plant.item}, not one")
         else:
             event = events[0]
-            fault = wording_mod.event_fault(event, window) if window is not None else None
+            # spec 136 FR-2 (keel-cloud 212 FR-3): the respondent writer's clause keeps `CLAUSE_MAX_WORDS` (25), as
+            # `RespondentQuestionsRules.gate` holds it; the window's cap is the founder's Prevalence clause's
+            fault = wording_mod.event_fault(event, window, wording_mod.CLAUSE_MAX_WORDS) if window is not None \
+                else None
             if fault:
                 faults.append(f"the event is not one clause: {fault}")
             said = [w for w in plant.verdict_words if _word_pattern(w).search(event)]
