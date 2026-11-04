@@ -25,7 +25,7 @@ model, no walk, no reader, no paid call, no key read; the unit suite only. Maste
    212's descriptions (contract 25) with nothing edited here. Recorded as found, not built around.
 2. **The golden seven's clauses are the eval's own (spec 064 FR-4a, COMPOSED), so FR-3 moves them** to fit the cap:
    five of seven were 10 or 11 words against 9; each is cut by its trailing words, the act and its object kept
-   (Countly *by hand* off; ComplianceLog's *by hand*; Linerly *or from*; Paidly *approved*; Mulch Run *for a job*);
+   (Countly's and ComplianceLog's *by hand* off; Linerly's *or from*; Paidly's *to be paid*; Mulch Run's *for a job*);
    Lullaby and Repeatline stand. `routine` and `went_wrong` are written per entry in the founder's words (the scripted
    writer's own, as `PROBLEM_CLAUSES` always was); E7 and E8 pass on each, held by test.
 3. **The gallery's clause is the eval's stand-in**: a back-test entry records no founder clause (revision 24 records

@@ -165,14 +165,17 @@ def test_e4_measures_the_question_served_and_asks_the_writer():
 
 def test_the_scripted_gate_clauses_fit_the_served_frame_and_none_is_cut():
     """The golden entries' scripted writer clauses fit E4 as served (five shortened, verb and object kept); the founder's
-    past-tense clause is unchanged; `frequency_held` serves each whole."""
+    past-tense clause is unchanged by 193 (cut to its window's cap by spec 136); `frequency_held` serves each
+    whole."""
     corpus = corpus_mod.load(KEEL_CLOUD)
     for entry in corpus.entries:
         event = vs.event_base(entry)
         window = vs.window_of(entry)
         assert vs.e4_fault(window, event) is None, entry.id
         assert vs.frequency_held(window, event) == vs.frequency_served(window, event), entry.id
-    assert vs.PROBLEM_CLAUSES["05-paidly"] == ("waited beyond agreed terms to be paid for an approved invoice",
+    # spec 136 re-pin (keel-cloud 212 FR-1, FR-3): the founder's clause within its window's cap (*to be paid* off), and
+    # the strangers' its second person, by code
+    assert vs.PROBLEM_CLAUSES["05-paidly"] == ("waited beyond agreed terms for an approved invoice",
                                                "wait beyond agreed terms for an approved invoice")
 
 

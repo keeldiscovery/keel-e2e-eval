@@ -266,18 +266,50 @@ def occasion(entry) -> str:
 #: (01 *have to recount stock by hand after a mismatched delivery*, 02 *have to pull training completions into a
 #: spreadsheet by hand*, 04 *lose time to a puncture riding to or from work*, 05 *wait beyond agreed terms to be paid
 #: for an approved invoice*, 07 *wait at the supply yard for mulch for a job* -- 21 or 22 words served).
+#: Spec 136 FR-3 (keel-cloud 212 FR-1, FR-3): the founder's clause is the strangers' too -- code turns it to the second
+#: person (`WindowFrame.strangersEvent`: *their* *your*, the past verb's base after *did*) -- and is at most the words
+#: the window's frame leaves (`wording.event_max_words`: 9, 8 on working days). Five of the seven were 10 or 11 words;
+#: each is cut, the act and its object kept (Paidly's *to be paid* off; the whole clause is the entry's `went_wrong`,
+#: `ACT_THAT_HURTS`); Lullaby's and Repeatline's stand. The second clause is the first as code turns it.
 PROBLEM_CLAUSES = {
-    "01-countly": ("had to recount stock by hand after a mismatched delivery",
-                   "recount stock by hand after a mismatched delivery"),
-    "02-compliancelog": ("had to pull training completions into a spreadsheet by hand",
-                         "pull training completions into a spreadsheet by hand"),
+    "01-countly": ("had to recount stock after a mismatched delivery",
+                   "have to recount stock after a mismatched delivery"),
+    "02-compliancelog": ("had to pull training completions into a spreadsheet",
+                         "have to pull training completions into a spreadsheet"),
     "03-lullaby": ("had to work out why their baby was crying", "have to work out why your baby was crying"),
-    "04-linerly": ("lost time to a puncture riding to or from work", "lose time to a puncture riding to work"),
-    "05-paidly": ("waited beyond agreed terms to be paid for an approved invoice",
+    "04-linerly": ("lost time to a puncture riding to work", "lose time to a puncture riding to work"),
+    "05-paidly": ("waited beyond agreed terms for an approved invoice",
                   "wait beyond agreed terms for an approved invoice"),
     "06-repeatline": ("had to type a refill request in by hand", "have to type a refill request in by hand"),
-    "07-mulchrun": ("waited at the supply yard for mulch for a job", "wait at the supply yard for mulch"),
+    "07-mulchrun": ("waited at the supply yard for mulch", "wait at the supply yard for mulch"),
 }
+
+#: Spec 136 FR-3 (keel-cloud 212 FR-2, founder-lists.md): the two fields the founder's writer writes beside Prevalence's
+#: `event`, read by code and never served -- `routine`, what every one of the entry's people does in the window whether
+#: or not the problem struck (from the context's job and circumstance), and `went_wrong`, the one part of the problem a
+#: person with it had to do or put up with (the founder's whole clause, before FR-3's cut). The event is written from
+#: `went_wrong`, never the routine (E7), no cause, result, judgement or state packed in (E8) -- held by test.
+ACT_THAT_HURTS = {
+    "01-countly": ("check a delivery in against its invoice",
+                   "had to recount stock by hand after a mismatched delivery"),
+    "02-compliancelog": ("send the training-compliance report at quarter close",
+                         "had to pull training completions into a spreadsheet by hand"),
+    "03-lullaby": ("settle the baby", "could not tell why the baby cried"),
+    "04-linerly": ("ride to or from work", "lost time to a puncture riding to or from work"),
+    "05-paidly": ("invoice an agency for finished work",
+                  "waited beyond agreed terms to be paid for an approved invoice"),
+    "06-repeatline": ("take a patient's call for a prescription refill", "had to type a refill request in by hand"),
+    "07-mulchrun": ("fetch mulch from the supply yard for a job", "waited at the supply yard for mulch for a job"),
+}
+
+
+def act_that_hurts(entry) -> tuple[str, str]:
+    """Spec 136 FR-3: `(routine, went_wrong)` for the entry's Prevalence -- the golden seven's own (`ACT_THAT_HURTS`);
+    elsewhere the context's job and the clause `event_past` writes (a back-test entry records no founder clause, and no
+    back-test entry is walked on the scripted runtime: FR-4 names those over the cap)."""
+    if entry.id in ACT_THAT_HURTS:
+        return ACT_THAT_HURTS[entry.id]
+    return _phrase(_ctx(entry).get("job")) or "do the job", event_past(entry)
 
 
 def event_past(entry) -> str:
@@ -1153,6 +1185,7 @@ PICKED = {"solution.compatibility", "solution.adoption_friction", "commercial.bu
           "commercial.purchase_friction"}
 #: `saves.asked`: each item carries the stranger's face (keel-cloud 088 FR-003).
 ASKED_FACES = {"solution.compatibility", "solution.adoption_friction"}
+COMPATIBILITY_KEY = "solution.compatibility"
 ADOPTION_KEY = "solution.adoption_friction"
 #: Buyer and payer's fixed first item, code's (keel-cloud `SavedList.NOBODY_ELSE`).
 NOBODY_ELSE = ("nobody_else", "Nobody else")
@@ -1851,6 +1884,10 @@ def drafted_list(entry, key: str) -> dict:
             # spec 132 FR-7 (keel-cloud 206 FR-4, `K8` on the draft): every Adoption friction item carries its
             # condition, so the scripted founder spends no repair turn an item
             out["only_if"] = adoption_condition(item)
+        if key == COMPATIBILITY_KEY:
+            # spec 136 FR-3 (keel-cloud 212 FR-4, L35): each condition shows its test -- the corpus's conditions are the
+            # ones the study tests, so every row is settled by nobody
+            out["settled_by"] = "nobody"
         items.append(out)
     if key == COMMITMENT_KEY and keels_smaller_step(entry):
         # spec 133 FR-2 (keel-cloud 211 FR-6, L34): a step that costs money, data or a signature carries Keel's free
@@ -2414,6 +2451,8 @@ def calibration_question(entry, key: str, *, first: bool = False) -> dict:
     price (code's questions). `first`: the slice's first draft, where Importance is the own item alone (097)."""
     q: dict = {"key": key, "respondent_note": RESPONDENT_NOTE}
     if key == "problem.prevalence":
+        # spec 136 FR-3 (keel-cloud 212 FR-2): `routine` and `went_wrong` beside the event written from the second
+        q["routine"], q["went_wrong"] = act_that_hurts(entry)
         q["event"] = event_past(entry)
         chosen = _chosen_codes(entry, key)
         phrase = _founder(entry, key).get("belief_phrase")
@@ -2598,8 +2637,11 @@ def respondent_jobs(entry) -> list[tuple[int, str]]:
 
 
 def respondent_item(entry, key: str) -> dict:
-    """keel-cloud 088 FR-002: the item is `{key}`, the gate `{key, event}` -- every other word is code's."""
-    if key == "problem.prevalence":
+    """keel-cloud 088 FR-002: the item is `{key}` -- every other word is code's. Since keel-cloud 212 (spec 136 FR-3) the
+    gate too where the study holds the founder's Prevalence clause (the problem in scope, `gate_counts`: code asks the
+    founder's clause, said to them; an `event` written is ignored and noted, E10); only where it holds none (the
+    solution studies' uncounted anchor) is the gate `{key, event}`, the writer's clause."""
+    if key == "problem.prevalence" and not gate_counts(entry):
         return {"key": key, "event": event_base(entry)}
     return {"key": key}
 

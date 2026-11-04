@@ -201,7 +201,12 @@ def test_the_respondent_job_writes_the_gates_clause_and_nothing_else(entry_id):
             if item["key"] != "problem.prevalence":
                 assert item == {"key": item["key"]}, item
                 continue
-            event = item["event"]
+            if vs.gate_counts(entry):
+                # spec 136 FR-3 (keel-cloud 212 FR-1): the founder's clause is held, so the gate is its key alone
+                assert item == {"key": item["key"]}, item
+                event = vs.event_base(entry)
+            else:
+                event = item["event"]
             assert not re.search(r"\d", event) and not _words(event) & TIME_WORDS, event
             assert not event.lower().startswith(FRAME_OPENINGS) and "?" not in event, event
             assert _count(vs.gate_question(window, event)) <= vs.STEM_MAX_WORDS

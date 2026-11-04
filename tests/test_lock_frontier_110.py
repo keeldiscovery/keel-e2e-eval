@@ -590,8 +590,9 @@ def test_a_golden_entrys_problem_is_its_own_prevalence_clause():
     countly = corpus_mod.load_file(fx.canon_entry("01-countly.yaml"), registry=registry)
     built = context_mod.build_respondent(countly, 1, countly.plan(registry), registry,
                                          context_mod.DEFAULT_KEYS["RESPONDENT_QUESTIONS"])
+    # spec 136 re-pin (keel-cloud 212 FR-3): the founder's clause within its window's cap, *by hand* off
     assert built["problem"] == vs.PROBLEM_CLAUSES["01-countly"][0] == \
-        "had to recount stock by hand after a mismatched delivery"
+        "had to recount stock after a mismatched delivery"
     assert built["condition"] == vs.card_condition(countly)
 
 
