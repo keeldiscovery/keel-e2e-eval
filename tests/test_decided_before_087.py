@@ -111,7 +111,10 @@ def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens
                       "D-2026-10-30-02": "69496bdc", "D-2026-10-30-03": "9ba42382",
                       # marked 2026-11-03 (78056c1): keel-cloud 197-200 and keel-web 162 merged
                       "D-2026-11-02-01": "e01baa5a", "D-2026-11-02-02": "45857fdd", "D-2026-11-02-03": "374dd712",
-                      "D-2026-11-02-04": "c8657d39", "D-2026-11-02-06": "c5f52eac"}
+                      "D-2026-11-02-04": "c8657d39", "D-2026-11-02-06": "c5f52eac",
+                      # marked 2026-11-04 (11aa155): keel-cloud 212 / 213, eval 134, web 173 merged at cloud e3e22a8.
+                      # Re-pinned by spec 138 (the gate at its head: the file of record had moved past this pin)
+                      "D-2026-11-04-03": "e3e22a8", "D-2026-11-04-04": "e3e22a8", "D-2026-11-04-05": "e3e22a8"}
     for d in found:
         if d.get("merged"):
             assert d["decision"] == "taken" and d["until"] == "spec-merged", d["id"]
@@ -426,17 +429,18 @@ def test_a_merged_decision_ends_its_snooze_on_the_file_of_record(capsys, at_the_
     # and improvement rows: 52 -> 43 snoozed.
     # 2026-11-04 (re-pinned by spec 134): D-2026-11-04-03..05 (keel-cloud 212 / 213, eval 134, web 173 taken) snooze
     # the rows they cover until their specs merge: 43 -> 62 snoozed.
-    assert len(listed) == 62
+    # 2026-11-04 (re-pinned by spec 138): -03..-05 merged at e3e22a8 (11aa155), their rows compete again: 62 -> 43
+    # snoozed, 19 sent -- the pins of b1678e5 again.
+    assert len(listed) == 43
     found = {d["id"]: d for d in dec.load()}
     for row, said_of in listed:
         ids = re.findall(r"\*\*(D-2026-1\d-\d\d-\d\d)\*\*", said_of)
         assert ids and not any(found[i].get("merged") for i in ids), row
-    # 2026-11-04 (spec 134): with -03..-05 every weak row of this fixture cycle is decided before -- nothing is sent
-    assert "cycle 20261028-f48f256: 62 weak row(s), every one decided before (quality/decisions.toml, spec 087) -- " \
-           "nothing to advise, no call made, nothing written" in said
+    assert "dry run: 19 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 43 weak row(s) " \
+           "decided before, not sent" in said
     # 2026-11-04: D-2026-11-04-01 (keel-cloud 211 / keel-web 171) snoozes the context rows again until it merges, so
-    # the context card is listed as decided before
-    assert "[1/" not in said and any(r.endswith("context-card") for r, _ in listed), "the context card is snoozed by -01"
+    # the context card is listed as decided before and the first row sent is another
+    assert "[1/19] " in said and any(r.endswith("context-card") for r, _ in listed), "the context card is snoozed by -01"
 
 
 def test_the_runbook_and_the_agents_file_carry_the_decisions():
