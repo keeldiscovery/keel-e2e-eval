@@ -423,7 +423,11 @@ def test_nothing_else_in_the_cards_moved_and_the_clouds_copy_is_owed():
     sha = re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1)
     assert hashlib.sha256(theirs.encode("utf-8")).hexdigest() == sha
     good = re.compile(r"- \*\*Good \(R7 2\)\*\* -- Fresco: step \*start a paid pilot on one site\*.*?last two\.\n", re.S)
-    assert good.sub("", theirs) == good.sub("", ours)
+    # spec 135 FR-3: the pointer to the corpus writer's constitution at the head of the eval's cards (above the first
+    # card marker, so never handed to a reader or the review turn); the cloud's copy owes it with 211's example
+    law = re.compile(r"\n\*\*The corpus writer's law\*\* \(spec 135 FR-3.*?so they can\.\n", re.S)
+    assert len(law.findall(ours)) == 1
+    assert good.sub("", theirs) == good.sub("", law.sub("", ours))
     for key in cards_keys(ours):
         if key != "commercial.commitment":
             assert cards.card(key, theirs) == cards.card(key, ours), key

@@ -393,10 +393,11 @@ KEY_MUTATIONS = {
                              "founder_calibration[problem.importance] lists 4 items; the registry saves 5 to 5"),
     "Compatibility with one": (lambda r: _items(r, "solution.compatibility").pop(),
                                "founder_calibration[solution.compatibility] lists 1 items; the registry saves 2 to 4"),
-    "a label of ten words": (
+    # spec 135: the slice's Compatibility saves.max_words is keel-cloud 187's 16 (it was 9), so the refused label is 17
+    "a label of seventeen words": (
         lambda r: _items(r, "solution.compatibility")[1].__setitem__(
-            "label", "Their keys were all kept together on the very same ring"),
-        "founder_calibration[solution.compatibility].items[1].label"),
+            "label", "Their keys were all kept together on the very same ring by the back door of house"),
+        "house' is 17 words; the registry saves at most 16"),
     "no pick on Compatibility": (_drop_picked, "founder_calibration[solution.compatibility].picked is None"),
     "a pick out of range": (lambda r: _fc(r, "solution.compatibility")["answer"].__setitem__("picked", 2),
                             "founder_calibration[solution.compatibility].picked is 2"),
