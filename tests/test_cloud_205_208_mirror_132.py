@@ -267,10 +267,14 @@ def test_the_moved_founder_words_are_keel_webs(name):
 
 def test_the_answer_hints_are_168s():
     text = _web("src/lib/translate.ts")
-    assert "each up to ${c.words} words.`" in text and "Up to 25 words" not in text.split("ANSWER_HINT_OF", 1)[1].split(
-        "export const compatibilityHint", 1)[0]
-    assert vs_screens.IMPORTANCE_ANSWER_HINT == "Name up to four other difficulties they meet around this, each up to 9 " \
-                                               "words."
+    # spec 137 (keel-web 173 FR-5, keel-cloud 213 FR-9): the hint goes on -- *the difficulties at that moment, not the job
+    # as a whole* -- and still says no *Up to 25 words*
+    assert "each up to ${c.words} words: the difficulties at that moment, not the job as a whole.`" in text \
+        and "Up to 25 words" not in text.split("ANSWER_HINT_OF", 1)[1].split("export const compatibilityHint", 1)[0]
+    assert vs_screens.IMPORTANCE_ANSWER_HINT_168 == "Name up to four other difficulties they meet around this, each up " \
+                                                   "to 9 words."
+    assert vs_screens.IMPORTANCE_ANSWER_HINT == vs_screens.IMPORTANCE_ANSWER_HINT_168[:-1] + \
+        ": the difficulties at that moment, not the job as a whole."
     hint = vs_screens.COMPATIBILITY_ANSWER_HINT_WANT.format(people="construction superintendents")
     assert vs_screens.COMPATIBILITY_ANSWER_HINT.match(hint)["people"] == "construction superintendents"
     assert vs_screens.chain_base_help("the balance") == "The part of the balance they lose."

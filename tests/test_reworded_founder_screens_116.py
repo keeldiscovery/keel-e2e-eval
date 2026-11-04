@@ -51,7 +51,7 @@ def browser():
 #: `choose-belief` under each, the *Keel will test* box (`buyerPayerBar`, over every role) and Continue, which PUTs the
 #: list as served with the pressed `pickedIndex` (0 or 1). A list holding only *Nobody else* draws no radiogroup but a
 #: statement to confirm (`choose-confirm`, `choose-statement`, the belief), Continue sending 0. `%(opts)s`: `title`,
-#: `order` (drawn order of the two options), `offer`, `deciders`, `wrongIndex` (a page that sends 2 for the roles),
+#: `order` (drawn order of the two options), `purchase` (keel-web 173's bar, spec 137), `deciders`, `wrongIndex` (a page that sends 2 for the roles),
 #: `three` (a page that still draws a radio a role, 149's).
 _CHOOSE = """<!doctype html><html><head><meta charset="utf-8"></head><body><div id="app"></div><script>
 const O = %(opts)s;
@@ -66,8 +66,9 @@ const options = O.three ? rows : ['Nobody else', together.charAt(0).toUpperCase(
 const fill = (t, v) => { const s = t.replace('{value}', v); return s.charAt(0).toUpperCase() + s.slice(1); };
 const bar = () => {
   const who = pick === null ? 'the one you pick' : pick === 0 ? 'nobody else' : together;
-  return `Holds if at least 2 in 3${O.deciders ? ' ' + O.deciders : ''} say ${who} had to agree the last time`
-    + `${O.offer ? ' they bought ' + O.offer : ''}.`;
+  // spec 137 (keel-web 173 FR-5): the purchase named (never the offer), *Decided alone counts* on Nobody else
+  return `Holds if at least 2 in 3${O.deciders ? ' ' + O.deciders : ''} say ${who} had to agree the last time they paid`
+    + ` for ${O.purchase || 'something for this'}.${pick === 0 ? ' Decided alone counts as support.' : ''}`;
 };
 const belief = (i) => i === 0 ? O.template.slice(0, O.template.indexOf(', and {value}')) + ' alone.' : fill(O.template, together);
 const recall = 'Who decides: the partner who pays the household bills, from your who-decides answer.'
@@ -110,7 +111,7 @@ def _choose(browser, tmp_path, index, **opts):
     page = browser.new_page()
     sent: list = []
     defaults = {"title": vs_screens.BUYER_PAYER_CHOOSE_PROMPT, "rows": SERVED, "order": [0, 1],
-                "deciders": DECIDERS, "offer": OFFER, "template": TEMPLATE}
+                "deciders": DECIDERS, "purchase": None, "template": TEMPLATE}
 
     def serve(route):
         request = route.request
@@ -170,26 +171,35 @@ def test_a_list_of_nobody_else_alone_is_a_statement_confirmed_as_0(browser, tmp_
 
 def test_the_bar_reads_its_three_cases():
     """149 FR-3 (`buyerPayerBar`): before a pick *the one you pick*, a role in a sentence, *nobody else*; the deciders
-    and the offer where served, *... the last time.* where no offer name is stored."""
+    where served. Spec 137 (keel-web 173 FR-5, keel-cloud 213 FR-5c): the purchase named -- *something for this*, or the
+    founder's purchase noun -- never the offer; *Decided alone counts as support.* on Nobody else."""
     read = vs_screens.buyer_payer_bar
-    assert read(f"Holds if at least 2 in 3 {DECIDERS} say the one you pick had to agree the last time they bought "
-                f"{OFFER}.") == {"case": "unpicked", "who": "the one you pick", "deciders": DECIDERS, "offer": OFFER}
+    some = vs_screens.BUYER_PAYER_PURCHASE
+    assert read(f"Holds if at least 2 in 3 {DECIDERS} say the one you pick had to agree the last time they paid for "
+                f"{some}.") == {"case": "unpicked", "who": "the one you pick", "deciders": DECIDERS, "purchase": some,
+                                "alone": False}
+    assert read(f"Holds if at least 2 in 3 {DECIDERS} say the CFO had to agree the last time they paid for the "
+                "payroll software.") == {"case": "role", "who": "the CFO", "deciders": DECIDERS,
+                                         "purchase": "the payroll software", "alone": False}
+    assert read(f"Holds if at least 2 in 3 say nobody else had to agree the last time they paid for {some}. "
+                f"{vs_screens.BUYER_PAYER_ALONE_COUNTS}") == \
+        {"case": "nobody", "who": "nobody else", "deciders": None, "purchase": some, "alone": True}
+    # the old pins: gone from the page (149, 173), so they read as no case at all
     assert read(f"Holds if at least 2 in 3 {DECIDERS} say the CFO had to agree the last time they bought {OFFER}.") \
-        == {"case": "role", "who": "the CFO", "deciders": DECIDERS, "offer": OFFER}
-    assert read("Holds if at least 2 in 3 say nobody else had to agree the last time.") == \
-        {"case": "nobody", "who": "nobody else", "deciders": None, "offer": None}
-    # the old pins: gone from the page (149), so they read as no case at all
+        is None
+    assert read("Holds if at least 2 in 3 say nobody else had to agree the last time.") is None
     assert read("Holds if at least 2 in 3 say they had to agree last time.") is None
     assert read("Holds if at least 2 in 3 say they decided on their own.") is None
 
 
 @pytest.mark.parametrize("index, bar_after", [(1, "role"), (0, "nobody")])
 def test_the_bar_on_the_walked_page_is_the_pick_s_case(browser, tmp_path, index, bar_after):
-    seen, _, _ = _choose(browser, tmp_path, index, offer=None)
+    seen, _, _ = _choose(browser, tmp_path, index)
     assert vs_screens.buyer_payer_bar(seen["test_before"]["bar"])["case"] == "unpicked"
     after = vs_screens.buyer_payer_bar(seen["test"]["bar"])
-    assert after["case"] == bar_after and after["offer"] is None
-    assert seen["test"]["bar"].endswith("had to agree the last time.")
+    assert after["case"] == bar_after and after["purchase"] == vs_screens.BUYER_PAYER_PURCHASE
+    assert after["alone"] is (bar_after == "nobody")
+    assert "the last time they paid for something for this." in seen["test"]["bar"]
     assert cs.choose_faults(seen, BUYER, row=index) == []
 
 
@@ -211,12 +221,22 @@ def test_the_faults_name_a_missing_recall_belief_and_a_wrong_bar():
             "recall": "Who decides: x, from your who-decides answer. Who else has to agree: Their partner, The CFO, "
                       "from your last answer.",
             "beliefs": ["a", "b"],
-            "test_before": {"bar": "Holds if at least 2 in 3 say the one you pick had to agree the last time."},
-            "test": {"bar": "Holds if at least 2 in 3 say their partner and the CFO had to agree the last time."}}
+            "test_before": {"bar": "Holds if at least 2 in 3 say the one you pick had to agree the last time they "
+                                   "paid for something for this."},
+            "test": {"bar": "Holds if at least 2 in 3 say their partner and the CFO had to agree the last time they "
+                            "paid for something for this."}}
     assert cs.choose_faults(good, BUYER, row=1) == []
     for change, what in [({"recall": ""}, "the recall line"), ({"beliefs": ["a"]}, "a belief under each option"),
-                         ({"test": {"bar": "Holds if at least 2 in 3 say nobody else had to agree the last time."}},
+                         ({"test": {"bar": "Holds if at least 2 in 3 say nobody else had to agree the last time they "
+                                           "paid for something for this. Decided alone counts as support."}},
                           "the bar after the pick"),
+                         # spec 137: *decided alone* said on a role's pick
+                         ({"test": {"bar": "Holds if at least 2 in 3 say their partner and the CFO had to agree the "
+                                           "last time they paid for something for this. Decided alone counts as "
+                                           "support."}}, "the bar says deciding alone counts"),
+                         # spec 137: 149's offer pasted in reads as no bar at all
+                         ({"test": {"bar": "Holds if at least 2 in 3 say their partner and the CFO had to agree the "
+                                           "last time they bought Lullaby."}}, "the bar after the pick"),
                          ({"test_before": {"bar": "Holds if at least 2 in 3 say they had to agree last time."}},
                           "the bar before a pick"),
                          ({"options": ["Nobody else", "The CFO · has to agree"]}, "one option holding every role"),

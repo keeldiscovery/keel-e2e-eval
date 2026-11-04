@@ -89,6 +89,7 @@ from instructions import chain as chain_mod
 from instructions import brief_facts as brief_facts_mod
 from instructions import contract as contract_mod
 from instructions import corpus as corpus_mod
+from instructions import spoken as spoken_mod
 from instructions.registry import ADOPTION_KEY
 from stack import remote
 from stack import runtime as stack_runtime
@@ -1999,6 +2000,10 @@ def choose_faults(choose: dict | None, key: str, *, row: int | None) -> list[dic
     fault("the bar after the pick", ((after or {}).get("case"), (after or {}).get("who")),
           ("nobody", vs_screens.BUYER_PAYER_NOBODY) if row == vs_screens.BUYER_PAYER_NOBODY_INDEX
           else ("role", vs_screens.role_in_sentence(joined)))
+    # spec 137 FR-3 (keel-web 173 FR-5, keel-cloud 213 FR-5c): *decided alone* counts as support where Nobody else is
+    # tested, and only there
+    fault("the bar says deciding alone counts", (after or {}).get("alone"),
+          row == vs_screens.BUYER_PAYER_NOBODY_INDEX)
     return faults
 
 
@@ -2141,6 +2146,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 _hold_the_chain_screen(j, key, j.framing[key][0], drawn_rate=view.get("hourlyRate"))
             if key == "commercial.price":
                 _hold_the_price_boxes(j, j.framing[key][0])
+                _hold_the_price_sent(j, j.framing[key][0])
             continue
         _keep_draft(j, question, "first", None)
         if answer.unsure:
@@ -2152,6 +2158,8 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         _keep_draft(j, question, "answer", answer.text)
         seen.append(_check_screen(j, question, key))
         _hold_check_intro(j, question, seen[-1])
+        if key == COMMITMENT_KEY:
+            _hold_commitment_check(j, question, seen[-1])
         if key in vs.PICKED:
             if not j.strict:
                 _name_keel_added(j, key, question, answer)
@@ -2600,18 +2608,70 @@ def _hold_the_chain_screen(j: Journey, key: str, seen: dict, *, drawn_rate: dict
     period (never typed, never sent). `drawn_rate` (spec 096 FR-2): the view's `hourlyRate` before the screen's own
     save, which the rate box was drawn from."""
     cost = j.entry.cost() or {}
-    period_words = chain_mod.CHAIN_PERIOD_WORDS.get(cost.get("period"), "")
-    with _step(j, f"{key}: the chain's screen reads back the founder's unit and period (keel-web 094)",
-               party="founder") as h:
+    price = vs.founder_price(j.entry) or {}
+    with _step(j, f"{key}: the chain's screen reads back the founder's unit and period (keel-web 094), one measure on "
+                  "the line and no unit where the user pays (keel-web 173)", party="founder") as h:
         drawn = seen.get("per") if key == "commercial.existing_sacrifice" else seen.get("locked")
-        want = [f"per {str(cost.get('unit') or '').strip()}", period_words]
-        h.record_assert(want, seen)
+        want, banned = chain_words_owed(key, cost, price, vs.is_b2b(j.entry), vs.occasion(j.entry))
+        h.record_assert({"drawn has": want, "drawn never has": banned}, seen)
         missing = [w for w in want if w and w not in (drawn or "")]
-        assert not missing, {"drawn": drawn, "missing": missing}
+        said = [w for w in banned if w and w in (drawn or "")]
+        assert not missing and not said, {"drawn": drawn, "missing": missing, "never": said}
     if key == "commercial.existing_sacrifice" and seen.get("filled") is not None:
         _hold_the_cost_fill(j, cost, seen["filled"], drawn_rate)
     if key == "commercial.existing_sacrifice" and seen.get("order") == "mode-first":
         _hold_the_mode_first(j, seen)
+
+
+def chain_words_owed(key: str, cost: dict, price: dict | None, b2b: bool, occasion: str | None = None) \
+        -> tuple[list[str], list[str]]:
+    """Spec 064 FR-2 (keel-web 094) as spec 137 FR-3 moves it (keel-web 173 FR-2c / FR-3, keel-cloud 213 FR-1b /
+    FR-2b): what the chain screen's words after the boxes must say, and must never -- the cost's equation (`chain-per`)
+    *per {unit}* and the period, but on a rate said as a percent of a named base the period alone (no *per {unit}*);
+    the price's locked words (`chain-locked`) the unit and the period, but no unit where the user pays (`locked.unit`
+    null) and none beside a share of a named base. `(owed, banned)`."""
+    period_words = chain_mod.CHAIN_PERIOD_WORDS.get(cost.get("period"), "")
+    unit = str(cost.get("unit") or "").strip()
+    per_unit = f"per {unit}" if unit else ""
+    if key == "commercial.existing_sacrifice":
+        if chain_mod.percent_of_base(cost, chain_mod.base_of(cost, occasion)):
+            return [period_words], [per_unit]
+        return [per_unit, period_words], []
+    share_of_base = isinstance(price, dict) and price.get("shape") == "SHARE" and not chain_mod.recovered(price) \
+        and chain_mod.base_of(cost, occasion) is not None
+    if not b2b or share_of_base:
+        return [period_words], [per_unit]
+    return [per_unit, period_words], []
+
+
+def commitment_check_faults(seen: dict | None, question: dict | None, name: str | None) -> list[dict]:
+    """Spec 137 FR-3 (keel-web 173 FR-1, keel-cloud 213 FR-8, contract 59): Commitment's Check screen as the walk read it
+    -- the four answers drawn (`commitment-answers`, each `commitment-answer`) are the served `answers` in served order,
+    their first *Yes, I'd {step}* and last two the registry's (`spoken.commitment_answers`); the note drawn
+    (`commitment-note`) is the served `note`, owed exactly where the step moves money and names no place it goes
+    (`spoken.commitment_note`: Palus' *Say where the money goes (into Palus).*). An older cloud serves neither and the
+    page draws neither. Every miss is one fault `{what, drawn, want}`."""
+    if not seen or not question:
+        return []
+    faults: list[dict] = []
+
+    def fault(what: str, drawn, want) -> None:
+        if drawn != want:
+            faults.append({"what": what, "drawn": drawn, "want": want})
+
+    block = seen.get("commitment") or {}
+    served = question.get("answers")
+    fault("the four answers drawn are the served ones", block.get("answers") or None, served or None)
+    fault("the note drawn is the served one", block.get("note"), question.get("note"))
+    rows = [r.get("text") for r in seen.get("rows") or [] if not r.get("locked")]
+    step = seen.get("field") or (rows[0] if rows else None)
+    if served:
+        composed = spoken_mod.commitment_answers([step] if step else [])
+        fault("the answers' first and last two are code's", [served[0], *served[2:]] if len(served) == 4 else served,
+              [composed[0], *composed[2:]] if composed else None)
+        fault("the note is owed exactly where the step moves money nowhere", question.get("note"),
+              spoken_mod.commitment_note(step, name))
+    return faults
 
 
 def cost_line_owed(b2b: bool, context: dict, persona: dict | None = None) -> tuple[str, re.Pattern]:
@@ -2791,6 +2851,37 @@ def hours_cost_box(cost: dict, rate, money: str, *, symbol: str = "$") -> str:
     hours = number(low) if high is None or float(high) == float(low) else f"{number(low)} to {number(high)}"
     period = chain_mod.CHAIN_PERIOD_WORDS.get(cost.get("period"), cost.get("period") or "")
     return f"{hours} hours {period} at {symbol}{number(rate)} an hour, {money}"
+
+
+def _hold_the_price_sent(j: Journey, seen: dict) -> None:
+    """Spec 137 FR-3 (keel-web 173 FR-2, contract 59): on up front then a plan the walk typed the plan's two boxes and,
+    where the entry's plan is optional, ticked *Optional plan*; the press's PUT carries the plan's `low`, `high` and
+    `optional` as the entry states them (`vs.founder_price`; 21-codyco 1000 and 1500, 13-aircaps optional)."""
+    price = vs.founder_price(j.entry)
+    if not seen.get("chain") or not price or price.get("shape") != "UPFRONT_THEN" or price.get("thenNothing"):
+        return
+    with _step(j, "the Price step: the plan's low and high and the optional plan typed in their boxes, and PUT as the "
+                  "founder stated them (keel-web 173, contract 59)", party="founder") as h:
+        faults = vs_screens.price_sent_faults(price, seen.get("sent_price"))
+        boxes = seen.get("plan_boxes") or {}
+        if boxes.get("high") is None:
+            faults.append({"what": "no second plan box drawn (chain-plan-high)", "boxes": boxes})
+        if price.get("optional") and not boxes.get("optional"):
+            faults.append({"what": "Optional plan not ticked", "boxes": boxes})
+        h.record_assert({"price": price, "faults": []}, {"sent": seen.get("sent_price"), "boxes": boxes,
+                                                         "faults": faults})
+        assert not faults, json.dumps(faults, indent=2)
+
+
+def _hold_commitment_check(j: Journey, question: dict, seen: dict) -> None:
+    """Spec 137 FR-3 (keel-web 173 FR-1, keel-cloud 213 FR-8): the four answers and the note on Commitment's Check
+    screen (`commitment_check_faults`)."""
+    with _step(j, "commercial.commitment: the Check screen draws the four answers strangers get and the note where the "
+                  "money goes, as served (keel-web 173, contract 59)", party="founder") as h:
+        faults = commitment_check_faults(seen, question, j.idea_name)
+        h.record_assert({"answers": question.get("answers"), "note": question.get("note"), "faults": []},
+                        {"drawn": seen.get("commitment"), "faults": faults})
+        assert not faults, json.dumps(faults, indent=2)
 
 
 def _hold_the_price_boxes(j: Journey, seen: dict) -> None:

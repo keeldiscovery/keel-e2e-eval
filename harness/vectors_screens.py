@@ -187,10 +187,19 @@ BUYER_PAYER_CHOOSE_PROMPT = "Which one do you want to test?"
 #: keel-web 149 FR-3 (`BUYER_PAYER_UNPICKED`, `BUYER_PAYER_NOBODY`): who the bar names before a pick and on Nobody else.
 BUYER_PAYER_UNPICKED = "the one you pick"
 BUYER_PAYER_NOBODY = "nobody else"
-#: keel-web 149 FR-3 (`buyerPayerBar`): *Holds if at least 2 in 3 {deciders} say {who} had to agree the last time they
-#: bought {offer}.* -- the deciders where the page has a plural, the offer where one is stored (*... the last time.*).
+#: keel-web 149 FR-3 (`buyerPayerBar`, history since spec 137): *Holds if at least 2 in 3 {deciders} say {who} had to
+#: agree the last time they bought {offer}.* -- the deciders where the page has a plural, the offer where one is stored.
+BUYER_PAYER_BAR_149 = re.compile(r"^Holds if at least 2 in 3(?: (?P<deciders>.+?))? say (?P<who>.+?) had to agree "
+                                 r"the last time(?: they bought (?P<offer>.+?))?\.$")
+#: Spec 137 FR-3 (keel-web 173 FR-5, keel-cloud 213 FR-5c): the bar names the purchase, never the job or the price
+#: question's offer pasted in -- *... had to agree the last time they paid for something for this.*
+#: (`BUYER_PAYER_PURCHASE`), or the founder's own purchase noun (the Existing sacrifice answer's money base); where the
+#: founder tests *Nobody else* it adds *Decided alone counts as support.* (`BUYER_PAYER_ALONE_COUNTS`).
+BUYER_PAYER_PURCHASE = "something for this"
+BUYER_PAYER_ALONE_COUNTS = "Decided alone counts as support."
 BUYER_PAYER_BAR = re.compile(r"^Holds if at least 2 in 3(?: (?P<deciders>.+?))? say (?P<who>.+?) had to agree "
-                             r"the last time(?: they bought (?P<offer>.+?))?\.$")
+                             r"the last time they paid for (?P<purchase>.+?)\.(?P<alone> Decided alone counts as "
+                             r"support\.)?$")
 #: keel-web 149 FR-1 / FR-2: the recall line under the title and the belief under each radio.
 CHOOSE_RECALL_TESTID = "choose-recall"
 CHOOSE_BELIEF_TESTID = "choose-belief"
@@ -248,7 +257,11 @@ _FIRST_STOP = re.compile(r"\.\s+")
 #: Spec 132 FR-10 (keel-web 168 FR-1, `ANSWER_HINT_OF`): no hint says *Up to 25 words* -- the list's own count and row
 #: cap (the served `saves`: Importance's four besides its own item, nine words each); 153's
 #: (`IMPORTANCE_ANSWER_HINT_153`) read *... around this. Up to 25 words.*
-IMPORTANCE_ANSWER_HINT = "Name up to four other difficulties they meet around this, each up to 9 words."
+#: Spec 137 FR-3 (keel-web 173 FR-5, keel-cloud 213 FR-9): the difficulties at that moment, never the job as a whole
+#: (168's *... each up to 9 words.* is `IMPORTANCE_ANSWER_HINT_168`).
+IMPORTANCE_ANSWER_HINT = ("Name up to four other difficulties they meet around this, each up to 9 words: the "
+                          "difficulties at that moment, not the job as a whole.")
+IMPORTANCE_ANSWER_HINT_168 = "Name up to four other difficulties they meet around this, each up to 9 words."
 IMPORTANCE_ANSWER_HINT_153 = "Name up to four other difficulties they meet around this. Up to 25 words."
 #: keel-web 153 FR-3 (`compatibilityHint`): *What must already be true at {segment} for this to work? Tools they use,
 #: time they can wait, rules they work under. Two to four things.* then *Up to 25 words.* -- `{segment}` the context's
@@ -276,9 +289,12 @@ CHOOSE_PROMPT = {"commercial.buyer_payer_alignment": BUYER_PAYER_CHOOSE_PROMPT,
                  "commercial.purchase_friction": "Which one do you want to test?",
                  "solution.compatibility": "Which one do you want to test?"}
 #: keel-web 157 FR-2 (`LIST_CHOOSE_INTRO`, `.corridor__intro`; keel-cloud 182's question): Purchase friction's Choose
-#: intro (153's was *..., would this step be needed, and how long would it take. ...*; DRIFT #102).
+#: intro (153's was *..., would this step be needed, and how long would it take. ...*; DRIFT #102). Spec 137 FR-3
+#: (keel-web 173 FR-5, keel-cloud 213 FR-7): never *before it went through* (157's is `..._157`).
 PURCHASE_FRICTION_CHOOSE_INTRO = ("The person who decides gets one question for this: if they bought it, how long would "
-                                  "this step take before it went through. Pick the one step.")
+                                  "this one step take them. Pick the step.")
+PURCHASE_FRICTION_CHOOSE_INTRO_157 = ("The person who decides gets one question for this: if they bought it, how long "
+                                      "would this step take before it went through. Pick the one step.")
 #: keel-web 157 FR-1 (`HOLDS` / `purchaseFrictionBar(true)`, `.keeltest__b`): Purchase friction's Choose bar from 157
 #: to 164 -- keel-cloud 182's words (*... say it would take longer than you expect*), history since spec 129. The brief's
 #: `keelBar` keeps them (`instructions/brief_facts.KEEL_BAR`; keel-cloud 202 D1(b): *`BriefFacts.keelBar` unchanged*).
@@ -350,6 +366,81 @@ KEEL_TEST_NOTE_TESTID = "keeltest-note"
 LIST_FOUNDER_NOTE = "li.listrow--note, [data-testid=list-founder-note]"
 #: The Check screen's rows: every `li.listrow` of the list but the founder note.
 LIST_ROW = ".listcheck ul.listrows li.listrow:not(.listrow--note)"
+#: Spec 137 FR-3 (keel-web 173 FR-5a, keel-cloud 213 FR-5a): a role row carries its tag on the row -- `li.listrow[data-tag]`
+#: (*· has to agree*), the box's `aria-describedby` -- so the row is read with it: *The CFO · has to agree*.
+ROW_TAG_ATTR = "data-tag"
+#: Spec 137 FR-3 (keel-web 173 FR-1, keel-cloud 213 FR-8, contract 59): Commitment's Check block -- the four answers
+#: strangers get, in served order, as fixed pills titled *What strangers can answer*, and the served note beside the step.
+COMMITMENT_ANSWERS_TESTID = "commitment-answers"
+COMMITMENT_ANSWER_TESTID = "commitment-answer"
+COMMITMENT_NOTE_TESTID = "commitment-note"
+COMMITMENT_ANSWERS_TITLE = "What strangers can answer"
+
+
+#: Spec 137 FR-3 (keel-web 173 FR-2, keel-cloud 213 FR-1, contract 59): the up-front-then price's plan boxes -- the low
+#: (`chain-plan`), the high (`chain-plan-high`, aria *Then, up to*, after *to*) -- and the *Optional plan* checkbox
+#: (`chain-plan-optional`), sent as `price.low` / `high` / `optional` (`optional` only there, never on *then nothing*).
+CHAIN_PLAN_TESTID = "chain-plan"
+CHAIN_PLAN_HIGH_TESTID = "chain-plan-high"
+CHAIN_PLAN_OPTIONAL_TESTID = "chain-plan-optional"
+CHAIN_PLAN_OPTIONAL = "Optional plan"
+
+
+def plan_boxes_drawn(page) -> dict:
+    """Spec 137 FR-3: the up-front-then plan's boxes as the walk left them -- the low, the high (None where the page
+    draws no second box: a web before 173) and whether the checkbox is drawn and ticked."""
+    high = page.get_by_test_id(CHAIN_PLAN_HIGH_TESTID)
+    optional = page.get_by_test_id(CHAIN_PLAN_OPTIONAL_TESTID)
+    box = optional.first.locator("input[type=checkbox]") if optional.count() else None
+    return {"low": _value(page.get_by_test_id(CHAIN_PLAN_TESTID).first),
+            "high": _value(high.first) if high.count() else None,
+            "optional_drawn": optional.count() > 0,
+            "optional": bool(box is not None and box.count() and box.first.is_checked())}
+
+
+def sent_price(dimension: str | None, writes: list[dict]) -> dict | None:
+    """Spec 137 FR-3: the `price` of `dimension`'s answer in the last `PUT calibration/{vector}` the press sent, else
+    None."""
+    for write in reversed(writes):
+        body = write.get("body")
+        for answer in (body.get("answers") or []) if isinstance(body, dict) else []:
+            if isinstance(answer, dict) and answer.get("dimension") == dimension and isinstance(answer.get("price"), dict):
+                return answer["price"]
+    return None
+
+
+def price_sent_faults(price: dict, sent: dict | None) -> list[dict]:
+    """Spec 137 FR-3 (keel-web 173 FR-2, contract 59): the PUT's price held to the entry's -- on up front then a plan,
+    the plan's `low` and `high` as the entry states them (one number sent as both) and `optional` true exactly where the
+    entry's plan is optional (absent or false elsewhere; never sent on another shape). `[]` where it holds."""
+    if not isinstance(price, dict) or price.get("shape") != "UPFRONT_THEN" or price.get("thenNothing"):
+        if isinstance(sent, dict) and sent.get("optional"):
+            return [{"what": "optional sent off the up-front-then plan", "sent": sent.get("optional")}]
+        return []
+    if not isinstance(sent, dict):
+        return [{"what": "no price was PUT", "sent": sent}]
+    faults = []
+    high = price.get("high") if price.get("high") is not None else price.get("low")
+    for field, want in (("low", price.get("low")), ("high", high)):
+        try:
+            same = float(sent.get(field)) == float(want)
+        except (TypeError, ValueError):
+            same = False
+        if not same:
+            faults.append({"what": f"the plan's {field}", "sent": sent.get(field), "want": want})
+    if bool(sent.get("optional")) != bool(price.get("optional")):
+        faults.append({"what": "the optional plan", "sent": sent.get("optional"), "want": bool(price.get("optional"))})
+    return faults
+
+
+def row_said(text: str | None, tag: str | None) -> str:
+    """Spec 137 FR-3 (keel-web 173 FR-5a): a row read with its tag -- *The CFO* and *· has to agree* read *The CFO · has
+    to agree*; the value alone where the row carries no tag."""
+    value = " ".join(str(text or "").split())
+    said = " ".join(str(tag or "").split())
+    if not said:
+        return value
+    return f"{value} {said}" if said.startswith("\u00b7") else f"{value} \u00b7 {said}"
 COMPATIBILITY_KEPT_NOTE = ("Your other conditions stay in the brief as what you believe must be true; only this one is "
                            "asked.")
 #: keel-web 153 FR-5 (`FREQUENCY_RANGE_HINT`): under Frequency's two boxes -- a second `.calib__hint` where the screen
@@ -382,14 +473,17 @@ def importance_count_free(belief: str | None) -> str | None:
 
 def buyer_payer_bar(text: str | None) -> dict | None:
     """Spec 116 FR-1: Buyer and payer's bar read into its case -- `unpicked` (*the one you pick*), `nobody` (*nobody
-    else*) or `role` (a role in a sentence) -- with the deciders and the offer named, or None where the line is not 149's
-    (the old *... say they had to agree last time.* / *... say they decided on their own.* read None)."""
+    else*) or `role` (a role in a sentence) -- with the deciders named, or None where the line is not the page's (the old
+    *... say they had to agree last time.* / *... say they decided on their own.* read None). Spec 137 FR-3 (keel-web
+    173 FR-5): the purchase it names (`purchase`: *something for this*, or the founder's purchase noun) and whether it
+    says *Decided alone counts as support.* (`alone`); 149's *... the last time they bought {offer}.* reads None."""
     found = BUYER_PAYER_BAR.match(" ".join((text or "").split()))
     if not found:
         return None
     who = found["who"]
     case = "unpicked" if who == BUYER_PAYER_UNPICKED else "nobody" if who == BUYER_PAYER_NOBODY else "role"
-    return {"case": case, "who": who, "deciders": found["deciders"], "offer": found["offer"]}
+    return {"case": case, "who": who, "deciders": found["deciders"], "purchase": found["purchase"],
+            "alone": found["alone"] is not None}
 
 
 def role_in_sentence(label: str) -> str:
@@ -2361,7 +2455,11 @@ class Corridor:
             seen.update(boxes)
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(f"calibration-{name}"))
-            seen["primary"] = self._press_primary()
+            with self._keeping("PUT", CALIBRATION_PUT) as sent:
+                seen["primary"] = self._press_primary()
+            if seen_chain.get("chain") and control == "price_range":
+                # spec 137 FR-3 (keel-web 173 FR-2, contract 59): the price the press PUT -- `low`, `high`, `optional`
+                seen["sent_price"] = sent_price(name, [_request_row(r) for r in sent])
             return seen
 
     def chain_screen(self, control: str) -> bool:
@@ -2468,9 +2566,22 @@ class Corridor:
         elif shape == "UPFRONT_THEN":
             page.get_by_test_id("chain-upfront").fill(_number(price["upfrontLow"]))
             if not price.get("thenNothing"):
-                page.get_by_test_id("chain-plan").fill(_number(price["low"]))
+                # spec 137 FR-3 (keel-web 173 FR-2a, keel-cloud 213 FR-1a): the plan's low and high in their two boxes
+                # (Codyco's *€1,000 to €1,500*: 1000 and 1500); one number typed is sent as both
+                page.get_by_test_id(CHAIN_PLAN_TESTID).fill(_number(price["low"]))
+                high = page.get_by_test_id(CHAIN_PLAN_HIGH_TESTID)
+                if high.count():
+                    high.fill(_number(price.get("high") if price.get("high") is not None else price["low"]))
+                # keel-web 173 FR-2b (keel-cloud 213 FR-1c): *Optional plan* ticked where the entry's plan is optional
+                optional = page.get_by_test_id(CHAIN_PLAN_OPTIONAL_TESTID)
+                if optional.count():
+                    box = optional.first.locator("input[type=checkbox]").first
+                    if bool(price.get("optional")) != box.is_checked():
+                        box.click()
         return {"chain": True, "locked": _first_text(page, "[data-testid=chain-locked]"), "choice": choice,
-                "recovered_drawn": recovered}
+                "recovered_drawn": recovered,
+                "plan_boxes": plan_boxes_drawn(page) if shape == "UPFRONT_THEN" and not price.get("thenNothing")
+                else None}
 
     # ------------------------------------------- calibration: a list's Answer, Check and save, Choose
 
@@ -2539,25 +2650,53 @@ class Corridor:
         """The Check screen's list as drawn: every row (`LIST_ROW`), the field, the line, the title and the guidance
         under the list. Spec 134 FR-2: keel-web 168's note in the list where the founder's own offer would have stood
         (`li.listrow--note`, *Your own offer ... stays off this list*) is never a row -- it is read into `note` with the
-        guidance line `.listcheck__note`, joined (`founder_note` and `guidance` apart)."""
+        guidance line `.listcheck__note`, joined (`founder_note` and `guidance` apart).
+
+        Spec 137 FR-3 (keel-web 173 FR-5a, FR-1): a role row's tag is read off the row (`li.listrow[data-tag]`) and
+        said with its value (`said`: *The CFO · has to agree*); Commitment's Check block -- the four answers strangers
+        get (`commitment-answers`, each `commitment-answer`, in served order) and the served note (`commitment-note`) --
+        is read into `commitment` where drawn."""
         rows = []
         for li in self.page.locator(LIST_ROW).all():
+            data_tag = li.get_attribute(ROW_TAG_ATTR)
             locked = li.locator(".listrow__ed--lock")
             if locked.count():
-                rows.append({"text": _first_text(li, ".listrow__ed--lock"), "tag": _first_text(li, ".listrow__tag"),
-                             "locked": True})
+                row = {"text": _first_text(li, ".listrow__ed--lock"), "tag": _first_text(li, ".listrow__tag"),
+                       "locked": True}
             else:
-                rows.append({"text": _value(li.locator("textarea.listrow__ed").first),
-                             "tag": _first_text(li, ".listrow__tag"), "locked": False,
-                             "counter": _first_text(li, ".listrow__wc"), "warn": _first_text(li, ".listrow__warn")})
+                row = {"text": _value(li.locator("textarea.listrow__ed").first),
+                       "tag": _first_text(li, ".listrow__tag"), "locked": False,
+                       "counter": _first_text(li, ".listrow__wc"), "warn": _first_text(li, ".listrow__warn")}
+            if data_tag:
+                row["data_tag"] = data_tag
+                row["said"] = row_said(row["text"], data_tag)
+            rows.append(row)
         field = self.page.locator(".listcheck .listcheck__field textarea.listrow__ed")
         founder_note = _first_text(self.page, f".listcheck {LIST_FOUNDER_NOTE}")
         guidance = _first_text(self.page, ".listcheck__note")
-        return {"rows": rows, "field": _value(field.first) if field.count() else None,
-                "line": _first_text(self.page, ".listcheck__line"),
-                "note": " ".join(t for t in (founder_note, guidance) if t),
-                "founder_note": founder_note or None, "guidance": guidance or None,
-                "title": _first_text(self.page, ".listcheck__title")}
+        out = {"rows": rows, "field": _value(field.first) if field.count() else None,
+               "line": _first_text(self.page, ".listcheck__line"),
+               "note": " ".join(t for t in (founder_note, guidance) if t),
+               "founder_note": founder_note or None, "guidance": guidance or None,
+               "title": _first_text(self.page, ".listcheck__title")}
+        commitment = self._commitment_block()
+        if commitment is not None:
+            out["commitment"] = commitment
+        return out
+
+    def _commitment_block(self) -> dict | None:
+        """Spec 137 FR-3 (keel-web 173 FR-1, keel-cloud 213 FR-8, contract 59): Commitment's Check block as drawn -- the
+        four answers in served order (`commitment-answer` inside `commitment-answers`) and the note beside the step
+        (`commitment-note`); None where neither is drawn (an older cloud serves none)."""
+        page = self.page
+        block = page.get_by_test_id(COMMITMENT_ANSWERS_TESTID)
+        note = page.get_by_test_id(COMMITMENT_NOTE_TESTID)
+        if not block.count() and not note.count():
+            return None
+        answers = [" ".join(t.split()) for t in block.first.get_by_test_id(COMMITMENT_ANSWER_TESTID).all_inner_texts()] \
+            if block.count() else []
+        return {"answers": answers, "title": _first_text(block.first, ".listcheck__k") if block.count() else None,
+                "note": _first_text(page, f"[data-testid={COMMITMENT_NOTE_TESTID}]") or None}
 
     def _keel_test(self) -> dict:
         return {"belief": _first_text(self.page, ".keeltest__t"), "bar": _first_text(self.page, ".keeltest__b"),

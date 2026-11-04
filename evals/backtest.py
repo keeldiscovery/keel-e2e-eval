@@ -618,9 +618,22 @@ READ_JS = """() => {
   const options = (sel) => Array.from(document.querySelectorAll(sel)).map(option).filter(Boolean);
   // spec 134 FR-2 (keel-web 168 FR-4): the founder note drawn in the list (`li.listrow--note`, *Your own offer ... stays
   // off this list*) is never a row: it is read as `note`, with the guidance line under the list (`.listcheck__note`)
+  // spec 137 FR-3 (keel-web 173 FR-5a): a role row is read with its tag (`li.listrow[data-tag]`) -- *The CFO · has to
+  // agree*, as the first two rows carry *has the problem* and *decides to buy* (cycle 11's readers saw the value alone)
   const rows = Array.from(document.querySelectorAll("li.listrow:not(.listrow--note)")).map((li) => {
-      const ta = li.querySelector("textarea"); return ((ta && ta.value) || li.innerText || "").replace(/\\s+/g, " ").trim();
+      const ta = li.querySelector("textarea");
+      const text = ((ta && ta.value) || li.innerText || "").replace(/\\s+/g, " ").trim();
+      const tag = (li.getAttribute("data-tag") || "").replace(/\\s+/g, " ").trim();
+      return ta && tag ? (text + (tag.startsWith("\u00b7") ? " " : " \u00b7 ") + tag).trim() : text;
   }).filter(Boolean);
+  // spec 137 FR-3 (keel-web 173 FR-1, keel-cloud 213 FR-8): Commitment's Check block -- the four answers strangers get,
+  // in served order, and the note beside the step
+  const answersBlock = document.querySelector("[data-testid=commitment-answers]");
+  const commitmentNote = one("[data-testid=commitment-note]");
+  const commitment = answersBlock || commitmentNote ? {
+      answers: answersBlock ? Array.from(answersBlock.querySelectorAll("[data-testid=commitment-answer]")).map(said)
+          .filter(Boolean) : [],
+      note: commitmentNote || null} : null;
   const notes = all("li.listrow--note, .listcheck__note");
   const dialog = document.querySelector("[role=dialog]");
   const scope = dialog || document.querySelector("main") || document.body;
@@ -648,7 +661,7 @@ READ_JS = """() => {
                            hint: one("[data-testid=duration-input] .calib__hint")} : null,
           keel_test: keel ? {belief: one(".keeltest .keeltest__t"), bar: one(".keeltest .keeltest__b"),
                              note: one("[data-testid=keeltest-note]") || null} : null,
-          idea_boxes: idea,
+          idea_boxes: idea, commitment: commitment,
           text: (scope.innerText || "").slice(0, 6000)};
 }"""
 
@@ -1985,7 +1998,12 @@ LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-
               # spec 133 (keel-cloud 211 FR-5): the context's circumstance or job drops a single founder word of WHEN or
               # WHAT (was more than one) -- refused once, then noted
               "X8": "the context's circumstance or job drops a founder word of WHEN or WHAT, or adds words in neither "
-                    "(keel-cloud 211 FR-5)"}
+                    "(keel-cloud 211 FR-5)",
+              # spec 137 (keel-cloud 213 FR-3a): a row of Keel's own over the screen's cap is refused once, then dropped
+              # with a note (*L2: '...' dropped -- Keel's own row, N words over the screen's 9, is never cut
+              # mid-sentence*) -- a cloud before 213 noted *'...' cut to '...'*, read by the same name
+              "L2": "a row of Keel's own over the screen's word cap, dropped with a note and never cut mid-sentence "
+                    "(keel-cloud 213 FR-3a)"}
 _NOTE = re.compile(r"\b(" + "|".join(LOCK_NOTES) + r"): ([^\n]{1,400})")
 
 

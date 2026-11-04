@@ -83,6 +83,16 @@ def test_the_price_is_one_of_six_named_choices_clicked_by_its_id(price, choice):
         def inner_text(self):
             return "per site · a month"
 
+        # spec 137 (keel-web 173 FR-2): the plan's high box and the *Optional plan* checkbox inside its label
+        def locator(self, key):
+            return Box(f"{self.key} {key}")
+
+        def is_checked(self):
+            return False
+
+        def input_value(self):
+            return ""
+
     class Page:
         def get_by_test_id(self, key):
             return Box(key)
@@ -98,7 +108,9 @@ def test_the_price_is_one_of_six_named_choices_clicked_by_its_id(price, choice):
     assert "chain-share-COST_BASE" not in str(log)
     fills = [k for kind, k, *_ in log if kind == "fill"]
     assert fills == {"AMOUNT_PERIOD": ["chain-price-low", "chain-price-high"], "SHARE": ["chain-share"],
-                     "UPFRONT_THEN": ["chain-upfront"] + ([] if price.get("thenNothing") else ["chain-plan"]),
+                     # spec 137 (keel-web 173 FR-2a): the plan's low and high, each in its box
+                     "UPFRONT_THEN": ["chain-upfront"] + ([] if price.get("thenNothing") else ["chain-plan",
+                                                                                               "chain-plan-high"]),
                      "FREE": []}[price["shape"]]
 
 

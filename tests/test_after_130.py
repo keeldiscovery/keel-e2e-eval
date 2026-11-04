@@ -288,9 +288,11 @@ def test_130s_lock_notes_are_found_by_name_in_the_interactions_once_each():
         {"screen": "CALIBRATION_QUESTIONS", "detail": "breach x.label: L2: 'a' cut to 'b', the screen's 9 words"},
     ]
     notes = bt.lock_notes(None, rows)
+    # spec 137 (keel-cloud 213 FR-3a): L2 is read by name too
     assert [(n["rule"], n["screen"]) for n in notes] == [("S13", "RESPONDENT_QUESTIONS"),
                                                          ("L21", "CALIBRATION_QUESTIONS"),
-                                                         ("M5", "SOLUTION_MECHANISM"), ("X12", "CONTEXT_INTERPRET")]
+                                                         ("M5", "SOLUTION_MECHANISM"), ("X12", "CONTEXT_INTERPRET"),
+                                                         ("L2", "CALIBRATION_QUESTIONS")]
     assert notes[2]["said"].startswith("M5: 'escrow'")
     j = SimpleNamespace(project_id="p1", get=lambda path: rows if path.endswith("project_id=p1") else None)
     assert bt.lock_notes(j) == notes
