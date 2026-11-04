@@ -344,6 +344,12 @@ COMMITMENT_DECIDER_BAR = re.compile(r"^Set by Keel\. Holds if no more than 1 in 
 #: keel-web 153 FR-3 (`KEEL_TEST_COMPATIBILITY_KEPT`, `p.keeltest__n[data-testid=keeltest-note]`): the box's last line on
 #: Compatibility's Choose, before and after a pick; on no other screen.
 KEEL_TEST_NOTE_TESTID = "keeltest-note"
+#: Spec 134 FR-2 (keel-web 168 FR-4, `ListQuestion.tsx`): the redraft's note about a row the founder typed and Keel left
+#: off (L32, purchase friction's *Your own offer ... stays off this list*), drawn as an `li.listrow` in the list where the
+#: row would have stood -- read as the screen's `note`, never as a row (`LIST_ROW` leaves it out).
+LIST_FOUNDER_NOTE = "li.listrow--note, [data-testid=list-founder-note]"
+#: The Check screen's rows: every `li.listrow` of the list but the founder note.
+LIST_ROW = ".listcheck ul.listrows li.listrow:not(.listrow--note)"
 COMPATIBILITY_KEPT_NOTE = ("Your other conditions stay in the brief as what you believe must be true; only this one is "
                            "asked.")
 #: keel-web 153 FR-5 (`FREQUENCY_RANGE_HINT`): under Frequency's two boxes -- a second `.calib__hint` where the screen
@@ -1782,6 +1788,13 @@ class Corridor:
         if self.camera is not None:
             self.camera(slug)
 
+    def _reshot(self, slug: str) -> None:
+        """Spec 134 FR-3: the screen `slug` shot again as the founder left it (after their edit), where the camera can
+        (`evals/backtest.Camera.after_edit`, reached through the bound `camera`); nothing otherwise."""
+        owner = getattr(self.camera, "__self__", None)
+        if owner is not None and hasattr(owner, "after_edit"):
+            owner.after_edit(slug)
+
     # ------------------------------------------------------------------------ every screen's frame
 
     def frame(self) -> dict:
@@ -2523,8 +2536,12 @@ class Corridor:
             self.page.remove_listener("request", keep)
 
     def _list_rows(self) -> dict:
+        """The Check screen's list as drawn: every row (`LIST_ROW`), the field, the line, the title and the guidance
+        under the list. Spec 134 FR-2: keel-web 168's note in the list where the founder's own offer would have stood
+        (`li.listrow--note`, *Your own offer ... stays off this list*) is never a row -- it is read into `note` with the
+        guidance line `.listcheck__note`, joined (`founder_note` and `guidance` apart)."""
         rows = []
-        for li in self.page.locator(".listcheck ul.listrows li.listrow").all():
+        for li in self.page.locator(LIST_ROW).all():
             locked = li.locator(".listrow__ed--lock")
             if locked.count():
                 rows.append({"text": _first_text(li, ".listrow__ed--lock"), "tag": _first_text(li, ".listrow__tag"),
@@ -2534,9 +2551,12 @@ class Corridor:
                              "tag": _first_text(li, ".listrow__tag"), "locked": False,
                              "counter": _first_text(li, ".listrow__wc"), "warn": _first_text(li, ".listrow__warn")})
         field = self.page.locator(".listcheck .listcheck__field textarea.listrow__ed")
+        founder_note = _first_text(self.page, f".listcheck {LIST_FOUNDER_NOTE}")
+        guidance = _first_text(self.page, ".listcheck__note")
         return {"rows": rows, "field": _value(field.first) if field.count() else None,
                 "line": _first_text(self.page, ".listcheck__line"),
-                "note": _first_text(self.page, ".listcheck__note"),
+                "note": " ".join(t for t in (founder_note, guidance) if t),
+                "founder_note": founder_note or None, "guidance": guidance or None,
                 "title": _first_text(self.page, ".listcheck__title")}
 
     def _keel_test(self) -> dict:
@@ -2620,10 +2640,16 @@ class Corridor:
                    one_more: bool = False, add_rungs=None) -> dict:
         """*Check and save* (FR-005): waits out *Keel is writing this from your answer.*, reads the drafted
         list as drawn -- every row, the locked ones (*yours*, *context*, *who decides*), the phrase or the
-        step, the *Keel will test* box -- and saves it untouched with the primary (*Save*, or the stage's
-        exit where the list does not pick). Returns what it read."""
+        step, the *Keel will test* box. Then, where the walk owes it, the founder edits the list: Importance's own further
+        difficulties typed in (`add`, keel-web 070 F9), Current solution's own rungs typed over Keel's redraft or into
+        new rows (`add_rungs`, spec 067 FR-2) -- and the list is read again (`after`, `test_after`) and, since spec 134
+        FR-3, shot again for the reader as the founder left it (`_reshot`). Then saved with the primary (*Save*, or the
+        stage's exit where the list does not pick). Returns what it read."""
         name = question.get("dimension")
-        with self._b.step(f"founder checks Keel's list for {name} and saves it") as h:
+        step = (f"founder checks Keel's list for {name}"
+                + (", types their own rows into it" if add is not None or add_rungs is not None else "")
+                + " and saves it")
+        with self._b.step(step) as h:
             _wait_url(self.page, r"/check")
             self.page.locator(".listcheck").first.wait_for(state="visible",
                                                            timeout=timeout_s * 1000 * self.patience)
@@ -2649,6 +2675,9 @@ class Corridor:
             if plan.get("edit") or plan.get("add"):
                 seen["after"] = self._list_rows()
                 seen["test_after"] = self._keel_test()
+        if seen.get("after") is not None:
+            # spec 134 FR-3: the Check screen the reader judges is the one the founder saved, after their edit
+            self._reshot(f"check-{name}")
         seen["smaller_step_removed"] = self._remove_over_cap_smaller_step(name)
         seen["rows_cut_to_fit"] = self._cut_over_cap_rows(name, served_word_cap(question))
         # spec 119 (keel-web 158 T006, keel-cloud 187 FR-1): the Check intro says the served cap (Compatibility's 16)

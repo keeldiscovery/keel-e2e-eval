@@ -260,6 +260,21 @@ def _compact(n: int, kicker: str, question: str, fallback: str) -> str:
 WAITING_STATE = re.compile(r"^failed-")
 
 
+#: Spec 134 FR-3: a Check screen the founder typed their own rows into is handed over as they left it, its rows named
+#: the founder's (`edited`, `evals/backtest.Camera.after_edit`).
+ROWS_EDITED = "Rows, as the founder left them (they typed their own over Keel's draft, then saved)"
+#: Spec 134 FR-2: the guidance drawn under or in the list (keel-web 168's *Your own offer ... stays off this list*, the
+#: `.listcheck__note` line) -- on the screen, labelled, never a row.
+NOTE_LABEL = "Under the list (Keel's guidance, not a row)"
+
+
+def _listed(value) -> list:
+    """A recorded `note`: a list of lines (the camera's), one string (`_list_rows`), or nothing."""
+    if not value:
+        return []
+    return list(value) if isinstance(value, (list, tuple)) else [value]
+
+
 def founder_screens(bundle: dict) -> list[Screen]:
     """The founder flow's screens as the founder-reader is handed them, in order -- never a waiting state (spec 119
     FR-8): a `failed-*` screen of a recorded bundle (10-palus SOLUTION's two captures of the idea step while the
@@ -281,7 +296,8 @@ def founder_screens(bundle: dict) -> list[Screen]:
         if s.get("intro"):
             body.append(f"Intro: {s['intro']}")
         body += _lines("Options", s.get("options"))
-        body += _lines("Rows", s.get("rows"))
+        body += _lines(ROWS_EDITED if s.get("edited") else "Rows", s.get("rows"))
+        body += _lines(NOTE_LABEL, _listed(s.get("note")))
         body += _lines("Chips (the escape)", s.get("chips"))
         body += _choose_boxes(s)
         body += _idea_boxes(s)

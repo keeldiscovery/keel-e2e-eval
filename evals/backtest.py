@@ -616,9 +616,12 @@ READ_JS = """() => {
     return [said(name), line ? said(line) : ""].filter(Boolean).join(" -- ");
   };
   const options = (sel) => Array.from(document.querySelectorAll(sel)).map(option).filter(Boolean);
-  const rows = Array.from(document.querySelectorAll("li.listrow")).map((li) => {
+  // spec 134 FR-2 (keel-web 168 FR-4): the founder note drawn in the list (`li.listrow--note`, *Your own offer ... stays
+  // off this list*) is never a row: it is read as `note`, with the guidance line under the list (`.listcheck__note`)
+  const rows = Array.from(document.querySelectorAll("li.listrow:not(.listrow--note)")).map((li) => {
       const ta = li.querySelector("textarea"); return ((ta && ta.value) || li.innerText || "").replace(/\\s+/g, " ").trim();
   }).filter(Boolean);
+  const notes = all("li.listrow--note, .listcheck__note");
   const dialog = document.querySelector("[role=dialog]");
   const scope = dialog || document.querySelector("main") || document.body;
   // spec 119 FR-3 (keel-web 155 / 157): a Choose screen's title and intro, the founder's time box under the list (its
@@ -635,7 +638,7 @@ READ_JS = """() => {
           question: one("[role=dialog] h2, h1.calib__q, h1.iv-q, .guided-step__question, h1"),
           hint: one(".calib__hint, .iv-tick, .iv-note, .ccard__sub"),
           options: options((dialog ? "[role=dialog] " : "") + "[role=radio], " + (dialog ? "[role=dialog] " : "") + "[role=checkbox]"),
-          rows: rows, chips: all(".calib__chip, .iv-chips button"),
+          rows: rows, note: notes.length ? notes : null, chips: all(".calib__chip, .iv-chips button"),
           title: one(".listcheck__title") || null, intro: one(".corridor__intro") || null,
           time_box: box ? {question: one("[data-testid=duration-input] .calib__durationq"),
                            count: ((box.querySelector("[data-testid=duration-count]") || {}).value || "").trim(),
@@ -839,6 +842,10 @@ def card_selector(key: str, part: str | tuple[str, str] = "") -> str:
         (f"[data-testid=stage-dimension][data-dim='{key}']", by_id), (f".dimrow[id='{key}']", by_class)))
 
 
+#: Spec 134 FR-3: what a Check screen's record takes from the shot after the founder's edit.
+AFTER_EDIT_FIELDS = ("file", "rows", "note", "keel_test", "text", "url")
+
+
 @dataclass
 class Camera:
     """FR-3's screenshots. `founder` is handed to every founder page object (`Corridor.camera`, `Interviews.camera`,
@@ -902,6 +909,23 @@ class Camera:
         shot = {"n": n, **self._take(self.page, f"failed-{n:02d}-{_safe_slug(slug)}.png", f"failed-{slug}")}
         shot["why"] = why
         self.failure_shots.append(shot)
+
+    def after_edit(self, slug: str) -> None:
+        """Spec 134 FR-3: the founder screen `slug` (its last shot) taken again as the founder left it, after typing their
+        own rows over Keel's draft -- `founder-NN-<slug>-after-edit.png`, the same number -- and its record moved to that
+        read (rows, the *Keel will test* box, the note, the text, the file); what Keel drew first is kept under
+        `before_edit`. Recorded, never raised, as every shot; nothing where the slug was never shot."""
+        shot = next((s for s in reversed(self.founder_shots) if s.get("slug") == slug), None)
+        if shot is None:
+            return
+        again = self._take(self.page, f"founder-{shot['n']:02d}-{_safe_slug(slug)}-after-edit.png", slug)
+        if again.get("error"):
+            shot["after edit camera error"] = again["error"]
+            return
+        shot["before_edit"] = {k: shot.get(k) for k in AFTER_EDIT_FIELDS if shot.get(k) not in (None, "", [], {})}
+        for k in AFTER_EDIT_FIELDS:
+            shot[k] = again.get(k)
+        shot["edited"] = True
 
     def founder(self, slug: str) -> None:
         """One founder screen. The send screen is taken once (its first opening), not once a person."""
@@ -1379,6 +1403,30 @@ def _vector_of(key: str) -> str:
     return key.split(".", 1)[0].upper()
 
 
+#: Spec 134 FR-3: what the founder did on a Check screen they left as Keel drew it.
+CHECK_AS_DRAFTED = "saved as Keel drafted it"
+
+
+def check_did(seen: dict) -> str:
+    """Spec 134 FR-3: what the founder did on a Check screen, from what the walk recorded there -- *typed {n} of their own
+    rungs over Keel's draft, then saved* where `list_check` typed rungs over Keel's redraft (spec 067 FR-2,
+    `rungs_edited`), the rungs added into new rows named too (`rungs`), Importance's own further difficulties typed
+    (`importance.added`); *saved as Keel drafted it* only where nothing was typed."""
+    edited = len(((seen or {}).get("rungs_edited") or {}).get("edited") or [])
+    added = len(((seen or {}).get("rungs") or {}).get("added") or [])
+    typed = len(((seen or {}).get("importance") or {}).get("added") or [])
+    done = []
+    if edited:
+        done.append(f"typed {edited} of their own rung{'s' if edited != 1 else ''} over Keel's draft")
+    if added:
+        done.append(f"typed {added} more of their own rung{'s' if added != 1 else ''} into new rows")
+    if typed:
+        done.append(f"typed {typed} more of their own difficult{'ies' if typed != 1 else 'y'} into the list")
+    if not done:
+        return CHECK_AS_DRAFTED
+    return ", and ".join(done) + ", then saved"
+
+
 def founder_answer(j, slug: str) -> Any:
     """The founder's answer from the file for one screen slug (what was typed or picked there)."""
     f = j.founder
@@ -1445,7 +1493,7 @@ def founder_answer(j, slug: str) -> Any:
                     "sent as one Answer": typed.get("sent_answer")}
         return answer.text
     if kind == "check":
-        return "saved as Keel drafted it"
+        return check_did(next((s for s in seen if s.get("screen") == "check"), {}))
     if kind == "choose":
         listed = answer.listed or {}
         index = listed.get("pickedIndex") or 0
@@ -1462,6 +1510,10 @@ def founder_answer(j, slug: str) -> Any:
             out["sent with the save (SavedList.duration)"] = picked.get("duration_sent")
         return out
     return None
+
+
+#: Spec 134 FR-1: the screens whose read-back carries the belief the screen drew alone, never the wire's row `belief`.
+SCREEN_DRAWN_BELIEF = ("answer", "check")
 
 
 def read_back(j, slug: str, wire: dict) -> Any:
@@ -1490,7 +1542,13 @@ def read_back(j, slug: str, wire: dict) -> Any:
     seen = (j.framing or {}).get(key) or []
     screen = {"q": "single", "answer": "answer", "check": "check", "choose": "choose"}.get(slug.split("-", 1)[0])
     drawn = next((s for s in seen if s.get("screen") == screen), {}) if screen else {}
-    out = {"belief": row.get("belief"), "left out": bool(row.get("leftOut") or row.get("unsure")) or None,
+    # spec 134 FR-1: on an Answer and a Check screen the reader gets the belief the screen drew (`belief line on screen`,
+    # `keel will test`, `bar` from the camera's `test` / `test_after`), never the wire's row `belief` -- read after the
+    # walk, it carries what the founder typed on later screens (purchase friction's time, typed on Choose, reached the
+    # Answer and Check reads on Fresco, Palus and Codyco: six zeros in cycle 11). On a Choose and a `q` screen the
+    # wire's belief stays, as before.
+    wire_belief = None if screen in SCREEN_DRAWN_BELIEF else row.get("belief")
+    out = {"belief": wire_belief, "left out": bool(row.get("leftOut") or row.get("unsure")) or None,
            "frame": (drawn.get("frame") or {}).get("progress")}
     if drawn.get("belief"):
         out["belief line on screen"] = drawn.get("belief")
@@ -1529,6 +1587,9 @@ def founder_screens(j, cam: Camera | None, wire: dict) -> list[dict]:
                     # spec 119 FR-3: what a Choose screen draws beyond the list -- its title and intro, the founder's
                     # time box and the *Keel will test* box (only where drawn)
                     **{k: shot[k] for k in ("title", "intro", "time_box", "keel_test", "idea_boxes") if shot.get(k)},
+                    # spec 134 FR-2: the guidance under the list, never a row; FR-3: a Check screen the founder edited
+                    # is recorded as they left it, Keel's first draw kept apart
+                    **{k: shot[k] for k in ("note", "edited", "before_edit") if shot.get(k)},
                     "answer": _safe(lambda s=slug: founder_answer(j, s)),
                     "keel read back": _safe(lambda s=slug: read_back(j, s, wire)),
                     **({"camera error": shot["error"]} if shot.get("error") else {})})
