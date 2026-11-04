@@ -253,7 +253,10 @@ def test_the_second_stems_and_the_deciding_line_first():
     assert fake.spoken_filled("commercial.purchase_friction", {"{solution_name}": "Fresco"}) == \
         "What would take the time in buying Fresco?"
     assert fake.spoken_filled("commercial.purchase_friction", {}) == "What would take the time in buying it?"
-    assert fake.spoken_of("solution.compatibility", also=True) == "What steps did it take?"
+    # spec 132 FR-15 re-pin (keel-cloud 208 FR-2): Compatibility's second stem says the pick back first
+    assert fake.spoken_of("solution.compatibility", also=True) == \
+        "You said yes, with some steps. What did you have to do?"
+    assert fake.ALSO["solution.compatibility"][3] == "What steps did it take?", "the heading unchanged"
     chain = fake.Founder(importance_item="own", price_low=1.0, chain_price=True)
     assert fake.first_rung([_p("commercial.price", "band_0.5_1")], chain, "COMMERCIAL_B2B", b2b=True) == \
         "commercial.price"
@@ -279,10 +282,11 @@ def test_fill_and_its_words():
     assert fake.joined(["A", "B"], "and") == "a and b" and fake.joined(["A", "B", "C"], "or") == "a, b or c"
     assert fake.joined([None, " "], "and") is None
     # spec 086 FR-5 (keel-cloud 154): the rungs name the thing; a missing value reads 154's defaults
+    # spec 132 FR-15 re-pin (keel-cloud 208 FR-2): Importance's base stem (a lock with no own item, whose rung is never
+    # found) is one question, no opening negative, no count
     assert fake.fill("problem.importance", {"{their_picks}": "a and b", "{founder_item}": "c"}) == \
-        "You did not pick c as one to make easier. What made the others more pressing for you?"
-    assert fake.fill("problem.importance", {}) == ("You did not pick this one as one to make easier. What made the "
-                                                   "others more pressing for you?")
+        "What mattered more to you than c?"
+    assert fake.fill("problem.importance", {}) == "What mattered more to you than this one?"
     assert fake.fill("commercial.price", {"{band}": fake.WOULD_NOT_PAY_BAND}) == \
         "You put it at nothing. What would make it worth more to you?"
     assert fake.fill("commercial.price", {"{band}": "$2 to $5", "{solution_name}": "Lullaby"}) == \
@@ -301,8 +305,7 @@ def test_the_fakes_follow_up_lines():
     assert fake.KINDS[-2:] == ("FOLLOW_UP", "CONDITION") and "FOLLOW_UP" in fake.UNSPOKEN
     assert fake.follow_up_script(fake.spoken_filled("problem.importance", {"{founder_item}": "knowing what the cry "
                                                                                        "means"})) == (
-        "One more thing. You did not pick knowing what the cry means as one to make easier. What made the others more "
-        "pressing for you?")                                                # keel-cloud 154's Lullaby row
+        "One more thing. What mattered more to you than knowing what the cry means?")  # keel-cloud 208's Lullaby row
     assert fake.walks("COMMERCIAL_B2B", True) == ("commercial.price", "commercial.buyer_payer_alignment",
                                                   "commercial.purchase_friction", "commercial.commitment")
     assert len(fake.walks("PRIMARY", True)) == 5 and len(fake.walks("PRIMARY", False)) == 9

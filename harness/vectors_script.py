@@ -3343,6 +3343,11 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         pass
     elif rung == "problem.importance":
         values["{their_picks}"] = fake.joined([label(c) for c in codes], "and")
+        # spec 132 FR-15 (keel-cloud 208 FR-2, `pickSaid`): the person's own picks said back, each by its short form --
+        # its row's short name, else the row cut -- the first, then the second where there were two
+        said = [pick_said(entry, rung, label(c)) for c in codes if c != fake.NOTHING_ELSE_CODE]
+        values["{their_pick}"] = said[0] if said else None
+        values["{their_next}"] = said[1] if len(said) > 1 else None
     elif rung == "problem.current_solution_satisfaction":
         values["{their_answer}"] = fake.lower(label(codes[0]) if codes else None)
     elif rung == "solution.compatibility":
@@ -3409,7 +3414,14 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         said = label(codes[0]) if codes[0] in fake.ALSO[rung][0] else None
         if said and said.startswith(fake.ONLY_IF):
             values[WHOLE_TEXT] = fake.only_if_said_back(said[len(fake.ONLY_IF):])
-    if rung == "commercial.purchase_friction":
+    band = fake.duration_said(label(codes[0])) if rung == "commercial.purchase_friction" and codes \
+        and str(codes[0]).startswith("days_") else None
+    if band is not None:
+        # spec 132 FR-15 (keel-cloud 208 FR-1, FR-2): the duration band picked said back first, as a person says it --
+        # *You said 1 to 3 months.* -- never *to under*, then the registry's one question; a list saved before 182 (its
+        # fixed three) as before
+        values[WHOLE_TEXT] = f"You said {band}. " + fake.fill(rung, values)
+    elif rung == "commercial.purchase_friction":
         # keel-cloud 128 FR-12: asked about this purchase, followed up in its tense -- on the long purchase's second
         # stem too (`FollowUpComposer.values` runs for either stem; S-006 and S-007 on the 129 build: *What would take the
         # time?*, said as it reads)
@@ -3428,7 +3440,11 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
     if whole is not None:
         text = whole
     elif named:
-        text = fake.fill_wording(fake.named_text(named, fake.picks_counted(rung, codes)), values)
+        picks = fake.picks_counted(rung, codes)
+        text = fake.fill_wording(fake.named_text(named, picks), values)
+        if picks > 1 and fake.over_cap(text):
+            # spec 132 FR-15 (keel-cloud 208 FR-2): two picks past the spoken cap say the first alone, *that* agreeing
+            text = fake.fill_wording(fake.named_text(named, 1), values)
     else:
         text = fake.fill(rung, values, also=also)
     # keel-cloud 129 FR-3: Current solution's and Relative advantage's text is their spoken line (the filled text pasted
@@ -3444,8 +3460,18 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
     # back is spoken as it reads, on every path (ability, fact, partly, no) -- not the registry's *that step would be hard*
     said_back = rung == "solution.compatibility" and not also and text != filled \
         and fake.FILL_DEFAULTS["{condition}"] not in text
-    spoken = text if whole is not None or would_not_pay or said_back else filled
+    # spec 132 FR-15 (keel-cloud 208 FR-1): a whole text's spoken line says a percent in words (*about a tenth to a
+    # quarter of a percent a year*); the screen keeps its figures
+    spoken = fake.percent_said(text) if whole is not None or would_not_pay or said_back else filled
     return {"dimension": rung, "text": text, "spoken": spoken, "also": also}
+
+
+def pick_said(entry, rung: str, label: str | None) -> str | None:
+    """keel-cloud 208 (`FollowUpComposer.pickSaid`): one of the person's Importance picks by its short form -- the row's
+    hidden short name where the scripted writer named it (a golden walk), else the row cut (`said_short`)."""
+    from harness import interviewer_fake as fake                       # noqa: PLC0415
+    name = row_short_names(entry, rung).get(label) if label else None
+    return name or fake.said_short(label)
 
 
 def short_name_said_back(code: str | None, pick: str | None, name: str) -> str:
@@ -3504,6 +3530,13 @@ def lock_values(entry, interview: dict | None, rung: str, founder_item: str | No
     # spec 129 (keel-cloud 200 FR-3): the hidden short name of the row the rung refers back to, where the script wrote
     # one (a golden walk); None reads today's wording
     values["{short_name}"] = tested_short_name(entry, rung)
+    # spec 132 FR-15 (keel-cloud 208 FR-2, `FollowUpComposer.lockValues`): never the whole row -- where the row has no
+    # short name, the row cut (`said_short`): Importance's own item as the stranger saw it, Current solution's phrase as
+    # asked; so the named wordings are said wherever the founder has an own item
+    if values["{short_name}"] is None and rung == "problem.importance":
+        values["{short_name}"] = fake.said_short(own)
+    elif values["{short_name}"] is None and rung == "problem.current_solution_satisfaction":
+        values["{short_name}"] = fake.said_short(values.get("{phrase}"))
     return values
 
 

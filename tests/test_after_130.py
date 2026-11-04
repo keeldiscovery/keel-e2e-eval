@@ -40,8 +40,13 @@ def test_the_price_follow_up_says_back_the_price_shown_the_band_or_low():
         "You put it below €3,000. What would make it worth more to you?"
     assert fake.price_said_back("Could you sign off on about €3,000 per hotel yourself?", "under €1,000", "Codyco") \
         == "You put Codyco below €3,000. What would make it worth more to you?"
+    # spec 132 FR-15 re-pin (keel-cloud 208 FR-1, `BandSaid.written`): the band said as a person says a range, its own
+    # unit and period kept (a label from before 185 carries them), never *to under*
     assert fake.price_said_back("What would it be worth to you a month?", "under $10 a month") == \
-        "You put it at under $10 a month. What would make it worth more to you?"
+        "You said under $10 a month for it. What would make it worth more to you?"
+    assert fake.price_said_back("What would Fresco be worth to you a month, per site?", "$500 to under $800",
+                                "Fresco") == "You said about $500 to $800 a site a month for Fresco. What would make " \
+                                             "it worth more to you?"
     assert fake.price_said_back("What would it be worth to you a month?", None) == \
         "You put it low. What would make it worth more to you?"
     assert fake.price_said_back(None, fake.WOULD_NOT_PAY_BAND) == \
@@ -68,8 +73,9 @@ def test_the_owed_price_follow_up_is_composed_whole_text_and_spoken_alike():
     stem = "What would something that helps at night be worth to you a month?"
     owed = vs.follow_up_question(lullaby, pick("under_2"), vs.LINK_PRIMARY, _price_interview(stem), "tok")
     assert owed["dimension"] == "commercial.price"
+    # spec 132 FR-15 re-pin (keel-cloud 208 FR-1): the band said back with the question's own period
     assert owed["text"] == owed["spoken"] == \
-        "You put a suggested reason for crying at under $2. What would make it worth more to you?"
+        "You said under $2 a month for a suggested reason for crying. What would make it worth more to you?"
     shown = vs.follow_up_question(lullaby, pick("under_2"), vs.LINK_PRIMARY,
                                   _price_interview("Would you pay $5 a month for it?"), "tok")
     assert shown["text"] == shown["spoken"] == \

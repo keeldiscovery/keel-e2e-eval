@@ -299,10 +299,12 @@ def test_importances_follow_up_text_is_its_spoken_line():
     codes = [vs.wire_code(rung, i) for i in range(5)]
     owed = vs.follow_up_question(lullaby, [vs.Pick(dimension=rung, codes=codes[1:3])], vs.LINK_PRIMARY,
                                  _interview(rung, {c: f"Label {c}" for c in codes}, part=1), "tok")
-    # spec 086 FR-5 (keel-cloud 154): the founder's own item said back, as served
-    assert owed["text"] == owed["spoken"] == \
-        f"You did not pick {vs.fake_lower('Label ' + codes[0])} as one to make easier. What made the others more " \
-        "pressing for you?"
+    # spec 086 FR-5 (keel-cloud 154): the founder's own item said back, as served. Spec 132 FR-15 re-pin (keel-cloud 208
+    # FR-2): never the whole row -- the own item with no short name is the row cut (`said_short`), the person's two
+    # picks said back by theirs; the clip, recorded before anyone picks, asks what mattered more
+    own, first, second = (vs.fake_lower(f"Label {c}") for c in codes[:3])
+    assert owed["text"] == f"You picked {first} and {second} over {own}. Why did those matter more to you?"
+    assert owed["spoken"] == f"What mattered more to you than {own}?"
 
 
 def test_compatibility_says_a_thing_condition_back_and_is_spoken_as_it_reads():

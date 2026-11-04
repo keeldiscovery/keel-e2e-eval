@@ -70,16 +70,21 @@ def test_the_named_wordings_are_the_registrys_own():
 
 
 def test_importance_counts_the_picks_in_its_text_and_never_in_its_clip():
+    # spec 132 FR-15 re-pin (keel-cloud 208 FR-2): the picks said back by their short forms (`{their_pick}`,
+    # `{their_next}`), *None of these* its own question, the clip count-free and pick-free
     block = fake.NAMED["problem.importance"]
-    assert "the one you picked" in fake.named_text(block, fake.picks_counted("problem.importance", ["rival_1"]))
-    assert "the ones you picked" in fake.named_text(block, fake.picks_counted("problem.importance",
-                                                                              ["rival_1", "rival_2"]))
+    assert "{their_pick} over {short_name}" in fake.named_text(block, fake.picks_counted("problem.importance",
+                                                                                          ["rival_1"]))
+    assert "{their_pick} and {their_next} over" in fake.named_text(block, fake.picks_counted("problem.importance",
+                                                                                              ["rival_1", "rival_2"]))
     assert fake.named_text(block, fake.picks_counted("problem.importance", ["rival_1", fake.NOTHING_ELSE_CODE])) \
         == block["one"], "Nothing else is never a pick"
-    assert fake.named_text(block, 0) == block["text"] == block["spoken"], "None of these: the count-free wording"
+    assert fake.named_text(block, 0) == block["text"] == \
+        "You said none of these. What would you most like made easier instead?"
     values = {"{short_name}": "matching deliveries"}
     assert fake.spoken_filled("problem.importance", values) == (
-        "You did not pick matching deliveries. What made you choose differently?"), "the clip never counts"
+        "What mattered more to you than matching deliveries?"), "the clip never counts nor says a pick"
+    assert "{their_pick}" not in block["spoken"] and "{their_next}" not in block["spoken"]
 
 
 def test_a_row_with_no_short_name_reads_todays_wording():
@@ -184,7 +189,7 @@ def test_the_follow_up_says_the_short_name_in_the_rows_place(golden):
                                                                                      "invoices")
     assert values["{short_name}"] == "matching deliveries"
     assert vs.follow_up_clip(countly, {"occasion": "delivery"}, "problem.importance") == (
-        "You did not pick matching deliveries. What made you choose differently?")
+        "What mattered more to you than matching deliveries?")              # spec 132 FR-15 (keel-cloud 208)
     effort = vs.lock_values(countly, {}, "solution.adoption_friction")["{short_name}"]
     assert effort == vs.tested_short_name(countly, "solution.adoption_friction")
     assert vs.follow_up_clip(countly, {}, "solution.adoption_friction") == f"What makes {effort} too much trouble for you?"
@@ -193,9 +198,11 @@ def test_the_follow_up_says_the_short_name_in_the_rows_place(golden):
 def test_a_served_named_wording_is_the_products_on_a_back_test():
     values = {"{occasion}": "night", "{solution_name}": "Lullaby"}
     pattern = fake.named_pattern("problem.importance", values)
-    assert pattern.match("You did not pick knowing what a cry means. What made the one you picked more pressing for "
+    # spec 132 FR-15 re-pin (keel-cloud 208): the picks and the short name are the model's own words
+    assert pattern.match("You picked getting back to sleep over knowing what a cry means. Why did that matter more to "
                          "you?")
-    assert not pattern.match("You did not pick it. What made you choose differently?"), "one word is no short name"
+    assert pattern.match("What mattered more to you than knowing what a cry means?")
+    assert not pattern.match("What mattered more to you than it?"), "one word is no short name"
     advantage = fake.named_pattern("solution.relative_advantage", values)
     assert advantage.match("You said Lullaby wouldn't make much difference on your last night. What would make "
                            "settling the baby better for you, if anything?")

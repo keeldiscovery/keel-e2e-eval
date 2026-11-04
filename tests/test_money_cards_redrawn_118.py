@@ -596,7 +596,9 @@ def test_compatibilitys_second_stem_only_where_the_answer_says_its_steps():
     fact = fake.Founder(importance_item="own", compatibility_steps=True)
     pick = {"dimension": CO, "codes": ["yes_with_steps"], "chip": None}
     assert fake.owed([pick], fact) == [(CO, True)] and fake.owed([pick], ability) == []
-    assert fake.ALSO[CO][1] == "What steps did it take?"
+    # spec 132 FR-15 re-pin (keel-cloud 208 FR-2): the pick said back first; the heading keeps 183's words
+    assert fake.ALSO[CO][1] == "You said yes, with some steps. What did you have to do?"
+    assert fake.ALSO[CO][3] == "What steps did it take?"
 
 
 # ------------------------------------------------- FR-4: the after-answers leg reads keel-web 155's lines

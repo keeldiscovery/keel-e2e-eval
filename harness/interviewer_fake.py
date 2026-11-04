@@ -402,7 +402,13 @@ LOCK_RULE = "lock_rule"
 #: the time in buying {solution_name}?*, its second stem gone; Compatibility gains the second stem *What steps did it
 #: take?* on *Yes, with some steps* (a permission or a fact; never the ability's *Yes, most of the time*); a person's
 #: questions go first to the failing line with the fewest whys so far (`fewest_first`).
-LADDER_SHA = "f3f0d99e"
+#: Spec 132 FR-15 (keel-cloud 208, keel-cloud-docs `7c96988d`): the follow-up says the pick back as a person says it --
+#: Importance's base stem *What mattered more to you than {founder_item}?* (a lock with no own item; it read *You did not
+#: pick {founder_item} as one to make easier. ...*), Compatibility's second stem *You said yes, with some steps. What did
+#: you have to do?* (*What steps did it take?*, its heading unchanged), and Importance's and Compatibility's named
+#: wordings (`NAMED`, `ALSO_NAMED`); Price's band and Purchase friction's duration band said back (`band_written`,
+#: `duration_said`), a percent in words on a whole text's spoken line (`percent_said`).
+LADDER_SHA = "7c96988d"
 #: Design §2, as the registry carries it since keel-cloud 118: `(dimension, against, text template, spoken wording)`, in
 #: registry order. Purchase friction is a rung now (its quick / not-needed answers are against the fear); Adoption
 #: friction's and Commitment's stems are the plain questions of 118 FR-4. Since keel-cloud 154 (spec 086 FR-5) every rung
@@ -411,8 +417,8 @@ LADDER_SHA = "f3f0d99e"
 #: the project's words (`FollowUpBlock.SPOKEN_PLACEHOLDERS`), filled as the clip recorded at the lock says them.
 LADDER: tuple[tuple[str, tuple[str, ...] | str, str, str], ...] = (
     ("problem.importance", ("none_of_these",),
-     "You did not pick {founder_item} as one to make easier. What made the others more pressing for you?",
-     "You did not pick {founder_item} as one to make easier. What made the others more pressing for you?"),
+     "What mattered more to you than {founder_item}?",
+     "What mattered more to you than {founder_item}?"),
     # spec 093 FR-2 (keel-cloud 161 T003): the rung says the founder's phrase, `{phrase}` (was *your way of {job}*)
     ("problem.current_solution_satisfaction", ("outcome_1", "outcome_2"),
      "You said {phrase} works for you. What keeps it working?",
@@ -446,8 +452,9 @@ RUNGS = tuple(r[0] for r in LADDER)
 #: the long purchase) -- `{dimension: (on, text template, spoken wording, heading)}`.
 ALSO: dict[str, tuple[tuple[str, ...], str, str, str]] = {
     # spec 118 (keel-cloud 183 FR-1 / T003): the founder's words, one short question, the clip the same
-    "solution.compatibility": (("yes_with_steps",), "What steps did it take?", "What steps did it take?",
-                               "What steps did it take?"),
+    # spec 132 FR-15 (keel-cloud 208 FR-2): the pick said back first, then the one question; the heading unchanged
+    "solution.compatibility": (("yes_with_steps",), "You said yes, with some steps. What did you have to do?",
+                               "You said yes, with some steps. What did you have to do?", "What steps did it take?"),
     "solution.adoption_friction": (("yes_if_worth_it",), "What would make {solution_name} clearly worth it to you?",
                                    "What would make {solution_name} clearly worth it to you?",
                                    "What would make it clearly worth it?"),
@@ -505,18 +512,22 @@ FILL_DEFAULTS = {"{their_picks}": "other difficulties", "{founder_item}": "this 
                  "{smaller_step}": "that first step", "{job}": "doing this", "{solution_name}": "it",
                  "{step}": "that step", "{phrase}": "the way you do it",
                  # keel-cloud 200 (spec 129): never read -- a named wording is said only where its short name is present
-                 "{short_name}": "that", "{smaller_name}": "that first step"}
+                 "{short_name}": "that", "{smaller_name}": "that first step",
+                 # keel-cloud 208 (spec 132 FR-15): the person's own picks, said back where they were made
+                 "{their_pick}": "the one you picked", "{their_next}": "the other one"}
 #: keel-cloud 200 FR-3 (spec 129; registry `follow_up.named`, `FollowUpBlock.Named`): the wordings a rung says where the
 #: row it refers back to carries its hidden short name -- `{short_name}` (Commitment's second stem `{smaller_name}`), two
 #: to five words in the persona's words, never shown to the founder. Importance counts the stranger's picks (`one` for
 #: one, `several` for two; `text` where none was picked) in its text alone: the clip (`spoken`) is recorded at the lock,
 #: before anyone picks, so it never counts. Today's wordings (`LADDER`, `ALSO`) are the fallback where a row has none.
 NAMED: dict[str, dict[str, str]] = {
+    # spec 132 FR-15 (keel-cloud 208 FR-2): the person's pick said back by its short form (`{their_pick}`,
+    # `{their_next}`), *None of these* its own question, the clip (recorded before anyone picks) count-free
     "problem.importance": {
-        "text": "You did not pick {short_name}. What made you choose differently?",
-        "spoken": "You did not pick {short_name}. What made you choose differently?",
-        "one": "You did not pick {short_name}. What made the one you picked more pressing for you?",
-        "several": "You did not pick {short_name}. What made the ones you picked more pressing for you?"},
+        "text": "You said none of these. What would you most like made easier instead?",
+        "spoken": "What mattered more to you than {short_name}?",
+        "one": "You picked {their_pick} over {short_name}. Why did that matter more to you?",
+        "several": "You picked {their_pick} and {their_next} over {short_name}. Why did those matter more to you?"},
     "problem.current_solution_satisfaction": {
         "text": "You said {short_name} works for you. What keeps it working?",
         "spoken": "You said {short_name} works for you. What keeps it working?"},
@@ -535,8 +546,9 @@ NAMED: dict[str, dict[str, str]] = {
 #: keel-cloud 200 FR-3: the second stems' named wordings (`also.named`) -- Compatibility's *What steps did it take?*
 #: filled, never a bare *it*; Commitment's smaller step by its own short name.
 ALSO_NAMED: dict[str, dict[str, str]] = {
-    "solution.compatibility": {"text": "What steps went into {short_name} for that {occasion}?",
-                               "spoken": "What steps went into {short_name} for that {occasion}?"},
+    "solution.compatibility": {"text": "You said yes, with some steps. What went into {short_name} for that {occasion}?",
+                               "spoken": "You said yes, with some steps. What went into {short_name} for that "
+                                         "{occasion}?"},
     "commercial.commitment": {"text": "What would {smaller_name} have to show you?",
                               "spoken": "What would {smaller_name} have to show you?"},
 }
@@ -592,10 +604,238 @@ def named_pattern(dimension: str, values: dict, *, also: bool = False) -> re.Pat
     shapes = []
     for wording in dict.fromkeys(block.values()):
         parts = re.split(r"(\{[a-z_]+\})", wording)
-        shapes.append("".join(r"\S+(?: \S+){1,4}" if part in SHORT_NAMES
+        # spec 132 FR-15 (keel-cloud 208 FR-2): a short name, or the row cut where it has none (`said_short`: up to
+        # six words, a row with no clean cut as written, at most the row cap); a pick said back by either
+        shapes.append("".join(SHORT_FORM if part in SHORT_NAMES
+                              else PICK_FORM if part in PICKS_SAID
                               else re.escape(fill_wording(part, values)) if part.startswith("{")
                               else re.escape(part) for part in parts))
     return re.compile("^(?:" + "|".join(shapes) + ")$")
+
+
+#: Spec 132 FR-15: what `named_pattern` reads a short name as -- two to nine words (a short name's two to five, the row
+#: cut's six, a row with no clean cut said as written, at most the row cap of nine) -- and a person's pick, one to nine.
+SHORT_FORM = r"\S+(?: \S+){1,8}"
+PICK_FORM = r"\S+(?: \S+){0,8}"
+#: keel-cloud 208 (`FollowUpBlock.PLACEHOLDERS`): the person's first and second Importance pick, each by its short form;
+#: a person's own, so never in a clip.
+PICKS_SAID = ("{their_pick}", "{their_next}")
+#: keel-cloud 208 (`FollowUpComposer.SAID_MAX_WORDS`): the most words a row is said back in where it has no short name --
+#: one more than a short name's five, so a six-word row is kept whole.
+SAID_MAX_WORDS = 6
+_ALTERNATIVE = re.compile(r"^(.+)\s+(?:or|and)\s+\S.*$", re.S)
+
+
+def said_short(row: str | None) -> str | None:
+    """keel-cloud 208 (`FollowUpComposer.saidShort`): a row said back where it has no short name -- cut to six words by
+    its trailing phrases (`ItemFrames.cutToFit`), then a trailing *or* / *and* alternative (*keeping idle cash in the
+    bank's treasury money market fund* is *keeping idle cash*), lower-cased mid-sentence; a row with no clean cut is said
+    as written, never cut mid-phrase; None for none."""
+    from instructions import spoken as spoken_mod                      # noqa: PLC0415
+    if row is None or not str(row).strip():
+        return None
+    whole = str(row).strip()
+    cut = spoken_mod.cut_to_fit(whole, SAID_MAX_WORDS)
+    while len(cut.split()) > SAID_MAX_WORDS:
+        alternative = _ALTERNATIVE.match(cut)
+        if not alternative or len(alternative.group(1).split()) < 2:
+            return lower(whole)
+        cut = spoken_mod.cut_to_fit(alternative.group(1).strip(), SAID_MAX_WORDS)
+    return lower(cut)
+
+
+#: keel-cloud 208 (`SpokenForm.STEM_MAX_WORDS`): the spoken cap a sentence of a follow-up keeps.
+STEM_MAX_WORDS = 20
+
+
+def over_cap(text: str | None) -> bool:
+    """keel-cloud 208 (`FollowUpComposer.overCap`): whether a sentence of `text` (`IdeaLines.sentences`) is past the
+    spoken cap of 20 words -- two picks past it say the first alone (*Why did that matter more to you?*)."""
+    return any(len(t.split()) > STEM_MAX_WORDS for t in re.split(r"(?<=[.!?])\s+", (text or "").strip()) if t.strip())
+
+
+# --------------------------------------------- keel-cloud 208 FR-1: a band said back as a person says a range
+
+#: `BandSaid.ROUND_WITHIN`: how far a round figure may sit from the edge it stands for (599 is 600, 1,234 stays).
+ROUND_WITHIN = 0.015
+_FIGURE = r"((?:[^\d\s]{1,4} ?)?)(\d[\d,]*(?:\.\d+)?)(%?)"
+_BAND = re.compile(r"(?i)^(under |over )?" + _FIGURE + r"(?:( to under | to )" + _FIGURE + r")?( or more)?(.*)$", re.S)
+_WORTH = re.compile(r"(?i)\bworth to you(?:\s+(.+?))?\?\s*$")
+_FEE = re.compile(r"(?i)\bwhat fee(?:\s+(.+?))?\s+would feel fair to you\?\s*$")
+
+
+def band_round(value):
+    """`BandSaid.round`: the nearest figure of one significant digit, else two, within 1.5% of `value` (599 is 600, 49.99
+    is 50, 0.249 is 0.25); else the value as it is (1,234, 12.5, 750). A `Decimal` in, a `Decimal` out."""
+    from decimal import ROUND_HALF_UP, Decimal, localcontext            # noqa: PLC0415
+    value = Decimal(value)
+    if value <= 0:
+        return value
+    for digits in (1, 2):
+        with localcontext() as ctx:
+            ctx.prec, ctx.rounding = digits, ROUND_HALF_UP
+            rounded = +value
+        if abs(rounded - value) / value <= Decimal(str(ROUND_WITHIN)):
+            return rounded.normalize()
+    return value
+
+
+def _plain(value) -> str:
+    """A `Decimal` without trailing zeros or an exponent (`toPlainString` of `stripTrailingZeros`)."""
+    return format(value.normalize(), "f")
+
+
+def _money(value) -> str:
+    """`PriceLadder.money`: a whole figure *1,234*, else two places *12.50*."""
+    stripped = value.normalize()
+    if stripped == stripped.to_integral():
+        return f"{int(stripped):,}"
+    return f"{stripped:,.2f}"
+
+
+def _figure(prefix: str | None, number: str, percent: str | None) -> str:
+    """`BandSaid.figure`: one edge at its round figure, its prefix and percent kept, in the screen's number format."""
+    from decimal import Decimal                                         # noqa: PLC0415
+    rounded = band_round(Decimal(number.replace(",", "")))
+    pct = bool(percent)
+    said = _plain(rounded) if pct else _money(rounded)
+    return (prefix or "") + said + ("%" if pct else "")
+
+
+def tail_said(tail: str | None) -> str | None:
+    """`BandSaid.tailSaid`: a question's or an old label's unit and period as said after an amount -- each *per {unit}*
+    part *a {unit}* and first, the period after (*a month, per site* is *a site a month*, *per hotel, once* *a hotel
+    once*); None for none."""
+    if tail is None or not tail.strip():
+        return None
+    per, when = [], []
+    for part in re.split(r"\s*,\s*", tail):
+        said = part.strip()
+        if not said:
+            continue
+        if said.lower().startswith("per "):
+            unit = said[4:].strip()
+            per.append(("an " if unit[:1] in "aeioAEIO" and unit else "a ") + unit)
+        else:
+            when.append(said)
+    out = per + when
+    return " ".join(out) if out else None
+
+
+def unit_of(question: str | None) -> str | None:
+    """`BandSaid.unitOf`: the unit and period the price question asked in, as a person says them after an amount --
+    *... be worth to you a month, per site?* is *a site a month*; *What fee a year, per office, would feel fair to you?*
+    *an office a year*; None where the question names neither."""
+    if question is None or not question.strip():
+        return None
+    text = question.strip()
+    worth, fee = _WORTH.search(text), _FEE.search(text)
+    return tail_said(worth.group(1) if worth else fee.group(1) if fee else None)
+
+
+def band_written(label: str | None, unit: str | None) -> str | None:
+    """`BandSaid.written`: the band said back, the edges at their round figures and `unit` after them where the label
+    carries no words of its own -- *about $250 to $600 a year*, *under $250 a year*, *$5,000 or more a year*; None where
+    the label is not a band (*I wouldn't pay for this*)."""
+    if label is None or not label.strip():
+        return None
+    m = _BAND.match(label.strip())
+    if not m:
+        return None
+    lead = (m.group(1) or "").strip().lower()
+    low = _figure(m.group(2), m.group(3), m.group(4))
+    high = None if m.group(7) is None else _figure(m.group(6), m.group(7), m.group(8))
+    or_more = m.group(9) is not None
+    rest = (m.group(10) or "").strip()
+    own = tail_said(rest) if rest else None
+    after = " " + own if own else "" if unit is None or not unit.strip() else " " + unit.strip()
+    if high is not None:
+        said = f"about {low} to {high}"
+    elif lead == "under":
+        said = f"under {low}"
+    elif lead == "over" or or_more:
+        said = f"{low} or more"
+    else:
+        said = low
+    return said + after
+
+
+def duration_said(label: str | None) -> str | None:
+    """`BandSaid.duration`: a duration band said back -- *3 to 6 months*, *6 weeks to 3 months*, *over 6 months*, *under
+    2 weeks* -- never *to under*; None where the label is none."""
+    if label is None or not label.strip():
+        return None
+    return lower(label.strip().replace(" to under ", " to "))
+
+
+_PERCENT = re.compile(r"(\d+(?:\.\d+)?)%")
+_FRACTIONS = {"0.01": "a hundredth", "0.02": "two hundredths", "0.05": "five hundredths", "0.1": "a tenth",
+              "0.2": "two tenths", "0.25": "a quarter", "0.3": "three tenths", "0.4": "four tenths", "0.5": "half",
+              "0.6": "six tenths", "0.7": "seven tenths", "0.75": "three quarters", "0.8": "eight tenths",
+              "0.9": "nine tenths"}
+_ONES = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
+_TEENS = ("ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen")
+_TENS = ("", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety")
+
+
+def _number_words(n: int) -> str:
+    if n < 10:
+        return _ONES[n]
+    if n < 20:
+        return _TEENS[n - 10]
+    return _TENS[n // 10] + ("" if n % 10 == 0 else "-" + _number_words(n % 10))
+
+
+def _whole(value) -> str:
+    """`SpokenForm.whole`: 1 to 100 in words, a half said (*two and a half*); a figure past them as written."""
+    from decimal import ROUND_FLOOR, Decimal                            # noqa: PLC0415
+    floor = value.to_integral_value(rounding=ROUND_FLOOR)
+    part = (value - floor).normalize()
+    n = int(floor)
+    if n > 100 or (part != 0 and part != Decimal("0.5")):
+        return _plain(value)
+    said = "a hundred" if n == 100 else _number_words(n)
+    return said if part == 0 else said + " and a half"
+
+
+def _percent_words(value) -> str:
+    """`SpokenForm.percentWords`: *a quarter of a percent*, *half a percent*, *one percent*, *two and a half percent*."""
+    from decimal import Decimal                                         # noqa: PLC0415
+    v = value.normalize()
+    if v < Decimal(1):
+        fraction = _FRACTIONS.get(_plain(v))
+        if fraction is not None:
+            return "half a percent" if fraction == "half" else fraction + " of a percent"
+        return _plain(v) + " percent"
+    return _whole(v) + " percent"
+
+
+def _percent_short(value) -> str:
+    """`SpokenForm.percentShort`: a range's low edge, its own *percent* dropped (*a quarter*, *half*, *one*)."""
+    said = _percent_words(value)
+    if said.endswith(" of a percent"):
+        return said[:-len(" of a percent")]
+    if said == "half a percent":
+        return "half"
+    return said[:-len(" percent")] if said.endswith(" percent") else said
+
+
+def percent_said(label: str | None) -> str | None:
+    """keel-cloud 185 / 208 (`SpokenForm.percentSaid`): a text's percents said in words for the voice -- *0.25%* is *a
+    quarter of a percent*, *1%* *one percent*; a range's low edge drops its own *of a percent* (*a tenth to a quarter of
+    a percent*). A text with no percent as it is."""
+    from decimal import Decimal                                         # noqa: PLC0415
+    if label is None or "%" not in label:
+        return label
+    out, at = [], 0
+    for m in _PERCENT.finditer(label):
+        value = Decimal(m.group(1))
+        low = label[m.end():].startswith(" to ")
+        out.append(label[at:m.start()])
+        out.append(_percent_short(value) if low else _percent_words(value))
+        at = m.end()
+    out.append(label[at:])
+    return "".join(out)
 WOULD_NOT_PAY_BAND = "nothing"
 #: keel-cloud 130 FR-7 (`FollowUpComposer.WORTH_MORE`): Price's follow-up question after its said-back pick; 154 FR-2:
 #: *to you*.
@@ -625,6 +865,11 @@ def price_said_back(question: str | None, band: str | None, name: str | None = N
     shown = _SHOWN_PRICE.search(question or "")
     if shown:
         return f"You put {idea} below {shown.group()}. {WORTH_MORE}"
+    # spec 132 FR-15 (keel-cloud 208 FR-1): the band picked said as a person says a range -- *You said about $500 to $800
+    # a site a month for Fresco.* -- the edges at their round figures, never *to under*, the question's unit and period
+    said = None if band is None or band == WOULD_NOT_PAY_BAND else band_written(band, unit_of(question))
+    if said is not None:
+        return f"You said {said} for {idea}. {WORTH_MORE}"
     if band and band.strip() and band != WOULD_NOT_PAY_BAND:
         return f"You put {idea} at {band}. {WORTH_MORE}"
     return f"You put {idea} low. {WORTH_MORE}"
