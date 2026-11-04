@@ -549,3 +549,70 @@ def test_a_scale_where_every_option_counts_one_way_is_r7_0():
     assert scripted_r7(_body("commercial.commitment"), escaped)[0] == 0
     bare = {**EXAMPLES["solution.relative_advantage"]["good"], "escape": None}
     assert scripted_r7(_body("solution.relative_advantage"), bare) == (0, "the escape the card requires is missing")
+
+
+# --------------------------------------------- spec 132 FR-4 (keel-cloud 205 FR-4): the Open points 205 settled
+
+REGISTRY_YAML_REL = "canon/designs/vectors/dimension-registry.yaml"
+#: The cards whose Open points keel-cloud 205 settled, each moved into the card's lines word for word as the registry's
+#: `_note_205` (YAML of record; dropped from the JSON) says it -- and the Open point each replaced, gone.
+SETTLED_205 = {"problem.prevalence": ("Registry vs spec 184 FR-1.",),
+               "problem.frequency": ("Registry vs spec 184 FR-2.",),
+               "solution.adoption_friction": ("Registry row's notes vs its own rule and spec 198.",),
+               "commercial.ability_to_pay": ("Registry vs spec 181 FR-2 and code.",),
+               "commercial.purchase_friction": ("Spec 182 FR-6 vs registry.",),
+               "commercial.commitment": ("Registry notes vs specs 180 and 198.", "Registry vs spec 199 FR-5.")}
+SETTLED_LABEL = "**Settled by keel-cloud 205 (the registry's note):**"
+
+
+@pytest.fixture(scope="module")
+def yaml_rows() -> dict:
+    import yaml                                                         # noqa: PLC0415
+    return {d["key"]: d for d in yaml.safe_load(_cloud(REGISTRY_YAML_REL))["dimensions"]}
+
+
+def _note_205(row: dict) -> str:
+    return row.get("_note_205") or (row.get("respondent") or {}).get("_note_205")
+
+
+def _open(body: str) -> str:
+    return body.split("#### Open", 1)[1] if "#### Open" in body else ""
+
+
+@pytest.mark.parametrize("key", sorted(SETTLED_205))
+def test_the_open_points_205_settled_are_the_cards_lines_in_the_registrys_words(key, yaml_rows):
+    """Spec 132 FR-4: each settled point is out of *Open* and on the card's lines, the registry's `_note_205` word for
+    word (one space between words), outside the Open section."""
+    body, note = _body(key), _note_205(yaml_rows[key])
+    assert note and note.startswith("2026-11-03, spec 205 (FR-4;"), key
+    lines = body.split("#### Open", 1)[0]
+    said = re.search(re.escape(SETTLED_LABEL) + r"(.*?)(?:\n- |\n\n|$)", lines, re.S)
+    assert said and _flat(said.group(1)) == _flat(note), key
+    for point in SETTLED_205[key]:
+        assert f"**{point}**" not in _open(body), (key, point)
+
+
+def test_no_card_but_the_six_carries_a_205_note_and_the_others_are_unmoved(yaml_rows):
+    """Spec 132 FR-4: no other card line moves -- the settled line is on the six alone, and every Open point 205 did not
+    settle stands (Prevalence's and Frequency's *Not settled*, Frequency's bands, Current solution's two, Existing
+    sacrifice's two, Ability to pay's chain note, Buyer and payer's belief and item)."""
+    for key in KEYS:
+        assert (SETTLED_LABEL in _body(key)) == (key in SETTLED_205), key
+        assert (_note_205(yaml_rows[key]) is not None) == (key in SETTLED_205), key
+    kept = {"problem.prevalence": ["Not settled."], "problem.frequency": ["Spec 131 vs registry.", "Not settled."],
+            "problem.current_solution_satisfaction": ["Spec 131 vs registry.", "Spec 203 FR-3 vs code."],
+            "commercial.existing_sacrifice": ["Spec 198 FR-3 vs registry.", "Registry vs code (spec 128 FR-21)."],
+            "commercial.ability_to_pay": ["Registry note vs the chain."],
+            "commercial.buyer_payer_alignment": ["Belief vs item (registry `_why_199`, spec 199 FR-1)."]}
+    for key in KEYS:
+        found = re.findall(r"^- \*\*(.+?)\*\*", _open(_body(key)), re.M)
+        assert found == kept.get(key, []), (key, found)
+    assert "(served `cant_say`: see the escape)" in cards.registry_line(_body("commercial.ability_to_pay"))
+
+
+def test_commitments_drift_template_is_the_registrys_without_now(rows):
+    """Spec 132 FR-4 / FR-5 (keel-cloud 205 FR-4): Commitment's `drift_template` loses *now*; the card says it word for
+    word, and no *now* is left in it."""
+    drift = rows["commercial.commitment"]["answers"]["drift_template"]
+    assert drift == "you said most would {founder} · {observed} of {n} would"
+    assert f"**The drift template:** *{drift}*" in _flat(cards.section(_body("commercial.commitment"), 3))

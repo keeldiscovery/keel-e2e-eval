@@ -84,6 +84,11 @@ How many of the people you are studying had the problem in the period you chose.
   must name the window and the problem as one act the person did or met, so a person without the problem can truly say
   No and a person with it Yes. A Yes opens the story; a No ends the interview, and the person is still counted.
 
+- **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point): the
+  founder's question screen carries belief_template as it stands ('... had this at least once in {window}'); the card
+  after the answers names the gate's own clause, never 'had this' (spec 184 FR-1; code, on the card only). Both stand;
+  nothing here moves.
+
 #### 3. For, against, neither
 
 - **For:** `yes` -- they had the problem in the window.
@@ -135,9 +140,6 @@ is never offered).
 
 #### Open
 
-- **Registry vs spec 184 FR-1.** The registry's `belief_template` still reads *{value} of these {actor_plural} had this
-  at least once in {window}.*; spec 184 FR-1 has the card after the answers name the gate's clause, *never "had this"*
-  (code does, on the card only). The founder's question screen carries the registry's sentence.
 - **Not settled.** A founder who picks *Fewer than 2 in 10* holds a belief no answer can refute (code: the share is
   always at or above 0). FR-1c asks *could it ever be refuted?*; whether R7 reads that founder's pick as a broken rule,
   when the screen's own options are sound, is not settled by the sources.
@@ -169,6 +171,12 @@ How often someone who has the problem runs into it.
   **The options:** one button per unit, *1* first, the window's count last (*1 · 2 · 3 · 4 · 5 · 6 · 7*) when the count
   is at most 7; a number box of at least 1 for a longer window. Never a 0 (a Yes at the gate means at least one), never
   the founder's range, never bands. Spoken past five steps: *Say a number from 1 to {N}.* Then the one escape.
+
+- **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point): the
+  founder's question screen carries belief_template as it stands ('{actor_plural} face this on {value}.'); the card
+  after the answers names the question's own clause, never 'face this' (spec 184 FR-2; code, on the card only). The
+  event the question asks is Prevalence's clause (WindowFrame.frequencyFounder), so the event's rules live in
+  Prevalence's guidance. Nothing here moves.
 
 #### 3. For, against, neither
 
@@ -215,8 +223,6 @@ the dimension out (asked of nobody; the brief says untested).
 - **Spec 131 vs registry.** FR-1a sketches Frequency's options as *the window's units as bands*; the registry serves one
   button per unit from 1 to the window's count (a number box past 7) and the founder a range -- there are no bands. The
   card follows the registry.
-- **Registry vs spec 184 FR-2.** The registry's `belief_template` reads *{actor_plural} face this on {value}.*; spec 184
-  FR-2 has the card after the answers name the question's clause, *never "face this"* (code does, on the card only).
 - **Not settled.** The registry's option rule lets the founder set a range from 0; this card scores a range starting
   at 0 or 1 R7 0 by FR-1c's own words, but whether the founder's question should refuse such a range is not settled.
 <!-- card:problem.frequency:end -->
@@ -592,6 +598,12 @@ The extra effort it asks of them to start using it: setting it up, learning it, 
   this person's and not true of every step (else it is a second *Yes*). An effort someone else does leaves the options
   nothing true to say: R7 0.
 
+- **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point): the
+  note above ends on spec 184 -- since spec 198 (FR-9) the conditional yes is the person's own condition again: asked.md
+  writes `condition` beside the clause (at most 7 words) and code serves 'Only if {condition}'
+  (RespondentItems.onlyIfOptions), the plain 'Yes, if it was clearly worth it' the fallback where an item carries none.
+  Codes, supports, conditional and the compare rule unchanged.
+
 #### 4. The escape
 
 **Escape:** `cant_tell` *I can't tell*, apart -- must be on the item, and only it. The founder's side: *I'm not sure*
@@ -617,13 +629,6 @@ leaves the dimension out.
   only a one-time setup; a row repeating what Compatibility or Purchase friction tests (cycle 7, 55; cycle 8, 56).
 - Choose options bundling two efforts, or steps another role, the founder's team or the product does (a sign-off, a
   vendor-built wallet) (cycle 8, 57).
-
-#### Open
-
-- **Registry row's notes vs its own rule and spec 198.** The row's `_decided` and `_note` still say spec 184 FR-7: the
-  conditional yes is the plain *Yes, if it was clearly worth it* everywhere, spec 155's condition retired. The row's
-  `guidance` and `option_rule` and the code (`RespondentItems.onlyIfOptions`) follow spec 198 FR-9: *Only if
-  {condition}* where the item carries one, the plain label the fallback. The card follows 198.
 <!-- card:solution.adoption_friction:end -->
 
 ---
@@ -791,7 +796,7 @@ it.
 
 **Registry:** COMMERCIAL, order 3 · founder `derived` (no founder screen) · stranger `single_choice`, `b2b_link_only`
 (the consumer's budget item on the people's link where cost and price share no base) · compare `cost_covers_price`,
-supporting side `more_covering` · escape `cant_recall_one` (served `cant_say`: see Open) · floor 5.
+supporting side `more_covering` · escape `cant_recall_one` (served `cant_say`: see the escape) · floor 5.
 **Screens:** the stranger's item · the card after the answers. There is no founder question.
 
 #### 1. What it measures
@@ -844,6 +849,12 @@ budget item; the registry's `cant_recall_one` *I can't recall one* (it covers *i
 (*Think of the last tool your team paid for. Where did the money come from?*) where no price chain is read. Must be
 there, one. The founder's side: no *I'm not sure* of its own -- left out when the cost or the price is left out.
 
+- **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point):
+  this code and label are the past-tool question's ('Think of the last tool your team paid for'), asked where no price
+  chain is read. On a chain study code serves `cant_say` 'I can't say' instead, apart, spoken 'Or say: I can't say.' --
+  on the item that points back to the person's own price (spec 181, CommercialChain.side) and on the consumer's budget
+  item (spec 115). The field keeps naming the past-tool escape; nothing here moves.
+
 #### 5. A good example and a bad example
 
 - **Good (R7 2)** -- Fresco, budget reading, a contractor whose Price answer was *$800 to under $2,500*: *You said about
@@ -865,10 +876,6 @@ there, one. The founder's side: no *I'm not sure* of its own -- left out when th
 
 #### Open
 
-- **Registry vs spec 181 FR-2 and code.** The registry's `respondent.escape` is `cant_recall_one` *I can't recall one*;
-  spec 181 and code (`CommercialChain.side`) serve `cant_say` *I can't say* on the item that points back, and the
-  consumer's budget item carries `cant_say` (spec 115; the registry's guidance names it). The registry's field still
-  names the past-tool escape.
 - **Registry note vs the chain.** The registry's `compare_rules.cost_covers_price` describes only the reading before the
   chain (a person's cost at or above the price low, over Existing sacrifice's people); the chain's readings (specs 115,
   181, 198) live in the row's `_note` and in code. The card follows the code.
@@ -990,6 +997,10 @@ The steps between wanting it and buying it: approvals, reviews, setting up an ac
   it wouldn't be needed -- then the band within. **One measure:** how long the step would take. Asked only on a
   business study.
 
+- **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point):
+  b2b_only stands. Spec 182's FR-6 (a consumer path: a founder whose user pays may name a timed obstacle) was not opened
+  (182's tasks.md), so the dimension is calibrated and asked on business studies only.
+
 #### 3. For, against, neither
 
 - **For:** every band at or under the founder's time (its upper edge at the time or below) and `not_needed` *It
@@ -1033,12 +1044,6 @@ it. *It wouldn't be needed* is an answer, and counts for. The founder's side: *I
   works council) is missing; overlapping rows (cycle 8, 21).
 - *How long would it take before it went through* -- a trial, a check or a waiver does not go through (cycle 8, 30); the
   card counting the band that starts at the founder's own time against without saying so (cycle 7, 20; cycle 8, 22).
-
-#### Open
-
-- **Spec 182 FR-6 vs registry.** FR-6 opens a consumer path (a founder whose user pays may name a timed obstacle; the
-  same item and rule); the registry keeps `b2b_only: true` and 182's tasks.md says the path was not opened. The card
-  follows the registry: asked on business studies only.
 <!-- card:commercial.purchase_friction:end -->
 
 ---
@@ -1081,6 +1086,14 @@ What they would actually do before paying: give their time, install it, share th
   that names no step, or a second that is the step again, cannot answer the belief: R7 0. An escape on this item is a
   broken rule: *No* is the floor.
 
+- **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open points):
+  the _decided line's second yes 'counted neither for nor against' is history -- spec 180 (FR-1) counts the soft yes for
+  (drawn lighter, split in the count line) and spec 198 (FR-1) serves one on every list: 'Probably, after {smaller step}
+  first' where the list carries a smaller step, 'Probably yes' where it does not. The drift template loses 'now', as
+  spec 199 (FR-5) took it out of both belief templates.
+- **The drift template:** *you said most would {founder} · {observed} of {n} would* (the registry's `drift_template`,
+  without *now*).
+
 #### 4. The escape
 
 **Escape:** none -- *No* is the floor (the registry's `escape: null`). An escape here would let a hesitant person count
@@ -1104,12 +1117,4 @@ for nobody instead of saying *Probably not*. The founder's side: *I'm not sure* 
 - *Probably not* with no *Probably yes*, so a hesitant yes had to overstate; only three options served where the
   founder's list had no smaller step (cycle 7, 25; cycle 8, 27).
 - The step worded as if the person did the founder's work, or *the trial* said as if strangers knew of it (cycle 8, 14).
-
-#### Open
-
-- **Registry notes vs specs 180 and 198.** The row's `_decided` still says spec 118: the second yes only when the step
-  costs money, data or a signature, *counted neither for nor against*. The row's `option_rule`, its guidance and the code
-  follow spec 180 FR-1 (it counts for) and spec 198 FR-1 (a soft yes on every list). The card follows them.
-- **Registry vs spec 199 FR-5.** FR-5 took *now* out of both belief templates; the row's `drift_template` still reads
-  *you said most would {founder} now*.
 <!-- card:commercial.commitment:end -->
