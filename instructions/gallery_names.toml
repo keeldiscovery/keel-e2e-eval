@@ -6,6 +6,11 @@
 # Spec 106 FR-2: the disclaimer is not a row's to write -- it is `evals/gallery.py`'s DISCLAIMER, filled for each of an
 # example's three studies with the name, the batch and that study's own people in words ("seven people answered, all
 # simulated"), never a fixed twenty.
+# Spec 135 FR-3 (keel-cloud 215): an entry enters the gallery only through the corpus writer's constitution's gate --
+# keel-cloud `canon/designs/measured-beliefs/backtest/CONSTITUTION.md` section 9 (the lists ticked against sections 2
+# to 5 in the sources file, the entry screened by `make unit` on the interpretation screens and part 1, a second reader
+# naming any row that breaks a card, one quality-cycle walk on its own) -- and only then gains a row here. The fourteen
+# below are at corpus revision 24 (`instructions.corpus.GALLERY`, `GALLERY_REVISION`); a row added here moves that too.
 #
 #   entry              -- the back-test entry id (keel-cloud `canon/designs/measured-beliefs/backtest/<entry>.yaml`)
 #   slug               -- the directory under public/sample/ (lowercase letters, digits and hyphens, from the name)

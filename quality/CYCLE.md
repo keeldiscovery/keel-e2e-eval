@@ -160,7 +160,9 @@ make quality-accept CYCLE=quality/cycles/<record>.md
   no score file is **refused by name**; an entry below the line is **refused by name with its mean** (*10-palus 83.0 <
   84.0*) and keeps whatever the gallery holds for it (an older example stays; a slug with none stays absent). **The
   gallery grows by new entries only** (the founder, 2026-11-01; spec 127 FR-5): every slug the cycle does not rewrite
-  keeps its index row, in its place, and its folder, untouched; a new slug is appended. It says
+  keeps its index row, in its place, and its folder, untouched; a new slug is appended. **A new entry enters
+  only through the corpus writer's constitution's gate** (spec 135 FR-3; keel-cloud
+  `canon/designs/measured-beliefs/backtest/CONSTITUTION.md` section 9) before it is walked toward the gallery. It says
   *N entries accepted on a mean of at least {line}, M refused (names and means)*. **Every entry is its three studies**
   -- problem, solution and money, each its own walk -- written under keel-web's
   `public/sample/<slug>/<problem|solution|money>/` (`OUT=`

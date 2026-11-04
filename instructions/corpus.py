@@ -1,4 +1,15 @@
-"""**Revision 23 read** (spec 132 FR-11; keel-cloud 207, keel-cloud-docs `3ab9aa03`): revision 22's rules, and on the
+"""**Revision 24 read for the gallery** (spec 135 FR-1; keel-cloud 215, keel-cloud-docs `0464e20f`): the fourteen gallery
+entries (`GALLERY`, 08-fresco to 21-codyco, `instructions/gallery_names.toml`) are read at revision 24 -- every row of
+spec 134's `corpus-rewording.md` Table 1 and its shape changes (Palus' and Issen's Relative advantage split, the new
+codes `no_treasury_hire` and `no_tutor_to_book`; AirCaps' Compatibility split, `phone_with_them` first and picked;
+Fresco's, Expanse's and Codyco's Purchase friction dropping a row, Fresco's pick moving to `procore_check` with the
+founder's 2 weeks; Issen's Compatibility pick on `speak_aloud`), the 22 beliefs re-derived by the engine -- and every
+other entry (22 to 35 and the golden seven) at revision 23, as keel-cloud's `VectorCorpusFixture` reads them
+(`GALLERY_REVISION`, `revision_of`). A gallery file at 23, or any other file at 24, is refused by name.
+`canon/designs/measured-beliefs/backtest/CONSTITUTION.md` is the corpus writer's law (section 9: an entry enters the
+gallery only through its gate).
+
+**Revision 23 read** (spec 132 FR-11; keel-cloud 207, keel-cloud-docs `3ab9aa03`): revision 22's rules, and on the
 five cycle-9 back-test entries (08-fresco, 10-palus, 13-aircaps, 17-expanse, 21-codyco) `solution_mechanism.idea_what`
 -- what the idea is beside the founder's name, in at most twelve words the people know (keel-cloud 207 FR-3's
 `idea_what`, held by `W12`), read by `Entry.idea_what()` and sent by the scripted writer
@@ -157,6 +168,18 @@ from .registry import (DURATION_CONTROL, RECORDED_CONTROLS, ABILITY_BANDS, ABILI
                        PRICE_PERIODS, PURCHASE_FRICTION_KEY, SACRIFICE_KEY, VECTORS, RecallWindow, words)
 
 REVISION = 23
+#: Spec 135 FR-1 (keel-cloud 215, plan's *The reader*): the fourteen gallery entries move to revision 24; every other
+#: entry stays at `REVISION`, a mixed back-test folder by keel-cloud 215's word, held by name rather than refused.
+GALLERY_REVISION = 24
+GALLERY = ("08-fresco", "09-karsa", "10-palus", "11-issen", "12-transload", "13-aircaps", "14-code-four",
+           "15-voltair", "16-pairio", "17-expanse", "18-careforce", "19-veles", "20-lemma", "21-codyco")
+
+
+def revision_of(entry_id) -> int:
+    """Spec 135 FR-1: the one revision this eval reads for an entry -- `GALLERY_REVISION` for the fourteen, else
+    `REVISION` (keel-cloud's `VectorCorpusFixture`)."""
+    return GALLERY_REVISION if str(entry_id or "") in GALLERY else REVISION
+
 
 #: The revisions a refusal names by the rubric that read them (calls 49, 51, 78).
 _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
@@ -198,6 +221,11 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
                     "Purchase friction -- the fixed three -- and no `current_solution.today`)",
                 22: "MARKS_VERSION 24's corpus before keel-cloud 207 (no `solution_mechanism.idea_what` on the five "
                     "cycle-9 back-test entries)"}
+#: Spec 135 FR-1: a gallery entry at revision 23 is refused by this name; a file outside the gallery at 24 by the next.
+_GALLERY_R23 = ("the gallery's rows before keel-cloud 215 (eval 134's card review: Table 1's 128 rows, Palus' and "
+                "Issen's Relative advantage and AirCaps' Compatibility unsplit, Fresco's, Expanse's and Codyco's "
+                "Purchase friction rows not dropped)")
+_NOT_GALLERY_R24 = "the gallery's alone (keel-cloud 215 moved the fourteen gallery entries; this one is not among them)"
 
 #: Spec 067 FR-6 (keel-cloud 128 FR-11, `check_corpus_r15.py`'s rule Q): a person's answer to the segment's condition
 #: chip -- inside or outside -- where the entry's context records a condition; on the primary link only.
@@ -834,11 +862,15 @@ def _refuse(entry_id, message, path) -> CorpusError:
 def _check_revision(raw: dict, path: Path) -> None:
     entry_id = raw.get("id") or path.name
     revision = raw.get("revision")
-    if revision != REVISION:
-        was = (f" -- revision {revision} is {_REVISION_OF[revision]}"
-               if revision in _REVISION_OF else "")
+    wanted = revision_of(raw.get("id") or path.stem)
+    if revision != wanted:
+        names = dict(_REVISION_OF)
+        names[REVISION] = _GALLERY_R23
+        names[GALLERY_REVISION] = _NOT_GALLERY_R24
+        was = (f" -- revision {revision} is {names[revision]}" if revision in names else "")
+        where = "" if wanted == REVISION else " for a gallery entry"
         raise _refuse(entry_id, f"revision is {revision if revision is not None else 'absent'}; "
-                                f"this eval reads revision {REVISION} only{was}", path)
+                                f"this eval reads revision {wanted}{where} only{was}", path)
     for key in R2_KEYS:
         if key in raw:
             raise _refuse(entry_id, f"carries `{key}`, which revision 3 dropped", path)

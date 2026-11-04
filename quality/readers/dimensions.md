@@ -1,5 +1,11 @@
 # The dimension cards (spec 131 FR-1, FR-1a, FR-1b, FR-1c)
 
+**The corpus writer's law** (spec 135 FR-3, keel-cloud 215): the back-test entries these cards are read against are
+written under keel-cloud's `canon/designs/measured-beliefs/backtest/CONSTITUTION.md` (the founder's document of
+2026-11-04) -- the seed, what the founder types at each stage held to these cards, the people, the sources file, the
+gate before an entry enters the gallery (section 9) and what moves when a card changes (section 10). A card here says
+what a screen's options must do; the constitution says how a corpus row is written so they can.
+
 The founder, 2026-11-03: *"our agent should be dimension aware ... is this question valid -- do the options meet the
 criteria for that dimension, including the option?"*; and at 08:50 ET: *"spend a good amount of time for how each
 dimension would look like, and how the options should look like, how much of them should be for and how much should be
