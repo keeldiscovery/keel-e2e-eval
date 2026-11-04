@@ -148,8 +148,10 @@ def test_21_codyco_compatibility_was_reworded_so_the_walk_picks_it_and_names_the
     """Not foreseen by spec 104, from the same bundle: Keel's compatibility draft moved the founder's tense (*could be
     forwarded* -> *can be forwarded*, *took* -> *takes*, *were* -> *are*), so the drafted list does not keep the
     founder's labels word for word here. Spec 104 stopped the walk by name; spec 108 FR-1 picks the one row the tense
-    fold finds and writes the DRIFT finding instead (`tests/test_reworded_row_108.py`). FR-3 still names all three
-    rows as Keel's, by exact label. (The earlier re-walk `runs/20261030T161100Z-backtest-21-codyco` drafted them word
+    fold finds and writes the DRIFT finding instead (`tests/test_reworded_row_108.py`). FR-3 named all three rows as
+    Keel's, by exact label, until spec 138 FR-2: a row near a typed label (the tense fold of row 0; *are* for *were* on
+    row 2, every content word kept) is the founder's reworded, never *Keel added*; *takes* for *took* is near no typed
+    row, so it alone is still named. (The earlier re-walk `runs/20261030T161100Z-backtest-21-codyco` drafted them word
     for word.)"""
     key = "solution.compatibility"
     question, answer = _codyco(key)
@@ -160,4 +162,4 @@ def test_21_codyco_compatibility_was_reworded_so_the_walk_picks_it_and_names_the
         "DRIFT: Keel reworded the founder's row 'Unanswered calls could be forwarded to another number' as "
         "'Unanswered calls can be forwarded to another number' (spec 081)"]
     drafted = [row["label"] for row in CODYCO["dimensions"][key]["drafted"]]
-    assert corpus_scenario.keel_added(question, answer) == drafted
+    assert corpus_scenario.keel_added(question, answer) == [drafted[1]]
