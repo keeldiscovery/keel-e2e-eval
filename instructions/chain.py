@@ -49,7 +49,7 @@ READINGS = ("compare", "out_of_gain", "from_what_comes_back", "free", "budget")
 CHAIN_FIELDS_COST = frozenset({"mode", "low", "high", "rate", "period", "currency", "measure", "base", "unit",
                                "lossPhrase"})
 CHAIN_FIELDS_PRICE = frozenset({"shape", "low", "high", "upfrontLow", "upfrontHigh", "thenNothing", "shareBase",
-                                "currency"})
+                                "currency", "optional"})  # + keel-cloud 213 FR-1c (contract 59): `optional`
 #: The value box's row (keel-cloud 115 FR-2): the registry's one escape, and the chips code adds.
 VALUE_BOX_CONTROL = "value_box"
 VALUE_BOX_ESCAPE = "dont_know"
@@ -196,13 +196,20 @@ def unit_beside(unit, base, period):
     return None if re.search(pattern, str(base)) else unit
 
 
+def percent_of_base(cost, base) -> bool:
+    """keel-cloud 213 FR-2b (`CommercialChain.percentOfBase`): a rate said as a percent of a named base -- the line
+    carries one measure, so no *per {unit}* stands beside it (*about 2% of the balance a year*)."""
+    return isinstance(cost, dict) and is_percent(cost) and base is not None and bool(str(base).strip())
+
+
 def cost_said(cost: dict, occasion, role_word) -> str:
     """CommercialChain.costSaid: the phrase the drift clause quotes (the belief phrase). Since keel-cloud 199 FR-10 a
-    rate's unit is dropped where its base names it (`unit_beside`)."""
+    rate's unit is dropped where its base names it (`unit_beside`); since keel-cloud 213 FR-2b a percent of a named base
+    carries no unit at all (`percent_of_base`)."""
     unit, lo, hi = unit_of(cost, role_word), dec(cost["low"]), dec(cost["high"])
     if cost["mode"] == "RATE":
         of = base_of(cost, occasion)
-        unit = unit_beside(unit, of, cost["period"])
+        unit = None if percent_of_base(cost, of) else unit_beside(unit, of, cost["period"])
         return "about " + figure(cost, lo, hi) + ("" if of is None else " of " + of) + " " + per(unit, cost["period"])
     return ("about " if is_money(cost) else "") + figure(cost, lo, hi) + " " + per(unit, cost["period"])
 
@@ -343,8 +350,10 @@ def cost_belief(cost: dict, occasion, role_word, deciders_words=None, b2b: bool 
     who = "They" if not deciders_words or not str(deciders_words).strip() else _upper(str(deciders_words).strip())
     actors = "They" if not actor_plural or not str(actor_plural).strip() else _upper(str(actor_plural).strip())
     of = base_of(cost, occasion)
-    # keel-cloud 199 FR-10: the base said once -- no *per cluster* after *the cluster's GPU hours*
-    unit = unit_beside(unit_of(cost, role_word) if b2b else None, of, cost["period"])
+    # keel-cloud 199 FR-10: the base said once -- no *per cluster* after *the cluster's GPU hours*; keel-cloud 213 FR-2b:
+    # a percent of a named base carries no unit at all (*about 2% of the balance a year*)
+    unit = None if percent_of_base(cost, of) else unit_beside(unit_of(cost, role_word) if b2b else None, of,
+                                                              cost["period"])
     lo, hi = dec(cost["low"]), dec(cost["high"])
     words = per(unit, cost["period"])
     tail = "" if not words else " " + words
@@ -395,8 +404,16 @@ def two_steps(price: dict) -> bool:
     return price.get("shape") == "UPFRONT_THEN" and not once(price)
 
 
+def optional_plan(price) -> bool:
+    """keel-cloud 213 FR-1c (`CalibrationAnswer.Price.optionalPlan`): up front, then a plan the person may leave out."""
+    return isinstance(price, dict) and two_steps(price) and price.get("optional") is True
+
+
 def price_said(price: dict, cost, occasion, role_word):
-    """CommercialChain.priceSaid (the period is the cost's)."""
+    """CommercialChain.priceSaid (the period is the cost's). keel-cloud 213 FR-1: every term the founder typed, none
+    added -- the plan's range whole (*€3,000 up front, then €1,000 to €1,500 per hotel a month*), an optional plan said
+    optional (*$599 up front, then an optional $20 a month plan*); FR-2b: a share of the cost's named base says one
+    measure (*0.25% of the balance a year*), a share of what it gets back keeps its unit."""
     unit, period = unit_of(cost, role_word), (cost or {}).get("period")
     shape = price.get("shape")
     if shape == "FREE":
@@ -404,12 +421,16 @@ def price_said(price: dict, cost, occasion, role_word):
     if shape == "SHARE":
         of = "of what it gets back, only when it does" if recovered(price) else (
             "" if base_of(cost, occasion) is None else "of " + base_of(cost, occasion))
+        named = bool(of) and not recovered(price)
         return (price_figure(price, dec(price["low"]), dec(price["high"]))
-                + ("" if not of else " " + of + ("," if recovered(price) else "")) + " " + per(unit, period))
+                + ("" if not of else " " + of + ("," if recovered(price) else "")) + " "
+                + per(None if named else unit, period)).strip()
     if shape == "UPFRONT_THEN":
         up = price_figure(price, dec(price["upfrontLow"]), dec(price["upfrontHigh"])) + " up front"
-        return up + ", then nothing" if once(price) else (
-            up + ", then " + price_figure(price, dec(price["low"]), dec(price["high"])) + " " + per(unit, period))
+        if once(price):
+            return up + ", then nothing"
+        plan = price_figure(price, dec(price["low"]), dec(price["high"])) + " " + per(unit, period)
+        return up + ", then an optional " + plan + " plan" if optional_plan(price) else up + ", then " + plan
     return price_figure(price, dec(price["low"]), dec(price["high"])) + " " + per(unit, period)
 
 
@@ -626,7 +647,37 @@ def equation_words(cost: dict, occasion=None, role_word=None) -> str:
     return cost_said(cost, occasion, role_word)
 
 
-def locked_words(cost: dict, occasion=None, role_word=None) -> dict:
+def locked_words(cost: dict, occasion=None, role_word=None, b2b: bool = True) -> dict:
     """The price's locked words (`CalibrationQuestion.price.locked`, keel-cloud 115 FR-3): the cost's base, unit and
-    period -- `CommercialChain.baseOf` / `unitOf` -- which every chain price takes and never sends."""
-    return {"base": base_of(cost, occasion), "unit": unit_of(cost, role_word), "period": cost.get("period")}
+    period -- `CommercialChain.baseOf` / `unitOf` -- which every chain price takes and never sends. keel-cloud 213 FR-1b
+    (`VectorsController.priceSpec`): no unit where the user pays (`b2b` False, the persona's)."""
+    return {"base": base_of(cost, occasion), "unit": unit_of(cost, role_word) if b2b else None,
+            "period": cost.get("period")}
+
+
+def locked_drawn(locked: dict | None, share: bool) -> str:
+    """keel-web 173 FR-2c (`lockedWords`): the words after the price's box as the page draws the served `locked` --
+    *per site · a month*, a share of a named base *of the balance · a year* (no *per {unit}* beside it), no unit where
+    `locked.unit` is null (the user pays)."""
+    if not locked:
+        return ""
+    parts = []
+    base = str(locked.get("base") or "").strip()
+    of_base = share and bool(base)
+    if of_base:
+        parts.append("of " + base)
+    unit = str(locked.get("unit") or "").strip()
+    if unit and not of_base:
+        parts.append("per " + unit)
+    if locked.get("period"):
+        parts.append(CHAIN_PERIOD_WORDS.get(locked["period"], locked["period"]))
+    return " · ".join(parts)
+
+
+def equation_per_drawn(cost: dict, occasion=None) -> str:
+    """keel-web 173 FR-3 (`ChainCost`'s `chain-per`): the equation's words after the boxes -- *· per site · a month*, and
+    on a rate said as a percent of a named base the period alone (*· a year*: one measure on the line)."""
+    period = CHAIN_PERIOD_WORDS.get(cost.get("period"), "")
+    if percent_of_base(cost, base_of(cost, occasion)):
+        return "· " + period
+    return f"· per {str(cost.get('unit') or '').strip()} · {period}"

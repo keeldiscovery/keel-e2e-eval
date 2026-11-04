@@ -28,6 +28,22 @@ DATA_WORDS = re.compile(r"(?i)(?<!sample )(?<!demo )(?<!test )(?<!example )(?<!d
                         r"access)\b", re.ASCII)
 SIGNATURE_WORDS = re.compile(r"(?i)\b(sign(?!\s+up\b)|signs(?!\s+up\b)|signing(?!\s+up\b)|signed(?!\s+up\b)|contract|"
                              r"contracts|agreement|letter of intent|loi)\b", re.ASCII)
+#: keel-cloud 213 FR-8 (`CommercialChain.MONEY_NOUNS`): money's own words and the currencies' names, no trade's.
+MONEY_NOUNS = frozenset({
+    "money", "cash", "balance", "balances", "revenue", "revenues", "sales", "turnover", "income", "earnings",
+    "collections", "payments", "deposits", "savings", "funds", "reserve", "reserves", "capital", "assets", "budget",
+    "budgets", "spend", "spending", "payroll", "fees", "premium", "premiums", "invoices", "billings", "takings", "profit",
+    "profits", "wages", "salaries", "dollar", "dollars", "euro", "euros", "pound", "pounds", "rupee", "rupees", "yen",
+    "yuan", "franc", "francs", "peso", "pesos", "rand", "krona", "kronor", "krone", "kroner", "lira", "shekel", "shekels",
+    "dirham", "dirhams", "ringgit", "baht", "naira", "shilling", "shillings", "rupiah", "zloty", "ruble", "rubles",
+    "rouble", "roubles", "dinar", "dinars", "riyal", "riyals", "taka", "reais"})
+#: keel-cloud 213 FR-8 (`StepCost.MOVE_WORDS`; cycle 11, Palus' *move a small part of the reserve*): moved funds are
+#: money -- a verb that moves a thing and, after it, one of the money nouns.
+MOVE_WORDS = re.compile(r"(?i)\b(move|moves|moving|moved|transfer|transfers|transferring|transferred|put|puts|putting|"
+                        r"shift|shifts|shifting|shifted|switch|switches|switching|switched|park|parks|parking|parked)\b"
+                        r"(.*)$", re.ASCII)
+#: keel-cloud 213 FR-8 (`StepCost.DESTINATION`): where the moved money goes -- a destination after the verb.
+DESTINATION = re.compile(r"(?i)\b(?:into|to|onto|in|with|at)\s+\S", re.ASCII)
 
 
 @dataclass(frozen=True)
@@ -37,16 +53,45 @@ class Cost:
     word: str
 
 
+def moved(step: str | None) -> str | None:
+    """keel-cloud 213 FR-8 (`StepCost.moved`): the moving verb (lowered) where it carries a money noun after it, else
+    None."""
+    if step is None:
+        return None
+    move = MOVE_WORDS.search(str(step))
+    if move is None:
+        return None
+    for word in re.split(r"[^a-z'-]+", move.group(2).lower()):
+        if re.sub(r"'s$", "", word) in MONEY_NOUNS:
+            return move.group(1).lower()
+    return None
+
+
+def moves_money_nowhere(step: str | None) -> bool:
+    """keel-cloud 213 FR-8 (`StepCost.movesMoneyNowhere`): the step moves the person's money and names no place it goes
+    (*move a small part of the reserve*) -- the Check row's note asks the founder to say where, never a rewrite."""
+    if step is None or not str(step).strip() or moved(step) is None:
+        return False
+    move = MOVE_WORDS.search(str(step))
+    return move is not None and DESTINATION.search(move.group(2)) is None
+
+
 def of(step: str | None) -> Cost | None:
     """`StepCost.of`: the step's cost, or None where it costs nothing the engine can read -- an amount first
-    (`Wording.money`), then a money word, a signature word, a data word."""
+    (`Wording.money`), then a money word, moved money (keel-cloud 213 FR-8), a signature word, a data word."""
     if step is None or not str(step).strip():
         return None
     amount = wording_mod.money(step)
     if amount:
         return Cost(MONEY, amount)
     text = str(step).lower().replace("in order to", "")
-    for kind, pattern in ((MONEY, MONEY_WORDS), (SIGNATURE, SIGNATURE_WORDS), (DATA, DATA_WORDS)):
+    found = MONEY_WORDS.search(text)
+    if found:
+        return Cost(MONEY, found.group(1))
+    verb = moved(text)
+    if verb is not None:
+        return Cost(MONEY, verb)
+    for kind, pattern in ((SIGNATURE, SIGNATURE_WORDS), (DATA, DATA_WORDS)):
         found = pattern.search(text)
         if found:
             return Cost(kind, found.group(1))

@@ -1282,3 +1282,145 @@ def reveal_aloud(line):
         listed = [m.group(1), *names_of(m.group(2)), m.group(3)]
         return _spoken_list(listed) if len(listed) > SPOKEN_NAMES_MAX else m.group()
     return LIST_OF_NAMES.sub(cut, "".join(out))
+
+
+# ------------------------------------------------- spec 137 FR-2: keel-cloud 213's code-composed stranger words
+
+def _spoken_words(text: str | None) -> int:
+    """`SpokenForm.words`: whitespace-separated words."""
+    return 0 if text is None or not str(text).strip() else len(str(text).split())
+
+
+#: keel-cloud 213 FR-8 (`RespondentItems.commitmentOptions`): Commitment's third and fourth answers, the registry's.
+COMMITMENT_PROBABLY_NOT = "Probably not"
+COMMITMENT_NO = "No"
+
+
+def commitment_answers(rows: list[str]) -> list[str]:
+    """keel-cloud 213 FR-8 (`VectorsController.commitmentAnswers` over `RespondentItems.commitmentOptions`): the four
+    answers strangers get on Commitment, as its Check row serves them -- *Yes, I'd {step}*, the soft yes (*Probably,
+    after {smaller step} first* where the list carries one, else *Probably yes*), *Probably not*, *No*. A smaller step
+    that restates the step itself (`ItemFrames.restatesTheStep`, not mirrored) is read as one the cloud serves; the walk
+    holds the drawn four to the served `answers`, and this composition to the first and the last two."""
+    steps = [str(r).strip() for r in rows or [] if r and str(r).strip()]
+    if not steps:
+        return []
+    soft = second_yes(steps[1]) if len(steps) > 1 else PROBABLY_YES
+    return [first_yes(steps[0]), soft, COMMITMENT_PROBABLY_NOT, COMMITMENT_NO]
+
+
+#: keel-cloud 213 FR-8 (`VectorsController.COMMITMENT_NOTE`): the Check row's note where the step moves money nowhere.
+COMMITMENT_NOTE = "Say where the money goes"
+
+
+def commitment_note(step: str | None, name: str | None) -> str | None:
+    """keel-cloud 213 FR-8 (`VectorsController.commitmentNote`): *Say where the money goes (into {Name}).* where the step
+    moves the person's money and names no place it goes (`step_cost.moves_money_nowhere`: Palus' *move a small part of
+    the reserve*), never a rewrite of the founder's step; None otherwise."""
+    from . import step_cost as step_cost_mod                            # noqa: PLC0415
+    if not step_cost_mod.moves_money_nowhere(step):
+        return None
+    return COMMITMENT_NOTE + ("." if not name or not str(name).strip() else f" (into {str(name).strip()}).")
+
+
+def buyer_payer_at_price(role: str | None, name: str | None, price: str | None) -> str:
+    """keel-cloud 213 FR-10a (`ItemFrames.buyerPayerAtPrice`): Buyer and payer's stranger stem at the founder's price --
+    *Could you sign off on {what} yourself, or would {the role} have to agree?* -- a share first as *a fee of {share}*,
+    then the share as asked, then the idea's name, then *it*, each within the 20 spoken words (Palus: *Could you sign off
+    on about 0.25% of the balance a year yourself, or would the board have to agree?*); an up-front price says its
+    period once."""
+    from . import chain as chain_mod                                    # noqa: PLC0415
+    who = "someone else" if role is None else chain_mod.the_role(role)
+    idea = "it" if not name or not str(name).strip() else str(name).strip()
+    said = None if price is None else re.sub(r",?\s+once$", "", str(price).strip(), count=1)
+    fee = "a fee of " + re.sub(r"^about\s+", "", said, count=1) if said is not None and "%" in said else None
+    for what in (fee, said, idea, "it"):
+        if what is None or not what.strip():
+            continue
+        asked = f"Could you sign off on {what.strip()} yourself, or would {who} have to agree?"
+        if _spoken_words(asked) <= STEM_MAX_WORDS:
+            return asked
+    return "Could you sign off on it yourself, or would someone else have to agree?"
+
+
+#: keel-cloud 198 FR-8 (`ScaleFour.DONE_BETTER`): Relative advantage's tail after the idea, the job the anchor named.
+DONE_BETTER = "have done that better for you, or not?"
+_AT_STAKE_SMALL = frozenset({"the", "a", "an", "of", "on", "in", "at", "to", "for", "and", "or", "your", "their", "time",
+                             "last", "day", "night", "week", "month"})
+
+
+def _says_again(occasion: str | None, job: str | None) -> bool:
+    """`ScaleFour.saysAgain` (keel-cloud 206 FR-4): whether the job says a content word of the occasion again."""
+    if occasion is None or job is None:
+        return False
+    said = {w[:-1] if w.endswith("s") else w for w in re.split(r"[^a-z']+", job.lower())}
+    for word in re.split(r"[^a-z']+", occasion.lower()):
+        stem = word[:-1] if word.endswith("s") else word
+        if word.strip() and word not in _AT_STAKE_SMALL and stem in said:
+            return True
+    return False
+
+
+def at_stake(occasion: str | None, job: str) -> str:
+    """`ScaleFour.atStake` (keel-cloud 198 FR-8): *Think of the last {occasion} when you had to {job}.*, *Think of the
+    most recent time you had to {job}.* with no occasion noun -- the job in the second person."""
+    from harness import loss_line as ll                                 # noqa: PLC0415 - `StrangerGrammar.secondPerson`
+    noun = None if occasion is None or not occasion.strip() or occasion.strip().lower() in ("time", "times") \
+        else occasion.strip()
+    doing = ll.second_person(re.sub(r"[.]+$", "", _lower(job.strip())), False)
+    return f"Think of the most recent time you had to {doing}." if noun is None else \
+        f"Think of the last {noun} when you had to {doing}."
+
+
+def held_anchor(occasion: str | None, job: str) -> str | None:
+    """`ScaleFour.heldAnchor` (keel-cloud 206 FR-4): the at-stake anchor held to the spoken cap by giving way -- the
+    occasion and the job; the job without its trailing clause; *the most recent time*; None where none fits."""
+    jobs = [job.strip()]
+    trailing = re.match(r"(?i)^(.+?)\s+(?:until|without|so that|before|after|while|because|in order to)\s+.+$",
+                        job.strip())
+    if trailing and _spoken_words(trailing.group(1)) >= 3:
+        jobs.append(trailing.group(1).strip())
+    anchors = [] if _says_again(occasion, job) else [at_stake(occasion, doing) for doing in jobs]
+    anchors += [at_stake(None, doing) for doing in jobs]
+    return next((a for a in anchors if _spoken_words(a) <= STEM_MAX_WORDS), None)
+
+
+def what_head(what: str) -> str | None:
+    """keel-cloud 213 FR-6 (`ScaleFour.headOf`): a what-it-is's words before its first relative clause (*an AI
+    reservation agent* of *an AI reservation agent that answers the calls nobody picks up*); None where it has none."""
+    m = re.match(r"(?i)^(.+?)\s+(?:that|which|who|whose)\s+\S.*$", what.strip())
+    return m.group(1).strip() if m and _spoken_words(m.group(1)) >= 2 else None
+
+
+def advantage_stem(occasion: str | None, name: str | None, what_it_is: str | None, job: str | None) -> str | None:
+    """keel-cloud 213 FR-6 (`ScaleFour.question(occasion, stem, name, whatItIs, job)`, the at-stake path of 198 / 206):
+    Relative advantage's stranger stem -- the anchor (`held_anchor`), then *Would {Name}, {what it is}, have done that
+    better for you, or not?* as the card says: the whole what where the question fits the 20 spoken words, else the what
+    cut by its trailing phrases (`cut_to_fit`), else its head (`what_head`); the bare name only where there is no what;
+    *it* last. None where there is no job or no anchor fits (the cloud then serves 173's frame)."""
+    if job is None or not job.strip():
+        return None
+    anchor = held_anchor(occasion, job)
+    if anchor is None:
+        return None
+    named = None if not name or not name.strip() else name.strip()
+    what = None if not what_it_is or not what_it_is.strip() else re.sub(r"[.,;:]+$", "", what_it_is.strip())
+    ideas: list[str] = []
+    if what is not None:
+        whats = [what]
+        room = STEM_MAX_WORDS - _spoken_words("Would " + DONE_BETTER) - (0 if named is None else _spoken_words(named))
+        cut = cut_to_fit(what, max(1, room))
+        if cut not in whats:
+            whats.append(cut)
+        head = what_head(what)
+        if head is not None and head not in whats:
+            whats.append(head)
+        ideas += [f"{named}, {one}," if named is not None else one for one in whats]
+    if named is not None and what is None:
+        ideas.append(named)
+    ideas.append("it")
+    for idea in ideas:
+        asked = f"Would {idea} {DONE_BETTER}"
+        if _spoken_words(asked) <= STEM_MAX_WORDS:
+            return anchor + " " + asked
+    return None

@@ -150,7 +150,9 @@ def test_the_golden_record_stands_and_reads_as_the_engine_writes(entry_id):
     # spec 115 FR-1 re-pin: keel-cloud 174 moved Importance's belief (two sentences, `spec174_reads`), so the row that
     # stands as recorded is one 174 did not move -- Current solution's
     other = "problem.current_solution_satisfaction"
-    assert corpus_mod.engine_belief(entry, other) == entry.founder_calibration[other]["belief_sentence"]
+    # spec 137 (keel-cloud 213 FR-3b): the act bare -- the record's *their way of* read off (`spec213_reads`)
+    assert corpus_mod.engine_belief(entry, other) == \
+        entry.founder_calibration[other]["belief_sentence"].replace(", their way of ", ", ", 1)
 
 
 def test_the_journey_holds_the_wire_to_the_record_read_through_the_rule():

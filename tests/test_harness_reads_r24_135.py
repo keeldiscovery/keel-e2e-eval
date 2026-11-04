@@ -246,12 +246,15 @@ def test_current_solutions_two_boxes_are_typed_apart_each_to_its_own_25_words(ba
 
 
 def test_voltairs_fact_is_read_as_code_serves_it_and_an_only_with_help_pick_is_refused(backtest, tmp_path):
+    """Spec 137 (keel-cloud 213 FR-11a): the record now carries the fact's three codes (revision 24 amended in place), so
+    it is read as recorded and the spec-135 shim reads nobody; an `only_with_help` pick is refused as no served code."""
     voltair = backtest["15-voltair"]
-    assert corpus_mod._tested_kind(voltair) == "FACT" and corpus_mod.r24_fact_read_as_three(voltair)
-    assert voltair.respondent_questions[COMPATIBILITY]["codes"] == ["yes_easily", "yes_with_steps", "only_with_help", "no"]
+    assert corpus_mod._tested_kind(voltair) == "FACT" and not corpus_mod.r24_fact_read_as_three(voltair)
+    assert corpus_mod.R24_FACT_FOUR == ()
+    assert voltair.respondent_questions[COMPATIBILITY]["codes"] == list(corpus_mod.FACT_CODES)
     raw = yaml.safe_load(Path(voltair.path).read_text(encoding="utf-8"))
     raw["answers"][0].setdefault("picks", {})[COMPATIBILITY] = "only_with_help"
-    with pytest.raises(corpus_mod.CorpusError, match="the registry's four on a fact"):
+    with pytest.raises(corpus_mod.CorpusError, match="'only_with_help', not one of"):
         corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="15-voltair.yaml"), registry=fx.registry(),
                              backtest=True)
 

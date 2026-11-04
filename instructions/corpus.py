@@ -1269,6 +1269,24 @@ def _chain_answers(raw: dict, path=None) -> tuple:
     return cost, price, chain_cost and chain_price
 
 
+def spec213_chain(recorded, cost, price):
+    """keel-cloud 213 FR-2b (`VectorCorpusFixture.spec213Chain`): a chain sentence or phrase as revision 24 records it,
+    read by 213's one-measure rule until a revision records the new words -- a percent of a named base (the cost's rate
+    as a percent, or the price's share of that base) carries no *per {unit}*: *of the balance per company a year* reads
+    *of the balance a year*. Any other words as recorded."""
+    if not isinstance(recorded, str) or not isinstance(cost, dict):
+        return recorded
+    base, unit = cost.get("base"), cost.get("unit")
+    if base is None or unit is None:
+        return recorded
+    percent = chain_mod.is_percent(cost)
+    share = isinstance(price, dict) and price.get("shape") == "SHARE"
+    if not percent and not share:
+        return recorded
+    of, per = "of " + str(base).strip(), " per " + str(unit).strip()
+    return recorded.replace(of + per + ", each", of + " each").replace(of + per, of)
+
+
 def _check_chain(raw: dict, entry_id, path: Path) -> bool:
     """Rule C (spec 064 FR-1; `sim/check_corpus_r13.py` as built, keel-cloud 124): where the entry states the chain,
     the founder's cost, price and Ability to pay as the engine reads and words them, the three rows the chain serves,
@@ -1343,10 +1361,10 @@ def _check_chain(raw: dict, entry_id, path: Path) -> bool:
     idea = raw.get("idea_name")
     want = chain_mod.cost_belief(cost, occasion, role_word, deciders, b2b, actor=ctx.get("actor"),
                                  actor_plural=actor_plural)
-    if sacrifice.get("belief_sentence") != want:
+    if spec213_chain(sacrifice.get("belief_sentence"), cost, price) != want:
         raise fault(f"{where}: belief sentence {sacrifice.get('belief_sentence')!r}, the engine's {want!r}")
     want = chain_mod.cost_said(cost, occasion, role_word)
-    if sacrifice.get("belief_phrase") != want:
+    if spec213_chain(sacrifice.get("belief_phrase"), cost, price) != want:
         raise fault(f"{where}: belief phrase {sacrifice.get('belief_phrase')!r}, the engine's {want!r}")
 
     # the price
@@ -1384,12 +1402,17 @@ def _check_chain(raw: dict, entry_id, path: Path) -> bool:
             raise fault(f"{where}: free to them needs someone else to pay (FREE_NEEDS_A_PAYER)")
     if shape != "SHARE" and price.get("shareBase") is not None:
         raise fault(f"{where}: shareBase belongs to SHARE only")
+    # keel-cloud 213 FR-1c (`VectorCalibration.checkChainPrice`): only a plan after a one-off is optional
+    if price.get("optional") not in (None, True, False):
+        raise fault(f"{where}: optional {price.get('optional')!r} is true or false")
+    if price.get("optional") is True and not chain_mod.two_steps(price):
+        raise fault(f"{where}: is optional only on UPFRONT_THEN with a plan after the one-off")
     want = chain_mod.price_belief(price, cost, actor_plural, occasion, role_word, decider, deciders, idea, b2b)
-    if price_cal.get("belief_sentence") != want:
+    if spec213_chain(price_cal.get("belief_sentence"), cost, price) != want:
         raise fault(f"{where}: belief sentence {price_cal.get('belief_sentence')!r}, the engine's {want!r}")
     want = chain_mod.free_line(actor_plural, decider) if shape == "FREE" else \
         chain_mod.price_said(price, cost, occasion, role_word)
-    if price_cal.get("belief_phrase") != want:
+    if spec213_chain(price_cal.get("belief_phrase"), cost, price) != want:
         raise fault(f"{where}: belief phrase {price_cal.get('belief_phrase')!r}, the engine's {want!r}")
 
     # Ability to pay: the engine's reading
@@ -1402,10 +1425,10 @@ def _check_chain(raw: dict, entry_id, path: Path) -> bool:
     if ability.get("answer") != derived:
         raise fault(f"{where}: answer {ability.get('answer')!r}, the engine's reading {derived!r}")
     want = chain_mod.ability_belief(derived, actor_plural, decider, price, cost, occasion, role_word, deciders, b2b)
-    if ability.get("belief_sentence") != want:
+    if spec213_chain(ability.get("belief_sentence"), cost, price) != want:
         raise fault(f"{where}: belief sentence {ability.get('belief_sentence')!r}, the engine's {want!r}")
     want = chain_mod.ability_phrase(derived, actor_plural, decider, price, cost, occasion, role_word)
-    if ability.get("belief_phrase") != want:
+    if spec213_chain(ability.get("belief_phrase"), cost, price) != want:
         raise fault(f"{where}: belief phrase {ability.get('belief_phrase')!r}, the engine's {want!r}")
 
     # the rows the chain serves
@@ -1588,7 +1611,9 @@ FACT_CODES = ("yes_easily", "yes_with_steps", "no")
 #: tops were clear of tree cover* (revision 23's *The pole tops could be seen from above* was an ability). Code serves a
 #: fact three (`ItemFrames.conditionKind`), and nobody's recorded pick is `only_with_help`, so the row is read as served
 #: and the record is never rewritten (spec 130's pattern); a keel-cloud corpus spec owes the record the three.
-R24_FACT_FOUR = ("15-voltair",)
+#: Spec 137: keel-cloud 213 FR-11a paid it -- revision 24 amended in place, Voltair's row records the fact's three codes
+#: (`only_with_help` dropped; nobody picked it) -- so no entry is read through this any more.
+R24_FACT_FOUR: tuple[str, ...] = ()
 
 
 def r24_fact_read_as_three(entry) -> bool:
@@ -2087,9 +2112,9 @@ def advantage_drift_clause(founder, observed, n, a_lot) -> str:
 
 def engine_belief(entry, key: str):
     """The belief sentence the engine writes for `key`, as a journey holds the wire to it: the entry's recorded
-    `belief_sentence` read through 173's, 174's and 199's rules (`spec199_reads`; spec 113 FR-1, spec 115 FR-1, spec
-    130); None where none is recorded."""
-    return spec199_reads(entry, key)
+    `belief_sentence` read through 173's, 174's, 199's and 213's rules (`spec213_reads`; spec 113 FR-1, spec 115 FR-1,
+    spec 130, spec 137); None where none is recorded."""
+    return spec213_reads(entry, key)
 
 
 # ------------------------------------------------- spec 130: revision 22 read through keel-cloud 199's belief rules
@@ -2105,8 +2130,8 @@ IMPORTANCE_BELIEF_TEMPLATE_199 = ("{actor_plural} have {list_size} things that a
 ADVANTAGE_BELIEF_TEMPLATE_199 = "For most, with it, their last {occasion} would have given them {value}."
 BUYER_BELIEF_TEMPLATE_199 = "{decider} decides, and {value} must agree first."
 FRICTION_UNDATED_BELIEF_199 = "Most {deciders} would get through {value}, or not need it."
-#: `CostEstimate.B2B_PAYER` (keel-cloud 152, 199 FR-10): who pays the cost on a B2B study, as the cost question names it.
-B2B_PAYER = "the buyer's organisation"
+#: keel-cloud 213 FR-2a deleted `CostEstimate.B2B_PAYER` (*the buyer's organisation*, spec 152's word, reversed on the
+#: founder's word): the cost question and the belief name the decider's plural on B2B, the people's where the user pays.
 
 _BUYER_197 = re.compile(r"^(.*? decides, and )(.+) has to agree\.$")
 _ADVANTAGE_173 = re.compile(r"^For most, their last (.+?) would have gone better with it: (.+)\.$")
@@ -2167,8 +2192,8 @@ def spec199_reads(entry, key: str):
     if key == PURCHASE_FRICTION_KEY:
         return recorded.replace(" quickly, or not need it.", ", or not need it.")
     if key == SACRIFICE_KEY:
-        if b2b and recorded.startswith(_COST_PAYER):
-            return "The problem already costs " + B2B_PAYER + " " + recorded[len(_COST_PAYER):]
+        # 199 FR-10 read the B2B payer as *the buyer's organisation*; keel-cloud 213 FR-2a reverses it: the decider's
+        # plural, the founder's own word -- the words every recorded sentence already says
         return recorded
     if key == BUYER_KEY:
         m = _BUYER_197.match(recorded)
@@ -2196,6 +2221,86 @@ def spec199_reads(entry, key: str):
             return recorded
         bare = subjectless(recorded[len(head):-1])
         return recorded if bare is None else f"Most {plural} {bare}."
+    return recorded
+
+
+# ------------------------------------------------- spec 137: revision 24 read through keel-cloud 213's belief rules
+
+#: keel-cloud 213 FR-10c (`BeliefSentence.OWNED_SUBJECT`): Compatibility's sentence for a condition about the people's
+#: own thing.
+COMPATIBILITY_OWNED_SUBJECT = "Most {value}."
+#: `BeliefSentence.PLURAL_VERBS`: the verbs a plural subject takes in place of the singular's.
+PLURAL_VERBS = {"was": "were", "is": "are", "has": "have", "does": "do", "wasn't": "weren't", "isn't": "aren't",
+                "hasn't": "haven't", "doesn't": "don't"}
+_OWNED_QUALIFIERS = frozenset({"of", "for", "in", "on", "at", "with", "who", "that", "which", "under", "over", "from",
+                               "to", "by"})
+CURRENT_SOLUTION_KEY = "problem.current_solution_satisfaction"
+
+
+def owned_subject(condition, actor_plural):
+    """keel-cloud 213 FR-10c (`BeliefSentence.ownedSubject`; cycle 11, *For most finance leads, their bank could link
+    through Plaid*, a doubled subject): a Compatibility condition whose subject is the people's own thing -- *their* (or
+    *your*) and a noun before its verb -- said of the people's things after *Most*: *finance leads' banks could link
+    through Plaid* (the head noun in the plural, a singular be/have/do verb agreed). None where the condition has no such
+    subject, no people own it, or the people's plural carries its own qualifier (*parents of babies under six months*)."""
+    if condition is None or not str(condition).strip() or actor_plural is None or not str(actor_plural).strip():
+        return None
+    said = _lower_first(re.sub(r"[.]+$", "", str(condition).strip()).strip())
+    words = said.split()
+    first = words[0].lower()
+    if (first != "their" and first != "your") or len(words) < 3:
+        return None
+    verb = -1
+    for at in range(2, min(len(words), 5)):
+        w = re.sub(r"[^a-z']", "", words[at].lower())
+        if w in VERB_LEADS or w in PLURAL_VERBS:
+            verb = at
+            break
+    if verb < 0:
+        return None
+    noun = list(words[1:verb])
+    head = noun[-1]
+    if head.endswith("'s") or head.endswith(","):
+        return None
+    noun[-1] = chain_mod.plural_words(head)
+    rest = [PLURAL_VERBS.get(words[verb].lower(), words[verb])]
+    for w in words[verb + 1:]:
+        folded = w.lower()
+        rest.append("their" if folded in ("your", "its") else "them" if folded == "you" else
+                    "theirs" if folded == "yours" else w)
+    people = str(actor_plural).strip()
+    if "," in people or any(w in _OWNED_QUALIFIERS for w in people.lower().split()):
+        return None
+    owner = people + "'" if people.endswith("s") else people + "'s"
+    return owner + " " + " ".join(noun) + " " + " ".join(rest)
+
+
+def bare_act(phrase) -> str:
+    """keel-cloud 213 FR-3b (`BeliefSentence.bareAct`): Current solution's `{value}` -- the act bare (`ItemFrames.bare`,
+    spec 161's rule), never *their way of {act}*; a leading *your* reads *their*."""
+    if phrase is None:
+        return ""
+    from harness import vectors_script as vs                            # noqa: PLC0415 - the harness's `bare`
+    stripped = _lower_first(vs.bare_phrase(phrase) or "")
+    return "their " + stripped[len("your "):] if stripped.startswith("your ") else stripped
+
+
+def spec213_reads(entry, key: str):
+    """keel-cloud `VectorCorpusFixture.spec213Reads` (spec 213 FR-3b, FR-10c): the recorded sentence read by 199's rules
+    (`spec199_reads`), then by 213's, until a corpus revision records the new words -- Current solution's act bare
+    (*For most {people}, {act} still falls short.*, never *their way of*); Compatibility's condition about the people's
+    own thing read as theirs (*Most {people}' {things} ...*, `owned_subject`)."""
+    recorded = spec199_reads(entry, key)
+    if recorded is None:
+        return None
+    plural = str((getattr(entry, "context", None) or {}).get("actor_plural") or "")
+    if key == CURRENT_SOLUTION_KEY:
+        return re.sub(r"^(For most [^,]+, )their way of ", r"\1", recorded, count=1)
+    if key == COMPATIBILITY_KEY:
+        head = f"For most {plural}, "
+        if recorded.startswith(head) and recorded.endswith("."):
+            owned = owned_subject(recorded[len(head):-1], plural)
+            return recorded if owned is None else "Most " + owned + "."
     return recorded
 
 

@@ -342,7 +342,10 @@ def test_the_record_reads_as_the_engine_writes(entry_id, key, recorded, read):
 def test_a_row_174_did_not_move_reads_as_recorded_and_173_still_reads_first():
     lullaby = _golden("03-lullaby")
     key = "problem.current_solution_satisfaction"
-    assert corpus_mod.engine_belief(lullaby, key) == lullaby.founder_calibration[key]["belief_sentence"]
+    assert corpus_mod.spec199_reads(lullaby, key) == lullaby.founder_calibration[key]["belief_sentence"]
+    # spec 137 (keel-cloud 213 FR-3b): the engine says the act bare -- *their way of* read off the record
+    assert corpus_mod.engine_belief(lullaby, key) == \
+        lullaby.founder_calibration[key]["belief_sentence"].replace(", their way of ", ", ", 1)
     advantage = "solution.relative_advantage"
     assert corpus_mod.spec174_reads(lullaby, advantage) == \
         corpus_mod.spec173_reads(lullaby.founder_calibration[advantage]["belief_sentence"])

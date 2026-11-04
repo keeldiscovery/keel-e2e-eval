@@ -78,15 +78,19 @@ def test_the_registrys_templates_are_199s():
         "Most agencies would get through the owner's approval, or not need it."
     prompts = _cloud(VECTORS + "AnswerPrompts.java")
     assert f'"{vs_screens.COMPATIBILITY_ANSWER_QUESTION}"' in prompts
-    assert 'B2B_PAYER = "the buyer\'s organisation"' in _cloud(VECTORS + "CostEstimate.java")
-    assert corpus_mod.B2B_PAYER == "the buyer's organisation"
+    # spec 137 (keel-cloud 213 FR-2a): `CostEstimate.B2B_PAYER` deleted -- the decider's plural, never *the buyer's
+    # organisation*, and the eval's mirror with it
+    assert "B2B_PAYER" not in _cloud(VECTORS + "CostEstimate.java")
+    assert not hasattr(corpus_mod, "B2B_PAYER")
 
 
 def test_the_reader_is_the_clouds_spec199_reads():
     text = _cloud(FIXTURE)
     body = text[text.index("public static String spec199Reads("):]
     body = body[:body.index("\n    private static String joined(")]
-    for said in ('" now."', '" quickly, or not need it."', '", or not need it."', '"The problem already costs "',
+    # spec 137 (keel-cloud 213 FR-2a): Existing sacrifice is read as recorded -- *the buyer's organisation* retired
+    assert '"The problem already costs "' not in body
+    for said in ('" now."', '" quickly, or not need it."', '", or not need it."',
                  '"^(.*? decides, and )(.+) has to agree\\\\.$"', '" must agree first."',
                  '"^For most, their last (.+?) would have gone better with it: (.+)\\\\.$"',
                  '"For most, with it, their last "', '" would have given them "', 'subjectless(condition)'):
@@ -101,8 +105,9 @@ def test_the_reader_is_the_clouds_spec199_reads():
      "Most parents of babies under six months would allow it to use the microphone at night."),
     ("05-paidly", "commercial.purchase_friction",
      "Most agencies would get through the agency owner's approval, or not need it."),
+    # spec 137 (keel-cloud 213 FR-2a): 199's *the buyer's organisation* reversed -- the record read as recorded
     ("05-paidly", "commercial.existing_sacrifice",
-     "The problem already costs the buyer's organisation about $100 to $300 a month."),
+     "The problem already costs the payer about $100 to $300 a month."),
     ("02-compliancelog", "commercial.buyer_payer_alignment", "The HR manager decides, and the HR director must agree "
                                                              "first."),
     ("03-lullaby", "commercial.buyer_payer_alignment", "The parent decides, and nobody else must agree first."),

@@ -2086,6 +2086,71 @@ def time_sourced(entry) -> bool:
     return False
 
 
+#: Spec 137 FR-4: the words of an entry's sources that make its plan after the one-off optional -- a free plan named
+#: beside the paid one (13-aircaps: *free plan with unlimited captions; "Pro plan: $20/month"*), or the word itself.
+_FREE_PLAN = re.compile(r"(?i)\bfree plan\b")
+_PAID_PLAN = re.compile(r"(?i)\bplan\b[^.;]*?[$\u20ac\u00a3]\s?\d|[$\u20ac\u00a3]\s?\d[^.;]*?\bplan\b")
+_OPTIONAL_PLAN = re.compile(r"(?i)\boptional\b[^.;]*\bplan\b")
+
+
+def plan_optional_sourced(entry) -> bool:
+    """Spec 137 FR-4 (keel-cloud 213 FR-1c, contract 59: `price.optional`): whether the entry's plan after the one-off
+    is optional, read off its own `{id}.sources.md` -- a line that names a free plan beside a priced plan, or an optional
+    plan -- until a corpus revision records the field (the yaml's `optional`, keel-cloud's; read first where it is
+    there). Only an up-front-then price with a plan has one. A `## Revision ...` section is never a source (spec 135)."""
+    price = ((getattr(entry, "founder_calibration", None) or {}).get("commercial.price") or {}).get("answer")
+    if not isinstance(price, dict) or not chain_mod.two_steps(price):
+        return False
+    if price.get("optional") is not None:
+        return price.get("optional") is True
+    path = getattr(entry, "path", None)
+    if path is None:
+        return False
+    from pathlib import Path                                            # noqa: PLC0415
+    sources = Path(path).parent / f"{entry.id}.sources.md"
+    if not sources.is_file():
+        return False
+    for line in sources.read_text(encoding="utf-8").splitlines():
+        if line.lower().startswith("## revision"):
+            break
+        if _OPTIONAL_PLAN.search(line) or (_FREE_PLAN.search(line) and _PAID_PLAN.search(_FREE_PLAN.sub("", line))):
+            return True
+    return False
+
+
+def founder_price(entry) -> dict | None:
+    """Spec 137 FR-4: the price the founder types, as the corpus states it -- the plan's low and high as recorded
+    (21-codyco's *€1,000 to €1,500*: 1000 and 1500) -- and `optional: True` where the plan is optional
+    (`plan_optional_sourced`: 13-aircaps' *optional $20 a month plan*). None where the entry states no chain price."""
+    price = ((getattr(entry, "founder_calibration", None) or {}).get("commercial.price") or {}).get("answer")
+    if not chain_mod.price_in_chain(price):
+        return None
+    out = dict(price)
+    if plan_optional_sourced(entry):
+        out["optional"] = True
+    return out
+
+
+def price_belief_owed(entry) -> str | None:
+    """Spec 137 FR-2 / FR-4 (keel-cloud 213 FR-1): the price belief the engine writes over what the walk types
+    (`founder_price`) -- the plan's range whole, *then an optional {plan} plan* where it is optional, no unit where the
+    user pays, no *per {unit}* beside a share of a named base. None where the entry states no chain price."""
+    price = founder_price(entry)
+    if price is None:
+        return None
+    cost = entry.cost() if callable(getattr(entry, "cost", None)) else None
+    ctx = getattr(entry, "context", None) or {}
+    persona = getattr(entry, "persona", None) or {}
+    maker = persona.get("decision_maker") if isinstance(persona.get("decision_maker"), dict) else None
+    b2b = maker is not None
+    decider = (maker or {}).get("role")
+    deciders = chain_mod.deciders((maker or {}).get("title") or decider, ctx.get("actor_plural"), b2b)
+    said_occasion = ctx.get("occasion") if isinstance(ctx.get("occasion"), str) else ""
+    # the loader's own inputs (`corpus._check_chain`): the decider's role, else the actor, is the role word
+    return chain_mod.price_belief(price, cost, ctx.get("actor_plural"), said_occasion, decider or ctx.get("actor"),
+                                  decider, deciders, getattr(entry, "idea_name", None), b2b)
+
+
 #: Spec 130: the walker's own time for a golden entry that names none, typed only where the page draws no *not sure*.
 GOLDEN_DEFAULT_DURATION = {"count": 2, "unit": "WEEKS"}
 
@@ -2547,8 +2612,10 @@ def calibration_answers(entry, vector: str) -> list[CalibrationAnswer]:
             if answer.get("rate") is not None:
                 body["cost"]["rate"] = answer["rate"]
         elif key == "commercial.price" and chain_mod.price_in_chain(answer):
-            # a chain price posts its shape and its numbers, and no period (it is the cost's)
-            body["price"] = {k: answer[k] for k in sorted(chain_mod.CHAIN_FIELDS_PRICE) if answer.get(k) is not None}
+            # a chain price posts its shape and its numbers, and no period (it is the cost's); spec 137 FR-4: an optional
+            # plan where the entry's price says so (`founder_price`)
+            price = founder_price(entry) or answer
+            body["price"] = {k: price[k] for k in sorted(chain_mod.CHAIN_FIELDS_PRICE) if price.get(k) is not None}
         elif key == "commercial.price":
             body["price"] = {k: answer[k] for k in ("low", "high", "period")}
         elif is_list(key):
