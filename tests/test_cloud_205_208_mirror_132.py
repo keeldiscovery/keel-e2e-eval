@@ -268,7 +268,9 @@ def test_the_two_moved_answer_questions_are_the_clouds():
     assert f'COMMERCIAL_PURCHASE_FRICTION -> "{vs_screens.PURCHASE_FRICTION_ANSWER_QUESTION}"' in prompts
     joined = re.sub(r'"\s*\+\s*"', "", prompts)
     assert f'COMMERCIAL_COMMITMENT -> "{vs_screens.COMMITMENT_ANSWER_QUESTION}"' in joined
-    for old in (vs_screens.PURCHASE_FRICTION_ANSWER_QUESTION_204, vs_screens.COMMITMENT_ANSWER_QUESTION_204):
+    # spec 133 FR-3 (keel-cloud 211 FR-7): Commitment's moved again -- 205's *where would any money go?* is gone
+    for old in (vs_screens.PURCHASE_FRICTION_ANSWER_QUESTION_204, vs_screens.COMMITMENT_ANSWER_QUESTION_204,
+                vs_screens.COMMITMENT_ANSWER_QUESTION_205):
         assert f'-> "{old}"' not in joined, old
 
 

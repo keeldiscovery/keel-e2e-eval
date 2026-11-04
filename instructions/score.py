@@ -20,7 +20,9 @@ and what is scored here by code against the registry keel-cloud exports:
 - `score_calibration` (`CALIBRATION_QUESTIONS`, `founder-lists.md`) -- coverage: one entry a dimension of the vector's
   answered slice, in order (C1); validity: Prevalence's `event` (E1-E3) and its five fifths (C2-C4), Frequency / Price
   / Existing sacrifice their key and note alone (C2), and **every list dimension's draft** held to `L1`-`L5` against
-  the registry's `founder.saves` (a Purchase friction step naming the founder's own offer `L32`, spec 132) -- with the `asked` face of a Compatibility or Adoption friction item held to the
+  the registry's `founder.saves` (a Purchase friction step naming the founder's own offer `L32`, spec 132; a Buyer and
+  payer row for a role the founder never typed in this Answer `L33` and a priced Commitment step with no free smaller
+  step `L34`, spec 133) -- with the `asked` face of a Compatibility or Adoption friction item held to the
   `K` rules too, because a drafted face the founder keeps reaches a stranger unchanged (keel-cloud 088 FR-003's
   vouching; call 85); no_leak: sweep A over the PROBLEM job's written words (Prevalence's clause and fifths,
   Importance's five, Current solution's phrase and outcomes);
@@ -50,9 +52,11 @@ from dataclasses import dataclass, field
 from . import context as context_mod
 from . import friction as friction_mod
 from . import spoken as spoken_mod
+from . import step_cost as step_cost_mod
 from . import text as text_mod
 from . import wording as wording_mod
-from .registry import ADOPTION_KEY, COMPATIBILITY_KEY, DEFAULT_WINDOW, GATE_KEY, PURCHASE_FRICTION_KEY, words
+from .registry import (ADOPTION_KEY, BUYER_KEY, COMMITMENT_KEY, COMPATIBILITY_KEY, DEFAULT_WINDOW, GATE_KEY,
+                       PURCHASE_FRICTION_KEY, words)
 
 
 # ------------------------------------------------------------------------------------ compare
@@ -354,11 +358,48 @@ def _draft_count(dimension, answers: dict | None) -> tuple[int, int, str]:
     return low, high, ""
 
 
+def founders_own_step(label: str | None, answer: str | None) -> bool:
+    """keel-cloud `ScreenResultApplier.foundersOwnStep`: half or more of the row's content words are in the founder's
+    Answer (`FounderWords.dropped`)."""
+    from harness import qualifiers as q_mod                            # noqa: PLC0415
+    if not label or not str(label).strip() or not answer or not str(answer).strip():
+        return False
+    content = q_mod.dropped(label, "")
+    if not content:
+        return False
+    missing = q_mod.dropped(label, answer)
+    return 2 * (len(content) - len(missing)) >= len(content)
+
+
+def untyped_role(items: list, answer: str | None, named=()) -> str | None:
+    """Spec 133 FR-1 (keel-cloud 211 FR-2, `ScreenResultApplier.untypedRole`, `L33`): the first drafted Buyer and payer
+    row -- *Nobody else* aside -- naming a role neither typed in this Answer (`founders_own_step`: half its content
+    words in it) nor one of the people named already (`named`: the decider's words and role, the person with the
+    problem -- every content word theirs): the fault in the cloud's words, else None. Read only where the Answer is
+    typed (a redraft); one repair turn, then a note."""
+    from harness import qualifiers as q_mod                            # noqa: PLC0415
+    if not answer or not str(answer).strip():
+        return None
+    for j, item in enumerate(items):
+        label = str((item or {}).get("label") or "") if isinstance(item, dict) else str(item or "")
+        if (isinstance(item, dict) and item.get("code") == "nobody_else") or label.strip().lower() == "nobody else":
+            continue
+        typed = founders_own_step(label, answer)
+        someone = any(not q_mod.dropped(label, person) for person in named if person)
+        if not typed and not someone and q_mod.dropped(label, ""):
+            return (f"L33: '{label}' is a role the founder did not type in this Answer (\"{str(answer).strip()}\"); a "
+                    "row is one of the roles they typed here, the decider or the person with the problem -- never one "
+                    "from their material, another answer or the usual people of their trade; leave it out")
+    return None
+
+
 def list_faults(question: dict, dimension, *, sources: str = "", occasion: str | None = None,
-                answers: dict | None = None) -> list:
+                answers: dict | None = None, named=()) -> list:
     """`L1`-`L5` on one list dimension's draft (keel-cloud 087 `ScreenResultApplier.draft`, restated), and on a
     Compatibility or Adoption friction item's `asked` face the `K` rules (call 85). `answers` is the job's `answers`
-    slot (`{}` on the seed-time job; the founder's Answer by key on a redraft): Importance's count reads it (spec 091)."""
+    slot (`{}` on the seed-time job; the founder's Answer by key on a redraft): Importance's count reads it (spec 091).
+    Spec 133 (keel-cloud 211): `L33` on Buyer and payer where the Answer is typed (`named`: the decider's words and
+    role, the person with the problem), `L34` on Commitment."""
     faults = []
     saves = dimension.saves
     draft = question.get("list")
@@ -434,6 +475,17 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
                 # note the harness does not count, call 124)
                 faults.append(f"L5: item {i + 1}: the suggested step carries suggested_why -- what in the Answer or "
                               "the idea calls for it, in one sentence")
+    if dimension.key == BUYER_KEY and isinstance((answers or {}).get(BUYER_KEY), str):
+        # spec 133 FR-1 (keel-cloud 211 FR-2, L33): a row is a role typed in this Answer, never one from elsewhere
+        fault = untyped_role(items, answers[BUYER_KEY], named)
+        if fault:
+            faults.append(fault)
+    if dimension.key == COMMITMENT_KEY and items:
+        # spec 133 FR-1 (keel-cloud 211 FR-6, L34, after L15 and L27): a step that costs money, data or a signature
+        # carries a free smaller step
+        fault = step_cost_mod.l34([str(i.get("label") or "") for i in items])
+        if fault:
+            faults.append(fault)
     hit = wording_mod.money(" ".join([str(draft.get("phrase") or "")] + [
         str(t) for i in items for t in (i.get("label"), i.get("asked")) if t]))
     if hit:

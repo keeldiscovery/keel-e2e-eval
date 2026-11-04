@@ -2878,6 +2878,12 @@ def leg_persona(j: Journey) -> None:
             assert (view.get("decider") or {}).get("role") == j.founder.decider["role"], view
             # spec 064 FR-6 (keel-cloud 123 FR-10): the title sent is the one served
             assert view.get("deciderTitle") == j.founder.decider.get("title"), view
+            # spec 133 FR-3 (keel-cloud 211 FR-8): the decider's *who answers* option is the whole title as typed (the
+            # role where none), never its last word (*Director*); Buyer and payer is not saved yet, so no co-decider
+            label = next(t.get("label") for t in types if t.get("commercialLink"))
+            want_label = vs.who_answers(j.founder.decider.get("title"), j.founder.decider.get("role"))
+            h.record_assert(want_label, label)
+            assert label == want_label, {"who answers": label, "want": want_label}
 
 
 # ---------------------------------------------------------------------------------- leg 4: lock

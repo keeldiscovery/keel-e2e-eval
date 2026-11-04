@@ -487,7 +487,9 @@ EXAMPLES = {
                 "founder_time_typed": False, "escape": "I can't tell"}},
     "commercial.commitment": {
         "good": {"stem": "If it were ready today, would you start a paid pilot on one site, or not?",
-                 "options": ["Yes, I'd start a paid pilot on one site", "Probably yes", "Probably not", "No"],
+                 # spec 133 FR-4 (keel-cloud 211 FR-6): the priced step's example carries its free smaller step
+                 "options": ["Yes, I'd start a paid pilot on one site", "Probably, after a look at how it works first",
+                             "Probably not", "No"],
                  "codes": ["yes_start", "yes_after_trying", "probably_not", "no"],
                  "step": "start a paid pilot on one site", "escape": None},
         "bad": {"stem": "If it were ready today, would you order a pair with free returns, or not?",

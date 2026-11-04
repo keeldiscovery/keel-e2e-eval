@@ -90,6 +90,49 @@ def dropped_as_spelt(founder: str | None, *kept: str | None) -> list[str]:
     return dropped(founder, *kept, spelt=True)
 
 
+#: Spec 133 FR-1 (keel-cloud 211 FR-5, `ScreenResultApplier.PREPOSITIONS`): the prepositions `content_only` lets a
+#: clause swap -- Lullaby's *during the night* written *in the night* is no word of the founder's lost.
+PREPOSITIONS = frozenset(("during", "within", "throughout", "across", "over", "into", "onto", "upon", "while",
+                          "whilst", "through", "towards", "toward", "about", "around", "inside", "among", "amid", "per",
+                          "via"))
+
+
+def content_only(lost: list[str]) -> list[str]:
+    """keel-cloud 211 FR-5 (`ScreenResultApplier.contentOnly`): the founder's words `X8` holds at zero, a preposition
+    the clause's own grammar may swap aside."""
+    return [w for w in lost if w.lower() not in PREPOSITIONS]
+
+
+def _quoted(words_: list[str]) -> str:
+    return "[" + ", ".join(f"'{w}'" for w in words_) + "]"
+
+
+def x8(founder_what: str | None, founder_when: str | None, job: str | None, circumstance: str | None) -> list[str]:
+    """Spec 133 FR-1 (keel-cloud 211 FR-5, `ScreenResultApplier.x8`'s circumstance and job): every founder word lands
+    -- the circumstance drops **no** content word of the founder's WHEN and the job none of their WHAT (it was more than
+    `MOST_DROPPED`; cycle 10's *booking*, *from a raise*, *site*, *run* went one at a time), a preposition the clause
+    swaps aside (`content_only`); an added word keeps its one (`MOST_DROPPED`). The faults in the cloud's words, refused
+    once, then noted. (The negation and WHICH PEOPLE halves of `X8` did not move and are not restated.)"""
+    faults: list[str] = []
+    what, when = founder_what or "", founder_when or ""
+    for field, founder, written, theirs, other, tail in (
+            ("circumstance", founder_when, circumstance, "WHEN", "WHAT",
+             "; keep their clause whole -- a stranger knows it, and a paraphrase is Keel's"),
+            ("job", founder_what, job, "WHAT", "WHEN", "; keep their job as they said it")):
+        if founder is None or written is None:
+            continue
+        lost = content_only(dropped_as_spelt(founder, written))
+        added = dropped_as_spelt(written, when, what) if field == "circumstance" else dropped_as_spelt(written, what,
+                                                                                                         when)
+        if lost or len(added) > MOST_DROPPED:
+            said = (f"drops the founder's own words {_quoted(lost)}" if lost else "") \
+                + (" and " if lost and len(added) > MOST_DROPPED else "") \
+                + (f"adds words that are in neither their {theirs} nor their {other} {_quoted(added)}"
+                   if len(added) > MOST_DROPPED else "")
+            faults.append(f"X8: the {field} {said} (they wrote \"{founder.strip()}\"){tail}")
+    return faults
+
+
 def _negated(text: str | None) -> bool:
     return text is not None and any(w in NEGATIONS or w.endswith("n't") for w in words(text))
 

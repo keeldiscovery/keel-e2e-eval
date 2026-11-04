@@ -329,6 +329,48 @@ def short_unit(window: Window) -> str:
     return _UNIT_WORDS[window.unit][1].split(" ")[-1]
 
 
+def prevalence_people(segment_core: str | None, condition: str | None, actor_plural: str | None) -> str:
+    """Spec 133 FR-3 (keel-cloud 211 FR-3, `WindowFrame.people`; cycle 10, proposal 30: on all five studies the founder's
+    question named the bare people and dropped the segment's qualifiers): the people the founder's Prevalence question
+    counts -- the segment whole as the context card says it (`ContextSlots.segmentLine`: `qualifiers.segment`, core and
+    condition), its closing stop or comma off and closed with a comma where a comma opens a part of it, so the event
+    reads as the people's; the context's `actor_plural` only where it holds no segment."""
+    line = qualifiers.segment(segment_core, condition) if segment_core and str(segment_core).strip() else None
+    if not line or not line.strip():
+        return (actor_plural or "").strip()
+    people = re.sub(r"[.,;:]+$", "", line.strip())
+    return people + "," if ", " in people else people
+
+
+def founder_prevalence_question(window: Window, people: str, event: str | None) -> str:
+    """Spec 133 FR-3 (keel-cloud 211 FR-3, `WindowFrame.prevalence(window, slots, event)`): the founder's Prevalence
+    question, composed by code -- *In the last {window}, how many out of 10 {people} {event}?*, the people
+    `prevalence_people` (Lullaby: *... parents of babies under six months in the US had to work out why their baby was
+    crying?*), the event the writer's clause (`WindowFrame.clause`: no closing stop, a leading capital lowered unless
+    it opens an acronym)."""
+    text = " ".join(str(event or "").split())
+    while text.endswith("."):
+        text = text[:-1].strip()
+    if len(text) > 1 and text[0].isupper() and not text[1].isupper():
+        text = text[0].lower() + text[1:]
+    return f"In the last {window_words(window)}, how many out of 10 {people.strip()} {text}?"
+
+
+def who_answers(title: str | None, role: str | None, co_deciders=()) -> str:
+    """Spec 133 FR-3 (keel-cloud 211 FR-8, `PersonaModel.whoAnswers`; cycle 10, proposal 2: Codyco's *who answers*
+    option read *Director*, the last word of the founder's decider): the decider's option on the persona's *who
+    answers* list (`respondentTypes[].label`, printed as served by keel-web) -- the whole title as typed, its first
+    letter up (the role where none was typed), never a word of it; once Buyer and payer is saved, *, with {roles}
+    agreeing*, each role on the saved list (*Nobody else* aside) with its *the* (`chain.the_role`), joined with *and*:
+    *Hotel group revenue director, with the hotel's owner agreeing*."""
+    from instructions import chain as chain_mod                        # noqa: PLC0415
+    from instructions import corpus as corpus_mod                      # noqa: PLC0415
+    said = (title or "").strip() or (role or "").strip()
+    whole = said[:1].upper() + said[1:]
+    others = [chain_mod.the_role(r.strip()) for r in co_deciders or () if r and r.strip()]
+    return f"{whole}, with {corpus_mod.joined(others)} agreeing" if others else whole
+
+
 def window_first(window: Window) -> str:
     """keel-cloud 174 FR-5 (`WindowFrame.windowFirst`): the Frequency frames' opening -- *In the last 3 months, in how many
     months *, *In the last 5 working days, on how many days * -- the unit always said, as it is counted."""
@@ -1580,7 +1622,9 @@ def wire_code(key: str, index: int) -> str:
     if control == "role_list":
         return NOBODY_ELSE[0] if index == 0 else f"role_{index}"
     if control == "one_step":
-        return "step"
+        # spec 133 FR-2 (keel-cloud 118 FR-1, `SavedList.codeFor`): the step, then the smaller step its second yes is
+        # written from (the harness sent *step* twice; the cloud's code is positional, so nothing it stored moved)
+        return "step" if index == 0 else "smaller_step"
     return f"item_{index + 1}"
 
 
@@ -1646,6 +1690,36 @@ def buyer_payer_pick(entry) -> int:
     only where the Answer names nobody (then the list holds only *Nobody else* and the screen is a statement to
     confirm, sent as 0). Never by a role's label."""
     return 1 if buyer_payer_roles(entry) else 0
+
+
+#: Spec 133 FR-2 (keel-cloud 211 FR-6, `L34`; the registry's Commitment guidance: *the obvious smaller step that costs
+#: nothing and comes first ..., a noun phrase naming the same product ..., named by Keel with its reason*): the free
+#: smaller step the scripted writer names where the entry's step costs the person money, data or a signature and its
+#: list is the step alone -- keel-cloud's own words for Keel's step on such a list (`AfterTheReRunsTest`, Karsa's *a look
+#: at how it works*); no trade's word, the same on every entry.
+KEELS_SMALLER_STEP = "a look at how it works"
+
+
+def keels_smaller_step(entry) -> dict | None:
+    """Spec 133 FR-2 (keel-cloud 211 FR-6, `L34`): Commitment's second item as the scripted writer names it --
+    `{label, reason}`, `KEELS_SMALLER_STEP` and why, in one sentence, the step costs the person something
+    (`instructions.step_cost`) -- where the entry's list is its step alone and that step costs money, data or a
+    signature (*pay*, *paid pilot*, *order*, *buy*, *read access*: eleven back-test entries); None where the step costs
+    nothing or the entry's list already carries a smaller step (the golden 02, 03, 06). Since 211 `L19` keeps it (it
+    drops Keel's step only where the step costs nothing) and `L7` reads its reason, so the draft spends no repair turn
+    and the founder saves both rows, as the Check screen draws them."""
+    from instructions import step_cost as step_cost_mod                # noqa: PLC0415
+    saved = entry.founder_list(COMMITMENT_KEY) if hasattr(entry, "founder_list") else None
+    items = (saved or {}).get("items") or []
+    if len(items) != 1:
+        return None
+    step = str(items[0].get("label") or "")
+    cost = step_cost_mod.of(step)
+    if cost is None:
+        return None
+    return {"label": KEELS_SMALLER_STEP,
+            "reason": f"'{step}' costs the person {cost.kind} ('{cost.word}'), so a smaller step that costs nothing "
+                      "is offered first"}
 
 
 #: The list dimensions a stranger picks among the founder's own items; every other dimension's codes are
@@ -1765,6 +1839,10 @@ def drafted_list(entry, key: str) -> dict:
             # condition, so the scripted founder spends no repair turn an item
             out["only_if"] = adoption_condition(item)
         items.append(out)
+    if key == COMMITMENT_KEY and keels_smaller_step(entry):
+        # spec 133 FR-2 (keel-cloud 211 FR-6, L34): a step that costs money, data or a signature carries Keel's free
+        # smaller step with its reason (L7), so the draft spends no repair turn
+        items.append(dict(keels_smaller_step(entry)))
     if key == "problem.importance":
         items = items[:1 + len(importance_named(entry))]     # Keel adds only what the Answer named (097 F9)
     # spec 129 (keel-cloud 200 FR-1): each row's hidden short name where the scripted writer can name it
@@ -1905,6 +1983,9 @@ def saved_list(entry, key: str) -> dict:
         if key in ASKED_FACES and item.get("asked"):
             out["asked"] = item["asked"]
         items.append(out)
+    if key == COMMITMENT_KEY and keels_smaller_step(entry):
+        # spec 133 FR-2 (keel-cloud 211 FR-6): the founder saves Keel's free smaller step beside the step, as drawn
+        items.append({"code": wire_code(key, len(items)), "label": keels_smaller_step(entry)["label"]})
     picked = kept_picked(entry, key)
     out = {"items": items, "pickedIndex": int(picked) if key in PICKED and picked is not None else None,
            "phrase": bare_phrase(saved.get("phrase")) if key == "problem.current_solution_satisfaction" else None}
@@ -4141,10 +4222,12 @@ NOT_SERVED_YES = "probably_not"
 
 
 def smaller_step(entry) -> str | None:
-    """keel-cloud 118 `ItemFrames.smallerStep`: the Commitment list's second item, lower-cased, or None (none served)."""
+    """keel-cloud 118 `ItemFrames.smallerStep`: the Commitment list's second item, lower-cased, or None (none served).
+    Spec 133 FR-2 (keel-cloud 211 FR-6): where the entry's step costs something and its list is the step alone, Keel's
+    free smaller step the founder saved (`keels_smaller_step`)."""
     saved = entry.founder_list("commercial.commitment")
     items = (saved or {}).get("items") or []
-    label = items[1].get("label") if len(items) > 1 else None
+    label = items[1].get("label") if len(items) > 1 else (keels_smaller_step(entry) or {}).get("label")
     return fake_lower(label) if label and label.strip() else None
 
 

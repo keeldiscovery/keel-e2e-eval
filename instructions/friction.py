@@ -31,6 +31,10 @@ BELIEF_TEMPLATE = "Most {deciders} would get through {value} within about {durat
 #: Since keel-cloud 199 FR-4 a list with no time says none -- no *quickly* (`UNDATED_BELIEF_182`, before 199).
 UNDATED_BELIEF = "Most {deciders} would get through {value}, or not need it."
 UNDATED_BELIEF_182 = "Most {deciders} would get through {value} quickly, or not need it."
+#: Spec 133 FR-3 (keel-cloud 211 FR-1, `PurchaseFriction.UNTIMED_BELIEF`; cycle 10, proposal 13: Codyco's belief read
+#: *within about 4 weeks* before the founder had typed a time): the belief before the founder types a time or picks *not
+#: sure* -- on the Answer and Check screens and on Choose until the time box is filled. It names no number.
+UNTIMED_BELIEF = "Most {deciders} would get through {value} within the time you'll set, or not need it."
 #: keel-cloud 182 FR-3 (`PurchaseFriction.BAR`, `BAR_UNDATED`): the card's bar, after *Keel's bar: *.
 BAR = "holds if no more than 1 in 3 say it would take longer than you expect"
 BAR_UNDATED = "holds if no more than 1 in 3 say it would take a long time"
@@ -184,14 +188,23 @@ def longer(code, founder: Duration | None) -> bool:
     return b is not None and b[0] is not None and b[0] >= founder.days()
 
 
-def belief(deciders: str | None, step: str, founder: Duration | None) -> str:
+def time_owed(saved: dict | None) -> bool:
+    """Spec 133 FR-3 (keel-cloud 211 FR-1, `PurchaseFriction.timeOwed`): the founder's time is still owed on a saved
+    list (`{items, pickedIndex, duration}` as the wire carries it) -- no step picked yet (the Check screen's save, before
+    Choose) and no time. A list with a pick and no time was picked *not sure* (`UNDATED_BELIEF`)."""
+    return saved is not None and saved.get("pickedIndex") is None and not saved.get("duration")
+
+
+def belief(deciders: str | None, step: str, founder: Duration | None, owed: bool = False) -> str:
     """`PurchaseFriction.belief`: *Most {deciders} would get through {step} within about {duration}, or not need it.*;
-    *Most would ...* with no decider word; *..., or not need it.* with no time (keel-cloud 199 FR-4: no *quickly*)."""
+    *Most would ...* with no decider word; *..., or not need it.* with no time (keel-cloud 199 FR-4: no *quickly*).
+    Spec 133 FR-3 (keel-cloud 211 FR-1): `owed` (`time_owed`) and no time, *... within the time you'll set, or not need
+    it.* (`UNTIMED_BELIEF`) -- never a time the founder has not typed."""
     def lower(text: str) -> str:
         return text if len(text) > 1 and text[1].isupper() else text[:1].lower() + text[1:]
 
     who = lower(deciders.strip()) if deciders and deciders.strip() else None
-    sentence = UNDATED_BELIEF if founder is None else BELIEF_TEMPLATE
+    sentence = BELIEF_TEMPLATE if founder is not None else UNTIMED_BELIEF if owed else UNDATED_BELIEF
     sentence = sentence.replace("Most {deciders} ", "Most ") if who is None else sentence.replace("{deciders}", who)
     value = str(step or "").strip()
     while value.endswith("."):

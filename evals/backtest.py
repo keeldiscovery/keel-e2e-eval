@@ -1915,7 +1915,16 @@ LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-
                      "(keel-cloud 207 FR-3)",
               "M7": "a how line of more than five sentences (keel-cloud 207 FR-3)",
               "M8": "a belief saying two or more of the how line's names again (keel-cloud 207 FR-3)",
-              "P6": "a misspelt number word at an end of a range or choice of figures (keel-cloud 207 FR-2)"}
+              "P6": "a misspelt number word at an end of a range or choice of figures (keel-cloud 207 FR-2)",
+              # spec 133 (keel-cloud 211 FR-2, FR-6): Buyer and payer's rows are the roles typed in this Answer, and a
+              # priced Commitment step takes a free smaller step -- each refused once, then noted
+              "L33": "a Buyer and payer row for a role the founder never typed in this Answer (keel-cloud 211 FR-2)",
+              "L34": "a Commitment step that costs money, data or a signature without a free smaller step "
+                     "(keel-cloud 211 FR-6)",
+              # spec 133 (keel-cloud 211 FR-5): the context's circumstance or job drops a single founder word of WHEN or
+              # WHAT (was more than one) -- refused once, then noted
+              "X8": "the context's circumstance or job drops a founder word of WHEN or WHAT, or adds words in neither "
+                    "(keel-cloud 211 FR-5)"}
 _NOTE = re.compile(r"\b(" + "|".join(LOCK_NOTES) + r"): ([^\n]{1,400})")
 
 

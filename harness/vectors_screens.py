@@ -433,7 +433,10 @@ COMPATIBILITY_ANSWER_QUESTION_198 = "How does it fit into the way they work toda
 #: Commitment's the step and where any money goes (it read *What's the first real step you'd want them to take?*).
 PURCHASE_FRICTION_ANSWER_QUESTION = "What must the buyer's own side clear before they pay?"
 PURCHASE_FRICTION_ANSWER_QUESTION_204 = "What could slow down or stop a purchase?"
-COMMITMENT_ANSWER_QUESTION = "What's the first real step you'd want them to take, and where would any money go?"
+#: Spec 133 FR-3 (keel-cloud 211 FR-7, `AnswerPrompts`; cycle 10, proposal 9): Commitment's the step and what it would
+#: cost them (205's read *..., and where would any money go?*, `COMMITMENT_ANSWER_QUESTION_205`).
+COMMITMENT_ANSWER_QUESTION = "What's the first real step you'd want them to take, and what would it cost them?"
+COMMITMENT_ANSWER_QUESTION_205 = "What's the first real step you'd want them to take, and where would any money go?"
 COMMITMENT_ANSWER_QUESTION_204 = "What's the first real step you'd want them to take?"
 #: Spec 130 (keel-cloud 199 FR-4, owed by keel-web): the time box's *not sure* -- ticked where the founder's time is not
 #: sure (`vectors_script.walker_duration`); a page that draws none is typed the recorded time and says so.

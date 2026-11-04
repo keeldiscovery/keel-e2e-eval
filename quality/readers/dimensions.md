@@ -1101,10 +1101,11 @@ for nobody instead of saying *Probably not*. The founder's side: *I'm not sure* 
 
 #### 5. A good example and a bad example
 
-- **Good (R7 2)** -- Fresco: step *start a paid pilot on one site* (no smaller step on the list); belief *In most cases
-  the general contractor would start a paid pilot on one site.* Decision-maker's link: *If it were ready today, would you
-  start a paid pilot on one site, or not?* *Yes, I'd start a paid pilot on one site · Probably yes · Probably not · No.*
-  For: the first two; against: the last two.
+- **Good (R7 2)** -- Fresco: step *start a paid pilot on one site*, which costs money, so the list carries the free
+  smaller step *a look at how it works*; belief *In most cases the general contractor would start a paid pilot on one
+  site.* Decision-maker's link: *If it were ready today, would you start a paid pilot on one site, or not?* *Yes, I'd
+  start a paid pilot on one site · Probably, after a look at how it works first · Probably not · No.* For: the first
+  two; against: the last two.
 - **Bad (R7 0)** -- AirCaps as cycle 4 served it: *If it were ready today, would you order a pair with free returns, or
   not?* *Yes, I'd start one · Yes, after trying it first · Probably not · No.* **What breaks it:** *Yes, I'd start one*
   names no step, so a yes to it is not a yes to ordering a pair; *Yes, after trying it first* is the step again (free

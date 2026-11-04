@@ -1996,6 +1996,24 @@ def advantage_benefit(label) -> str:
     return _lower_first(whole)
 
 
+def every_benefit(labels, first: str = "") -> str:
+    """Spec 133 FR-3 (keel-cloud 211 FR-4, `BeliefSentence.everyBenefit`): every benefit on the list, in the founder's
+    order, each whole (`advantage_benefit`), joined with *and* (`joined`); `first` where none is left."""
+    said = [advantage_benefit(label) for label in labels or ()]
+    said = [s for s in said if s]
+    return joined(said) if said else first
+
+
+def every_benefit_served(saved_labels, draft_labels) -> str | None:
+    """Spec 133 FR-3 (keel-cloud 211 FR-4, `VectorsController.everyBenefitServed`; cycle 10, proposal 44: the box
+    beside the list carried the first benefit alone): Relative advantage's `{value}` in the *Keel will test* line beside
+    the list -- every benefit still kept, the saved list's (`saved_labels`, None where nothing is saved or it was left
+    out) over the draft's; None where there is neither."""
+    kept = saved_labels if saved_labels is not None else draft_labels
+    said = every_benefit(kept or ()) if kept is not None else ""
+    return said or None
+
+
 def _lower_first(label: str) -> str:
     """`BeliefSentence.lower` (judgement call 3): the leading capital dropped -- not an acronym's (a second capital)."""
     if len(label) > 1 and label[1].isupper():
