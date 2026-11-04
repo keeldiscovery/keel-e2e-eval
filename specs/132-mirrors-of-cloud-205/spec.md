@@ -60,3 +60,14 @@ owes. Builds on 129, 130, 131.
 
 - **FR-14** `tests/fixtures/typist/backtest-21-codyco-PROBLEM.json` and any pin of the context intro read *Five short
   answers, a phrase each.* on a scope with a gate (ALL, PROBLEM, SOLUTION) and *Four* on COMMERCIAL.
+
+## Amended for keel-cloud 208 (master 7c96988d)
+
+- **FR-15 The follow-up texts.** `harness/interviewer_fake.py`, `tests/test_follow_up_ladder.py`, `test_after_131.py`
+  and `test_cloud_200_mirror_129.py` expect the new follow-ups: Importance's one pick (*You picked {their_pick} over
+  {short_name}. Why did that matter more to you?*), two picks, none (*You said none of these. What would you most like
+  made easier instead?*) and its clip (*What mattered more to you than {short_name}?*); the six-word short-form fallback;
+  Compatibility's second stem (*You said yes, with some steps. What did you have to do?*); Price's *You said about $500
+  to $800 a site a month for {name}. What would make it worth more to you?*; Purchase friction's band say-back (*You
+  said 1 to 3 months. …*); percents in words on the spoken line. The walk's follow-up screens are read for R2 and R6
+  on the next cycle.
