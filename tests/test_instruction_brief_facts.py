@@ -120,15 +120,16 @@ def fx_backtest(entry_id: str):
 
 
 def test_purchase_friction_on_a_timed_list_counts_those_who_expect_longer():
-    """Spec 118 FR-1 (keel-cloud 182 FR-4, `BriefFacts.card`): on 08-fresco's two weeks the card says *expect a trial
-    on one live job to take longer than 2 weeks*, the number the bands from 2 weeks on."""
+    """Spec 118 FR-1 (keel-cloud 182 FR-4, `BriefFacts.card`): on 08-fresco's two weeks the card says *expect a check
+    that it works with Procore to take longer than 2 weeks* (the picked row since corpus revision 24, spec 135), the
+    number the bands from 2 weeks on."""
     fresco = fx_backtest("08-fresco")
     standing = {"status": "PEOPLE_DISAGREE", "n": 8,
                 "optionCounts": "days_under_7=0, days_7_to_14=4, days_14_to_30=3, days_30_to_90=0, days_over_90=0, "
                                 "not_needed=1"}
     card = bf.card(fresco, fresco.registry.by_key("commercial.purchase_friction"), standing)
     assert card["number"] == "3 of 8"
-    assert card["line"] == "expect a trial on one live job to take longer than 2 weeks"
+    assert card["line"] == "expect a check that it works with Procore to take longer than 2 weeks"
     assert card["keelBar"] == "holds if no more than 1 in 3 say it would take longer than you expect"
     assert card["statusWords"] == "Did not hold"
 

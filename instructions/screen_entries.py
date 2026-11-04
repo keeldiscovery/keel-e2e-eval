@@ -5,7 +5,8 @@ entries (08-fresco, 10-palus, 13-aircaps) and on one planted probe (`169-banking
 `instructions/run.py` built cases from the golden corpus alone (01-07), so `-k 08-fresco/PROBLEM_INTERPRET` matched no
 case and nothing ran. Now a **screen** (a `-k` needle that is neither empty nor a kind word) also reads:
 
-- **the back-test corpus** -- keel-cloud's `canon/designs/measured-beliefs/backtest/*.yaml` (revision 19 since
+- **the back-test corpus** -- keel-cloud's `canon/designs/measured-beliefs/backtest/*.yaml` (the fourteen gallery entries
+  at revision 24 and the rest at 23 since keel-cloud 215, spec 135, read by `corpus.revision_of`; revision 19 since
   keel-cloud 159; `build/backtest-r19/` is keel-cloud's own `BacktestCorpusTest` output, not a source), loaded through
   `corpus.load(..., backtest=True)` and its refusals. A back-test entry carries no golden expectations, so it is
   screened on **the three interpretation screens** (`CONTEXT_INTERPRET` and the two frame screens) -- the
@@ -658,7 +659,8 @@ def benefits_mark(entry_id: str, row: dict, *, outcome, result) -> dict:
     COMPLETED, one `solution.relative_advantage` question, its draft **one row per benefit the Answer names, as typed**
     (tidied to the limits only, `_as_typed`), in the typed order, **never split** (a *without* or *while keeping* clause
     stays in its row: more rows than typed benefits is a fault) and **Keel adds none** (no `suggested` row, 173 T009).
-    10-palus's *Higher yield without hiring for treasury* is one row. Mechanical; the `outcome_not_difference` mark, if
+    10-palus's *Higher yield on cash not needed for months; No treasury hire to manage it* is two rows (corpus revision
+    24 split revision 23's one, keel-cloud 215). Mechanical; the `outcome_not_difference` mark, if
     any, is the validator's, and each row's words are recorded for a reader (`row_words`)."""
     typed = list(row.get("typed") or [])
     faults, items = [], []

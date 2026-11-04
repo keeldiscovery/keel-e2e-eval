@@ -166,20 +166,28 @@ def test_the_cloud_words_each_rule_as_the_notes_read_it():
 
 # ------------------------------------------------------------------- FR-2: the founder's own offer, left out
 
-def test_eight_back_test_entries_type_an_offer_and_no_golden_entry_does(golden, backtest):
+def test_five_back_test_entries_type_an_offer_and_no_gallery_or_golden_entry_does(golden, backtest):
+    # spec 135 FR-2 re-pin (corpus revision 24, keel-cloud 215): the card review dropped 08-fresco's and 21-codyco's own
+    # trials and reworded 14-code-four's and 17-expanse's into the buyer's own step, so no gallery entry types the
+    # founder's own offer; the five outside the gallery (revision 23) still do
     assert all(vs.offer_rows(e) == [] for e in golden.values())
     typed = {k: vs.offer_rows(e) for k, e in backtest.items() if vs.offer_rows(e)}
-    assert typed["08-fresco"] == ["A trial on one live job"]
-    assert typed["17-expanse"] == ["A budget line for the department's pilot"]
-    assert typed["21-codyco"] == ["A trial at one hotel first"]
-    assert sorted(typed) == ["08-fresco", "14-code-four", "17-expanse", "21-codyco", "22-andy-ai", "25-bidflow",
-                             "26-cubic", "27-blacksmith", "28-relvy-ai"]
+    assert not set(typed) & set(corpus_mod.GALLERY)
+    assert all(vs.offer_expectation(backtest[k]) == vs.NO_OFFER_TYPED for k in corpus_mod.GALLERY if k in backtest)
+    assert typed["25-bidflow"] == ["A trial on one live bid"]
+    assert vs.offer_expectation(backtest["25-bidflow"]) == "L32 owed on: A trial on one live bid"
+    assert sorted(typed) == ["22-andy-ai", "25-bidflow", "26-cubic", "27-blacksmith", "28-relvy-ai"]
 
 
 def test_the_scripted_writer_leaves_the_offer_out_and_the_pick_moves_to_the_first_row_kept(backtest):
+    # spec 135 FR-2 re-pin: Fresco's list is the two it keeps at revision 24 (its trial dropped, the pick on
+    # `procore_check` at index 0 with the founder's 2 weeks), so nothing is left out; 25-bidflow types its trial between
+    # two rows and the cloud leaves it out, the pick (0) unmoved
     fresco = backtest["08-fresco"]
     drafted = [i["label"] for i in vs.drafted_list(fresco, PF)["items"]]
-    assert drafted == ["A check that it works with Procore", "A security review"]
+    assert drafted == ["A check that it works with Procore", "A security review of the site videos"]
+    assert [i["label"] for i in fresco.founder_list(PF)["items"]] == drafted and fresco.founder_list(PF)["picked"] == 0
+    assert vs.founder_duration(fresco) == {"count": 2, "unit": "WEEKS"}
     assert not [f for f in score_mod.list_faults({"list": vs.drafted_list(fresco, PF)}, _dimension(PF))
                 if f.startswith("L32:")], "the scripted draft spends no repair turn"
     saved = vs.saved_list(fresco, PF)
@@ -189,10 +197,18 @@ def test_the_scripted_writer_leaves_the_offer_out_and_the_pick_moves_to_the_firs
     saved = vs.saved_list(expanse, PF)
     assert len(saved["items"]) == 2 and saved["pickedIndex"] == 0
     assert saved["items"][0]["label"] == "A security review of an agent on every node"
-    # the walker's typed rows are the kept ones (`calibration_answers`), so the trial is no *Keel left out* finding
+    assert saved["items"][1]["label"] == "A budget line in the department's plan"
     answer = next(a for a in vs.calibration_answers(fresco, "COMMERCIAL") if a.dimension == PF)
     assert [i["label"] for i in answer.listed["items"]] == drafted
-    assert "A trial on one live job" in answer.text, "the founder still types it; the cloud leaves it out with a note"
+    assert "trial" not in answer.text, "no own-offer row typed (spec 135 FR-2)"
+    bidflow = backtest["25-bidflow"]
+    kept = [i["label"] for i in vs.saved_list(bidflow, PF)["items"]]
+    assert kept == ["A check against a past takeoff", "Getting counts into our estimating software"]
+    assert vs.saved_list(bidflow, PF)["pickedIndex"] == 0
+    # the walker's typed rows are the kept ones (`calibration_answers`), so the trial is no *Keel left out* finding
+    answer = next(a for a in vs.calibration_answers(bidflow, "COMMERCIAL") if a.dimension == PF)
+    assert [i["label"] for i in answer.listed["items"]] == kept
+    assert "A trial on one live bid" in answer.text, "the founder still types it; the cloud leaves it out with a note"
 
 
 # ------------------------------------------------------------------------- FR-3 / FR-10: Buyer and payer
@@ -362,13 +378,15 @@ def test_the_held_choose_is_keel_webs():
 
 def test_revision_23_moves_exactly_207s_edits():
     """The revision-22 records beside canon: the revision line (22 -> 23) on every entry, `idea_what` added on the five
-    cycle-9 entries, nothing else."""
+    cycle-9 entries, nothing else. Spec 135 re-pin (keel-cloud 215, corpus revision 24): canon's fourteen gallery
+    entries moved on to 24, so 22 -> 23 is read between keel-cloud's revision-22 and revision-23 records
+    (`corpus-r23/`, `backtest-r23/`, kept by 215); 23 -> 24 is `test_harness_reads_r24_135.py`'s."""
     mirror = KEEL_CLOUD / "src" / "test" / "resources" / "keel"
-    if not (mirror / "corpus-r22").is_dir() or not (mirror / "backtest-r22").is_dir():
-        pytest.skip("no revision-22 records")
+    if not all((mirror / f"{kind}-r{n}").is_dir() for kind in ("corpus", "backtest") for n in (22, 23)):
+        pytest.skip("no revision-22 and revision-23 records")
     whats = {}
-    for kind, canon in (("corpus", corpus_mod.corpus_dir(KEEL_CLOUD)), ("backtest", corpus_mod.backtest_dir(KEEL_CLOUD))):
-        for path in sorted(canon.glob("*.yaml")):
+    for kind in ("corpus", "backtest"):
+        for path in sorted((mirror / f"{kind}-r23").glob("*.yaml")):
             before = yaml.safe_load((mirror / f"{kind}-r22" / path.name).read_text(encoding="utf-8"))
             after = yaml.safe_load(path.read_text(encoding="utf-8"))
             assert (before["revision"], after["revision"]) == (22, 23), path.name

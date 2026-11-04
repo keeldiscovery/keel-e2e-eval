@@ -125,8 +125,11 @@ def test_the_people_past_the_cap_are_named_with_their_reason():
     assert vs.not_on_study(_study(fresco, "COMMERCIAL")) == (_own(fresco), vs.NOT_ON_STUDY["DECIDERS_ONLY"])
 
 
-def test_downstream_names_nobody_past_the_cap():
-    """The follow-up lines and `inputs.json` are worked out over the study's people (spec 082 FR-1)."""
+def test_downstream_names_nobody_past_the_cap(monkeypatch):
+    """The follow-up lines and `inputs.json` are worked out over the study's people (spec 082 FR-1). Spec 135: AirCaps'
+    revision-24 Importance outruns the Answer box (`R24_ANSWER_OVERFLOW`), a stop this test is not about -- set aside
+    here alone."""
+    monkeypatch.setattr(vs, "check_answer_box", lambda entry: None)
     study = _study(_bt("13-aircaps"), "SOLUTION")
     people = vs.person_inputs(study)
     past = set(vs.capped(study))

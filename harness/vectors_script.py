@@ -1640,12 +1640,24 @@ def founder_list(entry, key: str) -> dict:
 def offer_rows(entry) -> list[str]:
     """Spec 132 FR-2 (keel-cloud 205 FR-1, `L32`): the Purchase friction rows the entry types that name the founder's own
     offer (a trial, a pilot, a guarantee, onboarding, money back: `instructions.friction.founders_offer`), in its order --
-    what keel-cloud leaves off the list with a note (`FounderReason` L32), never an `L23`. Eight back-test entries type
-    one (08-fresco's *A trial on one live job*, 17-expanse's *A budget line for the department's pilot* ...); no golden
-    entry does."""
+    what keel-cloud leaves off the list with a note (`FounderReason` L32), never an `L23`. No golden entry types one;
+    since corpus revision 24 (keel-cloud 215, spec 135 FR-2) no gallery entry does either (08-fresco's and 21-codyco's
+    own trials dropped, 14-code-four's and 17-expanse's reworded into the buyer's own step); five entries outside the
+    gallery still do (22-andy-ai, 25-bidflow, 26-cubic, 27-blacksmith, 28-relvy-ai)."""
     from instructions import friction as friction_mod                  # noqa: PLC0415
     saved = entry.founder_list(PURCHASE_FRICTION_KEY) if hasattr(entry, "founder_list") else None
     return [i["label"] for i in (saved or {}).get("items") or [] if friction_mod.founders_offer(i.get("label"))]
+
+
+#: Spec 135 FR-2: what the walk expects of `L32` on an entry that types no own-offer row -- reported, never asserted.
+NO_OFFER_TYPED = "no own-offer row typed"
+
+
+def offer_expectation(entry) -> str:
+    """Spec 135 FR-2: the walk's `L32` expectation, reported in the transcript (`own_offer`) and never asserted --
+    *no own-offer row typed* (every gallery entry since revision 24), else the rows the cloud is owed a note on."""
+    rows = offer_rows(entry)
+    return NO_OFFER_TYPED if not rows else "L32 owed on: " + "; ".join(rows)
 
 
 def kept_items(entry, key: str) -> list[tuple[int, dict]]:
@@ -1661,7 +1673,8 @@ def kept_items(entry, key: str) -> list[tuple[int, dict]]:
 def kept_picked(entry, key: str) -> int | None:
     """Spec 132 FR-2 / FR-3 / FR-10: the picked index on the list as the cloud keeps it (`kept_items`) -- the entry's own
     pick; on Purchase friction, where the entry picked a row naming the founder's own offer (left out, `L32`), the
-    first row kept (08-fresco and 14-code-four picked their trial); on Buyer and payer the walker's pick
+    first row kept (08-fresco and 14-code-four picked their trial at revision 23; since revision 24 no gallery entry
+    types one, and 08-fresco's pick is `procore_check` itself, index 0 of two); on Buyer and payer the walker's pick
     (`buyer_payer_pick`). None where the list picks nothing."""
     saved = founder_list(entry, key)
     picked = saved.get("picked")
@@ -2013,7 +2026,9 @@ def time_sourced(entry) -> bool:
     founder's time -- a line of its `{id}.sources.md` beside the yaml names the count and the unit (*2 weeks*, *two
     weeks*, *2-week*) beside Purchase friction (the row's name, its key, or *the founder's time*); a figure the sources
     give for something else (21-codyco's bookings *in 4 weeks*) is not the founder's time. A golden entry (no sources
-    file) names no time and is never asked one."""
+    file) names no time and is never asked one. Spec 135: a `## Revision ...` section is the corpus's own trace of the
+    rows a revision moved (keel-cloud 215's *the founder's 2 weeks kept* on 08-fresco), never a source -- the read stops
+    at its heading."""
     found = entry.duration() if hasattr(entry, "duration") else None
     path = getattr(entry, "path", None)
     if found is None or path is None:
@@ -2025,6 +2040,8 @@ def time_sourced(entry) -> bool:
     unit = found.said().split(" ", 1)[1].rstrip("s")
     counts = [str(found.count)] + ([_NUMBER_WORDS[found.count]] if found.count < len(_NUMBER_WORDS) else [])
     for line in sources.read_text(encoding="utf-8").lower().splitlines():
+        if line.startswith("## revision"):
+            break
         if not any(w in line for w in ("purchase friction", "purchase_friction", "founder's time")):
             continue
         if any(re.search(rf"\b{re.escape(c)}[ -]{re.escape(unit)}s?\b", line) for c in counts):
@@ -2140,7 +2157,8 @@ def current_solution_boxes(entry) -> tuple[str, str]:
     """Spec 118 (keel-cloud 184 FR-8b (a), keel-web 150's two boxes): Current solution's Answer as the founder types it
     -- the first box *what they do*, their own words for today's way (the list's phrase as a sentence of its own, *Getting
     the day into the log.*), the second box *how it goes*, its own sentence (the outcomes the founder names, as many
-    whole ones as fit the box's 25 words, *Log done on site, nothing left over; done in the trailer in under an hour.*).
+    whole ones as fit the box's 25 words, 20-lemma's *Caught by an alert within minutes; Caught by our evals the same
+    day.* at corpus revision 24).
     Never the phrase and the labels run together by *"; "* -- with no full stop keel-web's split put all of it in the
     first box and left the second empty (cycle 4's run-together Answer). Spec 119 FR-6: on revision 22 the first box is
     the entry's `current_solution.today` where it records one."""

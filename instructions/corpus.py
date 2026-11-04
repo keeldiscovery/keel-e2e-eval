@@ -1561,7 +1561,8 @@ def _check_row(entry: Entry, registry, key: str, row: dict) -> None:
         if _tested_kind(entry) != "FACT":
             raise _refuse(entry.id, f"respondent_questions[{key}].codes are a fact's three {codes}, and the tested "
                                     f"condition {tested.get('label')!r} is no fact (keel-cloud 185 FR-1)", entry.path)
-    elif key == COMPATIBILITY_KEY and codes == dimension.fixed_answer_codes and _tested_kind(entry) == "FACT":
+    elif key == COMPATIBILITY_KEY and codes == dimension.fixed_answer_codes and _tested_kind(entry) == "FACT" \
+            and not r24_fact_read_as_three(entry):
         raise _refuse(entry.id, f"respondent_questions[{key}].codes are the registry's four on a fact; revision 21 "
                                 f"serves a fact three, {list(FACT_CODES)} (keel-cloud 185 FR-1)", entry.path)
     elif dimension.fixed_answers and codes != dimension.fixed_answer_codes:
@@ -1582,6 +1583,21 @@ def _check_row(entry: Entry, registry, key: str, row: dict) -> None:
 
 #: keel-cloud 185 FR-1 (`ItemFrames.FACT_THREE`): a fact's Compatibility codes, `only_with_help` never served on one.
 FACT_CODES = ("yes_easily", "yes_with_steps", "no")
+#: Spec 135 FR-1: the gallery entries whose revision-24 rewording made the tested Compatibility condition a fact while
+#: the record kept the registry's four (keel-cloud 215 left the respondent row as it was): 15-voltair's *had poles whose
+#: tops were clear of tree cover* (revision 23's *The pole tops could be seen from above* was an ability). Code serves a
+#: fact three (`ItemFrames.conditionKind`), and nobody's recorded pick is `only_with_help`, so the row is read as served
+#: and the record is never rewritten (spec 130's pattern); a keel-cloud corpus spec owes the record the three.
+R24_FACT_FOUR = ("15-voltair",)
+
+
+def r24_fact_read_as_three(entry) -> bool:
+    """Spec 135 FR-1: True where a revision-24 gallery entry's Compatibility record keeps the four on a fact
+    (`R24_FACT_FOUR`) and no person picked `only_with_help` -- read as code's three, never refused."""
+    if entry.id not in R24_FACT_FOUR or entry.revision != GALLERY_REVISION:
+        return False
+    return not any((person.get("picks") or {}).get(COMPATIBILITY_KEY) == "only_with_help"
+                   for person in entry.answers or [])
 #: keel-cloud 182 (`PurchaseFriction.undatedSide`): a list saved with no time keeps spec 128's fixed three.
 UNDATED_FRICTION_ROW = ("fixed_three", list(friction_mod.UNDATED_CODES))
 FRICTION_ESCAPE = "cant_tell"

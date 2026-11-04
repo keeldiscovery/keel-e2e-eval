@@ -193,7 +193,11 @@ def test_a_pick_from_a_person_under_the_price_is_refused(tmp_path, registry):
 
 #: keel-cloud 185 T023: the 13 entries whose tested condition is a fact, and the 13 people moved only_with_help -> no.
 FACT_ENTRIES = {"12-transload", "13-aircaps", "14-code-four", "17-expanse", "18-careforce", "19-veles", "20-lemma",
-                "25-bidflow", "28-relvy-ai", "34-wideframe", "03-lullaby", "04-linerly", "07-mulchrun"}
+                "25-bidflow", "28-relvy-ai", "34-wideframe", "03-lullaby", "04-linerly", "07-mulchrun",
+                # spec 135 (corpus revision 24): Voltair's tested condition is a fact since keel-cloud 215 (*had poles
+                # whose tops were clear of tree cover*); its record keeps the four, read as code's three
+                # (`corpus.R24_FACT_FOUR`)
+                "15-voltair"}
 DECIDERS = {"08-fresco": "Do any of your company's jobs run on Procore or ACC?",
             "10-palus": "Does your startup keep its cash with Mercury, Brex or a similar startup banking platform?",
             "17-expanse": "Does the shared SLURM or Kubernetes cluster you run have 100 or more GPUs?"}
@@ -232,11 +236,12 @@ def test_revision_21_moves_exactly_185s_edits():
 
 def test_every_canon_entry_loads_at_23_and_19_to_22_are_refused_by_name(tmp_path, registry):
     """Spec 119 re-pin (keel-cloud 187, revision 22); spec 132 FR-11 (keel-cloud 207, revision 23): canon loads at 23;
-    19, 20, 21 and 22 are refused by name."""
+    19, 20, 21 and 22 are refused by name. Spec 135 (keel-cloud 215): the fourteen gallery entries load at 24."""
     for path in sorted(corpus_mod.corpus_dir(KEEL_CLOUD).glob("*.yaml")):
         assert corpus_mod.load_file(path, registry=registry).revision == 23
     for path in sorted(corpus_mod.backtest_dir(KEEL_CLOUD).glob("*.yaml")):
-        assert corpus_mod.load_file(path, registry=registry, backtest=True).revision == 23
+        want = 24 if path.stem in corpus_mod.GALLERY else 23
+        assert corpus_mod.load_file(path, registry=registry, backtest=True).revision == want, path.name
     for rev in ("r19", "r20", "r21", "r22"):
         record = MIRROR / f"corpus-{rev}" / "03-lullaby.yaml"
         if not record.is_file():
@@ -334,8 +339,9 @@ def test_the_timed_entries_rows_are_codes_six_and_the_sides_are_the_founders_tim
         "days_under_7", "days_7_to_14", "not_needed"]
     assert [c for c in friction_mod.codes(founder) if friction_mod.longer(c, founder)] == [
         "days_14_to_30", "days_30_to_90", "days_over_90"]
+    # spec 135 (corpus revision 24): the trial dropped, the pick on the Procore check, the belief re-derived by 215
     assert fresco.founder_calibration[PF]["belief_sentence"] == friction_mod.belief(
-        "contractor operations leads", "A trial on one live job", founder)
+        "contractor operations leads", "A check that it works with Procore", founder)
     assert vs.founder_duration(fresco) == {"count": 2, "unit": "WEEKS"}
     assert vs.saved_list(fresco, PF)["duration"] == {"count": 2, "unit": "WEEKS"}
     body = next(a.body for a in vs.calibration_answers(fresco, "COMMERCIAL") if a.dimension == PF)
@@ -372,7 +378,7 @@ def test_the_brief_card_counts_those_who_expect_longer(registry):
                                 "not_needed=1"}
     card = bf.card(fresco, registry.by_key(PF), standing)
     assert (card["number"], card["line"], card["keelBar"], card["statusWords"]) == (
-        "3 of 8", "expect a trial on one live job to take longer than 2 weeks",
+        "3 of 8", "expect a check that it works with Procore to take longer than 2 weeks",
         "holds if no more than 1 in 3 say it would take longer than you expect", "Did not hold")
 
 

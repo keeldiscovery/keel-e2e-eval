@@ -10,6 +10,9 @@
 # (keel-cloud 174, keel-cloud-docs e68c0de4): Frequency's founder guidance (the founder asks of *a typical {actor}*), the
 # Importance, Compatibility and Purchase friction belief templates, Purchase friction's escape (cant_tell, *I can't tell*)
 # and its option rule, and Commitment's belief_template_decider in 174's words -- nothing else re-exported.
+# Spec 135 (keel-cloud 187's registry, keel-cloud-docs 0464e20f): Compatibility's saves.max_words 9 -> 16 (the question's
+# own 20-word cap less 'Could you have ...?'), which revision 24's conditions need (10-palus, 12-transload, 15-voltair,
+# 19-veles name the act and its object in 10 to 12 words) -- nothing else re-exported.
 version: 4
 common:
   left_out:
@@ -220,7 +223,7 @@ dimensions:
     saves:
       min_items: 2
       max_items: 4
-      max_words: 9
+      max_words: 16
       picked: true
       asked: true
   respondent:

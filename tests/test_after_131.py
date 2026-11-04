@@ -143,7 +143,9 @@ def test_a_design_note_belief_is_the_entrys_first_benefit():
     assert voltair == FRAME + "get every pole checked without walking the line."
     issen = corpus_mod.plain_line(_backtest("11-issen"), "belief",
                                   FRAME + "adapt to your level, goals and interests.", "adapt to")
-    assert issen == FRAME + "get speaking practice any time, no tutor to book."
+    # spec 135 FR-1 (corpus revision 24): Issen's first benefit is *Speaking practice any time* (*No tutor to book* its
+    # own row since keel-cloud 215's split, `no_tutor_to_book`)
+    assert issen == FRAME + "get speaking practice any time."
     assert corpus_mod.plain_line(_backtest("18-careforce"), "belief", FRAME + "do the calling the way the staff "
                                  "would, without an integration project.", "without an integration project") is None
     careforce = corpus_mod.plain_line(_keels("18-careforce", "without an integration project"), "belief", FRAME + "do the calling the way the staff "

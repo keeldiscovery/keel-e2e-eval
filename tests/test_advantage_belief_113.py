@@ -39,6 +39,11 @@ GOLDEN = ("01-countly", "02-compliancelog", "03-lullaby", "04-linerly", "05-paid
 SLICE = Path(__file__).parent / "fixtures" / "registry" / "slice.yaml"
 GALLERY = Path(__file__).parent / "fixtures" / "gallery" / "expected-interview-fresco.json"
 PALUS = "Higher yield without hiring for treasury"
+#: Spec 135 FR-1 (corpus revision 24, keel-cloud 215): 10-palus's benefit split in two by the card review (`ra-one`,
+#: the new code `no_treasury_hire`) -- what the corpus cases below read. PALUS above stays the worked example of the
+#: belief frames, which read no corpus.
+PALUS_24 = ["Higher yield on cash not needed for months", "No treasury hire to manage it"]
+ROW_24 = {"mark": "173", "dimension": "solution.relative_advantage", "typed": PALUS_24}
 
 
 def _cloud(path: str, marker: str) -> str:
@@ -350,9 +355,10 @@ def _backtest_present(entry_id):
         pytest.skip(f"keel-cloud has no back-test entry {entry_id}")
 
 
-def test_the_screen_hands_10_palus_its_benefit_and_expects_one_row(tmp_path):
-    """FR-4: `K=10-palus/CALIBRATION_SOLUTION/RELATIVE_ADVANTAGE` is the one redraft, handed the typed Answer *Higher
-    yield without hiring for treasury*, and carries the 173 mark row; the Adoption friction redraft keeps 171's alone."""
+def test_the_screen_hands_10_palus_its_benefits_and_expects_one_row_each(tmp_path):
+    """FR-4: `K=10-palus/CALIBRATION_SOLUTION/RELATIVE_ADVANTAGE` is the one redraft, handed the typed Answer -- since
+    revision 24 (spec 135) *Higher yield on cash not needed for months; No treasury hire to manage it*, two benefits --
+    and carries the 173 mark row; the Adoption friction redraft keeps 171's alone."""
     _backtest_present("10-palus")
     needle = "10-palus/CALIBRATION_SOLUTION/RELATIVE_ADVANTAGE"
     extras = screen_mod.load(KEEL_CLOUD, needle)
@@ -360,9 +366,9 @@ def test_the_screen_hands_10_palus_its_benefit_and_expects_one_row(tmp_path):
                                    n_runs=3)
     assert [c.case_id for c in cases] == [f"{needle}/run{n}" for n in (1, 2, 3)]
     case = cases[0]
-    assert case.payload["context"]["answers"] == {ADVANTAGE: PALUS}
+    assert case.payload["context"]["answers"] == {ADVANTAGE: "; ".join(PALUS_24)}
     assert [d["key"] for d in case.payload["context"]["dimensions"]] == [ADVANTAGE]
-    assert case.meta["benefits"] == ROW and "steps" not in case.meta
+    assert case.meta["benefits"] == ROW_24 and "steps" not in case.meta
     every = screen_mod.build_cases(screen_mod.load(KEEL_CLOUD, "10-palus/CALIBRATION_SOLUTION"), fx.exported(tmp_path),
                                    fx.instructions(), fx.FakeRuntime, needle="10-palus/CALIBRATION_SOLUTION", n_runs=1)
     for other in every:
@@ -370,20 +376,22 @@ def test_the_screen_hands_10_palus_its_benefit_and_expects_one_row(tmp_path):
 
 
 def test_the_run_marks_the_10_palus_redraft_off_its_first_turn(tmp_path):
-    """FR-4 wired: `_score_probe` writes the 173 mark into the case's diff; a split benefit fails the case."""
+    """FR-4 wired: `_score_probe` writes the 173 mark into the case's diff; a split benefit fails the case (revision 24:
+    Palus's two typed benefits, one row each)."""
     _backtest_present("10-palus")
     needle = "10-palus/CALIBRATION_SOLUTION/RELATIVE_ADVANTAGE"
     extras = screen_mod.load(KEEL_CLOUD, needle)
     case = screen_mod.build_cases(extras, fx.exported(tmp_path), fx.instructions(), fx.FakeRuntime, needle=needle,
                                   n_runs=1)[0]
     state = run_mod._RunState()
-    answer = types.SimpleNamespace(outcome="COMPLETED", result=_result([PALUS]), schema_valid=True, schema_error=None,
+    answer = types.SimpleNamespace(outcome="COMPLETED", result=_result(PALUS_24), schema_valid=True, schema_error=None,
                                    error=None, questions=None)
     diff = run_mod._score(case, None, answer, None, state, judge=None)
     mark = run_mod._score_probe(case, answer, diff, state)
     assert mark["held"] and diff["probe"]["mark"] == "173" and diff["failed"] is None and "173 held" in diff["line"]
-    split = types.SimpleNamespace(**{**vars(answer), "result": _result(["Higher yield", "No hiring for treasury"])})
+    split = types.SimpleNamespace(**{**vars(answer), "result": _result(["Higher yield", "On cash not needed for months",
+                                                                         PALUS_24[1]])})
     diff = run_mod._score(case, None, split, None, state, judge=None)
     run_mod._score_probe(case, split, diff, state)
-    assert diff["failed"].startswith("probe: 2 rows for 1 typed benefits")
+    assert diff["failed"].startswith("probe: 3 rows for 2 typed benefits")
     assert [m["case_id"] for m in state.probes] == [f"{needle}/run1"] * 2

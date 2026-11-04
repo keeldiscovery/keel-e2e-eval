@@ -358,7 +358,8 @@ def _backtest_present(entry_id):
 
 
 @pytest.mark.parametrize("entry_id, typed, name", [
-    ("21-codyco", ["Let an AI answer guests in the hotel's voice", "Set which calls the AI hands to the desk"], "Codyco"),
+    # spec 135 FR-1 (corpus revision 24, keel-cloud 215): Codyco's first effort in the review's words (Table 1, `af-self`)
+    ("21-codyco", ["Hand their missed booking calls to the AI", "Set which calls the AI hands to the desk"], "Codyco"),
     ("17-expanse", ["Use the suggested sizes instead of padding", "Apply the line-level code fixes it suggests"],
      "Expanse"),
     ("08-fresco", ["Take short videos and talk over them on walks", "Check and fix the notes before they go out"],
@@ -456,13 +457,16 @@ def test_the_run_marks_a_backtest_redraft_off_its_first_turn(tmp_path):
     steps = next(c for c in cases if c.meta["dimension"] == ADOPTION)
     other = next(c for c in cases if c.meta["dimension"] != ADOPTION)
     state = run_mod._RunState()
-    answer = types.SimpleNamespace(outcome="COMPLETED", result=_result(EFFORTS + [KEELS]), schema_valid=True,
+    # spec 135 FR-1: the efforts are the entry's own typed rows as the case carries them (revision 24's words since
+    # keel-cloud 215), each asked as typed -- EFFORTS above stays 171's worked example, which reads no corpus
+    efforts = [{"label": t, "asked": t[0].lower() + t[1:]} for t in steps.meta["steps"]["typed"]]
+    answer = types.SimpleNamespace(outcome="COMPLETED", result=_result(efforts + [KEELS]), schema_valid=True,
                                    schema_error=None, error=None, questions=None)
     diff = run_mod._score(steps, None, answer, None, state, judge=None)
     mark = run_mod._score_probe(steps, answer, diff, state)
     assert mark["held"] and diff["probe"]["mark"] == "171" and diff["failed"] is None and "171 held" in diff["line"]
     assert [m["case_id"] for m in state.probes] == ["21-codyco/CALIBRATION_SOLUTION/ADOPTION_FRICTION/run1"]
-    bad = types.SimpleNamespace(**{**vars(answer), "result": _result([KEELS, *EFFORTS])})
+    bad = types.SimpleNamespace(**{**vars(answer), "result": _result([KEELS, *efforts])})
     diff = run_mod._score(steps, None, bad, None, state, judge=None)
     run_mod._score_probe(steps, bad, diff, state)
     assert diff["failed"].startswith("probe: the founder's efforts are not first and as typed")

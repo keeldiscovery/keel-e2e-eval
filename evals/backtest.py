@@ -2129,6 +2129,11 @@ def host_door_record(j, bt: Backtest, *, passed: bool, teardown: dict | None) ->
     return out
 
 
+def _offer_expectation(entry) -> str:
+    from harness import vectors_script as vs                       # noqa: PLC0415
+    return vs.offer_expectation(entry)
+
+
 def transcript(j, bt: Backtest) -> dict:
     if j is None:
         return {"journey": "never opened"}
@@ -2168,6 +2173,9 @@ def transcript(j, bt: Backtest) -> dict:
         "spoken_guard": _safe(lambda: spoken_guard(j)),
         "changed_screens": changed,
         "lock_notes": notes,
+        # spec 135 FR-2: the walk's L32 expectation -- *no own-offer row typed* on every gallery entry since corpus
+        # revision 24 -- reported beside the notes, never asserted
+        "own_offer": _safe(lambda: _offer_expectation(entry)),
         "brief": _safe(lambda: brief(standings)),
         "readings": _safe(lambda: readings(j, wire.get("invitations") or {}), []),
         "cost": _safe(lambda: cost(j, bt)),
@@ -2328,6 +2336,9 @@ def markdown(r: dict) -> str:
         lines += ["### keel-cloud 130's notes, by name (spec 069 FR-3)", ""]
         lines += [f"- **{n.get('rule')}** on {n.get('screen')} ({n.get('means')}): {n.get('said')}" for n in notes]
         lines.append("")
+    if isinstance(r.get("own_offer"), str):
+        # spec 135 FR-2: the L32 expectation, reported (never asserted)
+        lines += [f"Purchase friction's own offer (L32, spec 135): {r['own_offer']}", ""]
     changed = r.get("changed_screens") or {}
     if any(changed.values()):
         lines += ["### keel-cloud 128's changed screens, as read (spec 067 FR-7)", ""]

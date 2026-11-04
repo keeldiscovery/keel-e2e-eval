@@ -1,6 +1,7 @@
 {
   "spec": "062",
   "run": "20261022T164045Z-backtest-08-fresco",
+  "revision": 23,
   "passed": true,
   "failed_step": null,
   "entry": {

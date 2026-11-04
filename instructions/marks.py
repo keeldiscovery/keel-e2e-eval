@@ -124,6 +124,13 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Corpus revision 24 (2026-11-04, keel-cloud 215; eval 135, the harness half)**: the fourteen gallery entries (08-fresco
+to 21-codyco) move to revision 24 -- eval 134's card review applied (128 rows reworded, Palus' and Issen's Relative
+advantage and AirCaps' Compatibility split, three Purchase friction rows dropped, Issen's Compatibility pick moved, 22
+beliefs re-derived by the engine); every other back-test entry and the golden seven stay at 23, byte for byte. The
+reader reads 24 for the gallery and 23 for the rest (`corpus.GALLERY`, `revision_of`). **v24 stands**: no mark moved, and
+the golden seven's digests below are unchanged.
+
 **Corpus revision 23 (2026-11-03, keel-cloud 207; eval 132, the harness half)**: the five cycle-9 back-test entries
 (08-fresco, 10-palus, 13-aircaps, 17-expanse, 21-codyco) record `solution_mechanism.idea_what` -- what the idea is
 beside the founder's name, in at most twelve words the people know (keel-cloud 207 FR-3, held by `W12`) -- and every

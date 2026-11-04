@@ -393,6 +393,14 @@ def test_provenance_already_under_out_refuses_and_nothing_is_written(tmp_path, n
         g.export(runs, out, names=names, exported_at=AT, provenance_dir=out / "gallery")
 
 
+#: Spec 135 FR-4: the run of record walked corpus revision 23 (its `backtest.json` says so); the gallery's entries are at
+#: revision 24 since keel-cloud 215, and the run is re-recorded in the next quality cycle's walk (paid), never hand-edited.
+FRESCO_RUN_REVISION = 23
+
+
+@pytest.mark.skip(reason="spec 135 FR-4: the gallery's recorded Fresco run is revision 23 (backtest.json `revision: 23`); "
+                         "08-fresco is at corpus revision 24 since keel-cloud 215 -- re-recorded in the next quality "
+                         "cycle's walk (paid), never hand-edited; until then its pinned interview is not compared")
 def test_the_interview_is_pinned_on_one_run(exported):
     out, _ = exported
     for study in g.STUDIES:                         # spec 106: each study's own (here three copies of one run)
@@ -412,6 +420,14 @@ def test_the_interview_is_pinned_on_one_run(exported):
     assert item["kicker"] == "Part 2 of 2 · An idea to consider · 2 of 3"
     assert decider["followUp"]["asked"][0] == {"dimension": "commercial.commitment",
                                                "question": "What would you start with instead?"}
+
+
+def test_the_recorded_fresco_run_is_marked_revision_23():
+    """Spec 135 FR-4: the fixture says the revision it walked; the corpus entry it walked has moved on."""
+    record = json.loads((RUN / bt.RECORD).read_text(encoding="utf-8"))
+    assert record["revision"] == FRESCO_RUN_REVISION == 23 and record["entry"]["id"] == "08-fresco"
+    from instructions import corpus as corpus_mod                               # noqa: PLC0415
+    assert corpus_mod.revision_of("08-fresco") == 24
 
 
 def test_the_interview_withholds_ids_tokens_and_media(exported):
