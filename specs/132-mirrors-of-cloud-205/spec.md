@@ -44,3 +44,14 @@ owes. Builds on 129, 130, 131.
   `PURCHASE_FRICTION_CHOOSE_BAR_UNDATED` and `CHAIN_BASE_HELP` take the new words (keel-web
   specs/168-founder-screens-owed-by-cloud-205/tasks.md lists them); the Purchase friction bar with no time reads
   *Holds if no more than 1 in 3 say it would take a long time.*
+
+## Amended for keel-cloud 207 (master 3ab9aa03)
+
+- **FR-11 Corpus revision 23** vendored (`corpus-r23`; `idea_what` on fresco, palus, aircaps, expanse and codyco); the
+  scripted writer may send `idea_what`.
+- **FR-12 More rules by name.** `W12` (idea_what: twelve words, no claim, no name inside), `M7` (a how line at most
+  five sentences), `M8` (a belief repeating two or more of the how line's names) and `P6` (a misspelt number word in a
+  range) are reported by name.
+- **FR-13 The founder-reader's idea screen.** Cycle 9's readers saw only *what: {name}* while the what-it-is box held
+  Keel's words: the screen capture for the idea screen includes the what-it-is box's text (and now `idea_what`), with a
+  test on Codyco's served card.
