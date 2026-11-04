@@ -24,7 +24,6 @@ from instructions import corpus as corpus_mod
 from instructions import marks as instruction_marks
 from stack.config import load_config
 from tests import v9_fixtures as fx
-from tests.test_harness_reads_r24_135 import R24_ANSWER_OVERFLOW, stops_at_the_answer_box
 
 REPO = Path(__file__).resolve().parent.parent
 BROKEN = REPO / "tests" / "fixtures" / "backtest" / "99-broken.yaml"
@@ -67,14 +66,6 @@ def test_every_backtest_entry_loads_in_backtest_mode():
     for path in paths:
         try:
             entry = corpus_mod.load_file(path, registry=fx.registry(), backtest=True)
-            if stops_at_the_answer_box(entry):
-                # spec 135: revision 24's six whose Importance outruns the Answer stop there by name (held in
-                # test_harness_reads_r24_135); everything after the box is read without it
-                with pytest.raises(vs.VectorsScriptError, match=R24_ANSWER_OVERFLOW[entry.id]):
-                    vs.founder_inputs(entry)
-                vs.person_inputs(entry)
-                (chain if entry.chain() else no_cost).append(entry.id)
-                continue
             vs.founder_inputs(entry)
             vs.person_inputs(entry)
         except (corpus_mod.CorpusError, vs.VectorsScriptError) as refusal:
@@ -289,11 +280,8 @@ def _bt(entry_id: str):
     return corpus_mod.load_file(path, registry=fx.registry(), backtest=True)
 
 
-def test_a_chain_founder_posts_every_field_and_a_chain_price_no_period(monkeypatch):
-    """FR-2: a chain cost posts every field the entry carries; a chain price its shape and numbers, no period. Spec 135:
-    AirCaps' revision-24 Importance outruns the Answer box (`R24_ANSWER_OVERFLOW`), a stop at load this test is not
-    about -- the box's check is set aside here alone, the commercial chain read as before."""
-    monkeypatch.setattr(vs, "check_answer_box", lambda entry: None)
+def test_a_chain_founder_posts_every_field_and_a_chain_price_no_period():
+    """FR-2: a chain cost posts every field the entry carries; a chain price its shape and numbers, no period."""
     founder = vs.founder_inputs(_bt("13-aircaps"))
     body = {a.dimension: a.as_wire() for a in founder.calibration["COMMERCIAL"]}
     cost, price = body["commercial.existing_sacrifice"]["cost"], body["commercial.price"]["price"]

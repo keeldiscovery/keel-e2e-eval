@@ -2110,9 +2110,9 @@ def answer_drops(entry, key: str) -> list[str]:
 
 
 def check_answer_box(entry) -> None:
-    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): at load, no list label is over the Answer box's 25 words, and
-    Importance's Answer names every difficulty it is to name inside it (Current solution's rungs past the box are typed
-    on the Check screen instead, FR-2) -- else the run stops here, naming the label, never after a paid walk. Spec 131
+    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): at load, no list label is over the Answer box's 25 words -- else the
+    run stops here, naming the label, never after a paid walk. Since spec 135 the rows past the box are typed on the
+    Check screen on both lists (Importance's others, `importance_typed`; Current solution's rungs, FR-2), never a stop. Spec 131
     (keel-cloud 203): and Current solution's first rung reads as today's way working -- a list whose first rung is a
     shortfall is refused at Save, so an entry whose Answer types only shortfalls carries the working rung on top
     (`keels_working_first`)."""
@@ -2131,15 +2131,9 @@ def check_answer_box(entry) -> None:
             if _words(item.get("label")) > ANSWER_MAX_WORDS:
                 raise VectorsScriptError(f"{entry.id}: {key}'s item {item['label']!r} is {_words(item['label'])} words; "
                                          f"the Answer box takes {ANSWER_MAX_WORDS} (spec 067 FR-1)")
-    importance = "problem.importance"
-    if (entry.founder_list(importance) or {}).get("items") and not entry.unsure(importance):
-        dropped = answer_drops(entry, importance)
-        if dropped:
-            raise VectorsScriptError(
-                f"{entry.id}: problem.importance's Answer takes {ANSWER_MAX_WORDS} words and the founder's items need "
-                f"{_words('; '.join(_answer_labels(entry, importance)))} -- {', '.join(repr(d) for d in dropped)} would "
-                "be dropped, so Keel would never draft it and strangers never be offered it (spec 067 FR-1; keel-cloud "
-                "128 FR-17, FR-20)")
+    # spec 135 (the coordinator's decision, 2026-11-04): Importance's others past the Answer's 25 words are no stop --
+    # the Answer names those that fit and the founder types the rest on the Check screen (`importance_typed`), as
+    # Current solution's rungs (spec 067 FR-2); only a single row longer than the box stops here (above)
 
 
 def _answer_labels(entry, key: str) -> list[str]:
@@ -2157,8 +2151,8 @@ def current_solution_boxes(entry) -> tuple[str, str]:
     """Spec 118 (keel-cloud 184 FR-8b (a), keel-web 150's two boxes): Current solution's Answer as the founder types it
     -- the first box *what they do*, their own words for today's way (the list's phrase as a sentence of its own, *Getting
     the day into the log.*), the second box *how it goes*, its own sentence (the outcomes the founder names, as many
-    whole ones as fit the box's 25 words, 20-lemma's *Caught by an alert within minutes; Caught by our evals the same
-    day.* at corpus revision 24).
+    whole ones as fit that box's own 25 words -- spec 135: never counted with the first box -- *Caught by an alert
+    within minutes; Caught by our evals the same day; ...*), the rest typed on the Check screen (spec 067 FR-2).
     Never the phrase and the labels run together by *"; "* -- with no full stop keel-web's split put all of it in the
     first box and left the second empty (cycle 4's run-together Answer). Spec 119 FR-6: on revision 22 the first box is
     the entry's `current_solution.today` where it records one."""
@@ -2168,8 +2162,9 @@ def current_solution_boxes(entry) -> tuple[str, str]:
     what = _stopped(phrase) if phrase else ""
     # spec 119 FR-6 (keel-cloud 187 FR-4 (b), revision 22): where the entry records what they do today in the founder's
     # own words (`current_solution.today`, the 14 entries 08-21), that sentence is the first box -- never the list's
-    # phrase -- and the rungs fill the second within what is left of the Answer's 25 words (keel-cloud's
-    # `VectorCorridorService.ANSWER_MAX_WORDS` holds the two boxes joined)
+    # phrase. Spec 135 (the coordinator's decision, 2026-11-04): each box takes its own 25 words (keel-web 150 caps each
+    # box; keel-cloud's `VectorCorridorService` reads the two apart, `first > ANSWER_MAX_WORDS || second > ...`), so the
+    # rungs fill the second box up to its own 25 -- the two are never counted together
     today = entry.today() if hasattr(entry, "today") else None
     if today:
         what = _stopped(today)
@@ -2177,9 +2172,9 @@ def current_solution_boxes(entry) -> tuple[str, str]:
     # so keel-cloud 117's `founder_rungs` -- the leading rungs typed, kept verbatim -- is unchanged), now in their own box
     # spec 131 (keel-cloud 203 FR-1): Keel's working rung, where it stands first, is never typed by the founder
     labels = [i["label"] for i in saved["items"]][1 if keels_working_first(entry) else 0:]
-    named, typed = [], (what if today else str(saved.get("phrase") or "").strip())
+    named: list[str] = []
     for label in labels:
-        if _words("; ".join([typed] + named + [label])) > ANSWER_MAX_WORDS:
+        if _words("; ".join(named + [label])) > ANSWER_MAX_WORDS:
             break
         named.append(label)
     how = "; ".join(named)
@@ -2271,7 +2266,8 @@ IMPORTANCE_MIN_ITEMS = 3
 #: Spec 046 FR-003 (keel-web 070 F9): how many of the other difficulties the founder's Importance Answer names, where
 #: it names fewer than the corpus list holds -- the rest the founder types on the Check screen themselves. 01-countly's
 #: Answer names ONE (own + 1: the screen asks for one more and Save waits for three, keel-web 071), 05-paidly's TWO (own +
-#: 2, the Check screen with two others, Save on); every other entry names them all (COMPOSED).
+#: 2, the Check screen with two others, Save on); every other entry names as many as fit the Answer's 25 words (COMPOSED;
+#: spec 135: all of them, but on six gallery entries at corpus revision 24).
 IMPORTANCE_NAMED = {"01-countly": 1, "05-paidly": 2}
 
 
@@ -2281,13 +2277,26 @@ def importance_others(entry) -> list[str]:
 
 
 def importance_named(entry) -> list[str]:
-    """The other difficulties the founder's Importance Answer names -- and so Keel's redraft adds (097 F9: no more)."""
+    """The other difficulties the founder's Importance Answer names -- and so Keel's redraft adds (097 F9: no more).
+    Spec 135 (the coordinator's decision, 2026-11-04): the walk does what a founder does with a 25-word box -- the
+    Answer names the others that fit its `ANSWER_MAX_WORDS`, whole and in the entry's order, and stops at the first that
+    does not (six gallery entries at corpus revision 24); the rest are typed on the Check screen (`importance_typed`).
+    `IMPORTANCE_NAMED` (01-countly, 05-paidly) names fewer by design."""
     others = importance_others(entry)
-    return others[:IMPORTANCE_NAMED.get(entry.id, len(others))]
+    if entry.id in IMPORTANCE_NAMED:
+        return others[:IMPORTANCE_NAMED[entry.id]]
+    named: list[str] = []
+    for label in others:
+        if _words("; ".join(named + [label])) > ANSWER_MAX_WORDS:
+            break
+        named.append(label)
+    return named
 
 
 def importance_typed(entry) -> list[str]:
-    """The other difficulties the founder types on Importance's Check screen, after Keel's redraft (070 F9)."""
+    """The other difficulties the founder types on Importance's Check screen, after Keel's redraft (070 F9): the ones
+    the Answer did not name -- on 01-countly and 05-paidly by design, elsewhere those past the box's 25 words (spec
+    135)."""
     return importance_others(entry)[len(importance_named(entry)):]
 
 

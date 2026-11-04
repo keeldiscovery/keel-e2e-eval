@@ -61,7 +61,8 @@ SHORTFALLS = [{"label": "Paid on the agreed terms", "keel": True},
 
 def test_founder_rungs_are_counted_from_the_top_below_keels_working_rung():
     paidly = _entry("05-paidly")
-    assert not vs.keels_working_first(paidly) and vs.founder_rungs(paidly) == 3       # 117's golden table, unmoved
+    # spec 135 re-pin: 117's golden table typed 3 on one joined box; the second box's own 25 words carry 4
+    assert not vs.keels_working_first(paidly) and vs.founder_rungs(paidly) == 4
     entry = _with_rungs(paidly, SHORTFALLS)
     assert vs.keels_working_first(entry)
     what, how = vs.current_solution_boxes(entry)

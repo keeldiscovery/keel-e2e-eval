@@ -207,7 +207,11 @@ def test_the_founder_types_the_entrys_own_title_market_context_and_two_seeds():
     listed = {a.dimension: a for v in vectors_script.VECTORS for a in founder.calibration[v] if a.listed}
     assert set(listed) == {k for k in vectors_script.LIST_CONTROLS if k in entry.founder_calibration
                            and not entry.unsure(k)}
-    assert all(a.text and len(a.text.split()) <= 25 for a in listed.values())
+    # spec 135 (the coordinator's decision): Current solution's two boxes are typed apart, each to its own 25 words
+    cs = "problem.current_solution_satisfaction"
+    assert all(a.text and len(a.text.split()) <= 25 for k, a in listed.items() if k != cs)
+    if cs in listed:
+        assert all(0 < len(box.split()) <= 25 for box in vectors_script.current_solution_boxes(entry))
 
 
 def test_the_one_person_is_the_entrys_first_and_brings_their_own_story():

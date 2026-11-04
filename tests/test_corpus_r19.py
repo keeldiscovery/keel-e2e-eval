@@ -23,8 +23,6 @@ way r18's did).
 
 from __future__ import annotations
 
-import contextlib
-
 import subprocess
 import sys
 from pathlib import Path
@@ -37,7 +35,6 @@ from instructions import corpus as corpus_mod
 from instructions import registry as registry_mod
 from stack.config import load_config
 from tests import v9_fixtures as fx
-from tests.test_harness_reads_r24_135 import R24_ANSWER_OVERFLOW, stops_at_the_answer_box
 
 KEEL_CLOUD = Path(load_config(validate=False).keel_cloud)
 MIRROR = KEEL_CLOUD / "src" / "test" / "resources" / "keel"
@@ -462,19 +459,15 @@ def test_a_person_outside_is_walked_inside_where_the_page_serves_no_chip():
 
 # ------------------------------------------------------------------------------- FR-1: the Answer box at load
 
-def test_every_entry_fits_the_answer_box_and_revision_14s_transload_stops_at_load(tmp_path):
-    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): all 35 revision-19 entries name every Importance item inside the
-    25-word Answer; revision 14's 12-transload (*Running the shift with too few workers*) did not, and the harness
-    then lost *Finding freight sitting at the wrong door* -- read at revision 15, it stops at load naming the label."""
+def test_every_entry_fits_the_answer_box_and_revision_14s_transload_types_the_rest_on_check(tmp_path):
+    """Spec 067 FR-1 (keel-cloud 128 FR-17, FR-20): no entry's row is past the 25-word Answer box. Revision 14's
+    12-transload (*Running the shift with too few workers*) did not name every Importance item inside the Answer, and
+    the harness then lost *Finding freight sitting at the wrong door*; it stopped at load from revision 15. Spec 135 (the
+    coordinator's decision, 2026-11-04): the Answer names what fits and the founder types the rest on the Check screen,
+    so the row is kept, never lost and never a stop."""
     _need_mirrors()
     for path, _, backtest in _pairs():
-        entry = corpus_mod.load_file(path, registry=fx.registry(), backtest=backtest)
-        if stops_at_the_answer_box(entry):
-            # spec 135: revision 24's six whose Importance outruns the Answer stop at load, naming the row
-            with pytest.raises(vs.VectorsScriptError, match=R24_ANSWER_OVERFLOW[entry.id]):
-                vs.check_answer_box(entry)
-            continue
-        vs.check_answer_box(entry)
+        vs.check_answer_box(corpus_mod.load_file(path, registry=fx.registry(), backtest=backtest))
     if not (MIRROR / "backtest-r14").is_dir():
         pytest.skip(f"keel-cloud at {KEEL_CLOUD} carries no revision-14 back-test mirror")
     old = yaml.safe_load((MIRROR / "backtest-r14" / "12-transload.yaml").read_text(encoding="utf-8"))
@@ -491,10 +484,10 @@ def test_every_entry_fits_the_answer_box_and_revision_14s_transload_stops_at_loa
             person["picks"][importance] = picks[person["person"]]
     entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="12-transload.yaml"), registry=fx.registry(),
                                  backtest=True)
-    with pytest.raises(vs.VectorsScriptError) as stopped:
-        vs.founder_inputs(entry)
-    assert "'Finding freight sitting at the wrong door' would be dropped" in str(stopped.value), str(stopped.value)
-    assert vs.answer_drops(entry, "problem.importance") == ["Finding freight sitting at the wrong door"]
+    vs.founder_inputs(entry)
+    assert vs.importance_typed(entry) == ["Finding freight sitting at the wrong door"]
+    assert vs.answer_drops(entry, "problem.importance") == []
+    assert vs.importance_named(entry) + vs.importance_typed(entry) == vs.importance_others(entry)
 
 
 def test_a_list_label_past_the_answer_box_stops_at_load(tmp_path):
@@ -611,13 +604,7 @@ def _asking_journey(view: dict, *, strict: bool = False):
         pytest.skip("no 20-lemma")
     entry = corpus_mod.load_file(path, registry=fx.registry(), backtest=True)
     posted = []
-    # spec 135: Lemma's revision-24 Importance outruns the Answer box (`R24_ANSWER_OVERFLOW`), a stop at load these
-    # needs-input tests are not about -- the founder's inputs read past it
-    from unittest import mock                                           # noqa: PLC0415
-    with mock.patch.object(vs, "check_answer_box", lambda e: None) if stops_at_the_answer_box(entry) \
-            else contextlib.nullcontext():
-        founder = vs.founder_inputs(entry)
-    j = SimpleNamespace(strict=strict, entry=entry, founder=founder, findings=[], posted=posted,
+    j = SimpleNamespace(strict=strict, entry=entry, founder=vs.founder_inputs(entry), findings=[], posted=posted,
                         get=lambda path: view,
                         call=lambda method, path, body=None, ok=(): posted.append((method, path, body)) or (201, {}))
     return j

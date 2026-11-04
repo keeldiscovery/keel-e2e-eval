@@ -9,7 +9,8 @@ entries at revision 24, `CONSTITUTION.md`, the revision-23 records). Not merged;
 |---|---|
 | `c7ae045` | plan.md; FR-1's loader (`GALLERY`, `GALLERY_REVISION`, `revision_of`); FR-3's pointers |
 | `0b75179` | FR-1 / FR-2 / FR-4: the slice, Voltair's fact, `time_sourced`, `offer_expectation`, the pins, the six held at the Answer box, the Fresco run marked and its compare skipped, `tests/test_harness_reads_r24_135.py` |
-| this commit | the last two pins (211's cards compare, r11's ten-word label), plan's judgement calls 3-7, these tasks |
+| `7249176` | the last two pins (211's cards compare, r11's ten-word label), plan's judgement calls 3-7, these tasks |
+| this commit | the coordinator's decision: Importance's rest typed on the Check screen (never a stop); Current solution's two boxes typed apart, each to 25 words |
 
 ## FR-1 The loader and the pins
 
@@ -64,18 +65,35 @@ entries at revision 24, `CONSTITUTION.md`, the revision-23 records). Not merged;
 - [x] T010 `tests/fixtures/gallery/20261022T164045Z-backtest-08-fresco/backtest.json` `"revision": 23`;
   `test_gallery.test_the_interview_is_pinned_on_one_run` skipped with the reason; no recorded word edited.
 
+## The coordinator's follow-up (2026-11-04)
+
+- [x] T011 `vs.importance_named`: the Answer names the others that fit its 25 words, whole and in order (`IMPORTANCE_NAMED`
+  keeps 01-countly's and 05-paidly's fewer); `importance_typed` the rest. `check_answer_box` no longer stops on them -- only
+  on a single row longer than the box. `corpus_scenario._check_screen` (the Check-screen branch of `leg_calibrate`,
+  factored out): the rest typed on Importance's Check screen on every walk; on a back-test each row a finding
+  (`_importance_typed_finding`, *Importance: '<row>' typed on the Check screen ...*), on the golden walk held as before.
+  The six of revision 24 walk: 09-karsa, 12-transload, 13-aircaps, 14-code-four, 15-voltair, 20-lemma, one row each.
+- [x] T012 `vs.current_solution_boxes`: the second box takes the rungs that fit its own 25 words (never counted with the
+  first, keel-cloud's `VectorCorridorService` reads each box to 25); the rest typed on the Check screen (spec 067 FR-2).
+  Re-pins: `test_vectors_journey` (each box to 25; the golden drafts' `founder_rungs` 4, 4, 4 where 117's joined-box
+  table said 2, 3, 2), `test_cloud_203_204_mirror_131` (05-paidly 4), `test_money_cards_redrawn_118` (22-andy-ai 3 where 2),
+  `test_cycle_5_to_the_end_119` and `test_journey_through_a_host` (each box to 25, never the two joined), `test_corpus_r19` (revision 14's Transload types
+  its lost row on Check, no stop). The exemptions of the first build (`R24_ANSWER_OVERFLOW`) are gone.
+- [x] T013 `tests/test_harness_reads_r24_135.py`: the Answer names what fits and the rest is typed (all 28 back-test
+  entries walk), a single over-long row still stops, a back-test walk's Check screen gets `add=` the six's rows and a
+  finding each, the two boxes apart on every back-test entry (Fresco's second box no longer empty).
+
 ## Left open
 
-1. **Six gallery entries stop at load** (09-karsa, 12-transload, 13-aircaps, 14-code-four, 15-voltair, 20-lemma): their
-   revision-24 Importance rivals outrun the 25-word Answer (26-30 words), so spec 067 FR-1's stop refuses the walk before
-   any spend. Owed: shorter rivals in a keel-cloud corpus spec (and a constitution rule: the other difficulties fit the
-   25-word Answer together), or a coordinator's call to let a back-test walk type the rest on the Check screen.
-2. **15-voltair's respondent Compatibility row** records the four on what is now a fact; the corpus owes the three.
-3. **The cloud's vendored cards** (`src/main/resources/keel/dimension-cards.md`) owe FR-3's pointer, with 211's example.
+1. ~~Six gallery entries stop at load~~ -- decided and built (T011).
+2. **15-voltair's respondent Compatibility row** records the four on what is now a fact; the corpus owes the three
+   (a keel-cloud spec, the coordinator's word).
+3. **The cloud's vendored cards** (`src/main/resources/keel/dimension-cards.md`) owe FR-3's pointer, with 211's example
+   (a keel-cloud spec).
 4. **The recorded Fresco run** is re-recorded in the next quality cycle's walk (paid, the founder's word).
 
 ## The gate
 
-`set -o pipefail; make unit 2>&1 | tail -1`: **5352 passed, 85 skipped** (0 failed, 0 errors) against keel-cloud-docs
-`0464e20f`. At the spec's base (`80771da`, the loader at 23 against canon at 24) the same suite read 145 failed /
+`set -o pipefail; make unit 2>&1 | tail -1`: **5356 passed, 85 skipped** (0 failed, 0 errors) against keel-cloud-docs
+`0464e20f`, after the coordinator's follow-up (T011-T013); 5352 passed, 85 skipped at `7249176`. At the spec's base (`80771da`, the loader at 23 against canon at 24) the same suite read 145 failed /
 5,178 passed / 85 skipped / 16 errors.

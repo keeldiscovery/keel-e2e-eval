@@ -10,9 +10,10 @@ the gallery's map. FR-4 is `tests/test_gallery.py`'s (the recorded Fresco run ma
 
 Two things revision 24 does that the review did not foresee, held here by name (tasks.md, *Left open*):
 
-- **Six gallery entries' Importance no longer fits the 25-word Answer** (`R24_ANSWER_OVERFLOW`): the reworded rivals are
-  longer, so the founder's Answer cannot name every other difficulty and spec 067 FR-1's stop (`check_answer_box`)
-  refuses the walk at load, before any spend, naming the row it would drop. The stop is kept; the corpus owes the fix.
+- **Six gallery entries' Importance no longer fits the 25-word Answer** (`R24_TYPED_ON_CHECK`): the reworded rivals are
+  longer, so the founder's Answer names the others that fit its 25 words and types the rest on the Check screen, as a
+  founder does (the coordinator's decision, 2026-11-04) -- each a finding, never a stop; `check_answer_box` stops only on
+  a single row longer than the box. Current solution's two boxes are typed apart, each to its own 25 words.
 - **15-voltair's tested Compatibility condition became a fact** while its record kept the registry's four
   (`corpus.R24_FACT_FOUR`): code serves a fact three and nobody picked `only_with_help`, so it is read as served.
 """
@@ -42,19 +43,14 @@ COMPATIBILITY = "solution.compatibility"
 ADVANTAGE = "solution.relative_advantage"
 PF = "commercial.purchase_friction"
 
-#: The six gallery entries whose revision-24 Importance rivals outrun the 25-word Answer, and the row each would drop
-#: (the first that does not fit). Spec 067 FR-1's stop holds them at load; a keel-cloud corpus spec owes shorter rows.
-R24_ANSWER_OVERFLOW = {"09-karsa": "Keeping cash at home safe",
-                       "12-transload": "Finding freight sitting at the wrong door",
-                       "13-aircaps": "Knowing who is talking in a group",
-                       "14-code-four": "Logging the evidence from the call",
-                       "15-voltair": "Spotting trees growing into the lines",
-                       "20-lemma": "Finding an engineer free to dig in"}
-
-
-def stops_at_the_answer_box(entry) -> bool:
-    """For the tests that walk every back-test entry: True for a revision-24 entry the Answer box stops at load."""
-    return entry.id in R24_ANSWER_OVERFLOW and entry.revision == corpus_mod.GALLERY_REVISION
+#: The six gallery entries whose revision-24 Importance rivals outrun the 25-word Answer, and the rows the founder types
+#: on the Check screen (the others past the box, in the entry's order).
+R24_TYPED_ON_CHECK = {"09-karsa": ["Keeping cash at home safe"],
+                      "12-transload": ["Finding freight sitting at the wrong door"],
+                      "13-aircaps": ["Knowing who is talking in a group"],
+                      "14-code-four": ["Logging the evidence from the call"],
+                      "15-voltair": ["Spotting trees growing into the lines"],
+                      "20-lemma": ["Finding an engineer free to dig in"]}
 
 
 @pytest.fixture(scope="module")
@@ -164,14 +160,89 @@ def test_no_gallery_entry_types_the_founders_own_offer_and_the_transcript_says_s
     assert "Purchase friction's own offer (L32, spec 135): no own-offer row typed" in text
 
 
-def test_the_answer_box_stops_the_six_at_load_and_every_other_entry_fits(backtest):
+def test_the_answer_names_what_fits_and_the_rest_is_typed_on_the_check_screen(backtest):
+    """The coordinator's decision (2026-11-04): Importance's Answer names the others that fit its 25 words, whole and in
+    order; the rest are typed on the Check screen, never a stop -- every back-test entry walks."""
     for entry in backtest.values():
-        if stops_at_the_answer_box(entry):
-            with pytest.raises(vs.VectorsScriptError, match=f"'{R24_ANSWER_OVERFLOW[entry.id]}' would be dropped"):
-                vs.check_answer_box(entry)
-            assert vs.answer_drops(entry, IMPORTANCE)[0] == R24_ANSWER_OVERFLOW[entry.id]
-        else:
-            vs.check_answer_box(entry)
+        vs.check_answer_box(entry)                                   # no stop on any of the 28
+        vs.founder_inputs(entry)
+        named, typed = vs.importance_named(entry), vs.importance_typed(entry)
+        assert named + typed == vs.importance_others(entry), entry.id
+        assert vs._words("; ".join(named)) <= vs.ANSWER_MAX_WORDS, entry.id
+        assert vs.answer_text(entry, IMPORTANCE) == "; ".join(named), entry.id
+        if typed:   # the next row would not have fit
+            assert vs._words("; ".join(named + typed[:1])) > vs.ANSWER_MAX_WORDS, entry.id
+        assert typed == R24_TYPED_ON_CHECK.get(entry.id, []), entry.id
+    # countly and paidly name fewer by design, as before
+    golden = {e.id: e for e in corpus_mod.load(KEEL_CLOUD, registry=fx.registry()).entries}
+    assert [len(vs.importance_named(golden[e])) for e in ("01-countly", "05-paidly")] == [1, 2]
+
+
+def test_a_single_row_longer_than_the_box_still_stops_at_load(tmp_path):
+    raw = fx.raw_entry(fx.ENTRY)
+    raw["founder_calibration"][IMPORTANCE]["answer"]["items"][1]["label"] = " ".join(["word"] * 26)
+    entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw))
+    with pytest.raises(vs.VectorsScriptError, match="is 26 words; the Answer box takes 25"):
+        vs.check_answer_box(entry)
+
+
+class _Corridor:
+    """A Check screen that records what the walk asks of it."""
+    def __init__(self):
+        self.calls = []
+
+    def list_check(self, question, **kw):
+        self.calls.append((question["dimension"], kw))
+        return {"screen": "check"}
+
+
+def test_a_back_test_walk_types_the_rest_on_importances_check_screen(backtest):
+    from types import SimpleNamespace                                   # noqa: PLC0415
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    for entry_id, rows in R24_TYPED_ON_CHECK.items():
+        j = SimpleNamespace(entry=backtest[entry_id], strict=False, findings=[], corridor=_Corridor())
+        assert cs._check_screen(j, {"dimension": IMPORTANCE}, IMPORTANCE) == {"screen": "check"}
+        assert j.corridor.calls == [(IMPORTANCE, {"add": rows, "one_more": False})], entry_id
+        assert [f["served"]["typed"] for f in j.findings] == rows
+    # an entry whose Answer names them all types nothing there
+    j = SimpleNamespace(entry=backtest["08-fresco"], strict=False, findings=[], corridor=_Corridor())
+    cs._check_screen(j, {"dimension": IMPORTANCE}, IMPORTANCE)
+    assert j.corridor.calls == [(IMPORTANCE, {})] and j.findings == []
+    # Current solution on a back-test still types its rungs through spec 067 FR-2's plan
+    j = SimpleNamespace(entry=backtest["08-fresco"], strict=False, findings=[], corridor=_Corridor())
+    cs._check_screen(j, {"dimension": "problem.current_solution_satisfaction"}, "problem.current_solution_satisfaction")
+    assert list(j.corridor.calls[0][1]) == ["add_rungs"]
+
+
+def test_each_typed_row_is_a_finding_never_a_stop(backtest):
+    from types import SimpleNamespace                                   # noqa: PLC0415
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    j = SimpleNamespace(entry=backtest["14-code-four"], findings=[])
+    cs._importance_typed_finding(j, vs.importance_typed(j.entry))
+    assert [f["served"]["typed"] for f in j.findings] == ["Logging the evidence from the call"]
+    assert j.findings[0]["what"].startswith("Importance: 'Logging the evidence from the call' typed on the Check screen")
+    assert "named 3 of the founder's other difficulties" in j.findings[0]["what"]
+
+
+def test_current_solutions_two_boxes_are_typed_apart_each_to_its_own_25_words(backtest):
+    """The coordinator's decision (2026-11-04), keel-cloud's `VectorCorridorService` reading each box to 25: the first
+    box is the entry's `current_solution.today`, the second the rungs that fit its own 25 words, in order; the rest are
+    typed on the Check screen (spec 067 FR-2). The two are never counted together."""
+    key = "problem.current_solution_satisfaction"
+    for entry in backtest.values():
+        first, second = vs.current_solution_boxes(entry)
+        if entry.today():                       # the fourteen record what they do today; the rest type the phrase
+            assert first.rstrip(".") == entry.today().rstrip("."), entry.id
+        assert 0 < vs._words(first) <= vs.ANSWER_MAX_WORDS, entry.id
+        assert 0 < vs._words(second) <= vs.ANSWER_MAX_WORDS, entry.id
+        rungs = [i["label"] for i in entry.founder_list(key)["items"]][1 if vs.keels_working_first(entry) else 0:]
+        fits = [k for k in range(1, len(rungs) + 1) if vs._words("; ".join(rungs[:k])) <= vs.ANSWER_MAX_WORDS]
+        k = max(fits)
+        assert second == vs._stopped("; ".join(rungs[:k])), entry.id      # as many whole rungs as fit, in order
+        assert vs.answer_text(entry, key) == f"{first} {second}"
+    # Fresco: 24 words of today no longer leave the second box empty
+    first, second = vs.current_solution_boxes(backtest["08-fresco"])
+    assert vs._words(first) == 24 and second.startswith("Done on site, no time after the walk")
 
 
 def test_voltairs_fact_is_read_as_code_serves_it_and_an_only_with_help_pick_is_refused(backtest, tmp_path):

@@ -16,7 +16,6 @@ from harness import vectors_script as vs
 from instructions import spelling
 from quality import cycle, rubric, table
 from stack.config import load_config
-from tests.test_harness_reads_r24_135 import stops_at_the_answer_box
 
 REPO = Path(__file__).resolve().parent.parent
 FX = Path(__file__).parent / "fixtures"
@@ -113,8 +112,6 @@ def test_every_back_test_entry_is_typed_by_the_rules():
     corpus = vs.load(KEEL_CLOUD, backtest=True)
     assert corpus.entries
     for entry in corpus.entries:
-        if stops_at_the_answer_box(entry):
-            continue        # spec 135: stopped at load by the Answer box (test_harness_reads_r24_135), never typed
         founder = vs.founder_inputs(entry)
         keep = tp.kept_words(entry)
         typed, found = tp.type_founder(entry, founder)

@@ -410,7 +410,13 @@ def test_the_founder_answers_on_the_wires_own_shapes(entry_id):
             assert listed["pickedIndex"] == saved["pickedIndex"]
             assert (listed["pickedIndex"] is not None) == (answer.dimension in vs.PICKED)
             assert "code" not in json.dumps(listed["items"]), "a code the client sends is ignored, so none is"
-            assert 1 <= _count(answer.text) <= 25, answer.text
+            if answer.dimension == "problem.current_solution_satisfaction":
+                # spec 135 (the coordinator's decision): the two boxes are typed apart, each to its own 25 words
+                first, second = vs.current_solution_boxes(entry)
+                assert answer.text == f"{first} {second}".strip()
+                assert 1 <= _count(first) <= 25 and _count(second) <= 25, answer.text
+            else:
+                assert 1 <= _count(answer.text) <= 25, answer.text
 
 
 # ------------------------------------------------------------------------------- the people
@@ -645,8 +651,10 @@ def test_the_read_back_is_keel_clouds_assembled_sentence():
 
 
 def test_the_current_solution_draft_carries_the_founders_rungs_and_the_line():
-    """FR-5a (keel-cloud 117's golden table): 2 or 3 rungs typed, the line D4's 2."""
-    want = {"01-countly": 2, "05-paidly": 3, "07-mulchrun": 2}
+    """FR-5a (keel-cloud 117's golden table): the rungs typed, the line D4's 2. Spec 135 re-pin (the coordinator's
+    decision, 2026-11-04): the second box takes its own 25 words, never counted with the phrase's first box, so the
+    golden Answers type four rungs where 117's table, written on one joined box, typed 2 or 3."""
+    want = {"01-countly": 4, "05-paidly": 4, "07-mulchrun": 4}
     for entry_id, rungs in want.items():
         draft = vs.drafted_list(_entry(entry_id), "problem.current_solution_satisfaction")
         assert (draft["founder_rungs"], draft["line"]) == (rungs, 2), entry_id

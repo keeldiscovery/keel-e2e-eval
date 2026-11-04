@@ -2150,14 +2150,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         drafted = _wait_calibration(j, vector)
         question = next((q for q in drafted.get("questions") or [] if q.get("dimension") == key), question)
         _keep_draft(j, question, "answer", answer.text)
-        typed = vs.importance_typed(j.entry) if (key == "problem.importance" and j.strict) else []
-        if typed:
-            seen.append(j.corridor.list_check(question, add=typed, one_more=len(vs.importance_named(j.entry)) == 1))
-            _hold_importance_check(j, seen[-1], typed)
-        elif key == "problem.current_solution_satisfaction" and not j.strict:
-            seen.append(j.corridor.list_check(question, add_rungs=lambda drawn: _rungs_to_type(j, question, drawn)))
-        else:
-            seen.append(j.corridor.list_check(question))
+        seen.append(_check_screen(j, question, key))
         _hold_check_intro(j, question, seen[-1])
         if key in vs.PICKED:
             if not j.strict:
@@ -2356,6 +2349,35 @@ def _hold_check_intro(j: Journey, question: dict, seen: dict) -> None:
     if said is not None and said != cap and hasattr(j, "findings"):
         j.findings.append({"what": f"{question.get('dimension')}: the Check intro says under {said} words each; the "
                                    f"served cap is {cap} (keel-web 158 T006)", "intro": seen.get("intro")})
+
+
+def _check_screen(j: Journey, question: dict, key: str) -> dict:
+    """A list's Check screen, as the founder leaves it. Spec 135 (the coordinator's decision, 2026-11-04): on every walk
+    -- the golden one and a back-test's -- the founder types there the other Importance difficulties the Answer's 25
+    words could not name (`vs.importance_typed`; on a back-test each a finding, never a stop); on a back-test, Current
+    solution's rungs the second box could not hold (spec 067 FR-2); else the list is saved as drawn."""
+    typed = vs.importance_typed(j.entry) if key == "problem.importance" else []
+    if typed:
+        seen = j.corridor.list_check(question, add=typed, one_more=len(vs.importance_named(j.entry)) == 1)
+        if j.strict:
+            _hold_importance_check(j, seen, typed)
+        else:
+            _importance_typed_finding(j, typed)
+        return seen
+    if key == "problem.current_solution_satisfaction" and not j.strict:
+        return j.corridor.list_check(question, add_rungs=lambda drawn: _rungs_to_type(j, question, drawn))
+    return j.corridor.list_check(question)
+
+
+def _importance_typed_finding(j: Journey, typed: list[str]) -> None:
+    """Spec 135: on a back-test the Importance Answer names the others that fit its 25 words and the founder types the
+    rest on the Check screen (*Reword, remove or add*), as Current solution's rungs (spec 067 FR-2) -- each typed row a
+    finding (the founder's own words, typed late), never a stop."""
+    named = list(vs.importance_named(j.entry))
+    for label in typed:
+        j.findings.append({"what": f"Importance: '{label}' typed on the Check screen (the Answer's "
+                                   f"{vs.ANSWER_MAX_WORDS} words named {len(named)} of the founder's other difficulties)",
+                           "served": {"named": named, "typed": label}})
 
 
 def _rungs_to_type(j: Journey, question: dict, drawn: dict) -> dict:

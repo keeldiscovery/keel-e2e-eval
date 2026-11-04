@@ -563,7 +563,9 @@ def test_current_solutions_answer_is_typed_as_two_boxes(registry):
     assert what == "Getting that visit charted." and how.endswith(".") and how
     assert vs_screens.join_answer(what, how) == text
     assert ";" not in what, "the phrase is a sentence of its own"
-    assert vs.founder_rungs(entry) == 2
+    # spec 135 re-pin (the coordinator's decision): the how box takes its own 25 words, so three rungs fit (two when it
+    # shared 25 with the phrase)
+    assert vs.founder_rungs(entry) == 3
 
 
 # --------------------------------------------------------------- FR-4d: one scripted line per follow-up

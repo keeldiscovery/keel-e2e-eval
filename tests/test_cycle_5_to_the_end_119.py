@@ -375,13 +375,14 @@ def test_current_solution_today_is_read_and_held(tmp_path, registry):
 
 
 def test_the_answer_types_today_in_the_first_box_within_the_answers_25_words(registry):
-    """keel-cloud 184 FR-8b (a) with 187 FR-4 (b): the first box is the entry's own sentence for today's way, the rungs
-    the second within what is left of the Answer's 25 words (keel-cloud's `ANSWER_MAX_WORDS` holds the two joined) --
-    on the 14 entries no rung fits beside today's sentence, so the Check screen types them back (spec 067 FR-2)."""
+    """keel-cloud 184 FR-8b (a) with 187 FR-4 (b): the first box is the entry's own sentence for today's way. Spec 135
+    re-pin (the coordinator's decision, 2026-11-04; keel-cloud's `VectorCorridorService` reads each box to
+    `ANSWER_MAX_WORDS`): the second box holds the rungs that fit its own 25 words -- never what the first left -- and the
+    Check screen types the rest back (spec 067 FR-2)."""
     for entry in corpus_mod.load(KEEL_CLOUD, registry=registry, backtest=True).entries:
         what, how = vs.current_solution_boxes(entry)
         text = vs.answer_text(entry, CS_KEY)
-        assert len(text.split()) <= vs.ANSWER_MAX_WORDS, (entry.id, text)
+        assert len(what.split()) <= vs.ANSWER_MAX_WORDS and 0 < len(how.split()) <= vs.ANSWER_MAX_WORDS, (entry.id, text)
         assert vs_screens.split_answer(text) == (what, how), entry.id
         if entry.today():
             assert what == entry.today() if entry.today().endswith(".") else what == entry.today() + ".", entry.id

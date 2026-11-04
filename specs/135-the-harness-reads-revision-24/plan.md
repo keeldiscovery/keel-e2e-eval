@@ -35,12 +35,19 @@ suite only.
 4. **Two things revision 24 does that the review did not foresee** (found by the suite on canon, not built around):
    - *Six gallery entries' Importance outruns the 25-word Answer* (09-karsa, 12-transload, 13-aircaps, 14-code-four,
      15-voltair, 20-lemma: 26 to 30 words where revision 23 held 18 to 25). keel-web refuses an over-long Answer (422
-     `VALUE_OUT_OF_SHAPE`) and spec 067 FR-1's stop (`check_answer_box`) refuses such an entry at load, naming the row the
-     Answer would drop, before any spend. The stop is kept -- a back-test walk types no Importance row on the Check
-     screen (only the golden walk does, `IMPORTANCE_NAMED`), so loosening it would lose the row; the six are held by name
-     (`R24_ANSWER_OVERFLOW`) and the corpus owes shorter rivals (or the walk a Check-screen path for them: the
-     coordinator's call). Tests that walk every entry assert the stop for the six; tests about something else on AirCaps
-     or Lemma set the box's check aside for themselves alone.
+     `VALUE_OUT_OF_SHAPE`). First built as a stop at load (spec 067 FR-1's `check_answer_box`); **the coordinator's
+     decision (2026-11-04)**: the walk does what a founder does with a 25-word box -- the Answer names the others that
+     fit, whole and in the entry's order (`importance_named`), and the rest are typed on the Check screen
+     (`importance_typed`, `corpus_scenario._check_screen`), on a back-test each a finding (*typed on the Check screen*),
+     never a stop, as spec 067 FR-2 does for Current solution's rungs. `check_answer_box` stops only on a single row
+     longer than the box. The six walk (`R24_TYPED_ON_CHECK`).
+   - *Current solution's two boxes were counted together* (found beside it, the same bug): keel-web 150 caps each box at
+     25 and keel-cloud's `VectorCorridorService` reads them apart (`first > ANSWER_MAX_WORDS || second > ...`), but
+     `current_solution_boxes` filled the second only with what the first left of 25 -- empty on 12 of the 14 gallery
+     entries, whose `current_solution.today` runs 18 to 25 words. Now the second box takes the rungs that fit its own 25
+     words, in order, and the rest are typed on the Check screen as before. The golden Answers type four rungs where
+     keel-cloud 117's table (written on one joined box) typed 2 or 3: `founder_rungs` re-pinned (`test_vectors_journey`,
+     `test_cloud_203_204_mirror_131`).
    - *15-voltair's tested Compatibility condition became a fact* (*had poles whose tops were clear of tree cover*;
      revision 23's *could be seen* was an ability) while its respondent row kept the registry's four. Code serves a fact
      three (`ItemFrames.conditionKind`, the eval's `spoken.condition_kind` its port) and nobody picked `only_with_help`,
