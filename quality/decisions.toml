@@ -440,3 +440,24 @@ fix = "*"
 decision = "declined"
 until = "never"
 why = "The founder, 2026-11-03: 'other let it be as it is' -- the persona screen's 'decide to use and pay for' and the market screen's shape stay."
+
+[[decision]]
+id = "D-2026-11-04-01"
+cycle = "20261104-7c96988"
+proposals = [2, 7, 8, 9, 10, 13, 19, 21, 30, 35, 36, 44]
+row = { scope = "*", audience = "founder", dimension = "*", screen = ["context", "context-card", "persona-who-answers", "answer", "check", "choose", "q"] }
+fix = "*"
+decision = "taken"
+spec = ["keel-cloud 211", "keel-web 171"]
+until = "spec-merged"
+why = "DEFECTS code makes or lets through (the coordinator, overnight 2026-11-04, on the founder's standing word): the untimed purchase-friction belief, untyped buyer-payer roles, prevalence's bare actor, the first-benefit-only test line, founder words deleted by the no-repeat rule, a priced commitment step without a free one, the commitment Answer's wording, the decider cut to a word, the intro's count. The other founder rows on these screens (writers still drifting from 205-208) are left to the review turn (209) to measure in the next cycle."
+
+[[decision]]
+id = "D-2026-11-04-02"
+cycle = "20261104-7c96988"
+proposals = [4, 16, 18, 24, 31]
+row = { scope = "*", audience = "*", dimension = "*", screen = ["send-who", "follow_up"] }
+fix = "*"
+decision = "held"
+until = "never"
+why = "IMPROVEMENTS for the founder's word (2026-11-04 morning): ability-to-pay's two labels (18, a 198 decision), send-who's wording (4, 24), the follow-up ladder's top rung with the step and each pick in its own sentence (16, 31). Reopen on his word."
