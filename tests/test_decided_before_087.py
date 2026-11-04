@@ -76,8 +76,12 @@ def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens
     # 2026-11-02 (the founder on cycle 7's seven groups): D-2026-11-02-01..07 -- 197 cards, 198 stranger options, 199 founder
     # beliefs, 200 follow-ups (taken, until merged); -05 insights line declined (never); -06 web 162 (taken); -07 the
     # stage/dimension So lines held (never: parked by him)
-    assert len(found) == 32 and [d["id"] for d in found] == [f"D-2026-10-29-{i:02d}" for i in range(1, 21)] + [
-        f"D-2026-10-30-{i:02d}" for i in range(1, 6)] + [f"D-2026-11-02-{i:02d}" for i in range(1, 8)]
+    # 2026-11-03 (the founder on cycle 9, quality decisions 59e5ead / 3705813): D-2026-11-03-01..04 keel-cloud 205-208
+    # and -05 keel-web 166 (taken, until merged); -06 persona + market declined (never). Re-pinned by spec 132 (the gate
+    # at its head: the file of record had moved past this pin)
+    assert len(found) == 38 and [d["id"] for d in found] == [f"D-2026-10-29-{i:02d}" for i in range(1, 21)] + [
+        f"D-2026-10-30-{i:02d}" for i in range(1, 6)] + [f"D-2026-11-02-{i:02d}" for i in range(1, 8)] + [
+        f"D-2026-11-03-{i:02d}" for i in range(1, 7)]
     records = {p.stem for p in cycle.record_files(REPO / "quality" / "cycles")}
     for d in found:
         assert d["cycle"] in records, f"{d['id']} names a committed cycle record"
@@ -98,7 +102,10 @@ def test_the_file_of_record_parses_and_every_row_names_scored_scopes_and_screens
                       # marked 2026-10-30 after cycle 3: web 130 (D-08, D-16), web 134 (D-17), the open link's specs (D-10)
                       "D-2026-10-29-08": "51c3c4a", "D-2026-10-29-16": "51c3c4a", "D-2026-10-29-17": "e5577d2",
                       "D-2026-10-29-10": "01048e86",
-                      "D-2026-10-30-02": "69496bdc", "D-2026-10-30-03": "9ba42382"}
+                      "D-2026-10-30-02": "69496bdc", "D-2026-10-30-03": "9ba42382",
+                      # marked 2026-11-03 (78056c1): keel-cloud 197-200 and keel-web 162 merged
+                      "D-2026-11-02-01": "e01baa5a", "D-2026-11-02-02": "45857fdd", "D-2026-11-02-03": "374dd712",
+                      "D-2026-11-02-04": "c8657d39", "D-2026-11-02-06": "c5f52eac"}
     for d in found:
         if d.get("merged"):
             assert d["decision"] == "taken" and d["until"] == "spec-merged", d["id"]
@@ -405,15 +412,18 @@ def test_a_merged_decision_ends_its_snooze_on_the_file_of_record(capsys, at_the_
     # ready-pilot (-05, never, holds ready-interviewer and send-format): 19 -> 13 snoozed, 43 -> 49 sent.
     # 2026-11-02: the seven decisions of D-2026-11-02 cover the cards, every respondent item/gate/screener, every founder
     # answer/check/choose/q, the follow-ups, the insights screens, the window and market screens and every stage/dimension
-    # card, so 13 -> 50 of this fixture cycle's rows are snoozed until their specs merge
-    assert len(listed) == 50
+    # card, so 13 -> 50 of this fixture cycle's rows are snoozed until their specs merge.
+    # 2026-11-03 (re-pinned by spec 132): -01..-04 and -06 merged (78056c1) send their rows back, and the six decisions of
+    # D-2026-11-03 (keel-cloud 205-208, keel-web 166 taken, -06 declined) snooze the rows they cover -- 207's context
+    # among them, so 149's context row is snoozed again: 50 -> 52 snoozed, 12 -> 10 sent
+    assert len(listed) == 52
     found = {d["id"]: d for d in dec.load()}
     for row, said_of in listed:
         ids = re.findall(r"\*\*(D-2026-1\d-\d\d-\d\d)\*\*", said_of)
         assert ids and not any(found[i].get("merged") for i in ids), row
-    assert "dry run: 12 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 50 weak row(s) " \
+    assert "dry run: 10 adviser prompt(s) for cycle 20261028-f48f256; no call made, nothing written; 52 weak row(s) " \
            "decided before, not sent" in said
-    assert "[1/12] COMMERCIAL · founder · - · context" in said, "149's row (D-01, merged) goes back to the adviser"
+    assert "[1/10] COMMERCIAL · founder · - · context-card" in said, "the context card's row goes back to the adviser"
 
 
 def test_the_runbook_and_the_agents_file_carry_the_decisions():
