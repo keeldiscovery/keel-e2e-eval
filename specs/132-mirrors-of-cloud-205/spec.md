@@ -33,3 +33,14 @@ owes. Builds on 129, 130, 131.
   and Commitment's first label *Yes, I would* wherever pinned; the `vs_screens` mirror of the window label's third
   clause (*the last time {circumstance}*, keel-web 166) and of Purchase friction's held Choose (`keeltest-waiting`, no
   `.keeltest__b` before a time).
+
+## Amended for keel-web 168 (master after bdb63e72)
+
+- **FR-10 The walker on the moved founder screens.** Buyer and payer's Choose has two options at most: *Nobody else*
+  and one option holding every role joined with *and*; the walker picks by index (1 for the roles, 0 for nobody),
+  never by a role's label; a list holding only *Nobody else* has no radiogroup and is confirmed as a statement. The
+  `chain-share-RECOVERED` price shape is absent on a fresh study. The `vs_screens` constants
+  `IMPORTANCE_ANSWER_HINT`, `COMPATIBILITY_ANSWER_HINT`, `CURRENT_SOLUTION_HOW_HINT`,
+  `PURCHASE_FRICTION_CHOOSE_BAR_UNDATED` and `CHAIN_BASE_HELP` take the new words (keel-web
+  specs/168-founder-screens-owed-by-cloud-205/tasks.md lists them); the Purchase friction bar with no time reads
+  *Holds if no more than 1 in 3 say it would take a long time.*
