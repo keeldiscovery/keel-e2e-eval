@@ -559,8 +559,10 @@ CONTEXT_INTRO_WITH_WINDOW = f"Five short answers, a phrase each. {CONTEXT_INTRO_
 
 
 def context_intro(scope: str = "ALL") -> str:
-    """keel-web 169 `contextIntro(servesGate(scope))`: *Five ...* on a scope with a gate, *Four ...* on money alone."""
-    return CONTEXT_INTRO if str(scope or "ALL").upper() == "COMMERCIAL" else CONTEXT_INTRO_WITH_WINDOW
+    """keel-web 171 `contextIntro(windowServed && !twoScreens)`: the intro counts the boxes on the screen it heads --
+    *Four ...* on every screen a founder fills (1 of 2 with four boxes; money alone), on every scope. *Five ...*
+    (`CONTEXT_INTRO_WITH_WINDOW`) is drawn only on a locked, unconfirmed context's single screen, which no walk fills."""
+    return CONTEXT_INTRO
 
 
 #: Spec 132 FR-10 (keel-web 168 FR-5, J-4): *A percent of what it gets back* -- absent on a fresh study (the wire serves

@@ -438,7 +438,7 @@ def test_the_context_intro_counts_its_answers():
         in text
     assert f'const CONTEXT_INTRO_BOUNDARY = "{vs_screens.CONTEXT_INTRO_BOUNDARY}";' in text
     for scope in ("ALL", "PROBLEM", "SOLUTION", "SOLUTION_COMMERCIAL"):
-        assert vs_screens.context_intro(scope).startswith("Five short answers, a phrase each."), scope
+        assert vs_screens.context_intro(scope).startswith("Four short answers, a phrase each."), scope  # keel-web 171
     assert vs_screens.context_intro("COMMERCIAL").startswith("Four short answers, a phrase each.")
     fixture = json.loads((Path(__file__).parent / "fixtures" / "typist" / "backtest-21-codyco-PROBLEM.json")
                          .read_text(encoding="utf-8"))
