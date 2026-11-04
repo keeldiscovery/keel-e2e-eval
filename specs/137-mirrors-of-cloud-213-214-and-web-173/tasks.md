@@ -2,13 +2,14 @@
 
 Branch `spec-137`, off `519efef`, in the worktree `/Users/athulrajeev/Documents/projects/wt/keel-e2e-eval-137` (`.git` a
 file). Plan: `plan.md` (eight judgement calls). Against keel-cloud-docs master `219464f9` (213) and keel-web master
-`8215beda` (173); keel-cloud 214's part by message. Not merged; nothing paid; no corpus revision, `MARKS_VERSION` or
+`8215beda` (173); keel-cloud 214 merged at keel-cloud-docs master `e3e22a8d` (the coordinator's message). Not merged; nothing paid; no corpus revision, `MARKS_VERSION` or
 contract moved here.
 
 ## FR-1 The cards
 
 - [x] T001 `quality/readers/dimensions.md` = the vendored copy at `e3cdea00...`; the 133 pin holds the two files equal.
-- [ ] T001a 214's digest, if 214 moves the cards (by message).
+- [x] T001a 214 moved the cards: the vendored copy at `0ab29614...` (Relative advantage's stranger line the hard case);
+  the 213 and 133 pins read the cloud's `CARDS_SHA256`.
 
 ## FR-2 The instruction and rule mirrors (213)
 
@@ -23,7 +24,14 @@ contract moved here.
 
 ## FR-2 The instruction and rule mirrors (214, by message)
 
-- [ ] T007 214's five checks mirrored; the scripted drafts obey each; the eval faults a draft that does not.
+- [x] T007 `instructions/writers_rules.py` (L37, X14, L38, L39, L40 and `OccasionStem.whenClause`, the vocabularies held
+  to `WritersRules.java` by test); `spoken.hard_case` ahead of 198's anchor; `wording.money_all`; `score.writers_faults`
+  in `list_faults` (L37, L38/L39 on Keel's rungs, L40, L15) and W9 off the founder's own money on Commitment; the six
+  rules in the lock notes; `vectors_script.scripted_occasion` (*time* for 10-palus' *cash decision*); the good fixture's
+  own row *Finding the keys in a hurry* (was the circumstance said again); `tests/test_cloud_214_mirror_137.py` (11).
+  The corpus's own words that break a rule are pinned as findings (plan.md call 9): L37 05-paidly, 07-mulchrun,
+  08-fresco, 09-karsa, 22-andy-ai, 25-bidflow, 33-cardboard; L38 17-expanse, 23-taiga, 27-blacksmith, 28-relvy-ai,
+  32-frizzle.
 
 ## FR-3 The walk on contract 59
 
@@ -64,5 +72,21 @@ Interim gate on `5389f55` against keel-cloud-docs `219464f9` and keel-web `8215b
 
 ## FR-5 Gate
 
-- [ ] T013 `set -o pipefail; make unit 2>&1 | tail -1` green against keel-cloud-docs master at 214's merge and keel-web
-  master `8215beda`.
+- [x] T013 `set -o pipefail; make unit 2>&1 | tail -1` on `18d5254` (the tree this file's commit adds only spec text
+  to) against keel-cloud-docs master `e3e22a8d` (214 merged) and keel-web master `8215beda` (173 merged), 2026-11-04
+  ET: **5,433 passed / 0 failed / 85 skipped** (269.60 s). +11 over the interim gate: `test_cloud_214_mirror_137.py`.
+
+## Left open
+
+- **Two golden entries' recorded own rows break L37** (05-paidly *Getting paid on time*, the job said again; 07-mulchrun
+  *Fetching mulch from the supply yard*, the circumstance said again): the scripted writer drafts the corpus's own item
+  and the strict walk holds the drawn list to the corpus, so a scripted golden walk will show an L37 note there until a
+  corpus revision rewords them (or the coordinator decides the scripted writer departs from the record). The back-test
+  findings above are the same, for the corpus revision 214 names.
+- The strict walk's Relative advantage hold (`_hold_the_idea_name`) still composes 173's frame; the 198 / 213 / 214
+  composition (`spoken.advantage_stem`) is pinned by unit tests only (plan.md call 5).
+- `restatesTheStep` and `TypedRows.rowOf` are read approximately (plan.md calls 6, 10).
+- keel-web's cost box line still says *the buyer's organisation* (`COST_PAYER_B2B`; 173 did not move it).
+- AirCaps' optional plan is read off its sources file until a corpus revision records `optional` (a test fails the day
+  it does).
+- Commits carry the session's `Claude Opus 5.5` trailer (the model that built it), not the brief's `Claude Fable 5.1`.
