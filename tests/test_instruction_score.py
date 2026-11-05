@@ -394,6 +394,8 @@ def _drafted_from(entry, registry, vector) -> dict:
             if d.key == "solution.compatibility":
                 # spec 136 FR-3 (keel-cloud 212 FR-4, L35): the writer answers each condition's test, settled by nobody
                 items = [i | {"settled_by": "nobody"} for i in items]
+                # spec 141 FR-8 (keel-cloud 225 FR-1, L-kind): and its kind, the word test's (as the scripted writer)
+                items = [i | {"kind": spoken_mod.condition_kind(i.get("asked"), i.get("label")).lower()} for i in items]
             draft = {"items": items} | ({"phrase": phrase} if phrase else {})
             questions.append({"key": d.key, "list": draft, "respondent_note": "x"})
         else:

@@ -992,6 +992,55 @@ def condition_kind(asked, label) -> str:
     return "FACT" if is_fact(asked, label) else "ABILITY"
 
 
+#: keel-cloud 225 FR-1 (`SavedList.KINDS`): the three kinds a Compatibility row's `kind` takes.
+KINDS = ("ability", "fact", "permission")
+
+
+def written_kind(kind) -> str | None:
+    """keel-cloud 225 (`SavedList.kindOf`): a written kind as stored -- one of `KINDS`, lower-cased; else None."""
+    text = None if kind is None else str(kind).strip().lower()
+    return text if text in KINDS else None
+
+
+def kind_of(kind, asked, label) -> str:
+    """keel-cloud 225 FR-1 (`ItemFrames.kindOf(kind, asked, label)`; spec 141 FR-8): a row's kind, one reader -- the
+    kind the writer wrote and code held, upper-cased as `condition_kind` says it, else 123's word test over both faces
+    (every row stored before 225, and every row the founder reworded or added since). No `kind` is on any wire, so a
+    mirror predicting a served item's labels or stem reads the served item where it can."""
+    written = written_kind(kind)
+    return written.upper() if written else condition_kind(asked if asked else label, label)
+
+
+def opens_on_could(asked, label) -> bool:
+    """keel-cloud 225 FR-1 (`ItemFrames.opensOnCould`): a row whose founder's face opens on *could* (*could forward ...*,
+    *they could ...*) or whose stranger's face does (*could you have ...*)."""
+    for face in (label, asked):
+        if face is None or not str(face).strip():
+            continue
+        text = _clause(str(face)).lower()
+        if text.startswith("could ") or re.match(r"^(?:they|you) could ", text):
+            return True
+    return False
+
+
+def held_kind(item: dict) -> str:
+    """keel-cloud 225 FR-1 (`ScreenResultApplier.heldKind`): the kind code keeps for one drafted Compatibility row -- the
+    writer's, except that words naming an allower make it `permission`, and a could-row the word test reads an ability
+    stays `ability` unless `kind_why` says otherwise; the word test where the writer wrote none."""
+    label = item.get("label")
+    asked = item.get("asked") if item.get("asked") and str(item.get("asked")).strip() else label
+    words = condition_kind(asked, label)
+    written = written_kind(item.get("kind"))
+    if written is None:
+        return words.lower()
+    if words == "PERMISSION" and permission(f"{asked} {label}"):
+        return "permission"
+    if written != "ability" and words == "ABILITY" and opens_on_could(item.get("asked"), label) \
+            and not str(item.get("kind_why") or "").strip():
+        return "ability"
+    return written
+
+
 def is_fact(asked, label) -> bool:
     """keel-cloud `ItemFrames.fact(asked, label)` (129 FR-6, 131 FR-3), what `FollowUpComposer.lockFact` reads since 174
     FR-3: a Compatibility condition is a fact read off both its faces -- the stranger's `asked` and the founder's

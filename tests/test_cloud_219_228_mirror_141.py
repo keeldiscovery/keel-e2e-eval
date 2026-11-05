@@ -505,3 +505,27 @@ def test_the_unit_is_typed_or_none_and_the_recorded_words_read_by_227s_rule():
         COSTS_227["17-expanse"][3]
     fixture = _cloud("src/test/java/com/keeldiscovery/cloud/corpus/VectorCorpusFixture.java")
     assert "public static String spec227Cost(String recorded, CalibrationAnswer.Cost cost," in fixture
+
+
+# ------------------------------------------------------------------------------------------ FR-8: keel-cloud 225, 223
+
+def test_compatibility_rows_say_their_kind(golden):
+    """225 FR-1 (`ScreenResultApplier.rowKinds` / `heldKind`, `SavedList.KINDS`, L-kind): the scripted writer writes
+    `kind` beside `settled_by`, the word test's own reading, so no L-kind repair turn is spent and today's frame stands;
+    a row with none, an allower written other than permission, a could-row written fact without its why are faults."""
+    from instructions import score as score_mod                         # noqa: PLC0415
+    saved = _cloud(VECTORS + "SavedList.java")
+    assert re.search(r'KINDS = (?:java\.util\.)?List\.of\("ability", "fact", "permission"\)', saved) and \
+        spoken_mod.KINDS == ("ability", "fact", "permission")
+    for entry in golden.values():
+        rows = vs.drafted_list(entry, "solution.compatibility")["items"]
+        assert rows and all(r["kind"] == spoken_mod.held_kind(r) for r in rows), entry.id
+        assert score_mod.kind_faults(rows) == [], entry.id
+    assert score_mod.kind_faults([{"label": "They had a phone to hand"}])[0].startswith("L-kind: write kind on")
+    allowed = {"label": "Their manager allowed them to install apps", "kind": "ability"}
+    assert "so it is a permission, not ability" in score_mod.kind_faults([allowed])[0]
+    could = {"label": "could forward unanswered calls to another number", "kind": "fact"}
+    assert "opens on 'could'" in score_mod.kind_faults([could])[0]
+    assert score_mod.kind_faults([{**could, "kind_why": "the hotel's phone system is set up by IT"}]) == []
+    assert spoken_mod.kind_of("permission", "could you have forwarded calls", "could forward calls") == "PERMISSION"
+    assert spoken_mod.kind_of(None, "did you have your phone to hand", "They had a phone to hand") == "FACT"

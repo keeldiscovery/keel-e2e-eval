@@ -2099,6 +2099,9 @@ def drafted_list(entry, key: str) -> dict:
             # spec 136 FR-3 (keel-cloud 212 FR-4, L35): each condition shows its test -- the corpus's conditions are the
             # ones the study tests, so every row is settled by nobody
             out["settled_by"] = "nobody"
+            # spec 141 FR-8 (keel-cloud 225 FR-1, L-kind): the kind beside it, the word test's own reading
+            # (`spoken.condition_kind`) -- today's frame kept, and no L-kind repair turn spent
+            out["kind"] = spoken_mod.condition_kind(out["asked"], out["label"]).lower()
         items.append(out)
     if key == COMMITMENT_KEY and keels_smaller_step(entry):
         # spec 133 FR-2 (keel-cloud 211 FR-6, L34): a step that costs money, data or a signature carries Keel's free
@@ -3548,7 +3551,9 @@ def founder_side(entry, *, line: int | None = None):
     duration = entry.duration() if hasattr(entry, "duration") else None
     tested = entry.tested("solution.compatibility") or {}
     from instructions import spoken as spoken_mod                     # noqa: PLC0415
-    steps = spoken_mod.condition_kind(tested.get("asked"), tested.get("label")) != "ABILITY" if tested else True
+    # spec 141 FR-8 (keel-cloud 225, `ItemFrames.kindOf`): a written kind first, else the word test
+    steps = spoken_mod.kind_of(tested.get("kind"), tested.get("asked"), tested.get("label")) != "ABILITY" if tested \
+        else True
     return fake.Founder(importance_item=wire_code("problem.importance", 0) if importance and importance["items"]
                         else None, price_low=low, buyer_supports=supports, chain_price=chain, current_line=line,
                         upfront_low=upfront, friction_days=duration.days() if duration else None,

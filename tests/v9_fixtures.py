@@ -159,10 +159,13 @@ GOOD_LISTS = {
                                                         {"label": "Found them only after being late"},
                                                         {"label": "Never found them that morning"}]},
     # spec 136 FR-3 (keel-cloud 212 FR-4, L35): every condition shows its test, settled by nobody
+    # spec 141 FR-8 (keel-cloud 225 FR-1, L-kind): and its kind
     "solution.compatibility": {"items": [{"label": "They had a phone to hand",
-                                          "asked": "did you have your phone to hand", "settled_by": "nobody"},
+                                          "asked": "did you have your phone to hand", "settled_by": "nobody",
+                                          "kind": "fact"},
                                          {"label": "Their keys were on one ring",
-                                          "asked": "were your keys all on one ring", "settled_by": "nobody"}]},
+                                          "asked": "were your keys all on one ring", "settled_by": "nobody",
+                                          "kind": "fact"}]},
     "solution.relative_advantage": {"items": [{"label": "A shorter search"}]},
     "solution.adoption_friction": {"items": [{"label": "Clip a tag to the key ring",
                                               "asked": "you'd clip a tag to your key ring, once"}]},

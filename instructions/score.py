@@ -483,6 +483,8 @@ def list_faults(question: dict, dimension, *, sources: str = "", occasion: str |
     if dimension.key == COMPATIBILITY_KEY and items:
         # spec 136 FR-2 (keel-cloud 212 FR-4, `ScreenResultApplier.settledRows`, L35): every condition shows its test
         faults += settled_faults(items)
+        # spec 141 FR-8 (keel-cloud 225 FR-1, `ScreenResultApplier.rowKinds`, L-kind): every row says its kind
+        faults += kind_faults(items)
     if dimension.key == BUYER_KEY and isinstance((answers or {}).get(BUYER_KEY), str):
         # spec 133 FR-1 (keel-cloud 211 FR-2, L33): a row is a role typed in this Answer, never one from elsewhere
         fault = untyped_role(items, answers[BUYER_KEY], named)
@@ -542,6 +544,29 @@ def writers_faults(key: str, items: list, answer: str | None, context: dict | No
                 faults.append(f"L15: the founder's step says '{number}' (\"{answer.strip()}\"); the step keeps every "
                               "number the founder typed, as typed")
                 break
+    return faults
+
+
+def kind_faults(items: list) -> list:
+    """Spec 141 FR-8 (keel-cloud 225 FR-1, `ScreenResultApplier.rowKinds`, `L-kind`): every Compatibility row says its
+    kind -- `ability`, `fact` or `permission` -- and code holds it (`spoken.held_kind`): a row with none (or off the
+    three), one naming an allower written other than permission, a could-row written fact or permission with no
+    `kind_why`. One repair turn, then a note, in the cloud."""
+    from instructions import spoken as spoken_mod                     # noqa: PLC0415
+    faults = []
+    for item in items:
+        label = str(item.get("label") or "")
+        written = spoken_mod.written_kind(item.get("kind"))
+        if written is None:
+            faults.append(f"L-kind: write kind on '{label}' -- ability (they could do it themselves), fact (true of "
+                          "them or not) or permission (someone else allows it or sets it up for them)")
+            continue
+        held = spoken_mod.held_kind(item)
+        if held != written:
+            faults.append(f"L-kind: '{label}' names who allows it, so it is a permission, not {written}"
+                          if held == "permission" else
+                          f"L-kind: '{label}' opens on 'could' and names no one who allows it, so it is an ability -- "
+                          "unless kind_why says who else holds it, or why it is simply so")
     return faults
 
 

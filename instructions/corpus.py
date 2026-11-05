@@ -1734,10 +1734,11 @@ FRICTION_ESCAPE = "cant_tell"
 
 
 def _tested_kind(entry: Entry) -> str:
-    """keel-cloud 185 `ItemFrames.conditionKind` of the tested Compatibility condition (`spoken.condition_kind`)."""
+    """keel-cloud 185 `ItemFrames.conditionKind` of the tested Compatibility condition (`spoken.condition_kind`); since
+    keel-cloud 225 (spec 141 FR-8, `ItemFrames.kindOf`) a `kind` the row records first (none at revision 25)."""
     from . import spoken as spoken_mod                                 # noqa: PLC0415 - spoken reads this module
     tested = entry.tested(COMPATIBILITY_KEY) or {}
-    return spoken_mod.condition_kind(tested.get("asked"), tested.get("label"))
+    return spoken_mod.kind_of(tested.get("kind"), tested.get("asked"), tested.get("label"))
 
 
 def _check_friction_row(entry: Entry, row: dict) -> None:
