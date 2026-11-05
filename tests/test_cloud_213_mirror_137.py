@@ -80,12 +80,14 @@ def test_the_cards_are_the_vendored_copy_at_the_clouds_digest():
     review = _cloud("src/main/java/com/keeldiscovery/cloud/application/RespondentReview.java")
     sha = re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1)
     assert hashlib.sha256(ours).hexdigest() == sha
-    assert sha in (CARDS_SHA256_213, CARDS_SHA256_214, CARDS_SHA256_216)     # spec 139 FR-1: 216's digest
+    from tests.test_cloud_219_228_mirror_141 import CARDS_SHA256_141   # noqa: PLC0415
+    # spec 139 FR-1: 216's digest; spec 141 FR-1: the cycle 14 round's
+    assert sha in (CARDS_SHA256_213, CARDS_SHA256_214, CARDS_SHA256_216, CARDS_SHA256_141)
     assert (KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md").read_bytes() == ours
     text = " ".join(ours.decode("utf-8").split())
     assert text.count("at most 9 words, 8 on a working-days window: 20 spoken words minus the strangers' frame") == 2
     assert "at most 8 words" not in text
-    if sha in (CARDS_SHA256_214, CARDS_SHA256_216):
+    if sha in (CARDS_SHA256_214, CARDS_SHA256_216):                     # spec 141: 219 says the study's hard case
         assert "*Think of the last {occasion} when {circumstance}. Would {Name}, {what it is}, have done that better " \
                "for you, or not?* -- the hard case the advantage is for" in text
 

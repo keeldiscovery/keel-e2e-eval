@@ -51,10 +51,14 @@ def _cloud(rel: str) -> str:
 # ------------------------------------------------------------------------------------------------ FR-1 the cards
 
 def test_the_cards_are_the_vendored_copy_at_216s_digest():
+    """Spec 139 FR-1, re-pinned by spec 141 FR-1: the cards at 216's digest, or at the cycle 14 round's after it (216's
+    lines below stand in both)."""
+    from tests.test_cloud_219_228_mirror_141 import CARDS_SHA256_141   # noqa: PLC0415
     ours = cards.CARDS_PATH.read_bytes()
     review = _cloud(APPLICATION + "RespondentReview.java")
-    assert re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1) == CARDS_SHA256_216
-    assert hashlib.sha256(ours).hexdigest() == CARDS_SHA256_216
+    sha = re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1)
+    assert sha in (CARDS_SHA256_216, CARDS_SHA256_141)
+    assert hashlib.sha256(ours).hexdigest() == sha
     assert (KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md").read_bytes() == ours
     text = " ".join(ours.decode("utf-8").split())
     assert "*On how many of {window} did you {event}?*" in text and "*On how many of {window} did a typical" in text

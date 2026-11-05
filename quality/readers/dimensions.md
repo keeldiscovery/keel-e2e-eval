@@ -271,10 +271,20 @@ How much they want this problem made easier, next to the other things that are h
 - The own item is the founder's problem whole: their verb and the when or where they named, both halves of a pair kept,
   never narrowed to one part, never the circumstance said again. The own row is the hurt Prevalence tests
   (keel-cloud 216, `L37b`): `went_wrong` said as the difficulty, on its verb, never the circumstance or the whole job
-  (*Typing up the log after the walk*, not *Getting the day into the log*). Each other row: a difficulty these same people meet
+  (*Typing up the log after the walk*, not *Getting the day into the log*). **Keel's own row is the study's problem
+  clause, by code** (keel-cloud 223): `went_wrong` as a noun phrase -- its verb in the *-ing* form and the rest as
+  written, a subject before it kept (*Losing site notes before writing the daily log*; *A booking call ringing out
+  unanswered*) -- at most 9 words, else cut by its trailing phrase; the writer's own row only where the study holds no
+  clause, or none fits. Each other row: a difficulty these same people meet
   themselves, in their own part of the work, at that moment -- never another role's, setting's or channel's; it keeps
   its aim (never a look-alike chore); at most 9 words; no two overlap, none a part or a cause of another; never a wish,
   a fix or a product; no number the founder did not write.
+- **The notes under the rows** (keel-cloud 223), never a refusal -- the founder's words are saved and the belief carries
+  them: where the founder rewords the own row into the job or the circumstance said again, the Check notes it, *This
+  reads as what every one of them does. Strangers pick what hurts; name the part that goes wrong.*; on Save, the review
+  reads the rivals back (the review switch on) and a rival that is a part, a cause or a means of the own row, in another
+  channel or outside the moment the circumstance names, or one difficulty with another row, carries one sentence of
+  why, in the people's words. The rows are never rewritten.
 - The belief: *{actor_plural} have {list_size} things that are hard when {circumstance}. {value} is one of the two they
   would most like made easier.* Keel's bar is fixed: one of their two.
 - **The stranger's item:** *Think of your last {occasion}. Which one of these would you most like made easier?*, then,
@@ -352,7 +362,15 @@ How well the way they handle it today gets the job done.
   `outcome_5`), each at most 9 words (a founder's rung too, said in fewer of their words), parallel, one clause saying
   how it turned out.
 - **One measure:** every rung is a step on the one scale of the cost the founder's Answer names -- time, money, how
-  often, quality -- never a stand-in (when the log was finished, yield alone).
+  often, quality -- never a stand-in (when the log was finished, yield alone). **Keel's rungs stay on the founder's
+  measure** (spec 226): each is the founder's act going worse on it, never another place, another act or an outcome in
+  place of the measure (*The cash sat in checking earning nothing* under four rungs of yield after fees; *Failed
+  partway and had to be resubmitted* under three of idle reservation; *Calls that rang out were simply lost* under four
+  of who was called back). A rung is the outcome alone, never the outcome and its cost at once (*It settled my doubt
+  but took substantial effort*), unless the founder's measure is that cost. Code reads Keel's rungs (`W-rung`, one
+  repair turn, then noted): no noun after *the* or a possessive that the founder's rungs and the act do not say; every
+  word the founder's three or more rungs all share; no *but* / *though* clause naming effort, time or money where the
+  founder's rungs grade none.
 - **The first rung is today's way getting the job done** -- the founder's where the Answer names one; else Keel's,
   written above theirs and tagged as Keel's until the founder saves; never a less bad shortfall (spec 203). **The last
   rung is today's way failing outright** (it never got done). Between: the founder's own rungs word for word in the
@@ -360,9 +378,15 @@ How well the way they handle it today gets the job done.
   no rung joins two states with *and* or *or*; no two overlap; no true answer left out.
 - **The line** sits under the last founder rung the Answer calls acceptable (under the first by default; after 2 where
   the Answer types none) and **always under a working rung**: never above the first rung (the Save refuses it), never
-  under a shortfall rung (code raises it). So 1 to 4 rungs sit above it. The bar names the rung just above the line by
-  its exact words on the final list: *Holds if at least 2 in 3 land below '{rung}'.* The founder rewords; order and line
-  are fixed.
+  under a shortfall rung (code raises it). So 1 to 4 rungs sit above it. **The founder places it** (spec 226): the Check
+  carries the line as a control, drawn where the draft put it, movable to under the first to the fourth rung -- under
+  the last rung that still counts as today's way working (`lineAfter`, 0 to 3); a line placed under a shortfall rung is
+  refused with the reason. The bar names the rung just above the line by its exact words on the final list: *Holds if at
+  least 2 in 3 land below '{rung}'.* -- and the card after the answers and the brief name the rung the founder chose.
+  The founder rewords and moves the line; the order is fixed.
+- **The notes** (spec 226): on Save, the review reads the five rungs back for one measure and may draw one sentence
+  under a rung that grades something else (*this rung grades whether the job ran, not how much it held*). Never a
+  rewrite; the save stands.
 - The belief: *For most {actor_plural}, {value} still falls short.* -- {value} the act.
 - **The stranger's item:** *Think of the last {occasion}. How did {the act} go?* -- one act, the step that hurts, on that
   one occasion (it may ask what it cost: how long, how much). The options are the five saved rungs **in order**, the
@@ -465,11 +489,22 @@ How well your idea fits the way they already work: their tools, their routines, 
   write. Keel marks one suggested (the one most likely missing, the one that costs the stranger most) with why; on
   Choose (*Which of these is most likely to be missing?*) the founder picks the one to test. Belief: *Most
   {actor_plural} {value}.*
+  **Each row's kind** (spec 225): the writer writes `kind` on every row -- **ability** (the person could do it
+  themselves), **fact** (true of them or not) or **permission** (someone else allows it or sets it up for them) --
+  from the row's words and the context, beside `settled_by`; code holds it: a row whose words name an allower or a
+  sign-off is a permission; a row opening on *could* with no allower is an ability unless the writer says why not; a
+  row with no kind (saved before, or reworded since) takes the word test. **The suggestion is never settled:** Keel's
+  suggested row is held to the same `settled_by` test as the founder's -- settled, it is refused once and then dropped,
+  and no other is suggested in its place. **The settled note:** a row the writer marks settled by the segment or the
+  usual way carries, under it on the Check and under that option on Choose, *Most of your segment already has this
+  ({settled_by}); it will rarely count against you* -- a note, never a refusal; the founder may pick it.
 - **The stranger's item:** *On your last {occasion},* the picked condition asked as a question (*could you have ...?*,
   *was ...?*). **Fixed answers, in order** (`yes_easily` · `yes_with_steps` · `only_with_help` · `no`), worded by the
-  condition's kind, the codes fixed:
-  - a **permission** (allowed, approval, sign-off): *Yes, easily · Yes, with some steps · Only with help or approval ·
-    No*;
+  row's kind, the codes fixed:
+  - a **permission** (allowed, approval, sign-off, or an act someone else does for them): *Yes, easily · Yes, with some
+    steps · Only with help or approval · No*; where the act is done for the person the stem is in the passive, by code
+    from the asked face (*Think of your last booking call. Could unanswered calls have been forwarded to another
+    number?*), else the face as written;
   - an **ability** (could, able): *Yes, easily · Yes, most of the time · Only sometimes · No*;
   - a **fact** (where something is, what they have): **three** -- *Yes · Yes, with some steps · No*; `only_with_help`
     is never served on a fact.
@@ -535,11 +570,17 @@ What your idea must do better than their way today before they would bother to s
   with today's way (written against the founder's own Current solution list); one benefit a row, none overlapping; the
   one the founder leads with always a row; a benefit today's way already delivers flagged for the founder to keep or
   drop; no number the founder did not write. The belief carries every kept benefit, in the order typed, joined with
-  *and*: *For most, with it, their last {occasion} would have given them {value}.* -- the occasion the kind the
-  advantage is for (the missed one, the hard case).
-- **The stranger's item:** *Think of the last {occasion} when {circumstance}. Would {Name}, {what it is}, have done
-  that better for you, or not?* -- the hard case the advantage is for, never any occasion; one thing
-  asked, how much better or not; no benefit of the founder's named in the question or the options. **Fixed answers, in
+  *and*: *For most, with it, {hard_case_theirs} would have given them {value}.* -- the moment it cost them, the
+  study's problem clause in the founder's words (*their last daily log where they lost site notes*), never any last
+  occasion; *their last {occasion}* only where the study holds none.
+- **The stranger's item:** *Think of {hard_case}. Would {Name}, {what it is}, have done that better for you, or
+  not?* -- the hard case the advantage is for, as the study's problem clause says it to them (*the last job that ran
+  out of memory*; *the last time ...* is said *the most recent time ...*), never any occasion; where the study holds
+  none, *Think of the last {occasion} when {circumstance}.*; one thing asked, how much better or not; no benefit of
+  the founder's named in the question or the options. The clause is written once per study -- by the founder's
+  Prevalence writer, or by the problem card's where the study has no problem questions -- and held by code (H1 the
+  hurt, never the routine; H2 *the last*, the occasion once; H3 no idea, product, benefit or number; H4 the spoken
+  cap). **Fixed answers, in
   order and in these words, code's:** `a_lot_better` *A lot better* · `a_little_better` *A little better* ·
   `no_difference` *No difference* · `worse` *Worse*; then *I can't tell*. **One measure:** better or not, and how much.
 
@@ -562,9 +603,10 @@ leaves the dimension out.
 #### 5. A good example and a bad example
 
 - **Good (R7 2)** -- Lullaby: benefit *Fewer tries before the baby settles*; belief *For most, with it, their last night
-  would have given them fewer tries before the baby settles.* Stranger: *Think of the last night when you had to work out
-  what the baby needs. Would Lullaby, a phone app that listens to crying, have done that better for you, or not?* *A lot
-  better · A little better · No difference · Worse · I can't tell.*
+  the baby would not settle would have given them fewer tries before the baby settles.* Stranger: *Think of the last
+  night your baby would not settle. Would Lullaby, a phone app that listens to crying, have done that better for you,
+  or not?* *A lot better · A little better · No difference · Worse · I can't tell.* -- the night the baby would not
+  settle, never *their last night*, which a parent whose last night went fine answers *No difference*.
 - **Bad (R7 0)** -- the founder's benefits served as the options (the shape before spec 159): *Which of these would have
   made your last night better? Fewer tries before the baby settles · Knowing why the baby cried · Getting back to sleep
   sooner · I can't tell.* **What breaks it:** every option is a benefit -- there is no *No difference* or *Worse*, so
@@ -680,16 +722,25 @@ What the problem already costs them: money they spend, time it takes, or a share
   range (low above 0; a percent at most 100), the base and the unit (the founder's words, 1 to 8 words, no digits; the
   base required on a rate), and one period of six -- a day, a week, a month, a quarter, a year, each (*each time*); the
   periods never share a list with the modes. The founder's mode, measure and numbers are kept exactly: money is never a
-  count, a count never shown with %, no number rounded. Code writes the question and the belief: *The problem already
-  costs {deciders} {value}.* -- {deciders} the unit that pays, in the plural (keel-cloud 216): on a business study the
-  organisation the people work at, as the context names it (*hotel groups*, *venture-backed startups*), its *per {unit}*
-  kept; where the user pays, the people; never a role inside it (*operations leads*, *finance leads*, *the director*).
-  The time path keeps the people who spend the hours.
+  count, a count never shown with %, no number rounded. Code writes the question and the belief: *What does this
+  problem cost {payer} today?* and *The problem already costs {deciders} {value}.* -- the heading's payer and the
+  belief's {deciders} one and the same, the unit that pays, in the plural (keel-cloud 216, 227): on a business study
+  the organisation the people work at, as the context names it (*hotel groups*, *venture-backed startups*); where the
+  user pays, the people; never a role inside it (*operations leads*, *finance leads*, *the director*). A count is a
+  count: *{payer} already lose about {low} to {high} {measure} per {unit} a {period}* (*about 12 conversations per
+  person a month*), no *of {base}*, its measure word drawn where a percent draws %; a percent keeps *of {base}*. The
+  unit is the founder's as typed, its *per {unit}* kept wherever the equation shows it (*of the reserved GPU hours per
+  cluster a month*), said once where the base already names it; with none typed, no *per* at all, never a word from
+  the base or the loss line. The time path keeps the people who spend the hours.
 - **The stranger's item -- one value box, code's**, in the founder's own unit and period: the question takes its verb
-  and its thing from the founder's loss line, in the person's own words and the past -- the thing they see go, never
-  *lose* or *lost* -- over the founder's period; the label after the box one plain phrase (*hours per site last month*);
-  answered *between ... and ...* (one number fills both). *None* is the number 0 while it is served. Then the one
-  escape; spoken *Or say you can't recall.* **One measure:** the founder's own unit, base and period.
+  and its thing from the founder's loss line, by code where code reads it, else written from the line by the writer
+  under the same rule (keel-cloud 222: the clause in *Last {period}, about what percent of {base} ...?* or *... about how
+  many {measure} ...?*, a word of the line kept, no idea, number or money, the thing said once, within 20 words), in
+  the person's own words and the past -- the thing they see go, never *lose* or *lost*, never *go without* or *fell
+  through* where the writer can say it -- over the founder's period; the label after the box one plain phrase (*hours
+  per site last month*); answered *between ... and ...* (one number fills both). *None* is the number 0 while it is
+  served. Then the one escape; spoken *Or say you can't recall.* **One measure:** the founder's own unit, base and
+  period.
 
 #### 3. For, against, neither
 
@@ -727,6 +778,10 @@ out, and Ability to pay with it.
 - The belief pinning the cost on a role who only does the work (operations leads, *startup founders*) instead of the
   unit that pays; the founder's mode or numbers redrawn (money as a count; *1 to 1.5 points* as *2%*); a count shown
   with %; an opaque *a share they lose* (cycle 7, proposal 16; cycle 8, 17).
+- The heading on a role while the belief names the paying unit (*What does this problem cost contractor operations
+  leads today?*); a count pushed through the share frame (*about 12 conversations of the conversations they are in*,
+  a % beside it); a unit the founder never typed (*jobs*) and the typed *per cluster* dropped (cycle 14; keel-cloud
+  227).
 - A vague verb or *lost* on the item (*miss*, *lost*, *reserve and never use*); a long window in the founder's unit that
   forces the person to multiply (cycle 7, 26; spec 184 FR-8b (c)).
 - Two ways to say nothing: a *None* chip and a spoken *none is 0*, or a second escape (cycle 7, 26; spec 198 FR-3).
@@ -760,10 +815,12 @@ What the person who pays would give for it, set against what the problem already
   month*); a percent -- **only ever of money** the payer holds, pays or gains, naming what it is a percent of (the cost's
   base, or what it brings back, named as the payers name it), never a count, time, people or a loss rate, never a bare
   *a share*; one price first, then a fee, an optional plan, or nothing; or free to them (only where someone else decides
-  to pay). The founder types only the amount or the percent; base, unit and period are the cost estimate's, shown
-  locked. Code asks *What price do you have in mind for {offer_name}?* (the offer a noun phrase naming the product). The
-  belief keeps the founder's whole range, unit, period and every term they attached: *{deciders} would think it worth
-  {value}.*
+  to pay: the one who decides is not among the people with the problem, as the WHO DECIDES screen answered). The founder
+  types only the amount or the percent; base, unit and period are the cost estimate's, shown locked. Code asks *What
+  price do you have in mind for {Name}?* -- the idea by its name where the study holds one, else the offer as the seed
+  puts it (a noun phrase naming the product). The belief names the idea the same way and keeps the founder's whole
+  range, unit, period and every term they attached: *{deciders} would think {Name} worth {value}.* (a percent: *...
+  would think a fee of {value} fair for {Name}.*); *it* only where the study holds no name.
 - **The stranger's item -- code's.** The stem names base, unit and period once (*What would Fresco be worth to you a
   month, per site?*), with no word that leans on the amount (*small*, *only*, *just*). **Six rungs:** five bands around
   the founder's lowest price, **one band edge exactly at it**, each the amount alone, no amount in two rungs (*to under*
@@ -798,8 +855,9 @@ it.
 
 #### 5. A good example and a bad example
 
-- **Good (R7 2)** -- Fresco: the founder's *$800 to $1,000 per site a month*; belief *Contractor operations leads would
-  think Fresco worth $800 to $1,000 per site a month.* Stranger: *What would Fresco be worth to you a month, per site?*
+- **Good (R7 2)** -- Fresco: the founder asked *What price do you have in mind for Fresco?*, answered *$800 to $1,000
+  per site a month*; belief *Contractor operations leads would think Fresco worth $800 to $1,000 per site a month.*
+  Stranger: *What would Fresco be worth to you a month, per site?*
   *Under $500 · $500 to under $800 · $800 to under $2,500 · $2,500 to under $5,000 · $5,000 or more · I wouldn't pay
   for this · I can't say.* For: *$800 to under $2,500* and up; against: *Under $500*, *$500 to under $800*, *I wouldn't
   pay for this*.
@@ -816,6 +874,9 @@ it.
   optional plan) (cycle 7, 17 and 18; cycle 8, 18 and 19).
 - The spoken escape *Or say you can't say*; a leaning word (*small*) in the stem; the founder's sticker price sitting on
   a band edge (cycle 7, 27; cycle 8, 29).
+- The founder's question and belief not naming an idea the study has named: *What price do you have in mind for
+  something for the end-of-day documents?* and *... would think it worth $800 to $1,000 per site a month.* on a study
+  whose idea is Fresco (cycle 14; keel-cloud 220).
 <!-- card:commercial.price:end -->
 
 ---
@@ -1096,12 +1157,17 @@ What they would actually do before paying: give their time, install it, share th
   returnable, money back, the product's name, who does the work), naming what it acts on and where the money goes;
   where the founder's side does the work, the person lets them do it; no timing, urgency or condition the founder did
   not write; no number they did not write. Then, **only when the step costs the person money, data or a signature**, a
-  smaller step that costs nothing (code `smaller_step`, a noun phrase of at most 9 words). Belief: *Most {actor_plural}
-  would {value}.*; where someone else decides, *In most cases {decider} would {value}.*
+  smaller step that costs nothing (code `smaller_step`, a noun phrase of at most 9 words), drafted on the Check for the
+  founder to keep or change: installing or running anything of the founder's on their systems, letting it read or
+  measure them, or handing over their records counts as data, free or not; only a step that takes none of the three
+  goes without. Belief: *Most {actor_plural} would {value}.*; where someone else decides, *In most cases {decider} would
+  {value}.*
 - **The stranger's item:** *If it were ready today, would you {step}, or not?* **Fixed answers, in order:** `yes_start`
-  *Yes, I'd {step}* (the step's own verb, never *Yes, I'd start one*) · `yes_after_trying` the soft yes -- *Probably,
-  after {smaller step} first* where the founder's list carries one, *Probably yes* where it does not -- on every list ·
-  `probably_not` *Probably not* · `no` *No*. No escape. Spoken: *Yes, you'd {step}; probably yes; probably not; or no.*
+  *Yes, I'd {step}* (the step's own verb and the step whole, eleven words with its frame -- §10's one exception; never
+  *Yes, I'd start one*) · `yes_after_trying` the soft yes -- *Probably, after {smaller step} first* where the founder's
+  list carries one (one opening on its act said in its *-ing* form, *Probably, after trying a pair first*), *Probably
+  yes* where it does not -- on every list · `probably_not` *Probably not* · `no` *No*. No escape. Spoken: *Yes, you'd
+  {step}; probably yes; probably not; or no.*
   **One measure:** would they take this step.
 
 #### 3. For, against, neither

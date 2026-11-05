@@ -33,6 +33,10 @@ VECTORS = "src/main/java/com/keeldiscovery/cloud/domain/vectors/"
 APPLICATION = "src/main/java/com/keeldiscovery/cloud/application/"
 INSTRUCTIONS = "src/main/resources/keel/inference-instructions/"
 SEVEN_DAYS = RecallWindow(7, "DAYS")
+#: FR-1: the cards' digest at the round -- keel-cloud `RespondentReview.CARDS_SHA256` at keel-cloud-docs `d019f1ca`
+#: (219-228 and 223 merged); the one constant the 213 and 216 pins read for the current copy (re-pinned here when 229
+#: moves the cards again).
+CARDS_SHA256_141 = "9bbdd6a39cc18a7589588f19904d19a49df24bff751a050182d0a63565587b5c"
 #: keel-cloud `VectorFixtures` (Lullaby).
 EVENT_PAST = "had to work out why their baby was crying"
 WENT_WRONG = "did not know why the baby cried"
@@ -585,3 +589,20 @@ def test_the_founders_own_row_note(golden):
     assert writers_mod.own_row_note(keels, keels, job, circumstance) is None
     assert writers_mod.own_row_note("knowing why the baby cried.", keels, job, circumstance) is None
     assert writers_mod.own_row_note("Settling the baby", keels, job, circumstance, "parents") == writers_mod.OWN_ROW_NOTE
+
+
+# ----------------------------------------------------------------------------------------------- FR-1: the digest
+
+def test_the_reader_digest_is_the_clouds_vendored_cards():
+    """FR-1: `quality/readers/dimensions.md` is keel-cloud's `src/main/resources/keel/dimension-cards.md` byte for byte,
+    its sha256 the cloud's `CARDS_SHA256` -- the round's digest (`CARDS_SHA256_141`)."""
+    import hashlib                                                      # noqa: PLC0415
+    from quality import cards                                           # noqa: PLC0415
+    review = _cloud(APPLICATION + "RespondentReview.java")
+    sha = re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1)
+    ours = cards.CARDS_PATH.read_bytes()
+    assert (KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md").read_bytes() == ours
+    assert hashlib.sha256(ours).hexdigest() == sha == CARDS_SHA256_141
+    text = " ".join(ours.decode("utf-8").split())
+    assert "Think of {hard_case}." in text and "hard_case_theirs" in text             # 219
+    assert "keel-cloud 222" in text                                                    # 222

@@ -427,8 +427,9 @@ EXAMPLES = {
                 "options": ["Yes", "Yes, with some steps", "No"], "codes": ["yes_easily", "yes_with_steps", "no"],
                 "escape": "I can't tell", "facts": {"true_of_everyone": True}}},
     "solution.relative_advantage": {
-        "good": {"stem": "Think of the last night when you had to work out what the baby needs. Would Lullaby, a phone "
-                         "app that listens to crying, have done that better for you, or not?",
+        # spec 141 FR-1 (keel-cloud 219 FR-7): the card's good example asks about the hard case
+        "good": {"stem": "Think of the last night your baby would not settle. Would Lullaby, a phone app that listens "
+                         "to crying, have done that better for you, or not?",
                  "options": ["A lot better", "A little better", "No difference", "Worse"],
                  "codes": ["a_lot_better", "a_little_better", "no_difference", "worse"], "escape": "I can't tell"},
         "bad": {"stem": "Which of these would have made your last night better?",
