@@ -193,3 +193,23 @@ def wait_for_http(url: str, timeout_s: float, *, method: str = "GET",
     raise HealthGateTimeout(
         f"{url} never answered within {timeout_s:.0f}s -- last error: {last_error}"
     )
+
+
+def wait_or_restart(url: str, timeout_s: float, *, restart, say=print, ok_statuses: set[int] | None = None,
+                    label: str = "keel-web") -> None:
+    """Spec 140 FR-4: the health gate, given one second chance. On a 500 (any status `ok_statuses` refuses) or a
+    timeout, `say` names what failed -- the walk log reads it -- `restart()` brings the process up again once, and the
+    gate waits its whole budget again before raising. A second failure raises `HealthGateTimeout`, *after one
+    restart*. (Cycle 14: the local Vite answered 500 from 00:06 ET and two 21-codyco walks stopped on the gate.)"""
+    try:
+        wait_for_http(url, timeout_s, ok_statuses=ok_statuses)
+        return
+    except HealthGateTimeout as first:
+        say(f"{label}: the health gate failed ({first}) -- restarting it once and waiting again "
+            f"({timeout_s:.0f}s, spec 140)")
+    restart()
+    try:
+        wait_for_http(url, timeout_s, ok_statuses=ok_statuses)
+    except HealthGateTimeout as second:
+        raise HealthGateTimeout(f"{second} (after one restart, spec 140)") from None
+    say(f"{label}: answered after the restart")
