@@ -181,6 +181,8 @@ FIFTHS = [("Fewer than 2 in 10", "Only a few"), ("2 to 4 in 10", "A minority"), 
 #: one part of the problem they had to put up with -- the event is written from the second, never the first.
 ROUTINE = "leave the house in the morning"
 WENT_WRONG = "could not find their keys on the way out"
+#: Spec 139 FR-2 (keel-cloud 216 FR-1, E9): one of them who did the day's work and truly answers No.
+NO_SAYER = "someone whose keys were on their hook as always"
 
 
 def calibration_question(dimension, *, b2b=False) -> dict:
@@ -189,7 +191,8 @@ def calibration_question(dimension, *, b2b=False) -> dict:
     note = "asked of the stranger in their own words"
     if dimension.key == "problem.prevalence":
         # spec 136 FR-3 (keel-cloud 212 FR-2): the event written from `went_wrong`, beside `routine` (E7, E8)
-        return {"key": dimension.key, "routine": ROUTINE, "went_wrong": WENT_WRONG,
+        # spec 139 FR-2 (keel-cloud 216 FR-1): `no_sayer` beside them (E9)
+        return {"key": dimension.key, "routine": ROUTINE, "went_wrong": WENT_WRONG, "no_sayer": NO_SAYER,
                 "event": "could not find their keys on the way out",
                 "options": [{"label": label, "belief_phrase": phrase} for label, phrase in FIFTHS],
                 "respondent_note": note}

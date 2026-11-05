@@ -570,10 +570,12 @@ def settled_faults(items: list) -> list:
     return faults
 
 
-def act_that_hurts(question: dict, *, actor_plural: str | None = None) -> list:
+def act_that_hurts(question: dict, *, actor_plural: str | None = None, circumstance: str | None = None,
+                   actor: str | None = None) -> list:
     """Spec 136 FR-2 (keel-cloud 212 FR-2, `ScreenResultApplier.actThatHurts`): Prevalence's `event` is written from
     `went_wrong` beside `routine` -- both written (`E7`, the missing one named), never the routine (`E7`,
-    `WindowFrame.routineFault`), never a cause, result, judgement or lasting state packed in (`E8`, `packedFault`)."""
+    `WindowFrame.routineFault`), never a cause, result, judgement or lasting state packed in (`E8`, `packedFault`).
+    Spec 139 FR-2 (keel-cloud 216 FR-1): `no_sayer` beside them (`E9`, `WindowFrame.noSayerFault`)."""
     event = question.get("event")
     if not isinstance(event, str) or not event.strip():
         return []
@@ -587,8 +589,12 @@ def act_that_hurts(question: dict, *, actor_plural: str | None = None) -> list:
         faults.append(f"E7: write {missing} beside event: routine, what every one of them does in the window whether "
                       "or not the problem struck; went_wrong, the one part of the problem a person with it had to do "
                       "or put up with -- event is written from went_wrong")
+    # spec 139 FR-2 (keel-cloud 216 FR-1, `E9`, `ScreenResultApplier.noSayer`): the one of them who truly answers No --
+    # missing, set apart by the routine, or outside the segment
     for fault in (wording_mod.routine_fault(event, routine, went_wrong, actor_plural),
-                  wording_mod.packed_fault(event, went_wrong)):
+                  wording_mod.packed_fault(event, went_wrong),
+                  wording_mod.no_sayer_fault(question.get("no_sayer"), routine, went_wrong, circumstance,
+                                             *(p for p in (actor, actor_plural) if p))):
         if fault:
             faults.append(fault)
     return faults
@@ -632,7 +638,8 @@ def calibration_checks(question: dict, dimension, *, window=DEFAULT_WINDOW, sour
             fault = wording_mod.event_fault(event, window)
             if fault:
                 faults.append(fault)
-            faults += act_that_hurts(question, actor_plural=actor_plural)
+            faults += act_that_hurts(question, actor_plural=actor_plural,
+                                     circumstance=(context or {}).get("circumstance"), actor=(context or {}).get("actor"))
         hit = wording_mod.money(" ".join(str(t) for t in [event] + [
             v for o in options or [] if isinstance(o, dict) for v in (o.get("label"), o.get("belief_phrase"))] if t))
         if hit:

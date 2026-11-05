@@ -294,13 +294,37 @@ ACT_THAT_HURTS = {
                    "had to recount stock by hand after a mismatched delivery"),
     "02-compliancelog": ("send the training-compliance report at quarter close",
                          "had to pull training completions into a spreadsheet by hand"),
-    "03-lullaby": ("settle the baby", "could not tell why the baby cried"),
+    # spec 139 FR-2 (keel-cloud 216 judgement call 8, `VectorFixtures.WENT_WRONG`): the cloud's own words, so the
+    # registry's own row *Knowing what the cry means* is the hurt on its verb (L37b)
+    "03-lullaby": ("settle the baby", "did not know why the baby cried"),
     "04-linerly": ("ride to or from work", "lost time to a puncture riding to or from work"),
     "05-paidly": ("invoice an agency for finished work",
                   "waited beyond agreed terms to be paid for an approved invoice"),
     "06-repeatline": ("take a patient's call for a prescription refill", "had to type a refill request in by hand"),
     "07-mulchrun": ("fetch mulch from the supply yard for a job", "waited at the supply yard for mulch for a job"),
 }
+
+
+#: Spec 139 FR-2 (keel-cloud 216 FR-1, `no_sayer`, E9): one of the entry's people who did the day's work in the window
+#: and truly answers No to the event, and what was different for them -- written beside `routine` and `went_wrong`,
+#: read by code and never served. The golden seven's own (Lullaby's is the cloud's `VectorFixtures.NO_SAYER`); held to
+#: E9 by test. A back-test entry records no `routine` / `went_wrong`, so its scripted no-sayer is `NO_SAYER_ANY`.
+NO_SAYERS = {
+    "01-countly": "a manager whose every delivery that week matched its invoice",
+    "02-compliancelog": "an HR manager whose system pulled the completions for them",
+    "03-lullaby": "a parent who knew at once what the cry meant",
+    "04-linerly": "a rider whose tyres held all the way",
+    "05-paidly": "a freelancer whose agency paid on the day the terms said",
+    "06-repeatline": "a receptionist whose refill requests came in already typed",
+    "07-mulchrun": "a crew lead whose mulch was loaded the moment they arrived",
+}
+#: Spec 139 FR-2: the scripted no-sayer where the entry records none -- persona-free, no verb of any routine.
+NO_SAYER_ANY = "one of them for whom it went right that time"
+
+
+def no_sayer(entry) -> str:
+    """Spec 139 FR-2 (keel-cloud 216 FR-1): the scripted writer's `no_sayer` beside Prevalence's event."""
+    return NO_SAYERS.get(entry.id, NO_SAYER_ANY)
 
 
 def act_that_hurts(entry) -> tuple[str, str]:
@@ -321,7 +345,7 @@ def event_past(entry) -> str:
 
 
 #: keel-cloud 088 `E4` (measured from keel-cloud 160 to 192 on `frequencyMeasured`; since keel-cloud 193 FR-2 on the
-#: question served, `frequency_served`): framed, the gate ("In the last 3 months, did you ...?") and the Frequency
+#: question served; since keel-cloud 216 FR-3 on 174's frame, `frequency_served_before216`, the cap's own): framed, the gate ("In the last 3 months, did you ...?") and the Frequency
 #: question ("In the last 3 months, in how many months did you ...?") are each at most 20 words. Where "have a time when
 #: {circumstance}" frames longer, the referee's shorter clause, in the same register (COMPOSED).
 GATE_EVENTS = {
@@ -404,17 +428,34 @@ def who_answers(title: str | None, role: str | None, co_deciders=()) -> str:
 
 
 def window_first(window: Window) -> str:
-    """keel-cloud 174 FR-5 (`WindowFrame.windowFirst`): the Frequency frames' opening -- *In the last 3 months, in how many
-    months *, *In the last 5 working days, on how many days * -- the unit always said, as it is counted."""
+    """keel-cloud 216 FR-3 (`WindowFrame.windowFirst`, spec 139 FR-2; cycle 13's Palus, the card's named pitfall): the
+    Frequency frames' opening -- the unit said once, in the window phrase: *On how many of the last 3 months *, *On how
+    many of the last 5 working days *."""
+    return f"On how many of the last {window_words(window)} "
+
+
+def window_first_before216(window: Window) -> str:
+    """keel-cloud 174 FR-5 (`WindowFrame.windowFirstBefore216` since 216): the opening from 174 to 215 -- *In the last 3
+    months, in how many months *, *In the last 5 working days, on how many days * -- read on stored items and the frame
+    the event's cap and E4 measure a clause on (`RespondentQuestionsRules.measuredFrequency`), never composed."""
     return f"In the last {window_words(window)}, {counted_in(window)} how many {short_unit(window)} "
 
 
 def frequency_served(window: Window, event: str | None) -> str:
     """keel-cloud 160 FR-2 (`WindowFrame.frequencyRespondent(window, event)`): the window first and plainly, then the
-    gate's one event -- *In the last 7 nights, on how many nights did you have to work out why your baby was crying?*;
-    with no clause *In the last 7 nights, on how many nights did that happen?*. Since keel-cloud 174 FR-5 (spec 115
-    FR-2) the opening is `window_first`'s: *in how many* weeks and months, a two-word unit short the second time."""
+    gate's one event. Spec 139 FR-2 (keel-cloud 216 FR-3): the unit said once, in the window phrase -- *On how many of
+    the last 7 nights did you have to work out why your baby was crying?*; with no clause *On how many of the last 7
+    nights did that happen?* (174 to 215: `frequency_served_before216`)."""
     lead = f"{window_first(window)}did "
+    return f"{lead}{subject_led(event)}?" if (event or "").strip() else f"{lead}that happen?"
+
+
+def frequency_served_before216(window: Window, event: str | None) -> str:
+    """keel-cloud 216 FR-3 (`WindowFrame.frequencyRespondentBefore216`): the frame as it read from 174 to 215 -- *In the
+    last 7 nights, on how many nights did you ...?*, *in how many* weeks and months, a two-word unit short the second
+    time -- read on a stored item (served in it, as its recorded clip says it) and the frame E4 and `fitted` measure a
+    clause on, so the cap keeps 212's numbers."""
+    lead = f"{window_first_before216(window)}did "
     return f"{lead}{subject_led(event)}?" if (event or "").strip() else f"{lead}that happen?"
 
 
@@ -447,13 +488,15 @@ def e4_fault(window: Window, event: str) -> str | None:
     """Spec 123 FR-2 (keel-cloud 193 FR-2, `RespondentQuestionsRules.gate`): framed, the gate and **the Frequency
     question served** (`frequency_served`, `servedFrequency`) are each at most 20 words; past the cap the breach names
     the longer and asks the writer to shorten the clause, keeping its verb and its object -- the clause is never cut
-    (`frequency_held`'s cut is an item stored before 193's)."""
-    gate, frequency = gate_question(window, event), frequency_served(window, event)
+    (`frequency_held`'s cut is an item stored before 193's). Spec 139 FR-2 (keel-cloud 216 FR-3): the Frequency question
+    measured on the frame the cap was set on (174's, `frequency_served_before216`); the frame served is a word shorter."""
+    gate, frequency = gate_question(window, event), frequency_served_before216(window, event)
     longest = max(_words(gate), _words(frequency))
     if longest <= STEM_MAX_WORDS:
         return None
     gate_longest = _words(gate) >= longest
-    return (f"E4: framed, the clause makes {'the gate' if gate_longest else 'the Frequency question served'} "
+    which = "the gate" if gate_longest else "the Frequency question, as the cap measures it,"
+    return (f"E4: framed, the clause makes {which} "
             f"{longest} words ('{gate if gate_longest else frequency}'); every question a stranger hears is at most "
             f"{STEM_MAX_WORDS} words, so shorten the clause, keeping its verb and its object")
 
@@ -696,7 +739,8 @@ def context_result(entry) -> dict:
 def scripted_occasion(entry) -> str:
     """Spec 137 FR-2 (keel-cloud 214 FR-2, `X14`; the coordinator's word, 2026-11-04): the occasion the scripted writer
     writes -- the corpus's own noun where it holds X14 (`writers_rules.occasion_fault`), else *time*, as the cloud's own
-    fixtures now write it (10-palus' recorded *cash decision*; owed to a corpus revision), so no X14 note is served."""
+    fixtures now write it (10-palus' recorded *cash decision*; owed to a corpus revision), so no X14 note is served.
+    Spec 139 FR-4: keel-cloud 217's revision 25 paid it (*cash review*); no entry's noun breaks X14 now."""
     from instructions import writers_rules as writers_mod                # noqa: PLC0415
     noun = occasion(entry)
     circumstance = _ctx(entry).get("circumstance")
@@ -1937,8 +1981,28 @@ ONLY_IF_MAX_WORDS = 7
 _EVERY_STEP = re.compile(r"(?i)\b(?:easy|easier|simple|quick|quickly|saved? (?:me |us )?(?:time|money)|saves (?:me |us )?"
                          r"(?:time|money)|it worked well|it works well|worked well|helped me|helps me)\b|\bworth")
 #: The scripted condition's tail: what the step risks in their work (keel-cloud 206 `ONLY_IF_RULE`: *what this step
-#: risks or clashes with in their work, never true of every step*).
+#: risks or clashes with in their work, never true of every step*). Spec 139 FR-2 (keel-cloud 216 FR-5, K12): read as the
+#: assurance -- a negated slow-down, no danger word (`assurance_fault`).
 _CONDITION_TAIL = "never slowed my work"
+#: `AskedRules.RISK` (keel-cloud 216 FR-5, K12): the words that name the danger the person fears.
+RISK = re.compile(r"(?i)(?<![^\W\d_'])(?:risks?|fails?|failing|lose|loses|losing|breaks?|wrong|miss|misses|crash|"
+                  r"crashes|down|needs? my|needs? your|judgement|judgment)(?![^\W\d_'])")
+#: `AskedRules.NEGATED` (K12): a negation before the risk word turns it into the assurance.
+NEGATED = re.compile(r"(?i)(?<![^\W\d_'])(?:not|no|never|without|nothing|none|[^\W\d_]+n['\u2019]t)(?![^\W\d_'])")
+
+
+def assurance_fault(words: str | None) -> str | None:
+    """`AskedRules.assuranceFault` (keel-cloud 216 FR-5, `K12`): a condition naming the danger the person fears (*they
+    risk my job failing*, *missed calls need your own judgement*) -- a `RISK` word with no negation before it -- cannot be
+    answered as a conditional Yes; refused as K7's faults are (past the repair turn the item is served with *Yes, if it
+    was clearly worth it*). None where it names none, or each one it names is negated."""
+    text = str(words or "")
+    for risk in RISK.finditer(text):
+        if not NEGATED.search(text[:risk.start()]):
+            return (f"K12: 'Only if {text}' names the danger the person fears ('{risk.group()}'); the condition is what "
+                    "would make this person say Yes -- what Keel has to do or promise, not what they fear (Only if it "
+                    "hands me the hard calls; Only if failed jobs fall back to my numbers)")
+    return None
 
 
 def adoption_condition(item: dict) -> str:
@@ -2530,6 +2594,8 @@ def calibration_question(entry, key: str, *, first: bool = False) -> dict:
     if key == "problem.prevalence":
         # spec 136 FR-3 (keel-cloud 212 FR-2): `routine` and `went_wrong` beside the event written from the second
         q["routine"], q["went_wrong"] = act_that_hurts(entry)
+        # spec 139 FR-2 (keel-cloud 216 FR-1, E9): the one of them who truly answers No
+        q["no_sayer"] = no_sayer(entry)
         q["event"] = event_past(entry)
         chosen = _chosen_codes(entry, key)
         phrase = _founder(entry, key).get("belief_phrase")
@@ -4211,10 +4277,11 @@ TRAILING = ("with", "on", "at", "for", "in", "from", "after", "before", "by", "d
 def fitted(clause: str | None, window: Window) -> str | None:
     """keel-cloud 202 D4 (`RespondentQuestionsRules.fitted`): the occasion's clause cut by its trailing phrases, the
     rightmost first (never before its fourth word), so the Frequency question served around it is within the spoken cap
-    (`STEM_MAX_WORDS`); None where the clause is absent, already fits, or no cut fits."""
+    (`STEM_MAX_WORDS`); None where the clause is absent, already fits, or no cut fits. Spec 139 FR-2 (keel-cloud 216 FR-3,
+    `measuredFrequency`): measured on 174's frame, so every clause code chooses keeps 212's numbers."""
     if not clause or not clause.strip():
         return None
-    served = _words(frequency_served(window, clause))
+    served = _words(frequency_served_before216(window, clause))
     if served <= STEM_MAX_WORDS:
         return None
     budget = STEM_MAX_WORDS - (served - _words(clause))
@@ -4250,15 +4317,26 @@ def frequency_held(window: Window, clause: str) -> str:
     whole (`frequency_served`); past 20 words the clause cut by its trailing phrases (the rightmost preposition first);
     else *... did that happen?*, the unit said (the grammar check is not mirrored). Keel-cloud 174 FR-5 (spec 115 FR-2)
     retired 160's judgement call 4, the unit dropped (*In the last 7 days, on how many did you ...?*,
-    `frequency_unit_dropped`): the unit is never dropped."""
+    `frequency_unit_dropped`): the unit is never dropped. Spec 139 FR-2 (keel-cloud 216 FR-3): in 216's frame, a word
+    shorter, so a clause at the cap is served whole."""
+    return _frequency_held_in(window, clause, frequency_served)
+
+
+def frequency_held_before216(window: Window, clause: str) -> str:
+    """keel-cloud 216 FR-3 (`WindowFrame.frequencyHeldBefore216`): a Frequency stored in 174's opening is served in it,
+    held to the cap as it was -- the clause cut, else *... did that happen?*."""
+    return _frequency_held_in(window, clause, frequency_served_before216)
+
+
+def _frequency_held_in(window: Window, clause: str, frame_of) -> str:
     from instructions import spoken as spoken_mod                     # noqa: PLC0415
-    whole = frequency_served(window, clause)
+    whole = frame_of(window, clause)
     if _words(whole) <= STEM_MAX_WORDS:
         return whole
     frame = _words(whole) - _words(clause)
     cut = spoken_mod.cut_to_fit(clause, STEM_MAX_WORDS - frame)
-    held = frequency_served(window, cut)
-    return held if cut != clause and _words(held) <= STEM_MAX_WORDS else frequency_served(window, None)
+    held = frame_of(window, cut)
+    return held if cut != clause and _words(held) <= STEM_MAX_WORDS else frame_of(window, None)
 
 
 def frequency_held_before160(window: Window, clause: str) -> str:

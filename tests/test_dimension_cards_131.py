@@ -308,7 +308,8 @@ def scripted_r7(body: str, screen: dict) -> tuple[int, str]:
     options = list(screen.get("options") or [])
     # 1. the measure -- every option on the one measure the card names
     unit = screen.get("unit")
-    if unit and not re.search(rf"\bon how many {re.escape(unit)}\b", stem):
+    # spec 139 FR-2 (keel-cloud 216 FR-3): the unit said in the window phrase -- *On how many of the last 7 nights*
+    if unit and not re.search(rf"(?i)\bon how many (?:of the last \d+ )?{re.escape(unit)}\b", stem):
         return 0, f"the stem drops the unit: it never asks on how many {unit}"
     if screen.get("box_unit") and screen.get("founder_unit") and \
             screen["founder_unit"].split()[0].lower() not in screen["box_unit"].lower():
@@ -390,7 +391,8 @@ EXAMPLES = {
                 "options": ["Yes", "No"], "codes": ["yes", "no"], "escape": None,
                 "facts": {"true_of_everyone": True}}},
     "problem.frequency": {
-        "good": {"stem": "In the last 7 nights, on how many nights did you have to work out why your baby was crying?",
+        # spec 139 FR-1 re-pin (keel-cloud 216 FR-3, the cards at 2f1a63cc...): the unit said once, in the window phrase
+        "good": {"stem": "On how many of the last 7 nights did you have to work out why your baby was crying?",
                  "options": ["1", "2", "3", "4", "5", "6", "7"], "unit": "nights", "low": 4,
                  "escape": "I can't recall"},
         "bad": {"stem": "In the last 3 months, on how many did you leave raised cash sitting in your bank's money "

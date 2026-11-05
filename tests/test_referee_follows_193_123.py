@@ -153,7 +153,9 @@ def test_e4_measures_the_question_served_and_asks_the_writer():
     w = vs.Window(count=5, unit="WORKING_DAYS")
     careforce = "get every patient who is due for a screening or visit called and booked"
     fault = vs.e4_fault(w, careforce)
-    assert fault and fault.startswith("E4: framed, the clause makes the Frequency question served"), fault
+    # spec 139 FR-2 re-pin (keel-cloud 216 FR-3): E4 measures 174's frame, the cap's own, and says so
+    assert fault and fault.startswith("E4: framed, the clause makes the Frequency question, as the cap measures it,"), \
+        fault
     assert "In the last 5 working days, on how many days did you get every patient" in fault
     assert fault.endswith("so shorten the clause, keeping its verb and its object"), fault
     assert vs.e4_fault(w, "call the patients due for a visit") is None
@@ -161,7 +163,7 @@ def test_e4_measures_the_question_served_and_asks_the_writer():
     window = type("W", (), {"words": lambda self: "the last 5 working days", "plural": "working days",
                             "count": 5})()
     assert (wording_mod.framed_fault(careforce, window) or "").startswith(
-        "E4: framed, the clause makes the Frequency question served")
+        "E4: framed, the clause makes the Frequency question, as the cap measures it,")
 
 
 def test_the_scripted_gate_clauses_fit_the_served_frame_and_none_is_cut():

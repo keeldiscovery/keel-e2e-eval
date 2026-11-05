@@ -242,8 +242,14 @@ FREQUENCY_GUIDANCE_212 = (
     "{window}, on how many nights did a typical {actor} ...?' (the window's own unit, said once); never 'Think of one who "
     "...', 'that person' or 'they'. The event, held to Prevalence's rules, in the simple past, one act alone (no state, "
     "cause or result; nothing the actor does not see), on the verb a {actor} would say aloud.")
+#: Spec 139 FR-2 re-pin (keel-cloud 216 FR-3, T3 and judgement call 9): the founder's frame *On how many of {window} did a
+#: typical {actor} ...?*, and the row stops restating Prevalence's event rules.
+FREQUENCY_GUIDANCE_216 = (
+    "On how many {window_unit} {actor_plural} face it, asked by code window first around Prevalence's event: 'On how "
+    "many of {window} did a typical {actor} ...?' (the window's own unit, said once); never 'Think of one who ...', 'that "
+    "person' or 'they'. The event, held to Prevalence's rules, on the verb a {actor} would say aloud.")
 MOVED_BY_199 = {"founder": {
-    "guidance": {"problem.frequency": lambda was: FREQUENCY_GUIDANCE_212},
+    "guidance": {"problem.frequency": lambda was: FREQUENCY_GUIDANCE_216},
     "belief_template": {IMPORTANCE: lambda was: corpus_mod.IMPORTANCE_BELIEF_TEMPLATE_199,
                         COMPATIBILITY: lambda was: corpus_mod.COMPATIBILITY_BELIEF_TEMPLATE_199,
                         COMMITMENT: lambda was: was.replace(" now.", ".")},
@@ -482,21 +488,31 @@ FIVE_WORKING_DAYS = vs.Window(5, "WORKING_DAYS")
 
 
 def test_palus_keeps_its_unit_at_and_past_the_cap():
-    """`FrequencyKeepsItsUnitTest.palusKeepsItsUnitAtAndPastTheCap`, sentence for sentence."""
-    whole = vs.frequency_served(THREE_MONTHS, PALUS)
+    """`FrequencyKeepsItsUnitTest.palusKeepsItsUnitAtAndPastTheCap`, sentence for sentence -- in 174's frame, read on a
+    stored item since keel-cloud 216 (`frequency_served_before216`, `frequency_held_before216`). Spec 139 FR-2 (216 FR-3,
+    judgement call 1): in 216's frame, a word shorter, Palus' stored-past-the-cap clause fits whole (20 words)."""
+    whole = vs.frequency_served_before216(THREE_MONTHS, PALUS)
     assert whole == ("In the last 3 months, in how many months did you leave raised cash sitting in your bank's money "
                      "market fund?") and len(whole.split()) > vs.STEM_MAX_WORDS
-    held = vs.frequency_held(THREE_MONTHS, PALUS)
+    held = vs.frequency_held_before216(THREE_MONTHS, PALUS)
     assert held == "In the last 3 months, in how many months did you leave raised cash sitting?"
     assert "on how many did" not in held and "how many months" in held and len(held.split()) <= vs.STEM_MAX_WORDS
-    assert vs.frequency_held(THREE_MONTHS, "keep cash from your raise in the bank") == \
+    assert vs.frequency_held_before216(THREE_MONTHS, "keep cash from your raise in the bank") == \
         "In the last 3 months, in how many months did you keep cash from your raise in the bank?"
+    assert vs.frequency_held_before216(THREE_MONTHS, "keep every single dollar of the cash that your company raised "
+                                                     "sitting idle and unused") == \
+        "In the last 3 months, in how many months did that happen?"
+    # spec 139 FR-2: 216's frame -- *On how many of {window} did you ...?*
+    served = vs.frequency_held(THREE_MONTHS, PALUS)
+    assert served == vs.frequency_served(THREE_MONTHS, PALUS) == \
+        "On how many of the last 3 months did you leave raised cash sitting in your bank's money market fund?"
+    assert len(served.split()) == vs.STEM_MAX_WORDS
     assert vs.frequency_held(THREE_MONTHS, "keep every single dollar of the cash that your company raised sitting idle "
-                                           "and unused") == "In the last 3 months, in how many months did that happen?"
+                                           "and unused") == "On how many of the last 3 months did that happen?"
     assert vs.frequency_served(vs.Window(4, "WEEKS"), "miss a call") == \
-        "In the last 4 weeks, in how many weeks did you miss a call?"
+        "On how many of the last 4 weeks did you miss a call?"
     assert vs.frequency_served(vs.Window(7, "NIGHTS"), "have to work out why your baby was crying") == \
-        "In the last 7 nights, on how many nights did you have to work out why your baby was crying?"
+        "On how many of the last 7 nights did you have to work out why your baby was crying?"
     # 160's unit-dropped form, read only on a stored item
     assert vs.frequency_unit_dropped(THREE_MONTHS, PALUS) == \
         "In the last 3 months, on how many did you leave raised cash sitting in your bank's money market fund?"
@@ -504,10 +520,16 @@ def test_palus_keeps_its_unit_at_and_past_the_cap():
 
 
 def test_a_two_word_unit_is_said_once_more_in_its_short_form():
-    fresco = vs.frequency_served(FIVE_WORKING_DAYS, "put your photos and notes into the daily log")
+    """174's frame, read on a stored item since keel-cloud 216; spec 139 FR-2: 216's says the unit once, in the window."""
+    fresco = vs.frequency_served_before216(FIVE_WORKING_DAYS, "put your photos and notes into the daily log")
     assert fresco == ("In the last 5 working days, on how many days did you put your photos and notes into the daily "
                       "log?") and fresco.count("working days") == 1
-    assert vs.frequency_served(FIVE_WORKING_DAYS, None) == "In the last 5 working days, on how many days did that happen?"
+    assert vs.frequency_served_before216(FIVE_WORKING_DAYS, None) == \
+        "In the last 5 working days, on how many days did that happen?"
+    now = vs.frequency_served(FIVE_WORKING_DAYS, "put your photos and notes into the daily log")
+    assert now == "On how many of the last 5 working days did you put your photos and notes into the daily log?"
+    assert now.count("days") == 1 and vs.frequency_served(FIVE_WORKING_DAYS, None) == \
+        "On how many of the last 5 working days did that happen?"
     assert vs.frequency_served_before174(FIVE_WORKING_DAYS, None) == \
         "In the last 5 working days, on how many working days did that happen?"
     assert [vs.counted_in(vs.Window(2, u)) for u in ("NIGHTS", "DAYS", "WORKING_DAYS", "WEEKS", "MONTHS")] == \
@@ -529,8 +551,12 @@ def test_the_unit_is_never_dropped_past_the_cap():
     for window in (THREE_MONTHS, FIVE_WORKING_DAYS, vs.Window(7, "DAYS"), vs.Window(12, "MONTHS")):
         for clause in (PALUS, "have to recount the stock by hand after a delivery",
                        "type up the daily log by hand after the site walks"):
-            held = vs.frequency_held(window, clause)
+            held = vs.frequency_held_before216(window, clause)
             assert f" how many {vs.short_unit(window)} did " in held, held
+            assert len(held.split()) <= vs.STEM_MAX_WORDS, held
+            # spec 139 FR-2 (keel-cloud 216 FR-3): the unit said once, in the window phrase
+            held = vs.frequency_held(window, clause)
+            assert held.startswith(f"On how many of the last {vs.window_words(window)} did "), held
             assert len(held.split()) <= vs.STEM_MAX_WORDS, held
 
 

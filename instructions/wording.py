@@ -9,7 +9,8 @@ from -- the same arrangement the v9 checks have with C2-C4:
 - `event_fault` is `WindowFrame.fault` (E1-E3) with `WindowFrame.clause`; since keel-cloud 212 (spec 136 FR-2) E2's
   cap is the window's (`event_max_words`, the founder's Prevalence clause) or `CLAUSE_MAX_WORDS` (a clause code
   takes in its place, the respondent writer's), and `packed_fault` (E8) / `routine_fault` (E7) are
-  `WindowFrame.packedFault` / `routineFault`, the act that hurts;
+  `WindowFrame.packedFault` / `routineFault`, the act that hurts; since keel-cloud 216 (spec 139 FR-2) `no_sayer_fault`
+  (E9) is `WindowFrame.noSayerFault`, the one of them who truly answers No;
 - `money` is `Wording.money` (W9). `tick_all` (W7) and `carries` (W3 / W8's *verbatim*) retired at v18 (call 83):
   the model writes no question text for them to read;
 - `NUMBER_WORDS` is `Vocabulary.NUMBER_WORDS`, `first_word` is `Vocabulary.firstWord`;
@@ -91,9 +92,10 @@ def event_max_words(window) -> int:
     """keel-cloud 212 FR-3 (amended; `WindowFrame.eventMaxWords`): the founder's Prevalence clause is at most the words the
     project's own window's frame leaves of the spoken cap -- the longest question it fills is the strangers' Frequency
     item, *In {window}, on how many {unit} did you {event}?*: 11 words of frame on nights, days, weeks and months (so 9),
-    12 on working days (so 8). No floor."""
-    return SPOKEN_STEM_MAX_WORDS - len(f"In {window.words()}, {counted_in(window)} how many {short_unit(window)} "
-                                       "did you".split())
+    12 on working days (so 8). No floor. Spec 139 FR-2 (keel-cloud 216 FR-3, the coordinator's correction): the frame
+    served is now *On how many of {window} did you {event}?*, a word shorter; the cap keeps 212's numbers, measured on the
+    frame they were set on (174's, `frequency_respondent_before216`), so the question at the cap is 19 words."""
+    return SPOKEN_STEM_MAX_WORDS - len(f"{window_first_before216(window)}did you".split())
 
 
 def event_fault(event, window, max_words: int | None = None) -> str | None:
@@ -229,6 +231,58 @@ def routine_fault(event, routine, went_wrong, actor_plural) -> str | None:
     return None
 
 
+#: `WindowFrame.NO_SAYER_TEST` (keel-cloud 216 FR-1, E9): the card's test, said in its words in every E9 refusal.
+NO_SAYER_TEST = ("the test: would every one of them who did the day's work in the window say Yes to event? If every one "
+                 "would, it is the routine; write the part that hurt instead -- the thing that failed, was lost, came "
+                 "back wrong, sat idle or had to be done twice -- and no_sayer, one of them who did the day's work and "
+                 "truly answers No, naming what was different for them")
+#: `WindowFrame.NEGATION` (E9): the words that turn the no-sayer outside the segment.
+_NEGATION = re.compile(r"(?i)(?<![^\W\d_'])(?:no longer|not|no|never|without|nothing|none|[^\W\d_]+n['\u2019]t)"
+                       r"(?![^\W\d_'])")
+
+
+def _upper(text: str) -> str:
+    return text[:1].upper() + text[1:] if text else text
+
+
+def no_sayer_fault(no_sayer, routine, went_wrong, circumstance, *people) -> str | None:
+    """`WindowFrame.noSayerFault` (keel-cloud 216 FR-1, `E9`; cycle 13's Fresco, Expanse and Codyco shapes): the writer
+    names one of the people who did the day's work and truly answers *No* to the event (`no_sayer`), refused where it is
+    empty (a breach, noted past the repair turn); where its verbs (`writers_rules.verb_roots`) share a root with the
+    routine's own words and none with `went_wrong`'s own -- each field's own words what it says beyond the other; or
+    where a negation comes before a root of the circumstance or of the people's own words (someone outside the segment).
+    The fault says the card's test in its words; None when the no-sayer passes or a field it is read against is blank.
+    Persona-free: English's small words and the writer's own fields."""
+    from instructions import writers_rules as writers_mod               # noqa: PLC0415 - writers_rules reads this
+    if no_sayer is None or not str(no_sayer).strip():
+        return "E9: write no_sayer beside event -- " + NO_SAYER_TEST
+    text = str(no_sayer).strip()
+    who: list[str] = []
+    for one in people:
+        who += [r for r in writers_mod.roots(one) if r not in who]
+    negation = _NEGATION.search(text)
+    if negation:
+        after = writers_mod.roots(text[negation.end():])
+        outside = set(writers_mod.roots(circumstance)) | set(who)
+        hit = [r for r in after if r in outside]
+        if hit:
+            return (f"E9: no_sayer '{text}' says '{negation.group()}' before '{hit[0]}' -- someone outside the segment, "
+                    "who does not do the work; the no-sayer did the day's work and still truly answers No. "
+                    + _upper(NO_SAYER_TEST))
+    if not routine or not str(routine).strip() or not went_wrong or not str(went_wrong).strip():
+        return None
+    verbs = [v for v in writers_mod.verb_roots(text) if v not in who]
+    routine_own = set(writers_mod.roots(routine)) - set(writers_mod.roots(went_wrong))
+    went_wrong_own = set(writers_mod.roots(went_wrong)) - set(writers_mod.roots(routine))
+    shared = [v for v in verbs if v in routine_own]
+    hurt = [v for v in verbs if v in went_wrong_own]
+    if shared and not hurt:
+        return (f"E9: no_sayer '{text}' differs from the rest by the routine ('{str(routine).strip()}': '{shared[0]}'), "
+                f"not by what went wrong ('{str(went_wrong).strip()}') -- so every one of them who did the day's work "
+                "would answer Yes to event. " + _upper(NO_SAYER_TEST))
+    return None
+
+
 # --------------------------------------------------------------------------- Wording (W9, mirrored)
 
 _ISO = ("USD|GBP|EUR|CHF|SEK|NOK|DKK|PLN|INR|CAD|AUD|MXN|JPY|SGD|KRW|CNY|HKD|IDR|MYR|PHP|THB|VND|"
@@ -337,14 +391,41 @@ def short_unit(window) -> str:
     return window.plural.split(" ")[-1]
 
 
+def window_first(window) -> str:
+    """keel-cloud 216 FR-3 (`WindowFrame.windowFirst`; spec 139 FR-2): the Frequency frames' opening -- the unit said
+    once, in the window phrase: *On how many of the last 3 months *, *On how many of the last 5 working days *."""
+    return f"On how many of {window.words()} "
+
+
+def window_first_before216(window) -> str:
+    """keel-cloud 216 FR-3 (`WindowFrame.windowFirstBefore216`): the opening from keel-cloud 174 to 215 -- *In the last 3
+    months, in how many months *, a two-word unit in its short form (*on how many days*) -- read on stored items and the
+    frame the event's cap and E4 are measured on, never composed for a new item."""
+    return f"In {window.words()}, {counted_in(window)} how many {short_unit(window)} "
+
+
 def frequency_respondent(window, event) -> str:
     """`WindowFrame.frequencyRespondent(window, event)`: Frequency carries the gate's own clause -- since keel-cloud 160
-    (FR-2, spec 089 FR-5) the window first and plainly, then the event; since keel-cloud 174 FR-5 (spec 115 FR-2) the
-    unit as it is counted and said short the second time: *In the last 4 weeks, in how many weeks did you lose your
-    keys?*, *In the last 5 working days, on how many days did ...?*; with no clause *... did that happen?* (it read *On
-    how many of those 4 weeks did ...?* before 160, *on how many weeks* from 160 to 173)."""
+    (FR-2, spec 089 FR-5) the window first and plainly, then the event. Spec 139 FR-2 (keel-cloud 216 FR-3, cycle 13's
+    Palus: *In the last 3 months, in how many months did ...*, the card's named pitfall): the unit said once, in the
+    window phrase -- *On how many of the last 4 weeks did you lose your keys?*, *On how many of the last 5 working days
+    did ...?*; with no clause *... did that happen?* (it read *On how many of those 4 weeks did ...?* before 160, *on
+    how many weeks* from 160 to 173, *In the last 4 weeks, in how many weeks* from 174 to 215:
+    `frequency_respondent_before216`)."""
     text = clause(event)
-    lead = f"In {window.words()}, {counted_in(window)} how many {short_unit(window)} did "
+    lead = f"{window_first(window)}did "
+    if not text.strip():
+        return f"{lead}that happen?"
+    return f"{lead}{subject_led(text)}?"
+
+
+def frequency_respondent_before216(window, event) -> str:
+    """keel-cloud 216 FR-3 (`WindowFrame.frequencyRespondentBefore216`): the respondent frame as it read from 174 to 215
+    -- *In the last 3 months, in how many months did you ...?* -- read on a stored item (served in it, as its recorded
+    clip says it) and the frame E4 and the event's cap measure a clause on (`RespondentQuestionsRules
+    .measuredFrequency`)."""
+    text = clause(event)
+    lead = f"{window_first_before216(window)}did "
     if not text.strip():
         return f"{lead}that happen?"
     return f"{lead}{subject_led(text)}?"
@@ -365,12 +446,14 @@ def framed_fault(event, window) -> str | None:
     are each at most 20 words. Spec 123 FR-2 (keel-cloud 193 FR-2): the Frequency question **served**
     (`frequency_respondent`, window first) -- no longer the shorter frame of 160 (`frequency_measured`, read on an item
     stored before 160 only); past the cap the writer is asked to shorten the clause, keeping its verb and its object,
-    never cut."""
-    g, f = gate(window, event), frequency_respondent(window, event)
+    never cut. Spec 139 FR-2 (keel-cloud 216 FR-3): measured on the frame the cap was set on (174's,
+    `frequency_respondent_before216`), so a clause keeps 212's numbers; the frame served is a word shorter."""
+    g, f = gate(window, event), frequency_respondent_before216(window, event)
     longest = max(len(g.split()), len(f.split()))
     if longest > SPOKEN_STEM_MAX_WORDS:
         gate_longest = len(g.split()) >= longest
-        return (f"E4: framed, the clause makes {'the gate' if gate_longest else 'the Frequency question served'} "
+        which = "the gate" if gate_longest else "the Frequency question, as the cap measures it,"
+        return (f"E4: framed, the clause makes {which} "
                 f"{longest} words ('{g if gate_longest else f}'); every question a stranger hears is at most "
                 f"{SPOKEN_STEM_MAX_WORDS} words, so shorten the clause, keeping its verb and its object")
     return None

@@ -245,6 +245,52 @@ def plural_words(words: str) -> str:
     return head + last + "s"
 
 
+#: `CommercialChain.AT_ORG` (keel-cloud 216 FR-4): the words after *at*, an article first kept apart.
+AT_ORG = re.compile(r"(?i)(?<![^\W\d_])at\s+(?:(a|an)\s+|the\s+)?([^\W\d_][\w'-]*(?:,?\s+[^\W\d_][\w'-]*){0,8})")
+#: `CommercialChain.QUALIFIER` (216 FR-4): the words that end the organisation's noun and open its qualifier.
+ORG_QUALIFIER = frozenset({"in", "that", "who", "whose", "which", "with", "within", "where", "when", "on", "using",
+                           "across", "from", "for", "of", "by", "near", "around", "under", "over", "after", "before",
+                           "while", "if", "than"})
+#: `CommercialChain.NO_ORG` (216 FR-4): the words after *at* that open a time, a place or a measure.
+NO_ORG = frozenset({"night", "nights", "home", "work", "least", "most", "once", "peak", "weekends", "weekend", "times",
+                    "first", "last", "all", "any", "scale", "risk"})
+
+
+def organisation(text) -> str | None:
+    """`CommercialChain.organisation` (keel-cloud 216 FR-4): the organisation after *at*, in the plural, or None -- the
+    qualifier cut off (*in*, *that*, *who*, ...), a comma list kept whole, a singular after *a* / *an* in the plural;
+    *at night*, *at least* and the like are no organisation."""
+    if text is None or not str(text).strip():
+        return None
+    for at in AT_ORG.finditer(str(text)):
+        kept = []
+        for word in at.group(2).split():
+            if word.lower().replace(",", "") in ORG_QUALIFIER:
+                break
+            kept.append(word)
+        if not kept or kept[0].lower() in NO_ORG:
+            continue
+        org = re.sub(r",+$", "", " ".join(kept))
+        # a comma that opens a clause, not a list: the words after it carry an -ing first
+        org = re.sub(r",\s+[\w'-]+ing\b.*$", "", org)
+        return plural_words(org) if at.group(1) is not None else org
+    return None
+
+
+def paying_unit(segment, condition, actor_plural, b2b: bool) -> str | None:
+    """`CommercialChain.payingUnit(slots, b2b)` (keel-cloud 216 FR-4; spec 139 FR-2): the unit that pays -- on a B2B
+    study the organisation after *at* in the context's segment core, else in its condition (*work at a startup that ...*
+    -> *startups*), else in `actor_plural`; where the user pays, `actor_plural`. None where the context names no
+    organisation: the caller keeps 213's word, the decider's plural (216 judgement call 4)."""
+    if not b2b:
+        return str(actor_plural).strip() if actor_plural and str(actor_plural).strip() else None
+    for text in (segment, condition, actor_plural):
+        org = organisation(text)
+        if org is not None:
+            return org
+    return None
+
+
 def deciders(decider_words, actor_plural, b2b: bool):
     """keel-cloud 180 `CommercialChain.deciders(deciderWords, slots, b2b)`: who pays in the founder's word -- the
     decider's title (else role) in the plural where someone else decides, else the people's own plural; None with
@@ -334,7 +380,7 @@ def own_noun(unit, actor, actor_plural) -> bool:
 
 
 def cost_belief(cost: dict, occasion, role_word, deciders_words=None, b2b: bool = True, *, actor=None,
-                actor_plural=None) -> str:
+                actor_plural=None, paying=None) -> str:
     """keel-cloud 180 FR-2 (`CommercialChain.costBelief(cost, slots, roleWord, deciders, b2b)`, corpus revision 20):
     the belief names who pays in the founder's word, never *the payer*; *They* with no word; no unit where the user
     pays (`b2b` False); a period of *each* closes its own clause, so the base goes before it.
@@ -346,8 +392,16 @@ def cost_belief(cost: dict, occasion, role_word, deciders_words=None, b2b: bool 
     phrase** is said of its base, by nobody -- *About {figure} of {base} {per} {loss}.* where the loss opens with a verb
     (`loss_predicate`), else *About {figure} of {base} {per}: {loss}.* (consumer studies too); without a loss phrase,
     *{Actor plural} already lose about {figure} of {base} {per}.* A count whose base names its own measure says the
-    number once; the loss line is dropped where it only repeats the base."""
-    who = "They" if not deciders_words or not str(deciders_words).strip() else _upper(str(deciders_words).strip())
+    number once; the loss line is dropped where it only repeats the base.
+
+    Spec 139 FR-2 (keel-cloud 216 FR-4): a money cost is spent by the unit that pays (`paying`, `paying_unit`: the
+    organisation on B2B, the people where the user pays) -- never a deciding or working role; `deciders_words` is read
+    only where the context names no payer. A share lost with no loss line on B2B is the paying unit's. The hours path
+    is unchanged."""
+    if paying and str(paying).strip():
+        who = _upper(str(paying).strip())
+    else:
+        who = "They" if not deciders_words or not str(deciders_words).strip() else _upper(str(deciders_words).strip())
     actors = "They" if not actor_plural or not str(actor_plural).strip() else _upper(str(actor_plural).strip())
     of = base_of(cost, occasion)
     # keel-cloud 199 FR-10: the base said once -- no *per cluster* after *the cluster's GPU hours*; keel-cloud 213 FR-2b:
@@ -372,7 +426,8 @@ def cost_belief(cost: dict, occasion, role_word, deciders_words=None, b2b: bool 
             fig = _range(cnumber(lo), cnumber(hi), lo, hi)
         said = "about " + fig + ("" if of is None else " of " + of) + tail
         if loss is None:
-            return actors + " already lose " + said + "."
+            # keel-cloud 216 (FR-4, judgement call 5): a share lost is the paying unit's on B2B
+            return (who if b2b and paying and str(paying).strip() else actors) + " already lose " + said + "."
         return _upper(said) + (" " + loss if loss_predicate(loss) else ": " + loss) + "."
     each = cost.get("period") == "each"
     if cost["mode"] == "HOURS":

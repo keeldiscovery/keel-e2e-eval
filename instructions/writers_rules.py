@@ -3,7 +3,8 @@ read-only port.
 
 Each rule names a fault in the writer's own words, or none -- the cloud refuses on it once with the rule named, then
 notes it and serves the draft as written (spec 114). Persona-free: the engine's own grammar words and the short stand-in
-lists 214 names, never a trade's word. `L37` Importance's own row is never the job or the circumstance said again;
+lists 214 names, never a trade's word. `L37` Importance's own row is never the job or the circumstance said again (and, keel-cloud 216 `L37b`, is
+`went_wrong` said as the difficulty, on its verb);
 `X14` the occasion is the hard case (never a *decision*, a bare *call*, *time* where the circumstance names a moment,
 and its stem names the circumstance); `L38` a Keel rung never joins two outcomes, `L39` no two rungs are one set of
 words; `L40` Purchase friction's suggested step is the buyer's brake, never the idea, the product or the founder's paper.
@@ -76,6 +77,65 @@ def roots(text: str | None) -> list[str]:
         if r not in out:
             out.append(r)
     return out
+
+
+#: `WritersRules.ING_NOUNS` (keel-cloud 216): the *-ing* words that are no verb's form (a time of day, a pronoun of
+#: things).
+ING_NOUNS = frozenset({"morning", "evening", "nothing", "something", "anything", "everything", "during", "ceiling",
+                       "string", "thing", "king", "ring", "spring", "wing", "bring"})
+
+
+def verb_roots(text: str | None) -> list[str]:
+    """`WritersRules.verbRoots` (keel-cloud 216, E9 and `L37b`): a text's verbs as roots, in order, once each -- its
+    content words (`roots`') that read as a verb's form: a present verb or a past code knows, a regular *-ed* or an
+    *-ing*. No part of speech is tagged: a noun spelt as a verb (*log*, *call*) reads as one, so the rules that read these
+    compare each field's own words, never the words two fields share."""
+    out: list[str] = []
+    for word in founder_words.words(text):
+        bare = re.sub(r"'s$", "", word)
+        if len(bare) < 3 or bare in founder_words.STOP or bare in SMALL or re.fullmatch(r"\d+", bare):
+            continue
+        verb = founder_words.present_verb(bare) or spoken_mod.base_of_past(bare) is not None \
+            or (bare.endswith("ed") and len(bare) > 4 and not bare.endswith("eed")) \
+            or (bare.endswith("ing") and len(bare) > 5 and bare not in ING_NOUNS)
+        if verb:
+            r = root(bare)
+            if r not in out:
+                out.append(r)
+    return out
+
+
+def head_verb(row: str | None) -> str | None:
+    """`WritersRules.headVerb` (keel-cloud 216 FR-2, `L37b`): the own row's head verb as a root -- its first content word
+    that reads as a verb (`verb_roots`), past an opening of *having*, *getting*, *being* (both STOP words: *Having a job
+    killed for memory* reads *kill*); None where it has none."""
+    for word in founder_words.words(row):
+        one = verb_roots(word)
+        if one:
+            return one[0]
+    return None
+
+
+def own_row_hurt_fault(own_row: str | None, routine: str | None, went_wrong: str | None) -> str | None:
+    """`WritersRules.ownRowHurtFault` (keel-cloud 216 FR-2, `L37b`; cycle 13's *Choosing where the raise cash sits*,
+    *Guessing memory, GPUs and run time*, *Following and joining the conversation*): Importance's own row is `went_wrong`
+    said as the difficulty -- refused where the row's head verb is no root of `went_wrong`, or is a root of the routine's
+    own words alone (what `routine` says beyond `went_wrong`). None where either field is blank or the row has no verb
+    (L20 and L22 hold its shape); L37 stands beside it. Refused once, then noted and served as drafted."""
+    if own_row is None or not own_row.strip() or went_wrong is None or not went_wrong.strip():
+        return None
+    verb = head_verb(own_row)
+    if verb is None:
+        return None
+    hurt = set(roots(went_wrong))
+    routine_own = (set(roots(routine)) if routine else set()) - hurt
+    if verb in hurt and verb not in routine_own:
+        return None
+    return (f"L37b: the own row '{own_row.strip()}' is not the hurt Prevalence tests (went_wrong: '{went_wrong.strip()}')"
+            + (f" -- its verb is the routine's ('{(routine or '').strip()}')" if verb in routine_own else "")
+            + "; the own row is went_wrong said as the difficulty, in its -ing form, at most six words -- the part that "
+              "hurt, never the circumstance and never the whole job (the test: would every one of them who did the "
+              "day's work say it was hard? then it is the routine)")
 
 
 # ------------------------------------------------------------------------------------------ L37: Importance's own row

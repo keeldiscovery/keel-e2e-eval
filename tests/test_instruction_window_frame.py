@@ -69,7 +69,9 @@ def test_the_founders_clause_is_held_to_its_windows_cap(window, cap):
     assert wording_mod.event_max_words(window) == cap
     fits = " ".join(["word"] * cap)
     assert wording_mod.event_fault(fits, window) is None
-    assert len(wording_mod.frequency_respondent(window, fits).split()) == 20
+    # spec 139 FR-2 re-pin (keel-cloud 216 FR-3): 20 on 174's frame, the cap's own; 19 served
+    assert len(wording_mod.frequency_respondent_before216(window, fits).split()) == 20
+    assert len(wording_mod.frequency_respondent(window, fits).split()) == 19
     fault = wording_mod.event_fault(fits + " more", window)
     assert fault.startswith(f"E2: the clause is {cap + 1} words; at most {cap} in {window.words()}, so the strangers' "
                             f"question '{wording_mod.frequency_respondent(window, '{event}')}' is within 20"), fault
@@ -108,10 +110,13 @@ def test_the_gate_and_frequency_are_framed_around_the_clause():
     assert wording_mod.gate(FOUR_WEEKS, "lose your keys") == "In the last 4 weeks, did you lose your keys?"
     # spec 089 FR-5 (keel-cloud 160 FR-2): served window first; E4 measures the frame it was set against. Spec 115 FR-2
     # re-pin (keel-cloud 174 FR-5): a week is counted *in* (*on how many weeks* until 174)
+    # spec 139 FR-2 re-pin (keel-cloud 216 FR-3): the unit said once, in the window phrase; 174's read on stored items
     assert wording_mod.frequency_respondent(FOUR_WEEKS, "lose your keys") == \
-        "In the last 4 weeks, in how many weeks did you lose your keys?"
-    assert wording_mod.frequency_respondent(FOUR_WEEKS, "") == "In the last 4 weeks, in how many weeks did that happen?", \
+        "On how many of the last 4 weeks did you lose your keys?"
+    assert wording_mod.frequency_respondent(FOUR_WEEKS, "") == "On how many of the last 4 weeks did that happen?", \
         "no clause: did that happen, window first (keel-cloud 2026-10-12, 160)"
+    assert wording_mod.frequency_respondent_before216(FOUR_WEEKS, "lose your keys") == \
+        "In the last 4 weeks, in how many weeks did you lose your keys?"
     assert wording_mod.frequency_measured(FOUR_WEEKS, "lose your keys") == \
         "On how many of those 4 weeks did you lose your keys?"
     assert wording_mod.frequency_measured(FOUR_WEEKS, "") == "On how many of those 4 weeks did that happen?"
@@ -127,7 +132,8 @@ def test_e4_holds_each_framed_question_to_twenty_words():
     fault = wording_mod.framed_fault(nine + " again", SEVEN_NIGHTS)
     assert fault is not None and fault.startswith("E4:") and "21 words" in fault, fault
     assert "In the last 7 nights, on how many nights" in fault, "the longer of the two is named, as served"
-    assert "the Frequency question served" in fault and "keeping its verb and its object" in fault, fault
+    assert "the Frequency question, as the cap measures it," in fault and "keeping its verb and its object" in fault, \
+        fault
     eleven = "search the whole flat for your keys before leaving for work"
     assert len(wording_mod.frequency_measured(SEVEN_NIGHTS, eleven).split()) == 20, "160's frame would have passed it"
     assert "22 words" in (wording_mod.framed_fault(eleven, SEVEN_NIGHTS) or "")

@@ -1980,7 +1980,12 @@ LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-
               "L32": "a Purchase friction step that is the founder's own trial, pilot, guarantee, onboarding or "
                      "money-back offer (keel-cloud 205 FR-1)",
               # spec 132 (keel-cloud 206 FR-1, FR-4): the gate's clause and the solution items' faces and conditions
-              "E9": "a gate clause of what might have been -- could, would or should have (keel-cloud 206 FR-1)",
+              # spec 139 FR-2 (keel-cloud 216 FR-1): E9 also names the founder's no-sayer -- missing, set apart by the
+              # routine, or outside the segment (a note past the repair turn); the gate's E9 (206) is read by the same
+              # name
+              "E9": "a gate clause of what might have been -- could, would or should have (keel-cloud 206 FR-1); or "
+                    "Prevalence's no-sayer missing, set apart by the routine, or outside the segment (keel-cloud 216 "
+                    "FR-1)",
               "K10": "a Compatibility clause with a bare verb after its auxiliary, or *had* before a possessive "
                      "(keel-cloud 206 FR-4)",
               "K8": "an Adoption friction item drafted without its condition, `only_if` (keel-cloud 206 FR-4)",
@@ -2013,7 +2018,12 @@ LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-
               "L40": "Keel's suggested Purchase friction step naming the idea, the product or the founder's paper "
                      "(keel-cloud 214 FR-4)",
               "L15": "a Commitment step that drops a number or term the founder typed, served in the founder's words "
-                     "(keel-cloud 214 FR-5)"}
+                     "(keel-cloud 214 FR-5)",
+              # spec 139 FR-2 (keel-cloud 216 FR-2, FR-5): the own row is the hurt, the condition the assurance
+              "L37b": "Importance's own row that is not `went_wrong` said as the difficulty, on its verb -- noted past "
+                      "the repair turn (keel-cloud 216 FR-2)",
+              "K12": "an Adoption friction condition naming the danger the person fears -- served as *Yes, if it was "
+                     "clearly worth it* past the repair turn (keel-cloud 216 FR-5)"}
 _NOTE = re.compile(r"\b(" + "|".join(LOCK_NOTES) + r"): ([^\n]{1,400})")
 
 

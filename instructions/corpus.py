@@ -1303,6 +1303,42 @@ def spec213_chain(recorded, cost, price):
     return recorded.replace(of + per + ", each", of + " each").replace(of + per, of)
 
 
+def spec216_payer(recorded, paying, *before):
+    """keel-cloud 216 FR-4 (`VectorCorpusFixture.spec216Payer`; spec 139 FR-2): an Existing sacrifice sentence as the
+    corpus records it, read with the paying unit as its subject until a revision records the new words (216 moved no
+    corpus revision) -- where the context names the organisation the people work at (`chain.paying_unit`), each word the
+    engine said before (`before`: the decider's plural, the people's) gives way to it where it opens the sentence or
+    follows *costs*. Any other words as recorded."""
+    if not isinstance(recorded, str) or not paying:
+        return recorded
+    out = recorded
+    for word in before:
+        if word is None or not str(word).strip():
+            continue
+        lower = _lower_first(str(word).strip())
+        upper = lower[:1].upper() + lower[1:]
+        paying_upper = paying[:1].upper() + paying[1:]
+        if out.startswith(upper + " already "):
+            out = paying_upper + out[len(upper):]
+        out = out.replace("costs " + lower + " ", "costs " + _lower_first(paying) + " ")
+    return out
+
+
+def _lower_first(text: str) -> str:
+    """`BeliefSentence.lower`: a leading capital lowered unless the second letter is a capital too (an acronym)."""
+    return text[:1].lower() + text[1:] if len(text) > 1 and text[0].isupper() and not text[1].isupper() else text
+
+
+def _segment_core(ctx: dict):
+    segment = ctx.get("segment")
+    return segment.get("core") if isinstance(segment, dict) else segment
+
+
+def _segment_condition(ctx: dict):
+    segment = ctx.get("segment")
+    return segment.get("condition") if isinstance(segment, dict) else None
+
+
 def _check_chain(raw: dict, entry_id, path: Path) -> bool:
     """Rule C (spec 064 FR-1; `sim/check_corpus_r13.py` as built, keel-cloud 124): where the entry states the chain,
     the founder's cost, price and Ability to pay as the engine reads and words them, the three rows the chain serves,
@@ -1375,9 +1411,14 @@ def _check_chain(raw: dict, entry_id, path: Path) -> bool:
     title = maker.get("title") if b2b else None
     deciders = chain_mod.deciders(title or decider, actor_plural, b2b)
     idea = raw.get("idea_name")
+    # spec 139 FR-2 (keel-cloud 216 FR-4): a money cost is the paying unit's -- the organisation the context names on
+    # B2B, the people where they pay -- read on the record by 216's rule until a revision records it (`spec216_payer`)
+    paying = chain_mod.paying_unit(_segment_core(ctx), _segment_condition(ctx), actor_plural, b2b)
     want = chain_mod.cost_belief(cost, occasion, role_word, deciders, b2b, actor=ctx.get("actor"),
-                                 actor_plural=actor_plural)
-    if spec213_chain(sacrifice.get("belief_sentence"), cost, price) != want:
+                                 actor_plural=actor_plural, paying=paying)
+    recorded = spec216_payer(spec213_chain(sacrifice.get("belief_sentence"), cost, price), paying, deciders,
+                             actor_plural if cost.get("mode") == "RATE" else None)
+    if recorded != want:
         raise fault(f"{where}: belief sentence {sacrifice.get('belief_sentence')!r}, the engine's {want!r}")
     want = chain_mod.cost_said(cost, occasion, role_word)
     if spec213_chain(sacrifice.get("belief_phrase"), cost, price) != want:

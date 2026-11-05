@@ -316,9 +316,11 @@ def test_the_served_frequency_opens_with_the_window_and_e4_keeps_its_measure():
     assert '", " + countedIn(w) + " how many " + shortUnit(w) + " "' in text and '"On how many of those "' in text
     assert '", on how many " + w.timeUnit().plural() + " "' in text[text.index("windowFirstBefore174("):]
     nights = vs.Window(7, "NIGHTS")
+    # spec 139 FR-2 re-pin (keel-cloud 216 FR-3): served *On how many of {window} ...*; 174's opening read on stored items
     assert vs.frequency_served(nights, "have to work out why your baby was crying") == \
-        "In the last 7 nights, on how many nights did you have to work out why your baby was crying?"
-    assert vs.frequency_served(nights, "") == "In the last 7 nights, on how many nights did that happen?"
+        "On how many of the last 7 nights did you have to work out why your baby was crying?"
+    assert vs.frequency_served(nights, "") == "On how many of the last 7 nights did that happen?"
+    assert vs.frequency_served_before216(nights, "") == "In the last 7 nights, on how many nights did that happen?"
     assert vs.frequency_question(nights, "have to work out why your baby was crying") == \
         "On how many of those 7 nights did you have to work out why your baby was crying?"
     window = registry_mod.RecallWindow(7, "NIGHTS")

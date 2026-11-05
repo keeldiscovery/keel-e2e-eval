@@ -70,9 +70,14 @@ def test_the_cards_carry_the_one_clause_lines_under_prevalence_and_frequency():
 def test_the_registrys_frequency_guidance_is_212s():
     """FR-1: the registry of record's Frequency founder guidance is 212's (the 115 slice pin moved to it), and the
     gate's respondent guidance says the clause is the founder's, by code."""
-    from tests.test_seven_templates_115 import FREQUENCY_GUIDANCE_205, FREQUENCY_GUIDANCE_212  # noqa: PLC0415
+    from tests.test_seven_templates_115 import (FREQUENCY_GUIDANCE_205, FREQUENCY_GUIDANCE_212,  # noqa: PLC0415
+                                                FREQUENCY_GUIDANCE_216)
     rows = {d["key"]: d for d in json.loads(_cloud("src/main/resources/keel/dimension-registry.json"))["dimensions"]}
-    assert rows["problem.frequency"]["founder"]["guidance"] == FREQUENCY_GUIDANCE_212 != FREQUENCY_GUIDANCE_205
+    # spec 139 FR-2 re-pin (keel-cloud 216 FR-3): 216's frame and the row's cut (216 judgement call 9)
+    assert rows["problem.frequency"]["founder"]["guidance"] == FREQUENCY_GUIDANCE_216 != FREQUENCY_GUIDANCE_212 \
+        != FREQUENCY_GUIDANCE_205
+    assert "'On how many of {window} did you ...?': its unit said once" in rows["problem.frequency"]["respondent"][
+        "guidance"]
     assert "the founder's own clause, by code (spec 212)" in rows[GATE]["respondent"]["guidance"]
     assert rows[GATE]["founder"]["guidance"].startswith("Out of 10 in the segment")
     assert "written from went_wrong" in rows[GATE]["founder"]["guidance"]
@@ -97,9 +102,13 @@ def test_the_instructions_say_what_the_mirrors_hold():
                                          (RecallWindow(3, "MONTHS"), 9), (FIVE_WORKING, 8)])
 def test_the_cap_is_the_windows_own(window, cap):
     """FR-2 (keel-cloud 212 FR-3 amended, `WindowFrame.eventMaxWords`): 9 on nights, days, weeks and months, 8 on
-    working days -- the strangers' Frequency item a clause at the cap fills is 20 words exactly."""
+    working days -- the strangers' Frequency item a clause at the cap fills is 20 words exactly. Spec 139 FR-2 re-pin
+    (keel-cloud 216 FR-3, the coordinator's correction): the cap is unchanged, measured on 174's frame (20 words there);
+    216's frame served is a word shorter, so the question at the cap is 19."""
     assert wording_mod.event_max_words(window) == cap
-    assert len(wording_mod.frequency_respondent(window, " ".join(["act"] * cap)).split()) == 20
+    at_cap = " ".join(["act"] * cap)
+    assert len(wording_mod.frequency_respondent_before216(window, at_cap).split()) == 20
+    assert len(wording_mod.frequency_respondent(window, at_cap).split()) == 19
 
 
 @pytest.mark.parametrize("event, went_wrong, routine, window", [
@@ -148,7 +157,11 @@ def test_score_holds_the_two_fields_e7_e8_and_the_cap_on_prevalence():
     good = fx.calibration_question(gate)
     assert score_mod.calibration_checks(good, gate, window=SEVEN_DAYS) == []
     bare = {k: v for k, v in good.items() if k not in ("routine", "went_wrong")}
+    # spec 139 FR-2 (keel-cloud 216 FR-1): with no went_wrong E9 reads only the no-sayer's own presence
     assert [f[:24] for f in score_mod.calibration_checks(bare, gate, window=SEVEN_DAYS)] == ["E7: write routine and we"]
+    no_sayer = {k: v for k, v in good.items() if k != "no_sayer"}
+    assert [f[:30] for f in score_mod.calibration_checks(no_sayer, gate, window=SEVEN_DAYS)] == \
+        ["E9: write no_sayer beside even"]
     routine = dict(good, event="went out of the house in the morning")
     assert [f[:3] for f in score_mod.calibration_checks(routine, gate, window=SEVEN_DAYS)] == ["E7:"]
     packed = dict(good, event="lost their keys because the hook was empty")

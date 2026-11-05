@@ -226,7 +226,9 @@ def test_the_gate_frames_a_clause_that_opens_on_any_or_some_as_its_own_subject()
     assert wording_mod.gate(w, "some of the calls ring out after hours") == \
         "In the last 3 months, did some of the calls ring out after hours?"
     # spec 115 FR-2 re-pin (keel-cloud 174 FR-5): a month is counted *in* (*on how many months* until 174)
-    assert wording_mod.frequency_respondent(w, palus) == f"In the last 3 months, in how many months did {palus}?"
+    # spec 139 FR-2 re-pin (keel-cloud 216 FR-3): the unit said once, in the window phrase
+    assert wording_mod.frequency_respondent(w, palus) == f"On how many of the last 3 months did {palus}?"
+    assert wording_mod.frequency_respondent_before216(w, palus) == f"In the last 3 months, in how many months did {palus}?"
     assert wording_mod.frequency_measured(w, palus) == f"On how many of those 3 months did {palus}?"
     # 116, 129, 130, 131's subjects, and the second person everywhere else
     assert wording_mod.subject_led("your team miss the deadline") == "your team miss the deadline"
@@ -239,9 +241,11 @@ def test_the_gate_frames_a_clause_that_opens_on_any_or_some_as_its_own_subject()
     # E4 measures the older frame without a second *you*: 22 words, past the cap (170's tasks.md, not foreseen 2).
     # Spec 123 FR-2 re-pin (keel-cloud 193 FR-2): E4 measures the question served, window first -- 24 words
     assert len(wording_mod.frequency_measured(w, palus).split()) == 22
-    assert len(wording_mod.frequency_respondent(w, palus).split()) == 24
+    # spec 139 FR-2 re-pin (keel-cloud 216 FR-3): E4 measures 174's frame (24 words), the cap's own; 216's served is 23
+    assert len(wording_mod.frequency_respondent_before216(w, palus).split()) == 24
+    assert len(wording_mod.frequency_respondent(w, palus).split()) == 23
     assert (wording_mod.framed_fault(palus, w) or "").startswith(
-        "E4: framed, the clause makes the Frequency question served 24 words")
+        "E4: framed, the clause makes the Frequency question, as the cap measures it, 24 words")
 
 
 def test_subject_led_mirrors_window_frame():
