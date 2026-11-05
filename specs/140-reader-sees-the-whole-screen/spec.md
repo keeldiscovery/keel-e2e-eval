@@ -39,6 +39,12 @@ the harness owns.
 - **FR-4 The web health.** `stack/processes.py`'s health gate on keel-web, on a 500 or a timeout, restarts web once and
   waits again before raising; the walk log says so. The Vite "transport invoke timed out" line in web.log, seen during
   a walk, is counted in the cycle record's head beside the typos line.
+- **FR-4b The Current solution draft's two fields.** keel-cloud 228 / keel-web 177: the page sends the Answer screen's
+  two boxes as `answer` and `how` (the second `""` when empty). The browser-walk check in `evals/corpus_scenario.py`
+  ("the draft's one Answer", ~L2061) reads the draft body's `answer` against `join_answer(what, how)` and would fault on
+  every Current solution walk once 177 ships: it reads `answer` + `how` where `how` is present, the joined text where it
+  is absent. The API path, which sends `answer` alone, keeps working through 191's split. This lands BEFORE any cycle on
+  a web build at or after 177.
 - **FR-5 Tests.** FR-1 and FR-2 on a recorded bundle (a fixture page per shape); FR-3 with a fake page that moves after
   15 s; FR-4 with a fake health endpoint that 500s once. `make unit` green, counts in tasks.md. The five screens above,
   re-read from their recorded bundles with the new capture, are listed in tasks.md with what the reader now sees (no
