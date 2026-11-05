@@ -107,11 +107,18 @@ and keel-web master `480463e1` (178 built); neither checkout edited. Not merged;
   = `RespondentReview.CARDS_SHA256`. `CARDS_SHA256_141` in `test_cloud_219_228_mirror_141` is the one constant the
   213 and 216 pins read for the current copy; `test_dimension_cards_131`'s Relative advantage good stem moves to the
   card's (*Think of the last night your baby would not settle. ...*).
-- [ ] T011 FR-9 the gate (below).
+- [x] T011 FR-9 the gate (below).
 
 ## The gate
 
-GATE_PLACEHOLDER
+`set -o pipefail; make unit 2>&1 | tail -1` on **`3975628`** against keel-cloud-docs **`8b281774`** (229 merged) and
+keel-web **`480463e1`**, started 17:48 ET (the shell's clock read 18:34 ET when it returned; the run itself took 5:24):
+**5603 passed, 81 skipped in 324.16s (0:05:24), 0 failed.** Master `245d398` on keel-cloud-docs `0844a180`: 9 failed,
+5541 passed, 81 skipped (333.68s) -- the nine of spec 140's gate, all green here. Earlier on this branch: `9dc02e1`
+against `d019f1ca` (the digest at `9bbdd6a3...`), 5602 passed, 81 skipped, 0 failed. New tests: 48 (25 functions, parametrized) in
+`tests/test_cloud_219_228_mirror_141.py`, 4 in `tests/test_web_178_mirror_141.py`; the rest are re-pins (listed per
+task). The contract export and the instruction mirrors: none kept in this repo (read from keel-cloud at run time), so
+nothing regenerated; 229's `own_row` (`OWN_ROW_RULE`) and `founder-lists.md` at 10,579 bytes arrive that way.
 
 ## Judgement calls (each with the spec line it bends)
 
@@ -136,7 +143,7 @@ GATE_PLACEHOLDER
 6. **The problem card carries the clause only where the entry holds the founder's own** (FR-2): `problem_clause` writes
    the six only for the golden seven in a solution study, whose clauses pass E7-E9 by test and whose turned form is the
    gate's `event_base`; a back-test entry's *had a time when ...* is over the cap (E2) and would be dropped with E10.
-7. **The API path's Save keeps the corpus's own row** (FR-8, 223's *the scripted Save sends the own row unchanged*):
+7. **The API path's Save keeps the corpus's own row** (also under 229) (FR-8, 223's *the scripted Save sends the own row unchanged*):
    `vs.saved_list` still posts the recorded own row, so the stored belief stays the record's; where it reads as the job
    again 223's note is served and read by nobody. The browser walk saves the drawn (code's) row, and its strict Check
    and belief reads expect code's row. Changing the API path would move every Importance belief off the record.
@@ -153,10 +160,8 @@ GATE_PLACEHOLDER
 
 ## Left open
 
-- **229 moves Importance's own row and the card again** (`own_row` written by the writer, A1-A4, else 223's row):
-  `writers_rules.own_row_from_clause` stays the fallback, but the scripted writer will owe an `own_row` field, the
-  strict walk's own row and belief (`code_own_row`) will read the writer's act, and the cards' digest
-  (`CARDS_SHA256_141`, `quality/readers/dimensions.md`) is re-copied by the coordinator.
+- 229 landed during the build (T008b, the digest re-copied at `8b281774`). The strict walk now expects the writer's act
+  as Importance's own row on six golden entries (`code_own_row`); no walk has been run on it (no stack in this spec).
 - 219's H1-H4 and 222's S1-S4 are not ported (calls 3, 4); a scripted hard case or loss clause would need them.
 - 225's open item: the follow-up after *No* on a passive permission item still says *You said you couldn't ...*
   (`vectors_script` `could_not`), as the cloud's `ItemFrames.couldNot` does; not moved.
