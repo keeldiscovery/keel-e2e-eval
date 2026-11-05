@@ -295,8 +295,10 @@ def founder_screens(bundle: dict) -> list[Screen]:
             body.append(f"Title over the list: {s['title']}")
         if s.get("intro"):
             body.append(f"Intro: {s['intro']}")
-        body += _lines("Options", s.get("options"))
-        body += _lines(ROWS_EDITED if s.get("edited") else "Rows", s.get("rows"))
+        options, rows = _suggested_options(s), _suggested_rows(s)
+        body += _lines("Options", options)
+        body += _lines(ROWS_EDITED if s.get("edited") else "Rows", rows)
+        body += _commitment_lines(s)
         body += _lines(NOTE_LABEL, _listed(s.get("note")))
         body += _lines("Chips (the escape)", s.get("chips"))
         body += _choose_boxes(s)
@@ -311,7 +313,75 @@ def founder_screens(bundle: dict) -> list[Screen]:
                           has_options=bool(s.get("options") or s.get("rows") or s.get("chips")),
                           full="\n".join(body),
                           compact=_compact(int(s.get("n") or len(out) + 1), s.get("kicker"), s.get("question")
-                                           or s.get("hint"), name)))
+                                           or s.get("hint"), name) + _suggestion_tail(options, rows)))
+    return out
+
+
+#: Spec 140 FR-1: keel-web's tag on Keel's suggested option or row (`LIST_KEEL_SUGGESTION`).
+KEEL_SUGGESTION = "Keel's suggestion"
+
+
+def suggestion_said(label: str, why: str | None) -> str:
+    """Spec 140 FR-1: Keel's suggestion as the founder-reader is told it -- *{label} -- Keel's suggestion: {why}* --
+    one function for a Choose screen's suggested radio and a Check list's suggested row (spec 139 FR-3)."""
+    return f"{label} -- {KEEL_SUGGESTION}: {why}" if why else f"{label} -- {KEEL_SUGGESTION}"
+
+
+def _suggested_options(s: dict) -> list:
+    """Spec 140 FR-1: the screen's options, the one keel-web marks `data-suggested` said with its why (`choices`, the
+    camera's read since 140); as recorded where nothing was suggested or the bundle is older."""
+    options = list(s.get("options") or [])
+    marks = {c.get("label"): c for c in s.get("choices") or [] if isinstance(c, dict) and c.get("suggested")}
+    return [suggestion_said(o, marks[o].get("why")) if o in marks else o for o in options]
+
+
+def _suggested_rows(s: dict) -> list:
+    """Spec 140 FR-1: a Check list's rows, Keel's suggested row (`suggested`, spec 139 FR-3's read) said as a Choose
+    option's is."""
+    rows = list(s.get("rows") or [])
+    marks = {str(x.get("row") or "").strip(): x for x in s.get("suggested") or [] if isinstance(x, dict)}
+    return [suggestion_said(r, marks[str(r).strip()].get("why")) if str(r).strip() in marks else r for r in rows]
+
+
+def _suggestion_tail(options: list, rows: list) -> str:
+    """Spec 140 FR-1: the compact line of a screen that drew Keel's suggestion carries it, as its *Options:* (or
+    *Rows:*) line says it -- nothing on every other screen, so their compact lines are 078's to the byte."""
+    said = [f"Options: {o}" for o in options if f" -- {KEEL_SUGGESTION}" in str(o)] + \
+        [f"Rows: {r}" for r in rows if f" -- {KEEL_SUGGESTION}" in str(r)]
+    return "".join(f"; {x}" for x in said)
+
+
+#: Spec 140 FR-2: the Commitment check's parts as the founder-reader is told them (keel-web `LIST_STEP_LABEL`,
+#: `LIST_SMALLER_STEP_LABEL` / `_BEFORE` / `_AFTER`, `COMMITMENT_ANSWERS_TITLE`).
+COMMITMENT_STEP = "Your step, as strangers hear it"
+COMMITMENT_SMALLER = "Or a smaller step first"
+COMMITMENT_BEFORE = "Yes, after"
+COMMITMENT_AFTER = "first"
+COMMITMENT_ANSWERS = "What strangers can answer"
+COMMITMENT_NO_SMALLER = "no smaller step"
+
+
+def _commitment_lines(s: dict) -> list[str]:
+    """Spec 140 FR-2: the Commitment check as drawn -- the step box, the smaller step in its frame (*Yes, after {step}
+    first*) or *no smaller step*, the answers strangers can give in order, and the served note beside the step. The word
+    counters stay where they were, under the list as guidance. Nothing on a bundle recorded before 140 (no `step`)."""
+    c = s.get("commitment") if isinstance(s.get("commitment"), dict) else None
+    if not c or "step" not in c:
+        return []
+    out = []
+    step = c.get("step") if isinstance(c.get("step"), dict) else None
+    if step is not None:
+        out.append(f"{COMMITMENT_STEP}: {step.get('value') or '(empty as drawn)'}")
+    smaller = c.get("smaller") if isinstance(c.get("smaller"), dict) else None
+    if smaller:
+        out.append(f"{COMMITMENT_SMALLER}: {smaller.get('before') or COMMITMENT_BEFORE} "
+                   f"{smaller.get('value') or '(empty as drawn)'} {smaller.get('after') or COMMITMENT_AFTER}")
+    else:
+        out.append(f"{COMMITMENT_SMALLER}: {COMMITMENT_NO_SMALLER}"
+                   + (f" (the screen offers {c['smaller_add']})" if c.get("smaller_add") else ""))
+    out += _lines(COMMITMENT_ANSWERS, c.get("answers"))
+    if c.get("note"):
+        out.append(f"Keel's note beside the step: {c['note']}")
     return out
 
 
