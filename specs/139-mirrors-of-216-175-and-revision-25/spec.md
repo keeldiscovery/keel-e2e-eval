@@ -31,8 +31,16 @@ merging after this spec is written -- its revision line, rows and shape changes 
   Adoption and Purchase friction's Check is read from `li.listrow--suggested` with `check-suggestion`; Importance's
   Answer carries `answer-own-row`, read into the screen text the reader gets. The old strings stay by spec number
   where the harness reads stored screens.
-- **FR-4 Revision 25.** `instructions/corpus.py` `GALLERY_REVISION = 25`; the loader reads the fourteen at 25 and
-  the others at 23 (spec 135's rule); every pin that quotes a row revision 25 moves (the message lists them) moves
-  with it; `sim`/golden reads unchanged unless 217 says so.
-- **FR-5** `make unit` green against keel-cloud-docs master at 217's merge and keel-web master `a73c4f5c`. Nothing
+- **FR-4 Revision 25.** keel-cloud 217 (merged, master `4369a636`): `instructions/corpus.py` `GALLERY_REVISION = 25`
+  (and `_NOT_GALLERY_R24`'s text, `gallery_names.toml`'s note); the loader reads the fourteen at 25 and the others at
+  23 (spec 135's rule); every pin that quotes a row revision 25 moved follows 217's `specs/217-corpus-revision-25/
+  tasks.md` owed list (the revision-24 row words to grep, entry by entry; AirCaps' Compatibility pick now
+  `read_and_watch`, index 1 of 2, an ability; the drop shapes; the 27 re-read picks and the standings they move --
+  Voltair's Current solution PEOPLE_DISAGREE; the three amended cost lines and the questions they produce); the
+  harness types revision 25's rows and the walk's expectations are revision 25's; `tests/test_harness_reads_r24_135.py`
+  becomes r25's.
+- **FR-4b The So line.** keel-cloud 218 (Compatibility's So line keeps its subject; merging after 217 -- its words by
+  the coordinator's message or 218's tasks.md): every eval pin that quotes the So line (*Whether …*) carries the
+  subject the belief gives the row.
+- **FR-5** `make unit` green against keel-cloud-docs master at 218's merge and keel-web master `a73c4f5c`. Nothing
   else moves; nothing paid; no reader, rubric or `MARKS_VERSION` change.
