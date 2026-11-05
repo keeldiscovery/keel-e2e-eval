@@ -33,10 +33,10 @@ VECTORS = "src/main/java/com/keeldiscovery/cloud/domain/vectors/"
 APPLICATION = "src/main/java/com/keeldiscovery/cloud/application/"
 INSTRUCTIONS = "src/main/resources/keel/inference-instructions/"
 SEVEN_DAYS = RecallWindow(7, "DAYS")
-#: FR-1: the cards' digest at the round -- keel-cloud `RespondentReview.CARDS_SHA256` at keel-cloud-docs `d019f1ca`
-#: (219-228 and 223 merged); the one constant the 213 and 216 pins read for the current copy (re-pinned here when 229
+#: FR-1: the cards' digest at the round -- keel-cloud `RespondentReview.CARDS_SHA256` at keel-cloud-docs `8b281774`
+#: (219-229 merged); the one constant the 213 and 216 pins read for the current copy (re-pinned here when a later spec
 #: moves the cards again).
-CARDS_SHA256_141 = "9bbdd6a39cc18a7589588f19904d19a49df24bff751a050182d0a63565587b5c"
+CARDS_SHA256_141 = "2ddae90c41561125b70a5b18853b3819e093f00a703f275d21189d74e4dfc5dd"
 #: keel-cloud `VectorFixtures` (Lullaby).
 EVENT_PAST = "had to work out why their baby was crying"
 WENT_WRONG = "did not know why the baby cried"

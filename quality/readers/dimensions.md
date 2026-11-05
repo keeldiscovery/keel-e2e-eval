@@ -271,11 +271,15 @@ How much they want this problem made easier, next to the other things that are h
 - The own item is the founder's problem whole: their verb and the when or where they named, both halves of a pair kept,
   never narrowed to one part, never the circumstance said again. The own row is the hurt Prevalence tests
   (keel-cloud 216, `L37b`): `went_wrong` said as the difficulty, on its verb, never the circumstance or the whole job
-  (*Typing up the log after the walk*, not *Getting the day into the log*). **Keel's own row is the study's problem
-  clause, by code** (keel-cloud 223): `went_wrong` as a noun phrase -- its verb in the *-ing* form and the rest as
-  written, a subject before it kept (*Losing site notes before writing the daily log*; *A booking call ringing out
-  unanswered*) -- at most 9 words, else cut by its trailing phrase; the writer's own row only where the study holds no
-  clause, or none fits. Each other row: a difficulty these same people meet
+  (*Typing up the log after the walk*, not *Getting the day into the log*). **Keel's own row is the writer's act from
+  the study's problem clause** (keel-cloud 229): the act these people do or put up with at that moment, as a
+  difficulty a stranger would want made easier (*Picking up booking calls before they ring out*; *Sizing a job's
+  memory so it never runs out*), held by code -- **A1** a word of the clause beyond the people's and the occasion's,
+  **A2** an *-ing* act, never what befell them (*Losing ...*, *Having ...*, *Being ...*), **A3** not the job or the
+  circumstance said again, **A4** at most 9 words, no idea name, no number the founder did not write; a breach: one
+  repair turn, then **code's phrase** (keel-cloud 223: `went_wrong` as a noun phrase, its verb in the *-ing* form, at
+  most 9 words, else cut by its trailing phrase -- *Losing site notes before writing the daily log*); the writer's own
+  row only where the study holds no clause, or neither fits. Each other row: a difficulty these same people meet
   themselves, in their own part of the work, at that moment -- never another role's, setting's or channel's; it keeps
   its aim (never a look-alike chore); at most 9 words; no two overlap, none a part or a cause of another; never a wish,
   a fix or a product; no number the founder did not write.

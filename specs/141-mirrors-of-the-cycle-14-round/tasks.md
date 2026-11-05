@@ -17,7 +17,8 @@ and keel-web master `480463e1` (178 built); neither checkout edited. Not merged;
 | `94798c4` | FR-8 Compatibility (225) |
 | `32b1ec6` | FR-8 Importance (223) |
 | `862c0cb` | FR-8 keel-web 178 (the coordinator's addition): the note, the line, *Per* empty; `tests/test_web_178_mirror_141.py` |
-| `9dc02e1` | FR-1 the reader digest, last |
+| `9dc02e1` | FR-1 the reader digest at `d019f1ca` |
+| `0c79db8` | FR-8 Importance's own row as an act (229, the coordinator's addition) |
 
 - [x] T001 FR-4 Commitment (221). `instructions/spoken.py`: `STEP_OPTION_MAX_WORDS` 9 -> 11, `STEP_MAX_WORDS` 9;
   `first_yes` cuts at nine; `step_cut` (`ItemFrames.stepCut`, the lock's S4 note); `_second_step` held to eleven less the
@@ -80,6 +81,18 @@ and keel-web master `480463e1` (178 built); neither checkout edited. Not merged;
   says it); the strict walk's Check list (`_corpus_list`) and its belief box
   (`importance_belief_on_code_own_row`) on code's row. Pinned: 223's seven (owed list) and five (tasks table), word for
   word.
+- [x] T008b FR-8 Importance's own row as an act (keel-cloud 229, branch `spec-229` at `9057f82e`, read in
+  `wt/keel-cloud-229`). `writers_rules.own_row_act_fault` (`OwnRowAct.fault`: A1 a root of `went_wrong` / `hard_case`
+  beyond the people's words, the occasion noun and the hard case's frame; A2 an *-ing* act, never *having* / *being*
+  nor the clause's outcome verb, `own_row_outcome_verb` = `OwnRow.outcomeVerb`; A3 = L37's `own_row_fault`; A4 at most
+  nine words, no idea name, no product word, no number the founder did not write -- `wording.numbers` mirrors
+  `Vocabulary.numbers` with the pronoun *one*), `own_row_act_clean`. `vs.OWN_ROW_ACTS` (229's owed list, the golden
+  seven, word for word), `own_row_act` (held A1-A4 on each entry's own words -- all seven pass A3 too), the scripted
+  Importance question (first draft and redraft) carries `own_row`; `code_own_row` is the act first, 223's row the
+  fallback, so the strict walk's Check list and belief expect the act (Lullaby's *Knowing what the cry means* is the
+  registry's row: nothing moves there). The harness's scripted redraft reads no context (its result is generated
+  ahead), so 229's `problem_clause` context key asks nothing of it. Pinned: `ImportanceOwnRowAsAnActTest`'s five acts and
+  each test's refusal, word for word.
 - [x] T009 FR-8 keel-web 178 (the coordinator's addition). `vectors_screens.ROW_NOTE_TESTID`, `LINE_CONTROL_TESTID`;
   `Corridor._list_rows`: `note` from `[data-testid=row-note]` on every row (locked too), `warn` the reword line alone,
   `line_at` (`data-line`) and `line_control` beside `line`; the walk never moves the line, so the Save sends the served
@@ -89,8 +102,8 @@ and keel-web master `480463e1` (178 built); neither checkout edited. Not merged;
   `unit` check and `owed["unit"]` follow it. The equation text (*a percent* / the count word) is recorded, not asserted.
   `cost_line_parts` unchanged (178 says so). `tests/test_web_178_mirror_141.py` (4, chromium on pages drawn as 178
   draws them, the markup pinned to `ListQuestion.tsx` / `translate.ts`); `test_follow_ups_075` re-pinned.
-- [x] T010 FR-1 the reader digest, last: `quality/readers/dimensions.md` = keel-cloud-docs **`d019f1ca`**'s
-  `src/main/resources/keel/dimension-cards.md`, sha256 `9bbdd6a39cc18a7589588f19904d19a49df24bff751a050182d0a63565587b5c`
+- [x] T010 FR-1 the reader digest, last: `quality/readers/dimensions.md` = keel-cloud-docs **`8b281774`**'s (229 merged; first copied at `d019f1ca`, `9bbdd6a3...`, in `9dc02e1`)
+  `src/main/resources/keel/dimension-cards.md`, sha256 `2ddae90c41561125b70a5b18853b3819e093f00a703f275d21189d74e4dfc5dd`
   = `RespondentReview.CARDS_SHA256`. `CARDS_SHA256_141` in `test_cloud_219_228_mirror_141` is the one constant the
   213 and 216 pins read for the current copy; `test_dimension_cards_131`'s Relative advantage good stem moves to the
   card's (*Think of the last night your baby would not settle. ...*).
