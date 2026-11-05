@@ -2,7 +2,8 @@
 
 Whether Commitment's step costs the person something -- spec 205's (and 118's) definition: **money** (an amount, or a
 price, fee, deposit, pre-order, paid pilot or moved funds, even with money back or free returns), **data** (letting the
-founder's side read, run on or collect from their records, systems or activity) or **a signature** (a contract, a
+founder's side read, run on or collect from their records, systems or activity; keel-cloud 221: installing anything of
+theirs, or letting it read or measure them, free or not) or **a signature** (a contract, a
 letter of intent). A closed vocabulary of the engine's own, no trade's word: code's reading of the step's words, never a
 judgement of the offer. A step that costs nothing (a read-only look, a demo, a call, *sample data*, *sign up*) reads
 none. Every pattern is the cloud's (keel-cloud-docs `e485abeb`), compiled ASCII as Java's `\\b` reads ASCII text;
@@ -28,6 +29,14 @@ DATA_WORDS = re.compile(r"(?i)(?<!sample )(?<!demo )(?<!test )(?<!example )(?<!d
                         r"access)\b", re.ASCII)
 SIGNATURE_WORDS = re.compile(r"(?i)\b(sign(?!\s+up\b)|signs(?!\s+up\b)|signing(?!\s+up\b)|signed(?!\s+up\b)|contract|"
                              r"contracts|agreement|letter of intent|loi)\b", re.ASCII)
+#: keel-cloud 221 FR-3 (`StepCost.DATA_ACTS`; cycle 14, Expanse's *let Expanse measure cluster waste free for two
+#: weeks* read as costing nothing): data is also what the founder's side does on the person's systems or to them, free
+#: or not -- installing, integrating or uploading anything, handing anything over, or letting it read, measure, monitor,
+#: track, scan, access, record, run on, connect to or analyse them. *allow it to use the microphone* is none of them.
+DATA_ACTS = re.compile(r"(?i)\b(install|installs|installing|installed|integrate|integrates|integrating|integrated|upload|"
+                       r"uploads|uploading|uploaded)\b|\b(?:hand|hands|handing|handed)\s+(?:\S+\s+){0,3}?(over)\b|"
+                       r"\b(?:let|lets|letting|allow|allows|allowing)\s+(?:\S+\s+){1,3}?(?:to\s+)?(read|measure|monitor|"
+                       r"track|scan|access|record|run|connect|analyse|analyze)\b", re.ASCII)
 #: keel-cloud 213 FR-8 (`CommercialChain.MONEY_NOUNS`): money's own words and the currencies' names, no trade's.
 MONEY_NOUNS = frozenset({
     "money", "cash", "balance", "balances", "revenue", "revenues", "sales", "turnover", "income", "earnings",
@@ -78,7 +87,8 @@ def moves_money_nowhere(step: str | None) -> bool:
 
 def of(step: str | None) -> Cost | None:
     """`StepCost.of`: the step's cost, or None where it costs nothing the engine can read -- an amount first
-    (`Wording.money`), then a money word, moved money (keel-cloud 213 FR-8), a signature word, a data word."""
+    (`Wording.money`), then a money word, moved money (keel-cloud 213 FR-8), a signature word, a data word, a data act
+    (keel-cloud 221 FR-3)."""
     if step is None or not str(step).strip():
         return None
     amount = wording_mod.money(step)
@@ -95,6 +105,9 @@ def of(step: str | None) -> Cost | None:
         found = pattern.search(text)
         if found:
             return Cost(kind, found.group(1))
+    acts = DATA_ACTS.search(text)
+    if acts:
+        return Cost(DATA, acts.group(1) or acts.group(2) or acts.group(3))
     return None
 
 

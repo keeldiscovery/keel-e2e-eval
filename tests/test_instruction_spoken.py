@@ -276,25 +276,53 @@ def test_a_count_line_disagreeing_with_the_served_options_is_still_a_fault():
     assert _rules(dataclasses.replace(ability, count_line="I'll read five options.")) == ["S7"]
 
 
-def test_commitments_options_are_counted_whole_and_held_to_nine_words():
-    """Spec 068 FR-2 (keel-cloud 129 FR-15, `SpokenForm.STEP_OPTION_MAX_WORDS` 11 -> 9): *Yes, I'd* and the step together
-    are the option, held to nine like every other dimension's -- Code Four's *Yes, I'd run a free pilot with a few
-    officers* (ten) is a fault; 129 serves Lullaby's step cut to *Yes, I'd allow it to use the microphone* (eight)."""
+def test_commitments_options_are_counted_whole_and_held_to_eleven_words():
+    """Spec 068 FR-2, re-pinned by spec 141 FR-4 (keel-cloud 221 FR-1, `SpokenForm.STEP_OPTION_MAX_WORDS` 9 -> 11):
+    *Yes, I'd* and the step together are the option, held to eleven -- the step whole, cut only past its own nine:
+    Code Four's *Yes, I'd run a free pilot with a few officers* (ten) is served whole, and so is Lullaby's *Yes, I'd
+    allow it to use the microphone at night* (ten; 129 cut both to their first trailing phrase)."""
     stem = "If it were ready today, would you allow it to use the microphone at night, or not?"
-    eight = "Yes, I'd allow it to use the microphone"
+    ten = "Yes, I'd allow it to use the microphone at night"
     commitment = _item(key="commercial.commitment", part=3, question=stem, stem=stem,
-                       options=(eight, "Probably not", "No"), escape=None, count_line="I'll read three options.",
-                       options_line="Yes, you'd allow it to use the microphone; probably not; or no.",
+                       options=(ten, "Probably not", "No"), escape=None, count_line="I'll read three options.",
+                       options_line="Yes, you'd allow it to use the microphone at night; probably not; or no.",
                        escape_line=None)
-    assert len(eight.split()) == 8 and _faults(commitment) == []
-    ten = "Yes, I'd run a free pilot with a few officers"
-    assert len(ten.split()) == 10 and spoken_mod.STEP_OPTION_MAX_WORDS == spoken_mod.OPTION_MAX_WORDS == 9
-    assert "S4" in _rules(dataclasses.replace(commitment, options=(ten, "Probably not", "No"),
-                                              options_line="Yes, you'd run a free pilot with a few officers; "
-                                                           "probably not; or no."))
-    assert spoken_mod.first_yes("Run a free pilot with a few officers") == "Yes, I'd run a free pilot"
+    assert len(ten.split()) == 10 and _faults(commitment) == []
+    assert spoken_mod.first_yes("allow it to use the microphone at night") == ten
+    assert spoken_mod.STEP_OPTION_MAX_WORDS == 11 and spoken_mod.OPTION_MAX_WORDS == 9
+    assert spoken_mod.STEP_MAX_WORDS == 9
+    assert spoken_mod.first_yes("Run a free pilot with a few officers") == "Yes, I'd run a free pilot with a few officers"
+    assert spoken_mod.step_cut("Run a free pilot with a few officers") is None
+    twelve = "Yes, I'd run a free pilot with a few officers this month"
+    assert len(twelve.split()) == 12 and "S4" in _rules(dataclasses.replace(
+        commitment, options=(twelve, "Probably not", "No"),
+        options_line="Yes, you'd run a free pilot with a few officers this month; probably not; or no."))
+    # past its own nine the step is cut by its trailing phrase, and `step_cut` names the cut (the lock's S4 note)
+    long_step = "run a free pilot with a few officers at one station"
+    assert spoken_mod.first_yes(long_step) == "Yes, I'd run a free pilot with a few officers"
+    assert spoken_mod.step_cut(long_step) == "run a free pilot with a few officers"
+    # a lock stored before 221 keeps 129's cut Yes among the labels it may be served with
+    assert spoken_mod.first_yes_before221("Run a free pilot with a few officers") == "Yes, I'd run a free pilot"
     long_option = "Yes, easily and with no help from the front office"
     assert len(long_option.split()) == 10 and "S4" in _rules(_item(options=(long_option, "No")))
+
+
+def test_an_act_first_smaller_step_is_said_in_its_ing_form_and_kept():
+    """Spec 141 FR-4 (keel-cloud 221 FR-2, `ItemFrames.smallerSaid` / `restatesTheStep`): AirCaps' *try a pair of
+    caption glasses* beside *order the caption glasses with free returns* names another act, so it is served, said
+    *trying ...*; Issen's *a free trial* inside *pay for one month after the trial* restates the step (*Probably yes*)."""
+    assert spoken_mod.commitment_answers(["order the caption glasses with free returns",
+                                          "try a pair of caption glasses"]) == [
+        "Yes, I'd order the caption glasses with free returns", "Probably, after trying a pair of caption glasses first",
+        "Probably not", "No"]
+    assert spoken_mod.restates_the_step("pay for one month after the trial", "a free trial")
+    assert not spoken_mod.restates_the_step("order the caption glasses with free returns",
+                                            "try a pair of caption glasses")
+    assert spoken_mod.smaller_act("a free ten-minute demo") == "demo"
+    assert spoken_mod.smaller_said("A free trial") == "a free trial"
+    assert spoken_mod.second_yes("a look at it on sample data first") == \
+        "Probably, after a look at it on sample data first"
+    assert spoken_mod.second_yes_before221("a look at it on sample data first") == "Probably, after a look at it first"
 
 
 def test_commitment_names_no_escape_and_a_served_one_is_a_fault():
@@ -514,16 +542,20 @@ def test_the_record_follows_registry_revision_13s_five_changes(real):
     assert lullaby("solution.compatibility").options == tuple(fact_four.values())
     assert items[("05-paidly", "solution.compatibility")].options == tuple(
         a["label"] for a in registry.by_key("solution.compatibility").fixed_answers), "a permission keeps the four"
-    # keel-cloud 128 FR-5 / FR-18: with no role named, the four are distinct answers
-    assert lullaby("commercial.buyer_payer_alignment").options == ("Yes, someone else had to agree",
-                                                                  "No, I decided on my own",
-                                                                  "Yes, several people had to agree",
-                                                                  "No, someone else decided for me")
+    # keel-cloud 128 FR-5 / FR-18: with no role named, the four are distinct answers -- spec 141 re-pin (keel-cloud 198
+    # FR-4, the first record of record written after 198): the person's own answer first, no Yes or No in front
+    assert lullaby("commercial.buyer_payer_alignment").options == ("I decided on my own", "Someone else had to agree",
+                                                                  "Several people had to agree",
+                                                                  "It was someone else's call")
+    assert list(lullaby("commercial.buyer_payer_alignment").options) == spoken_mod.buyer_answers(None)[:4]
     commitment = lullaby("commercial.commitment")
     # corpus revision 14 (keel-cloud 127): Lullaby's list carries its smaller step, so the second yes is served;
-    # keel-cloud 129 FR-15 cuts the step to its share of the whole option's nine (*at night* goes): words, not codes
-    assert commitment.options == ("Yes, I'd allow it to use the microphone",
-                                  "Yes, after a look at how it listens first", "Probably not", "No")
+    # keel-cloud 129 FR-15 cut the step to its share of the whole option's nine (*at night* went) -- spec 141 FR-4
+    # (keel-cloud 221 FR-1): the step whole again, and 198's soft yes
+    assert commitment.options == ("Yes, I'd allow it to use the microphone at night",
+                                  "Probably, after a look at how it listens first", "Probably not", "No")
+    assert list(commitment.options) == spoken_mod.commitment_answers(["allow it to use the microphone at night",
+                                                                      "a look at how it listens"])
     assert commitment.count_line == "I'll read four options."
     assert not hasattr(spoken_mod, "ESCAPES"), "the escapes are the registry's, never a table"
 

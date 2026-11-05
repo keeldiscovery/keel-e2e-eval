@@ -17,9 +17,10 @@ Per composed item (§2, §3, §4, §5):
   short form keeps the occasion);
 - `S2` the anchor, where there is one, and the stem are the screen's question, and a part sets one anchor at most;
 - `S3` at most **five** options (Price's ladder **six**); none on a number (Frequency, Existing sacrifice);
-- `S4` every option at most **nine** words, Commitment's counted whole (*Yes, I'd* and the step together are the
-  option: keel-cloud 129 FR-15 took `SpokenForm.STEP_OPTION_MAX_WORDS` from 118's eleven to nine and cuts the step to
-  its share; spec 068 FR-2),
+- `S4` every option at most **nine** words, Commitment's counted whole at **eleven** (*Yes, I'd* and the step together
+  are the option: keel-cloud 129 FR-15 took `SpokenForm.STEP_OPTION_MAX_WORDS` from 118's eleven to nine and cut the
+  step to its share; keel-cloud 221 FR-1 put it back to eleven, the step whole, cut only past its own nine; spec 068
+  FR-2, spec 141 FR-4),
   and the founder-written ones (Importance's five, Current solution's five) at least **three** -- the three-word floor
   is not asked of the registry's fixed answers or the ladder (keel-cloud 088 judgement call 14: *Yes*, *No*, *Yes,
   easily* are the record);
@@ -108,8 +109,13 @@ MAX_OPTIONS = 5
 PRICE_MAX_OPTIONS = 6
 OPTION_MAX_WORDS = 9
 #: keel-cloud 129 FR-15 (`SpokenForm.STEP_OPTION_MAX_WORDS`, 118's eleven): Commitment's option is *Yes, I'd* and the
-#: step together, counted whole at nine like every other option (spec 068 FR-2).
-STEP_OPTION_MAX_WORDS = 9
+#: step together, counted whole (spec 068 FR-2) -- at nine from 129 to 220; keel-cloud 221 FR-1 (spec 141 FR-4; cycle
+#: 14, Codyco's *at one hotel* and Expanse's *for two weeks* cut off): eleven again, the step whole.
+STEP_OPTION_MAX_WORDS = 11
+#: keel-cloud 129 FR-15's cap, read only on an item a lock stored before 221 (the step cut to seven after *Yes, I'd*).
+STEP_OPTION_MAX_WORDS_BEFORE221 = 9
+#: keel-cloud 221 FR-1 (`ItemFrames.STEP_MAX_WORDS`): the step's own cap -- its share of the eleven after *Yes, I'd*.
+STEP_MAX_WORDS = STEP_OPTION_MAX_WORDS - 2
 OPTION_MIN_WORDS = 3
 #: The options the founder wrote, held to the three-word floor (call 80).
 FOUNDER_WORDED = (IMPORTANCE_KEY, CURRENT_SOLUTION_KEY)
@@ -340,9 +346,12 @@ def served_labels(registry, key: str, entry=None) -> list:
     if key == COMMITMENT_KEY and entry is not None:
         steps = [i.get("label") for i in ((entry.founder_list(key) or {}).get("items") or []) if i.get("label")]
         if steps:
-            labels.append(first_yes(steps[0]))
+            # spec 141 FR-4 (keel-cloud 221): the step whole; 129's cut Yes on an item a lock stored before 221
+            labels += list(dict.fromkeys((first_yes(steps[0]), first_yes_before221(steps[0]))))
         if len(steps) > 1:
             labels += [second_yes(steps[1]), second_yes_118(steps[1])]   # spec 130: 198's soft yes, 118's on an older lock
+            if second_yes_before221(steps[1]) not in labels:
+                labels.append(second_yes_before221(steps[1]))
         labels.append(COMMITMENT_SECOND_YES_197)
     return labels
 
@@ -404,28 +413,109 @@ def _at_boundary(label: str, most: int) -> str:
 
 
 def first_yes(step: str) -> str:
-    """`ItemFrames.firstYes`: *Yes, I'd {step}*, the step cut to its share of the option's nine (129 FR-15)."""
+    """`ItemFrames.firstYes` since keel-cloud 221 FR-1 (spec 141 FR-4): *Yes, I'd {step}*, the step whole, cut only past
+    its own nine (`STEP_MAX_WORDS`), so the option is at most eleven."""
+    return "Yes, I'd " + cut_to_fit(_lower(str(step).strip()), STEP_MAX_WORDS)
+
+
+def first_yes_before221(step: str) -> str:
+    """`ItemFrames.firstYes` from 129 to 220: the step cut to its share of the option's nine -- read only on an item a
+    lock stored before 221."""
     return "Yes, I'd " + cut_to_fit(_lower(str(step).strip()), OPTION_MAX_WORDS - 2)
 
 
+def step_cut(step: str | None) -> str | None:
+    """keel-cloud 221 FR-1 (`ItemFrames.stepCut`): the step as the Yes says it where the Yes had to cut it (a step past
+    `STEP_MAX_WORDS`; the lock's S4 note names the cut), or None where it is whole."""
+    if step is None or not str(step).strip():
+        return None
+    whole = _lower(str(step).strip())
+    cut = cut_to_fit(whole, STEP_MAX_WORDS)
+    return None if cut == whole else cut
+
+
 def second_yes(smaller_step: str) -> str:
-    """`ItemFrames.secondYes` since keel-cloud 198 FR-1: the soft yes, *Probably, after {smaller step} first*, cut to fit
-    nine, never *first first* (129 FR-9, FR-15); with no smaller step the registry's *Probably yes*
+    """`ItemFrames.secondYes` since keel-cloud 198 FR-1: the soft yes, *Probably, after {smaller step} first*, never
+    *first first* (129 FR-9); since keel-cloud 221 (spec 141 FR-4) held to Commitment's eleven less the frame and an
+    act-first smaller step said in its -ing form (`smaller_said`); with no smaller step the registry's *Probably yes*
     (`ItemFrames.PROBABLY_YES`, served on every list since 198)."""
     return "Probably, after " + _second_step(smaller_step)
 
 
+def second_yes_before221(smaller_step: str) -> str:
+    """`ItemFrames.secondYes` from 198 to 220: cut to fit nine, the smaller step as typed -- read only on an item a lock
+    stored before 221."""
+    return "Probably, after " + _second_step(smaller_step, before221=True)
+
+
 def second_yes_118(smaller_step: str) -> str:
     """`ItemFrames.secondYes` from 118 to 197: *Yes, after {smaller step} first* -- read only on an item a lock stored
-    before 198."""
-    return "Yes, after " + _second_step(smaller_step)
+    before 198 (the frame of its day: nine, the step as typed)."""
+    return "Yes, after " + _second_step(smaller_step, before221=True)
 
 
-def _second_step(smaller_step: str) -> str:
-    said_step = _lower(str(smaller_step).strip())
+def _second_step(smaller_step: str, before221: bool = False) -> str:
+    said_step = _lower(str(smaller_step).strip()) if before221 else smaller_said(smaller_step)
     first = re.search(r"\bfirst$", said_step, re.IGNORECASE) is not None
-    step = cut_to_fit(said_step, OPTION_MAX_WORDS - (2 if first else 3))
+    most = (OPTION_MAX_WORDS if before221 else STEP_OPTION_MAX_WORDS) - (2 if first else 3)
+    step = cut_to_fit(said_step, most)
     return step + ("" if re.search(r"\bfirst$", step, re.IGNORECASE) else " first")
+
+
+#: keel-cloud 221 FR-2 (`ItemFrames.ACT_VERBS`): acts a smaller step opens on that `StrangerGrammar.presentVerb` does not
+#: carry.
+SMALLER_ACT_VERBS = frozenset(("watch", "join", "test", "attend", "visit", "borrow", "hear", "listen", "view"))
+#: keel-cloud 221 FR-2 (`ItemFrames.SIZE_OR_COST`): the modifiers a smaller step's act may carry -- never the act itself.
+SIZE_OR_COST = frozenset(("free", "paid", "short", "quick", "small", "brief", "little", "single", "money-back",
+                          "no-cost", "cost-free", "risk-free", "live", "guided", "online", "private", "personal"))
+
+
+def opens_on_its_act(smaller_step: str | None) -> bool:
+    """keel-cloud 221 FR-2 (`ItemFrames.opensOnItsAct`): whether a smaller step opens on its act's verb in base form
+    (*try*, *look at*) -- two words at least."""
+    from harness import qualifiers as q_mod                            # noqa: PLC0415 - `StrangerGrammar.presentVerb`
+    parts = str(smaller_step or "").strip().split()
+    if len(parts) < 2:
+        return False
+    first = parts[0].lower()
+    return q_mod.present_verb(first) or first in SMALLER_ACT_VERBS
+
+
+def smaller_said(smaller_step: str) -> str:
+    """keel-cloud 221 FR-2 (`ItemFrames.smallerSaid`): the smaller step as a frame says it after *after* -- one that opens
+    on its act (*try a pair of caption glasses*) in its -ing form (*trying a pair of caption glasses*, `SpokenCap.gerund`);
+    a noun phrase (*a free trial*) as it is, lower-cased."""
+    from harness import vectors_script as vs_mod                       # noqa: PLC0415 - `SpokenCap.gerund`'s port
+    said = _lower(str(smaller_step).strip())
+    return vs_mod.gerund(said) if opens_on_its_act(said) else said
+
+
+def smaller_act(smaller_step: str | None) -> str | None:
+    """keel-cloud 221 FR-2 (`ItemFrames.act`): a smaller step's act -- its first content word that says neither what it
+    costs nor how big it is (`SIZE_OR_COST`, *ten-minute*) -- or None."""
+    from harness import qualifiers as q_mod                            # noqa: PLC0415 - `FounderWords.dropped`
+    for word in q_mod.dropped(smaller_step, ""):
+        if word not in SIZE_OR_COST and not re.fullmatch(r"[a-z0-9]+-(?:minute|hour|day|week|month|year)s?", word):
+            return word
+    return None
+
+
+def restates_the_step(step: str | None, smaller_step: str | None) -> bool:
+    """keel-cloud 128 FR-6 / 221 FR-2 (`ItemFrames.restatesTheStep`): whether a smaller step restates part of the step
+    itself -- its head (last content word) is the step's, half its words or more are, and (221) its act is the step's
+    too; a smaller step naming a different act (*try*, *look*, *demo*) is not the step again, whatever nouns it shares
+    (AirCaps' *try a pair of caption glasses* beside *order the caption glasses with free returns*)."""
+    from harness import qualifiers as q_mod                            # noqa: PLC0415 - `FounderWords.dropped`
+    if step is None or smaller_step is None:
+        return False
+    words_of = q_mod.dropped(smaller_step, "")
+    if not words_of:
+        return False
+    head = words_of[-1]
+    not_in_step = q_mod.dropped(smaller_step, step)
+    act = smaller_act(smaller_step)
+    return (head not in not_in_step and 2 * (len(words_of) - len(not_in_step)) >= len(words_of)
+            and (act is None or act not in not_in_step))
 
 
 #: keel-cloud 198 FR-1 (`ItemFrames.PROBABLY_YES`, the registry's `yes_after_trying` label): the soft yes where the list
@@ -1300,12 +1390,17 @@ def commitment_answers(rows: list[str]) -> list[str]:
     """keel-cloud 213 FR-8 (`VectorsController.commitmentAnswers` over `RespondentItems.commitmentOptions`): the four
     answers strangers get on Commitment, as its Check row serves them -- *Yes, I'd {step}*, the soft yes (*Probably,
     after {smaller step} first* where the list carries one, else *Probably yes*), *Probably not*, *No*. A smaller step
-    that restates the step itself (`ItemFrames.restatesTheStep`, not mirrored) is read as one the cloud serves; the walk
-    holds the drawn four to the served `answers`, and this composition to the first and the last two."""
+    that restates the step itself (`ItemFrames.restatesTheStep`, not mirrored until spec 141) was read as one served; the walk
+    holds the drawn four to the served `answers`, and this composition to the first and the last two. Since spec 141 FR-4
+    (keel-cloud 221 FR-2) `restates_the_step` is mirrored: a smaller step that restates the step (its act too) is no
+    soft yes of its own -- *Probably yes* -- and one naming another act is served."""
     steps = [str(r).strip() for r in rows or [] if r and str(r).strip()]
     if not steps:
         return []
-    soft = second_yes(steps[1]) if len(steps) > 1 else PROBABLY_YES
+    smaller = _lower(steps[1]) if len(steps) > 1 else None
+    if restates_the_step(steps[0], smaller):
+        smaller = None
+    soft = second_yes(smaller) if smaller else PROBABLY_YES
     return [first_yes(steps[0]), soft, COMMITMENT_PROBABLY_NOT, COMMITMENT_NO]
 
 

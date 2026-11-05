@@ -261,7 +261,9 @@ line alone (129 FR-12); every back-test founder's Commitment list is the step al
 picks across the 28 back-test entries become `yes_start` (Keel adds no smaller step the founder did not give, 129 FR-9).
 Two golden Commitment options are cut to the whole option's nine words (129 FR-15: 03-lullaby's *Yes, I'd allow it to
 use the microphone*, 02-compliancelog's *Yes, after a look at it first*) -- served words, no corpus byte, no code, count,
-status or decision moved. The reader reads **revision 16** and refuses a revision-15 file by name. **v20 stands**: this
+status or decision moved. *Retired by keel-cloud 221 FR-1 (spec 141 FR-4): the step is served whole again -- 03-lullaby's
+*Yes, I'd allow it to use the microphone at night*, 02-compliancelog's soft yes *Probably, after a look at it on sample
+data first* -- served words, still no corpus byte.* The reader reads **revision 16** and refuses a revision-15 file by name. **v20 stands**: this
 revision bumps nothing. The seven revision-16 files, by sha256 (keel-cloud canon's own bytes at keel-cloud-docs
 `efdd37bf`, equal to `src/test/resources/keel/corpus-r16/`): `01-countly.yaml`
 `131907158493f948b7ac0e71ec4a510cfbe8832c15e32793ffcc661481194c84`; `02-compliancelog.yaml`

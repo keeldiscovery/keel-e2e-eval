@@ -33,6 +33,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from . import chain as chain_mod
 from . import corpus as corpus_mod
 from . import friction as friction_mod
+from . import spoken as spoken_mod
 from .registry import (ABILITY_KEY, ADOPTION_KEY, BUYER_KEY, COMMITMENT_KEY, COMPATIBILITY_KEY,
                        CURRENT_SOLUTION_KEY, FREQUENCY_KEY, GATE_KEY, IMPORTANCE_KEY, LINK_B2B, LINK_PRIMARY,
                        PRICE_KEY, PURCHASE_FRICTION_KEY, SACRIFICE_KEY, VECTORS)
@@ -393,7 +394,8 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
         # keel-cloud 118 FR-2: the step as asked is the number; the second yes beside it, apart
         apart = _option_count(standing, "yes_after_trying")
         smaller = (entry.founder_list(key) or {}).get("items") or []
-        second = lower(smaller[1]["label"]) if len(smaller) > 1 else None
+        # spec 141 FR-4 (keel-cloud 221 FR-2, `ItemFrames.smallerSaid`): an act-first smaller step said in its -ing form
+        second = spoken_mod.smaller_said(smaller[1]["label"]) if len(smaller) > 1 else None
         # spec 118 FR-1 (keel-cloud 180 FR-7): every yes is the number, the yes after the smaller step split beside
         # it; spec 130 (keel-cloud 198 FR-1, `BriefFacts.secondYes`): the soft yes as served -- *· 2 of them probably,
         # after a free trial first*, *· 2 of them said probably* where the list names no smaller step

@@ -135,7 +135,9 @@ def test_commitments_soft_yes_is_on_every_list():
     assert spoken_mod.second_yes("a look at it first") == "Probably, after a look at it first"
     assert spoken_mod.second_yes_118("A free trial") == "Yes, after a free trial first"
     facts = _cloud(APPLICATION + "BriefFacts.java")
-    assert 'PROBABLY = "said probably"' in facts and '"probably, after " + smaller + " first"' in facts
+    # spec 141 FR-4 (keel-cloud 221 FR-2): the smaller step as the soft yes says it (`ItemFrames.smallerSaid`)
+    assert 'PROBABLY = "said probably"' in facts and '"probably, after "' in facts and 'smallerSaid(smaller) + " first"' \
+        in facts
     assert bf.SAID_PROBABLY == "said probably"
 
 

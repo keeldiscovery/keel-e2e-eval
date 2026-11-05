@@ -226,7 +226,12 @@ def test_x8_every_founder_word_lands():
 #: a priced step, so it owes Keel's free smaller step (L34).
 PRICED = {"08-fresco": "paid", "09-karsa": "buy", "10-palus": "move", "11-issen": "pay", "13-aircaps": "order",
           "15-voltair": "pay", "21-codyco": "€", "23-taiga": "access", "25-bidflow": "paying", "30-realroots": "buy",
-          "32-frizzle": "pay", "34-wideframe": "pay"}
+          "32-frizzle": "pay", "34-wideframe": "pay",
+          # spec 141 FR-4 (keel-cloud 221 FR-3, `StepCost.DATA_ACTS`): installing, or letting it measure them, is data
+          "01-countly": "install", "17-expanse": "measure", "26-cubic": "install"}
+#: Spec 141 FR-4 (keel-cloud 221 FR-3): the one golden step that costs something -- Countly's *install the app*, data by
+#: its act; the scripted writer adds Keel's free smaller step to it as the cloud's L34 now asks.
+GOLDEN_PRICED = ["01-countly"]
 
 
 def test_every_scripted_commitment_draft_passes_l34_and_l7(entries):
@@ -250,7 +255,7 @@ def test_every_scripted_commitment_draft_passes_l34_and_l7(entries):
             assert len(keels["reason"]) <= 200
             priced[entry.id] = step_cost_mod.of(draft["items"][0]["label"]).word
     assert {k: v[:1] if v.startswith("€") else v for k, v in priced.items()} == PRICED
-    assert not [e.id for e in entries if not e.backtest and vs.keels_smaller_step(e)], "no golden step is priced"
+    assert [e.id for e in entries if not e.backtest and vs.keels_smaller_step(e)] == GOLDEN_PRICED
 
 
 def test_the_founder_saves_and_strangers_are_served_keels_free_step(entries):
@@ -264,10 +269,14 @@ def test_the_founder_saves_and_strangers_are_served_keels_free_step(entries):
                               {"code": "smaller_step", "label": vs.KEELS_SMALLER_STEP}]
     assert vs.smaller_step(codyco) == vs.KEELS_SMALLER_STEP
     assert spoken_mod.second_yes(vs.smaller_step(codyco)) == "Probably, after a look at how it works first"
-    # a step that costs nothing keeps its list as typed: no smaller step, *Probably yes*
+    # a step that costs nothing keeps its list as typed: no smaller step, *Probably yes* (spec 141 FR-4: Countly's
+    # *install the app* costs data since keel-cloud 221, so Linerly's *ride on it for the next week* stands in)
+    linerly = by_id["04-linerly"]
+    assert vs.keels_smaller_step(linerly) is None and vs.smaller_step(linerly) is None
+    assert [i["code"] for i in vs.saved_list(linerly, COMMITMENT)["items"]] == ["step"]
     countly = by_id["01-countly"]
-    assert vs.keels_smaller_step(countly) is None and vs.smaller_step(countly) is None
-    assert [i["code"] for i in vs.saved_list(countly, COMMITMENT)["items"]] == ["step"]
+    assert vs.keels_smaller_step(countly)["label"] == vs.KEELS_SMALLER_STEP
+    assert [i["code"] for i in vs.saved_list(countly, COMMITMENT)["items"]] == ["step", "smaller_step"]
     # a golden list with the founder's own smaller step is the corpus's, coded as the cloud codes it
     compliancelog = by_id["02-compliancelog"]
     assert vs.keels_smaller_step(compliancelog) is None

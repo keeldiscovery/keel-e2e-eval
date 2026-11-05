@@ -1806,7 +1806,8 @@ def keels_smaller_step(entry) -> dict | None:
     """Spec 133 FR-2 (keel-cloud 211 FR-6, `L34`): Commitment's second item as the scripted writer names it --
     `{label, reason}`, `KEELS_SMALLER_STEP` and why, in one sentence, the step costs the person something
     (`instructions.step_cost`) -- where the entry's list is its step alone and that step costs money, data or a
-    signature (*pay*, *paid pilot*, *order*, *buy*, *read access*: eleven back-test entries); None where the step costs
+    signature (*pay*, *paid pilot*, *order*, *buy*, *read access*: eleven back-test entries; since keel-cloud 221 a data
+    act too, *install*, *let it measure*); None where the step costs
     nothing or the entry's list already carries a smaller step (the golden 02, 03, 06). Since 211 `L19` keeps it (it
     drops Keel's step only where the step costs nothing) and `L7` reads its reason, so the draft spends no repair turn
     and the founder saves both rows, as the Check screen draws them."""
@@ -3885,7 +3886,12 @@ def follow_up_plan(entry, picks: list, link: str, interview: dict, token: str, f
 
 
 def the_step(step: str) -> str:
-    """keel-cloud 118 `ItemFrames.theStep`: *the free trial* for *a free trial*; a step with its own article kept."""
+    """keel-cloud 118 `ItemFrames.theStep`: *the free trial* for *a free trial*; a step with its own article kept; since
+    keel-cloud 221 FR-2 (spec 141 FR-4) an act-first smaller step said as its act, *trying a pair of caption glasses*
+    (`spoken.smaller_said`)."""
+    from instructions import spoken as spoken_mod                       # noqa: PLC0415
+    if spoken_mod.opens_on_its_act(spoken_mod._lower(step.strip())):
+        return spoken_mod.smaller_said(step)
     low = step.lower()
     if low.startswith("a "):
         return "the " + step[2:]
