@@ -6,6 +6,7 @@ tasks.md *Owed: keel-e2e-eval*). No stack, no model, no paid call; the cloud's s
 - FR-5 Prevalence (224): E8 reads the head verb and the verdict words; 06-repeatline's scripted clause off *by hand*.
 - FR-2 Relative advantage (219): *Think of {hard_case}.* first; the belief on `hard_case_theirs`; the scripted clause.
 - FR-3 Price (220): the question and the belief name the idea; the walk holds the served question.
+- FR-6 Current solution (226, 228): `line` or `lineAfter`; the walk leaves the line; W-rung read by name.
 """
 
 from __future__ import annotations
@@ -338,3 +339,49 @@ def test_the_walked_price_question_and_belief_name_the_idea(entry_id):
     assert entry.idea_name in belief and " it worth " not in belief and "fair for it." not in belief
     if entry_id in PRICE_BELIEFS:
         assert belief == PRICE_BELIEFS[entry_id]
+
+
+# ------------------------------------------------------------------------------------------ FR-6: keel-cloud 226, 228
+
+def test_the_line_is_read_from_line_or_line_after():
+    """226 FR-3 (contract 61, `VectorDtos.SavedListDto.lineAfter`: the index of the rung the line follows, `line` - 1):
+    the walk reads `line` where served, else `lineAfter` + 1; the two disagreeing is named."""
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    dtos = _cloud("src/main/java/com/keeldiscovery/cloud/protocol/founder/VectorDtos.java")
+    assert "Integer line,\n            DurationDto duration, Integer lineAfter)" in dtos
+    assert "({@code line} - 1)" in dtos
+    assert cs.served_line({"line": 2, "lineAfter": 1}) == 2
+    assert cs.served_line({"lineAfter": 2}) == 3
+    assert cs.served_line({"line": 1}) == 1 and cs.served_line({}) is None and cs.served_line(None) is None
+    assert cs.line_after_faults({"line": 2, "lineAfter": 1}) == []
+    assert cs.line_after_faults({"line": 2}) == [] and cs.line_after_faults({"lineAfter": 3}) == []
+    assert cs.line_after_faults({"line": 2, "lineAfter": 2}) == [{"line": 2, "lineAfter": 2, "want lineAfter": 1}]
+
+
+def test_the_walk_leaves_the_line_where_it_is_drawn(golden):
+    """226 FR-3 (its owed list): the walk sends no `lineAfter` (absent: the draft's line stands), so the brief's bar
+    names the saved line's rung as before (`brief_facts.current_solution_bar` stands); the golden Countly and Linerly
+    ladders take W-rung's one repair turn, read by name and never counted (`backtest.LOCK_NOTES`)."""
+    from evals import backtest as bt                                    # noqa: PLC0415
+    from instructions import brief_facts as bf                          # noqa: PLC0415
+    key = "problem.current_solution_satisfaction"
+    for entry in golden.values():
+        saved = vs.saved_list(entry, key)
+        assert "lineAfter" not in saved, entry.id
+    assert bf.current_solution_bar("Got it right after one wrong guess") == \
+        "holds if at least 2 in 3 land below 'Got it right after one wrong guess'"
+    assert "keel-cloud 226" in bt.LOCK_NOTES["W-rung"]
+    measure = _cloud(VECTORS + "MeasureRung.java")
+    assert 'Optional.of("W-rung: ' in measure
+    found = bt.lock_notes(None, [{"screen": "CALIBRATION_QUESTIONS",
+                                  "detail": "breach result.questions[1].list.items[2].label: W-rung: 'Counted twice' "
+                                            "leaves the founder's measure"}])
+    assert [n["rule"] for n in found] == ["W-rung"]
+
+
+def test_the_two_boxes_stand_as_spec_140_read_them():
+    """228 (contract 60): the draft's `answer` and `how` -- read since spec 140 FR-4b (`vectors_screens.sent_how`,
+    `corpus_scenario.answer_boxes_faults`); nothing more owed here."""
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    from harness import vectors_screens as vs_screens                   # noqa: PLC0415
+    assert callable(vs_screens.sent_how) and callable(cs.answer_boxes_faults)

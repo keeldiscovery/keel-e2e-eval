@@ -3757,13 +3757,35 @@ def _served_line(j: Journey) -> int | None:
             view = j.get(j.project("/calibration/PROBLEM")) or {}
             for q in view.get("questions") or []:
                 if q.get("dimension") == "problem.current_solution_satisfaction":
-                    line = (((q.get("answer") or {}).get("list")) or {}).get("line")
+                    line = served_line(((q.get("answer") or {}).get("list")) or {})
         except Exception:  # noqa: BLE001 - a read that fails leaves the registry's line, named below
             line = None
         j.screens["current_line"] = line
         j.findings.append({"what": f"Current solution's served line is {line if line is not None else 'not read'}; "
                                    "the follow-up walk counts against with it (spec 067 FR-4)"})
     return j.screens.get("current_line")
+
+
+def served_line(saved: dict | None) -> int | None:
+    """Spec 141 FR-6 (keel-cloud 226 FR-3, contract 61): Current solution's line on a saved list -- `line` (how many
+    outcomes sit above it), and `lineAfter` beside it (the index, 0 to 3, of the rung the founder's line follows: `line`
+    - 1). Read from `line` where served, else from `lineAfter` (+ 1); None with neither. The walk never sends
+    `lineAfter` (the line stays where the draft drew it), so the two agree; where they do not, `line` is read as before
+    and `line_after_faults` names it."""
+    saved = saved or {}
+    line, after = saved.get("line"), saved.get("lineAfter")
+    if isinstance(line, int):
+        return line
+    return after + 1 if isinstance(after, int) else None
+
+
+def line_after_faults(saved: dict | None) -> list:
+    """Spec 141 FR-6 (keel-cloud 226): `lineAfter` served beside `line` is `line` - 1 -- else a fault naming both."""
+    saved = saved or {}
+    line, after = saved.get("line"), saved.get("lineAfter")
+    if isinstance(line, int) and isinstance(after, int) and after != line - 1:
+        return [{"line": line, "lineAfter": after, "want lineAfter": line - 1}]
+    return []
 
 
 def _moved_line(j: Journey, person, own_rung: str | None, walked: dict, served_rung: str | None) -> dict | None:

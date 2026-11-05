@@ -2081,7 +2081,19 @@ LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-
               "L37b": "Importance's own row that is not `went_wrong` said as the difficulty, on its verb -- noted past "
                       "the repair turn (keel-cloud 216 FR-2)",
               "K12": "an Adoption friction condition naming the danger the person fears -- served as *Yes, if it was "
-                     "clearly worth it* past the repair turn (keel-cloud 216 FR-5)"}
+                     "clearly worth it* past the repair turn (keel-cloud 216 FR-5)",
+              # spec 141 (the cycle 14 round): each refused once, then noted -- read by name, never counted
+              "H1": "a hard case that does not say what went wrong, or says the routine (keel-cloud 219 FR-3)",
+              "H2": "a hard case that does not open *the last* (*their last*), or says the occasion twice (keel-cloud "
+                    "219 FR-3)",
+              "H3": "a hard case naming the idea, a product, a benefit or a number the hurt does not carry (keel-cloud "
+                    "219 FR-3)",
+              "H4": "a hard case past the spoken cap in its frame (keel-cloud 219 FR-3)",
+              "E10": "the card's problem clause dropped, or a writer's gate clause set aside for it (keel-cloud 219 "
+                     "FR-1)",
+              "W-rung": "a Current solution rung of Keel's grading something other than the founder's measure "
+                        "(keel-cloud 226 FR-1; the golden Countly and Linerly ladders take one such repair turn)",
+              "L-kind": "a Compatibility row's kind missing, or not the kind its words say (keel-cloud 225 FR-1)"}
 _NOTE = re.compile(r"\b(" + "|".join(LOCK_NOTES) + r"): ([^\n]{1,400})")
 
 
