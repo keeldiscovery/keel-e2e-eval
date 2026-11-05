@@ -345,3 +345,33 @@ def test_the_instructions_say_what_the_mirrors_hold():
     assert "**The problem, never the circumstance**" in asked and "**Every condition the founder gave, kept**" in asked
     assert "**The condition is the assurance**" in _cloud(INSTRUCTIONS + "asked.md")
     assert "*On how many of {window}" in _cloud(INSTRUCTIONS + "respondent-review.md")
+
+
+# ------------------------------------------------------------------------------- FR-4b the So line (keel-cloud 218)
+
+def _whether(belief: str) -> str:
+    """keel-cloud 218 (`BeliefSentence.whetherClause`, its tasks.md *Owed to keel-e2e-eval*): the So line's clause is
+    *Whether* + the entry's Compatibility belief lower-cased, its stop dropped (the fourteen's beliefs read *Most ...*)."""
+    text = belief.strip().rstrip(".")
+    return "Whether " + text[:1].lower() + text[1:]
+
+
+def test_no_pin_quotes_the_so_line_and_the_rule_reads_the_belief():
+    """FR-4b: no eval pin quotes Compatibility's So line (218 grepped; *Whether could ...* was the defect); any that does
+    carries the belief's subject -- 218's three examples, read off revision 25's beliefs."""
+    if not corpus_mod.backtest_dir(KEEL_CLOUD).is_dir():
+        pytest.skip(f"no back-test corpus at {KEEL_CLOUD}")
+    entries = {e.id: e for e in vs.load(KEEL_CLOUD, backtest=True).entries}
+    said = {e: _whether(entries[e].founder_calibration["solution.compatibility"]["belief_sentence"])
+            for e in corpus_mod.GALLERY}
+    assert said["08-fresco"] == ("Whether most construction superintendents on commercial jobs could talk into their "
+                                 "phone over the noise on site")
+    assert said["21-codyco"] == "Whether most reservation agents at hotel groups could forward unanswered calls to " \
+                                "another number"
+    assert said["13-aircaps"] == "Whether most deaf and hard-of-hearing adults could read captions while watching faces"
+    assert all(s.startswith("Whether most ") for s in said.values())
+    repo = Path(__file__).resolve().parents[1]
+    for folder in ("harness", "evals", "instructions", "tests"):
+        for path in (repo / folder).rglob("*.py"):
+            if path.resolve() != Path(__file__).resolve():
+                assert "Whether could" not in path.read_text(encoding="utf-8"), path

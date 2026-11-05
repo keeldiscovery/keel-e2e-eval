@@ -1975,7 +1975,7 @@ CURRENT_SOLUTION_KEY = "problem.current_solution_satisfaction"
 BUYER_PAYER_KEY = "commercial.buyer_payer_alignment"
 
 
-def choose_faults(choose: dict | None, key: str, *, row: int | None) -> list[dict]:
+def choose_faults(choose: dict | None, key: str, *, row: int | None, b2b: bool = False) -> list[dict]:
     """Spec 116 FR-1 (keel-web 149): one Choose as the walk read it -- the radio found by its label (spec 104) and the
     `pickedIndex` the press PUT equal to `row`, the drafted row that label was found at (`_choose_label`), never the
     drawn position. Buyer and payer since spec 132 FR-10 (keel-web 168 FR-3): picked by index, never by label -- two
@@ -1984,7 +1984,12 @@ def choose_faults(choose: dict | None, key: str, *, row: int | None) -> list[dic
     test?*, the recall line naming the roles, a belief under each option, and the bar's case -- *the one you pick* before
     a pick, the roles in a sentence, *nobody else* on Nobody else (`vs_screens.buyer_payer_bar`); a list holding only
     *Nobody else* no radiogroup but the statement (`BUYER_PAYER_CONFIRM_ONLY`) and its belief, sent as 0. Every miss is
-    one fault `{what, drawn, want}`."""
+    one fault `{what, drawn, want}`.
+
+    Spec 139 FR-3 (keel-web 175 FR-3): on a B2B study (`b2b`, the served `CalibrationView.b2b`) the bar is the
+    decision-maker's present-tense form (`vs_screens.BUYER_PAYER_BAR_B2B`) -- *the one you pick* before a pick, the roles
+    after it, *Nobody else* its one *for* answer with no *Decided alone counts as support.*; where the user pays, 149 /
+    173's bar as before."""
     if not choose:
         return [{"what": "no Choose screen was read", "drawn": choose, "want": "the pick"}]
     faults: list[dict] = []
@@ -2027,9 +2032,11 @@ def choose_faults(choose: dict | None, key: str, *, row: int | None) -> list[dic
           ("nobody", vs_screens.BUYER_PAYER_NOBODY) if row == vs_screens.BUYER_PAYER_NOBODY_INDEX
           else ("role", vs_screens.role_in_sentence(joined)))
     # spec 137 FR-3 (keel-web 173 FR-5, keel-cloud 213 FR-5c): *decided alone* counts as support where Nobody else is
-    # tested, and only there
+    # tested, and only there; spec 139 FR-3 (keel-web 175 FR-3, judgement call 2): never on the decision-maker's link,
+    # whose bar names it in the present
+    fault("the bar's form", ((before or {}).get("b2b"), (after or {}).get("b2b")), (b2b, b2b))
     fault("the bar says deciding alone counts", (after or {}).get("alone"),
-          row == vs_screens.BUYER_PAYER_NOBODY_INDEX)
+          row == vs_screens.BUYER_PAYER_NOBODY_INDEX and not b2b)
     return faults
 
 
@@ -2088,6 +2095,14 @@ def said_faults(screen: dict | None, key: str, *, b2b: bool) -> list[dict]:
 
     kind = screen.get("screen")
     if kind == "answer":
+        # spec 139 FR-3 (keel-web 175 FR-2, FR-7): the chip's line on every list Answer, and Importance's own row tagged
+        # *yours* where it is drawn
+        if "leave_out_line" in screen:
+            fault("the chip's line", screen.get("leave_out_line"), vs_screens.LEAVE_OUT_LINE)
+        if screen.get("chip") is not None:
+            fault("the chip pressed", screen.get("chip"), vs_screens.LEAVE_OUT_CHIP)
+        if screen.get("own_row"):
+            fault("the own row's tag", (screen.get("own_row") or {}).get("tag"), vs_screens.OWN_ROW_TAG)
         hint = " ".join(str(screen.get("hint") or "").split())
         if key == IMPORTANCE_KEY:
             fault("the Answer hint", hint, vs_screens.IMPORTANCE_ANSWER_HINT)
@@ -2098,6 +2113,11 @@ def said_faults(screen: dict | None, key: str, *, b2b: bool) -> list[dict]:
     elif kind == "check" and key == COMMITMENT_KEY:
         bar = vs_screens.commitment_bar((screen.get("test") or {}).get("bar"))
         fault("the Commitment bar", (bar or {}).get("case"), "decider" if b2b else "same")
+    elif kind == "check" and key == BUYER_PAYER_KEY and screen.get("rows"):
+        # spec 139 FR-3 (keel-web 175 FR-1): *Nobody else* first, locked, before the two fixed role rows
+        first = (screen.get("rows") or [{}])[0]
+        fault("Nobody else drawn first on Check", (first.get("nobody_else"), first.get("text"), first.get("locked")),
+              (True, vs.NOBODY_ELSE[1], True))
     elif kind == "choose":
         if key in (PURCHASE_FRICTION_KEY, COMPATIBILITY_KEY):
             fault("the Choose title", screen.get("prompt"), vs_screens.CHOOSE_PROMPT[key])
@@ -2121,6 +2141,9 @@ def said_faults(screen: dict | None, key: str, *, b2b: bool) -> list[dict]:
                 fault("no bar before the time", screen.get("waiting_bar") or "", "")
             fault("the bar after the pick", (screen.get("test") or {}).get("bar"),
                   vs_screens.purchase_friction_choose_bar(timed, said))
+        if key == COMPATIBILITY_KEY:
+            # spec 139 FR-3 (keel-web 175 FR-4): a fact's bar *... say no.*, never *say partly, or no.*
+            faults += vs_screens.compatibility_bar_faults((screen.get("test") or {}).get("bar"))
         kept = vs_screens.COMPATIBILITY_KEPT_NOTE if key == COMPATIBILITY_KEY else ""
         fault("the box's line before a pick", screen.get("note_before") or "", kept)
         fault("the box's line after the pick", screen.get("note") or "", kept)
@@ -2173,6 +2196,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             if key == "commercial.price":
                 _hold_the_price_boxes(j, j.framing[key][0])
                 _hold_the_price_sent(j, j.framing[key][0])
+                _hold_the_free_pill(j, j.framing[key][0])
             continue
         _keep_draft(j, question, "first", None)
         if answer.unsure:
@@ -2299,7 +2323,8 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                     faults += [{"dimension": key, **f}
                                for f in answer_boxes_faults(screen, key, answers[key].text)]
                 elif screen["screen"] == "choose":
-                    faults += [{"dimension": key, **f} for f in choose_faults(screen, key, row=screen.get("row"))]
+                    faults += [{"dimension": key, **f}
+                               for f in choose_faults(screen, key, row=screen.get("row"), b2b=vs.is_b2b(j.entry))]
         h.record_assert([], faults)
         assert not faults, json.dumps(faults, indent=2)
 
@@ -2896,6 +2921,21 @@ def _hold_the_price_sent(j: Journey, seen: dict) -> None:
             faults.append({"what": "Optional plan not ticked", "boxes": boxes})
         h.record_assert({"price": price, "faults": []}, {"sent": seen.get("sent_price"), "boxes": boxes,
                                                          "faults": faults})
+        assert not faults, json.dumps(faults, indent=2)
+
+
+def _hold_the_free_pill(j: Journey, seen: dict) -> None:
+    """Spec 139 FR-3 (keel-web 175 FR-5): where the user pays, the price step draws neither *Free to them*
+    (`chain-shape-FREE`) nor its hint (`chain-free-hint`) -- absent, not greyed; a saved FREE is drawn
+    (`vs_screens.free_drawn_faults`)."""
+    b2b = vs.is_b2b(j.entry)
+    if b2b or not seen.get("chain"):
+        return
+    with _step(j, "the Price step where the user pays draws no *Free to them* and no hint (keel-web 175)",
+               party="founder") as h:
+        faults = vs_screens.free_drawn_faults(seen, b2b, vs.founder_price(j.entry))
+        h.record_assert({"free_drawn": False, "free_hint_drawn": False},
+                        {"free_drawn": seen.get("free_drawn"), "free_hint_drawn": seen.get("free_hint_drawn")})
         assert not faults, json.dumps(faults, indent=2)
 
 

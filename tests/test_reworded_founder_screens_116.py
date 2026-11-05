@@ -175,15 +175,16 @@ def test_the_bar_reads_its_three_cases():
     founder's purchase noun -- never the offer; *Decided alone counts as support.* on Nobody else."""
     read = vs_screens.buyer_payer_bar
     some = vs_screens.BUYER_PAYER_PURCHASE
+    # spec 139 FR-3 (keel-web 175 FR-3): each read says which form it is (`b2b`), the user-pays one here
     assert read(f"Holds if at least 2 in 3 {DECIDERS} say the one you pick had to agree the last time they paid for "
                 f"{some}.") == {"case": "unpicked", "who": "the one you pick", "deciders": DECIDERS, "purchase": some,
-                                "alone": False}
+                                "alone": False, "b2b": False}
     assert read(f"Holds if at least 2 in 3 {DECIDERS} say the CFO had to agree the last time they paid for the "
                 "payroll software.") == {"case": "role", "who": "the CFO", "deciders": DECIDERS,
-                                         "purchase": "the payroll software", "alone": False}
+                                         "purchase": "the payroll software", "alone": False, "b2b": False}
     assert read(f"Holds if at least 2 in 3 say nobody else had to agree the last time they paid for {some}. "
                 f"{vs_screens.BUYER_PAYER_ALONE_COUNTS}") == \
-        {"case": "nobody", "who": "nobody else", "deciders": None, "purchase": some, "alone": True}
+        {"case": "nobody", "who": "nobody else", "deciders": None, "purchase": some, "alone": True, "b2b": False}
     # the old pins: gone from the page (149, 173), so they read as no case at all
     assert read(f"Holds if at least 2 in 3 {DECIDERS} say the CFO had to agree the last time they bought {OFFER}.") \
         is None
@@ -261,7 +262,8 @@ def test_the_leg_holds_each_choose_and_answer_in_one_step():
     assert 'seen[-1]["row"] = row' in source
     held = source[source.index("each Answer sends its one text"):]
     assert "answer_boxes_faults(screen, key, answers[key].text)" in held
-    assert 'choose_faults(screen, key, row=screen.get("row"))' in held
+    # spec 139 FR-3 (keel-web 175 FR-3): the bar's form read by the study's B2B flag
+    assert 'choose_faults(screen, key, row=screen.get("row"), b2b=vs.is_b2b(j.entry))' in held
     assert "assert not faults" in held
 
 

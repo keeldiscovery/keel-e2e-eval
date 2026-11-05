@@ -177,7 +177,17 @@ def step_of(key: str, scope: str = "ALL") -> tuple[int, int]:
     return steps.index(key) + 1, len(steps)
 UNSURE_CHIP = "I'm not sure"
 PRICE_NONE_CHIP = "No price yet"
-LEAVE_OUT_CHIP = "Leave this out of the study"
+#: keel-web 063 to 174: the list Answer's chip, read on a stored screen (spec 139 FR-3 keeps it by spec number).
+LEAVE_OUT_CHIP_063 = "Leave this out of the study"
+#: Spec 139 FR-3 (keel-web 175 FR-2, `LEAVE_OUT_CHIP = UNSURE_CHIP`): the list Answer's chip reads *I'm not sure*, and
+#: beside it (`leave-out-line`, the chip's accessible description) what pressing it does.
+LEAVE_OUT_CHIP = UNSURE_CHIP
+LEAVE_OUT_LINE = "Leaves this out of the study"
+LEAVE_OUT_LINE_TESTID = "leave-out-line"
+#: Spec 139 FR-3 (keel-web 175 FR-7): Importance's Answer draws the own row above the box -- Check's locked row tagged
+#: *yours*, in `ul.listrows.calib__own`.
+ANSWER_OWN_ROW_TESTID = "answer-own-row"
+OWN_ROW_TAG = "yours"
 LIST_DRAFTING = "Keel is writing this from your answer."
 
 # ------------------------------------------------------------- spec 116: keel-web 149's Choose and 150's two boxes
@@ -200,6 +210,19 @@ BUYER_PAYER_ALONE_COUNTS = "Decided alone counts as support."
 BUYER_PAYER_BAR = re.compile(r"^Holds if at least 2 in 3(?: (?P<deciders>.+?))? say (?P<who>.+?) had to agree "
                              r"the last time they paid for (?P<purchase>.+?)\.(?P<alone> Decided alone counts as "
                              r"support\.)?$")
+#: Spec 139 FR-3 (keel-web 175 FR-3, `buyerPayerBar(..., deciderLink)`): on the decision-maker's link (`b2b`) the bar
+#: names both of the card's *for* answers in the present -- *Holds if at least 2 in 3 {deciders} say they could sign off
+#: on it themselves, or that {who} would have to agree.*; *Nobody else* tested there, its one *for* answer alone (no
+#: *Decided alone counts as support.*); before a pick *..., or that the one you pick would have to agree.*
+BUYER_PAYER_BAR_B2B = re.compile(r"^Holds if at least 2 in 3(?: (?P<deciders>.+?))? say they could sign off on it "
+                                 r"themselves(?:, or that (?P<who>.+?) would have to agree)?\.$")
+#: Spec 139 FR-3 (keel-web 175 FR-1): Buyer and payer's Check draws the wire's fixed first row, *Nobody else*, locked and
+#: first, before *{problem actor} · has the problem*, *{decider} · decides to buy* and the role boxes.
+CHECK_NOBODY_ELSE_TESTID = "check-nobody-else"
+#: Spec 139 FR-3 (keel-web 175 FR-6): a row Keel suggests on a Check that tags suggestions (every list but
+#: Compatibility) is set apart (`li.listrow--suggested`) with its served why under it (`check-suggestion`).
+LIST_ROW_SUGGESTED = "listrow--suggested"
+CHECK_SUGGESTION_TESTID = "check-suggestion"
 #: keel-web 149 FR-1 / FR-2: the recall line under the title and the belief under each radio.
 CHOOSE_RECALL_TESTID = "choose-recall"
 CHOOSE_BELIEF_TESTID = "choose-belief"
@@ -477,13 +500,64 @@ def buyer_payer_bar(text: str | None) -> dict | None:
     *... say they had to agree last time.* / *... say they decided on their own.* read None). Spec 137 FR-3 (keel-web
     173 FR-5): the purchase it names (`purchase`: *something for this*, or the founder's purchase noun) and whether it
     says *Decided alone counts as support.* (`alone`); 149's *... the last time they bought {offer}.* reads None."""
-    found = BUYER_PAYER_BAR.match(" ".join((text or "").split()))
+    said = " ".join((text or "").split())
+    found = BUYER_PAYER_BAR.match(said)
     if not found:
-        return None
+        # spec 139 FR-3 (keel-web 175 FR-3): the decision-maker's link's present-tense form (`b2b`); *Nobody else* names
+        # no one after *or that*
+        b2b = BUYER_PAYER_BAR_B2B.match(said)
+        if not b2b:
+            return None
+        who = b2b["who"]
+        case = "nobody" if who is None else "unpicked" if who == BUYER_PAYER_UNPICKED else "role"
+        return {"case": case, "who": who or BUYER_PAYER_NOBODY, "deciders": b2b["deciders"], "purchase": None,
+                "alone": False, "b2b": True}
     who = found["who"]
     case = "unpicked" if who == BUYER_PAYER_UNPICKED else "nobody" if who == BUYER_PAYER_NOBODY else "role"
     return {"case": case, "who": who, "deciders": found["deciders"], "purchase": found["purchase"],
-            "alone": found["alone"] is not None}
+            "alone": found["alone"] is not None, "b2b": False}
+
+
+#: Spec 139 FR-3 (keel-web 175 FR-4, keel-cloud 185 `ItemFrames.FACT_THREE`): Compatibility's bar on a fact row has one
+#: answer against, its last -- never 128's *say partly, or no.*; an ability's and a permission's bars are unchanged.
+COMPATIBILITY_FACT_BAR = "Holds if no more than 1 in 3 say no."
+COMPATIBILITY_FACT_BAR_128 = "Holds if no more than 1 in 3 say partly, or no."
+COMPATIBILITY_ABILITY_BAR = "Holds if no more than 1 in 3 say only sometimes, or no."
+COMPATIBILITY_PERMISSION_BAR = "Holds if no more than 1 in 3 say only with help or approval, or no."
+
+
+def compatibility_bar_faults(bar: str | None) -> list[dict]:
+    """Spec 139 FR-3 (keel-web 175 FR-4): Compatibility's Choose bar as drawn is one of the three kinds' -- a fact's *...
+    say no.*, an ability's, a permission's -- and never 128's *say partly, or no.* (the kind itself is the page's own
+    reading, keel-web 175's *Left open*: its `isFact` is 128's modal test, so the walk holds the words, not the kind).
+    `[]` where it holds or no bar was read."""
+    said = " ".join(str(bar or "").split())
+    if not said:
+        return []
+    if said in (COMPATIBILITY_FACT_BAR, COMPATIBILITY_ABILITY_BAR, COMPATIBILITY_PERMISSION_BAR):
+        return []
+    return [{"what": "Compatibility's bar", "drawn": said,
+             "want": [COMPATIBILITY_FACT_BAR, COMPATIBILITY_ABILITY_BAR, COMPATIBILITY_PERMISSION_BAR]}]
+
+
+#: Spec 139 FR-3 (keel-web 175 FR-5): where the user pays (`locked.unit` null) the price step draws neither *Free to
+#: them* nor its hint -- absent, never greyed -- unless the saved price already holds FREE.
+CHAIN_FREE_TESTID = "chain-shape-FREE"
+CHAIN_FREE_HINT_TESTID = "chain-free-hint"
+
+
+def free_drawn_faults(seen: dict | None, b2b: bool, price: dict | None) -> list[dict]:
+    """Spec 139 FR-3 (keel-web 175 FR-5): on a study where the user pays, `chain-shape-FREE` and `chain-free-hint` are
+    absent from the price step (`seen["free_drawn"]`, `seen["free_hint_drawn"]`) -- unless the entry's own price is FREE
+    (a saved FREE is drawn, 168 FR-5's rule). `[]` where it holds, on B2B, or where the step was not read for it."""
+    if not seen or b2b or "free_drawn" not in seen or (price or {}).get("shape") == "FREE":
+        return []
+    faults = []
+    for key, testid in (("free_drawn", CHAIN_FREE_TESTID), ("free_hint_drawn", CHAIN_FREE_HINT_TESTID)):
+        if seen.get(key):
+            faults.append({"what": f"{testid} drawn where the user pays (keel-web 175 FR-5)", "drawn": True,
+                           "want": False})
+    return faults
 
 
 def role_in_sentence(label: str) -> str:
@@ -2555,6 +2629,9 @@ class Corridor:
         # (`chain-share-RECOVERED` only over a saved price that holds it), nor `chain-shape-SHARE` where the wire serves
         # no SHARE -- read before the pick; a price of that shape stops by name, never on a click's timeout
         recovered = page.get_by_test_id(CHAIN_RECOVERED_TESTID).count() > 0
+        # spec 139 FR-3 (keel-web 175 FR-5): *Free to them* and its hint, absent where the user pays -- read before the pick
+        free_drawn = page.get_by_test_id(CHAIN_FREE_TESTID).count() > 0
+        free_hint_drawn = page.get_by_test_id(CHAIN_FREE_HINT_TESTID).count() > 0
         if choice == CHAIN_RECOVERED_TESTID and not recovered:
             raise AssertionError(RECOVERED_NOT_DRAWN)
         page.get_by_test_id(choice).click()
@@ -2579,7 +2656,7 @@ class Corridor:
                     if bool(price.get("optional")) != box.is_checked():
                         box.click()
         return {"chain": True, "locked": _first_text(page, "[data-testid=chain-locked]"), "choice": choice,
-                "recovered_drawn": recovered,
+                "recovered_drawn": recovered, "free_drawn": free_drawn, "free_hint_drawn": free_hint_drawn,
                 "plan_boxes": plan_boxes_drawn(page) if shape == "UPFRONT_THEN" and not price.get("thenNothing")
                 else None}
 
@@ -2587,8 +2664,8 @@ class Corridor:
 
     def list_answer(self, question: dict, text: str | None) -> dict:
         """A list dimension's *Answer* (keel-web 063 FR-004): the founder's words typed and Continue --
-        which posts `calibration/{vector}/draft` and opens Check -- or, `text` None, *Leave this out of the
-        study* and on past this question. Returns the frame and the prompt drawn.
+        which posts `calibration/{vector}/draft` and opens Check -- or, `text` None, the chip (*I'm not sure* since
+        keel-web 175, *Leave this out of the study* before it; spec 139 FR-3) and on past this question. Returns the frame and the prompt drawn.
 
         Spec 116 FR-2 (keel-web 150 FR-2, FR-3): where the screen draws Current solution's second box (`answer-how`), the
         Answer is typed as 150 splits a stored one (`split_answer`: the first box up to its first full stop, the second
@@ -2602,6 +2679,12 @@ class Corridor:
             seen = {"screen": "answer", "frame": self.frame(), "question": _first_text(self.page, "h1.calib__q"),
                     "hint": _first_text(self.page, ".calib__hint"),
                     "derived": _first_text(self.page, ".calib__derived")}
+            # spec 139 FR-3 (keel-web 175 FR-2, FR-7): the line beside the chip, and Importance's own row above the box
+            seen["leave_out_line"] = _first_text(self.page, f"[data-testid={LEAVE_OUT_LINE_TESTID}]") or None
+            own = self.page.locator(f"[data-testid={ANSWER_OWN_ROW_TESTID}] li.listrow")
+            if own.count():
+                seen["own_row"] = {"text": _first_text(own.first, ".listrow__ed--lock"),
+                                   "tag": _first_text(own.first, ".listrow__tag")}
             how_box = self.page.get_by_test_id(ANSWER_HOW_TESTID)
             two = how_box.count() > 0
             if two:
@@ -2619,7 +2702,13 @@ class Corridor:
                     first.fill(text)
                 seen["counter"] = _first_text(self.page, ".calib__wc")
             else:
-                self.page.locator("button.calib__chip", has_text=LEAVE_OUT_CHIP).first.click()
+                # spec 139 FR-3 (keel-web 175 FR-2): the chip by its name, *I'm not sure* (063's *Leave this out of the
+                # study* on a web before 175)
+                chip = self.page.locator("button.calib__chip", has_text=LEAVE_OUT_CHIP)
+                if not chip.count():
+                    chip = self.page.locator("button.calib__chip", has_text=LEAVE_OUT_CHIP_063)
+                seen["chip"] = " ".join(chip.first.inner_text().split())
+                chip.first.click()
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(f"answer-{name}"))
             with self._keeping("POST", CALIBRATION_DRAFT) as sent:
@@ -2659,6 +2748,8 @@ class Corridor:
         rows = []
         for li in self.page.locator(LIST_ROW).all():
             data_tag = li.get_attribute(ROW_TAG_ATTR)
+            testid = li.get_attribute("data-testid")
+            suggested = LIST_ROW_SUGGESTED in (li.get_attribute("class") or "").split()
             locked = li.locator(".listrow__ed--lock")
             if locked.count():
                 row = {"text": _first_text(li, ".listrow__ed--lock"), "tag": _first_text(li, ".listrow__tag"),
@@ -2670,6 +2761,13 @@ class Corridor:
             if data_tag:
                 row["data_tag"] = data_tag
                 row["said"] = row_said(row["text"], data_tag)
+            # spec 139 FR-3 (keel-web 175 FR-1, FR-6): Buyer and payer's fixed *Nobody else*, and Keel's suggested row
+            # set apart with its served why
+            if testid == CHECK_NOBODY_ELSE_TESTID:
+                row["nobody_else"] = True
+            if suggested:
+                row["suggested"] = True
+                row["why"] = _first_text(li, f"[data-testid={CHECK_SUGGESTION_TESTID}]") or None
             rows.append(row)
         field = self.page.locator(".listcheck .listcheck__field textarea.listrow__ed")
         founder_note = _first_text(self.page, f".listcheck {LIST_FOUNDER_NOTE}")

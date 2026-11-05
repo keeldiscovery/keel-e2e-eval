@@ -620,7 +620,11 @@ READ_JS = """() => {
   // off this list*) is never a row: it is read as `note`, with the guidance line under the list (`.listcheck__note`)
   // spec 137 FR-3 (keel-web 173 FR-5a): a role row is read with its tag (`li.listrow[data-tag]`) -- *The CFO · has to
   // agree*, as the first two rows carry *has the problem* and *decides to buy* (cycle 11's readers saw the value alone)
-  const rows = Array.from(document.querySelectorAll("li.listrow:not(.listrow--note)")).map((li) => {
+  // spec 139 FR-3 (keel-web 175 FR-7): Importance's own row on the Answer screen (`answer-own-row`) is read apart
+  // (`own_row`), never as a Check row; (FR-1) Buyer and payer's fixed *Nobody else* (`check-nobody-else`) is the
+  // first row, read as drawn
+  const rows = Array.from(document.querySelectorAll("li.listrow:not(.listrow--note)"))
+      .filter((li) => !li.closest("[data-testid=answer-own-row]")).map((li) => {
       const ta = li.querySelector("textarea");
       const text = ((ta && ta.value) || li.innerText || "").replace(/\\s+/g, " ").trim();
       const tag = (li.getAttribute("data-tag") || "").replace(/\\s+/g, " ").trim();
@@ -634,6 +638,14 @@ READ_JS = """() => {
       answers: answersBlock ? Array.from(answersBlock.querySelectorAll("[data-testid=commitment-answer]")).map(said)
           .filter(Boolean) : [],
       note: commitmentNote || null} : null;
+  // spec 139 FR-3 (keel-web 175 FR-6): Keel's suggested row, set apart, with its served why under it
+  const suggested = Array.from(document.querySelectorAll("li.listrow--suggested")).map((li) => {
+      const ta = li.querySelector("textarea");
+      const why = li.querySelector("[data-testid=check-suggestion]");
+      return {row: ((ta && ta.value) || "").replace(/\\s+/g, " ").trim(),
+              why: why ? said(why) || null : null};
+  });
+  const ownRow = document.querySelector("[data-testid=answer-own-row] li.listrow");
   const notes = all("li.listrow--note, .listcheck__note");
   const dialog = document.querySelector("[role=dialog]");
   const scope = dialog || document.querySelector("main") || document.body;
@@ -662,6 +674,12 @@ READ_JS = """() => {
           keel_test: keel ? {belief: one(".keeltest .keeltest__t"), bar: one(".keeltest .keeltest__b"),
                              note: one("[data-testid=keeltest-note]") || null} : null,
           idea_boxes: idea, commitment: commitment,
+          // spec 139 FR-3 (keel-web 175 FR-2, FR-1, FR-6, FR-7): the chip's line, Nobody else drawn, the suggested
+          // rows, the own row above the Answer box
+          leave_out_line: one("[data-testid=leave-out-line]") || null,
+          nobody_else: !!document.querySelector("[data-testid=check-nobody-else]"),
+          suggested: suggested.length ? suggested : null,
+          own_row: ownRow ? said(ownRow) : null,
           text: (scope.innerText || "").slice(0, 6000)};
 }"""
 
