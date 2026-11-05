@@ -2242,6 +2242,19 @@ def founder_price(entry) -> dict | None:
     return out
 
 
+#: keel-cloud 220 FR-1 (`CostEstimate.priceQuestion`): the founder's Price question.
+PRICE_QUESTION = "What price do you have in mind for {subject}?"
+PRICE_QUESTION_NO_SUBJECT = "a fix for this"
+
+
+def price_question(idea_name: str | None, offer_name: str | None) -> str:
+    """Spec 141 FR-3 (keel-cloud 220 FR-1, `CostEstimate.priceQuestion` / `priceSubject`): *What price do you have in
+    mind for {Name}?* -- the idea by its name where the study holds one, else the offer as the seed puts it, else *a fix
+    for this*."""
+    subject = next((str(x).strip() for x in (idea_name, offer_name) if x is not None and str(x).strip()), None)
+    return PRICE_QUESTION.format(subject=subject or PRICE_QUESTION_NO_SUBJECT)
+
+
 def price_belief_owed(entry) -> str | None:
     """Spec 137 FR-2 / FR-4 (keel-cloud 213 FR-1): the price belief the engine writes over what the walk types
     (`founder_price`) -- the plan's range whole, *then an optional {plan} plan* where it is optional, no unit where the

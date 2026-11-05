@@ -2958,6 +2958,18 @@ def _hold_commitment_check(j: Journey, question: dict, seen: dict) -> None:
         assert not faults, json.dumps(faults, indent=2)
 
 
+def price_question_faults(view: dict | None, idea_name: str | None, offer_name: str | None) -> list:
+    """Spec 141 FR-3 (keel-cloud 220 FR-1): the Price question the founder's COMMERCIAL calibration serves names the idea
+    by its name where the study holds one (`vs.price_question`), else the offer; `[]` where none is served (a free
+    price, a study without the money) or it is the one owed."""
+    served = next((q for q in (view or {}).get("questions") or [] if q.get("dimension") == "commercial.price"), None)
+    asked = (served or {}).get("question")
+    if not asked:
+        return []
+    want = vs.price_question(idea_name, offer_name)
+    return [] if " ".join(str(asked).split()) == want else [{"price question": asked, "want": want}]
+
+
 def _hold_the_price_boxes(j: Journey, seen: dict) -> None:
     """Spec 075 FR-2 (keel-cloud 140, 141): the Price step's cost box draws the served `costEstimate.said` in keel-web's
     frame (*You estimate the problem costs them {said}.*) -- on an estimate in hours, 140's words: the hours, the rate,
@@ -2983,6 +2995,10 @@ def _hold_the_price_boxes(j: Journey, seen: dict) -> None:
         if seen.get("ability"):
             assert seen["ability"] == ability, {"drawn": seen["ability"], "served": ability}
             assert not seen["ability"].startswith("You said"), seen["ability"]
+        # spec 141 FR-3 (keel-cloud 220): the question names the idea where the study holds a name
+        faults = price_question_faults(view, j.idea_name or getattr(j.entry, "idea_name", None),
+                                       (j.entry.interpretations or {}).get("offer_name"))
+        assert not faults, faults
 
 
 def _hourly_rate(j: Journey) -> None:

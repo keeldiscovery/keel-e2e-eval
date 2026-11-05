@@ -5,6 +5,7 @@ tasks.md *Owed: keel-e2e-eval*). No stack, no model, no paid call; the cloud's s
 - FR-4 Commitment (221): the Yes at eleven, the step whole; an act-first smaller step said -ing and kept; data acts.
 - FR-5 Prevalence (224): E8 reads the head verb and the verdict words; 06-repeatline's scripted clause off *by hand*.
 - FR-2 Relative advantage (219): *Think of {hard_case}.* first; the belief on `hard_case_theirs`; the scripted clause.
+- FR-3 Price (220): the question and the belief name the idea; the walk holds the served question.
 """
 
 from __future__ import annotations
@@ -284,3 +285,56 @@ def test_the_scripted_writers_carry_the_clause_where_the_cloud_reads_it(golden):
     assert vs.event_base(solution) == vs.PROBLEM_CLAUSES["01-countly"][1]
     assert wording_mod.packed_fault(card["event"], card["went_wrong"]) is None
     assert set(vs.problem_result(dataclasses.replace(countly, scope="COMMERCIAL"))) == {"statement", "offer_name"}
+
+
+# ----------------------------------------------------------------------------------------------- FR-3: keel-cloud 220
+
+#: keel-cloud `PriceNamesTheIdeaTest`'s cycle-14 beliefs (four of five word for word; AirCaps' people are the cloud
+#: fixture's *Deaf or hard-of-hearing adults*, the corpus records *Deaf and ...*).
+PRICE_BELIEFS = {
+    "08-fresco": "Contractor operations leads would think Fresco worth $800 to $1,000 per site a month.",
+    "10-palus": "Startup founders would think a fee of 0.25% of the long-term reserve a year fair for Palus.",
+    "17-expanse": "Cluster operators would think Expanse worth $10,000 to $20,000 per cluster a month.",
+    "21-codyco": "Hotel group revenue directors would think Codyco worth €3,000 up front, then €1,000 to €1,500 per "
+                 "hotel a month.",
+}
+
+
+def _gallery(entry_id: str):
+    path = corpus_mod.backtest_dir(KEEL_CLOUD) / f"{entry_id}.yaml"
+    if not path.is_file():
+        pytest.skip(f"no gallery entry {path}")
+    return corpus_mod.load_file(path, registry=fx.registry(), backtest=True)
+
+
+def test_the_price_question_names_the_idea():
+    """220 FR-1 (`CostEstimate.priceQuestion` / `priceSubject`): the idea by its name, else the offer, else *a fix for
+    this*; the walk holds the served question to it (`corpus_scenario.price_question_faults`)."""
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    source = _cloud(VECTORS + "CostEstimate.java")
+    assert '"What price do you have in mind for " + (subject == null ? "a fix for this" : subject) + "?"' in source
+    assert vs.price_question("Fresco", "something for the end-of-day documents") == \
+        "What price do you have in mind for Fresco?"
+    assert vs.price_question(None, "something for the end-of-day documents") == \
+        "What price do you have in mind for something for the end-of-day documents?"
+    assert vs.price_question(" ", None) == "What price do you have in mind for a fix for this?"
+    view = {"questions": [{"dimension": "commercial.price", "question": "What price do you have in mind for Fresco?"}]}
+    assert cs.price_question_faults(view, "Fresco", "something") == []
+    assert cs.price_question_faults(view, None, "something") == [
+        {"price question": "What price do you have in mind for Fresco?",
+         "want": "What price do you have in mind for something?"}]
+    assert cs.price_question_faults({"questions": []}, "Fresco", None) == []
+
+
+@pytest.mark.parametrize("entry_id", ["08-fresco", "10-palus", "13-aircaps", "17-expanse", "21-codyco"])
+def test_the_walked_price_question_and_belief_name_the_idea(entry_id):
+    """220 FR-1 / FR-2 (spec 141 FR-3): on a study that holds a name, the Price question the walk owes and the belief
+    the engine writes over the walker's price (`price_belief_owed`) both name the idea."""
+    entry = _gallery(entry_id)
+    assert entry.idea_name
+    assert vs.price_question(entry.idea_name, (entry.interpretations or {}).get("offer_name")) == \
+        f"What price do you have in mind for {entry.idea_name}?"
+    belief = vs.price_belief_owed(entry)
+    assert entry.idea_name in belief and " it worth " not in belief and "fair for it." not in belief
+    if entry_id in PRICE_BELIEFS:
+        assert belief == PRICE_BELIEFS[entry_id]
