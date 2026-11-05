@@ -212,8 +212,9 @@ MUTATIONS = {
                        "'LAST_CYCLE' is not a recall window"),
     "no window": (lambda r: r["context"].pop("recall_window"), "context.recall_window is absent"),
     "no occasion": (lambda r: r["context"].pop("occasion"), "context.occasion is None"),
-    "an occasion of five words": (lambda r: r["context"].__setitem__("occasion", "a cold wet winter morning"),
-                                  "context.occasion is 'a cold wet winter morning'"),
+    # spec 139 FR-4 (keel-cloud 217): five words since revision 25's Codyco occasion, so six is the refusal's case
+    "an occasion of six words": (lambda r: r["context"].__setitem__("occasion", "a cold wet dark winter morning"),
+                                 "context.occasion is 'a cold wet dark winter morning'"),
     # rule L, its shape half
     "labels on a founder entry": (lambda r: _fc(r, "problem.prevalence").__setitem__("labels", ["x"]),
                                   "founder_calibration[problem.prevalence] carries `labels` / `units`"),
@@ -436,12 +437,15 @@ KEY_MUTATIONS = {
             "codes", ["mostly_works", "works_well", "hit_and_miss", "works_poorly", "no_reliable_way"]),
         "the founder's five outcomes in order"),
     # rule A against the rows
-    "Importance picked once": (lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
-        "problem.importance", ["finding_keys"]), "Ann Abbott's problem.importance pick is ['finding_keys']"),
+    # spec 139 FR-4 (keel-cloud 217 judgement call 1): one code is the first pick then *Nothing else*, recorded since
+    # revision 25 -- so three codes is the refusal's case, and the refusal says one or two
+    "Importance picked three times": (lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
+        "problem.importance", ["finding_keys", "the_bus", "the_alarm"]), "Ann Abbott's problem.importance pick is "
+                                                                         "['finding_keys', 'the_bus', 'the_alarm']"),
     "Importance picked twice the same": (lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
-        "problem.importance", ["finding_keys", "finding_keys"]), "Importance is two distinct codes"),
+        "problem.importance", ["finding_keys", "finding_keys"]), "Importance is one or two distinct codes"),
     "Importance a code off the row": (lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
-        "problem.importance", ["finding_keys", "the_rain"]), "Importance is two distinct codes"),
+        "problem.importance", ["finding_keys", "the_rain"]), "Importance is one or two distinct codes"),
     "an escape that is not the row's": (lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(
         "problem.current_solution_satisfaction", {"chip": "cant_tell"}), "its one escape is 'someone_else_checks'"),
     "an escape on Commitment": (lambda r: _person(r, "Ann Abbott")["picks"].__setitem__(

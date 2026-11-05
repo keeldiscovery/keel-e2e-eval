@@ -3073,6 +3073,10 @@ class Pick:
             out["interval"] = {"low": self.interval["low"], "high": self.interval.get("high", self.interval["low"])}
             return out
         out["optionIds"] = [option_id(token, self.dimension, c) for c in self.codes]
+        if self.dimension == "problem.importance" and len(self.codes) == 1:
+            # spec 139 FR-4 (keel-cloud 217 judgement call 1, 158 FR-2): a one-code Importance pick is the first pick,
+            # then *Nothing else* -- the one id with `chip: NOTHING_ELSE`, as keel-web's second ask sends it
+            out["chip"] = NOTHING_ELSE_CHIP
         # spec 089 FR-4 (keel-cloud 159, contract 47): `advantageIds` is gone -- Relative advantage is one code
         return out
 

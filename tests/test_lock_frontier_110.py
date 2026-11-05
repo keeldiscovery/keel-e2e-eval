@@ -463,13 +463,16 @@ def _backtest(entry_id: str):
 
 
 @pytest.mark.parametrize("entry_id, question, label", [
-    # spec 132 FR-9 re-pin (keel-cloud 206 FR-5): never *miss* -- each entry's line as 206 asks it
-    ("10-palus", "Last year, about what percent of the balance did you go without in interest?",
-     "% of the balance last year"),
-    ("17-expanse", "Last month, about what percent of the cluster's GPU hours did jobs never use?",
-     "% of GPU hours last month"),
-    ("21-codyco", "Last month, about what percent of the reservation calls rang out after hours, at peak or on a "
-                  "holiday?", "% of the reservation calls last month"),
+    # spec 132 FR-9 re-pin (keel-cloud 206 FR-5): never *miss* -- each entry's line as 206 asks it. Spec 139 FR-4
+    # re-pin (keel-cloud 217, corpus revision 25, its judgement call 8 and `TheQuestionScreensDefectsTest`): Palus' and
+    # Expanse's amended lines as 217 says the walk sees them; Codyco's reworded line (*Booking calls that rang out
+    # unanswered*: no verb of its own by `LossLine.read`, so *go without*), which 217 does not pin, as the port composes it
+    ("10-palus", "Last year, about what percent of the long-term reserve did you go without?",
+     "% of the long-term reserve last year"),
+    ("17-expanse", "Last month, about what percent of the reserved GPU hours sat idle?",
+     "% of the reserved GPU hours last month"),
+    ("21-codyco", "Last month, about what percent of the reservation calls did you go without in booking calls that "
+                  "rang out unanswered?", "% of the reservation calls last month"),
 ])
 def test_the_three_entries_cost_items_are_170s_lines(entry_id, question, label):
     """170's tasks.md (FR-5 T014, not foreseen 6): Palus *your team* ... interest missed, Expanse word for word, Codyco

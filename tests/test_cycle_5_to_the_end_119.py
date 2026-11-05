@@ -351,8 +351,8 @@ def test_every_entry_loads_at_22_and_21_is_refused_by_name(tmp_path, registry):
     if not record.is_file():
         pytest.skip("no r21 record")
     (tmp_path / "21-codyco.yaml").write_text(record.read_text(encoding="utf-8"), encoding="utf-8")
-    # spec 135 (keel-cloud 215): 21-codyco is a gallery entry, read at revision 24
-    with pytest.raises(corpus_mod.CorpusError, match="revision is 21; this eval reads revision 24 for a gallery entry "
+    # spec 135 (keel-cloud 215): 21-codyco is a gallery entry, read at revision 24; spec 139 FR-4 (keel-cloud 217): 25
+    with pytest.raises(corpus_mod.CorpusError, match="revision is 21; this eval reads revision 25 for a gallery entry "
                                                      "only -- revision 21 is MARKS_VERSION 24's corpus before keel-cloud "
                                                      "187"):
         corpus_mod.load_file(tmp_path / "21-codyco.yaml", registry=registry, backtest=True)

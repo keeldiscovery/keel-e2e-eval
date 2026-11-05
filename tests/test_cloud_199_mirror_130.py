@@ -178,7 +178,9 @@ def test_the_base_is_said_once():
     assert chain_mod.unit_beside(None, "x", "month") is None
     expanse = _backtest("17-expanse")
     cost = expanse.founder_calibration["commercial.existing_sacrifice"]
-    assert cost["belief_phrase"] == "about 30% to 59% of the cluster's GPU hours a month"
+    # spec 139 FR-4 (keel-cloud 217 judgement call 8): Expanse's base is *the reserved GPU hours* at revision 25 (was
+    # *the cluster's GPU hours*); the unit-beside rule is pinned above on the old words
+    assert cost["belief_phrase"] == "about 30% to 59% of the reserved GPU hours a month"
     assert chain_mod.cost_said(cost["answer"], expanse.occasion(), None) == cost["belief_phrase"]
     text = _cloud(VECTORS + "CommercialChain.java")
     assert "static String unitBeside(String unit, String base, String period)" in text

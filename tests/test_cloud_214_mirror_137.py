@@ -240,10 +240,16 @@ def _answer(entry, key: str, vector: str):
 
 def test_palus_scripted_occasion_is_time(entries):
     """The coordinator's word, 2026-11-04 (keel-cloud 214 FR-6: `ReadBackReadsOnceApplierTest`'s *cash decision* ->
-    *time*): the scripted CONTEXT_INTERPRET result writes *time* where the corpus's noun is an X14 stand-in."""
+    *time*): the scripted CONTEXT_INTERPRET result writes *time* where the corpus's noun is an X14 stand-in -- none since
+    corpus revision 25 (keel-cloud 217: Palus' *cash decision* is *cash review*); the rule read on revision 24's noun."""
     palus = next(e for e in entries if e.id == "10-palus")
-    assert vs.occasion(palus) == "cash decision" and vs.context_result(palus)["occasion"] == "time"
-    assert {e.id for e in entries if vs.context_result(e)["occasion"] != vs.occasion(e)} == {"10-palus"}
+    # spec 139 FR-4 (keel-cloud 217, corpus revision 25): Palus' occasion is *cash review* now, which holds X14, so the
+    # scripted writer writes the corpus's own noun on every entry; *time* stays the rule where a noun breaks X14
+    assert vs.occasion(palus) == "cash review" and vs.context_result(palus)["occasion"] == "cash review"
+    assert {e.id for e in entries if vs.context_result(e)["occasion"] != vs.occasion(e)} == set()
+    from instructions import writers_rules as writers_mod                # noqa: PLC0415
+    assert writers_mod.occasion_fault("cash decision", None, vs._ctx(palus).get("circumstance"), False) is not None
+    assert writers_mod.occasion_fault("time", None, vs._ctx(palus).get("circumstance"), False) is None
 
 
 def test_the_scripted_drafts_break_214s_rules_only_in_the_corpus_words(entries):

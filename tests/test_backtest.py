@@ -85,7 +85,8 @@ def test_every_backtest_entry_loads_in_backtest_mode():
 
 def test_the_broken_fixture_is_refused_with_the_golden_sentence(tmp_path):
     said = _refusal(BROKEN)
-    assert "99-broken: context.occasion is 'the cold wet winter morning'" in said, said
+    # spec 139 FR-4: six words (keel-cloud 217's five-word occasion is in the rule since revision 25)
+    assert "99-broken: context.occasion is 'the cold wet dark winter morning'" in said, said
     # the same file with the occasion mended loads, so the occasion is the one fault
     raw = yaml.safe_load(BROKEN.read_text(encoding="utf-8"))
     raw["context"]["occasion"] = "morning"

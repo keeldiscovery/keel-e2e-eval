@@ -10,7 +10,8 @@
 # keel-cloud `canon/designs/measured-beliefs/backtest/CONSTITUTION.md` section 9 (the lists ticked against sections 2
 # to 5 in the sources file, the entry screened by `make unit` on the interpretation screens and part 1, a second reader
 # naming any row that breaks a card, one quality-cycle walk on its own) -- and only then gains a row here. The fourteen
-# below are at corpus revision 24 (`instructions.corpus.GALLERY`, `GALLERY_REVISION`); a row added here moves that too.
+# below are at corpus revision 25 (keel-cloud 217; `instructions.corpus.GALLERY`, `GALLERY_REVISION`); a row added here
+# moves that too.
 #
 #   entry              -- the back-test entry id (keel-cloud `canon/designs/measured-beliefs/backtest/<entry>.yaml`)
 #   slug               -- the directory under public/sample/ (lowercase letters, digits and hyphens, from the name)

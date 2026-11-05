@@ -1,4 +1,12 @@
-"""**Revision 24 read for the gallery** (spec 135 FR-1; keel-cloud 215, keel-cloud-docs `0464e20f`): the fourteen gallery
+"""**Revision 25 read for the gallery** (spec 139 FR-4; keel-cloud 217, keel-cloud-docs `4369a636`): the fourteen gallery
+entries are read at revision 25 -- the 72 rows of keel-cloud 217's `corpus-rewording-r25.md` Table 1, the eight drops
+(Compatibility 08-fresco, 13-aircaps, 14-code-four, 19-veles and 21-codyco to two rows; Purchase friction 14-code-four
+to two, 21-codyco to one), AirCaps' Compatibility pick moved to `read_and_watch` (index 1 of 2, an ability), three
+occasions (Fresco *site walk*, Palus *cash review*, Codyco *shift with a missed call*), the 27 re-read picks and the
+three amended cost lines (217 judgement call 8) -- and every other entry at revision 23 (spec 135's rule). A gallery
+file at 23 or 24, or any other file at 25, is refused by name.
+
+**Revision 24 read for the gallery** (spec 135 FR-1; keel-cloud 215, keel-cloud-docs `0464e20f`): the fourteen gallery
 entries (`GALLERY`, 08-fresco to 21-codyco, `instructions/gallery_names.toml`) are read at revision 24 -- every row of
 spec 134's `corpus-rewording.md` Table 1 and its shape changes (Palus' and Issen's Relative advantage split, the new
 codes `no_treasury_hire` and `no_tutor_to_book`; AirCaps' Compatibility split, `phone_with_them` first and picked;
@@ -170,7 +178,7 @@ from .registry import (DURATION_CONTROL, RECORDED_CONTROLS, ABILITY_BANDS, ABILI
 REVISION = 23
 #: Spec 135 FR-1 (keel-cloud 215, plan's *The reader*): the fourteen gallery entries move to revision 24; every other
 #: entry stays at `REVISION`, a mixed back-test folder by keel-cloud 215's word, held by name rather than refused.
-GALLERY_REVISION = 24
+GALLERY_REVISION = 25
 GALLERY = ("08-fresco", "09-karsa", "10-palus", "11-issen", "12-transload", "13-aircaps", "14-code-four",
            "15-voltair", "16-pairio", "17-expanse", "18-careforce", "19-veles", "20-lemma", "21-codyco")
 
@@ -225,7 +233,12 @@ _REVISION_OF = {3: "MARKS_VERSION 9's corpus, on the registry of twenty-five",
 _GALLERY_R23 = ("the gallery's rows before keel-cloud 215 (eval 134's card review: Table 1's 128 rows, Palus' and "
                 "Issen's Relative advantage and AirCaps' Compatibility unsplit, Fresco's, Expanse's and Codyco's "
                 "Purchase friction rows not dropped)")
-_NOT_GALLERY_R24 = "the gallery's alone (keel-cloud 215 moved the fourteen gallery entries; this one is not among them)"
+#: Spec 139 FR-4 (keel-cloud 217): a gallery entry at revision 24 is refused by this name.
+_GALLERY_R24 = ("the gallery's rows before keel-cloud 217 (Table 1's 72 rows of `corpus-rewording-r25.md`, eight rows not "
+                "dropped, AirCaps' Compatibility pick on `phone_with_them`, Fresco's *daily log*, Palus' *cash decision* "
+                "and Codyco's *reservation shift* occasions)")
+_NOT_GALLERY_R25 = ("the gallery's alone (keel-cloud 215 and 217 moved the fourteen gallery entries; this one is not "
+                    "among them)")
 
 #: Spec 067 FR-6 (keel-cloud 128 FR-11, `check_corpus_r15.py`'s rule Q): a person's answer to the segment's condition
 #: chip -- inside or outside -- where the entry's context records a condition; on the primary link only.
@@ -385,8 +398,10 @@ RESHAPED = ("problem.importance", "problem.current_solution_satisfaction", "solu
 NOT_SURE = ("not sure", "unsure", "don't know", "dont know", "no idea")
 #: keel-cloud 123 FR-10: the decision-maker's job title is one to five words.
 DECIDER_TITLE_MAX_WORDS = 5
-#: A `context.occasion` is a noun of one to four words (rule W).
-OCCASION_MAX_WORDS = 4
+#: A `context.occasion` is a noun of one to four words (rule W). Spec 139 FR-4 (keel-cloud 217 FR-1, Table 1): revision
+#: 25's Codyco occasion *shift with a missed call* is five words -- *five words keep every framed asked at 20 or under*
+#: -- so the corpus's rule reads one to five (the product's own cap, `ContextFields.OCCASION_MAX_WORDS`, is eight).
+OCCASION_MAX_WORDS = 5
 #: An `asked` clause is at most twenty words and asks nothing (design §4; rule L).
 ASKED_MAX_WORDS = 20
 _DIGITS = re.compile(r"\d+(?:[.,]\d+)?")
@@ -866,7 +881,8 @@ def _check_revision(raw: dict, path: Path) -> None:
     if revision != wanted:
         names = dict(_REVISION_OF)
         names[REVISION] = _GALLERY_R23
-        names[GALLERY_REVISION] = _NOT_GALLERY_R24
+        names[24] = _GALLERY_R24
+        names[GALLERY_REVISION] = _NOT_GALLERY_R25
         was = (f" -- revision {revision} is {names[revision]}" if revision in names else "")
         where = "" if wanted == REVISION else " for a gallery entry"
         raise _refuse(entry_id, f"revision is {revision if revision is not None else 'absent'}; "
@@ -1709,10 +1725,11 @@ def _check_pick(entry: Entry, registry, person: dict, key: str, pick) -> None:
     pick = spec198_pick(key, pick, fixed)                 # spec 130 (keel-cloud 198 FR-5): no_budget is outside_funding
     if control in RECORDED_CONTROLS["pick_one_then_one"]:
         # the corpus records two picks (keel-cloud 158: two picks are stored as the same two codes; one pick and
-        # Nothing else, which the corpus never records, is stored as the one code)
-        if not isinstance(pick, list) or len(pick) != 2 or len(set(pick)) != 2 \
+        # Nothing else is stored as the one code -- spec 139 FR-4: revision 25 records it, keel-cloud 217 judgement call
+        # 1, the first pick then *Nothing else* where no sentence of the person's story names a second row)
+        if not isinstance(pick, list) or len(pick) not in (1, 2) or len(set(pick)) != len(pick) \
                 or not set(map(str, pick)) <= set(codes):
-            raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}; Importance is two distinct codes of "
+            raise _refuse(entry.id, f"{name}'s {key} pick is {pick!r}; Importance is one or two distinct codes of "
                                     f"{codes}", entry.path)
     elif control in ("fixed_four", "fixed_three", "single_choice_5", "single_choice", BENEFIT_CONTROL,
                      "duration_bands") and codes:
@@ -1873,11 +1890,17 @@ _CHANGED = re.compile(r"\A(?:#[^\n]*\n)*?#\s*REVISION 16\b(?:[^\n]*\n#)*?[^\n]*?
 def _commitment_moved(raw: dict, text: str, path: Path) -> tuple:
     """Spec 068 FR-3: the people the entry's revision-16 header names under *Changed:* (129 FR-12's 112 across the 28),
     each one of the entry's people whose Commitment pick reads `yes_start` -- else refused by name. An entry whose header
-    names none moved nobody."""
+    names none moved nobody. Spec 139 FR-4 (keel-cloud 217 FR-2): a person a later revision's head names as re-read on
+    Commitment (09-karsa's Sana Memon and Mehwish Tariq, `probably_not` at 25) is left out -- read by the head's words,
+    never by entry."""
     match = _CHANGED.search(text)
     if not match:
         return ()
     names = tuple(n.strip() for n in match.group("names").split(",") if n.strip())
+    # spec 139 FR-4 (keel-cloud 217 FR-2): a later revision's head that re-read a named person's Commitment pick against
+    # their own story (*Picks re-read ...: Sana Memon (Commitment)*) moved it on; that person is no longer revision 16's
+    later = text[:match.start("names")].split("REVISION 16", 1)[0]
+    names = tuple(n for n in names if not re.search(re.escape(n) + r"\s*\([^)]*\bCommitment\b", later))
     picks = {p.get("person"): (p.get("picks") or {}).get(COMMITMENT_KEY) for p in raw.get("answers") or []}
     for name in names:
         if name not in picks:

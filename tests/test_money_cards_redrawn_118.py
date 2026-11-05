@@ -198,6 +198,9 @@ FACT_ENTRIES = {"12-transload", "13-aircaps", "14-code-four", "17-expanse", "18-
                 # whose tops were clear of tree cover*); its record keeps the four, read as code's three
                 # (`corpus.R24_FACT_FOUR`)
                 "15-voltair"}
+#: Spec 139 FR-4 (keel-cloud 217): AirCaps' tested condition is `read_and_watch` at revision 25, an ability (its row the
+#: four), so the facts as the corpus reads today are the 185 set without it; `FACT_ENTRIES` stays revision 21's.
+FACT_ENTRIES_R25 = FACT_ENTRIES - {"13-aircaps"}
 DECIDERS = {"08-fresco": "Do any of your company's jobs run on Procore or ACC?",
             "10-palus": "Does your startup keep its cash with Mercury, Brex or a similar startup banking platform?",
             "17-expanse": "Does the shared SLURM or Kubernetes cluster you run have 100 or more GPUs?"}
@@ -236,11 +239,12 @@ def test_revision_21_moves_exactly_185s_edits():
 
 def test_every_canon_entry_loads_at_23_and_19_to_22_are_refused_by_name(tmp_path, registry):
     """Spec 119 re-pin (keel-cloud 187, revision 22); spec 132 FR-11 (keel-cloud 207, revision 23): canon loads at 23;
-    19, 20, 21 and 22 are refused by name. Spec 135 (keel-cloud 215): the fourteen gallery entries load at 24."""
+    19, 20, 21 and 22 are refused by name. Spec 135 (keel-cloud 215): the fourteen gallery entries load at 24; spec 139
+    FR-4 (keel-cloud 217): at 25."""
     for path in sorted(corpus_mod.corpus_dir(KEEL_CLOUD).glob("*.yaml")):
         assert corpus_mod.load_file(path, registry=registry).revision == 23
     for path in sorted(corpus_mod.backtest_dir(KEEL_CLOUD).glob("*.yaml")):
-        want = 24 if path.stem in corpus_mod.GALLERY else 23
+        want = 25 if path.stem in corpus_mod.GALLERY else 23
         assert corpus_mod.load_file(path, registry=registry, backtest=True).revision == want, path.name
     for rev in ("r19", "r20", "r21", "r22"):
         record = MIRROR / f"corpus-{rev}" / "03-lullaby.yaml"
@@ -262,7 +266,7 @@ def test_a_fact_is_three_by_codes_reading_and_four_on_one_is_refused(tmp_path, r
             entry = corpus_mod.load_file(path, registry=registry, backtest=backtest)
             tested = entry.tested(CO) or {}
             kind = spoken_mod.condition_kind(tested.get("asked"), tested.get("label"))
-            assert (kind == "FACT") == (entry.id in FACT_ENTRIES), (entry.id, kind)
+            assert (kind == "FACT") == (entry.id in FACT_ENTRIES_R25), (entry.id, kind)
     raw = _load(corpus_mod.backtest_dir(KEEL_CLOUD) / "17-expanse.yaml")
     raw["respondent_questions"][CO]["codes"] = ["yes_easily", "yes_with_steps", "only_with_help", "no"]
     path = tmp_path / "17-expanse.yaml"
@@ -288,8 +292,10 @@ def test_the_chain_beliefs_name_who_pays(registry):
         "Contractor operations leads who would pay $800 to $1,000 per site a month could find the money for it."
     assert cal[AB]["belief_phrase"].startswith("contractors who would pay"), "the phrase reads the role, not the title"
     assert palus.founder_calibration[AB]["belief_sentence"].startswith("Startup founders who would pay the 0.25% fee")
+    # spec 139 FR-4 (keel-cloud 217, `MoneyCardsShowTheirBarTest`): the founder's base, the long-term reserve (revision
+    # 25; was *of the balance per company*)
     assert palus.founder_calibration[PRICE]["belief_sentence"] == \
-        "Startup founders would think a fee of 0.25% of the balance per company a year fair for Palus."
+        "Startup founders would think a fee of 0.25% of the long-term reserve a year fair for Palus."
     assert "could find it in money they already spend on this" in aircaps.founder_calibration[AB]["belief_sentence"]
     for entry in (fresco, palus, aircaps):
         said = " ".join(str(v.get("belief_sentence") or "") for v in entry.founder_calibration.values())

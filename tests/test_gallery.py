@@ -394,7 +394,7 @@ def test_provenance_already_under_out_refuses_and_nothing_is_written(tmp_path, n
 
 
 #: Spec 135 FR-4: the run of record walked corpus revision 23 (its `backtest.json` says so); the gallery's entries are at
-#: revision 24 since keel-cloud 215, and the run is re-recorded in the next quality cycle's walk (paid), never hand-edited.
+#: revision 24 since keel-cloud 215 (25 since keel-cloud 217, spec 139 FR-4), and the run is re-recorded in the next quality cycle's walk (paid), never hand-edited.
 FRESCO_RUN_REVISION = 23
 
 
@@ -427,7 +427,7 @@ def test_the_recorded_fresco_run_is_marked_revision_23():
     record = json.loads((RUN / bt.RECORD).read_text(encoding="utf-8"))
     assert record["revision"] == FRESCO_RUN_REVISION == 23 and record["entry"]["id"] == "08-fresco"
     from instructions import corpus as corpus_mod                               # noqa: PLC0415
-    assert corpus_mod.revision_of("08-fresco") == 24
+    assert corpus_mod.revision_of("08-fresco") == 25                           # spec 139 FR-4 (keel-cloud 217)
 
 
 def test_the_interview_withholds_ids_tokens_and_media(exported):

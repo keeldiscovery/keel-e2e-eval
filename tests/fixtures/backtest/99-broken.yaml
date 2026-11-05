@@ -1,6 +1,7 @@
 # Spec 062 Acceptance 1: a BROKEN back-test entry. 10-fixture-b2b.yaml with `expected` removed and the two
 # back-test keys added (`idea_name`, `sources`) -- a well-formed back-test entry but for one golden shape rule:
-# context.occasion is five words, where revision 10 records one to four. The loader in back-test mode refuses
+# context.occasion is six words, where revision 10 records one to four (one to five since corpus revision 25, spec
+# 139 FR-4). The loader in back-test mode refuses
 # it with the sentence a golden author gets. Not a back-test entry; values invented.
 # Revision 21 since spec 118 (keel-cloud 181, 182, 185): the tested Compatibility condition is a fact by code's reading
 # (`ItemFrames.conditionKind`), so its row is the fact's three (only_with_help never served on a fact) and the one
@@ -35,7 +36,7 @@ context:
   actor_plural: commuters who cycle
   job: get out of the door on time
   circumstance: the morning they cannot find their keys
-  occasion: the cold wet winter morning
+  occasion: the cold wet dark winter morning
   segment: commuters in Leeds who cycle to work
   understood: 'Keel understands: commuters who cycle, on the morning they cannot find their keys, trying to get out of the
     door on time.'

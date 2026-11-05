@@ -1,4 +1,14 @@
-"""Spec 135: the harness reads corpus revision 24 (owed by keel-cloud 215, keel-cloud-docs `0464e20f`).
+"""Spec 139 FR-4: the harness reads corpus revision 25 (owed by keel-cloud 217, keel-cloud-docs `4369a636`); spec 135's
+test of revision 24 (owed by keel-cloud 215, keel-cloud-docs `0464e20f`), moved on to 25.
+
+Revision 25 (keel-cloud 217, `specs/217-corpus-revision-25/tasks.md`, *Owed to keel-e2e-eval*): the fourteen gallery
+entries at 25, every other entry at 23; a gallery file at 23 or 24 and any other file at 25 refused by name; the diff 24
+-> 25 the gallery's alone (keel-cloud's `backtest-r24/` record). AirCaps' Compatibility is two rows, the pick
+`read_and_watch` at index 1 (an ability); Code Four's Purchase friction two and Codyco's one, the founder's times kept;
+Importance's rows the founder types on Check are revision 25's (nine entries now, Fresco's, Expanse's and Codyco's
+reworded rivals the longer).
+
+What follows is spec 135's account of revision 24, kept as written where it still holds:
 
 FR-1 the loader reads the fourteen gallery entries at 24 and every other entry at 23 (`corpus.GALLERY`,
 `GALLERY_REVISION`, `revision_of`), refusing by name a gallery file at 23 and any other file at 24; the diff 23 -> 24 is
@@ -10,7 +20,7 @@ the gallery's map. FR-4 is `tests/test_gallery.py`'s (the recorded Fresco run ma
 
 Two things revision 24 does that the review did not foresee, held here by name (tasks.md, *Left open*):
 
-- **Six gallery entries' Importance no longer fits the 25-word Answer** (`R24_TYPED_ON_CHECK`): the reworded rivals are
+- **Six gallery entries' Importance no longer fits the 25-word Answer** (`R25_TYPED_ON_CHECK`): the reworded rivals are
   longer, so the founder's Answer names the others that fit its 25 words and types the rest on the Check screen, as a
   founder does (the coordinator's decision, 2026-11-04) -- each a finding, never a stop; `check_answer_box` stops only on
   a single row longer than the box. Current solution's two boxes are typed apart, each to its own 25 words.
@@ -43,14 +53,18 @@ COMPATIBILITY = "solution.compatibility"
 ADVANTAGE = "solution.relative_advantage"
 PF = "commercial.purchase_friction"
 
-#: The six gallery entries whose revision-24 Importance rivals outrun the 25-word Answer, and the rows the founder types
-#: on the Check screen (the others past the box, in the entry's order).
-R24_TYPED_ON_CHECK = {"09-karsa": ["Keeping cash at home safe"],
+#: The gallery entries whose Importance rivals outrun the 25-word Answer, and the rows the founder types on the Check
+#: screen (the others past the box, in the entry's order). Spec 139 FR-4 (keel-cloud 217's Table 1): revision 25's
+#: rewording moves AirCaps' typed row and adds Fresco, Expanse and Codyco (each a finding, never a stop).
+R25_TYPED_ON_CHECK = {"08-fresco": ["Following up on safety issues from the walk"],
+                      "09-karsa": ["Keeping cash at home safe"],
                       "12-transload": ["Finding freight sitting at the wrong door"],
-                      "13-aircaps": ["Knowing who is talking in a group"],
+                      "13-aircaps": ["Telling the people there about their hearing loss"],
                       "14-code-four": ["Logging the evidence from the call"],
                       "15-voltair": ["Spotting trees growing into the lines"],
-                      "20-lemma": ["Finding an engineer free to dig in"]}
+                      "17-expanse": ["Checking the group's GPU-hour allocation before submitting"],
+                      "20-lemma": ["Finding an engineer free to dig in"],
+                      "21-codyco": ["Answering guests' questions about their stay"]}
 
 
 @pytest.fixture(scope="module")
@@ -67,45 +81,56 @@ def _r23(name: str) -> Path:
     return path
 
 
+def _r24(name: str) -> Path:
+    path = MIRROR / "backtest-r24" / name
+    if not path.is_file():
+        pytest.skip(f"no revision-24 record {path}")
+    return path
+
+
 # ------------------------------------------------------------------------------- FR-1: the loader and the pins
 
 def test_the_gallery_is_the_maps_fourteen_and_keel_clouds():
     names = tomllib.loads((REPO / "instructions" / "gallery_names.toml").read_text(encoding="utf-8"))["gallery"]
     assert sorted(row["entry"] for row in names) == sorted(corpus_mod.GALLERY)
-    assert len(corpus_mod.GALLERY) == 14 and corpus_mod.GALLERY_REVISION == 24 and corpus_mod.REVISION == 23
-    assert [corpus_mod.revision_of(e) for e in ("08-fresco", "21-codyco", "22-andy-ai", "03-lullaby")] == [24, 24, 23, 23]
+    assert len(corpus_mod.GALLERY) == 14 and corpus_mod.GALLERY_REVISION == 25 and corpus_mod.REVISION == 23
+    assert [corpus_mod.revision_of(e) for e in ("08-fresco", "21-codyco", "22-andy-ai", "03-lullaby")] == [25, 25, 23, 23]
 
 
 def test_every_entry_loads_at_its_revision(backtest):
     for entry in corpus_mod.load(KEEL_CLOUD, registry=fx.registry()).entries:
         assert entry.revision == 23, entry.id
-    assert {e.id for e in backtest.values() if e.revision == 24} == set(corpus_mod.GALLERY)
+    assert {e.id for e in backtest.values() if e.revision == 25} == set(corpus_mod.GALLERY)
     assert all(e.revision == 23 for e in backtest.values() if e.id not in corpus_mod.GALLERY)
 
 
-def test_a_gallery_file_at_23_and_another_at_24_are_refused_by_name(tmp_path):
+def test_a_gallery_file_at_23_or_24_and_another_at_25_are_refused_by_name(tmp_path):
     old = tmp_path / "08-fresco.yaml"
     shutil.copy(_r23("08-fresco.yaml"), old)
-    with pytest.raises(corpus_mod.CorpusError, match="revision is 23; this eval reads revision 24 for a gallery entry "
+    with pytest.raises(corpus_mod.CorpusError, match="revision is 23; this eval reads revision 25 for a gallery entry "
                                                      "only -- revision 23 is the gallery's rows before keel-cloud 215"):
         corpus_mod.load_file(old, backtest=True)
+    shutil.copy(_r24("08-fresco.yaml"), old)
+    with pytest.raises(corpus_mod.CorpusError, match="revision is 24; this eval reads revision 25 for a gallery entry "
+                                                     "only -- revision 24 is the gallery's rows before keel-cloud 217"):
+        corpus_mod.load_file(old, backtest=True)
     raw = yaml.safe_load((corpus_mod.backtest_dir(KEEL_CLOUD) / "22-andy-ai.yaml").read_text(encoding="utf-8"))
-    raw["revision"] = 24
+    raw["revision"] = 25
     other = fx.write_entry(tmp_path, raw, name="22-andy-ai.yaml")
-    with pytest.raises(corpus_mod.CorpusError, match="revision is 24; this eval reads revision 23 only -- revision 24 is "
+    with pytest.raises(corpus_mod.CorpusError, match="revision is 25; this eval reads revision 23 only -- revision 25 is "
                                                      "the gallery's alone"):
         corpus_mod.load_file(other, backtest=True)
 
 
-def test_revision_24_moved_the_gallery_and_nothing_else():
-    """The revision-23 records keel-cloud 215 kept: every entry outside the gallery is byte for byte its record; every
-    gallery entry moved its revision line."""
-    if not (MIRROR / "backtest-r23").is_dir():
-        pytest.skip("no revision-23 records")
+def test_revision_25_moved_the_gallery_and_nothing_else():
+    """The revision-24 records keel-cloud 217 kept (`backtest-r24/`): every entry outside the gallery is byte for byte
+    its record; every gallery entry moved its revision line, 24 -> 25 (217: all fourteen moved a row)."""
+    if not (MIRROR / "backtest-r24").is_dir():
+        pytest.skip("no revision-24 records")
     for path in sorted(corpus_mod.backtest_dir(KEEL_CLOUD).glob("*.yaml")):
-        before = (MIRROR / "backtest-r23" / path.name).read_text(encoding="utf-8")
+        before = (MIRROR / "backtest-r24" / path.name).read_text(encoding="utf-8")
         if path.stem in corpus_mod.GALLERY:
-            assert (yaml.safe_load(before)["revision"], yaml.safe_load(path.read_text())["revision"]) == (23, 24)
+            assert (yaml.safe_load(before)["revision"], yaml.safe_load(path.read_text())["revision"]) == (24, 25)
         else:
             assert path.read_text(encoding="utf-8") == before, path.name
 
@@ -122,12 +147,17 @@ def test_the_splits_carry_their_new_codes_and_the_walk_types_every_row(backtest)
                                                                               "No tutor to book"]
     assert next(a for a in vs.calibration_answers(issen, "SOLUTION") if a.dimension == ADVANTAGE).text == \
         "Speaking practice any time; No tutor to book"
-    # AirCaps' Compatibility: four conditions, the pick on the first of the split pair
+    # spec 139 FR-4 (keel-cloud 217): AirCaps' Compatibility is two conditions, the pick `read_and_watch` at index 1 --
+    # an ability, its row the four codes (`phone_with_them` and `glasses_whole_time` dropped)
     saved = aircaps.founder_list(COMPATIBILITY)
-    assert [i["code"] for i in saved["items"]][:2] == ["phone_with_them", "phone_online"] and len(saved["items"]) == 4
+    assert [i["code"] for i in saved["items"]] == ["phone_online", "read_and_watch"] and saved["picked"] == 1
     typed = vs.saved_list(aircaps, COMPATIBILITY)
-    assert len(typed["items"]) == 4 and typed["pickedIndex"] == 0
-    assert typed["items"][0] == {"code": "item_1", "label": "had their phone with them", "asked": "was your phone with you"}
+    assert len(typed["items"]) == 2 and typed["pickedIndex"] == 1
+    assert typed["items"][1] == {"code": "item_2", "label": "could read captions while watching faces",
+                                 "asked": "could you have read captions while watching people's faces"}
+    assert corpus_mod._tested_kind(aircaps) == "ABILITY"
+    assert aircaps.respondent_questions[COMPATIBILITY]["codes"] == ["yes_easily", "yes_with_steps", "only_with_help",
+                                                                    "no"]
 
 
 def test_issens_compatibility_pick_is_speak_aloud(backtest):
@@ -146,8 +176,11 @@ def test_frescos_purchase_friction_is_two_with_the_pick_at_0_and_the_founders_tw
     assert vs.kept_picked(fresco, PF) == 0 and vs.founder_duration(fresco) == {"count": 2, "unit": "WEEKS"}
     wire = vs.saved_list(fresco, PF)
     assert wire["pickedIndex"] == 0 and wire["duration"] == {"count": 2, "unit": "WEEKS"} and len(wire["items"]) == 2
-    for entry_id in ("17-expanse", "21-codyco"):
-        assert len(backtest[entry_id].founder_list(PF)["items"]) == 2, entry_id
+    # spec 139 FR-4 (keel-cloud 217): Code Four two and Codyco one, each pick 0 and the founder's time kept
+    for entry_id, count, weeks in (("17-expanse", 2, 6), ("14-code-four", 2, 8), ("21-codyco", 1, 4)):
+        saved = backtest[entry_id].founder_list(PF)
+        assert (len(saved["items"]), saved["picked"]) == (count, 0), entry_id
+        assert vs.founder_duration(backtest[entry_id]) == {"count": weeks, "unit": "WEEKS"}, entry_id
 
 
 def test_no_gallery_entry_types_the_founders_own_offer_and_the_transcript_says_so(backtest):
@@ -172,7 +205,7 @@ def test_the_answer_names_what_fits_and_the_rest_is_typed_on_the_check_screen(ba
         assert vs.answer_text(entry, IMPORTANCE) == "; ".join(named), entry.id
         if typed:   # the next row would not have fit
             assert vs._words("; ".join(named + typed[:1])) > vs.ANSWER_MAX_WORDS, entry.id
-        assert typed == R24_TYPED_ON_CHECK.get(entry.id, []), entry.id
+        assert typed == R25_TYPED_ON_CHECK.get(entry.id, []), entry.id
     # countly and paidly name fewer by design, as before
     golden = {e.id: e for e in corpus_mod.load(KEEL_CLOUD, registry=fx.registry()).entries}
     assert [len(vs.importance_named(golden[e])) for e in ("01-countly", "05-paidly")] == [1, 2]
@@ -199,13 +232,13 @@ class _Corridor:
 def test_a_back_test_walk_types_the_rest_on_importances_check_screen(backtest):
     from types import SimpleNamespace                                   # noqa: PLC0415
     from evals import corpus_scenario as cs                             # noqa: PLC0415
-    for entry_id, rows in R24_TYPED_ON_CHECK.items():
+    for entry_id, rows in R25_TYPED_ON_CHECK.items():
         j = SimpleNamespace(entry=backtest[entry_id], strict=False, findings=[], corridor=_Corridor())
         assert cs._check_screen(j, {"dimension": IMPORTANCE}, IMPORTANCE) == {"screen": "check"}
         assert j.corridor.calls == [(IMPORTANCE, {"add": rows, "one_more": False})], entry_id
         assert [f["served"]["typed"] for f in j.findings] == rows
     # an entry whose Answer names them all types nothing there
-    j = SimpleNamespace(entry=backtest["08-fresco"], strict=False, findings=[], corridor=_Corridor())
+    j = SimpleNamespace(entry=backtest["10-palus"], strict=False, findings=[], corridor=_Corridor())
     cs._check_screen(j, {"dimension": IMPORTANCE}, IMPORTANCE)
     assert j.corridor.calls == [(IMPORTANCE, {})] and j.findings == []
     # Current solution on a back-test still types its rungs through spec 067 FR-2's plan
@@ -240,9 +273,9 @@ def test_current_solutions_two_boxes_are_typed_apart_each_to_its_own_25_words(ba
         k = max(fits)
         assert second == vs._stopped("; ".join(rungs[:k])), entry.id      # as many whole rungs as fit, in order
         assert vs.answer_text(entry, key) == f"{first} {second}"
-    # Fresco: 24 words of today no longer leave the second box empty
+    # Fresco: 24 words of today no longer leave the second box empty (revision 25's first rung, keel-cloud 217)
     first, second = vs.current_solution_boxes(backtest["08-fresco"])
-    assert vs._words(first) == 24 and second.startswith("Done on site, no time after the walk")
+    assert vs._words(first) == 24 and second.startswith("Typed up within half an hour of the walk")
 
 
 def test_voltairs_fact_is_read_as_code_serves_it_and_an_only_with_help_pick_is_refused(backtest, tmp_path):

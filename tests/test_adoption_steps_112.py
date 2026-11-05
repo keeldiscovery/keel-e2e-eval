@@ -359,10 +359,11 @@ def _backtest_present(entry_id):
 
 @pytest.mark.parametrize("entry_id, typed, name", [
     # spec 135 FR-1 (corpus revision 24, keel-cloud 215): Codyco's first effort in the review's words (Table 1, `af-self`)
-    ("21-codyco", ["Hand their missed booking calls to the AI", "Set which calls the AI hands to the desk"], "Codyco"),
+    # spec 139 FR-4 (corpus revision 25, keel-cloud 217 Table 1, rule 7): Codyco's second and Fresco's first effort reworded
+    ("21-codyco", ["Hand their missed booking calls to the AI", "Take every call the AI hands to the desk"], "Codyco"),
     ("17-expanse", ["Use the suggested sizes instead of padding", "Apply the line-level code fixes it suggests"],
      "Expanse"),
-    ("08-fresco", ["Take short videos and talk over them on walks", "Check and fix the notes before they go out"],
+    ("08-fresco", ["Name who owns each item as they film", "Check and fix the notes before they go out"],
      "Fresco"),
 ])
 def test_the_screen_hands_the_writer_the_entrys_typed_answer(tmp_path, entry_id, typed, name):
