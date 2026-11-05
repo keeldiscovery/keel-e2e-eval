@@ -2044,8 +2044,9 @@ def answer_boxes_faults(seen: dict | None, key: str, text: str | None) -> list[d
     """Spec 116 FR-2 (keel-web 150): one typed Answer as the walk read it -- where the screen drew Current solution's two
     boxes, each held to the corpus Answer split as 150 splits it (`vs_screens.split_answer`), the second box's heading,
     and the question naming the people and the job (*How do {actor_plural} {job} today?*, never the old served words);
-    on every Answer the draft POST's one text, the boxes joined (`join_answer`) or the one box's text trimmed. Every
-    miss is one fault `{what, drawn, want}`."""
+    on every Answer the draft POST's one text, the boxes joined (`join_answer`) or the one box's text trimmed -- and
+    since keel-web 177 (spec 140 FR-4b), where the draft carried `how`, its two fields, each box as typed. Every miss is
+    one fault `{what, drawn, want}`."""
     if not seen or not text:
         return []
     faults: list[dict] = []
@@ -2058,7 +2059,14 @@ def answer_boxes_faults(seen: dict | None, key: str, text: str | None) -> list[d
     what, how = vs_screens.split_answer(text)
     if two:
         fault("the two boxes", seen.get("boxes"), {"what": what, "how": how})
-    fault("the draft's one Answer", seen.get("sent_answer"), vs_screens.join_answer(what, how) if two else text.strip())
+    if "sent_how" in seen:
+        # spec 140 FR-4b (keel-web 177 FR-1, keel-cloud 228): the page sends the two boxes apart -- `answer` the first,
+        # `how` the second (`""` when it is empty) -- so the draft is read as its two fields where `how` is present
+        fault("the draft's two fields", {"answer": seen.get("sent_answer"), "how": seen.get("sent_how")},
+              {"answer": what.strip(), "how": how.strip()} if two else {"answer": text.strip(), "how": ""})
+    else:
+        fault("the draft's one Answer", seen.get("sent_answer"),
+              vs_screens.join_answer(what, how) if two else text.strip())
     if two and key == CURRENT_SOLUTION_KEY:
         fault("the second box's heading", seen.get("how_question"), vs_screens.CURRENT_SOLUTION_HOW_QUESTION)
         asked = seen.get("question") or ""
