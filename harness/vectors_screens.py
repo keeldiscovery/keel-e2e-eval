@@ -669,6 +669,17 @@ def sent_answer(writes: list[dict]) -> str | None:
         if isinstance(body, dict) and "answer" in body:
             return body.get("answer")
     return None
+
+
+def sent_how(writes: list[dict]) -> str | None:
+    """Spec 140 FR-4b (keel-web 177 FR-1, `draftBody`; keel-cloud 228): the second field the Answer screen's Continue
+    sent on Current solution -- `how`, `""` where the second box was empty -- from the same write `sent_answer` reads;
+    None where that write carried none (an older web, every other dimension, the API path)."""
+    for write in reversed(writes):
+        body = write.get("body")
+        if isinstance(body, dict) and "answer" in body:
+            return body.get("how") if "how" in body else None
+    return None
 COST_MODE_GROUP = "Measured as"
 #: keel-web 094 FR-1 (spec 064 FR-2): the chain's cost step -- the three ways, by their pills. Spec 090 FR-1 (keel-web
 #: 134 FR-1, `CHAIN_COST_MODE_WORD`): RATE is *A share they lose* (was *A rate they lose*), and the modes are asked first
@@ -1924,6 +1935,13 @@ _CONTEXT_STATES_READ_JS = """() => {
 
 #: Spec 067 FR-5: how often the context card's wait looks at the CONTEXT_INTERPRET job (ms).
 CONTEXT_POLL_MS = 5_000
+#: Spec 140 FR-3: the primary's wait for the next address -- the seed's budget (`60 s * patience`, 660 s on a back-test),
+#: looked at every `SAVE_POLL_MS`; past `SLOW_SAVE_S` the Save's seconds are noted; the writes it started settle for at
+#: most `SAVE_SETTLE_S` after the address moved.
+SAVE_BUDGET_S = 60
+SAVE_POLL_MS = 2_000
+SLOW_SAVE_S = 10
+SAVE_SETTLE_S = 10
 
 
 class Corridor:
@@ -1939,6 +1957,8 @@ class Corridor:
         self.patience = patience
         self._b = _BrowserStep(recorder, page, "founder")
         self.conflicts = []
+        #: Spec 140 FR-3: every primary press that took past `SLOW_SAVE_S` to move the page (screen, label, seconds).
+        self.slow_saves = []
         self.saves = []
         #: Spec 073 FR-1: each context Save's states as the step's root named them (`_CONTEXT_STATES_JS`).
         self.context_states = []
@@ -1995,7 +2015,13 @@ class Corridor:
 
         runs/DRIFT.md #80: a write the page posts at a revision the server has moved past is answered 409
         CONCURRENCY and the screen says nothing -- the founder presses again once the page's 3-second poll
-        has the new revision. So does this, once, and keeps the refusal in `conflicts` for the leg to name."""
+        has the new revision. So does this, once, and keeps the refusal in `conflicts` for the leg to name.
+
+        Spec 140 FR-3: the wait for the next address is the walk's step budget -- `SAVE_BUDGET_S * patience`, the seed's
+        (660 s on a back-test) -- never a fixed 10 s: a Save the writer answers with a refuse-and-repair turn (17-expanse's
+        idea Save, ~17 s) is waited out. The press is done when the address has moved and the writes it started have
+        settled. Past `SLOW_SAVE_S` the seconds it took are noted in the transcript and kept in `slow_saves`, so a slow
+        writer shows in the record without stopping the walk."""
         primary = self._primary()
         primary.wait_for(state="visible", timeout=20_000)
         label = _safe_text(lambda: primary.inner_text()).strip()
@@ -2003,29 +2029,64 @@ class Corridor:
             raise AssertionError(f"the primary reads {label!r}, not {expected_label!r}")
         before = self.page.url
         refused: list = []
+        pending: set = set()
+        budget_s = SAVE_BUDGET_S * self.patience
+
+        def writes(request) -> bool:
+            return request.method in ("PUT", "POST", "PATCH", "DELETE") and "/v2/" in request.url
+
+        def on_request(request) -> None:
+            if writes(request):
+                pending.add(request)
+
+        def on_done(request) -> None:
+            pending.discard(request)
 
         def on_response(response) -> None:
             if response.status == 409 and response.request.method in ("PUT", "POST") \
                     and "/v2/projects/" in response.url:
                 refused.append({"url": response.url, "method": response.request.method})
 
+        self.page.on("request", on_request)
+        self.page.on("requestfinished", on_done)
+        self.page.on("requestfailed", on_done)
         self.page.on("response", on_response)
         try:
             self.page.wait_for_function("(b) => !b.disabled", arg=primary.element_handle(), timeout=30_000)
+            started = time.monotonic()
             primary.click()
-            try:
-                self.page.wait_for_function("(u) => window.location.href !== u", arg=before, timeout=10_000)
-            except Exception:  # noqa: BLE001 - only a refused write earns the second press
-                if not refused:
-                    raise
-                self.page.wait_for_timeout(4_000)
-                self.page.wait_for_function("(b) => !b.disabled", arg=self._primary().element_handle(),
-                                            timeout=30_000)
-                self._primary().click()
-                self.page.wait_for_function("(u) => window.location.href !== u", arg=before, timeout=30_000)
-                self.conflicts.append({"screen": before, "refused": refused, "label": label})
+            pressed_again = False
+            while True:
+                left_ms = budget_s * 1000 - (time.monotonic() - started) * 1000
+                try:
+                    self.page.wait_for_function("(u) => window.location.href !== u", arg=before,
+                                                timeout=max(1.0, min(left_ms, SAVE_POLL_MS)))
+                    break
+                except Exception:  # noqa: BLE001 - the budget, or a refused write's second press, decides
+                    if refused and not pressed_again:
+                        pressed_again = True
+                        self.page.wait_for_timeout(4_000)
+                        self.page.wait_for_function("(b) => !b.disabled", arg=self._primary().element_handle(),
+                                                    timeout=30_000)
+                        self._primary().click()
+                        self.conflicts.append({"screen": before, "refused": refused, "label": label})
+                        continue
+                    if left_ms <= SAVE_POLL_MS:
+                        raise
+            # the address moved: the writes the press started settle (bounded by what is left of the budget)
+            settle = time.monotonic() + max(0.0, min(SAVE_SETTLE_S, budget_s - (time.monotonic() - started)))
+            while pending and time.monotonic() < settle:
+                self.page.wait_for_timeout(200)
+            took = time.monotonic() - started
         finally:
-            self.page.remove_listener("response", on_response)
+            for event, handler in (("request", on_request), ("requestfinished", on_done), ("requestfailed", on_done),
+                                   ("response", on_response)):
+                self.page.remove_listener(event, handler)
+        if took > SLOW_SAVE_S:
+            slow = self.__dict__.setdefault("slow_saves", [])
+            slow.append({"screen": before, "label": label, "seconds": round(took, 1), "budget_s": round(budget_s)})
+            self._b.recorder.note(f"founder's {label} took {took:.0f} s to move the page (past {SLOW_SAVE_S} s: a slow "
+                                  f"writer, waited up to {budget_s:.0f} s) -- {before}", party="founder")
         return label
 
     # ------------------------------------------------------------------------ step 1: context
@@ -2718,6 +2779,9 @@ class Corridor:
             if text:
                 seen["sent"] = [_request_row(r) for r in sent]
                 seen["sent_answer"] = sent_answer(seen["sent"])
+                # spec 140 FR-4b (keel-web 177): the second field, kept only where the draft carried one
+                if sent_how(seen["sent"]) is not None:
+                    seen["sent_how"] = sent_how(seen["sent"])
             return seen
 
     @contextmanager

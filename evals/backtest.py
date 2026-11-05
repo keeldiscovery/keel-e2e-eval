@@ -616,6 +616,20 @@ READ_JS = """() => {
     return [said(name), line ? said(line) : ""].filter(Boolean).join(" -- ");
   };
   const options = (sel) => Array.from(document.querySelectorAll(sel)).map(option).filter(Boolean);
+  // spec 140 FR-1 (keel-web 097 FR-4, `ChooseList`): every option, whether it is Keel's suggestion (`data-suggested`)
+  // and its served why -- the element its `aria-describedby` names whose id carries `-why-` (`choose-{dim}-why-{i}`;
+  // a belief's id may stand beside it), its `.calib__suggest-why`, the *Keel's suggestion* tag left out
+  const choice = (e) => {
+    const suggested = e.getAttribute("data-suggested") === "true";
+    let why = null;
+    if (suggested) {
+      const id = (e.getAttribute("aria-describedby") || "").split(/\\s+/).find((x) => /-why-/.test(x));
+      const el = id ? document.getElementById(id) : null;
+      const w = el && el.querySelector(".calib__suggest-why");
+      why = (w ? said(w) : el ? said(el).replace(/^Keel['\u2019]s suggestion\\s*/i, "") : "") || null;
+    }
+    return {label: option(e), suggested: suggested, why: why};
+  };
   // spec 134 FR-2 (keel-web 168 FR-4): the founder note drawn in the list (`li.listrow--note`, *Your own offer ... stays
   // off this list*) is never a row: it is read as `note`, with the guidance line under the list (`.listcheck__note`)
   // spec 137 FR-3 (keel-web 173 FR-5a): a role row is read with its tag (`li.listrow[data-tag]`) -- *The CFO · has to
@@ -632,12 +646,28 @@ READ_JS = """() => {
   }).filter(Boolean);
   // spec 137 FR-3 (keel-web 173 FR-1, keel-cloud 213 FR-8): Commitment's Check block -- the four answers strangers get,
   // in served order, and the note beside the step
+  // spec 140 FR-2 (keel-web 098 FR-4, 173 FR-1, `ListQuestion.tsx` one_step): the step box as drawn
+  // (`label.listcheck__field`, *Your step, as strangers hear it*), the smaller-step box with its frame (*Yes, after ...
+  // first*, `commitment-smaller-step`) or its absence (the add button, `commitment-smaller-step-add`, where drawn)
   const answersBlock = document.querySelector("[data-testid=commitment-answers]");
   const commitmentNote = one("[data-testid=commitment-note]");
-  const commitment = answersBlock || commitmentNote ? {
+  const smallerBox = document.querySelector("[data-testid=commitment-smaller-step]");
+  const smallerAdd = document.querySelector("[data-testid=commitment-smaller-step-add]");
+  const anchor = answersBlock || smallerBox || smallerAdd || document.querySelector("[data-testid=commitment-note]");
+  const oneStep = anchor ? anchor.closest(".listcheck") : null;
+  const plain = (e) => e ? (e.textContent || "").replace(/\\s+/g, " ").trim() : "";
+  const boxed = (e) => { const ta = e && e.querySelector("textarea");
+                         return ta ? (ta.value || "").replace(/\\s+/g, " ").trim() : ""; };
+  const stepField = oneStep ? oneStep.querySelector(":scope > label.listcheck__field") : null;
+  const frame = smallerBox ? Array.from(smallerBox.querySelectorAll(".listcheck__said")).map(plain) : [];
+  const commitment = anchor ? {
       answers: answersBlock ? Array.from(answersBlock.querySelectorAll("[data-testid=commitment-answer]")).map(said)
           .filter(Boolean) : [],
-      note: commitmentNote || null} : null;
+      note: commitmentNote || null,
+      step: stepField ? {label: plain(stepField.querySelector(".listcheck__k")) || null, value: boxed(stepField)} : null,
+      smaller: smallerBox ? {label: plain(smallerBox.querySelector(".listcheck__k")) || null, before: frame[0] || null,
+                             value: boxed(smallerBox), after: frame[1] || null} : null,
+      smaller_add: smallerAdd ? plain(smallerAdd) || null : null} : null;
   // spec 139 FR-3 (keel-web 175 FR-6): Keel's suggested row, set apart, with its served why under it
   const suggested = Array.from(document.querySelectorAll("li.listrow--suggested")).map((li) => {
       const ta = li.querySelector("textarea");
@@ -649,6 +679,8 @@ READ_JS = """() => {
   const notes = all("li.listrow--note, .listcheck__note");
   const dialog = document.querySelector("[role=dialog]");
   const scope = dialog || document.querySelector("main") || document.body;
+  const optionSel = (dialog ? "[role=dialog] " : "") + "[role=radio], " + (dialog ? "[role=dialog] " : "") + "[role=checkbox]";
+  const choices = Array.from(document.querySelectorAll(optionSel)).map(choice).filter((c) => c.label);
   // spec 119 FR-3 (keel-web 155 / 157): a Choose screen's title and intro, the founder's time box under the list (its
   // question, the count and unit as they stand, its hint) and the *Keel will test* box beside it (belief, bar, note)
   const box = document.querySelector("[data-testid=duration-input]");
@@ -662,7 +694,9 @@ READ_JS = """() => {
   return {kicker: one(".corridor__kicker, .iv-kicker, .guided-step__kicker"),
           question: one("[role=dialog] h2, h1.calib__q, h1.iv-q, .guided-step__question, h1"),
           hint: one(".calib__hint, .iv-tick, .iv-note, .ccard__sub"),
-          options: options((dialog ? "[role=dialog] " : "") + "[role=radio], " + (dialog ? "[role=dialog] " : "") + "[role=checkbox]"),
+          options: options(optionSel),
+          // spec 140 FR-1: every option with whether it is Keel's suggestion and its why -- only where one is drawn
+          choices: choices.some((c) => c.suggested) ? choices : null,
           rows: rows, note: notes.length ? notes : null, chips: all(".calib__chip, .iv-chips button"),
           title: one(".listcheck__title") || null, intro: one(".corridor__intro") || null,
           time_box: box ? {question: one("[data-testid=duration-input] .calib__durationq"),
@@ -874,7 +908,9 @@ def card_selector(key: str, part: str | tuple[str, str] = "") -> str:
 
 
 #: Spec 134 FR-3: what a Check screen's record takes from the shot after the founder's edit.
-AFTER_EDIT_FIELDS = ("file", "rows", "note", "keel_test", "text", "url")
+AFTER_EDIT_FIELDS = ("file", "rows", "note", "keel_test", "text", "url",
+                     # spec 140 FR-1 / FR-2: the suggested rows and the Commitment check's boxes, as the founder left them
+                     "suggested", "commitment")
 
 
 @dataclass
@@ -1521,7 +1557,8 @@ def founder_answer(j, slug: str) -> Any:
         boxes = typed.get("boxes")
         if boxes:
             return {"what they do (first box)": boxes.get("what"), "how well it goes (second box)": boxes.get("how"),
-                    "sent as one Answer": typed.get("sent_answer")}
+                    **({"sent as answer": typed.get("sent_answer"), "sent as how": typed.get("sent_how")}
+                       if "sent_how" in typed else {"sent as one Answer": typed.get("sent_answer")})}
         return answer.text
     if kind == "check":
         return check_did(next((s for s in seen if s.get("screen") == "check"), {}))
@@ -1621,6 +1658,9 @@ def founder_screens(j, cam: Camera | None, wire: dict) -> list[dict]:
                     # spec 134 FR-2: the guidance under the list, never a row; FR-3: a Check screen the founder edited
                     # is recorded as they left it, Keel's first draw kept apart
                     **{k: shot[k] for k in ("note", "edited", "before_edit") if shot.get(k)},
+                    # spec 140 FR-1 / FR-2: the Choose options with Keel's suggestion and its why, a Check list's
+                    # suggested rows (spec 139 FR-3) and the Commitment check's boxes and chips (only where drawn)
+                    **{k: shot[k] for k in ("choices", "suggested", "commitment") if shot.get(k)},
                     "answer": _safe(lambda s=slug: founder_answer(j, s)),
                     "keel read back": _safe(lambda s=slug: read_back(j, s, wire)),
                     **({"camera error": shot["error"]} if shot.get("error") else {})})

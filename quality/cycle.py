@@ -59,6 +59,10 @@ ADVISER_PROMPT = QUALITY / "readers" / "adviser.md"
 DECISIONS = QUALITY / "decisions.toml"
 RUNS_DIR = REPO / "runs"
 SCORES_REL = "quality/scores"
+#: Spec 140 FR-4: the local keel-web's log (`stack/web.py`, the eval profile) and the Vite line cycle 14 saw 58 times
+#: from 00:06 ET while two walks stopped -- counted over the bytes each walk wrote, said in the record's head.
+WEB_LOG = RUNS_DIR / ".stack" / "web.log"
+VITE_TIMEOUT = "transport invoke timed out"
 
 DOORS = ("keel", "host")
 #: Spec 071 FR-4: the scopes a back-test walks under.
@@ -222,6 +226,9 @@ class Study:
     # spec 082 FR-3: the shas this study was walked on (the bundle's `stack`), beside the pins of the kick-off
     cloud_sha: str | None = None
     web_sha: str | None = None
+    # spec 140 FR-4: the Vite *transport invoke timed out* lines runs/.stack/web.log gained during this study's walk
+    # (None where the walk had no local web log to read)
+    vite_timeouts: int | None = None
 
     @property
     def key(self) -> str:
@@ -339,6 +346,41 @@ def _run(argv: list[str], log: str | None, runner=subprocess.run) -> int:
     return runner(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
 
 
+def _study_data(study: Study) -> dict:
+    """A study as the record's data block keeps it -- `vite_timeouts` (spec 140) only where the walk read a web log, so a
+    record of walks before 140 is 126's to the byte."""
+    data = asdict(study)
+    if data.get("vite_timeouts") is None:
+        data.pop("vite_timeouts", None)
+    return data
+
+
+def log_size(path: Path) -> int:
+    """Spec 140 FR-4: where a log stands before a walk (0 where there is none yet)."""
+    try:
+        return Path(path).stat().st_size
+    except OSError:
+        return 0
+
+
+def vite_timeouts(path: Path, since: int) -> int | None:
+    """Spec 140 FR-4: the Vite *transport invoke timed out* lines `path` gained after byte `since` -- the whole file
+    where it started over (shorter than `since`); None where there is no log."""
+    path = Path(path)
+    if not path.is_file():
+        return None
+    with path.open("rb") as handle:
+        size = handle.seek(0, 2)
+        handle.seek(since if 0 <= since <= size else 0)
+        return handle.read().decode("utf-8", errors="replace").count(VITE_TIMEOUT)
+
+
+def vite_total(studies: list) -> int | None:
+    """Spec 140 FR-4: the head's count -- the lines every walk saw, summed; None where no walk read a log."""
+    counts = [s.vite_timeouts for s in studies if getattr(s, "vite_timeouts", None) is not None]
+    return sum(counts) if counts else None
+
+
 def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=subprocess.run, sleep=time.sleep,
              runs_dir: Path | None = None) -> Study:
     """One study, walked and read. A host-door walk stopped by the plan's limit is rerun after it, at most three times
@@ -349,9 +391,12 @@ def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=sub
     down, back, read = steps
     for attempt in range(4):
         _run(down["argv"], None, runner)
-        started = time.monotonic()
+        started, web_at = time.monotonic(), log_size(WEB_LOG)
         _run(back["argv"], back["log"], runner)
         study.walk_s = round(time.monotonic() - started, 1)
+        seen = vite_timeouts(WEB_LOG, web_at)
+        if seen is not None:
+            study.vite_timeouts = (study.vite_timeouts or 0) + seen
         log_text = Path(back["log"]).read_text(encoding="utf-8", errors="replace") if Path(back["log"]).is_file() else ""
         run_dir = bt.run_dir_in(log_text) or bt.latest_run_dir(entry, Path(back["log"]), runs_dir)
         row = bt.summary(run_dir, entry)
@@ -603,6 +648,9 @@ def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: 
 
     walk_usd = round(sum(s.walk_usd or 0 for s in studies), 4)
     read_usd = round(sum(s.read_usd or 0 for s in studies), 4)
+    vite = vite_total(studies)
+    if vite and head is not None:                 # spec 140 FR-4: absent where no walk saw one, as a 126 record reads
+        head = {**head, "vite_timeouts": vite}
     data = {
         "record": name, "spec": "079", "why": why, "started": started, "ended": ended, "seconds": seconds,
         "door": door, "entries": sorted({s.entry for s in studies}), "scopes": list(dict.fromkeys(s.scope for s in studies)),
@@ -612,7 +660,7 @@ def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: 
         "reader": {k: cfg["reader"].get(k) for k in ("model", "effort")},
         "adviser": {k: cfg["adviser"].get(k) for k in ("model", "effort")},
         "bar_pct": cfg["bar_pct"], "weak_rule": cfg["weak"], "scores_dir": scores_dir,
-        "studies": [asdict(s) for s in studies], "walks": None, "head": head, "weak_rows": weak,
+        "studies": [_study_data(s) for s in studies], "walks": None, "head": head, "weak_rows": weak,
         "baseline": baseline, "against_baseline": against_baseline, "previous": previous,
         "cost": {"walk_usd": walk_usd, "read_usd": read_usd, "total_usd": round(walk_usd + read_usd, 4)},
     }
@@ -661,6 +709,8 @@ def render_record(d: dict) -> str:
                if head.get("asked_again") else []),
              *([f"  - typos: {head['typos']} typed on {head.get('typo_fields', 0)} fields; "
                 f"{head.get('typo_leaks', 0)} leaked (spec 126)"] if head.get("typos") else []),
+             *([f'  - Vite "{VITE_TIMEOUT}": {head["vite_timeouts"]} lines in runs/.stack/web.log during the walks '
+                "(spec 140)"] if head.get("vite_timeouts") else []),
              (f"- **The baseline** (cut {base['cut']}): score_pct {_pct(base.get('score_pct'))}, flagged "
               f"{_pct(base.get('flagged_pct'))}" if base else "- **The baseline**: none cut yet"),
              f"- **The bar**: {bar:.0f}% -- this cycle "
