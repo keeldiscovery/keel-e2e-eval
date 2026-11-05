@@ -346,6 +346,15 @@ def _run(argv: list[str], log: str | None, runner=subprocess.run) -> int:
     return runner(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
 
 
+def _study_data(study: Study) -> dict:
+    """A study as the record's data block keeps it -- `vite_timeouts` (spec 140) only where the walk read a web log, so a
+    record of walks before 140 is 126's to the byte."""
+    data = asdict(study)
+    if data.get("vite_timeouts") is None:
+        data.pop("vite_timeouts", None)
+    return data
+
+
 def log_size(path: Path) -> int:
     """Spec 140 FR-4: where a log stands before a walk (0 where there is none yet)."""
     try:
@@ -651,7 +660,7 @@ def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: 
         "reader": {k: cfg["reader"].get(k) for k in ("model", "effort")},
         "adviser": {k: cfg["adviser"].get(k) for k in ("model", "effort")},
         "bar_pct": cfg["bar_pct"], "weak_rule": cfg["weak"], "scores_dir": scores_dir,
-        "studies": [asdict(s) for s in studies], "walks": None, "head": head, "weak_rows": weak,
+        "studies": [_study_data(s) for s in studies], "walks": None, "head": head, "weak_rows": weak,
         "baseline": baseline, "against_baseline": against_baseline, "previous": previous,
         "cost": {"walk_usd": walk_usd, "read_usd": read_usd, "total_usd": round(walk_usd + read_usd, 4)},
     }

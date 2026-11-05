@@ -375,6 +375,37 @@ def test_a_save_past_the_budget_still_stops_the_walk(browser, tmp_path):
         page.close()
 
 
+_REFUSED = """<!doctype html><html><body><main><section class="ccard">
+<div class="ccard__foot"><button type="button" class="btn primary">Save</button></div></section></main><script>
+document.querySelector('.btn.primary').addEventListener('click', () => {
+  fetch('/v2/projects/p1/idea', {method: 'PUT', body: '{}'}).then((r) => {
+    if (r.ok) history.pushState({}, '', '/p/p1/define/solution/q/1');
+  });
+});
+</script></body></html>"""
+
+
+def test_a_refused_write_is_pressed_again_once_as_before(browser, tmp_path):
+    """DRIFT #80 kept: a 409 CONCURRENCY leaves the page where it was; the press goes again once and is named."""
+    page = browser.new_page()
+    puts = []
+
+    def serve(route):
+        if route.request.method == "PUT":
+            puts.append(1)
+            route.fulfill(status=409 if len(puts) == 1 else 200, content_type="application/json", body="{}")
+        else:
+            route.fulfill(status=200, content_type="text/html", body=_REFUSED)
+    page.route(f"{BASE}/**", serve)
+    page.goto(f"{BASE}/p/p1/define/idea", wait_until="load")
+    try:
+        corridor = vs.Corridor(page, Recorder(tmp_path), BASE, patience=1.0)
+        assert corridor._press_primary(vs.SAVE) == vs.SAVE
+    finally:
+        page.close()
+    assert len(puts) == 2 and len(corridor.conflicts) == 1 and corridor.conflicts[0]["label"] == vs.SAVE
+
+
 def test_the_save_budget_is_the_seeds():
     assert vs.SAVE_BUDGET_S == 60 and vs.SLOW_SAVE_S == 10
     import inspect
