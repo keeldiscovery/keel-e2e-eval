@@ -4,6 +4,7 @@ tasks.md *Owed: keel-e2e-eval*). No stack, no model, no paid call; the cloud's s
 
 - FR-4 Commitment (221): the Yes at eleven, the step whole; an act-first smaller step said -ing and kept; data acts.
 - FR-5 Prevalence (224): E8 reads the head verb and the verdict words; 06-repeatline's scripted clause off *by hand*.
+- FR-2 Relative advantage (219): *Think of {hard_case}.* first; the belief on `hard_case_theirs`; the scripted clause.
 """
 
 from __future__ import annotations
@@ -14,11 +15,13 @@ from pathlib import Path
 import pytest
 
 from harness import vectors_script as vs
+from instructions import corpus as corpus_mod
 from instructions import spoken as spoken_mod
 from instructions import step_cost as step_cost_mod
 from instructions import wording as wording_mod
 from instructions.registry import RecallWindow
 from stack.config import load_config
+from tests import v9_fixtures as fx
 
 KEEL_CLOUD = Path(load_config(validate=False).keel_cloud)
 VECTORS = "src/main/java/com/keeldiscovery/cloud/domain/vectors/"
@@ -28,6 +31,14 @@ SEVEN_DAYS = RecallWindow(7, "DAYS")
 #: keel-cloud `VectorFixtures` (Lullaby).
 EVENT_PAST = "had to work out why their baby was crying"
 WENT_WRONG = "did not know why the baby cried"
+
+
+@pytest.fixture(scope="module")
+def golden():
+    """The golden seven as the corpus records them (skipped by name off the checkout)."""
+    return {e: corpus_mod.load_file(fx.canon_entry(f"{e}.yaml"), registry=fx.registry())
+            for e in ("01-countly", "02-compliancelog", "03-lullaby", "04-linerly", "05-paidly", "06-repeatline",
+                      "07-mulchrun")}
 
 
 def _cloud(rel: str) -> str:
@@ -169,3 +180,107 @@ def test_cycle_fourteens_clauses_and_the_scripted_seven():
     assert vs.PROBLEM_CLAUSES["06-repeatline"] == ("had to type a refill request in", "have to type a refill request in")
     for entry_id, (event, _) in vs.PROBLEM_CLAUSES.items():
         assert wording_mod.packed_fault(event, vs.ACT_THAT_HURTS[entry_id][1]) is None, entry_id
+
+
+# ----------------------------------------------------------------------------------------------- FR-2: keel-cloud 219
+
+#: keel-cloud `RelativeAdvantageHardCaseTest`'s five cycle-14 entries: (occasion, stem, name, what, job, hard_case,
+#: hard_case_theirs, benefits, the item now, the belief now).
+HARD_FIVE = {
+    "08-fresco": ("daily log", "the last time the site walks were done and photos and notes still had to go into the "
+                  "daily log", "Fresco", "an AI scribe that turns your site-walk videos into notes",
+                  "keep an accurate record of the day's work on site",
+                  "the last daily log when you lost site notes before writing it",
+                  "their last daily log where they lost site notes",
+                  ["Hours back at the end of the day", "Action items to the crew the same day"],
+                  "Think of the last daily log when you lost site notes before writing it. Would Fresco, an AI scribe "
+                  "that turns your site-walk videos into notes, have done that better for you, or not?",
+                  "For most, with it, their last daily log where they lost site notes would have given them hours back "
+                  "at the end of the day and action items to the crew the same day."),
+    "10-palus": ("cash decision", "over the last 3 months, when the company decides where cash from a raise sits until "
+                 "it is needed", "Palus", "a treasury account that holds your long-term reserve",
+                 "keep the money from a raise safe and earning until the company sends it",
+                 "the last time your bank cut the yield on your raise cash",
+                 "the last time their bank cut the yield on their raise cash",
+                 ["Higher yield on cash not needed for months", "No treasury hire to manage it"],
+                 "Think of the most recent time your bank cut the yield on your raise cash. Would Palus, a treasury "
+                 "account that holds your long-term reserve, have done that better for you, or not?",
+                 "For most, with it, the last time their bank cut the yield on their raise cash would have given them "
+                 "higher yield on cash not needed for months and no treasury hire to manage it."),
+    "13-aircaps": ("conversation", "the last time you tried to follow and join a face-to-face conversation", "AirCaps",
+                   "an app", "follow and join a face-to-face conversation",
+                   "the last time you lost track of a conversation with hearing people",
+                   "the last time they lost track of a conversation with hearing people",
+                   ["More of the talk followed without asking for repeats"],
+                   "Think of the most recent time you lost track of a conversation with hearing people. Would AirCaps, "
+                   "an app, have done that better for you, or not?",
+                   "For most, with it, the last time they lost track of a conversation with hearing people would have "
+                   "given them more of the talk followed without asking for repeats."),
+    "17-expanse": ("job", None, "Expanse", "software on every node that predicts each job's resource needs",
+                   "get each job to run to the end without wasting the cluster", "the last job that ran out of memory",
+                   "their last job that ran out of memory",
+                   ["A job that runs to the end first time", "A shorter wait in the queue"],
+                   "Think of the last job that ran out of memory. Would Expanse, software on every node that predicts "
+                   "each job's resource needs, have done that better for you, or not?",
+                   "For most, with it, their last job that ran out of memory would have given them a job that runs to "
+                   "the end first time and a shorter wait in the queue."),
+    "21-codyco": ("booking call", "the last time booking calls came in on your shift", "Codyco",
+                  "an AI reservation agent that answers missed calls", "turn every guest who calls into a booking",
+                  "the last time a booking call rang out unanswered", "the last time a booking call rang out unanswered",
+                  ["Missed calls turned into bookings", "Callers answered when the desk is busy"],
+                  "Think of the most recent time a booking call rang out unanswered. Would Codyco, an AI reservation "
+                  "agent that answers missed calls, have done that better for you, or not?",
+                  "For most, with it, the last time a booking call rang out unanswered would have given them missed "
+                  "calls turned into bookings and callers answered when the desk is busy."),
+}
+
+
+@pytest.mark.parametrize("entry_id", sorted(HARD_FIVE))
+def test_the_five_items_and_beliefs_on_the_hard_case(entry_id):
+    """219 FR-4 / FR-5 (`RelativeAdvantageHardCaseTest.theFiveItemsAsServedAndAsReadNow` / `...Beliefs...`): *Think of
+    {hard_case}.* first, the question unchanged after it; the belief on `hard_case_theirs`, every benefit kept."""
+    occasion, stem, name, what, job, hard, theirs, benefits, item, belief = HARD_FIVE[entry_id]
+    assert spoken_mod.advantage_stem(occasion, name, what, job, stem, hard) == item
+    anchor = spoken_mod.hard_case_anchor(hard)
+    assert item.startswith(anchor + " Would " + name + ", ")
+    assert item[len(anchor) + 1:] == spoken_mod.advantage_stem(occasion, name, what, job, stem).split(". ", 1)[1]
+    assert corpus_mod.advantage_belief_219(benefits, occasion, theirs) == belief
+    assert corpus_mod.advantage_belief(benefits, occasion, theirs) == belief
+
+
+def test_the_hard_case_frames_are_the_clouds():
+    """219 (`HardCase.ITEM_LEAD`, `TEMPLATE_OCCASION`, `belief`, `said`)."""
+    source = _cloud(VECTORS + "HardCase.java")
+    assert f'ITEM_LEAD = "{spoken_mod.HARD_CASE_LEAD}";' in source
+    assert f'TEMPLATE_OCCASION = "{corpus_mod.HARD_CASE_TEMPLATE_OCCASION}";' in source
+    template = "For most, with it, their last {occasion} would have given them {value}."
+    assert corpus_mod.ADVANTAGE_BELIEF_TEMPLATE_199 == template
+    assert corpus_mod.hard_case_belief(template, "their last job that ran out of memory.") == \
+        "For most, with it, their last job that ran out of memory would have given them {value}."
+    assert corpus_mod.hard_case_belief(template, None) == template
+    assert spoken_mod.hard_case_said("The last time a call dropped.") == "the most recent time a call dropped"
+    # Lullaby's (keel-cloud `VectorFixtures.HARD_CASE`), and none: today's anchor
+    assert spoken_mod.hard_case_anchor("the last night when you did not know why your baby cried") == \
+        "Think of the last night when you did not know why your baby cried."
+    assert spoken_mod.advantage_stem("night", "Lullaby", "a phone app", "work out what the baby needs", None, None) == \
+        spoken_mod.advantage_stem("night", "Lullaby", "a phone app", "work out what the baby needs")
+
+
+def test_the_scripted_writers_carry_the_clause_where_the_cloud_reads_it(golden):
+    """219 FR-1 / FR-2 (its owed list): the scripted Prevalence carries the hard cases only where an entry holds them
+    (none today: no pin moves); the scripted problem card carries the six clause fields in a study without the problem's
+    questions, and the gate the card's clause asks is the writer's (`event_base`), so no E10 note."""
+    import dataclasses                                                  # noqa: PLC0415
+    countly = golden["01-countly"]
+    assert vs.HARD_CASES == {} and vs.hard_cases(countly) == {}
+    prevalence = vs.calibration_question(countly, "problem.prevalence")
+    assert "hard_case" not in prevalence and "hard_case_theirs" not in prevalence
+    assert set(vs.problem_result(countly)) == {"statement", "offer_name"}
+    solution = dataclasses.replace(countly, scope="SOLUTION")
+    card = vs.problem_result(solution)
+    assert card["event"] == vs.event_past(countly) == vs.PROBLEM_CLAUSES["01-countly"][0]
+    assert (card["routine"], card["went_wrong"]) == vs.ACT_THAT_HURTS["01-countly"]
+    assert card["no_sayer"] == vs.NO_SAYERS["01-countly"]
+    assert vs.event_base(solution) == vs.PROBLEM_CLAUSES["01-countly"][1]
+    assert wording_mod.packed_fault(card["event"], card["went_wrong"]) is None
+    assert set(vs.problem_result(dataclasses.replace(countly, scope="COMMERCIAL"))) == {"statement", "offer_name"}

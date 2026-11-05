@@ -1506,16 +1506,50 @@ def hard_case(occasion: str | None, stem: str | None) -> str | None:
     return anchor if _spoken_words(anchor) <= STEM_MAX_WORDS else None
 
 
+#: keel-cloud 219 (`HardCase.ITEM_LEAD`): the item's frame before the study's hard case, *Think of {hard_case}.*
+HARD_CASE_LEAD = "Think of "
+
+
+def hard_case_clean(field: str | None) -> str | None:
+    """keel-cloud 219 (`HardCase.clean`): the field as served -- trimmed, runs of space as one, its trailing stops
+    dropped, its first letter lowered (an acronym's capital kept); None with none."""
+    if field is None or not str(field).strip():
+        return None
+    text = re.sub(r"[.,;:!?]+$", "", re.sub(r"\s+", " ", str(field).strip())).strip()
+    return _lower(text) if text else None
+
+
+def hard_case_said(field: str | None) -> str | None:
+    """keel-cloud 219 (`HardCase.said`): the hard case as the item says it -- *the last time ...* said *the most recent
+    time ...* (214's rule: *the last time* is 120's stem anchor); every other opening as written."""
+    text = hard_case_clean(field)
+    if text is None:
+        return None
+    return "the most recent time " + text[len("the last time "):] if text.lower().startswith("the last time ") else text
+
+
+def hard_case_anchor(field: str | None) -> str | None:
+    """keel-cloud 219 FR-4 (`HardCase.anchor`): *Think of {hard_case}.*; None with no field or past the spoken cap."""
+    said = hard_case_said(field)
+    if said is None:
+        return None
+    anchor = HARD_CASE_LEAD + said + "."
+    return anchor if _spoken_words(anchor) <= STEM_MAX_WORDS else None
+
+
 def advantage_stem(occasion: str | None, name: str | None, what_it_is: str | None, job: str | None,
-                   stem: str | None = None) -> str | None:
+                   stem: str | None = None, hard_case_field: str | None = None) -> str | None:
     """keel-cloud 213 FR-6 (`ScaleFour.question(occasion, stem, name, whatItIs, job)`): Relative advantage's stranger
     stem -- the anchor, then *Would {Name}, {what it is}, have done that better for you, or not?* as the card says: the
     whole what where the question fits the 20 spoken words, else the what cut by its trailing phrases (`cut_to_fit`),
     else its head (`what_head`); the bare name only where there is no what; *it* last. keel-cloud 214 FR-2: the anchor
     is the hard case (`hard_case`, the occasion stem's when clause), the job's at-stake anchor (`held_anchor`, 198 /
     206) only where there is no stem or it does not fit. None where no anchor fits (the cloud then serves 173's
-    frame)."""
-    anchor = hard_case(occasion, stem)
+    frame). keel-cloud 219 FR-4 (spec 141 FR-2; `ScaleFour.question(..., hardCase)`): the study's own hard case first,
+    *Think of {hard_case}.* (`hard_case_anchor`), where it holds one that fits; then 214's, then 198's."""
+    anchor = hard_case_anchor(hard_case_field)
+    if anchor is None:
+        anchor = hard_case(occasion, stem)
     if anchor is None and job is not None and job.strip():
         anchor = held_anchor(occasion, job)
     if anchor is None:

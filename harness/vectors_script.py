@@ -329,6 +329,35 @@ def no_sayer(entry) -> str:
     return NO_SAYERS.get(entry.id, NO_SAYER_ANY)
 
 
+#: Spec 141 FR-2 (keel-cloud 219 FR-2, `hard_case` / `hard_case_theirs`): the moment the problem cost them, as a stranger
+#: recalls it and as the founder's belief reads it -- optional fields the scripted Prevalence (and, in a study without
+#: the problem's questions, the scripted problem card) carries where an entry holds them. **None today**: the golden
+#: seven's walks keep today's Relative advantage item and belief (219's owed list: *without them the build serves
+#: today's wording, no pin moves*), and a back-test entry's scripted `went_wrong` (`event_past`) is no hurt a hard case
+#: could carry under H1. `(hard_case, hard_case_theirs)` by entry id.
+HARD_CASES: dict[str, tuple[str, str]] = {}
+
+
+def hard_cases(entry) -> dict:
+    """Spec 141 FR-2: `{hard_case, hard_case_theirs}` where the entry holds them (`HARD_CASES`), else `{}`."""
+    held = HARD_CASES.get(getattr(entry, "id", None))
+    return {} if held is None else {"hard_case": held[0], "hard_case_theirs": held[1]}
+
+
+def problem_clause(entry) -> dict:
+    """Spec 141 FR-2 (keel-cloud 219 FR-1, `ProblemClause`): the six clause fields the scripted problem card writes in a
+    study without the problem's questions (`serves_gate` and not `gate_counts`: the gate is the solution studies'
+    uncounted anchor) -- `event` (the founder's clause, `event_past`), `routine` / `went_wrong` (`act_that_hurts`),
+    `no_sayer`, and the hard cases where held -- only where the entry holds the founder's own clause
+    (`PROBLEM_CLAUSES`: its turned form is the gate's `event_base`, so the gate the card's clause asks is the writer's
+    and no E10 note is served); `{}` elsewhere, where the card writes `statement` and `offer_name` alone as before."""
+    if entry.id not in PROBLEM_CLAUSES or gate_counts(entry) or not serves_gate(entry):
+        return {}
+    routine, went_wrong = act_that_hurts(entry)
+    return {"event": event_past(entry), "routine": routine, "went_wrong": went_wrong, "no_sayer": no_sayer(entry),
+            **hard_cases(entry)}
+
+
 def act_that_hurts(entry) -> tuple[str, str]:
     """Spec 136 FR-3: `(routine, went_wrong)` for the entry's Prevalence -- the golden seven's own (`ACT_THAT_HURTS`);
     elsewhere the context's job and the clause `event_past` writes (a back-test entry records no founder clause, and no
@@ -752,7 +781,10 @@ def scripted_occasion(entry) -> str:
 
 
 def problem_result(entry) -> dict:
-    return {"statement": (entry.interpretations or {})["problem"], "offer_name": offer_name(entry)}
+    """PROBLEM_INTERPRET's result: `statement` and `offer_name`; since keel-cloud 219 (spec 141 FR-2) the problem clause's
+    fields beside them in a study without the problem's questions (`problem_clause`)."""
+    return {"statement": (entry.interpretations or {})["problem"], "offer_name": offer_name(entry),
+            **problem_clause(entry)}
 
 
 def idea_lines(entry) -> dict:
@@ -2600,6 +2632,8 @@ def calibration_question(entry, key: str, *, first: bool = False) -> dict:
         # spec 139 FR-2 (keel-cloud 216 FR-1, E9): the one of them who truly answers No
         q["no_sayer"] = no_sayer(entry)
         q["event"] = event_past(entry)
+        # spec 141 FR-2 (keel-cloud 219 FR-2): the two hard cases, optional, where the entry holds them
+        q.update(hard_cases(entry))
         chosen = _chosen_codes(entry, key)
         phrase = _founder(entry, key).get("belief_phrase")
         q["options"] = [{"label": label,

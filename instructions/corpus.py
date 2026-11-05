@@ -2158,9 +2158,41 @@ def _lower_first(label: str) -> str:
     return label[:1].lower() + label[1:]
 
 
-def advantage_belief(benefit, occasion) -> str:
+#: keel-cloud 219 (`HardCase.TEMPLATE_OCCASION`): the template's occasion the study's `hard_case_theirs` takes the place
+#: of -- *For most, with it, {hard_case_theirs} would have given them {value}.*
+HARD_CASE_TEMPLATE_OCCASION = "their last {occasion}"
+
+
+def hard_case_belief(template, hard_case_theirs):
+    """keel-cloud 219 FR-5 (`HardCase.belief`, spec 141 FR-2): the belief template with the founder's hard case in place
+    of *their last {occasion}*; the template as it is where there is none or it carries no such occasion."""
+    from . import spoken as spoken_mod                                  # noqa: PLC0415
+    theirs = spoken_mod.hard_case_clean(hard_case_theirs)
+    if template is None or theirs is None or HARD_CASE_TEMPLATE_OCCASION not in template:
+        return template
+    return template.replace(HARD_CASE_TEMPLATE_OCCASION, theirs)
+
+
+def advantage_belief_219(benefits, occasion, hard_case_theirs=None) -> str:
+    """keel-cloud 199's sentence as the engine writes it (`ADVANTAGE_BELIEF_TEMPLATE_199`, every benefit joined), and
+    since keel-cloud 219 (spec 141 FR-2) on the study's hard case where it holds one -- *For most, with it, their last
+    job that ran out of memory would have given them a job that runs to the end first time and a shorter wait in the
+    queue.*"""
+    noun = (occasion or "").strip()
+    template = hard_case_belief(ADVANTAGE_BELIEF_TEMPLATE_199, hard_case_theirs)
+    if (not noun or noun.lower() in ("time", "times")) and "{occasion}" in template:
+        template = template.replace("their last {occasion}", "the last time")
+    value = joined([advantage_benefit(b) for b in ([benefits] if isinstance(benefits, str) else benefits)])
+    return template.replace("{occasion}", noun).replace("{value}", value)
+
+
+def advantage_belief(benefit, occasion, hard_case_theirs=None) -> str:
     """keel-cloud 173's belief sentence: `ADVANTAGE_BELIEF_TEMPLATE` with the first benefit (`advantage_benefit`) and the
-    occasion filled as `OccasionNoun.fill` fills it -- *the last time* where the context names none (blank, *time*)."""
+    occasion filled as `OccasionNoun.fill` fills it -- *the last time* where the context names none (blank, *time*).
+    Spec 141 FR-2 (keel-cloud 219): where the study holds `hard_case_theirs`, the engine's sentence on it
+    (`advantage_belief_219`)."""
+    if hard_case_theirs is not None and str(hard_case_theirs).strip():
+        return advantage_belief_219(benefit, occasion, hard_case_theirs)
     noun = (occasion or "").strip()
     template = ADVANTAGE_BELIEF_TEMPLATE
     if not noun or noun.lower() in ("time", "times"):
