@@ -151,10 +151,168 @@ _STILL_HAVE = re.compile(r"\bstill\s+(?:have|has|had|having)\b", re.IGNORECASE)
 SETTLED_BY = ("nobody", "the segment", "the usual way")
 
 
-def packed_fault(event, went_wrong) -> str | None:
+# ------------------------------------------------- keel-cloud 224: the event is a moment, and says no verdict (spec 141)
+
+#: keel-cloud 224 FR-1 (`WindowFrame.STATE_VERBS`): the verbs of state -- a clause headed by one says where a thing
+#: stood, not a moment it cost them.
+STATE_VERBS = ("keep", "hold", "have", "leave", "sit", "stay", "remain", "lie", "rest", "own", "possess")
+#: keel-cloud 224 FR-1 (`WindowFrame.STATE_FORMS`): each form of a verb of state, in any tense, to its base.
+STATE_FORMS = {form: row[0] for row in (
+    ("keep", "keeps", "kept", "keeping"), ("hold", "holds", "held", "holding"), ("have", "has", "had", "having"),
+    ("leave", "leaves", "left", "leaving"), ("sit", "sits", "sat", "sitting"), ("stay", "stays", "stayed", "staying"),
+    ("remain", "remains", "remained", "remaining"), ("lie", "lies", "lay", "lain", "lying"),
+    ("rest", "rests", "rested", "resting"), ("own", "owns", "owned", "owning"),
+    ("possess", "possesses", "possessed", "possessing")) for form in row}
+#: keel-cloud 224 FR-2 (`WindowFrame.VERDICT_WORDS`): the verdict words -- the gate rule's list in
+#: respondent-questions.md, in its order, word for word.
+VERDICT_WORDS = ("idle", "sitting", "still", "stay", "have to", "fail to", "waste", "struggle", "by hand", "manually",
+                 "could have", "would have", "more than it could", "better")
+#: keel-cloud 224 FR-2 (`WindowFrame.VERDICT_VERB_FORMS`): a verdict word's verb in any tense -- its first word's.
+_VERDICT_VERB_FORMS = {"idle": "idle|idles|idled|idling", "stay": "stay|stays|stayed|staying",
+                       "have": "have|has|had|having", "fail": "fail|fails|failed|failing",
+                       "waste": "waste|wastes|wasted|wasting",
+                       "struggle": "struggle|struggles|struggled|struggling"}
+#: `\p{L}` as the cloud reads it, Latin letters (a clause is English).
+_L = "A-Za-z\u00c0-\u024f"
+
+
+def _verdict_pattern(word: str):
+    parts = word.split(" ")
+    regex = r"(?i)(?<![" + _L + "'])(?:" + _VERDICT_VERB_FORMS.get(parts[0], re.escape(parts[0])) + ")"
+    for part in parts[1:]:
+        regex += r"\s+" + re.escape(part)
+    if word == "still":
+        regex += r"(?!\s+(?:have|has|had|having)(?![" + _L + "']))"         # 212's allowance, read by _STILL_HAVE
+    return re.compile(regex + r"(?![" + _L + "'])")
+
+
+#: Each verdict word as a pattern of its forms, in the list's order.
+_VERDICT = {word: _verdict_pattern(word) for word in VERDICT_WORDS}
+#: `WindowFrame.LEADING_ADVERBS`: the adverbs a clause may open on before its verb.
+LEADING_ADVERBS = ("already", "still", "just", "also", "often", "always", "never", "usually", "only", "really", "ever")
+#: `WindowFrame.SUBJECT_OPENERS` (224 FR-1): the words a clause opens its own subject on.
+SUBJECT_OPENERS = frozenset(("a", "an", "the", "their", "your", "his", "her", "its", "our", "my", "this", "that",
+                             "these", "those", "some", "one", "every", "each", "no", "any", "you", "they", "he", "she",
+                             "it", "we", "i"))
+#: `WindowFrame.OBJECT_ENDS` (224 FR-1): the small words that end the object after *have*.
+OBJECT_ENDS = frozenset(("to", "in", "on", "at", "for", "from", "with", "into", "of", "by", "after", "before", "when",
+                         "while", "because", "that", "which", "who", "and", "or", "until", "since", "as", "about",
+                         "over", "under", "through"))
+#: `WindowFrame.HAPPENED_VERBS` (224 FR-1): verbs of what happened to a thing, said bare after *had {it}*.
+HAPPENED_VERBS = frozenset(("fail", "crash", "bounce", "drop", "die", "freeze", "jam", "stall", "stop", "slip",
+                            "expire", "lapse", "happen", "turn", "show", "end", "return", "arrive", "disappear",
+                            "vanish", "leak", "overflow", "spill", "burst", "collapse"))
+#: `WindowFrame.PARTICIPLES` (224 FR-1): the irregular participles a perfect or a passive after *had* carries.
+PARTICIPLES = frozenset((
+    "been", "done", "gone", "got", "gotten", "made", "seen", "taken", "given", "known", "written", "spoken", "stolen",
+    "broken", "frozen", "thrown", "shown", "lost", "sent", "spent", "paid", "built", "brought", "bought", "found", "told",
+    "put", "cut", "set", "run", "hit", "hurt", "shut", "let", "won", "eaten", "fallen", "forgotten", "beaten", "bitten",
+    "driven", "ridden", "chosen", "woken", "worn", "torn", "caught", "met", "read", "heard", "said", "kept", "held",
+    "left", "sat", "lain", "had"))
+
+
+def _clause_words(text: str) -> list[str]:
+    """`WindowFrame.clauseWords`: the clause's words, lower case, every non-letter off each end."""
+    out = []
+    for raw in str(text).lower().split():
+        word = re.sub("^[^" + _L + "]+|[^" + _L + "]+$", "", raw)
+        if word:
+            out.append(word)
+    return out
+
+
+def _head_at(words: list[str]) -> int:
+    at = 0
+    while at < len(words) - 1 and words[at] in LEADING_ADVERBS:
+        at += 1
+    return -1 if not words else at
+
+
+def _participle(word: str) -> bool:
+    return word in PARTICIPLES or (len(word) > 3 and word.endswith("ed"))
+
+
+def _bare_verb(word: str) -> bool:
+    return word in HAPPENED_VERBS or STATE_FORMS.get(word) == word or present_verb(word)
+
+
+def state_head(event) -> str | None:
+    """keel-cloud 224 FR-1 (`WindowFrame.stateHead`): the clause's head verb where it is a verb of state, or None --
+    *have* read whole: *have to* + a verb is an obligation, *had* + a participle a perfect, *had* + its object + a bare
+    verb or a participle what happened to them; only *have* as having is the state."""
+    from instructions import spoken as spoken_mod                       # noqa: PLC0415 - `StrangerGrammar.baseOfPast`
+    words = _clause_words(clause(event))
+    at = _head_at(words)
+    if at < 0:
+        return None
+    if words[at] in SUBJECT_OPENERS:
+        verb = -1
+        for i in range(at + 1, len(words)):
+            word = words[i]
+            if words[i - 1] not in SUBJECT_OPENERS and (word in STATE_FORMS or spoken_mod.base_of_past(word) is not None
+                                                        or _participle(word)):
+                verb = i
+                break
+        if verb < 0:
+            return None
+        at = verb
+    return _state_head_at(words, at)
+
+
+def _state_head_at(words: list[str], at: int) -> str | None:
+    head = words[at]
+    base = STATE_FORMS.get(head)
+    if base is None:
+        return None
+    if base != "have":
+        return head
+    nxt = words[at + 1] if at + 1 < len(words) else ""
+    if nxt == "to":
+        return None
+    if _participle(nxt):
+        return _state_head_at(words, at + 1)
+    for i in range(at + 2, min(len(words), at + 7)):
+        word = words[i]
+        if word in OBJECT_ENDS:
+            break
+        if words[i - 1] in SUBJECT_OPENERS:
+            continue
+        if _bare_verb(word) or _participle(word):
+            return _state_head_at(words, i)
+    return head
+
+
+def _carries_verb(went_wrong, head: str) -> bool:
+    """`WindowFrame.carriesVerb`: whether `went_wrong` names the head's verb, in any form -- *have* not in *have to*."""
+    if went_wrong is None or not str(went_wrong).strip():
+        return False
+    base = STATE_FORMS[head]
+    words = _clause_words(went_wrong)
+    return any(STATE_FORMS.get(w) == base and not (base == "have" and i + 1 < len(words) and words[i + 1] == "to")
+               for i, w in enumerate(words))
+
+
+def verdict_word(event) -> str | None:
+    """keel-cloud 224 FR-2 (`WindowFrame.verdictWord`): the first verdict word the clause carries, in the list's order,
+    in any tense -- *have to* at its head not (the act's own frame)."""
+    text = clause(event)
+    words = _clause_words(text)
+    at = _head_at(words)
+    obliged = at >= 0 and at + 1 < len(words) and STATE_FORMS.get(words[at]) == "have" and words[at + 1] == "to"
+    for word, pattern in _VERDICT.items():
+        for match in pattern.finditer(text):
+            if obliged and word == "have to" and len(_clause_words(text[:match.start()])) == at:
+                continue
+            return word
+    return None
+
+
+def packed_fault(event, went_wrong, window=None) -> str | None:
     """`WindowFrame.packedFault` (E8): the founder's event is one act, seen on a given unit or not -- never a cause or a
-    result packed in, never a judgement, never a lasting state (*still have* only where `went_wrong` carries it). The
-    first fault, naming the field; `None` when the event passes."""
+    result packed in, never a judgement, never a lasting state (*still have* only where `went_wrong` carries it). Since
+    keel-cloud 224 (spec 141 FR-5) then the head verb -- a verb of state (`STATE_VERBS`) unless `went_wrong` carries the
+    same verb -- and the verdict words (`VERDICT_WORDS`); `window`'s unit names the moment (*day* where none is in
+    hand). The first fault, naming the field; `None` when the event passes."""
     text = clause(event)
     if not text.strip():
         return None
@@ -175,6 +333,15 @@ def packed_fault(event, went_wrong) -> str | None:
     if still and (went_wrong is None or not _STILL_HAVE.search(str(went_wrong))):
         return (f"E8: event '{text}' says '{still.group()}', a lasting state unless went_wrong names it as the act; "
                 "write event from went_wrong")
+    unit = "day" if window is None else window.singular
+    head = state_head(text)
+    if head is not None and not _carries_verb(went_wrong, head):
+        return (f"E8: event '{text}' is a standing state ('{head}'); write the moment inside the window where it "
+                f"showed -- what they did, or what happened to the thing, on a given {unit}")
+    verdict = verdict_word(text)
+    if verdict is not None:
+        return (f"E8: event '{text}' carries '{verdict}', a verdict on the act -- the way it was done or what might have "
+                f"been -- not the act; write the act alone, from went_wrong, as a person saw it on a given {unit}")
     return None
 
 

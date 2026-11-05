@@ -280,7 +280,9 @@ PROBLEM_CLAUSES = {
     "04-linerly": ("lost time to a puncture riding to work", "lose time to a puncture riding to work"),
     "05-paidly": ("waited beyond agreed terms for an approved invoice",
                   "wait beyond agreed terms for an approved invoice"),
-    "06-repeatline": ("had to type a refill request in by hand", "have to type a refill request in by hand"),
+    # spec 141 FR-5 (keel-cloud 224 FR-2, its owed list): *by hand* is a verdict word E8 now refuses -- the harness's
+    # own fixture reworded to the act alone (the corpus untouched); `went_wrong` is not held to the list and keeps it
+    "06-repeatline": ("had to type a refill request in", "have to type a refill request in"),
     "07-mulchrun": ("waited at the supply yard for mulch", "wait at the supply yard for mulch"),
 }
 
