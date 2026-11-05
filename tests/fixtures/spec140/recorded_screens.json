@@ -1,0 +1,234 @@
+{
+ "why": "Spec 140 FR-5: six founder screens of cycle 14 (quality/cycles/20261105-04d95c2*.md) as their bundles recorded them (`keel read back` dropped), and under `drawn` what each screenshot draws that the capture did not carry -- the Choose suggestion and its why, the Commitment check's boxes and chips -- transcribed from screens/founder-NN-<screen>.png, read-only in keel-e2e-eval/runs/<bundle>/.",
+ "screens": [
+  {
+   "entry": "08-fresco",
+   "bundle": "20261105T025958Z-backtest-08-fresco",
+   "total": 22,
+   "web": "3b40abfb",
+   "screen": {
+    "n": 13,
+    "screen": "choose-solution.compatibility",
+    "file": "screens/founder-13-choose-solution.compatibility.png",
+    "kicker": "STEP 3 OF 4 · YOUR SOLUTION · WHAT DO YOU BELIEVE IS TRUE?",
+    "question": "",
+    "hint": "",
+    "options": [
+     "Could talk into their phone over the noise on site",
+     "Could stop to film and talk on the walk"
+    ],
+    "rows": [],
+    "chips": [],
+    "title": "Which one do you want to test?",
+    "intro": "Strangers get one question for this test. Pick the condition most likely to stop them; nothing is reworded here.",
+    "keel_test": {
+     "belief": "Pick one and the test appears here.",
+     "bar": "Holds if no more than 1 in 3 say only sometimes, or no.",
+     "note": "Your other conditions stay in the brief as what you believe must be true; only this one is asked."
+    },
+    "answer": {
+     "pickedIndex": 0,
+     "the file's item": "could talk into their phone over the noise on site",
+     "picked on screen (by label)": "Could talk into their phone over the noise on site",
+     "drawn at": 0,
+     "served pickedIndex (the wire)": 0
+    }
+   },
+   "drawn": {
+    "suggested": 0,
+    "why": "Site noise may drown out speech, so this is the condition most likely to be missing for some of them."
+   }
+  },
+  {
+   "entry": "10-palus",
+   "bundle": "20261105T033230Z-backtest-10-palus",
+   "total": 22,
+   "web": "3b40abfb",
+   "screen": {
+    "n": 13,
+    "screen": "choose-solution.compatibility",
+    "file": "screens/founder-13-choose-solution.compatibility.png",
+    "kicker": "STEP 3 OF 4 · YOUR SOLUTION · WHAT DO YOU BELIEVE IS TRUE?",
+    "question": "",
+    "hint": "",
+    "options": [
+     "Could keep their current bank while the reserve sat elsewhere",
+     "Could wait one to two business days for their cash",
+     "could link the company's bank account to an outside service"
+    ],
+    "rows": [],
+    "chips": [],
+    "title": "Which one do you want to test?",
+    "intro": "Strangers get one question for this test. Pick the condition most likely to stop them; nothing is reworded here.",
+    "keel_test": {
+     "belief": "Pick one and the test appears here.",
+     "bar": "Holds if no more than 1 in 3 say only sometimes, or no.",
+     "note": "Your other conditions stay in the brief as what you believe must be true; only this one is asked."
+    },
+    "answer": {
+     "pickedIndex": 1,
+     "the file's item": "could wait one to two business days for their cash",
+     "picked on screen (by label)": "Could wait one to two business days for their cash",
+     "drawn at": 1,
+     "served pickedIndex (the wire)": 1
+    }
+   },
+   "drawn": {
+    "suggested": 2,
+    "why": "Linking a bank account to an outside service needs data access and often someone's approval, so some finance leads would be unable to do it."
+   }
+  },
+  {
+   "entry": "13-aircaps",
+   "bundle": "20261105T040639Z-backtest-13-aircaps",
+   "total": 22,
+   "web": "3b40abfb",
+   "screen": {
+    "n": 13,
+    "screen": "choose-solution.compatibility",
+    "file": "screens/founder-13-choose-solution.compatibility.png",
+    "kicker": "STEP 3 OF 4 · YOUR SOLUTION · WHAT DO YOU BELIEVE IS TRUE?",
+    "question": "",
+    "hint": "",
+    "options": [
+     "Had their phone online",
+     "Could read captions while watching faces"
+    ],
+    "rows": [],
+    "chips": [],
+    "title": "Which one do you want to test?",
+    "intro": "Strangers get one question for this test. Pick the condition most likely to stop them; nothing is reworded here.",
+    "keel_test": {
+     "belief": "Pick one and the test appears here.",
+     "bar": "Holds if no more than 1 in 3 say no.",
+     "note": "Your other conditions stay in the brief as what you believe must be true; only this one is asked."
+    },
+    "answer": {
+     "pickedIndex": 1,
+     "the file's item": "could read captions while watching faces",
+     "picked on screen (by label)": "Could read captions while watching faces",
+     "drawn at": 1,
+     "served pickedIndex (the wire)": 1
+    }
+   },
+   "drawn": {
+    "suggested": 0,
+    "why": "A phone with no connection in a noisy or busy place is the most likely gap, and it would stop the captions entirely."
+   }
+  },
+  {
+   "entry": "21-codyco",
+   "bundle": "20261105T102029Z-backtest-21-codyco",
+   "total": 22,
+   "web": "934de419",
+   "screen": {
+    "n": 13,
+    "screen": "choose-solution.compatibility",
+    "file": "screens/founder-13-choose-solution.compatibility.png",
+    "kicker": "STEP 3 OF 4 · YOUR SOLUTION · WHAT DO YOU BELIEVE IS TRUE?",
+    "question": "",
+    "hint": "",
+    "options": [
+     "Could forward unanswered calls to another number",
+     "Ran OPERA Cloud, Sihot or Apaleo as their PMS"
+    ],
+    "rows": [],
+    "chips": [],
+    "title": "Which one do you want to test?",
+    "intro": "Strangers get one question for this test. Pick the condition most likely to stop them; nothing is reworded here.",
+    "keel_test": {
+     "belief": "Pick one and the test appears here.",
+     "bar": "Holds if no more than 1 in 3 say only sometimes, or no.",
+     "note": "Your other conditions stay in the brief as what you believe must be true; only this one is asked."
+    },
+    "answer": {
+     "pickedIndex": 0,
+     "the file's item": "could forward unanswered calls to another number",
+     "picked on screen (by label)": "Could forward unanswered calls to another number",
+     "drawn at": 0,
+     "served pickedIndex (the wire)": 0
+    }
+   },
+   "drawn": {
+    "suggested": null,
+    "why": null
+   }
+  },
+  {
+   "entry": "13-aircaps",
+   "bundle": "20261105T040639Z-backtest-13-aircaps",
+   "total": 22,
+   "web": "3b40abfb",
+   "screen": {
+    "n": 18,
+    "screen": "choose-solution.adoption_friction",
+    "file": "screens/founder-18-choose-solution.adoption_friction.png",
+    "kicker": "STEP 3 OF 4 · YOUR SOLUTION · WHAT DO YOU BELIEVE IS TRUE?",
+    "question": "",
+    "hint": "",
+    "options": [
+     "Wear the caption glasses in conversations",
+     "Charge the glasses every day"
+    ],
+    "rows": [],
+    "chips": [],
+    "title": "Which one is most likely to stop them?",
+    "intro": "Strangers get one question for this test. Pick the effort most likely to stop them; nothing is reworded here.",
+    "keel_test": {
+     "belief": "Pick one and the test appears here.",
+     "bar": "Holds if no more than 1 in 3 say probably not or no.",
+     "note": null
+    },
+    "answer": {
+     "pickedIndex": 0,
+     "the file's item": "Wear the caption glasses in conversations",
+     "picked on screen (by label)": "Wear the caption glasses in conversations",
+     "drawn at": 0,
+     "served pickedIndex (the wire)": 0
+    }
+   },
+   "drawn": {
+    "suggested": null,
+    "why": null
+   }
+  },
+  {
+   "entry": "13-aircaps",
+   "bundle": "20261105T041653Z-backtest-13-aircaps",
+   "total": 22,
+   "web": "3b40abfb",
+   "screen": {
+    "n": 18,
+    "screen": "check-commercial.commitment",
+    "file": "screens/founder-18-check-commercial.commitment.png",
+    "kicker": "STEP 4 OF 5 · WILL THEY PAY · CHECK WHAT KEEL WROTE",
+    "question": "",
+    "hint": "",
+    "options": [],
+    "rows": [],
+    "chips": [],
+    "intro": "Your step as strangers hear it, under 9 words.",
+    "keel_test": {
+     "belief": "Most deaf or hard-of-hearing adults would order the caption glasses with free returns.",
+     "bar": "Set by Keel. Holds if no more than 1 in 3 say probably not or no.",
+     "note": null
+    },
+    "note": [
+     "7 / 9 words.",
+     "6 / 9 words."
+    ],
+    "answer": "saved as Keel drafted it"
+   },
+   "drawn": {
+    "step": "order the caption glasses with free returns",
+    "smaller": "try a pair of caption glasses",
+    "answers": [
+     "Yes, I'd order the caption glasses with free returns",
+     "Probably yes",
+     "Probably not",
+     "No"
+    ]
+   }
+  }
+ ]
+}
