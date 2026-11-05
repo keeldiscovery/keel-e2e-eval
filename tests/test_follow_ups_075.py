@@ -341,8 +341,10 @@ def test_the_cost_step_words_are_keel_webs():
 def test_the_fill_is_keel_clouds_default():
     persona = {"decider": {"role": "Finance manager"}, "problemActor": "payroll practitioner"}
     confirmed = {"state": "CONFIRMED", "occasion": {"noun": "invoice run"}, "fields": {"occasion": "run"}}
-    assert cs.chain_fill(persona, confirmed, True) == {"unit": "Finance manager", "base": "invoice run"}
-    assert cs.chain_fill(persona, confirmed, False)["unit"] == "payroll practitioner"
+    # spec 141 FR-8 (keel-web 178 FR-4): *Per* arrives empty -- the role word was keel-web 123's to 177's
+    assert cs.chain_fill(persona, confirmed, True) == {"unit": None, "base": "invoice run"}
+    assert cs.chain_fill_177(persona, confirmed, True) == {"unit": "Finance manager", "base": "invoice run"}
+    assert cs.chain_fill_177(persona, confirmed, False)["unit"] == "payroll practitioner"
     assert cs.chain_fill(persona, {**confirmed, "occasion": {"noun": "Working day"}}, True)["base"] is None
     assert cs.chain_fill(persona, {**confirmed, "occasion": {}}, True)["base"] == "run"
     assert cs.chain_fill(persona, {**confirmed, "state": "DRAFT"}, True)["base"] is None

@@ -2912,17 +2912,24 @@ WINDOW_UNIT_WORDS = {"night", "nights", "day", "days", "working day", "working d
 
 def chain_fill(persona: dict, context: dict, b2b: bool) -> dict:
     """Spec 075 (keel-web 123 FR-1, keel-cloud's own defaults): what the chain cost's *Per* and *of* arrive filled with
-    -- the role word (the decider's role on a B2B study, else the problem's actor) and the confirmed context's occasion
-    (`occasion.noun`, else the founder's own `fields.occasion`; none where it is blank, a window's unit or *time*)."""
-    unit = str((((persona or {}).get("decider") or {}).get("role") if b2b else (persona or {}).get("problemActor"))
-               or "").strip() or None
+    -- the confirmed context's occasion in *of* (`occasion.noun`, else the founder's own `fields.occasion`; none where
+    it is blank, a window's unit or *time*). Spec 141 FR-8 (keel-web 178 FR-4, keel-cloud 227 FR-3: the unit is the one
+    typed, never a role word): *Per* arrives empty -- `unit` None; the role word it carried is `chain_fill_177`'s."""
     base = None
     if (context or {}).get("state") == "CONFIRMED":
         noun = str(((context.get("occasion") or {}).get("noun")) or "").strip() or \
             str(((context.get("fields") or {}).get("occasion")) or "").strip()
         if noun and " ".join(noun.lower().split()) not in WINDOW_UNIT_WORDS:
             base = noun
-    return {"unit": unit, "base": base}
+    return {"unit": None, "base": base}
+
+
+def chain_fill_177(persona: dict, context: dict, b2b: bool) -> dict:
+    """keel-web 123 to 177: *Per* arrived filled with the role word (the decider's role on a B2B study, else the
+    problem's actor) -- read only where a test names the web before 178."""
+    unit = str((((persona or {}).get("decider") or {}).get("role") if b2b else (persona or {}).get("problemActor"))
+               or "").strip() or None
+    return {**chain_fill(persona, context, b2b), "unit": unit}
 
 
 def hours_cost_box(cost: dict, rate, money: str, *, symbol: str = "$") -> str:

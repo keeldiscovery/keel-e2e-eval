@@ -474,6 +474,10 @@ FREQUENCY_RANGE_HINT = "Your estimate from what you have seen and heard. A range
 #: writes it) -- 174's second sentence alone, *{Item} is one of the two they would most like made easier.* (was the
 #: pending *Pick one and the test appears here.*). The walk reads the box once the list holds more, so a count-free box
 #: there is what the hold names (`evals/corpus_scenario.importance_count`).
+#: keel-web 178 FR-1 (spec 141 FR-8): the served note under a row (Check) or an option (Choose, by its describedby id).
+ROW_NOTE_TESTID = "row-note"
+#: keel-web 178 FR-2: the Current solution line the founder may place (`data-line` on it and on its words).
+LINE_CONTROL_TESTID = "line-control"
 IMPORTANCE_COUNT_FREE = re.compile(r"^(?P<item>(?:(?!\.\s).)+?) is one of the two they would most like made "
                                    r"easier\.$")
 
@@ -2815,13 +2819,19 @@ class Corridor:
             testid = li.get_attribute("data-testid")
             suggested = LIST_ROW_SUGGESTED in (li.get_attribute("class") or "").split()
             locked = li.locator(".listrow__ed--lock")
+            # spec 141 FR-8 (keel-web 178 FR-1): a served note drawn under the row (`[data-testid=row-note]`, a locked
+            # row's too -- Importance's own row) is the row's own `note`, never its `warn` (the reword line)
+            note = _first_text(li, f"[data-testid={ROW_NOTE_TESTID}]") or None
             if locked.count():
                 row = {"text": _first_text(li, ".listrow__ed--lock"), "tag": _first_text(li, ".listrow__tag"),
                        "locked": True}
             else:
                 row = {"text": _value(li.locator("textarea.listrow__ed").first),
                        "tag": _first_text(li, ".listrow__tag"), "locked": False,
-                       "counter": _first_text(li, ".listrow__wc"), "warn": _first_text(li, ".listrow__warn")}
+                       "counter": _first_text(li, ".listrow__wc"),
+                       "warn": _first_text(li, f".listrow__warn:not([data-testid={ROW_NOTE_TESTID}])")}
+            if note:
+                row["note"] = note
             if data_tag:
                 row["data_tag"] = data_tag
                 row["said"] = row_said(row["text"], data_tag)
@@ -2836,8 +2846,15 @@ class Corridor:
         field = self.page.locator(".listcheck .listcheck__field textarea.listrow__ed")
         founder_note = _first_text(self.page, f".listcheck {LIST_FOUNDER_NOTE}")
         guidance = _first_text(self.page, ".listcheck__note")
+        # spec 141 FR-8 (keel-web 178 FR-2): the line's words sit inside the control (`line-control`) where the founder
+        # may place it; the walk reads them and its place (`data-line`) and leaves it where drawn, so the Save sends the
+        # served `lineAfter` unchanged
+        line_at = self.page.locator(".listcheck__line").first.get_attribute("data-line") \
+            if self.page.locator(".listcheck__line").count() else None
         out = {"rows": rows, "field": _value(field.first) if field.count() else None,
                "line": _first_text(self.page, ".listcheck__line"),
+               "line_at": int(line_at) if line_at and line_at.isdigit() else None,
+               "line_control": bool(self.page.locator(f"[data-testid={LINE_CONTROL_TESTID}]").count()),
                "note": " ".join(t for t in (founder_note, guidance) if t),
                "founder_note": founder_note or None, "guidance": guidance or None,
                "title": _first_text(self.page, ".listcheck__title")}

@@ -628,7 +628,13 @@ READ_JS = """() => {
       const w = el && el.querySelector(".calib__suggest-why");
       why = (w ? said(w) : el ? said(el).replace(/^Keel['\u2019]s suggestion\\s*/i, "") : "") || null;
     }
-    return {label: option(e), suggested: suggested, why: why};
+    // spec 141 FR-8 (keel-web 178 FR-1): the option's served note (Compatibility's settled note), the element its
+    // `aria-describedby` names whose id carries `-note-` (`choose-{dim}-note-{i}`) -- read, never acted on
+    const noteId = (e.getAttribute("aria-describedby") || "").split(/\\s+/).find((x) => /-note-/.test(x));
+    const noteEl = noteId ? document.getElementById(noteId) : null;
+    const note = noteEl ? said(noteEl) || null : null;
+    return note ? {label: option(e), suggested: suggested, why: why, note: note}
+        : {label: option(e), suggested: suggested, why: why};
   };
   // spec 134 FR-2 (keel-web 168 FR-4): the founder note drawn in the list (`li.listrow--note`, *Your own offer ... stays
   // off this list*) is never a row: it is read as `note`, with the guidance line under the list (`.listcheck__note`)
@@ -637,10 +643,21 @@ READ_JS = """() => {
   // spec 139 FR-3 (keel-web 175 FR-7): Importance's own row on the Answer screen (`answer-own-row`) is read apart
   // (`own_row`), never as a Check row; (FR-1) Buyer and payer's fixed *Nobody else* (`check-nobody-else`) is the
   // first row, read as drawn
+  // spec 141 FR-8 (keel-web 178 FR-1): a served note drawn inside the row (`[data-testid=row-note]`, a locked row's too)
+  // is never the row's words -- read apart into `row_notes`, `{row, note}`
+  const noteOf = (li) => { const n = li.querySelector("[data-testid=row-note]"); return n ? said(n) : ""; };
+  const rowText = (li) => { const text = (li.innerText || "").replace(/\\s+/g, " ").trim();
+      const note = noteOf(li);
+      return note && text.endsWith(note) ? text.slice(0, -note.length).trim() : text; };
+  const rowNotes = Array.from(document.querySelectorAll("li.listrow:not(.listrow--note)"))
+      .filter((li) => !li.closest("[data-testid=answer-own-row]") && noteOf(li)).map((li) => {
+      const ta = li.querySelector("textarea");
+      return {row: ((ta && ta.value) || rowText(li)).replace(/\\s+/g, " ").trim(), note: noteOf(li)};
+  });
   const rows = Array.from(document.querySelectorAll("li.listrow:not(.listrow--note)"))
       .filter((li) => !li.closest("[data-testid=answer-own-row]")).map((li) => {
       const ta = li.querySelector("textarea");
-      const text = ((ta && ta.value) || li.innerText || "").replace(/\\s+/g, " ").trim();
+      const text = ((ta && ta.value) || rowText(li) || "").replace(/\\s+/g, " ").trim();
       const tag = (li.getAttribute("data-tag") || "").replace(/\\s+/g, " ").trim();
       return ta && tag ? (text + (tag.startsWith("\u00b7") ? " " : " \u00b7 ") + tag).trim() : text;
   }).filter(Boolean);
@@ -696,7 +713,8 @@ READ_JS = """() => {
           hint: one(".calib__hint, .iv-tick, .iv-note, .ccard__sub"),
           options: options(optionSel),
           // spec 140 FR-1: every option with whether it is Keel's suggestion and its why -- only where one is drawn
-          choices: choices.some((c) => c.suggested) ? choices : null,
+          choices: choices.some((c) => c.suggested || c.note) ? choices : null,
+          row_notes: rowNotes.length ? rowNotes : null,
           rows: rows, note: notes.length ? notes : null, chips: all(".calib__chip, .iv-chips button"),
           title: one(".listcheck__title") || null, intro: one(".corridor__intro") || null,
           time_box: box ? {question: one("[data-testid=duration-input] .calib__durationq"),
@@ -1661,6 +1679,8 @@ def founder_screens(j, cam: Camera | None, wire: dict) -> list[dict]:
                     # spec 140 FR-1 / FR-2: the Choose options with Keel's suggestion and its why, a Check list's
                     # suggested rows (spec 139 FR-3) and the Commitment check's boxes and chips (only where drawn)
                     **{k: shot[k] for k in ("choices", "suggested", "commitment") if shot.get(k)},
+                    # spec 141 FR-8 (keel-web 178 FR-1): the served notes under the rows, read and left alone
+                    **{k: shot[k] for k in ("row_notes",) if shot.get(k)},
                     "answer": _safe(lambda s=slug: founder_answer(j, s)),
                     "keel read back": _safe(lambda s=slug: read_back(j, s, wire)),
                     **({"camera error": shot["error"]} if shot.get("error") else {})})
