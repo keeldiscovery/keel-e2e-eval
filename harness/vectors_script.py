@@ -2649,16 +2649,56 @@ def importance_typed(entry) -> list[str]:
     return importance_others(entry)[len(importance_named(entry)):]
 
 
+#: Spec 141 FR-8 (keel-cloud 229 FR-5, its owed list): the scripted founder-lists writer's `own_row` for the golden
+#: seven -- the act these people do or put up with at the moment of `ACT_THAT_HURTS`' clause, held to A1-A4 by test
+#: (`writers_rules.own_row_act_fault`); the cloud builder's candidates, word for word. Data beside `ACT_THAT_HURTS`, no
+#: rule; an entry without one is served 223's row.
+OWN_ROW_ACTS = {
+    "01-countly": "Recounting stock by hand after a mismatched delivery",
+    "02-compliancelog": "Pulling training completions into a spreadsheet by hand",
+    "03-lullaby": "Knowing what the cry means",
+    "04-linerly": "Fixing a puncture on the way to work",
+    "05-paidly": "Chasing payment on an approved invoice past its terms",
+    "06-repeatline": "Typing a refill request in by hand",
+    "07-mulchrun": "Getting mulch loaded at the supply yard",
+}
+
+
+def own_row_act_fault(entry, act: str | None) -> str | None:
+    """Spec 141 FR-8 (keel-cloud 229, `ScreenResultApplier.withWritersOwnRow`): `writers_rules.own_row_act_fault` on the
+    entry's own words -- its `went_wrong` (and hard case where held), the context's job, circumstance, occasion and
+    people, the idea's name, every word of the context the founder wrote."""
+    import json                                                         # noqa: PLC0415
+    from instructions import writers_rules as writers_mod                # noqa: PLC0415
+    ctx = _ctx(entry)
+    names = [n for n in (getattr(entry, "idea_name", None),) if n]
+    return writers_mod.own_row_act_fault(act, act_that_hurts(entry)[1], hard_cases(entry).get("hard_case"),
+                                         ctx.get("job"), ctx.get("circumstance"), occasion(entry),
+                                         [ctx.get("actor"), ctx.get("actor_plural")], names,
+                                         json.dumps(ctx, ensure_ascii=False))
+
+
+def own_row_act(entry) -> str | None:
+    """Spec 141 FR-8 (keel-cloud 229 FR-5): the scripted writer's `own_row` -- `OWN_ROW_ACTS`' act where the problem is in
+    scope and it holds A1-A4 on the entry's words; None elsewhere (no field written)."""
+    act = OWN_ROW_ACTS.get(getattr(entry, "id", None))
+    if act is None or "PROBLEM" not in scope_vectors(entry) or own_row_act_fault(entry, act):
+        return None
+    return act
+
+
 def code_own_row(entry) -> str | None:
-    """Spec 141 FR-8 (keel-cloud 223 FR-1, `ScreenResultApplier.codesOwnRow` over `OwnRow.fromClause`): the own row code
-    writes in place of the writer's first Importance row on a scripted PROBLEM run -- the study's clause (the scripted
+    """Spec 141 FR-8 (keel-cloud 223 FR-1, `ScreenResultApplier.codesOwnRow` over `OwnRow.fromClause`; 229's
+    `withWritersOwnRow` first -- the writer's act where it holds, `own_row_act`): the own row served in place of the
+    writer's first Importance row on a scripted PROBLEM run -- the study's clause (the scripted
     Prevalence's `went_wrong`, `act_that_hurts`) as a noun phrase: the golden seven's *Recounting stock by hand after a
     mismatched delivery*, *Knowing why the baby cried* ... (223's owed list, word for word). None where the problem is
     not in scope, no row is read from the clause, or another row already says it (the writer's row then stands)."""
     from instructions import writers_rules as writers_mod                # noqa: PLC0415
     if "PROBLEM" not in scope_vectors(entry):
         return None
-    row = writers_mod.own_row_from_clause(act_that_hurts(entry)[1])
+    # spec 141 FR-8 (keel-cloud 229 FR-1): the writer's act where it holds A1-A4, else 223's noun phrase
+    row = own_row_act(entry) or writers_mod.own_row_from_clause(act_that_hurts(entry)[1])
     if row is None:
         return None
     others = [str(o).strip().rstrip(".!").lower() for o in importance_others(entry)]
@@ -2798,6 +2838,10 @@ def calibration_question(entry, key: str, *, first: bool = False) -> dict:
             q["list"] = first_draft(entry, key)
         else:
             q["list"] = drafted_list(entry, key)
+        if key == "problem.importance" and own_row_act(entry):
+            # spec 141 FR-8 (keel-cloud 229 FR-5): the writer's act from the clause beside the list, on the first write
+            # and on a redraft alike (a redraft's context hands `problem_clause`, the clause it is held against)
+            q["own_row"] = own_row_act(entry)
     elif key not in ("problem.frequency", "commercial.price", "commercial.existing_sacrifice"):
         raise VectorsScriptError(f"{entry.id}: no calibration shape for {key}")
     return q

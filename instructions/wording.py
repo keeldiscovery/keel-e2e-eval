@@ -63,6 +63,39 @@ def first_number(text):
     return digit.group() if digit else first_word(text, NUMBER_WORDS)
 
 
+#: `Vocabulary.PRONOUN_ONE` (keel-cloud 114 FR-1): the phrases where *one* is a pronoun, never a count.
+PRONOUN_ONE = ("no one", "one another", "one-on-one", "one-to-one", "each one", "which one", "find one", "the one",
+               "this one", "that one", "one of")
+_COUNTED_UNITS = frozenset(("second", "seconds", "minute", "minutes", "hour", "hours", "day", "days", "night", "nights",
+                            "week", "weeks", "month", "months", "year", "years", "time", "times"))
+_LN = r"[^\W_]"
+_PRONOUN_ONE = [re.compile(r"(?<!" + _LN + r")" + r"[\s-]+".join(re.escape(p) for p in re.split(r"[ -]", phrase))
+                           + r"(?!" + _LN + r")") for phrase in PRONOUN_ONE]
+
+
+def _pronoun_one(lower: str, start: int, end: int) -> bool:
+    after = re.match(r"^[\s-]+([^\W_]+)(?:[\s-]+([^\W_]+))?", lower[end:])
+    if after:
+        nxt, then = after.group(1), after.group(2)
+        if nxt in _COUNTED_UNITS or (nxt == "in" and then is not None and (then.isdigit() or then in NUMBER_WORDS)):
+            return False
+    return any(m.start() <= start and end <= m.end() for p in _PRONOUN_ONE for m in p.finditer(lower))
+
+
+def numbers(text) -> list[str]:
+    """`Vocabulary.numbers` (spec 141 FR-8, for keel-cloud 229's A4): every digit run and number word in `text`,
+    lower-cased, in the order they stand -- a pronoun *one* is none."""
+    if text is None:
+        return []
+    lower = str(text).lower()
+    found = {m.start(): m.group() for m in re.finditer(r"\d+", lower)}
+    for word in NUMBER_WORDS:
+        for m in re.finditer(r"(?<!" + _LN + r")" + re.escape(word) + r"(?!" + _LN + r")", lower):
+            if word != "one" or not _pronoun_one(lower, m.start(), m.end()):
+                found[m.start()] = word
+    return [found[k] for k in sorted(found)]
+
+
 # ------------------------------------------------------------------- WindowFrame (E1-E3, mirrored)
 
 #: `WindowFrame.CLAUSE_MAX_WORDS` (E2; keel-cloud 212 FR-3): the cap of a clause code takes in the founder's place, and of

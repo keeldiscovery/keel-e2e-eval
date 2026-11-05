@@ -528,3 +528,111 @@ def own_row_note(saved_own_row: str | None, drafted_own_row: str | None, job: st
     if drafted_own_row is not None and same(saved_own_row, drafted_own_row):
         return None
     return OWN_ROW_NOTE if own_row_fault(saved_own_row, job, circumstance, *people) else None
+
+
+# ------------------------------------------------- keel-cloud 229 (spec 141 FR-8): Importance's own row as an act
+
+#: `OwnRowAct.FIELD` (229): the writer's field on Importance's question.
+OWN_ROW_FIELD = "own_row"
+#: `OwnRowAct.FRAME_ROOTS`: the hard case's own frame, never the clause's content.
+_ACT_FRAME_ROOTS = frozenset(roots("last most recent time"))
+#: `OwnRowAct.STATES` (A2): the heads that are a state, never an act taken.
+_ACT_STATES = frozenset(("having", "being"))
+
+
+def own_row_outcome_verb(went_wrong: str | None) -> str | None:
+    """keel-cloud 229 (`OwnRow.outcomeVerb`): the base of the clause's own outcome verb -- what befell them (*lost* ->
+    *lose*, *had a job run out* -> *have*); None after an obligation or a negation (the act is theirs), or where none is
+    read."""
+    if went_wrong is None or not str(went_wrong).strip():
+        return None
+    text = re.sub(r"\s+", " ", re.sub(r"[.!?;:,]+$", "", str(went_wrong).strip()))
+    words = text.split(" ")
+    if len(words) > 1 and _bare(words[0]) in _OWN_PRONOUNS:
+        words = words[1:]
+    lower = " ".join(words).lower()
+    for lead in sorted(_OWN_OBLIGED + _OWN_NEGATED, key=len, reverse=True):
+        if lower.startswith(lead + " "):
+            return None
+    base = _own_base_of(_bare(words[0]))
+    if base is not None:
+        return base
+    start = 2 if _bare(words[0]) in _OWN_DETERMINERS else 1
+    for i in range(start, len(words)):
+        word = _bare(words[i])
+        if _bare(words[i - 1]) in _OWN_DETERMINERS:
+            continue
+        if _own_is_past(word) or word in _OWN_SAME_FORM:
+            return word if word in _OWN_SAME_FORM else _own_base_of(word)
+        if word in ("would", "could", "did", "does", "do", "will", "can", "didn't", "couldn't", "wouldn't"):
+            return None
+    return None
+
+
+def own_row_act_clean(row: str | None) -> str | None:
+    """`OwnRowAct.clean`: trimmed, spaces one, the closing stop dropped, the first letter a capital."""
+    if row is None or not str(row).strip():
+        return None
+    text = re.sub(r"[.,;:!?]+$", "", re.sub(r"\s+", " ", str(row).strip())).strip()
+    return text[:1].upper() + text[1:] if text else None
+
+
+def own_row_act_fault(row, went_wrong, hard_case, job, circumstance, occasion, people=(), idea_names=(),
+                      founders_text="") -> str | None:
+    """keel-cloud 229 FR-2 (`OwnRowAct.fault`; spec 141 FR-8): A1-A4 on the writer's `own_row`, the first fault named
+    with its test, or None. A1 a root of the clause (`went_wrong`, `hard_case`) beyond the people's words, the occasion
+    noun and the hard case's frame; A2 an *-ing* act, never *having* / *being* nor the clause's own outcome verb; A3 not
+    the job or the circumstance again (L37, `own_row_fault`); A4 at most nine words, no idea name, no product word and no
+    number the founder did not write."""
+    from harness import loss_line as ll                                 # noqa: PLC0415 - `OccasionNoun.of`
+    from instructions import score as score_mod                         # noqa: PLC0415 - `Vocabulary.PRODUCT_WORDS`
+    from instructions import text as text_mod                           # noqa: PLC0415 - `LeakStems.stems`
+    text = own_row_act_clean(row)
+    if text is None:
+        return None
+    people = [p for p in (people or ()) if p]
+    people_roots = {r for p in people for r in roots(p)}
+    noun = ll.occasion_noun(occasion)
+    noun_roots = set(roots(noun)) if noun else set()
+    clause = (set(roots(went_wrong)) | set(roots(hard_case))) - _ACT_FRAME_ROOTS - noun_roots - people_roots
+    if clause and not (set(roots(text)) & clause):
+        return (f"A1: own_row '{text}' shares no word with the clause ('{str(went_wrong or '').strip()}') beyond the "
+                f"people{'' if noun is None else ' and the ' + noun}; the own row is the act they do or put up with at "
+                "that moment, in the clause's own words")
+    first = re.sub(r"^[^a-zÀ-ɏ']+|[^a-zÀ-ɏ']+$", "",
+                   text.split()[0].lower().replace("’", "'"))
+    if not (first.endswith("ing") and len(first) > 4 and first not in ING_NOUNS):
+        return (f"A2: own_row '{text}' opens on '{first}'; open on the act, its verb in the -ing form ('Knowing what the "
+                "cry means')")
+    outcome = own_row_outcome_verb(went_wrong)
+    if first in _ACT_STATES or (outcome is not None and root(first) == root(outcome)):
+        return (f"A2: own_row '{text}' heads on '{first}', what befell them ('{str(went_wrong or '').strip()}'); the own "
+                "row is the act they take at that moment, a difficulty a stranger would want made easier -- never "
+                "'Losing ...', 'Having ...' or 'Being ...'")
+    if own_row_fault(text, job, circumstance, *people):
+        return (f"A3: own_row '{text}' is the job or the circumstance said again (\"{str(job or '').strip()}\"; "
+                f"\"{str(circumstance or '').strip()}\"); write the act at that moment that goes wrong, never what every "
+                "one of them does")
+    if len(text.split()) > OWN_ROW_MAX_WORDS:
+        return f"A4: own_row '{text}' is {len(text.split())} words; at most {OWN_ROW_MAX_WORDS}"
+    ours = " ".join(str(t) for t in (founders_text, went_wrong, hard_case) if t).strip()
+    text_stems, our_stems = text_mod.stems(text), text_mod.stems(ours)
+    for name in idea_names or ():
+        if not name or not str(name).strip():
+            continue
+        for stem in text_mod.stems(name):
+            if stem in text_stems and stem not in our_stems:
+                return (f"A4: own_row '{text}' says '{stem}', the idea's name ('{str(name).strip()}'); the own row is the "
+                        "problem, never the idea")
+    our_products = {w for w in score_mod.PRODUCT_WORDS
+                    if re.search(r"(?<![^\W_])" + re.escape(w) + r"(?![^\W_])", ours.lower())}
+    product = next((w for w in score_mod.PRODUCT_WORDS
+                    if re.search(r"(?<![^\W_])" + re.escape(w) + r"(?![^\W_])", text.lower()) and w not in our_products),
+                   None)
+    if product:
+        return f"A4: own_row '{text}' names a product ('{product}'); the own row is the problem as it is today"
+    our_numbers = wording_mod.numbers(ours)
+    number = next((n for n in wording_mod.numbers(text) if n not in our_numbers), None)
+    if number:
+        return f"A4: own_row '{text}' says '{number}', a number the founder did not write"
+    return None

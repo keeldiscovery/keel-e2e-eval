@@ -566,17 +566,22 @@ def test_the_own_row_is_codes_from_the_clause(golden):
     for entry_id, row in OWN_ROWS_223.items():
         entry = golden[entry_id]
         assert writers_mod.own_row_from_clause(vs.ACT_THAT_HURTS[entry_id][1]) == row
-        assert vs.code_own_row(entry) == row
-        assert cs._corpus_list(entry, "problem.importance")["items"][0] == row
+        # spec 141 FR-8 (keel-cloud 229): the writer's act takes the place where it holds -- 223's row is the fallback
+        own = vs.code_own_row(entry)
+        assert own == (vs.own_row_act(entry) or row)
+        assert cs._corpus_list(entry, "problem.importance")["items"][0] == own
     for clause, row in CLAUSE_ROWS_223.items():
         assert writers_mod.own_row_from_clause(clause) == row, clause
     assert writers_mod.own_row_from_clause("they had to sort the photos by hand") == "Sorting the photos by hand"
     assert writers_mod.own_row_from_clause("") is None and writers_mod.own_row_from_clause("photos") is None
     import dataclasses                                                  # noqa: PLC0415
     assert vs.code_own_row(dataclasses.replace(golden["01-countly"], scope="SOLUTION")) is None
-    lullaby = golden["03-lullaby"]
-    belief = cs.importance_belief_on_code_own_row(lullaby, corpus_mod.engine_belief(lullaby, "problem.importance"))
-    assert belief.endswith("Knowing why the baby cried is one of the two they would most like made easier.")
+    linerly = golden["04-linerly"]
+    belief = cs.importance_belief_on_code_own_row(linerly, corpus_mod.engine_belief(linerly, "problem.importance"))
+    assert belief.endswith("Fixing a puncture on the way to work is one of the two they would most like made easier.")
+    lullaby = golden["03-lullaby"]               # 229: the act the card names is the registry's row, so nothing moves
+    assert cs.importance_belief_on_code_own_row(lullaby, corpus_mod.engine_belief(lullaby, "problem.importance")) == \
+        corpus_mod.engine_belief(lullaby, "problem.importance")
 
 
 def test_the_founders_own_row_note(golden):
@@ -606,3 +611,80 @@ def test_the_reader_digest_is_the_clouds_vendored_cards():
     text = " ".join(ours.decode("utf-8").split())
     assert "Think of {hard_case}." in text and "hard_case_theirs" in text             # 219
     assert "keel-cloud 222" in text                                                    # 222
+
+
+#: keel-cloud 229's owed list: the golden seven's acts (A1, A2, A4 checked by the cloud's builder by hand; A3 here).
+OWN_ROW_ACTS_229 = {
+    "01-countly": "Recounting stock by hand after a mismatched delivery",
+    "02-compliancelog": "Pulling training completions into a spreadsheet by hand",
+    "03-lullaby": "Knowing what the cry means",
+    "04-linerly": "Fixing a puncture on the way to work",
+    "05-paidly": "Chasing payment on an approved invoice past its terms",
+    "06-repeatline": "Typing a refill request in by hand",
+    "07-mulchrun": "Getting mulch loaded at the supply yard",
+}
+#: `ImportanceOwnRowAsAnActTest.ACTS` over `RelativeAdvantageHardCaseTest.FIVE` (went_wrong, hard_case, job, stem,
+#: occasion, people, name).
+ACTS_229 = {
+    "Fresco": ("Keeping site notes until the daily log is written", HARD_FIVE["08-fresco"], "construction "
+               "superintendent", "construction superintendents", "lost site notes before writing the daily log"),
+    "Palus": ("Moving raise cash when the bank cuts its yield", HARD_FIVE["10-palus"], "finance lead", "finance leads",
+              "had their bank cut the yield on their raise cash"),
+    "AirCaps": ("Following a fast or noisy conversation with hearing people", HARD_FIVE["13-aircaps"],
+                "deaf or hard-of-hearing adult", "deaf or hard-of-hearing adults",
+                "lost track of a face-to-face conversation with hearing people"),
+    "Expanse": ("Sizing a job's memory so it never runs out", HARD_FIVE["17-expanse"], "researcher",
+                "researchers and ML engineers", "had a job run out of memory"),
+    "Codyco": ("Picking up booking calls before they ring out", HARD_FIVE["21-codyco"], "reservation agent",
+               "reservation agents", "had a booking call ring out unanswered"),
+}
+
+
+def _act_fault(name: str, act: str):
+    from instructions import writers_rules as writers_mod               # noqa: PLC0415
+    _, five, actor, actors, went_wrong = ACTS_229[name]
+    occasion, stem, idea, _what, job, hard = five[:6]
+    return writers_mod.own_row_act_fault(act, went_wrong, hard, job, stem, occasion, [actor, actors], [idea], "")
+
+
+def test_the_own_row_is_the_writers_act_held_by_a1_to_a4(golden):
+    """229 FR-2 (`ImportanceOwnRowAsAnActTest.theFiveActsPass` and its refusals; `OwnRowAct.fault`, `OwnRow.outcomeVerb`):
+    the five cycle-14 acts pass, 223's rows for the same clauses are refused A2; each test refuses its own case; the
+    golden seven's acts (229's owed list) hold A1-A4 on each entry's own words, so the scripted Importance question
+    carries them as `own_row` and the walk expects them."""
+    from instructions import writers_rules as writers_mod               # noqa: PLC0415
+    source = KEEL_CLOUD / VECTORS / "OwnRowAct.java"                   # on keel-cloud master once 229 merges
+    assert not source.is_file() or 'FIELD = "own_row";' in source.read_text(encoding="utf-8")
+    assert writers_mod.OWN_ROW_FIELD == "own_row"
+    for name, (act, *_rest) in ACTS_229.items():
+        assert _act_fault(name, act) is None, name
+        before = writers_mod.own_row_from_clause(ACTS_229[name][4])
+        assert _act_fault(name, before).startswith("A2: "), (name, before)
+    assert writers_mod.own_row_outcome_verb("lost site notes before writing the daily log") == "lose"
+    assert writers_mod.own_row_outcome_verb("had to sort photos") is None
+    assert _act_fault("Fresco", "Sorting the day's photos by hand for the log").startswith(
+        "A1: own_row 'Sorting the day's photos by hand for the log' shares no word")
+    assert _act_fault("Expanse", "Sizing a job so it neither fails nor wastes GPUs").startswith("A1: ")
+    assert _act_fault("Fresco", "Site notes kept until the daily log is written").startswith(
+        "A2: own_row 'Site notes kept until the daily log is written' opens on")
+    assert _act_fault("Fresco", "Losing site notes before the log is written").startswith(
+        "A2: own_row 'Losing site notes before the log is written' heads on")
+    assert "heads on 'having'" in _act_fault("Expanse", "Having a job's memory run out")
+    assert _act_fault("Fresco", "Keeping an accurate record of site work").startswith(
+        "A3: own_row 'Keeping an accurate record of site work' is the job or the")
+    assert "is 11 words; at most 9" in _act_fault("Fresco", "Keeping every site note safe until the daily log is written")
+    assert "the idea's name ('Fresco')" in _act_fault("Fresco", "Keeping site notes in Fresco for the log")
+    assert "'3', a number the founder did not write" in _act_fault("Fresco", "Keeping 3 site notes until the log is written")
+    assert writers_mod.own_row_act_fault(" ", WENT_WRONG, None, None, None, None) is None
+    assert writers_mod.own_row_act_clean(" picking up booking calls before they ring out. ") == \
+        "Picking up booking calls before they ring out"
+    assert vs.OWN_ROW_ACTS == OWN_ROW_ACTS_229
+    for entry_id, act in OWN_ROW_ACTS_229.items():
+        entry = golden[entry_id]
+        assert vs.own_row_act_fault(entry, act) is None, entry_id
+        assert vs.calibration_question(entry, "problem.importance")["own_row"] == act
+        assert vs.calibration_question(entry, "problem.importance", first=True)["own_row"] == act
+        assert vs.code_own_row(entry) == act
+    import dataclasses                                                  # noqa: PLC0415
+    assert "own_row" not in vs.calibration_question(dataclasses.replace(golden["01-countly"], scope="SOLUTION"),
+                                                   "problem.importance")
