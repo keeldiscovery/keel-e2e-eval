@@ -95,6 +95,10 @@ How many of the people you are studying had the problem in the period you chose.
   `routine` (what every one of the people does whether or not the problem struck): the act that hurts, at most 9 words,
   8 on a working-days window: 20 spoken words minus the strangers' frame -- never the routine, a lasting state, a
   judgement, or a cause or result packed in.
+- **The No-sayer (keel-cloud 216).** The writer shows the test in `no_sayer` -- one of the people who did the day's
+  work in the window and truly answers No to the event, and what was different for them -- and code refuses one set
+  apart by the routine or outside the segment (`E9`): if every one of them would say Yes, it is the routine; write the
+  part that hurt instead -- the thing that failed, was lost, came back wrong, sat idle or had to be done twice.
 
 - **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point): the
   founder's question screen carries belief_template as it stands ('... had this at least once in {window}'); the card
@@ -172,14 +176,14 @@ How often someone who has the problem runs into it.
 
 #### 2. The options' shape
 
-- **The founder's question** is code's: *In {window}, on how many {unit} did a typical {actor} {event}?* -- the window
+- **The founder's question** is code's: *On how many of {window} did a typical {actor} {event}?* -- the window
   first, then one act that happened on a given unit or did not, in the simple past (no state, cause or result, nothing
   the person does not see), named as the people name it; the question last. **No options:** a two-handle range from 0
   to the window's count, in whole units of the window (*4 to 7 nights out of 7*; *2 to 3 months out of 3*). The belief:
   *{actor_plural} face this on {value}.*
-- **The stranger's item** is code's: *In {window}, on how many {unit} did you {event}?* -- the count of units it
-  happened on, not the number of times; the unit always said (never *on how many did you*), a two-word unit said once
-  more in its short form (*In the last 5 working days, on how many days ...*). **One measure: units of the window.**
+- **The stranger's item** is code's: *On how many of {window} did you {event}?* -- the count of units it happened on,
+  not the number of times; the unit said once, in the window phrase (keel-cloud 216: never *on how many did you*, never
+  the unit said again, *in the last 3 months, in how many months*). **One measure: units of the window.**
   **The options:** one button per unit, *1* first, the window's count last (*1 · 2 · 3 · 4 · 5 · 6 · 7*) when the count
   is at most 7; a number box of at least 1 for a longer window. Never a 0 (a Yes at the gate means at least one), never
   the founder's range, never bands. Spoken past five steps: *Say a number from 1 to {N}.* Then the one escape.
@@ -206,7 +210,10 @@ How often someone who has the problem runs into it.
 - **Balance:** the founder's low splits the buttons -- *1* up to one under the low count against, the low up to the
   window's count for. With *4 to 7 nights out of 7*: 1, 2, 3 against; 4, 5, 6, 7 for.
 - **Healthy:** the founder's low is at least 2, so at least one button can count against. A range that starts at 0 or 1
-  makes every button count for: the belief can never be refuted -- every option counts one way, R7 0 by FR-1c.
+  makes every button count for: the belief can never be refuted -- every option counts one way, R7 0 by FR-1c. The
+  question says the unit once, in the window phrase: *On how many of the last 3 months did you ...?*, never *In the
+  last 3 months, in how many months ...* -- a word shorter than that, so the event keeps its 9 words (8 on working
+  days) under the 20-word cap.
 
 #### 4. The escape
 
@@ -216,10 +223,10 @@ the dimension out (asked of nobody; the brief says untested).
 
 #### 5. A good example and a bad example
 
-- **Good (R7 2)** -- Lullaby. Founder: *In the last 7 nights, on how many nights did a typical parent have to work out
-  why their baby was crying?* -- range *4 to 7 nights out of 7*; belief *Parents of babies under six months face this
-  on 4 to 7 nights out of 7.* Stranger: *In the last 7 nights, on how many nights did you have to work out why your baby
-  was crying?* *1 · 2 · 3 · 4 · 5 · 6 · 7 · I can't recall.* For: 4 to 7; against: 1 to 3.
+- **Good (R7 2)** -- Lullaby. Founder: *On how many of the last 7 nights did a typical parent have to work out why
+  their baby was crying?* -- range *4 to 7 nights out of 7*; belief *Parents of babies under six months face this on 4
+  to 7 nights out of 7.* Stranger: *On how many of the last 7 nights did you have to work out why your baby was
+  crying?* *1 · 2 · 3 · 4 · 5 · 6 · 7 · I can't recall.* For: 4 to 7; against: 1 to 3.
 - **Bad (R7 0)** -- Palus, cycle 4 (spec 174 FR-5): *In the last 3 months, on how many did you leave raised cash sitting
   in your bank's money market fund?* *1 · 2 · 3 · I can't recall.* **What breaks it:** *on how many did you* drops the
   unit, so *1*, *2* and *3* measure nothing the founder's *2 to 3 months out of 3* can be read against; and *leave ...
@@ -262,7 +269,9 @@ How much they want this problem made easier, next to the other things that are h
   itself, locked, **first** -- then the other difficulties the founder named, **one to four, in their words; Keel adds
   none**. Save needs three in all (the own item and two), because the stranger picks two.
 - The own item is the founder's problem whole: their verb and the when or where they named, both halves of a pair kept,
-  never narrowed to one part, never the circumstance said again. Each other row: a difficulty these same people meet
+  never narrowed to one part, never the circumstance said again. The own row is the hurt Prevalence tests
+  (keel-cloud 216, `L37b`): `went_wrong` said as the difficulty, on its verb, never the circumstance or the whole job
+  (*Typing up the log after the walk*, not *Getting the day into the log*). Each other row: a difficulty these same people meet
   themselves, in their own part of the work, at that moment -- never another role's, setting's or channel's; it keeps
   its aim (never a look-alike chore); at most 9 words; no two overlap, none a part or a cause of another; never a wish,
   a fix or a product; no number the founder did not write.
@@ -597,9 +606,10 @@ The extra effort it asks of them to start using it: setting it up, learning it, 
   they use now is Compatibility, getting it bought Purchase friction); only the founder's numbers. The founder picks one.
   Belief: *Most would {value}.*
 - **The stranger's item:** *To use {Name}, you'd {asked}. Would you do that, or not?* **Fixed answers, in order:**
-  `yes` *Yes* · `yes_if_worth_it` *Only if {condition}* -- the stranger's own condition, written beside the clause,
-  naming what the step risks or clashes with in their work, never one true of every step; *Yes, if it was clearly worth
-  it* where the item carries none · `probably_not` *Probably not* · `no` *No*; then *I can't tell*. **One measure:**
+  `yes` *Yes* · `yes_if_worth_it` *Only if {condition}* -- the stranger's own condition, written beside the clause:
+  the assurance that would make them say Yes, what it has to do or promise in their work (*Only if it hands me the hard
+  calls*), never the danger they fear (*Only if they risk my job failing*: keel-cloud 216, `K12`), never one
+  true of every step; *Yes, if it was clearly worth it* where the item carries none · `probably_not` *Probably not* · `no` *No*; then *I can't tell*. **One measure:**
   would they take this effort.
 
 #### 3. For, against, neither
@@ -671,7 +681,10 @@ What the problem already costs them: money they spend, time it takes, or a share
   base required on a rate), and one period of six -- a day, a week, a month, a quarter, a year, each (*each time*); the
   periods never share a list with the modes. The founder's mode, measure and numbers are kept exactly: money is never a
   count, a count never shown with %, no number rounded. Code writes the question and the belief: *The problem already
-  costs {deciders} {value}.*
+  costs {deciders} {value}.* -- {deciders} the unit that pays, in the plural (keel-cloud 216): on a business study the
+  organisation the people work at, as the context names it (*hotel groups*, *venture-backed startups*), its *per {unit}*
+  kept; where the user pays, the people; never a role inside it (*operations leads*, *finance leads*, *the director*).
+  The time path keeps the people who spend the hours.
 - **The stranger's item -- one value box, code's**, in the founder's own unit and period: the question takes its verb
   and its thing from the founder's loss line, in the person's own words and the past -- the thing they see go, never
   *lose* or *lost* -- over the founder's period; the label after the box one plain phrase (*hours per site last month*);

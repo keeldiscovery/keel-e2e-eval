@@ -38,6 +38,9 @@ KEEL_WEB = Path(CONFIG.keel_web)
 VECTORS = "src/main/java/com/keeldiscovery/cloud/domain/vectors/"
 CARDS_SHA256_213 = "e3cdea00e2267ec0fcb6dc447d1a43497f85925060bd4996ba3c176e8566f594"
 CARDS_SHA256_214 = "0ab29614dee596b55da9e1e9b1033d81a2328c08fa2cea0571c0160536c6f172"
+#: Spec 139 FR-1 (keel-cloud 216 FR-6): the No-sayer, the own row the hurt, the frequency frame, the paying unit, the
+#: assurance -- the cards' digest since 216.
+CARDS_SHA256_216 = "2f1a63ccc481175ff45a540a199c0930c77f4640a64ea0c798f5c2a3c0fdd2c4"
 BASE = "http://keel.test"
 PALUS_STEP = "move a small part of the reserve"
 
@@ -77,12 +80,12 @@ def test_the_cards_are_the_vendored_copy_at_the_clouds_digest():
     review = _cloud("src/main/java/com/keeldiscovery/cloud/application/RespondentReview.java")
     sha = re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1)
     assert hashlib.sha256(ours).hexdigest() == sha
-    assert sha in (CARDS_SHA256_213, CARDS_SHA256_214)
+    assert sha in (CARDS_SHA256_213, CARDS_SHA256_214, CARDS_SHA256_216)     # spec 139 FR-1: 216's digest
     assert (KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md").read_bytes() == ours
     text = " ".join(ours.decode("utf-8").split())
     assert text.count("at most 9 words, 8 on a working-days window: 20 spoken words minus the strangers' frame") == 2
     assert "at most 8 words" not in text
-    if sha == CARDS_SHA256_214:
+    if sha in (CARDS_SHA256_214, CARDS_SHA256_216):
         assert "*Think of the last {occasion} when {circumstance}. Would {Name}, {what it is}, have done that better " \
                "for you, or not?* -- the hard case the advantage is for" in text
 
