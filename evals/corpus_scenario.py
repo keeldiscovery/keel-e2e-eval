@@ -2293,6 +2293,9 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 mismatches.append({"dimension": key, "screen": drawn, "corpus": want})
             # spec 113 FR-1: Relative advantage's recorded 152 words read through keel-cloud 173's one rule
             sentence = corpus_mod.engine_belief(j.entry, key)
+            if key == "problem.importance":
+                # spec 141 FR-8 (keel-cloud 223 FR-1): the belief names code's own row where the record names the corpus's
+                sentence = importance_belief_on_code_own_row(j.entry, sentence)
             box = (choose or check).get("test_after") or (choose or check)["test"] \
                 if (choose or key in KEEL_SET) else None
             if box is None or box["belief"] == sentence:
@@ -2624,6 +2627,21 @@ def _drawn_list(key: str, check: dict) -> dict:
     return out
 
 
+def importance_belief_on_code_own_row(entry, sentence: str | None) -> str | None:
+    """Spec 141 FR-8 (keel-cloud 223 FR-1; its owed list: *any pin quoting the registry's own row on the Check, the
+    belief ... moves*): Importance's recorded belief read with code's own row (`vs.code_own_row`) in the corpus's own
+    row's place, as it opens the sentence (*{Item} is one of the two ...*) or stands inside it; the sentence as it is
+    where code writes no row or the record names another item."""
+    own = vs.code_own_row(entry)
+    if not sentence or not own:
+        return sentence
+    corpus = vs.founder_list(entry, "problem.importance")["items"][0]["label"].strip().rstrip(".")
+    if corpus in sentence:
+        return sentence.replace(corpus, own)
+    lowered = corpus[:1].lower() + corpus[1:]
+    return sentence.replace(lowered, own[:1].lower() + own[1:]) if lowered in sentence else sentence
+
+
 def _corpus_list(entry, key: str) -> dict:
     """The entry's own list as a Check screen draws it: Buyer and payer's "Nobody else" is code's and
     drawn nowhere on Check (it is Choose's first radio); Importance is drawn as Keel redrafted it, the own item and what
@@ -2632,6 +2650,10 @@ def _corpus_list(entry, key: str) -> dict:
     labels = [i["label"] for i in saved["items"] if i.get("code") != vs.NOBODY_ELSE[0]]
     if key == "problem.importance":
         labels = labels[:1 + len(vs.importance_named(entry))]
+        # spec 141 FR-8 (keel-cloud 223 FR-1): the own row the Check draws is code's, from the study's clause
+        own = vs.code_own_row(entry)
+        if own and labels:
+            labels = [own, *labels[1:]]
     out = {"items": labels}
     if key == "problem.current_solution_satisfaction":
         # spec 093 FR-1 (keel-cloud 161): Keel drafts the act bare, so the Check screen draws the phrase bare

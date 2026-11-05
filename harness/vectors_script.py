@@ -2649,6 +2649,22 @@ def importance_typed(entry) -> list[str]:
     return importance_others(entry)[len(importance_named(entry)):]
 
 
+def code_own_row(entry) -> str | None:
+    """Spec 141 FR-8 (keel-cloud 223 FR-1, `ScreenResultApplier.codesOwnRow` over `OwnRow.fromClause`): the own row code
+    writes in place of the writer's first Importance row on a scripted PROBLEM run -- the study's clause (the scripted
+    Prevalence's `went_wrong`, `act_that_hurts`) as a noun phrase: the golden seven's *Recounting stock by hand after a
+    mismatched delivery*, *Knowing why the baby cried* ... (223's owed list, word for word). None where the problem is
+    not in scope, no row is read from the clause, or another row already says it (the writer's row then stands)."""
+    from instructions import writers_rules as writers_mod                # noqa: PLC0415
+    if "PROBLEM" not in scope_vectors(entry):
+        return None
+    row = writers_mod.own_row_from_clause(act_that_hurts(entry)[1])
+    if row is None:
+        return None
+    others = [str(o).strip().rstrip(".!").lower() for o in importance_others(entry)]
+    return None if row.lower() in others else row
+
+
 def importance_first_draft(entry) -> dict:
     """keel-cloud 097 (F9, judgement call 10): Keel's first draft of Importance, before the founder's Answer, is the
     own item alone (`L1`: exactly one) -- the others come from the Answer and Keel adds none. Spec 129 (keel-cloud 200):

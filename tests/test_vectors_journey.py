@@ -40,7 +40,9 @@ FRAME_OPENINGS = ("in ", "how many", "did you", "out of", "do you think")
 SAVES = {"problem.importance": (1, 1, 9), "problem.current_solution_satisfaction": (5, 5, 9),
          "solution.compatibility": (2, 4, 9), "solution.relative_advantage": (1, 4, 9),
          "solution.adoption_friction": (1, 4, 9), "commercial.buyer_payer_alignment": (0, 2, 4),
-         "commercial.purchase_friction": (1, 4, 9), "commercial.commitment": (1, 1, 9)}
+         # spec 141 FR-4 (keel-cloud 221 FR-3): Countly's *install the app* costs data, so its draft carries Keel's free
+         # smaller step (L34, since keel-cloud 211) -- the step and at most one smaller step
+         "commercial.purchase_friction": (1, 4, 9), "commercial.commitment": (1, 2, 9)}
 
 
 def _entry(entry_id: str):

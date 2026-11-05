@@ -8,6 +8,7 @@ tasks.md *Owed: keel-e2e-eval*). No stack, no model, no paid call; the cloud's s
 - FR-3 Price (220): the question and the belief name the idea; the walk holds the served question.
 - FR-6 Current solution (226, 228): `line` or `lineAfter`; the walk leaves the line; W-rung read by name.
 - FR-7 Existing sacrifice (222, 227): the loss clause framed where code reads none; a count is a count, the typed unit.
+- FR-8 Compatibility and Importance (225, 223): the row's kind (L-kind); the own row from the clause (`OwnRow.fromClause`).
 """
 
 from __future__ import annotations
@@ -529,3 +530,58 @@ def test_compatibility_rows_say_their_kind(golden):
     assert score_mod.kind_faults([{**could, "kind_why": "the hotel's phone system is set up by IT"}]) == []
     assert spoken_mod.kind_of("permission", "could you have forwarded calls", "could forward calls") == "PERMISSION"
     assert spoken_mod.kind_of(None, "did you have your phone to hand", "They had a phone to hand") == "FACT"
+
+
+#: keel-cloud 223's owed list (the golden seven) and its tasks.md table (cycle 14's five): code's own row from the clause.
+OWN_ROWS_223 = {
+    "01-countly": "Recounting stock by hand after a mismatched delivery",
+    "02-compliancelog": "Pulling training completions into a spreadsheet by hand",
+    "03-lullaby": "Knowing why the baby cried",
+    "04-linerly": "Losing time to a puncture riding",
+    "05-paidly": "Waiting beyond agreed terms to be paid",
+    "06-repeatline": "Typing a refill request in by hand",
+    "07-mulchrun": "Waiting at the supply yard for mulch",
+}
+CLAUSE_ROWS_223 = {
+    "lost site notes before writing the daily log": "Losing site notes before writing the daily log",
+    "had their bank cut the yield on their raise cash": "Having their bank cut the yield",
+    "lost track of a face-to-face conversation with hearing people":
+        "Losing track of a face-to-face conversation with hearing people",
+    "had a job run out of memory": "Having a job run out of memory",
+    "had a booking call ring out unanswered": "Having a booking call ring out unanswered",
+}
+
+
+def test_the_own_row_is_codes_from_the_clause(golden):
+    """223 FR-1 (`OwnRow.fromClause`, `ScreenResultApplier.codesOwnRow`): every scripted PROBLEM run serves code's own row
+    from `went_wrong` in place of the registry's -- the Check draws it and the belief names it (the walk's strict read);
+    cycle 14's five as 223's table pins them; *had to* and a negation read past, a subject pronoun dropped, the cut."""
+    from evals import corpus_scenario as cs                             # noqa: PLC0415
+    from instructions import writers_rules as writers_mod               # noqa: PLC0415
+    _cloud(VECTORS + "OwnRow.java")
+    for entry_id, row in OWN_ROWS_223.items():
+        entry = golden[entry_id]
+        assert writers_mod.own_row_from_clause(vs.ACT_THAT_HURTS[entry_id][1]) == row
+        assert vs.code_own_row(entry) == row
+        assert cs._corpus_list(entry, "problem.importance")["items"][0] == row
+    for clause, row in CLAUSE_ROWS_223.items():
+        assert writers_mod.own_row_from_clause(clause) == row, clause
+    assert writers_mod.own_row_from_clause("they had to sort the photos by hand") == "Sorting the photos by hand"
+    assert writers_mod.own_row_from_clause("") is None and writers_mod.own_row_from_clause("photos") is None
+    import dataclasses                                                  # noqa: PLC0415
+    assert vs.code_own_row(dataclasses.replace(golden["01-countly"], scope="SOLUTION")) is None
+    lullaby = golden["03-lullaby"]
+    belief = cs.importance_belief_on_code_own_row(lullaby, corpus_mod.engine_belief(lullaby, "problem.importance"))
+    assert belief.endswith("Knowing why the baby cried is one of the two they would most like made easier.")
+
+
+def test_the_founders_own_row_note(golden):
+    """223 FR-2 (`OwnRow.NOTE`, `OwnRow.note`): the note under a saved own row the founder reworded into the job or the
+    circumstance said again; none on Keel's row saved unchanged (the scripted Save) or on a row that names the hurt."""
+    from instructions import writers_rules as writers_mod               # noqa: PLC0415
+    assert f'NOTE = "{writers_mod.OWN_ROW_NOTE[:60]}' in _cloud(VECTORS + "OwnRow.java").replace('"\n            + "', "")
+    job, circumstance = "settle the baby", "the baby cries in the night"
+    keels = "Knowing why the baby cried"
+    assert writers_mod.own_row_note(keels, keels, job, circumstance) is None
+    assert writers_mod.own_row_note("knowing why the baby cried.", keels, job, circumstance) is None
+    assert writers_mod.own_row_note("Settling the baby", keels, job, circumstance, "parents") == writers_mod.OWN_ROW_NOTE

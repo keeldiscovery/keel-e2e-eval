@@ -368,3 +368,163 @@ def founders_side_fault(step: str | None, names: list[str] | None) -> str | None
     if formality:
         return _l40(step, f"is a formality of the founder's own paper ('{formality.group(1)}')")
     return None
+
+
+# ------------------------------------------------- keel-cloud 223 (spec 141 FR-8): Importance's own row from the clause
+
+#: `OwnRow.MAX_WORDS` (223 FR-1): the longest own row code writes -- Importance's row cap.
+OWN_ROW_MAX_WORDS = 9
+#: `OwnRow.NOTE` (223 FR-2): the note under the founder's own row when it is what every one of them does.
+OWN_ROW_NOTE = "This reads as what every one of them does. Strangers pick what hurts; name the part that goes wrong."
+_OWN_PRONOUNS = frozenset(("they", "you", "he", "she", "we", "i", "someone", "people"))
+_OWN_NEGATED = ("did not", "didn't", "could not", "couldn't", "cannot", "can't", "were not able to", "was not able to",
+                "weren't able to", "wasn't able to", "failed to", "never")
+_OWN_OBLIGED = ("had to", "have to", "has to", "needed to", "need to", "were forced to", "was forced to")
+_OWN_SAME_FORM = frozenset(("cut", "put", "set", "let", "hit", "cost", "hurt", "shut", "quit", "spread"))
+_OWN_DETERMINERS = frozenset(("a", "an", "the", "their", "his", "her", "its", "one", "some", "every", "each", "no",
+                              "your", "our", "this", "that", "these", "those"))
+_OWN_DANGLING = frozenset(("and", "or", "but", "nor", "so", "the", "a", "an", "of", "to", "with", "on", "at", "for",
+                           "in", "from", "into", "onto", "about", "than", "that", "which", "who", "when", "where",
+                           "because", "as", "if", "their", "its", "his", "her"))
+
+
+def _bare(word: str) -> str:
+    return re.sub(r"^[^a-zÀ-ɏ']+|[^a-zÀ-ɏ']+$", "", word.lower().replace("’", "'"))
+
+
+def _ing(base: str) -> str:
+    from harness import vectors_script as vs_mod                        # noqa: PLC0415 - `SpokenCap.ing`'s port
+    return vs_mod._ing(base)
+
+
+def _own_base_of(word: str | None) -> str | None:
+    """`OwnRow.baseOf`: a verb's base where the word reads as one -- a past, a present code knows, an -ing form (its own
+    base), *was* / *were* (*be*); None otherwise."""
+    if word is None or len(word) < 2:
+        return None
+    if word in ("was", "were"):
+        return "be"
+    past = spoken_mod.base_of_past(word)
+    if past is not None:
+        return past
+    if word.endswith("ed") and len(word) > 4 and not word.endswith("eed"):
+        return spoken_mod.base_of_past_loose(word)
+    if word.endswith("ing") and len(word) > 5:
+        return word
+    return word if founder_words.present_verb(word) else None
+
+
+def _own_is_past(word: str) -> bool:
+    if len(word) < 2:
+        return False
+    base = spoken_mod.base_of_past(word)
+    if base is not None and base != word:
+        return True
+    return word.endswith("ed") and len(word) > 4 and not word.endswith("eed") \
+        and spoken_mod.base_of_past_loose(word) is not None
+
+
+def _turned(base: str) -> str:
+    return "having" if base == "have" else "being" if base == "be" else _ing(base)
+
+
+def _verb_first(words: list[str], led: bool) -> str | None:
+    if not words:
+        return None
+    first = _bare(words[0])
+    base = _own_base_of(first)
+    if base is None and not led:
+        return None
+    out = list(words)
+    out[0] = _turned(base or first)
+    return " ".join(out)
+
+
+def _act_first(words: list[str]) -> str | None:
+    joined = " ".join(words)
+    lower = joined.lower()
+    for lead in sorted(_OWN_OBLIGED + _OWN_NEGATED, key=len, reverse=True):
+        if lower.startswith(lead + " ") and len(lower) > len(lead) + 1:
+            return _verb_first(joined[len(lead) + 1:].split(" "), True)
+    return _verb_first(words, False)
+
+
+def _subject_first(words: list[str]) -> str | None:
+    if len(words) < 2:
+        return None
+    if not (_bare(words[0]) in _OWN_DETERMINERS or _own_base_of(_bare(words[0])) is None):
+        return None
+    start = 2 if _bare(words[0]) in _OWN_DETERMINERS else 1
+    for i in range(start, len(words)):
+        word, before = _bare(words[i]), _bare(words[i - 1])
+        if before in _OWN_DETERMINERS:
+            continue
+        out = list(words[:i])
+        if word in ("would", "could", "did", "does", "do", "will", "can") and i + 2 < len(words) \
+                and _bare(words[i + 1]) == "not":
+            base = _own_base_of(_bare(words[i + 2]))
+            return " ".join(out + ["not", _ing(base or _bare(words[i + 2]))] + list(words[i + 3:]))
+        if word in ("didn't", "couldn't", "wouldn't"):
+            if i + 1 >= len(words):
+                return None
+            base = _own_base_of(_bare(words[i + 1]))
+            return " ".join(out + ["not", _ing(base or _bare(words[i + 1]))] + list(words[i + 2:]))
+        if _own_is_past(word) or word in _OWN_SAME_FORM:
+            base = word if word in _OWN_SAME_FORM else _own_base_of(word)
+            return " ".join(out + [_turned(base)] + list(words[i + 1:]))
+    return None
+
+
+def _and_turned(row: str) -> str:
+    words = row.split(" ")
+    for i in range(2, len(words)):
+        if _bare(words[i - 1]) == "and" and _own_is_past(_bare(words[i])) and _bare(words[i]) != "read":
+            words[i] = _ing(_own_base_of(_bare(words[i])))
+    return " ".join(words)
+
+
+def _undangled(row: str) -> str:
+    words = row.strip().split(" ")
+    while len(words) > 2 and _bare(words[-1]) in _OWN_DANGLING:
+        words.pop()
+    return re.sub(r"[,;:]+$", "", " ".join(words))
+
+
+def own_row_from_clause(went_wrong: str | None) -> str | None:
+    """keel-cloud 223 FR-1 (`OwnRow.fromClause`; spec 141 FR-8): `went_wrong` as Importance's own row -- the act first,
+    its verb in the -ing form (a subject pronoun dropped; *had to* and its kind, and a negation, before the act read
+    past: *did not know why the baby cried* -> *Knowing why the baby cried*), else the clause subject first with its
+    first verb turned (*their bank cut the yield* -> *Their bank cutting the yield*); a later past joined by *and* turned
+    too; past nine words cut by its trailing phrases (`spoken.cut_to_fit`), no dangling joiner. None where it is blank,
+    no verb is read, or it is over nine words (or under two) after the cut."""
+    if went_wrong is None or not str(went_wrong).strip():
+        return None
+    text = re.sub(r"\s+", " ", re.sub(r"[.!?;:,]+$", "", str(went_wrong).strip()))
+    words = [{"your": "their", "yours": "theirs", "yourself": "themselves"}.get(w.lower(), w) for w in text.split(" ")]
+    if len(words) > 1 and _bare(words[0]) in _OWN_PRONOUNS:
+        words = words[1:]
+    row = _act_first(words) or _subject_first(words)
+    if row is None:
+        return None
+    row = _and_turned(row)
+    if len(row.split()) > OWN_ROW_MAX_WORDS:
+        row = _undangled(spoken_mod.cut_to_fit(row, OWN_ROW_MAX_WORDS))
+    if len(row.split()) > OWN_ROW_MAX_WORDS or len(row.split()) < 2:
+        return None
+    return row[0].upper() + row[1:]
+
+
+def own_row_note(saved_own_row: str | None, drafted_own_row: str | None, job: str | None, circumstance: str | None,
+                 *people: str) -> str | None:
+    """keel-cloud 223 FR-2 (`OwnRow.note`): the note under the founder's own row on the Check -- `OWN_ROW_NOTE` where the
+    saved own row is not Keel's drafted one word for word (case, spacing and a closing stop aside) and reads as the job
+    or the circumstance said again (`own_row_fault`, L37); None otherwise. Never a refusal."""
+    if saved_own_row is None or not str(saved_own_row).strip():
+        return None
+
+    def same(a: str, b: str) -> bool:
+        norm = lambda t: re.sub(r"[.!]+$", "", re.sub(r"\s+", " ", t.strip())).lower()  # noqa: E731
+        return norm(a) == norm(b)
+    if drafted_own_row is not None and same(saved_own_row, drafted_own_row):
+        return None
+    return OWN_ROW_NOTE if own_row_fault(saved_own_row, job, circumstance, *people) else None
