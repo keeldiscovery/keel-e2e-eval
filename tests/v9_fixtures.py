@@ -169,7 +169,12 @@ GOOD_LISTS = {
     "commercial.buyer_payer_alignment": {"items": [{"label": "The office manager"}]},
     "commercial.purchase_friction": {"items": [{"label": "The office manager's sign-off"},
                                                {"label": "A security check", "suggested": True}]},
-    "commercial.commitment": {"items": [{"label": "install the app"}]},
+    # spec 141 FR-4 (keel-cloud 221 FR-3, `StepCost.DATA_ACTS`): installing costs data, so the draft carries Keel's free
+    # smaller step and its reason (L34, L7), as the scripted writer's does (`vectors_script.keels_smaller_step`)
+    "commercial.commitment": {"items": [{"label": "install the app"},
+                                        {"label": "a look at how it works",
+                                         "reason": "'install the app' costs the person data ('install'), so a smaller "
+                                                   "step that costs nothing is offered first"}]},
 }
 
 #: The five fifths Prevalence is written as (C2-C4).

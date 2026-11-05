@@ -119,7 +119,10 @@ def test_a_percent_of_a_named_base_says_one_measure():
     palus = {"mode": "RATE", "low": 2, "high": 2, "period": "year", "unit": "company", "measure": "%",
              "base": "the balance"}
     assert chain_mod.percent_of_base(palus, "the balance")
-    assert chain_mod.cost_said(palus, None, None) == "about 2% of the balance a year"
+    # spec 141 FR-7 (keel-cloud 227 FR-3): the cost's sentences keep the typed unit beside a percent of a named base
+    # (213 FR-2b's drop retired there; the price's share form keeps it, below)
+    assert chain_mod.cost_said(palus, None, None) == "about 2% of the balance per company a year"
+    assert chain_mod.cost_said_before227(palus, None, None) == "about 2% of the balance a year"
     share = {"shape": "SHARE", "low": 0.25, "high": 0.25, "shareBase": "COST_BASE", "currency": "USD"}
     assert chain_mod.price_said(share, palus, None, None) == "0.25% of the balance a year"
     assert chain_mod.price_belief(share, palus, "startup founders", None, None, "founder", "Startup founders", "Palus") \
@@ -129,7 +132,9 @@ def test_a_percent_of_a_named_base_says_one_measure():
         "0.25% of what it gets back, only when it does, per company a year"
     count = {**palus, "measure": "conversations", "unit": "person"}
     assert not chain_mod.percent_of_base(count, "the balance")
-    assert chain_mod.cost_said(count, None, None) == "about 2 conversations of the balance per person a year"
+    # spec 141 FR-7 (keel-cloud 227 FR-2): a count is a count -- no *of {base}*
+    assert chain_mod.cost_said(count, None, None) == "about 2 conversations per person a year"
+    assert chain_mod.cost_said_before227(count, None, None) == "about 2 conversations of the balance per person a year"
 
 
 def test_the_recorded_chain_words_read_by_213s_one_measure_rule():
@@ -348,7 +353,8 @@ def test_the_chain_words_owed_move_with_173():
     palus = {"mode": "RATE", "low": 2, "high": 2, "period": "year", "unit": "company", "measure": "%",
              "base": "the balance"}
     share = {"shape": "SHARE", "low": 0.25, "high": 0.25, "shareBase": "COST_BASE"}
-    assert cs.chain_words_owed("commercial.existing_sacrifice", palus, share, True) == (["a year"], ["per company"])
+    # spec 141 FR-7 (keel-cloud 227 FR-3): *per company* beside a percent of a named base is banned no more
+    assert cs.chain_words_owed("commercial.existing_sacrifice", palus, share, True) == (["a year"], [])
     assert cs.chain_words_owed("commercial.price", palus, share, True) == (["a year"], ["per company"])
     site = {"mode": "MONEY", "low": 800, "high": 900, "period": "month", "unit": "site"}
     assert cs.chain_words_owed("commercial.existing_sacrifice", site, None, True) == (["per site", "a month"], [])
@@ -358,7 +364,8 @@ def test_the_chain_words_owed_move_with_173():
     assert chain_mod.locked_drawn(chain_mod.locked_words(site, None, None, b2b=False), False) == "a month"
     assert chain_mod.locked_drawn({"base": "the balance", "unit": "company", "period": "year"}, True) == \
         "of the balance · a year"
-    assert chain_mod.equation_per_drawn(palus) == "· a year"
+    assert chain_mod.equation_per_drawn_173(palus) == "· a year"
+    assert chain_mod.equation_per_drawn(palus) == "· per company · a year"          # spec 141 FR-7: 227's (keel-web 178)
     assert chain_mod.equation_per_drawn(site) == "· per site · a month"
 
 

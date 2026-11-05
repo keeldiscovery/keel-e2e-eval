@@ -1568,7 +1568,142 @@ def _loss_gone_without(ladder, opening, team, loss, base) -> None:
 LOSER = "you"
 
 
-def cost_question(team: bool, occasion, job, cost: dict) -> str:
+def _rate_stem(opening: str, noun, team: bool, base, cost: dict) -> tuple:
+    """keel-cloud 222 FR-1 (`CommercialChain.rateStem`): the RATE ladder read -- `(served, wanted, share, measure)`: the
+    stem it serves (`_held`), and whether the writer's `loss_clause` is wanted -- the served stem is none of code's own
+    readings of the founder's loss line (the line's own verb or its seen event; a verbless line whose rest is a place,
+    kept whole after the neutral verb), so it falls to a neutral verb -- and the frame can name the thing (a share its
+    base, a count its measure)."""
+    ladder: list[str] = []
+    own: set[str] = set()
+    measure = cost_measure(cost)
+    share = measure is None or measure.strip() == "%"
+    loss = ll.read(cost.get("lossPhrase"))
+    if loss is not None and same_words(cost.get("lossPhrase"), base):
+        loss = None
+    if not share:
+        start = len(ladder)
+        _loss_count(ladder, opening, team, loss, measure.strip())
+        own.update(ladder[start:])
+        if loss is not None and loss.shape == ll.NONE:
+            thing = without_the_measure(_said(loss.thing, team), measure.strip())
+            ladder.append(f"{opening}, in about how many {measure.strip()} did {LOSER} {GONE_WITHOUT} {thing}?")
+        ladder.append(f"{opening}, about how many {measure.strip()} {WENT_WRONG}?")
+    else:
+        loss_open = f"On your last {noun}" if not team and noun is not None else opening
+        openings = [opening] if loss_open == opening else [loss_open, opening]
+        if loss is not None and loss.shape != ll.NONE and base is not None:
+            for each in openings:
+                start = len(ladder)
+                _loss_share(ladder, each, team, loss, base)
+                own.update(ladder[start:])
+        elif loss is not None and loss.shape == ll.NONE:
+            for each in openings:
+                start = len(ladder)
+                _loss_gone_without(ladder, each, team, loss, base)
+                if loss.rest_is_a_place():
+                    own.update(ladder[start:])
+        if base is not None:
+            ladder.append(opening + ", about " + PERCENT_OF + base
+                          + (" " + WENT_WRONG if count_noun(base) else " did " + LOSER + " " + GONE_WITHOUT) + "?")
+    ladder.append(f"{opening}, about what percent did {LOSER} {GONE_WITHOUT}?")
+    served = _held(ladder)
+    frameable = base is not None if share else bool(measure and measure.strip())
+    return served, loss is not None and frameable and served not in own, share, \
+        None if measure is None else measure.strip()
+
+
+def loss_clause_wanted(team: bool, occasion, cost: dict | None) -> bool:
+    """keel-cloud 222 FR-1 (`CommercialChain.lossClauseWanted`): whether the founder's cost asks for the writer's
+    `loss_clause` -- a RATE cost whose loss line code's own reading cannot ask, on the link the item is served on."""
+    if not isinstance(cost, dict) or cost.get("mode") != "RATE":
+        return False
+    over = cost.get("period") if cost.get("period") in _COST_OPENERS else "month"
+    base = None if _blank(cost.get("base")) else _said(str(cost["base"]), team)
+    return _rate_stem(_COST_OPENERS[over], ll.occasion_noun(occasion), team, base, cost)[1]
+
+
+#: keel-cloud 222 (`LossClause.RELATIVE`, `SUBJECTS`, `INVERTED`).
+_CLAUSE_RELATIVE = frozenset(("that", "which", "who"))
+_CLAUSE_SUBJECTS = frozenset(("you", "they", "we"))
+_CLAUSE_INVERTED = frozenset(("were", "was", "could", "would", "did", "had"))
+
+
+def _thing_roots(base, measure) -> set:
+    from instructions import writers_rules as writers_mod                # noqa: PLC0415
+    roots = set(writers_mod.roots(base)) if base is not None else set()
+    if measure is not None and measure.strip() != "%":
+        roots |= set(writers_mod.roots(measure))
+    return roots
+
+
+def loss_clause_said(clause, base, measure) -> str | None:
+    """keel-cloud 222 FR-4 (`LossClause.said`): the clause as the frame takes it -- one that opens on the frame's thing
+    (*booking calls that rang out unanswered* after *the reservation calls*) cut to its verb phrase, one opening on the
+    person turned to a question's order (*you stopped following* -> *did you stop following*, *you were* -> *were
+    you*); None with none."""
+    from instructions import spoken as spoken_mod                       # noqa: PLC0415
+    from instructions import writers_rules as writers_mod                # noqa: PLC0415
+    if clause is None or not str(clause).strip():
+        return None
+    text = re.sub(r"[.,;:!?]+$", "", re.sub(r"\s+", " ", str(clause).strip())).strip()
+    if not text:
+        return None
+    w = ll.lower_first(text).split(" ")
+    thing = _thing_roots(base, measure)
+    for i in range(1, min(len(w) - 1, 7)):
+        x = w[i].lower()
+        if x not in _CLAUSE_RELATIVE and x not in _CLAUSE_SUBJECTS:
+            continue
+        if set(writers_mod.roots(" ".join(w[:i]))) & thing:
+            w = w[i + 1:] if x in _CLAUSE_RELATIVE else w[i:]
+        break
+    if len(w) >= 2 and w[0].lower() == "you":
+        verb, rest = w[1].lower(), " ".join(w[2:])
+        if verb in _CLAUSE_INVERTED and verb not in ("had", "did"):
+            w = (("were" if verb == "was" else verb) + " you " + rest).strip().split(" ")
+        else:
+            base0 = spoken_mod.base_of_past_loose(verb)
+            if base0 is not None and verb != "did":
+                w = ("did you " + base0 + " " + rest).strip().split(" ")
+    return " ".join(w).strip()
+
+
+def loss_clause_frames(opening: str, clause: str, base, measure) -> list[str]:
+    """keel-cloud 222 FR-4 (`CommercialChain.lossClauseFrames`): *{opener}, about what percent of {base} {clause}?* (a
+    share) or *{opener}, about how many {measure} {clause}?* (a count), then each without *about*."""
+    asked = PERCENT_OF + base if base is not None else "how many " + str(measure)
+    return [f"{opening}, about {asked} {clause}?", f"{opening}, {asked} {clause}?"]
+
+
+def loss_clause_question(opening: str, loss_clause, base, measure) -> str | None:
+    """keel-cloud 222 FR-4 (`CommercialChain.lossClauseQuestion`): the first of the clause's frames within the spoken cap
+    that says no *lose*; else None (today's ladder)."""
+    clause = loss_clause_said(loss_clause, base, measure)
+    if clause is None:
+        return None
+    return next((rung for rung in loss_clause_frames(opening, clause, base, measure)
+                 if loss_word(rung) is None and ll.words(rung) <= STEM_MAX_WORDS), None)
+
+
+#: Spec 141 FR-7 (keel-cloud 222 FR-2): the writer's `loss_clause` the scripted part-1 result carries where an entry
+#: holds one and the cost wants it (`loss_clause_wanted`). **None today**: no golden entry's line falls to a neutral
+#: verb, and the cycle-14 five (Codyco, Expanse, Palus, AirCaps, Fresco) were COMMERCIAL studies, which run no part-1
+#: job (222's judgement call 2) -- so the item takes code's reading, as today (no pin moves).
+LOSS_CLAUSES: dict[str, str] = {}
+
+
+def scripted_loss_clause(entry) -> str | None:
+    """Spec 141 FR-7: the scripted part-1 result's `loss_clause` -- the entry's (`LOSS_CLAUSES`) where its cost wants
+    one on the link part 3 is served on, else None."""
+    clause = LOSS_CLAUSES.get(getattr(entry, "id", None))
+    cost = entry.cost() if callable(getattr(entry, "cost", None)) else None
+    if clause is None or not loss_clause_wanted(is_b2b(entry), entry.occasion(), cost):
+        return None
+    return clause
+
+
+def cost_question(team: bool, occasion, job, cost: dict, loss_clause: str | None = None) -> str:
     """`CommercialChain.costQuestion(team, circumstance, occasion, job, period, cost)` on a chain cost (spec 110 FR-3,
     keel-cloud 170 FR-5): the stranger's cost question in their own terms, held to the spoken cap by each frame's
     give-way ladder. HOURS *spend on* the thing (or the time gone without); RATE the founder's loss line's verb and thing
@@ -1576,7 +1711,9 @@ def cost_question(team: bool, occasion, job, cost: dict) -> str:
     FR-5): never *miss* -- a line whose verb is *lose*'s or *miss*'s asked by the event it names (*rang out*), a two-part
     verb by its seen half (*never use*), a line with no verb of its own *go without* (time, money, a thing) or *fell
     through* (a counted thing); a percent box asked *what percent of*, never *how much*. `team` is the decision-maker's
-    link (`corridor.isB2b()`)."""
+    link (`corridor.isB2b()`).Spec 141 FR-7 (keel-cloud 222 FR-4): `loss_clause`, the writer's, framed where code's own
+    reading of the line falls to a neutral verb (`_rate_stem`); None, or a line code reads, and the question is as
+    before."""
     over = cost.get("period") if cost.get("period") in _COST_OPENERS else "month"
     opening = _COST_OPENERS[over]
     base = None if _blank(cost.get("base")) else _said(str(cost["base"]), team)
@@ -1599,31 +1736,12 @@ def cost_question(team: bool, occasion, job, cost: dict) -> str:
         ladder.append(f"{opening}, about how many hours did {_who(team, None)} spend on this?")
         return _held(ladder)
     if cost.get("mode") == "RATE":
-        measure = cost_measure(cost)
-        share = measure is None or measure.strip() == "%"
-        loss = ll.read(cost.get("lossPhrase"))
-        if loss is not None and same_words(cost.get("lossPhrase"), base):
-            loss = None
-        if not share:
-            _loss_count(ladder, opening, team, loss, measure.strip())
-            if loss is not None and loss.shape == ll.NONE:
-                thing = without_the_measure(_said(loss.thing, team), measure.strip())
-                ladder.append(f"{opening}, in about how many {measure.strip()} did {LOSER} {GONE_WITHOUT} {thing}?")
-            ladder.append(f"{opening}, about how many {measure.strip()} {WENT_WRONG}?")
-        else:
-            loss_open = f"On your last {noun}" if not team and noun is not None else opening
-            openings = [opening] if loss_open == opening else [loss_open, opening]
-            if loss is not None and loss.shape != ll.NONE and base is not None:
-                for each in openings:
-                    _loss_share(ladder, each, team, loss, base)
-            elif loss is not None and loss.shape == ll.NONE:
-                for each in openings:
-                    _loss_gone_without(ladder, each, team, loss, base)
-            if base is not None:
-                ladder.append(opening + ", about " + PERCENT_OF + base
-                              + (" " + WENT_WRONG if count_noun(base) else " did " + LOSER + " " + GONE_WITHOUT) + "?")
-        ladder.append(f"{opening}, about what percent did {LOSER} {GONE_WITHOUT}?")
-        return _held(ladder)
+        # spec 141 FR-7 (keel-cloud 222 FR-1, FR-4): where code's own reading of the line falls to a neutral verb, the
+        # writer's clause in its place (`loss_clause_question`); everywhere else the ladder's own stem, word for word
+        served, wanted, share, measure = _rate_stem(opening, noun, team, base, cost)
+        written = loss_clause_question(opening, loss_clause, base if share else None, None if share else measure) \
+            if wanted else None
+        return written if written is not None else served
     if over == "each" and noun is not None:
         thing = base if base is not None else "it"
         ladder.append(f"On your last {noun}, what did {thing} cost" + ("" if unit is None else f" per {unit}") + "?")
@@ -1687,7 +1805,9 @@ def cost_item(entry) -> dict | None:
     ctx = _ctx(entry)
     role_word = (entry.decision_maker_role() if team else None) or ctx.get("actor")
     label = stranger_cost_label(cost, entry.occasion(), role_word, team)
-    return {"question": cost_question(team, entry.occasion(), ctx.get("job"), cost), "label": label,
+    # spec 141 FR-7 (keel-cloud 222 FR-2): the writer's clause off the scripted part-1 result, where it carries one
+    return {"question": cost_question(team, entry.occasion(), ctx.get("job"), cost, scripted_loss_clause(entry)),
+            "label": label,
             "nothing": {"code": "NOTHING", "label": VALUE_BOX_LABELS["NOTHING"]},
             "chips": [{"code": c, "label": VALUE_BOX_LABELS[c]} for c in value_box_escapes(not team)],
             "escape": {"code": "DONT_KNOW", "label": VALUE_BOX_LABELS["DONT_KNOW"]},
@@ -2854,6 +2974,11 @@ def respondent_result(entry, part: int, link: str) -> dict:
         decider = decider_screener(entry) if is_b2b(entry) else None
         if decider:
             out["decider_condition"] = decider
+    if part == 1 and link == LINK_PRIMARY:
+        # spec 141 FR-7 (keel-cloud 222 FR-2): beside them, the Existing sacrifice item's `loss_clause` where held
+        clause = scripted_loss_clause(entry)
+        if clause:
+            out["loss_clause"] = clause
     return out
 
 

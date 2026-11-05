@@ -2686,7 +2686,8 @@ def chain_words_owed(key: str, cost: dict, price: dict | None, b2b: bool, occasi
         -> tuple[list[str], list[str]]:
     """Spec 064 FR-2 (keel-web 094) as spec 137 FR-3 moves it (keel-web 173 FR-2c / FR-3, keel-cloud 213 FR-1b /
     FR-2b): what the chain screen's words after the boxes must say, and must never -- the cost's equation (`chain-per`)
-    *per {unit}* and the period, but on a rate said as a percent of a named base the period alone (no *per {unit}*);
+    *per {unit}* and the period, but on a rate said as a percent of a named base the period alone (*per {unit}* banned
+    there no more since spec 141 FR-7, keel-cloud 227);
     the price's locked words (`chain-locked`) the unit and the period, but no unit where the user pays (`locked.unit`
     null) and none beside a share of a named base. `(owed, banned)`."""
     period_words = chain_mod.CHAIN_PERIOD_WORDS.get(cost.get("period"), "")
@@ -2694,7 +2695,9 @@ def chain_words_owed(key: str, cost: dict, price: dict | None, b2b: bool, occasi
     per_unit = f"per {unit}" if unit else ""
     if key == "commercial.existing_sacrifice":
         if chain_mod.percent_of_base(cost, chain_mod.base_of(cost, occasion)):
-            return [period_words], [per_unit]
+            # spec 141 FR-7 (keel-cloud 227 FR-3): *per {unit}* beside a percent of a named base is banned no more --
+            # keel-web 178 draws it (`chain.equation_per_drawn`), a web before it not (`equation_per_drawn_173`)
+            return [period_words], []
         return [per_unit, period_words], []
     share_of_base = isinstance(price, dict) and price.get("shape") == "SHARE" and not chain_mod.recovered(price) \
         and chain_mod.base_of(cost, occasion) is not None

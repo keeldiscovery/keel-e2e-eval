@@ -181,7 +181,11 @@ def test_the_base_is_said_once():
     # spec 139 FR-4 (keel-cloud 217 judgement call 8): Expanse's base is *the reserved GPU hours* at revision 25 (was
     # *the cluster's GPU hours*); the unit-beside rule is pinned above on the old words
     assert cost["belief_phrase"] == "about 30% to 59% of the reserved GPU hours a month"
-    assert chain_mod.cost_said(cost["answer"], expanse.occasion(), None) == cost["belief_phrase"]
+    # spec 141 FR-7 (keel-cloud 227 FR-3): the typed unit kept beside a percent of a named base -- the recorded phrase
+    # read by 227's rule until a revision records it (`corpus.spec227_cost`)
+    assert chain_mod.cost_said(cost["answer"], expanse.occasion(), None) == \
+        "about 30% to 59% of the reserved GPU hours per cluster a month" == \
+        corpus_mod.spec227_cost(cost["belief_phrase"], cost["answer"], None, None, None, True, True)
     text = _cloud(VECTORS + "CommercialChain.java")
     assert "static String unitBeside(String unit, String base, String period)" in text
     assert '(?:\'s|s|es)?\\\\b' in text

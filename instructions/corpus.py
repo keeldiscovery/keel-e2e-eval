@@ -1324,6 +1324,51 @@ def spec216_payer(recorded, paying, *before):
     return out
 
 
+def spec227_cost(recorded, cost, paying, actor, actor_plural, b2b: bool, phrase: bool):
+    """keel-cloud 227 FR-2, FR-3 (`VectorCorpusFixture.spec227Cost`; spec 141 FR-7): an Existing sacrifice sentence
+    (`phrase` False) or phrase as revision 25 records it, read by 227's rules until a revision records the new words (227
+    moved no corpus revision) -- (a) a count is a count: the phrase drops its *of {base}*; the sentence *About {n} of
+    {base} [per {unit}] {period}: {loss}.* reads *{Payer} already lose about {n} {measure} per {unit} {period}: {loss}.*
+    (the paying unit, else the people); (b) a percent of a named base carries the typed unit after its base, said once
+    where the base names it; (c) where the user pays, an hours or money sentence carries the typed unit after its figure,
+    unless it is the people's own noun. Any other words as recorded."""
+    unit = chain_mod.typed_unit(cost)
+    if not isinstance(recorded, str) or not isinstance(cost, dict) or unit is None:
+        return recorded
+    period = chain_mod.CHAIN_PERIOD_WORDS.get(cost.get("period"), "")
+    per = chain_mod.per(unit, cost.get("period"))
+    base = str(cost["base"]).strip() if isinstance(cost.get("base"), str) else None
+    lo, hi = chain_mod.dec(cost["low"]), chain_mod.dec(cost["high"])
+    if chain_mod.count_rate(cost) and base is not None:
+        if phrase:
+            return recorded.replace(" of " + base, "")
+        head = "About " + chain_mod.cnumber(lo) + ("" if lo == hi else " to " + chain_mod.cnumber(hi)) + " of " + base
+        if not recorded.startswith(head):
+            return recorded
+        rest = recorded[len(head):]
+        if rest.startswith(" " + per):
+            rest = rest[len(per) + 1:]
+        elif rest.startswith(" " + period):
+            rest = rest[len(period) + 1:]
+        if rest.startswith(" "):
+            rest = ":" + rest
+        own = not b2b and chain_mod.own_noun(unit, actor, actor_plural)
+        payer = paying if paying else (str(actor_plural).strip() if actor_plural else "they")
+        return payer[:1].upper() + payer[1:] + " already lose about " + chain_mod.figure(cost, lo, hi) + " " \
+            + (period if own else per) + rest
+    if cost.get("mode") == "RATE" and chain_mod.is_percent(cost) and base is not None:
+        kept = chain_mod.unit_beside(unit, base, cost.get("period"))
+        if kept is None or ("of " + base + " " + per) in recorded:
+            return recorded
+        shown = period if not phrase and not b2b and chain_mod.own_noun(unit, actor, actor_plural) else per
+        return recorded.replace("of " + base + " " + period, "of " + base + " " + shown)
+    if not phrase and not b2b and cost.get("mode") != "RATE" and not chain_mod.own_noun(unit, actor, actor_plural) \
+            and (" " + per) not in recorded:
+        fig = chain_mod.figure(cost, lo, hi)
+        return recorded.replace(fig + " " + period, fig + " " + per)
+    return recorded
+
+
 def _lower_first(text: str) -> str:
     """`BeliefSentence.lower`: a leading capital lowered unless the second letter is a capital too (an acronym)."""
     return text[:1].lower() + text[1:] if len(text) > 1 and text[0].isupper() and not text[1].isupper() else text
@@ -1418,10 +1463,13 @@ def _check_chain(raw: dict, entry_id, path: Path) -> bool:
                                  actor_plural=actor_plural, paying=paying)
     recorded = spec216_payer(spec213_chain(sacrifice.get("belief_sentence"), cost, price), paying, deciders,
                              actor_plural if cost.get("mode") == "RATE" else None)
+    # spec 141 FR-7 (keel-cloud 227): a count is a count, the typed unit kept -- read until a revision records it
+    recorded = spec227_cost(recorded, cost, paying, ctx.get("actor"), actor_plural, b2b, False)
     if recorded != want:
         raise fault(f"{where}: belief sentence {sacrifice.get('belief_sentence')!r}, the engine's {want!r}")
     want = chain_mod.cost_said(cost, occasion, role_word)
-    if spec213_chain(sacrifice.get("belief_phrase"), cost, price) != want:
+    if spec227_cost(spec213_chain(sacrifice.get("belief_phrase"), cost, price), cost, paying, ctx.get("actor"),
+                    actor_plural, b2b, True) != want:
         raise fault(f"{where}: belief phrase {sacrifice.get('belief_phrase')!r}, the engine's {want!r}")
 
     # the price

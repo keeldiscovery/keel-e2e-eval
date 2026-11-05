@@ -202,10 +202,39 @@ def percent_of_base(cost, base) -> bool:
     return isinstance(cost, dict) and is_percent(cost) and base is not None and bool(str(base).strip())
 
 
-def cost_said(cost: dict, occasion, role_word) -> str:
+def typed_unit(cost) -> str | None:
+    """keel-cloud 227 FR-3 (`CommercialChain.typedUnit`; spec 141 FR-7): the founder's sentences' unit -- the cost's
+    `unit` as typed, else none: no *per* clause, never a guessed noun (the role word `unit_of` stands in with is the
+    stranger's, not the founder's belief)."""
+    u = cost.get("unit") if isinstance(cost, dict) else None
+    return u.strip() if isinstance(u, str) and u.strip() else None
+
+
+def count_rate(cost) -> bool:
+    """keel-cloud 227 FR-2 (`CommercialChain.countRate`): a rate the founder counts in a count word, never a percent."""
+    return isinstance(cost, dict) and cost.get("mode") == "RATE" and not is_percent(cost)
+
+
+def cost_said(cost: dict, occasion, role_word=None) -> str:
     """CommercialChain.costSaid: the phrase the drift clause quotes (the belief phrase). Since keel-cloud 199 FR-10 a
-    rate's unit is dropped where its base names it (`unit_beside`); since keel-cloud 213 FR-2b a percent of a named base
-    carries no unit at all (`percent_of_base`)."""
+    rate's unit is dropped where its base names it (`unit_beside`). Spec 141 FR-7 (keel-cloud 227 FR-2, FR-3): the unit
+    as the founder typed it (`typed_unit`), never the role word -- `role_word` is read no more; a count is a count,
+    *about 12 conversations per person a month*, no *of {base}*; a percent of a named base keeps the typed unit beside
+    it (213 FR-2b's drop retired: *about 30% to 59% of the reserved GPU hours per cluster a month*)."""
+    unit, lo, hi = typed_unit(cost), dec(cost["low"]), dec(cost["high"])
+    if count_rate(cost):
+        return ("about " + figure(cost, lo, hi) + " " + per(unit, cost["period"])).strip()
+    if cost["mode"] == "RATE":
+        of = base_of(cost, occasion)
+        unit = unit_beside(unit, of, cost["period"])
+        return ("about " + figure(cost, lo, hi) + ("" if of is None else " of " + of) + " "
+                + per(unit, cost["period"])).strip()
+    return (("about " if is_money(cost) else "") + figure(cost, lo, hi) + " " + per(unit, cost["period"])).strip()
+
+
+def cost_said_before227(cost: dict, occasion, role_word) -> str:
+    """`CommercialChain.costSaid` from 213 to 226 (the role word as the unit, a percent of a named base with none, a count
+    *of {base}*) -- read only where a test names the frame before 227."""
     unit, lo, hi = unit_of(cost, role_word), dec(cost["low"]), dec(cost["high"])
     if cost["mode"] == "RATE":
         of = base_of(cost, occasion)
@@ -397,20 +426,28 @@ def cost_belief(cost: dict, occasion, role_word, deciders_words=None, b2b: bool 
     Spec 139 FR-2 (keel-cloud 216 FR-4): a money cost is spent by the unit that pays (`paying`, `paying_unit`: the
     organisation on B2B, the people where the user pays) -- never a deciding or working role; `deciders_words` is read
     only where the context names no payer. A share lost with no loss line on B2B is the paying unit's. The hours path
-    is unchanged."""
+    is unchanged.
+
+    Spec 141 FR-7 (keel-cloud 227 FR-2, FR-3): a count is a count -- *{Payer} already lose about {n} {measure} per
+    {unit} {period}: {loss}.* (no *of {base}*, never a %); the unit is the founder's (`typed_unit`, `role_word` read no
+    more), kept beside a percent of a named base and where the user pays, dropped where it is the people's own noun when
+    they are the subject. The count's *a base naming its measure says the number once* read is retired with it."""
     if paying and str(paying).strip():
         who = _upper(str(paying).strip())
     else:
         who = "They" if not deciders_words or not str(deciders_words).strip() else _upper(str(deciders_words).strip())
     actors = "They" if not actor_plural or not str(actor_plural).strip() else _upper(str(actor_plural).strip())
     of = base_of(cost, occasion)
-    # keel-cloud 199 FR-10: the base said once -- no *per cluster* after *the cluster's GPU hours*; keel-cloud 213 FR-2b:
-    # a percent of a named base carries no unit at all (*about 2% of the balance a year*)
-    unit = None if percent_of_base(cost, of) else unit_beside(unit_of(cost, role_word) if b2b else None, of,
-                                                              cost["period"])
+    # keel-cloud 199 FR-10: the base said once -- no *per cluster* after *the cluster's GPU hours*. Spec 141 FR-7
+    # (keel-cloud 227 FR-3): the unit as the founder typed it, never the role word; kept beside a percent of a named base
+    # (213 FR-2b's drop retired) and where the user pays (180's drop retired) -- the people's own noun is no unit where
+    # they are the subject
+    unit = unit_beside(typed_unit(cost), of, cost["period"])
+    people_unit = None if own_noun(unit, actor, actor_plural) else unit
     lo, hi = dec(cost["low"]), dec(cost["high"])
-    words = per(unit, cost["period"])
+    words = per(unit if b2b else people_unit, cost["period"])
     tail = "" if not words else " " + words
+    paid = bool(paying and str(paying).strip())
     if cost["mode"] == "RATE":
         loss_text = cost.get("lossPhrase")
         loss = None
@@ -419,19 +456,22 @@ def cost_belief(cost: dict, occasion, role_word, deciders_words=None, b2b: bool 
             while loss.endswith("."):
                 loss = loss[:-1].strip()
             loss = _lower_first(loss)
-        fig = figure(cost, lo, hi)
-        measure = measure_of(cost)
-        if of is not None and not is_percent(cost) and measure and re.search(
-                r"(?i)\b" + re.escape(measure.strip()) + r"\b", of):
-            fig = _range(cnumber(lo), cnumber(hi), lo, hi)
-        said = "about " + fig + ("" if of is None else " of " + of) + tail
+        if count_rate(cost):
+            # keel-cloud 227 FR-2: a count is a count -- the payer loses the count itself, per the founder's unit, no
+            # *of {base}* and never a %; the loss line after a colon; the paying unit, else the people who lose it
+            count_unit = typed_unit(cost)
+            count_per = per(count_unit if b2b or not own_noun(count_unit, actor, actor_plural) else None,
+                            cost["period"])
+            return ((who if paid else actors) + " already lose about " + figure(cost, lo, hi)
+                    + ("" if not count_per else " " + count_per) + ("" if loss is None else ": " + loss) + ".")
+        said = "about " + figure(cost, lo, hi) + ("" if of is None else " of " + of) + tail
         if loss is None:
             # keel-cloud 216 (FR-4, judgement call 5): a share lost is the paying unit's on B2B
-            return (who if b2b and paying and str(paying).strip() else actors) + " already lose " + said + "."
+            return (who if b2b and paid else actors) + " already lose " + said + "."
         return _upper(said) + (" " + loss if loss_predicate(loss) else ": " + loss) + "."
     each = cost.get("period") == "each"
     if cost["mode"] == "HOURS":
-        hours_words = per(None if own_noun(unit, actor, actor_plural) else unit, cost["period"])
+        hours_words = per(people_unit, cost["period"])
         hours_tail = "" if not hours_words else " " + hours_words
         on = "" if of is None or LACK.search(of) else " on " + of
         return actors + " already spend " + figure(cost, lo, hi) + (on + hours_tail if each else hours_tail + on) + "."
@@ -730,9 +770,17 @@ def locked_drawn(locked: dict | None, share: bool) -> str:
 
 
 def equation_per_drawn(cost: dict, occasion=None) -> str:
-    """keel-web 173 FR-3 (`ChainCost`'s `chain-per`): the equation's words after the boxes -- *· per site · a month*, and
-    on a rate said as a percent of a named base the period alone (*· a year*: one measure on the line)."""
+    """keel-web 173 FR-3 (`ChainCost`'s `chain-per`) as keel-cloud 227 FR-3 owes it (`CostDto.unit`'s description; spec
+    141 FR-7): the equation's words after the boxes -- *· per site · a month*, and beside a percent of a named base too
+    (*· per cluster · a month*: 213 FR-2b's drop retired). keel-web 178 draws it; a web before draws
+    `equation_per_drawn_173`, and the walk bans neither (`corpus_scenario.chain_words_owed`)."""
+    period = CHAIN_PERIOD_WORDS.get(cost.get("period"), "")
+    return f"· per {str(cost.get('unit') or '').strip()} · {period}"
+
+
+def equation_per_drawn_173(cost: dict, occasion=None) -> str:
+    """keel-web 173 FR-3 to 177: on a rate said as a percent of a named base the period alone (*· a year*)."""
     period = CHAIN_PERIOD_WORDS.get(cost.get("period"), "")
     if percent_of_base(cost, base_of(cost, occasion)):
         return "· " + period
-    return f"· per {str(cost.get('unit') or '').strip()} · {period}"
+    return equation_per_drawn(cost, occasion)

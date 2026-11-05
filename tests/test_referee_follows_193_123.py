@@ -74,23 +74,25 @@ def test_the_three_entries_sentences_are_193s_table():
         "incident reports.")
     assert chain_mod.cost_belief(_hours(8, 16, "the speaking practice they go without", "person"), "practice session",
                                  None, "intermediate and advanced learners of a foreign language", False, **ISSEN) == (
-        "Intermediate and advanced learners of a foreign language already spend 8 to 16 hours a month.")
+        # spec 141 FR-7 (keel-cloud 227 FR-3): the typed unit kept where the user pays (180's drop retired)
+        "Intermediate and advanced learners of a foreign language already spend 8 to 16 hours per person a month.")
     assert chain_mod.cost_belief(
         _rate(10, "the shipments", "terminal", "Charges on freight that is bigger or heavier than the bill says"),
         "inbound shipment", "terminal manager", "Terminal managers", True, **TRANSLOAD) == (
-        # spec 137 (keel-cloud 213 FR-2b, `TheCostSentenceNamesWhoReallySpendsTest` re-pinned likewise): one measure --
-        # no *per terminal* beside a percent of the shipments
-        "About 10% of the shipments a month: charges on freight that is bigger or heavier than the bill says.")
+        # spec 137 (keel-cloud 213 FR-2b): no *per terminal* beside a percent of the shipments -- spec 141 FR-7
+        # (keel-cloud 227 FR-3, the cloud's test re-pinned likewise): the typed unit kept, 213 FR-2b's drop retired
+        "About 10% of the shipments per terminal a month: charges on freight that is bigger or heavier than the bill "
+        "says.")
 
 
 def test_a_rates_loss_is_its_predicate_when_it_opens_on_a_verb():
     args = ("inbound shipment", "terminal manager", "Terminal managers", True)
     assert chain_mod.cost_belief(_rate(10, "the shipments", "terminal", "carry a dimension error"), *args,
-                                 **TRANSLOAD) == "About 10% of the shipments a month carry a dimension error."
+                                 **TRANSLOAD) == "About 10% of the shipments per terminal a month carry a dimension error."
     assert chain_mod.cost_belief(_rate(10, "the shipments", "terminal", "billed as declared"), *args,
-                                 **TRANSLOAD) == "About 10% of the shipments a month: billed as declared."
+                                 **TRANSLOAD) == "About 10% of the shipments per terminal a month: billed as declared."
     assert chain_mod.cost_belief(_rate(10, "the shipments", "terminal", None), *args, **TRANSLOAD) == (
-        "Dock supervisors at freight terminals already lose about 10% of the shipments a month.")
+        "Dock supervisors at freight terminals already lose about 10% of the shipments per terminal a month.")
     assert chain_mod.loss_predicate("never come back") and not chain_mod.loss_predicate("runs late")
 
 

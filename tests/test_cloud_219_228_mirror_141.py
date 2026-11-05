@@ -7,6 +7,7 @@ tasks.md *Owed: keel-e2e-eval*). No stack, no model, no paid call; the cloud's s
 - FR-2 Relative advantage (219): *Think of {hard_case}.* first; the belief on `hard_case_theirs`; the scripted clause.
 - FR-3 Price (220): the question and the belief name the idea; the walk holds the served question.
 - FR-6 Current solution (226, 228): `line` or `lineAfter`; the walk leaves the line; W-rung read by name.
+- FR-7 Existing sacrifice (222, 227): the loss clause framed where code reads none; a count is a count, the typed unit.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from harness import vectors_script as vs
+from instructions import chain as chain_mod
 from instructions import corpus as corpus_mod
 from instructions import spoken as spoken_mod
 from instructions import step_cost as step_cost_mod
@@ -385,3 +387,121 @@ def test_the_two_boxes_stand_as_spec_140_read_them():
     from evals import corpus_scenario as cs                             # noqa: PLC0415
     from harness import vectors_screens as vs_screens                   # noqa: PLC0415
     assert callable(vs_screens.sent_how) and callable(cs.answer_boxes_faults)
+
+
+# ------------------------------------------------------------------------------------------ FR-7: keel-cloud 222, 227
+
+#: keel-cloud `SacrificeItemNamesTheLossTest.CLAUSES`: the clause a writer following the rule would write.
+LOSS_CLAUSES = {"21-codyco": "rang out unanswered", "13-aircaps": "did you stop following the thread of",
+                "10-palus": "went unearned at the bank", "17-expanse": "went unused by any job",
+                "08-fresco": "went into the daily log"}
+#: `theFiveEntries`: (wanted, as cycle 14 served it, with the clause).
+LOSS_ITEMS = {
+    "21-codyco": (True, "Last month, about what percent of the reservation calls did you go without in booking calls "
+                        "that rang out unanswered?",
+                  "Last month, about what percent of the reservation calls rang out unanswered?"),
+    "13-aircaps": (True, "Last month, about how many conversations fell through?",
+                   "Last month, about how many conversations did you stop following the thread of?"),
+    "10-palus": (True, "Last year, about what percent of the long-term reserve did you go without?",
+                 "Last year, about what percent of the long-term reserve went unearned at the bank?"),
+    "17-expanse": (False, "Last month, about what percent of the reserved GPU hours sat idle?", None),
+    "08-fresco": (False, "Last month, about how many hours per site did your team spend on the daily log?", None),
+}
+
+
+@pytest.mark.parametrize("entry_id", sorted(LOSS_ITEMS))
+def test_the_sacrifice_item_names_the_loss(entry_id):
+    """222 FR-1 / FR-4 (`SacrificeItemNamesTheLossTest.theFiveEntries`): the writer is wanted on the three gaps alone;
+    the clause in the frame there; the two code reads word for word as before with the field present."""
+    entry = _gallery(entry_id)
+    team, cost, job = vs.is_b2b(entry), entry.cost(), entry.context.get("job")
+    wanted, before, now = LOSS_ITEMS[entry_id]
+    assert vs.loss_clause_wanted(team, entry.occasion(), cost) is wanted
+    assert vs.cost_question(team, entry.occasion(), job, cost) == before
+    assert vs.cost_question(team, entry.occasion(), job, cost, LOSS_CLAUSES[entry_id]) == (now or before)
+
+
+def test_the_loss_clause_frames_and_the_scripted_part_one():
+    """222 (`LossClause.said`, `lossClauseFrames`, the part-1 result's optional `loss_clause`): a clause opening on the
+    thing is cut to its verb phrase, one on the person turned to a question's order; the scripted part 1 carries none
+    today (`LOSS_CLAUSES` empty: no golden line falls to a neutral verb), so no item moves."""
+    applier = _cloud(VECTORS + "LossClause.java")
+    assert 'FIELD = "loss_clause";' in applier
+    assert vs.loss_clause_said("booking calls that rang out unanswered", "the reservation calls", None) == \
+        "rang out unanswered"
+    assert vs.loss_clause_said("you stopped following the thread of", None, "conversations") == \
+        "did you stop following the thread of"
+    assert vs.loss_clause_said("you were cut off.", None, "calls") == "were you cut off"
+    assert vs.loss_clause_frames("Last month", "rang out", "the calls", None) == [
+        "Last month, about what percent of the calls rang out?", "Last month, what percent of the calls rang out?"]
+    assert vs.loss_clause_question("Last month", "lost the thread", None, "conversations") is None, "never lose"
+    assert vs.LOSS_CLAUSES == {}
+    assert vs.scripted_loss_clause(_gallery("13-aircaps")) is None
+
+
+#: keel-cloud `SacrificeHeadingNamesThePayerTest`'s costs (revision 25) and the sentences 227 stores.
+COSTS_227 = {
+    "10-palus": ({"mode": "RATE", "low": 2, "high": 2, "measure": "%", "base": "the long-term reserve", "unit": "company",
+                  "period": "year", "currency": "USD",
+                  "lossPhrase": "Yield they gave up by leaving the reserve at the bank"},
+                 dict(b2b=True, paying="venture-backed startups", actor="startup founder",
+                      actor_plural="startup founders"),
+                 "about 2% of the long-term reserve per company a year",
+                 "About 2% of the long-term reserve per company a year: yield they gave up by leaving the reserve at "
+                 "the bank."),
+    "13-aircaps": ({"mode": "RATE", "low": 12, "high": 12, "measure": "conversations",
+                    "base": "the conversations they are in", "unit": "person", "period": "month", "currency": "USD",
+                    "lossPhrase": "Conversations they lost the thread of"},
+                   dict(b2b=False, paying=None, actor="deaf or hard-of-hearing adult",
+                        actor_plural="deaf and hard-of-hearing adults"),
+                   "about 12 conversations per person a month",
+                   "Deaf and hard-of-hearing adults already lose about 12 conversations per person a month: "
+                   "conversations they lost the thread of."),
+    "17-expanse": ({"mode": "RATE", "low": 30, "high": 59, "measure": "%", "base": "the reserved GPU hours",
+                    "unit": "cluster", "period": "month", "currency": "USD",
+                    "lossPhrase": "Reserved GPU hours that sit idle"},
+                   dict(b2b=True, paying=None, actor="researcher", actor_plural="researchers and ML engineers"),
+                   "about 30% to 59% of the reserved GPU hours per cluster a month",
+                   "About 30% to 59% of the reserved GPU hours per cluster a month: reserved GPU hours that sit idle."),
+    "21-codyco": ({"mode": "RATE", "low": 5, "high": 5, "measure": "%", "base": "the reservation calls", "unit": "hotel",
+                   "period": "month", "currency": "EUR", "lossPhrase": "Booking calls that rang out unanswered"},
+                  dict(b2b=True, paying="hotel groups", actor="reservation agent", actor_plural="reservation agents"),
+                  "about 5% of the reservation calls per hotel a month",
+                  "About 5% of the reservation calls per hotel a month: booking calls that rang out unanswered."),
+}
+
+
+@pytest.mark.parametrize("entry_id", sorted(COSTS_227))
+def test_a_count_is_a_count_and_the_unit_is_the_founders(entry_id):
+    """227 FR-2 / FR-3 (`SacrificeHeadingNamesThePayerTest.theFiveEntries`): the stored sentence and the phrase -- a
+    count *about 12 conversations per person a month* (no *of {base}*, never a %), the typed unit kept beside a percent
+    of a named base."""
+    cost, who, said, belief = COSTS_227[entry_id]
+    assert chain_mod.cost_said(cost, None, "operator") == said
+    assert chain_mod.cost_belief(cost, None, "operator", "the deciders", **who) == belief
+
+
+def test_the_unit_is_typed_or_none_and_the_recorded_words_read_by_227s_rule():
+    """227 FR-3 (`theUnitIsTheFounders`) and `VectorCorpusFixture.spec227Cost`: no unit typed, no *per*, never the role
+    word; revision 25's words read as 227 writes them until a revision records them."""
+    no_unit = {**COSTS_227["21-codyco"][0], "unit": None}
+    assert chain_mod.cost_said(no_unit, None, "director") == "about 5% of the reservation calls a month"
+    assert chain_mod.cost_belief(no_unit, None, "director", "x", True, paying="hotel groups") == \
+        "About 5% of the reservation calls a month: booking calls that rang out unanswered."
+    count_no_unit = {**COSTS_227["13-aircaps"][0], "unit": None}
+    assert chain_mod.cost_said(count_no_unit, None, "wearer") == "about 12 conversations a month"
+    clusters = {**COSTS_227["17-expanse"][0], "base": "the cluster's GPU hours"}
+    assert chain_mod.cost_said(clusters, None, "operator") == "about 30% to 59% of the cluster's GPU hours a month"
+    aircaps, who = COSTS_227["13-aircaps"][0], COSTS_227["13-aircaps"][1]
+    assert corpus_mod.spec227_cost("about 12 conversations of the conversations they are in per person a month",
+                                   aircaps, None, who["actor"], who["actor_plural"], False, True) == \
+        "about 12 conversations per person a month"
+    assert corpus_mod.spec227_cost("About 12 of the conversations they are in per person a month: conversations they "
+                                   "lost the thread of.", aircaps, None, who["actor"], who["actor_plural"], False,
+                                   False) == COSTS_227["13-aircaps"][3]
+    expanse = COSTS_227["17-expanse"][0]
+    assert corpus_mod.spec227_cost("About 30% to 59% of the reserved GPU hours a month: reserved GPU hours that sit "
+                                   "idle.", expanse, None, "researcher", "researchers", True, False) == \
+        COSTS_227["17-expanse"][3]
+    fixture = _cloud("src/test/java/com/keeldiscovery/cloud/corpus/VectorCorpusFixture.java")
+    assert "public static String spec227Cost(String recorded, CalibrationAnswer.Cost cost," in fixture
