@@ -1509,11 +1509,13 @@ def at_stake(occasion: str | None, job: str) -> str:
     """`ScaleFour.atStake` (keel-cloud 198 FR-8): *Think of the last {occasion} when you had to {job}.*, *Think of the
     most recent time you had to {job}.* with no occasion noun -- the job in the second person."""
     from harness import loss_line as ll                                 # noqa: PLC0415 - `StrangerGrammar.secondPerson`
+    from . import wording                                               # noqa: PLC0415 - it reads this module
     noun = None if occasion is None or not occasion.strip() or occasion.strip().lower() in ("time", "times") \
         else occasion.strip()
     doing = ll.second_person(re.sub(r"[.]+$", "", _lower(job.strip())), False)
+    # keel-cloud 232 FR-7: the anchor through `ItemFrames.thinkOf` -- *last* said once where the noun opens on it
     return f"Think of the most recent time you had to {doing}." if noun is None else \
-        f"Think of the last {noun} when you had to {doing}."
+        wording.think_of("the", noun)[:-1] + f" when you had to {doing}."
 
 
 def held_anchor(occasion: str | None, job: str) -> str | None:
@@ -1540,6 +1542,7 @@ def hard_case(occasion: str | None, stem: str | None) -> str | None:
     """keel-cloud 214 FR-2 (`ScaleFour.hardCase`): the hard case the advantage is for -- *Think of the last {occasion}
     when {the stem's when clause}.*, *Think of the most recent time {clause}.* where the clause says the occasion's word
     again or there is no noun; None with no stem, no clause, or past the spoken cap."""
+    from . import wording                                               # noqa: PLC0415 - it reads this module
     from . import writers_rules as writers_mod                          # noqa: PLC0415 - it reads this module
     if stem is None or not stem.strip():
         return None
@@ -1551,7 +1554,7 @@ def hard_case(occasion: str | None, stem: str | None) -> str | None:
         else occasion.strip()
     again = set() if noun is None else set(writers_mod.roots(noun)) & set(writers_mod.roots(when))
     anchor = f"Think of the most recent time {when}." if noun is None or again else \
-        f"Think of the last {noun} when {when}."
+        wording.think_of("the", noun)[:-1] + f" when {when}."              # keel-cloud 232 FR-7
     return anchor if _spoken_words(anchor) <= STEM_MAX_WORDS else None
 
 
