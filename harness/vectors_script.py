@@ -2230,7 +2230,112 @@ def _same_words(a: str | None, b: str | None) -> bool:
     return " ".join(str(a or "").lower().split()).rstrip(".") == " ".join(str(b or "").lower().split()).rstrip(".")
 
 
-def rungs_plan(entry, drawn: list[str], max_items: int) -> dict:
+# ------------------------------------------------------------- spec 143 FR-2: a list the review changed (keel-cloud 232)
+#
+# keel-cloud 232 FR-3 (contract 62), behind spec 209's review switch: a saved row the review changed carries the
+# founder's own words as `typed` and the review's sentence as `why` (`label` is the row as changed, what strangers
+# hear); a row the review put aside sits in the list's `putAside` (`{typed, why}`, camelCase on the wire; `put_aside`
+# read too); `changed` is code's band, `{line, why}`. The walk counts a founder's row present when a row's `label` or
+# its `typed` is the founder's words, or a put-aside row's `typed` is; it never presses Put back and never retypes a
+# changed row. Generic over every list: no dimension is named here.
+
+def _served(saved) -> dict:
+    return saved if isinstance(saved, dict) else {}
+
+
+def put_aside_of(saved) -> list[dict]:
+    """The list's put-aside rows (`putAside`, or `put_aside`), in order; `[]` where none is served."""
+    lst = _served(saved)
+    rows = lst.get("putAside") if lst.get("putAside") is not None else lst.get("put_aside")
+    return [r for r in rows or [] if isinstance(r, dict)]
+
+
+def served_items(saved) -> list[dict]:
+    return [i for i in _served(saved).get("items") or [] if isinstance(i, dict)]
+
+
+def typed_is(want: str | None, row) -> bool:
+    """Spec 143 FR-2: whether a served row (an item, or a put-aside row) is one the review changed from the founder's
+    `want` -- its `typed` is their words."""
+    return isinstance(row, dict) and bool(row.get("typed")) and _same_words(want, row.get("typed"))
+
+
+def row_present(want: str, saved) -> bool:
+    """A founder's row is on the served list: an item whose `label` is their words, or whose `typed` is (the review
+    changed it), or a put-aside row whose `typed` is (the review put it aside) -- read as `_same_words` reads them."""
+    return any(_same_words(want, i.get("label")) or _same_words(want, i.get("typed")) for i in served_items(saved)) \
+        or any(_same_words(want, r.get("typed")) for r in put_aside_of(saved))
+
+
+def missing_rows(wants: list[str], saved) -> list[str]:
+    """The founder's rows (`wants`, in order) not on the served list by `row_present`."""
+    return [w for w in wants if not row_present(w, saved)]
+
+
+def held_by_review(wants: list[str], saved) -> list[str]:
+    """The founder's rows the review holds: changed (an item's `typed`) or put aside -- present, never typed again."""
+    return [w for w in wants if any(_same_words(w, i.get("typed")) for i in served_items(saved))
+            or any(_same_words(w, r.get("typed")) for r in put_aside_of(saved))]
+
+
+def typed_by_label(*lists) -> dict[str, str]:
+    """`{served label: the founder's typed words}` over the changed rows of every list given (a question's `draft` and
+    its saved `answer.list`), the first list's first."""
+    out: dict[str, str] = {}
+    for saved in lists:
+        for i in served_items(saved):
+            if i.get("typed") and i.get("label") and i["label"] not in out:
+                out[i["label"]] = i["typed"]
+    return out
+
+
+def review_changed(saved) -> list[dict]:
+    """Spec 143 FR-2: what the review did to one list, for `backtest.json` -- every changed row `{typed, label, why}` in
+    the list's order, then every put-aside row `{typed, label: None, why}`; `[]` on a list the review left alone."""
+    out = [{"typed": i.get("typed"), "label": i.get("label"), "why": i.get("why")}
+           for i in served_items(saved) if i.get("typed")]
+    return out + [{"typed": r.get("typed"), "label": None, "why": r.get("why")} for r in put_aside_of(saved)]
+
+
+def review_band(saved) -> dict | None:
+    """Spec 143 FR-2: the band's two sentences (`list.changed`: `line`, `why`), or None where none is served."""
+    band = _served(saved).get("changed")
+    if not isinstance(band, dict) or not band.get("line"):
+        return None
+    return {"line": band.get("line"), "why": band.get("why")}
+
+
+def changed_over_cap(saved, cap: int) -> list[dict]:
+    """Spec 143 FR-2: a changed row over the walk's own word cap (`cap`, the served `saves.maxWords`) -- a keel-cloud
+    defect to file (232 holds a change to 9 words), never a retype: `{label, typed, words, cap}` each."""
+    return [{"label": i.get("label"), "typed": i.get("typed"), "words": len(str(i.get("label") or "").split()),
+             "cap": int(cap)}
+            for i in served_items(saved) if i.get("typed") and len(str(i.get("label") or "").split()) > int(cap)]
+
+
+def founder_words(saved) -> list[str]:
+    """The served list read back to the founder's own words: each item's `typed` where the review changed it, else its
+    `label`, then the put-aside rows' `typed` -- what the founder saved, whatever the review did."""
+    return [i.get("typed") or i.get("label") for i in served_items(saved)] + \
+        [r.get("typed") for r in put_aside_of(saved)]
+
+
+def lists_reviewed(views: dict) -> dict:
+    """Spec 143 FR-2: `{dimension: {"review_changed": [...], "band": {line, why} | None}}` over every saved list the
+    calibration views (`{vector: GET calibration/{vector}}`) serve that the review changed -- `{}` where it changed
+    none (the switch off, or nothing broke the card)."""
+    out = {}
+    for view in (views or {}).values():
+        questions = view.get("questions") if isinstance(view, dict) else None
+        for q in [q for q in questions or [] if isinstance(q, dict)]:
+            saved = (q.get("answer") or {}).get("list")
+            changed, band = review_changed(saved), review_band(saved)
+            if changed or band:
+                out[q.get("dimension")] = {"review_changed": changed, "band": band}
+    return out
+
+
+def rungs_plan(entry, drawn: list[str], max_items: int, typed: dict[str, str] | None = None) -> dict:
     """Spec 067 FR-2 (keel-cloud 128 FR-16; Pairio typed two of five): what the founder does to Keel's draft on the
     Check screen so that every one of the entry's Current-solution rungs is served, in the entry's order. The rungs are
     positional (code's positional codes, `single_choice_5`), so the founder's rung i goes in row i: a drawn row that
@@ -2238,12 +2343,16 @@ def rungs_plan(entry, drawn: list[str], max_items: int) -> dict:
     three of five and the walk stopped for want of room), a rung past the drawn rows is typed into a new row (`add`)
     while the screen's `max_items` has room, and a rung past that stops the walk by name (`cannot`). Counted from the top
     (keel-cloud 203): where the entry carries Keel's working rung first (`keels_working_first`), row 0 is it and the
-    founder's own rungs follow from row 1, as keel-cloud draws them."""
+    founder's own rungs follow from row 1, as keel-cloud draws them.
+
+    Spec 143 FR-2 (keel-cloud 232 FR-1): a drawn row the review changed carries the founder's rung as its `typed`
+    (`typed`: `{served label: typed}`, `typed_by_label`) -- the rung is present, never typed over (no Put back)."""
     labels = [i["label"] for i in founder_list(entry, "problem.current_solution_satisfaction")["items"]]
+    typed = typed or {}
     plan = {"edit": [], "add": [], "cannot": []}
     for i, label in enumerate(labels):
         if i < len(drawn):
-            if not _same_words(label, drawn[i]):
+            if not _same_words(label, drawn[i]) and not _same_words(label, typed.get(drawn[i])):
                 plan["edit"].append((i, label))
         elif i < int(max_items):
             plan["add"].append(label)

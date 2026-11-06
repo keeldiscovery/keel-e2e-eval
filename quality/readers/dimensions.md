@@ -291,7 +291,12 @@ How much they want this problem made easier, next to the other things that are h
   reads as what every one of them does. Strangers pick what hurts; name the part that goes wrong.*; on Save, the review
   reads the rivals back (the review switch on) and a rival that is a part, a cause or a means of the own row, in another
   channel or outside the moment the circumstance names, or one difficulty with another row, carries one sentence of
-  why, in the people's words. The rows are never rewritten.
+  why, in the people's words. **The review may change such a rival** (keel-cloud 232): reworded into a difficulty these
+  same people meet themselves at that moment, in their own part of the work, keeping its aim, at most 9 words
+  (*Answering group requests that come by email* -> *Taking group enquiries over the phone*), held by code to the rules
+  for the rows above; where no such reading exists, put aside -- never the own row, never under three rows. The Check
+  says what Keel changed in one line, the founder's words stay under the row behind **Put back**, and nothing they
+  typed is lost; a change code refuses is the note alone.
 - The belief: *{actor_plural} have {list_size} things that are hard when {circumstance}. {value} is one of the two they
   would most like made easier.* Keel's bar is fixed: one of their two.
 - **The stranger's item:** *Think of your last {occasion}. Which one of these would you most like made easier?*, then,
@@ -392,8 +397,12 @@ How well the way they handle it today gets the job done.
   least 2 in 3 land below '{rung}'.* -- and the card after the answers and the brief name the rung the founder chose.
   The founder rewords and moves the line; the order is fixed.
 - **The notes** (spec 226): on Save, the review reads the five rungs back for one measure and may draw one sentence
-  under a rung that grades something else (*this rung grades whether the job ran, not how much it held*). Never a
-  rewrite; the save stands.
+  under a rung that grades something else (*this rung grades whether the job ran, not how much it held*). **The review
+  may change such a rung** (spec 232): onto the measure the first rung sets, the same act getting worse in its place, at
+  most 9 words, the last today's way failing outright on it (*Never called back*, never *simply lost*), held by code to
+  `W-rung` and the rules above; the first rung, the order, the five and the line never move. The Check says what Keel
+  changed in one line, the founder's words stay under the rung behind **Put back**; a change code refuses is the note
+  alone.
 - The belief: *For most {actor_plural}, {value} still falls short.* -- {value} the act.
 - **The stranger's item:** *Think of the last {occasion}. How did {the act} go?* -- one act, the step that hurts, on that
   one occasion (it may ask what it cost: how long, how much). The options are the five saved rungs **in order**, the

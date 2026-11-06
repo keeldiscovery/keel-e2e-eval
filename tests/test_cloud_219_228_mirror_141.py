@@ -35,9 +35,10 @@ INSTRUCTIONS = "src/main/resources/keel/inference-instructions/"
 SEVEN_DAYS = RecallWindow(7, "DAYS")
 #: FR-1: the cards' digest at the round -- keel-cloud `RespondentReview.CARDS_SHA256` at keel-cloud-docs `8b281774`
 #: (219-229 merged), moved by eval spec 142 to keel-cloud-docs `1bbe210e` (231 and 230 merged: the Prevalence card
-#: amended); the one constant the 213 and 216 pins read for the current copy (re-pinned here when a later spec
-#: moves the cards again).
-CARDS_SHA256_141 = "06fcd867112e8fc285e9361061895018fe4739597f33f638bb97481e25f74a53"
+#: amended), then by eval spec 143 to keel-cloud-docs `ac81bf6f` (232 merged: Importance §2 and Current solution §2 --
+#: the review may change a row, Put back; was `06fcd867...`); the one constant the 213 and 216 pins read for the current
+#: copy (re-pinned here when a later spec moves the cards again).
+CARDS_SHA256_141 = "2f4f0bf810dc9a5eb75e5af7986fa1a60ba1937e88af8a1923905e95149618f7"
 #: keel-cloud `VectorFixtures` (Lullaby).
 EVENT_PAST = "had to work out why their baby was crying"
 WENT_WRONG = "did not know why the baby cried"
@@ -359,7 +360,9 @@ def test_the_line_is_read_from_line_or_line_after():
     the walk reads `line` where served, else `lineAfter` + 1; the two disagreeing is named."""
     from evals import corpus_scenario as cs                             # noqa: PLC0415
     dtos = _cloud("src/main/java/com/keeldiscovery/cloud/protocol/founder/VectorDtos.java")
-    assert "Integer line,\n            DurationDto duration, Integer lineAfter)" in dtos
+    # eval spec 143 (keel-cloud 232 FR-3, contract 62): the record gains `putAside` and `changed` after `lineAfter`
+    assert "Integer line,\n            DurationDto duration, Integer lineAfter, List<PutAsideDto> putAside, ChangedDto " \
+           "changed)" in dtos
     assert "({@code line} - 1)" in dtos
     assert cs.served_line({"line": 2, "lineAfter": 1}) == 2
     assert cs.served_line({"lineAfter": 2}) == 3

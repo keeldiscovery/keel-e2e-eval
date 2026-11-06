@@ -1855,10 +1855,13 @@ def nearest_rows(want: str, rows: list[str], typed: list[str]) -> list[str]:
 
 def keel_left_out(question: dict, answer: vs.CalibrationAnswer) -> list[str]:
     """Spec 108 FR-2: the typed rows the draft left out -- no drafted row of that label and none near it -- in the
-    entry's order."""
+    entry's order. Spec 143 FR-2 (keel-cloud 232 FR-3): a row the review changed (its `typed` the founder's words) or
+    put aside (`putAside`) is present, never left out."""
     typed, rows = _typed_labels(answer), _drafted_labels(question)
+    draft = question.get("draft")
     # spec 112 FR-2: a suggested row (keel-cloud 171) is Keel's, never near a typed one
-    return [label for label in typed if label not in rows and not nearest_rows(label, _founders_rows(question), typed)]
+    return [label for label in typed if label not in rows and not vs.held_by_review([label], draft)
+            and not nearest_rows(label, _founders_rows(question), typed)]
 
 
 def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> tuple[str, int]:
@@ -1889,6 +1892,17 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
         at = next((i for i, label in enumerate(rows) if label == want and not flagged[i]), rows.index(want))
         return want, at
     key = question.get("dimension")
+    changed = review_changed_pick(question, want)
+    if changed is not None:
+        # spec 143 FR-2 (keel-cloud 232 FR-3): the review changed the founder's row -- picked by its label as served (the
+        # changed words), never put back
+        j.findings.append({"what": f"the review changed the founder's row '{want}' to '{rows[changed]}' (keel-cloud "
+                                   "232); picked as served", "served": {"dimension": key, "typed": want,
+                                                                        "label": rows[changed], "rows": rows}})
+        return rows[changed], changed
+    if any(vs.typed_is(want, row) for row in vs.put_aside_of(question.get("draft"))):
+        raise vs.VectorsScriptError(f"{key}: the founder's picked item {want!r} was put aside by the review (keel-cloud "
+                                    "232) -- a picked row the review puts aside is a keel-cloud defect, never put back")
     near = nearest_rows(want, founders, typed)
     if len(near) == 1:
         j.findings.append({"what": f"DRIFT: Keel reworded the founder's row '{want}' as '{near[0]}' (spec 081)",
@@ -1908,6 +1922,13 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
         f"{key}: the founder's picked item {want!r} is not on the drafted list (spec 104 FR-1); {said}")
 
 
+def review_changed_pick(question: dict, want: str) -> int | None:
+    """Spec 143 FR-2 (keel-cloud 232 FR-3): the drafted row the review changed from the founder's `want` (its `typed`
+    their words), by its place on the drafted list; None where no row carries it."""
+    items = (question.get("draft") or {}).get("items") or []
+    return next((i for i, row in enumerate(items) if vs.typed_is(want, row)), None)
+
+
 def keel_added(question: dict, answer: vs.CalibrationAnswer) -> list[str]:
     """Spec 104 FR-3: the drafted rows the entry did not type, in the drafted order -- what the product invented. Spec
     112 FR-2 (keel-cloud 171 FR-2): on Adoption friction the rows served `suggested: true` (`keel_suggested`), read off
@@ -1925,7 +1946,9 @@ def keel_added(question: dict, answer: vs.CalibrationAnswer) -> list[str]:
     folded = {tuple(_folded_words(label)) for label in typed}
     near = {row for label in typed if label not in rows for row in nearest_rows(label, founders, typed)}
     keels = _keels_suggestion(question)
+    # spec 143 FR-2 (keel-cloud 232 FR-3): a row the review changed from one the founder typed is theirs, never Keel's
     return [row.get("label") for row in _drafted_rows(question) if row.get("label") not in typed
+            and not any(vs.typed_is(label, row) for label in typed)
             and ((keels and row.get("suggested"))
                  or (tuple(_folded_words(row.get("label"))) not in folded and row.get("label") not in near))]
 
@@ -2371,9 +2394,11 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             items = [{k: i.get(k) for k in ("code", "label", "asked") if i.get(k) is not None}
                      for i in got.get("items") or []]
             have = {"items": items, "pickedIndex": got.get("pickedIndex"), "phrase": got.get("phrase")}
+            # spec 143 FR-2 (keel-cloud 232): a changed row over the walk's word cap is a keel-cloud defect, filed
+            review_defects(j, key, got, vs_screens.served_word_cap(q))
             if j.strict:
                 want = vs.saved_list(j.entry, key)
-                if have != want:
+                if have != want and not reviewed_as_saved(want, got):
                     mismatches.append({"dimension": key, "wire": have, "corpus": want})
             else:
                 codes = [i.get("code") for i in items]
@@ -2410,6 +2435,28 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         assert not mismatches, json.dumps(mismatches, indent=2)
 
 
+def reviewed_as_saved(want: dict, got: dict) -> bool:
+    """Spec 143 FR-2 (keel-cloud 232 FR-3): a stored list the review changed is the founder's as saved where, read back to
+    their words (`vs.founder_words`: a changed row's `typed`, a put-aside row's), it holds every row they saved, and
+    the pick and the phrase stand. False on a list the review left alone (the strict comparison stands as it was)."""
+    if not (vs.review_changed(got)):
+        return False
+    return sorted(vs.founder_words(got)) == sorted(i.get("label") for i in want.get("items") or []) \
+        and got.get("pickedIndex") == want.get("pickedIndex") and got.get("phrase") == want.get("phrase")
+
+
+def review_defects(j: Journey, key: str, saved: dict, cap: int) -> list[dict]:
+    """Spec 143 FR-2: each changed row over the walk's own word cap (`vs.changed_over_cap`) filed as a keel-cloud defect
+    finding -- never a retype, never a stop."""
+    over = vs.changed_over_cap(saved, cap)
+    for row in over:
+        if hasattr(j, "findings"):
+            j.findings.append({"what": f"DEFECT (keel-cloud 232): the review changed the founder's row '{row['typed']}' "
+                                       f"to '{row['label']}', {row['words']} words, over the {row['cap']}-word cap; "
+                                       "left as served", "served": {"dimension": key, **row}})
+    return over
+
+
 def _hold_check_intro(j: Journey, question: dict, seen: dict) -> None:
     """Spec 119 (keel-web 158 T006, keel-cloud 187 FR-1): the Check intro's *under {n} words each* is the served cap
     (`saves.maxWords`: Compatibility's 16, every other list's 9). A page that says another number is a finding (a
@@ -2427,6 +2474,7 @@ def _check_screen(j: Journey, question: dict, key: str) -> dict:
     words could not name (`vs.importance_typed`; on a back-test each a finding, never a stop); on a back-test, Current
     solution's rungs the second box could not hold (spec 067 FR-2); else the list is saved as drawn."""
     typed = vs.importance_typed(j.entry) if key == "problem.importance" else []
+    typed = _not_held_by_review(j, question, key, typed)
     if typed:
         seen = j.corridor.list_check(question, add=typed, one_more=len(vs.importance_named(j.entry)) == 1)
         if j.strict:
@@ -2437,6 +2485,30 @@ def _check_screen(j: Journey, question: dict, key: str) -> dict:
     if key == "problem.current_solution_satisfaction" and not j.strict:
         return j.corridor.list_check(question, add_rungs=lambda drawn: _rungs_to_type(j, question, drawn))
     return j.corridor.list_check(question)
+
+
+def served_lists(question: dict) -> list[dict | None]:
+    """Spec 143 FR-2: the lists a Check may draw for a question -- the drafted list and the saved answer's (where the
+    review changed rows, contract 62)."""
+    return [question.get("draft"), (question.get("answer") or {}).get("list")]
+
+
+def held_rows(question: dict, wants: list[str]) -> list[str]:
+    """Spec 143 FR-2 (keel-cloud 232 FR-3): the founder's rows (`wants`) the review holds on a served list -- changed
+    (a row's `typed`) or put aside -- in the founder's order."""
+    held = {w for saved in served_lists(question) for w in vs.held_by_review(wants, saved)}
+    return [w for w in wants if w in held]
+
+
+def _not_held_by_review(j: Journey, question: dict, key: str, wants: list[str]) -> list[str]:
+    """Spec 143 FR-2: the founder's rows still to type -- a row the review changed or put aside is present, so the walk
+    never retypes it (and never presses Put back); each such row a finding naming what the review did."""
+    held = held_rows(question, wants)
+    if held and hasattr(j, "findings"):
+        j.findings.append({"what": f"{vs.NAMES.get(key, key)}: the review holds {len(held)} of the founder's rows "
+                                   "(changed or put aside, keel-cloud 232); left as served, never retyped",
+                           "served": {"dimension": key, "held": held}})
+    return [w for w in wants if w not in held]
 
 
 def _importance_typed_finding(j: Journey, typed: list[str]) -> None:
@@ -2459,7 +2531,11 @@ def _rungs_to_type(j: Journey, question: dict, drawn: dict) -> dict:
     (the founder's own words, typed late)."""
     rows = [r.get("text") for r in drawn.get("rows") or [] if not r.get("locked")]
     most = int(((question.get("saves") or {}).get("maxItems")) or 5)
-    plan = vs.rungs_plan(j.entry, rows, most)
+    # spec 143 FR-2 (keel-cloud 232 FR-1): a rung the review changed is the founder's (its `typed`, on the wire or the
+    # Check's *Was:* line) -- present, never typed over
+    typed = {**{r.get("text"): r.get("was") for r in drawn.get("rows") or [] if r.get("was")},
+             **vs.typed_by_label(*served_lists(question))}
+    plan = vs.rungs_plan(j.entry, rows, most, typed)
     with _step(j, "Current solution's Check screen carries every one of the founder's rungs (spec 067 FR-2)",
                party="founder", kind="note") as h:
         h.record_assert({"drawn": rows, "edit": plan["edit"], "add": plan["add"], "cannot hold": []},

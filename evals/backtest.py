@@ -633,8 +633,14 @@ READ_JS = """() => {
     const noteId = (e.getAttribute("aria-describedby") || "").split(/\\s+/).find((x) => /-note-/.test(x));
     const noteEl = noteId ? document.getElementById(noteId) : null;
     const note = noteEl ? said(noteEl) || null : null;
-    return note ? {label: option(e), suggested: suggested, why: why, note: note}
+    // spec 143 FR-2 (keel-web 179 FR-4): a changed row's why under its option, the id `choose-{dim}-changed-{i}`
+    const changedId = (e.getAttribute("aria-describedby") || "").split(/\\s+/).find((x) => /-changed-/.test(x));
+    const changedEl = changedId ? document.getElementById(changedId) : null;
+    const changed = changedEl ? said(changedEl) || null : null;
+    const out = note ? {label: option(e), suggested: suggested, why: why, note: note}
         : {label: option(e), suggested: suggested, why: why};
+    if (changed) out.changed = changed;
+    return out;
   };
   // spec 134 FR-2 (keel-web 168 FR-4): the founder note drawn in the list (`li.listrow--note`, *Your own offer ... stays
   // off this list*) is never a row: it is read as `note`, with the guidance line under the list (`.listcheck__note`)
@@ -649,12 +655,13 @@ READ_JS = """() => {
   const rowText = (li) => { const text = (li.innerText || "").replace(/\\s+/g, " ").trim();
       const note = noteOf(li);
       return note && text.endsWith(note) ? text.slice(0, -note.length).trim() : text; };
-  const rowNotes = Array.from(document.querySelectorAll("li.listrow:not(.listrow--note)"))
+  // spec 143 FR-2 (keel-web 179 FR-3): the rows the review put aside (`li.listrow--aside`) are never rows of the list
+  const rowNotes = Array.from(document.querySelectorAll("li.listrow:not(.listrow--note):not(.listrow--aside)"))
       .filter((li) => !li.closest("[data-testid=answer-own-row]") && noteOf(li)).map((li) => {
       const ta = li.querySelector("textarea");
       return {row: ((ta && ta.value) || rowText(li)).replace(/\\s+/g, " ").trim(), note: noteOf(li)};
   });
-  const rows = Array.from(document.querySelectorAll("li.listrow:not(.listrow--note)"))
+  const rows = Array.from(document.querySelectorAll("li.listrow:not(.listrow--note):not(.listrow--aside)"))
       .filter((li) => !li.closest("[data-testid=answer-own-row]")).map((li) => {
       const ta = li.querySelector("textarea");
       const text = ((ta && ta.value) || rowText(li) || "").replace(/\\s+/g, " ").trim();
@@ -692,6 +699,25 @@ READ_JS = """() => {
       return {row: ((ta && ta.value) || "").replace(/\\s+/g, " ").trim(),
               why: why ? said(why) || null : null};
   });
+  // spec 143 FR-2 (keel-web 179 FR-1 to FR-3): what the review changed, as the Check draws it -- the band, each changed
+  // row (its words as served, the founder's own under *Was:*, the why) and the rows put aside; read, never pressed
+  const bandEl = document.querySelector("[data-testid=list-changed]");
+  const changedRows = Array.from(document.querySelectorAll("li.listrow"))
+      .filter((li) => li.querySelector("[data-testid=row-changed]")).map((li) => {
+      const ta = li.querySelector("textarea");
+      return {row: ((ta && ta.value) || "").replace(/\\s+/g, " ").trim(),
+              was: li.querySelector("[data-testid=row-was] .listrow__was-said")
+                  ? said(li.querySelector("[data-testid=row-was] .listrow__was-said")) : null,
+              why: li.querySelector("[data-testid=row-why]") ? said(li.querySelector("[data-testid=row-why]")) : null};
+  });
+  const asideRows = Array.from(document.querySelectorAll("[data-testid=put-aside] [data-testid=put-aside-row]"))
+      .map((li) => ({typed: li.querySelector("s") ? said(li.querySelector("s")) : said(li),
+                     why: li.querySelector("[role=note]") ? said(li.querySelector("[role=note]")) : null}));
+  const review = (bandEl || changedRows.length || asideRows.length) ? {
+      band: bandEl ? {line: said(bandEl.querySelector(".calib__changed-line") || bandEl),
+                      why: bandEl.querySelector(".calib__changed-why") ? said(bandEl.querySelector(".calib__changed-why"))
+                          : null} : null,
+      changed: changedRows, put_aside: asideRows} : null;
   const ownRow = document.querySelector("[data-testid=answer-own-row] li.listrow");
   const notes = all("li.listrow--note, .listcheck__note");
   const dialog = document.querySelector("[role=dialog]");
@@ -713,7 +739,8 @@ READ_JS = """() => {
           hint: one(".calib__hint, .iv-tick, .iv-note, .ccard__sub"),
           options: options(optionSel),
           // spec 140 FR-1: every option with whether it is Keel's suggestion and its why -- only where one is drawn
-          choices: choices.some((c) => c.suggested || c.note) ? choices : null,
+          choices: choices.some((c) => c.suggested || c.note || c.changed) ? choices : null,
+          review: review,
           row_notes: rowNotes.length ? rowNotes : null,
           rows: rows, note: notes.length ? notes : null, chips: all(".calib__chip, .iv-chips button"),
           title: one(".listcheck__title") || null, intro: one(".corridor__intro") || null,
@@ -1681,6 +1708,8 @@ def founder_screens(j, cam: Camera | None, wire: dict) -> list[dict]:
                     **{k: shot[k] for k in ("choices", "suggested", "commitment") if shot.get(k)},
                     # spec 141 FR-8 (keel-web 178 FR-1): the served notes under the rows, read and left alone
                     **{k: shot[k] for k in ("row_notes",) if shot.get(k)},
+                    # spec 143 FR-2 (keel-web 179): what the review changed on the Check, as drawn (only where drawn)
+                    **{k: shot[k] for k in ("review",) if shot.get(k)},
                     "answer": _safe(lambda s=slug: founder_answer(j, s)),
                     "keel read back": _safe(lambda s=slug: read_back(j, s, wire)),
                     **({"camera error": shot["error"]} if shot.get("error") else {})})
@@ -2262,6 +2291,26 @@ def _offer_expectation(entry) -> str:
     return vs.offer_expectation(entry)
 
 
+def review_switch(env=None) -> str:
+    """Spec 143 FR-1: the review switch keel-cloud boots with on this stack (`stack.cloud.review_switch`): the walk's
+    own environment is the one `stack.cloud.build_env` hands keel-cloud whole."""
+    from stack import cloud as cloud_stack                    # noqa: PLC0415
+    return cloud_stack.review_switch(env)
+
+
+#: Spec 143 FR-2: the vectors whose calibration views carry the founder's saved lists.
+VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
+
+
+def lists_reviewed(j) -> dict:
+    """Spec 143 FR-2 (keel-cloud 232 FR-3, contract 62): per list the review changed, as the wire serves it at the end of
+    the walk -- `review_changed` (`[{typed, label, why}]`, a put-aside row with `label: None`) and the band's two
+    sentences (`band`: `{line, why}`), keyed by dimension (`vectors_script.lists_reviewed`); `{}` where it changed none."""
+    from harness import vectors_script as vs                       # noqa: PLC0415
+    views = {v: _safe(lambda v=v: j.get(j.project(f"/calibration/{v}")), {}) for v in VECTORS}
+    return vs.lists_reviewed(views)
+
+
 def transcript(j, bt: Backtest) -> dict:
     if j is None:
         return {"journey": "never opened"}
@@ -2281,6 +2330,12 @@ def transcript(j, bt: Backtest) -> dict:
                   "idea_name": getattr(entry, "idea_name", None), "b2b": entry.b2b()},
         # spec 071 FR-4: the scope the project was created with (keel-cloud 133), as the overview served it
         "scope": bt.scope,
+        # spec 143 FR-1: keel-cloud's review switch (spec 209, `KEEL_REVIEW_RESPONDENT_QUESTIONS`) as the stack handed
+        # it the environment -- `ON` / `OFF`; the cycle's record names it and refuses walks that disagree
+        "review_switch": _safe(review_switch),
+        # spec 143 FR-2: what the review did to each list it changed -- the founder's words, the row as served, the why,
+        # and the band (absent on a walk where it changed none, as a bundle before 143 reads)
+        **({"lists_reviewed": reviewed} if (reviewed := _safe(lambda: lists_reviewed(j), {})) else {}),
         # spec 106 FR-2: the walk's cap on the person's own link, where `PEOPLE=` named one
         **({"people": bt.people} if bt.people else {}),
         # spec 126 FR-2: every typo the founder typed, `{field, meant, typed, kind}` -- absent on a walk that typed none
@@ -2343,7 +2398,9 @@ def markdown(r: dict) -> str:
              f"- Stack: keel-cloud `{(r.get('stack') or {}).get('keel-cloud')}`, keel-web "
              f"`{(r.get('stack') or {}).get('keel-web')}`, {answered_by}, founder `{IDENTITY_EMAIL}`"
              # spec 071 FR-4: the study's scope beside the stack, where it is not the whole study
-             + ("" if (r.get("scope") or DEFAULT_SCOPE) == DEFAULT_SCOPE else f", scope **{r.get('scope')}**"),
+             + ("" if (r.get("scope") or DEFAULT_SCOPE) == DEFAULT_SCOPE else f", scope **{r.get('scope')}**")
+             # spec 143 FR-1: the review switch, where the bundle records it
+             + (f", review **{r['review_switch']}** (spec 209)" if isinstance(r.get("review_switch"), str) else ""),
              f"- Decision: **{decision.get('label')}** ({decision.get('howSure')}; {decision.get('reason')})",
              f"- Verdicts: {_q(b.get('verdicts'))}",
              f"- Pilot: {_q(b.get('pilot', {}) and {k: (b.get('pilot') or {}).get(k) for k in ('optedIn', 'finished', 'percent')})}"
@@ -2354,6 +2411,11 @@ def markdown(r: dict) -> str:
              f"- Wall time: {r.get('wall_s')} s; screenshots: {shots.get('founder')} founder, "
              f"{shots.get('after') or 0} after the answers, {_q(shots.get('respondent'))} respondent",
              f"- Export: {_q(r.get('export'))}",
+             # spec 143 FR-2: what the review changed, list by list (only where it changed one)
+             *[f"- The review changed {dim}: " + (f"*{(v.get('band') or {}).get('line')}* " if v.get("band") else "")
+               + "; ".join(f"'{c.get('typed')}' -> " + (f"'{c['label']}'" if c.get("label") else "put aside")
+                           for c in v.get("review_changed") or [])
+               for dim, v in (r.get("lists_reviewed") or {}).items() if isinstance(v, dict)],
              f"- THEMES settled before the export: {_q(r.get('themes_settled'))}",
              f"- Keel's AI refused and retried (findings): {len(r.get('findings') or [])}"
              + "".join(f"\n  - {f.get('what')}: "

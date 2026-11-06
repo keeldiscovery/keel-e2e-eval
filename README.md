@@ -110,6 +110,12 @@ the current `RUBRIC_VERSION`, *not measured* otherwise, never gating. No `[marks
 `rescore.py` still re-scores a v20 bundle. **There is no v21 run of record until `WHY=marks:21` is spent, on the
 founder's word only.**
 
+**The review switch in a cycle** (spec 143 FR-1): keel-cloud spec 209's review (and 232's changed rows behind it) runs
+only with `KEEL_REVIEW_RESPONDENT_QUESTIONS` true in keel-cloud's environment, and the stack hands keel-cloud the shell's
+environment whole -- so a cycle with the review on is kicked off after `export KEEL_REVIEW_RESPONDENT_QUESTIONS=true`
+(`quality/CYCLE.md`, step 1). Unset is OFF; nothing here turns it on. The record's head line says *review ON* or
+*review OFF*, each `backtest.json` records `review_switch`, and a cycle whose walks disagree is refused as a mixed cycle.
+
 ### `MARKS_VERSION` 20 — history since v21, never run (spec `052-report`, 2026-10-17)
 
 The report replaces the brief (keel-cloud 104 at keel-cloud-docs `9a033fe`, contract 19's standings side; keel-web 077).

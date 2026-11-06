@@ -387,8 +387,9 @@ KEEL_TEST_NOTE_TESTID = "keeltest-note"
 #: off (L32, purchase friction's *Your own offer ... stays off this list*), drawn as an `li.listrow` in the list where the
 #: row would have stood -- read as the screen's `note`, never as a row (`LIST_ROW` leaves it out).
 LIST_FOUNDER_NOTE = "li.listrow--note, [data-testid=list-founder-note]"
-#: The Check screen's rows: every `li.listrow` of the list but the founder note.
-LIST_ROW = ".listcheck ul.listrows li.listrow:not(.listrow--note)"
+#: The Check screen's rows: every `li.listrow` of the list but the founder note -- and (spec 143 FR-2, keel-web 179 FR-3)
+#: the rows the review put aside (`li.listrow.listrow--aside` in their own `ul.listrows` under *Put aside*).
+LIST_ROW = ".listcheck ul.listrows li.listrow:not(.listrow--note):not(.listrow--aside)"
 #: Spec 137 FR-3 (keel-web 173 FR-5a, keel-cloud 213 FR-5a): a role row carries its tag on the row -- `li.listrow[data-tag]`
 #: (*· has to agree*), the box's `aria-describedby` -- so the row is read with it: *The CFO · has to agree*.
 ROW_TAG_ATTR = "data-tag"
@@ -476,6 +477,31 @@ FREQUENCY_RANGE_HINT = "Your estimate from what you have seen and heard. A range
 #: there is what the hold names (`evals/corpus_scenario.importance_count`).
 #: keel-web 178 FR-1 (spec 141 FR-8): the served note under a row (Check) or an option (Choose, by its describedby id).
 ROW_NOTE_TESTID = "row-note"
+#: Spec 143 FR-2 (keel-web 179 at master `ed646e8d`, `ListQuestion.tsx`; its tasks.md's owed list): a row the review
+#: changed carries the tag `row-changed` (*changed*, in place of the word count -- no `.listrow__wc` on it), its why
+#: `row-why` (also a `.listrow__warn`, read apart), and `row-was` (*Was:* + the founder's words in `.listrow__was-said`
+#: + Put back, `row-put-back`, never pressed); the band over the list is `list-changed` (`role=status`, the line
+#: `.calib__changed-line`, the why `.calib__changed-why`); the put-aside rows are `put-aside-row` inside `put-aside`,
+#: their words in `s`, their why in `[role=note]`.
+REVIEW_CHANGED_TAG = "changed"
+REVIEW_WAS = "Was:"
+ROW_CHANGED_TESTID = "row-changed"
+ROW_WHY_TESTID = "row-why"
+ROW_WAS_TESTID = "row-was"
+REVIEW_BAND = "[data-testid=list-changed]"
+PUT_ASIDE_ROW = "[data-testid=put-aside] [data-testid=put-aside-row]"
+
+
+def _was_line(text: str | None) -> str | None:
+    """Spec 143 FR-2 (keel-web 179 FR-2): the founder's words off a changed row's *Was: <typed>* line (the *Put back*
+    button's words after it left off); None where the row draws none."""
+    for line in (text or "").splitlines():
+        found = re.match(r"^\s*Was:\s*(.+?)\s*(?:Put back)?\s*$", line)
+        if found:
+            return found.group(1).strip() or None
+    return None
+
+
 #: keel-web 178 FR-2: the Current solution line the founder may place (`data-line` on it and on its words).
 LINE_CONTROL_TESTID = "line-control"
 IMPORTANCE_COUNT_FREE = re.compile(r"^(?P<item>(?:(?!\.\s).)+?) is one of the two they would most like made "
@@ -2829,9 +2855,22 @@ class Corridor:
                 row = {"text": _value(li.locator("textarea.listrow__ed").first),
                        "tag": _first_text(li, ".listrow__tag"), "locked": False,
                        "counter": _first_text(li, ".listrow__wc"),
-                       "warn": _first_text(li, f".listrow__warn:not([data-testid={ROW_NOTE_TESTID}])")}
+                       # spec 143 FR-2 (keel-web 179): the changed row's why is a `.listrow__warn` too -- read apart
+                       "warn": _first_text(li, f".listrow__warn:not([data-testid={ROW_NOTE_TESTID}])"
+                                               f":not([data-testid={ROW_WHY_TESTID}])")}
             if note:
                 row["note"] = note
+            # spec 143 FR-2 (keel-web 179 FR-2, keel-cloud 232 FR-3): a row the review changed -- the tag *changed* in
+            # place of the word count, and *Was: <the founder's words>* with Put back under it -- read, never pressed
+            if li.locator(f"[data-testid={ROW_CHANGED_TESTID}]").count():
+                row["changed"] = True
+                was = (_first_text(li, f"[data-testid={ROW_WAS_TESTID}] .listrow__was-said").strip()
+                       or _was_line(_first_text(li, f"[data-testid={ROW_WAS_TESTID}]")))
+                if was:
+                    row["was"] = was
+                why = _first_text(li, f"[data-testid={ROW_WHY_TESTID}]").strip()
+                if why:
+                    row["why"] = why
             if data_tag:
                 row["data_tag"] = data_tag
                 row["said"] = row_said(row["text"], data_tag)
@@ -2851,6 +2890,15 @@ class Corridor:
         # served `lineAfter` unchanged
         line_at = self.page.locator(".listcheck__line").first.get_attribute("data-line") \
             if self.page.locator(".listcheck__line").count() else None
+        # spec 143 FR-2 (keel-web 179 FR-1, FR-3): the band over a list the review changed, and the rows it put aside
+        band = None
+        if self.page.locator(REVIEW_BAND).count():
+            band = {"line": " ".join(_first_text(self.page, f"{REVIEW_BAND} .calib__changed-line").split()) or None,
+                    "why": " ".join(_first_text(self.page, f"{REVIEW_BAND} .calib__changed-why").split()) or None}
+        put_aside = []
+        for li in self.page.locator(PUT_ASIDE_ROW).all():
+            put_aside.append({"typed": " ".join(_first_text(li, "s").split()) or None,
+                              "why": " ".join(_first_text(li, "[role=note]").split()) or None})
         out = {"rows": rows, "field": _value(field.first) if field.count() else None,
                "line": _first_text(self.page, ".listcheck__line"),
                "line_at": int(line_at) if line_at and line_at.isdigit() else None,
@@ -2861,6 +2909,10 @@ class Corridor:
         commitment = self._commitment_block()
         if commitment is not None:
             out["commitment"] = commitment
+        if band:
+            out["band"] = band
+        if put_aside:
+            out["put_aside"] = put_aside
         return out
 
     def _commitment_block(self) -> dict | None:
@@ -3012,7 +3064,10 @@ class Corridor:
         Compatibility's 16 since keel-cloud 187 FR-1, every other list's 9; `served_word_cap`) -- named as a step so the
         judge sees Keel's draft (a product fault, keel-cloud 130 FR-5). Nothing is touched when the primary is enabled."""
         rows = self.page.locator(".listcheck ul.listrows li.listrow")
-        over = [i for i in range(rows.count()) if rows.nth(i).locator(".listrow__wc--over").count()]
+        # spec 143 FR-2 (keel-cloud 232): a row the review changed is never cut -- over the cap it is a keel-cloud defect
+        # (`corpus_scenario.review_defects` files it off the wire), never a retype
+        over = [i for i in range(rows.count()) if rows.nth(i).locator(".listrow__wc--over").count()
+                and not rows.nth(i).locator(f"[data-testid={ROW_CHANGED_TESTID}]").count()]
         if not over or not self._primary().is_disabled():
             return []
         out = []

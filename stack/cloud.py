@@ -31,6 +31,31 @@ READY_PATH = "/v2/me"
 READY_STATUS = 401
 
 
+#: Spec 143 FR-1 (keel-cloud spec 209's switch, `keel.review.respondent-questions`; keel-cloud `application.yml`
+#: `${KEEL_REVIEW_RESPONDENT_QUESTIONS:false}`): the variable keel-cloud reads off the environment `build_env` hands it
+#: whole. The stack never sets it: an unset variable is OFF, as keel-cloud has it; the founder's shell turns it on.
+REVIEW_SWITCH_ENV = "KEEL_REVIEW_RESPONDENT_QUESTIONS"
+#: Spring's `StringToBooleanConverter`: the words it reads as true / false (trimmed, any case). An empty value is read
+#: as unset here (OFF).
+_SPRING_TRUE = frozenset({"true", "on", "yes", "1"})
+_SPRING_FALSE = frozenset({"false", "off", "no", "0", ""})
+
+
+def review_switch(env=None) -> str:
+    """Spec 143 FR-1: the review switch as keel-cloud reads it from `env` (default this process's environment) --
+    `"ON"` or `"OFF"`; unset or empty is OFF. A value Spring cannot read as a boolean (keel-cloud would not boot) raises
+    `ValueError` naming the variable."""
+    env = os.environ if env is None else env
+    raw = env.get(REVIEW_SWITCH_ENV)
+    said = "" if raw is None else str(raw).strip().lower()
+    if said in _SPRING_TRUE:
+        return "ON"
+    if said in _SPRING_FALSE:
+        return "OFF"
+    raise ValueError(f"{REVIEW_SWITCH_ENV}={raw!r} is not a switch keel-cloud reads -- `true` (the review on, spec 209) "
+                     "or `false` / unset (off)")
+
+
 def _process_name(config: StackConfig) -> str:
     """Split-stacks (relay-design.md §12.5): profile-suffixed pid/log names so a playground
     boot's own process never shares a pid file with the eval profile's -- see

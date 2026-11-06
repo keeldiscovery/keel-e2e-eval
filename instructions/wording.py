@@ -347,6 +347,23 @@ def left_standing(unit: str) -> str:
             "after had (had {the thing} {do} ...), never where it sat")
 
 
+#: keel-cloud 232 FR-7 (`ItemFrames.LAST_OPENINGS`): the openings an occasion that already says *last* may carry.
+LAST_OPENINGS = ("your last ", "the last ", "their last ", "last ")
+
+
+def think_of(whose: str, occasion) -> str:
+    """keel-cloud 232 FR-7 (`ItemFrames.thinkOf`; cycle 15, Palus' *Think of your last last 3 months holding raise
+    cash*): *Think of {whose} last {occasion}.* -- `whose` *your* or *the* -- or *Think of the last {rest}.* where the
+    occasion already opens on *last*, *the last*, *their last* or *your last* (a window occasion: *the last 3 months*),
+    so *last* is said once. English's words only."""
+    noun = "" if occasion is None else str(occasion).strip()
+    lower = noun.lower()
+    for opening in LAST_OPENINGS:
+        if lower.startswith(opening) and len(noun) > len(opening):
+            return "Think of the last " + noun[len(opening):].strip() + "."
+    return f"Think of {whose} last {noun}."
+
+
 def packed_fault(event, went_wrong, window=None) -> str | None:
     """`WindowFrame.packedFault` (E8): the founder's event is one act, seen on a given unit or not -- never a cause or a
     result packed in, never a judgement, never a lasting state (*still have* only where `went_wrong` carries it). Since
