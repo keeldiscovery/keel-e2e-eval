@@ -91,8 +91,13 @@ def test_the_instructions_say_what_the_mirrors_hold():
     lists = _cloud("src/main/resources/keel/inference-instructions/founder-lists.md")
     assert "Prevalence's `event` at most 9 words (8 on working days)" in lists
     assert "**`routine`**" in lists and "**`went_wrong`**" in lists and "**`event` from `went_wrong`**" in lists
-    assert "**`settled_by`** (Compatibility)" in lists and "`nobody`, `the segment` or `the usual way`" in lists
-    assert tuple(wording_mod.SETTLED_BY) == ("nobody", "the segment", "the usual way")
+    # spec 142 FR-3 (keel-cloud 230 FR-4): the instruction's restatement of settled_by's three values is cut (the schema's
+    # enum); the values are read off `SavedList.SETTLED_BY`, the line itself stays
+    assert "**`settled_by`** (Compatibility)" in lists and "one at least `nobody`" in lists
+    saved = _cloud("src/main/java/com/keeldiscovery/cloud/domain/vectors/SavedList.java")
+    values = saved.split("SETTLED_BY = java.util.List.of(", 1)[1].split(");", 1)[0]
+    assert tuple(re.findall(r'"([^"]+)"', values)) == tuple(wording_mod.SETTLED_BY) == (
+        "nobody", "the segment", "the usual way")
     asked = _cloud("src/main/resources/keel/inference-instructions/respondent-questions.md")
     assert "**is code's whole**" in asked and "**only where `problem` is `null`**" in asked
     assert '{"key": "problem.prevalence"}, {"key": "problem.frequency"}' in asked

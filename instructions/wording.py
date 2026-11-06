@@ -340,15 +340,25 @@ def verdict_word(event) -> str | None:
     return None
 
 
+def left_standing(unit: str) -> str:
+    """keel-cloud 231 FR-2 (`WindowFrame.leftStanding`): the tail 212's state words and 224's head verb end on -- the
+    moment of a thing left standing, inside one `unit`."""
+    return (f"; where a thing was left standing, write what it did or cost them inside one {unit}, its subject first "
+            "after had (had {the thing} {do} ...), never where it sat")
+
+
 def packed_fault(event, went_wrong, window=None) -> str | None:
     """`WindowFrame.packedFault` (E8): the founder's event is one act, seen on a given unit or not -- never a cause or a
     result packed in, never a judgement, never a lasting state (*still have* only where `went_wrong` carries it). Since
     keel-cloud 224 (spec 141 FR-5) then the head verb -- a verb of state (`STATE_VERBS`) unless `went_wrong` carries the
     same verb -- and the verdict words (`VERDICT_WORDS`); `window`'s unit names the moment (*day* where none is in
-    hand). The first fault, naming the field; `None` when the event passes."""
+    hand). Since keel-cloud 231 FR-2 (spec 142 FR-2) 212's state words and 224's head verb also say the moment of a
+    thing left standing (`left_standing`), in the window's unit. The first fault, naming the field; `None` when the
+    event passes."""
     text = clause(event)
     if not text.strip():
         return None
+    unit = "day" if window is None else window.singular
     packed = _PACKED.search(text)
     if packed:
         return (f"E8: event '{text}' packs a cause or a result in ('{packed.group()}'); write event from went_wrong: "
@@ -361,16 +371,15 @@ def packed_fault(event, went_wrong, window=None) -> str | None:
     state = first_word(text, STATE_WORDS)
     if state is not None:
         return (f"E8: event '{text}' says '{state}', a lasting state, not an act; write event from went_wrong: the one "
-                "act a person sees happen on a given day or not")
+                f"act a person sees happen on a given {unit} or not" + left_standing(unit))
     still = _STILL_HAVE.search(text)
     if still and (went_wrong is None or not _STILL_HAVE.search(str(went_wrong))):
         return (f"E8: event '{text}' says '{still.group()}', a lasting state unless went_wrong names it as the act; "
                 "write event from went_wrong")
-    unit = "day" if window is None else window.singular
     head = state_head(text)
     if head is not None and not _carries_verb(went_wrong, head):
         return (f"E8: event '{text}' is a standing state ('{head}'); write the moment inside the window where it "
-                f"showed -- what they did, or what happened to the thing, on a given {unit}")
+                f"showed -- what they did, or what happened to the thing, on a given {unit}" + left_standing(unit))
     verdict = verdict_word(text)
     if verdict is not None:
         return (f"E8: event '{text}' carries '{verdict}', a verdict on the act -- the way it was done or what might have "

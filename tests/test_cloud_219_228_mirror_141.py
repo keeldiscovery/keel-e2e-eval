@@ -34,9 +34,10 @@ APPLICATION = "src/main/java/com/keeldiscovery/cloud/application/"
 INSTRUCTIONS = "src/main/resources/keel/inference-instructions/"
 SEVEN_DAYS = RecallWindow(7, "DAYS")
 #: FR-1: the cards' digest at the round -- keel-cloud `RespondentReview.CARDS_SHA256` at keel-cloud-docs `8b281774`
-#: (219-229 merged); the one constant the 213 and 216 pins read for the current copy (re-pinned here when a later spec
+#: (219-229 merged), moved by eval spec 142 to keel-cloud-docs `1bbe210e` (231 and 230 merged: the Prevalence card
+#: amended); the one constant the 213 and 216 pins read for the current copy (re-pinned here when a later spec
 #: moves the cards again).
-CARDS_SHA256_141 = "2ddae90c41561125b70a5b18853b3819e093f00a703f275d21189d74e4dfc5dd"
+CARDS_SHA256_141 = "06fcd867112e8fc285e9361061895018fe4739597f33f638bb97481e25f74a53"
 #: keel-cloud `VectorFixtures` (Lullaby).
 EVENT_PAST = "had to work out why their baby was crying"
 WENT_WRONG = "did not know why the baby cried"
@@ -134,13 +135,16 @@ def test_a_head_verb_of_state_is_refused(event, head):
     """224 FR-1 (PrevalenceEventIsAMomentTest `aHeadVerbOfStateIsRefused`)."""
     assert wording_mod.packed_fault(event, "a call rang out unanswered", SEVEN_DAYS) == (
         f"E8: event '{event}' is a standing state ('{head}'); write the moment inside the window where it showed -- "
-        "what they did, or what happened to the thing, on a given day")
+        "what they did, or what happened to the thing, on a given day" + wording_mod.left_standing("day"))
 
 
 def test_the_unit_is_the_windows_and_have_is_read_whole():
     """224 FR-1 (`wentWrongAllowsTheVerbAndHaveIsReadWhole`)."""
-    assert wording_mod.packed_fault(PALUS, None, RecallWindow(5, "WORKING_DAYS")).endswith("on a given working day")
-    assert wording_mod.packed_fault(PALUS, None).endswith("on a given day")
+    # spec 142 FR-2 (keel-cloud 231 FR-2): the moment's tail says the unit too
+    working = wording_mod.packed_fault(PALUS, None, RecallWindow(5, "WORKING_DAYS"))
+    assert "on a given working day;" in working and working.endswith(wording_mod.left_standing("working day"))
+    bare = wording_mod.packed_fault(PALUS, None)
+    assert "on a given day;" in bare and bare.endswith(wording_mod.left_standing("day"))
     assert wording_mod.packed_fault("kept a guest on hold past ten minutes",
                                     "kept a guest on hold past ten minutes", SEVEN_DAYS) is None
     assert wording_mod.packed_fault("kept a guest on hold past ten minutes", "a guest waited on hold", SEVEN_DAYS)

@@ -94,7 +94,10 @@ How many of the people you are studying had the problem in the period you chose.
   writer writes it from `went_wrong` (the one part of the problem a person with it had to do or put up with), beside
   `routine` (what every one of the people does whether or not the problem struck): the act that hurts, at most 9 words,
   8 on a working-days window: 20 spoken words minus the strangers' frame -- never the routine, a lasting state, a
-  judgement, or a cause or result packed in.
+  judgement, or a cause or result packed in. A thing left standing is asked as what it did or cost them inside one
+  {unit}, never where it sat (keel-cloud 231). Code holds the clause, one repair turn each: then the routine (`E7`) and
+  a clause over the cap (`E2`) are refused; a lasting state, a judgement, a cause or a verdict (`E8`) is served as
+  written with a note -- never a refusal at confirm.
 - **The No-sayer (keel-cloud 216).** The writer shows the test in `no_sayer` -- one of the people who did the day's
   work in the window and truly answers No to the event, and what was different for them -- and code refuses one set
   apart by the routine or outside the segment (`E9`): if every one of them would say Yes, it is the routine; write the
