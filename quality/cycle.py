@@ -235,6 +235,9 @@ class Study:
     # spec 143 FR-1: the review switch the walk's bundle records (`backtest.json`'s `review_switch`, ON / OFF; None on a
     # bundle written before 143)
     review_switch: str | None = None
+    # spec 143 FR-2: what the review did on this walk's lists (`backtest.json`'s `lists_reviewed`), `{changed,
+    # put_aside}` -- None where the bundle records the switch OFF or predates 143
+    review_rows: dict | None = None
 
     @property
     def key(self) -> str:
@@ -360,10 +363,28 @@ def _study_data(study: Study) -> dict:
     """A study as the record's data block keeps it -- `vite_timeouts` (spec 140) only where the walk read a web log, so a
     record of walks before 140 is 126's to the byte."""
     data = asdict(study)
-    for key in ("vite_timeouts", "review_switch"):          # spec 143 FR-1: as 140 -- absent on a bundle before it
+    for key in ("vite_timeouts", "review_switch", "review_rows"):   # spec 143: as 140 -- absent on a bundle before it
         if data.get(key) is None:
             data.pop(key, None)
     return data
+
+
+def review_rows(lists_reviewed) -> dict:
+    """Spec 143 FR-2: a bundle's `lists_reviewed` counted -- rows the review changed and rows it put aside (a row with
+    `label: None`), over every list."""
+    rows = [c for v in (lists_reviewed or {}).values() if isinstance(v, dict) for c in v.get("review_changed") or []]
+    return {"changed": sum(1 for c in rows if c.get("label")), "put_aside": sum(1 for c in rows if not c.get("label"))}
+
+
+def review_line(d: dict) -> list[str]:
+    """Spec 143 FR-2: under the head of a cycle walked with the review on, what it changed over the walks."""
+    if d.get("review_switch") != "ON":
+        return []
+    counted = [s.get("review_rows") for s in d.get("studies") or [] if isinstance(s.get("review_rows"), dict)]
+    changed, aside = sum(c.get("changed", 0) for c in counted), sum(c.get("put_aside", 0) for c in counted)
+    return [f"  - the review (spec 209, keel-cloud 232): {changed} founder row{'s' if changed != 1 else ''} changed and "
+            f"{aside} put aside over {len(counted)} walk{'s' if len(counted) != 1 else ''} (each bundle's "
+            "`lists_reviewed`); the readers scored the screens as served"]
 
 
 def review_of(record_switch: str | None, studies: list[dict]) -> str | None:
@@ -444,6 +465,8 @@ def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=sub
     study.cloud_sha, study.web_sha = _sha7(stack.get("keel-cloud")), _sha7(stack.get("keel-web"))
     if isinstance(record.get("review_switch"), str):            # spec 143 FR-1: the switch the walk ran with
         study.review_switch = record["review_switch"]
+    if study.review_switch == "ON":                             # spec 143 FR-2: what the review changed on its lists
+        study.review_rows = review_rows(record.get("lists_reviewed"))
     walked_scope = record.get("scope") or "ALL"
     if walked_scope != scope:
         study.error = f"the bundle says scope {walked_scope}, the walk asked {scope}"
@@ -737,6 +760,7 @@ def render_record(d: dict) -> str:
              f"{_pct((head.get('respondent') or {}).get('score_pct'))}"
              + "".join(f"; {k} {_pct(v['score_pct'])}" for k, v in (head.get("by_scope") or {}).items()) + ")",
              *table.walks_lines(d.get("walks")),
+             *review_line(d),
              *([f"  - R7, fits the dimension (spec 131): fits_pct {_pct(head['fits']['fits_pct'])} over the screens sent "
                 f"a dimension card (founder {_pct(head['fits']['founder'])}, respondent "
                 f"{_pct(head['fits']['respondent'])}); {head['fits']['zeros']} scored 0"] if head.get("fits") else []),
