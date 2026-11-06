@@ -10,8 +10,8 @@ no stack, no model, no key, no walk -- the unit suite only. Not merged; master u
 |---|---|
 | `70780d8` | FR-4 the mirrors: the cards' byte copy and digest, `think_of`, the contract-62 DTO pin |
 | `c47788a` | FR-1 the switch in the cycle |
-| __FR2__ | FR-2 the walk leaves a changed row alone; FR-3 nothing to build |
-| (this) | tasks.md: the gate, the judgement calls, what is open |
+| `0103b77` | FR-2 the walk leaves a changed row alone; FR-3 nothing to build |
+| `6bf47d1`, (this) | tasks.md: the gate, the judgement calls, what is open |
 
 ## What was built, per FR
 
@@ -53,7 +53,7 @@ no stack, no model, no key, no walk -- the unit suite only. Not merged; master u
     head line names it after the reader.
   - Docs: `quality/CYCLE.md` step 1 (`export KEEL_REVIEW_RESPONDENT_QUESTIONS=true` first in the kick-off block, and a
     bullet), README (a paragraph under the readers' section), the Makefile's `quality-walk` comment.
-- [x] **FR-2 the walk leaves a changed row alone** (__FR2__).
+- [x] **FR-2 the walk leaves a changed row alone** (`0103b77`).
   - `harness/vectors_script.py`, generic over every list (no dimension named): `typed_is`, `row_present`,
     `missing_rows`, `held_by_review` (a row present when an item's `label` or `typed` is the founder's words, or a
     put-aside row's `typed` is -- `_same_words`), `typed_by_label`, `put_aside_of` (`putAside` as the wire spells it,
@@ -102,7 +102,14 @@ no stack, no model, no key, no walk -- the unit suite only. Not merged; master u
   `test_cloud_216_mirror_139::test_the_cards_are_the_vendored_copy_at_216s_digest`,
   `test_cloud_219_228_mirror_141::test_the_reader_digest_is_the_clouds_vendored_cards` (the digest),
   `test_cloud_219_228_mirror_141::test_the_line_is_read_from_line_or_line_after` (contract 62's `SavedListDto`).
-- After (__HEAD__): __AFTER__
+- After (`0103b77`, the last code; the commits after it touch tasks.md only): **5651 passed, 81 skipped in 301.77s
+  (0:05:01), 0 failed** -- the five back to green, nothing else red. +48 tests: `tests/test_review_switch_143.py` (22,
+  FR-1), `tests/test_cloud_232_mirror_143.py` (26: FR-4 13 with `think_of`'s nine cases, FR-2 13). Two pins moved in
+  place (`CARDS_SHA256_141`, the `SavedListDto` signature); none weakened.
+- One run between (FR-2 before the keel-web 179 hooks and judgement call 9): 2 failed, 5647 passed --
+  `test_spec_138_compat_suggested::test_palus_shape_on_adoption_friction_still_stops` (fixed, call 9) and
+  `test_vectors_screens_guide::test_the_corridor_frame_counts_the_sheet` (passed alone and in the run after: a flake,
+  untouched code).
 
 ## Judgement calls
 
