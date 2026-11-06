@@ -10,7 +10,9 @@
   head, the cost and the time, the comparison with the baseline and with the previous cycle). Refused without ENTRIES,
   without WHY, with a dirty keel-cloud checkout, on DOOR=keel without the key in the shell, without the `claude` CLI
   (the readers' door, and the host door's), on an unknown entry or scope, or when BUILD= is not the checkout's sha.
-  `DRY=1` prints the plan and runs nothing.
+  `DRY=1` prints the plan and runs nothing. Spec 143 FR-1: the review switch (`KEEL_REVIEW_RESPONDENT_QUESTIONS`, keel-cloud
+  spec 209) is read off the shell -- unset is OFF, nothing turns it on -- named on the record's head line (*review ON* /
+  *review OFF*) and in each bundle (`review_switch`); a cycle whose walks disagree on it is refused as a mixed cycle.
 - **`advise`** -- `make quality-advise CYCLE=<record> [DRY=1]` (paid, FR-4): one bounded call per weak row of the
   cycle, `quality/readers/adviser.md` filled with the row, its failing screens, its fix location and **the current
   text at that location** read from the keel-cloud checkout; the proposals go to `quality/cycles/<record>-advice.md`,
@@ -48,6 +50,7 @@ from pathlib import Path
 
 from harness import typist
 from quality import decisions as dec
+from stack import cloud as cloud_stack
 from quality import cards, readers, rubric, table
 
 REPO = Path(__file__).resolve().parent.parent
@@ -229,6 +232,9 @@ class Study:
     # spec 140 FR-4: the Vite *transport invoke timed out* lines runs/.stack/web.log gained during this study's walk
     # (None where the walk had no local web log to read)
     vite_timeouts: int | None = None
+    # spec 143 FR-1: the review switch the walk's bundle records (`backtest.json`'s `review_switch`, ON / OFF; None on a
+    # bundle written before 143)
+    review_switch: str | None = None
 
     @property
     def key(self) -> str:
@@ -282,6 +288,10 @@ def preflight(*, entries: list[str], scopes: list[str], door: str, why: str | No
         unknown = [e for e in entries if e not in known]
         if unknown:
             hard.append(f"no back-test entry {unknown} in keel-cloud {BACKTEST_REL}")
+    try:
+        cloud_stack.review_switch(env)                          # spec 143 FR-1: keel-cloud would not boot on it
+    except ValueError as reason:
+        hard.append(str(reason))
     if build:
         sha = git_sha(cloud, short=max(7, len(build)))
         if not sha.startswith(build):
@@ -350,9 +360,26 @@ def _study_data(study: Study) -> dict:
     """A study as the record's data block keeps it -- `vite_timeouts` (spec 140) only where the walk read a web log, so a
     record of walks before 140 is 126's to the byte."""
     data = asdict(study)
-    if data.get("vite_timeouts") is None:
-        data.pop("vite_timeouts", None)
+    for key in ("vite_timeouts", "review_switch"):          # spec 143 FR-1: as 140 -- absent on a bundle before it
+        if data.get(key) is None:
+            data.pop(key, None)
     return data
+
+
+def review_of(record_switch: str | None, studies: list[dict]) -> str | None:
+    """Spec 143 FR-1: the cycle's one review switch (`ON` / `OFF`) -- the kick-off's (`record_switch`) and every walk's
+    bundle's (`review_switch`) the same, else refused as a mixed cycle naming each walk's; None where nothing names one
+    (a record before 143)."""
+    said = {f"{s.get('entry')} · {s.get('scope')}": s["review_switch"] for s in studies
+            if isinstance(s.get("review_switch"), str)}
+    seen = set(said.values()) | ({record_switch} if record_switch else set())
+    if len(seen) > 1:
+        walks = "; ".join(f"{k} review {v}" for k, v in said.items())
+        raise Refused(f"a mixed cycle: the review switch ({cloud_stack.REVIEW_SWITCH_ENV}, keel-cloud spec 209) was "
+                      + (f"{record_switch} at the kick-off and " if record_switch else "")
+                      + f"not the same on every walk ({walks}) -- two switches are never one cycle; walk it again with "
+                      "the switch the same throughout (spec 143 FR-1)")
+    return next(iter(seen), None)
 
 
 def log_size(path: Path) -> int:
@@ -415,6 +442,8 @@ def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=sub
     study.walk_usd = _usd(record)
     stack = record.get("stack") or {}
     study.cloud_sha, study.web_sha = _sha7(stack.get("keel-cloud")), _sha7(stack.get("keel-web"))
+    if isinstance(record.get("review_switch"), str):            # spec 143 FR-1: the switch the walk ran with
+        study.review_switch = record["review_switch"]
     walked_scope = record.get("scope") or "ALL"
     if walked_scope != scope:
         study.error = f"the bundle says scope {walked_scope}, the walk asked {scope}"
@@ -589,10 +618,13 @@ def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: 
             ended: str, seconds: float, cfg: dict, baseline_path: Path, cycles_dir: Path, root: Path | None = None,
             cloud_branch: str | None = None, web_dirty: bool = False, scores_dir: str = SCORES_REL,
             entries_arg: str | None = None, decisions: list[dict] | None = None,
-            people: int | None = None) -> tuple[str, dict]:
+            people: int | None = None, review: str | None = None) -> tuple[str, dict]:
     """The cycle record (FR-2): markdown for the founder, and the same facts as a data block the other commands read.
     Spec 087 FR-2: a weak row a decision covers is listed under *Decided before* (`decided_before`), not to advise.
-    Spec 106 FR-2: `people`, the number each study sent on the person's own link, where the walk named one."""
+    Spec 106 FR-2: `people`, the number each study sent on the person's own link, where the walk named one.
+    Spec 143 FR-1: `review`, the review switch at the kick-off (`ON` / `OFF`), held to every walk's bundle
+    (`review_of`: a mixed cycle is refused before anything is written) and recorded as `review_switch`."""
+    review = review_of(review, [_study_data(s) for s in studies])
     if decisions is None:
         decisions = load_decisions()
     scored = [s for s in studies if s.score_file]
@@ -672,6 +704,8 @@ def compose(studies: list[Study], *, name: str, why: str, door: str, cloud_sha: 
         data["typo_leaks"] = typo_studies
     if people:                                      # spec 106: absent on a walk that capped nobody, as a 079 record reads
         data["people"] = int(people)
+    if review:                                      # spec 143 FR-1: absent on a record before 143, as 140's reads
+        data["review_switch"] = review
     if snoozed:                                     # spec 087: absent when nothing is decided, as a 079 record reads
         data["decided_before"] = snoozed
     return render_record(data), data
@@ -691,7 +725,8 @@ def render_record(d: dict) -> str:
              f"Spec 079. Walked {d['started']} -> {d['ended']} ({round((d['seconds'] or 0) / 60, 1)} min) through "
              f"DOOR={d['door']} on keel-cloud `{d['cloud_sha']}` ({d.get('cloud_branch') or '?'}) and keel-web "
              f"`{d['web_sha']}`{' (dirty)' if d.get('web_dirty') else ''}; routing v{', v'.join(d['routing_versions'])}; "
-             f"RUBRIC_VERSION {d['rubric_version']}; reader {d['reader']['model']} ({d['reader']['effort']}); the bar "
+             f"RUBRIC_VERSION {d['rubric_version']}; reader {d['reader']['model']} ({d['reader']['effort']}); "
+             + (f"review {d['review_switch']} (spec 209); " if d.get("review_switch") else "") + "the bar "
              f"{bar:.0f}%; weak = a 0 in {d['weak_rule']['zero_entries']} entries or a mean under "
              f"{d['weak_rule']['mean_under']} (quality/cycle.toml)"
              + (f"; {d['people']} people a study on the person's own link (spec 106)" if d.get("people") else "")
@@ -815,6 +850,7 @@ def load_record(path: str | Path) -> dict:
     if not match:
         raise Refused(f"{p} is not a cycle record: it carries no `{_DATA}` block")
     data = json.loads(match.group(1))
+    review_of(data.get("review_switch"), data.get("studies") or [])     # spec 143 FR-1: a mixed cycle is refused
     data["_path"] = str(p)
     return data
 
@@ -891,6 +927,9 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
         print(str(reason), file=sys.stderr)
         return 2
     cloud7, web7 = git_sha(cloud), git_sha(web)
+    # spec 143 FR-1: the review switch keel-cloud boots with on every walk (`stack.cloud.build_env` hands it the shell's
+    # environment whole); read, never set -- unset is OFF (preflight refused a value keel-cloud cannot read)
+    review = cloud_stack.review_switch(env)
     now = dt.datetime.now(dt.timezone.utc)
     cycles_dir = Path(a.cycles_dir)
     name = record_name(now.strftime("%Y%m%d"), cloud7, cycles_dir)
@@ -900,7 +939,8 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
     record_path = cycles_dir / f"{name}.md"
     if a.dry_run:
         print(f"quality-walk DRY RUN -- nothing runs, nothing is written. WHY: {a.why or '(none: a paid walk needs one)'}")
-        print(f"keel-cloud {cloud} at {cloud7} ({git_branch(cloud)}); keel-web {web} at {web7}; DOOR={door}")
+        print(f"keel-cloud {cloud} at {cloud7} ({git_branch(cloud)}); keel-web {web} at {web7}; DOOR={door}; "
+              f"review {review} ({cloud_stack.REVIEW_SWITCH_ENV}, spec 209)")
         print(f"studies: {len(entries) * len(scopes)} ({', '.join(entries)} x {', '.join(scopes)}); reader "
               f"{cfg['reader']['model']} ({cfg['reader']['effort']}); the bar {cfg['bar_pct']:.0f}%; "
               + (f"{people} people a study on the person's own link, the decision-makers whole (spec 106)" if people
@@ -919,7 +959,7 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
         print(f"then the record: {_rel(record_path)} (and TABLE.md's head); commit both with the score files")
         return 0
     print(f"quality-walk: {len(entries) * len(scopes)} studies on keel-cloud {cloud7}, keel-web {web7}, DOOR={door}"
-          + (f", {people} people a study" if people else "") + f"; logs under {work}")
+          + (f", {people} people a study" if people else "") + f", review {review}; logs under {work}")
     started, t0 = now.isoformat(timespec="seconds"), time.monotonic()
     studies = []
     by_study: dict = {}
@@ -941,10 +981,15 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which) -> i
                                          f"({study.score_file})" if study.score_file else f"NOT SCORED -- {study.error}"))
         studies.append(study)
     ended = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
-    text, data = compose(studies, name=name, why=a.why.strip(), door=door, cloud_sha=cloud7, web_sha=web7,
-                         started=started, ended=ended, seconds=round(time.monotonic() - t0, 1), cfg=cfg,
-                         baseline_path=table.BASELINE_PATH, cycles_dir=cycles_dir, cloud_branch=git_branch(cloud),
-                         web_dirty=bool(git_dirty(web)), entries_arg=a.entries, decisions=decisions, people=people)
+    try:
+        text, data = compose(studies, name=name, why=a.why.strip(), door=door, cloud_sha=cloud7, web_sha=web7,
+                             started=started, ended=ended, seconds=round(time.monotonic() - t0, 1), cfg=cfg,
+                             baseline_path=table.BASELINE_PATH, cycles_dir=cycles_dir, cloud_branch=git_branch(cloud),
+                             web_dirty=bool(git_dirty(web)), entries_arg=a.entries, decisions=decisions, people=people,
+                             review=review)
+    except Refused as reason:                       # spec 143 FR-1: a mixed cycle -- no record; the bundles stay
+        print(f"make quality-walk refuses the record: {reason}", file=sys.stderr)
+        return 2
     cycles_dir.mkdir(parents=True, exist_ok=True)
     record_path.write_text(text, encoding="utf-8")
     table_argv = [x.replace("CYCLE=<record>", f"CYCLE={record_path}") for x in steps[-1]["argv"]]

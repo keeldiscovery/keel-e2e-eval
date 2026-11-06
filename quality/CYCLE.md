@@ -30,10 +30,21 @@ from `make eval`, `make unit`, the matrix, a checker or a schedule.
 ## Step 1 -- the kick-off (`make quality-walk`, PAID)
 
 ```
+export KEEL_REVIEW_RESPONDENT_QUESTIONS=true                   # the review ON (spec 143 FR-1); unset is OFF
 KEEL_ANTHROPIC_API_KEY="$(...)" make quality-walk ENTRIES=default WHY="<why this cycle, in the founder's words>"
 make quality-walk ENTRIES=default DOOR=host WHY="<...>"        # on the founder's own Claude Code, no key
 make quality-walk DRY=1 ENTRIES=21-codyco SCOPES=PROBLEM WHY="dry"   # the plan only: runs nothing, free
 ```
+
+- **The review switch** (spec 143 FR-1; keel-cloud spec 209's `keel.review.respondent-questions`, and 232's changed
+  rows behind it): **export `KEEL_REVIEW_RESPONDENT_QUESTIONS=true` in the shell before the kick-off** for a cycle with
+  the review on -- the stack hands keel-cloud the shell's environment whole (`stack/cloud.py`), as it does
+  `KEEL_KEELS_AI_EFFORT`. Nothing turns it on by itself: unset (or `false`) is **OFF**, as keel-cloud has it, and cycles
+  1 to 15 all walked it OFF. The record's head line names it (*review ON (spec 209)* / *review OFF (spec 209)*, beside
+  routing, RUBRIC_VERSION and the reader), each bundle records it (`backtest.json`'s `review_switch`), `DRY=1` prints
+  it, and a cycle whose walks disagree is refused as a **mixed cycle** (no record is written; `quality-accept`,
+  `quality-advise` and `read-table` refuse such a record too). A value keel-cloud cannot read (not `true` / `false`)
+  is refused before anything runs. The cycle's *Why* names it when it is on.
 
 - **What it does**: for each entry (`ENTRIES=default` is `cycle.toml`'s `entries`; or `ENTRIES=21-codyco,08-fresco`) and
   each scope (`SCOPES=`, default `PROBLEM,SOLUTION,COMMERCIAL` -- one entry is three studies, each judged on its own):

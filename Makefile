@@ -208,6 +208,9 @@ read-table: venv
 # Spec 126 FR-2: the founder types like a person -- every back-test of the walk passes TYPOS=1 (his four context fields
 # and two seeds typed with typos), the record says `typos: N typed on M fields; K leaked`; TYPOS=0 types them as
 # recorded. DRY=1 prints every typed field with its typos marked, `withot[without]`.
+# Spec 143 FR-1: keel-cloud's review switch (spec 209) is the shell's KEEL_REVIEW_RESPONDENT_QUESTIONS -- export it =true
+# before the kick-off for a cycle with the review on; unset is OFF. The record's head line says review ON / review OFF,
+# each bundle records `review_switch`, and walks that disagree are refused as a mixed cycle.
 #   make quality-walk DRY=1 ENTRIES=21-codyco SCOPES=PROBLEM WHY="dry"
 #   KEEL_ANTHROPIC_API_KEY="$$(...)" make quality-walk ENTRIES=default WHY="the registry's Frequency row moved"
 #   make quality-walk ENTRIES=default DOOR=host WHY="a week since the last cycle"

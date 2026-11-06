@@ -2262,6 +2262,13 @@ def _offer_expectation(entry) -> str:
     return vs.offer_expectation(entry)
 
 
+def review_switch(env=None) -> str:
+    """Spec 143 FR-1: the review switch keel-cloud boots with on this stack (`stack.cloud.review_switch`): the walk's
+    own environment is the one `stack.cloud.build_env` hands keel-cloud whole."""
+    from stack import cloud as cloud_stack                    # noqa: PLC0415
+    return cloud_stack.review_switch(env)
+
+
 def transcript(j, bt: Backtest) -> dict:
     if j is None:
         return {"journey": "never opened"}
@@ -2281,6 +2288,9 @@ def transcript(j, bt: Backtest) -> dict:
                   "idea_name": getattr(entry, "idea_name", None), "b2b": entry.b2b()},
         # spec 071 FR-4: the scope the project was created with (keel-cloud 133), as the overview served it
         "scope": bt.scope,
+        # spec 143 FR-1: keel-cloud's review switch (spec 209, `KEEL_REVIEW_RESPONDENT_QUESTIONS`) as the stack handed
+        # it the environment -- `ON` / `OFF`; the cycle's record names it and refuses walks that disagree
+        "review_switch": _safe(review_switch),
         # spec 106 FR-2: the walk's cap on the person's own link, where `PEOPLE=` named one
         **({"people": bt.people} if bt.people else {}),
         # spec 126 FR-2: every typo the founder typed, `{field, meant, typed, kind}` -- absent on a walk that typed none
@@ -2343,7 +2353,9 @@ def markdown(r: dict) -> str:
              f"- Stack: keel-cloud `{(r.get('stack') or {}).get('keel-cloud')}`, keel-web "
              f"`{(r.get('stack') or {}).get('keel-web')}`, {answered_by}, founder `{IDENTITY_EMAIL}`"
              # spec 071 FR-4: the study's scope beside the stack, where it is not the whole study
-             + ("" if (r.get("scope") or DEFAULT_SCOPE) == DEFAULT_SCOPE else f", scope **{r.get('scope')}**"),
+             + ("" if (r.get("scope") or DEFAULT_SCOPE) == DEFAULT_SCOPE else f", scope **{r.get('scope')}**")
+             # spec 143 FR-1: the review switch, where the bundle records it
+             + (f", review **{r['review_switch']}** (spec 209)" if isinstance(r.get("review_switch"), str) else ""),
              f"- Decision: **{decision.get('label')}** ({decision.get('howSure')}; {decision.get('reason')})",
              f"- Verdicts: {_q(b.get('verdicts'))}",
              f"- Pilot: {_q(b.get('pilot', {}) and {k: (b.get('pilot') or {}).get(k) for k in ('optedIn', 'finished', 'percent')})}"
