@@ -37,9 +37,12 @@ SEVEN_DAYS = RecallWindow(7, "DAYS")
 #: (219-229 merged), moved by eval spec 142 to keel-cloud-docs `1bbe210e` (231 and 230 merged: the Prevalence card
 #: amended), then by eval spec 143 to keel-cloud-docs `ac81bf6f` (232 merged: Importance §2 and Current solution §2 --
 #: the review may change a row, Put back; was `06fcd867...`), then by eval spec 144 to keel-cloud-docs `9e4b7fda` (233
-#: merged: Compatibility §2 -- the review may change a condition, a settled row put aside; was `2f4f0bf8...`); the one
-#: constant the 213, 216 and 232 pins read for the current copy (re-pinned here when a later spec moves the cards again).
-CARDS_SHA256_141 = "98b7379b8fe68d9ef3c393045804b7837ae759c28e061ed8c812bbb2500b1c7b"
+#: merged: Compatibility §2 -- the review may change a condition, a settled row put aside; was `2f4f0bf8...`), then by
+#: eval spec 145 to keel-cloud-docs `74a04fb5` (235 merged: Current solution §2 *The notes* -- the five rewritten as one
+#: scale -- and Importance §2 *The notes under the rows* -- a part, a cause or a means put aside; was `98b7379b...`); the
+#: one constant the 213, 216, 232 and 233 pins read for the current copy (re-pinned here when a later spec moves the
+#: cards again).
+CARDS_SHA256_141 = "3041f69cc95ae3ae951e5fd7a393c89acdc05ff31e9b67f3d48261ee4220ebcc"
 #: keel-cloud `VectorFixtures` (Lullaby).
 EVENT_PAST = "had to work out why their baby was crying"
 WENT_WRONG = "did not know why the baby cried"

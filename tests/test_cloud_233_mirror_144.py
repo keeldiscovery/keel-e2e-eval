@@ -39,12 +39,14 @@ def _cloud(rel: str) -> str:
 
 def test_the_reader_digest_is_233s_cards():
     """FR-4: the reader's cards are the cloud's vendored copy byte for byte, at 233's digest (the one constant the
-    earlier pins read, `CARDS_SHA256_141`, moved with it)."""
+    earlier pins read, `CARDS_SHA256_141`, moved with it) -- or a later round's (eval spec 145 moved the copy to
+    keel-cloud 235's, `CARDS_SHA256_141`)."""
     from tests.test_cloud_219_228_mirror_141 import CARDS_SHA256_141   # noqa: PLC0415
     review = _cloud(APPLICATION + "RespondentReview.java")
     sha = re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1)
     ours = cards.CARDS_PATH.read_bytes()
-    assert hashlib.sha256(ours).hexdigest() == sha == CARDS_SHA256_233 == CARDS_SHA256_141
+    assert hashlib.sha256(ours).hexdigest() == sha == CARDS_SHA256_141
+    assert sha in (CARDS_SHA256_233, CARDS_SHA256_141)
     assert (KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md").read_bytes() == ours
 
 

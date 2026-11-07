@@ -66,9 +66,12 @@ def test_the_two_amended_sections_say_the_review_may_change_a_row():
     """FR-4 (232 FR-6): Importance §2 and Current solution §2 say the review may change a row that breaks the card, the
     Check says so in one line, the founder's words behind Put back; *never rewritten* / *Never a rewrite* are cut."""
     text = " ".join(cards.CARDS_PATH.read_text(encoding="utf-8").split())
-    assert "**The review may change such a rival** (keel-cloud 232)" in text
+    # eval spec 145 (keel-cloud 235 FR-6): the rival's heading names 235 beside 232; the rung's is the five as one scale
+    assert ("**The review may change such a rival** (keel-cloud 232)" in text
+            or "**The review may change such a rival** (keel-cloud 232, 235)" in text)
     assert "*Answering group requests that come by email* -> *Taking group enquiries over the phone*" in text
-    assert "**The review may change such a rung** (spec 232)" in text
+    assert ("**The review may change such a rung** (spec 232)" in text
+            or "**The review rewrites the five as one scale** (specs 232, 235)" in text)
     assert "(*Never called back*, never *simply lost*)" in text
     # eval spec 144 (keel-cloud 233 FR-5): Compatibility §2 says it a third time
     assert text.count("behind **Put back**") >= 2
@@ -130,7 +133,12 @@ CURRENT_SOLUTION = {
               {"code": "outcome_5", "label": "Never called back", "typed": RUNGS_TYPED[4],
                "why": "This rung grades what happened to the call, not how soon it was called back."}],
     "phrase": "calling back missed calls", "line": 1, "lineAfter": 0,
-    "changed": {"line": "Keel changed three answers so they sit on one scale.", "why": HOW_MANY}}
+    # eval spec 145 (keel-cloud 235 FR-4): the ladder rewritten whole, its measure held -- the band names the scale
+    "changed": {"line": "Keel rewrote the scale so every answer is a step in how soon a missed call was called back.",
+                "why": HOW_MANY}}
+#: keel-cloud 235 FR-4: where `measure` was dropped (or a put back dropped it), 232's count line stands.
+CURRENT_SOLUTION_COUNTED = {**CURRENT_SOLUTION,
+                            "changed": {"line": "Keel changed three answers so they sit on one scale.", "why": HOW_MANY}}
 ROWS_TYPED = ["Picking up booking calls before they ring out", "Answering group requests that come by email",
               "Chasing deposits on held bookings", "Updating the booking system after each call"]
 EMAIL = "This happens by email, not at the moment a booking call rings."
@@ -161,8 +169,12 @@ def test_what_the_review_did_is_recorded_per_list():
         {"typed": ROWS_TYPED[3], "label": None, "why": "This comes after the call, not when it rings."}]
     assert [c["label"] for c in vs.review_changed(CURRENT_SOLUTION)] == \
         ["Called back the next day", "Called back days later", "Never called back"]
-    assert vs.review_band(CURRENT_SOLUTION) == {"line": "Keel changed three answers so they sit on one scale.",
-                                                "why": HOW_MANY}
+    assert vs.review_band(CURRENT_SOLUTION) == {
+        "line": "Keel rewrote the scale so every answer is a step in how soon a missed call was called back.",
+        "why": HOW_MANY}, "235: the ladder rewritten whole"
+    assert vs.review_band(CURRENT_SOLUTION_COUNTED) == {"line": "Keel changed three answers so they sit on one scale.",
+                                                        "why": HOW_MANY}, "232's line where the measure was dropped"
+    assert vs.review_changed(CURRENT_SOLUTION_COUNTED) == vs.review_changed(CURRENT_SOLUTION)
     assert vs.review_changed(UNTOUCHED) == [] and vs.review_band(UNTOUCHED) is None
     views = {"PROBLEM": {"questions": [
         {"dimension": "problem.importance", "answer": {"list": IMPORTANCE}},

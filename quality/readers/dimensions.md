@@ -291,12 +291,16 @@ How much they want this problem made easier, next to the other things that are h
   reads as what every one of them does. Strangers pick what hurts; name the part that goes wrong.*; on Save, the review
   reads the rivals back (the review switch on) and a rival that is a part, a cause or a means of the own row, in another
   channel or outside the moment the circumstance names, or one difficulty with another row, carries one sentence of
-  why, in the people's words. **The review may change such a rival** (keel-cloud 232): reworded into a difficulty these
-  same people meet themselves at that moment, in their own part of the work, keeping its aim, at most 9 words
-  (*Answering group requests that come by email* -> *Taking group enquiries over the phone*), held by code to the rules
-  for the rows above; where no such reading exists, put aside -- never the own row, never under three rows. The Check
-  says what Keel changed in one line, the founder's words stay under the row behind **Put back**, and nothing they
-  typed is lost; a change code refuses is the note alone.
+  why, in the people's words. **The review may change such a rival** (keel-cloud 232, 235): a part, a cause or a means
+  of the own row, or one difficulty with another row, is **put aside, never reworded** (*Choosing a seat where they can
+  see every face* is how they follow the talk: reworded, it lands on a piece of the own row); a rival in another channel
+  or outside the moment is reworded only where its aim survives as a **different** difficulty these same people meet
+  themselves at that moment, in their own part of the work, at most 9 words (*Answering group requests that come by
+  email* -> *Taking group enquiries over the phone*), held by code to the rules for the rows above -- it keeps a word of
+  the founder's row and borrows no word of the own row the founder's row did not have, else it is put aside; where no
+  such reading exists, put aside -- never the own row, never under three rows. The Check says what Keel changed in one
+  line, the founder's words stay under the row behind **Put back**, and nothing they typed is lost; a change code
+  refuses under the floor is the note alone.
 - The belief: *{actor_plural} have {list_size} things that are hard when {circumstance}. {value} is one of the two they
   would most like made easier.* Keel's bar is fixed: one of their two.
 - **The stranger's item:** *Think of your last {occasion}. Which one of these would you most like made easier?*, then,
@@ -398,11 +402,16 @@ How well the way they handle it today gets the job done.
   The founder rewords and moves the line; the order is fixed.
 - **The notes** (spec 226): on Save, the review reads the five rungs back for one measure and may draw one sentence
   under a rung that grades something else (*this rung grades whether the job ran, not how much it held*). **The review
-  may change such a rung** (spec 232): onto the measure the first rung sets, the same act getting worse in its place, at
-  most 9 words, the last today's way failing outright on it (*Never called back*, never *simply lost*), held by code to
-  `W-rung` and the rules above; the first rung, the order, the five and the line never move. The Check says what Keel
-  changed in one line, the founder's words stay under the rung behind **Put back**; a change code refuses is the note
-  alone.
+  rewrites the five as one scale** (specs 232, 235): the measure is the first rung's; where any other rung grades
+  something else, every rung that must move is rewritten so the five are one ladder on that measure, best to worst,
+  each rung a distinct step on it (a time, an amount, a share, a count) -- never a condition or the reason it went that
+  way (*Called back once other calls cleared* says why a call waited, not when it was called back) -- at most 9 words,
+  the last today's way failing outright on it (*Never called back*, never *simply lost*). Code holds the ladder whole or
+  not at all (`W-rung`, the rules above, no condition clause, distinct from both neighbours); on code's refusal the
+  review is asked once more for the whole ladder, inside the Save's hold, else the rungs stay the founder's with the
+  notes alone. The first rung, the order, the five and the line never move. The Check says *Keel rewrote the scale so
+  every answer is a step in {measure}.* (the measure in the people's words; else what Keel changed in one line), the
+  founder's words stay under the rung behind **Put back**.
 - The belief: *For most {actor_plural}, {value} still falls short.* -- {value} the act.
 - **The stranger's item:** *Think of the last {occasion}. How did {the act} go?* -- one act, the step that hurts, on that
   one occasion (it may ask what it cost: how long, how much). The options are the five saved rungs **in order**, the
