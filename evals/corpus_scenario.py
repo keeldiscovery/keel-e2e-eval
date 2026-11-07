@@ -2306,6 +2306,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             duration = vs.walker_duration(j.entry) if key == vs.PURCHASE_FRICTION_KEY else None
             seen.append(j.corridor.list_choose(question, label, duration=duration))
             seen[-1]["row"] = row       # spec 116 FR-1: the drafted row the label was found at
+            _choose_after_the_review(j, question, seen[-1])
         j.framing[key] = seen
     refused = j.corridor.conflicts[conflicts:]
     if refused:
@@ -2487,6 +2488,9 @@ def _after_the_review(j: Journey, vector: str, question: dict, check: dict) -> d
     if key == COMPATIBILITY_KEY and hold.get("picked_sent") and hasattr(j, "findings"):
         j.findings.append({"what": f"{key}: the Check's Save sent a pickedIndex -- keel-cloud 233 FR-2 saves the list "
                                    "before the pick (a keel-web before 180)", "served": {"dimension": key, **hold}})
+    if hold.get("continue_put") and hasattr(j, "findings"):
+        j.findings.append({"what": f"{key}: Continue after the review sent a PUT -- keel-web 180 FR-2 moves on with no "
+                                   "Save on an untouched Check", "served": {"dimension": key, **hold}})
     if key not in vs.PICKED or not (hold.get("review") or hold.get("outcome") == "stayed"):
         return question
     view = _wait_calibration(j, vector)
@@ -2495,6 +2499,41 @@ def _after_the_review(j: Journey, vector: str, question: dict, check: dict) -> d
     if not isinstance(saved, dict) or not (vs.review_changed(saved) or vs.review_band(saved)):
         return question
     return {**question, "draft": saved}
+
+
+def choose_after_review_faults(question: dict, choose: dict) -> list[dict]:
+    """Spec 144 FR-2 (keel-web 180 FR-3, keel-cloud 233 FR-2): Compatibility's Choose on a list the review changed -- the
+    options are the rows as served, no put-aside row among them, and the Save posts the rows as served (their labels) with
+    the pick. `[]` on a list the review left alone; each miss `{what, drawn, want}`."""
+    draft = question.get("draft") or {}
+    if not vs.review_changed(draft):
+        return []
+    served = [i.get("label") for i in vs.served_items(draft)]
+    aside = [r.get("typed") for r in vs.put_aside_of(draft)]
+    faults = []
+    options = [" ".join(str(o).split()) for o in choose.get("options") or []]
+    drawn_aside = [o for o in options if any(vs._same_words(o, a) for a in aside)]
+    if drawn_aside:
+        faults.append({"what": "a put-aside row offered on Choose", "drawn": drawn_aside, "want": []})
+    key = question.get("dimension")
+    for write in choose.get("writes") or []:
+        body = write.get("body") if isinstance(write.get("body"), dict) else {}
+        for answer in body.get("answers") or []:
+            if isinstance(answer, dict) and answer.get("dimension") == key:
+                sent = [i.get("label") for i in (answer.get("list") or {}).get("items") or []]
+                if sent != served:
+                    faults.append({"what": "the Choose Save's rows are not the rows as served", "drawn": sent,
+                                   "want": served})
+    return faults
+
+
+def _choose_after_the_review(j: Journey, question: dict, choose: dict) -> None:
+    """Spec 144 FR-2: `choose_after_review_faults` filed as findings (never a stop: the pick and its index are held by
+    `choose_faults` as before)."""
+    for fault in choose_after_review_faults(question, choose):
+        if hasattr(j, "findings"):
+            j.findings.append({"what": f"{question.get('dimension')}: {fault['what']} (keel-web 180 FR-3, keel-cloud 233 "
+                                       "FR-2)", "served": fault})
 
 
 def reviewed_as_saved(want: dict, got: dict, fell: dict | None = None) -> bool:

@@ -503,17 +503,20 @@ REVIEWED_LISTS = ("problem.importance", "problem.current_solution_satisfaction",
 LIST_REVIEWING = "Keel is reading your answers"
 LIST_CONTINUE = "Continue"
 LIST_CONTINUE_CHOOSE = "Continue to choose"
-#: keel-web 180 as built (branch `180-save-holds-for-the-review`, `ListQuestion.tsx` at `c0952419`): the hold's status
-#: line (`p.calib__drafting.calib__reviewing[role=status]`) and the Check's primary. The walk reads the texts above first
-#: and these ids beside them (a page that draws either is holding).
+#: keel-web 180 as built (merged on keel-web master `fbfe96a2`, `ListQuestion.tsx`): the hold's status line
+#: (`p.calib__drafting.calib__reviewing[role=status]`, exactly `LIST_REVIEWING`) and the Check's primary (reading the same
+#: words while it holds, disabled, `aria-busy="true"`; then *Continue* / *Continue to choose*, enabled, sending no PUT).
+#: The walk reads the status by its id and the words beside it (a page that draws either is holding).
 LIST_REVIEWING_TESTID = "list-reviewing"
 LIST_PRIMARY_TESTID = "list-primary"
-#: Spec 144 FR-1: the most the walk waits for the hold to leave (then a `DEFECT (keel-cloud 233)` finding, and the walk
-#: stops by name) -- keel-cloud 233's *Open 1*: no server-side ceiling on a read-back nobody claims. keel-web 180 caps
-#: its own hold at the same 90 s (`REVIEW_HOLD_MS`) and then moves on as if no review ran, so a hold that ends by moving
-#: on within `REVIEW_HOLD_GRACE_S` of the cap is read as the page's cap -- the same defect, the same stop.
+#: Spec 144 FR-1: the review's cap -- 90 s (keel-cloud 233's *Open 1*: no server-side ceiling on a read-back nobody
+#: claims). keel-web 180 holds at most `REVIEW_HOLD_MS` (90 s) after the Save's answer and then moves on as if no review
+#: ran, so a hold that ends by moving on within `REVIEW_HOLD_GRACE_S` of the cap is the page's cap: a `DEFECT (keel-cloud
+#: 233)` finding and the walk stops by name. The walk's own ceiling on a hold still drawn is `REVIEW_HOLD_CEILING_S`
+#: (above the page's, so the page's cap ends it first; past it, the same defect and stop).
 REVIEW_HOLD_CAP_S = 90
 REVIEW_HOLD_GRACE_S = 5
+REVIEW_HOLD_CEILING_S = 120
 #: Spec 144 FR-1: the second founder shot of a Check the review changed, taken after the band -- `check-{dim}` + this.
 REVIEWED_SUFFIX = "-reviewed"
 
@@ -3223,14 +3226,14 @@ class Corridor:
                         left_at = None
                         if held_at is None:
                             held_at, hold["held"] = now, True
-                        elif now - held_at > REVIEW_HOLD_CAP_S:
+                        elif now - held_at > REVIEW_HOLD_CEILING_S:
                             hold["held_s"] = round(now - held_at, 1)
                             hold["outcome"] = "timeout"
-                            self._evidence(f"check-{name}-held", f"held past {REVIEW_HOLD_CAP_S} s")
+                            self._evidence(f"check-{name}-held", f"held past {REVIEW_HOLD_CEILING_S} s")
                             raise ReviewHoldStop(
                                 f"DEFECT (keel-cloud 233): {name}'s Check held on *{LIST_REVIEWING}* past "
-                                f"{REVIEW_HOLD_CAP_S} s (the Save's review: {hold['review'] or 'none named'}) -- the "
-                                "walk stops here", dict(hold, dimension=name))
+                                f"{REVIEW_HOLD_CEILING_S} s (the Save's review: {hold['review'] or 'none named'}) -- "
+                                "the walk stops here", dict(hold, dimension=name))
                         self.page.wait_for_timeout(250)
                         continue
                     if held_at is not None and left_at is None:
@@ -3281,7 +3284,10 @@ class Corridor:
             self._shot(reviewed_slug(name))
             h.capture_text("stage_screen", _text(self.page))
             h.add_screenshot(self._b.screenshot(reviewed_slug(name)))
-            out["continue"] = self._press_primary(state["label"])
+            with self._keeping("PUT", CALIBRATION_PUT) as again:
+                out["continue"] = self._press_primary(state["label"])
+            # keel-web 180 FR-2: Continue on an untouched Check moves on with no Save
+            hold["continue_put"] = len(again)
             return out
 
     def _cut_over_cap_rows(self, name: str, cap: int = 9) -> list[dict]:

@@ -145,6 +145,7 @@ def test_a_save_that_holds_and_stays_is_shot_again_after_the_band(browser, tmp_p
     hold = seen["review_hold"]
     assert hold["review"] == INTERACTION and hold["held"] is True and hold["outcome"] == "stayed"
     assert hold["held_s"] >= 0.3 and hold["picked_sent"] is False
+    assert hold["continue_put"] == 0, "180 FR-2: Continue on an untouched Check sends no PUT"
     assert put[0]["answers"][0]["list"].get("pickedIndex") is None, "233 FR-2: Compatibility's Check sends no pick"
     assert seen["primary"] == "Save" and seen["continue"] == vs_screens.LIST_CONTINUE_CHOOSE
     assert [r["text"] for r in seen["rows"]] == TYPED, "the first read: the Check as drafted, before the Save"
@@ -186,9 +187,9 @@ def test_a_save_with_no_review_moves_on_as_before(browser, tmp_path):
 
 
 def test_a_hold_past_the_cap_stops_the_walk_by_name(browser, tmp_path, monkeypatch):
-    """FR-1: the hold never leaves -- past the cap a `DEFECT (keel-cloud 233)` stop; the page kept as evidence, never a
+    """FR-1: the hold never leaves -- past the walk's ceiling (120 s; scaled to 1 s here) a `DEFECT (keel-cloud 233)` stop; the page kept as evidence, never a
     founder screen; `_check_screen` files the finding and the hold before the stop goes on up."""
-    monkeypatch.setattr(vs_screens, "REVIEW_HOLD_CAP_S", 1)
+    monkeypatch.setattr(vs_screens, "REVIEW_HOLD_CEILING_S", 1)
     page, corridor, cam, _ = _walk(browser, tmp_path, "stuck")
     j = SimpleNamespace(entry=None, strict=False, findings=[], review_holds={}, corridor=corridor)
     try:
@@ -219,7 +220,9 @@ def test_a_hold_the_page_ends_at_its_own_cap_stops_the_walk_too(browser, tmp_pat
 
 
 def test_the_hold_is_pinned_to_keel_web_180s_words_and_ids():
-    """FR-1: the walk's words and ids are keel-web 180's (`translate.ts`, `ListQuestion.tsx`) -- read off keel-web's
+    """FR-1: the walk's words and ids are keel-web 180's (`translate.ts`, `ListQuestion.tsx`; merged on keel-web master
+    `fbfe96a2`) -- the hold `list-reviewing`, the primary `list-primary` (`aria-busy` while it holds), *Continue* /
+    *Continue to choose*, Choose's pending box, the 90 s cap -- read off keel-web's
     checkout where 180 has merged, else off its branch's worktree (`keel-web-180` beside it or under `wt/`); skipped by name where neither has it."""
     from pathlib import Path                                                    # noqa: PLC0415
     from stack.config import load_config                                        # noqa: PLC0415
@@ -239,6 +242,8 @@ def test_the_hold_is_pinned_to_keel_web_180s_words_and_ids():
     assert f'data-testid="{vs_screens.LIST_PRIMARY_TESTID}"' in page
     assert 'className="calib__drafting calib__reviewing" role="status"' in page
     assert 'data-testid="list-changed"' in page and "ccard__foot" in page
+    assert '{...(holding ? { "aria-busy": true } : {})}' in page
+    assert f'export const KEEL_TEST_PENDING = "{vs_screens.KEEL_TEST_PENDING}";' in strings
     hold = (root / "src/lib/reviewHold.ts").read_text(encoding="utf-8")
     assert f"REVIEW_HOLD_MS = {vs_screens.REVIEW_HOLD_CAP_S}_000;" in hold
 

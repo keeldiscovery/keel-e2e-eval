@@ -163,3 +163,21 @@ def test_the_stranger_hears_the_permission_four():
     assert ("Think of your last booking call. Were you allowed to have unanswered \" + \"calls forwarded to another "
             "number?") in source
     assert vs_screens.served_word_cap({"saves": {"maxWords": 16}}) == 16
+
+
+def test_choose_after_the_review_offers_the_rows_as_served():
+    """FR-2 (keel-web 180 FR-3): on a reviewed Compatibility list Choose offers the rows as served -- no put-aside row --
+    and its Save posts them as served with the pick; a miss is a finding, never a stop."""
+    question = {"dimension": COMPAT, "draft": REVIEWED}
+    good = {"options": [PERMISSION, TYPED[1]], "writes": [{"body": {"answers": [{"dimension": COMPAT, "list": {
+        "items": [{"label": PERMISSION, "asked": ASKED}, {"label": TYPED[1]}], "pickedIndex": 0}}]}, "status": 200}]}
+    assert cs.choose_after_review_faults(question, good) == []
+    bad = {"options": [PERMISSION, TYPED[1], TYPED[2]], "writes": [{"body": {"answers": [{"dimension": COMPAT, "list": {
+        "items": [{"label": t} for t in TYPED], "pickedIndex": 0}}]}, "status": 200}]}
+    faults = cs.choose_after_review_faults(question, bad)
+    assert [f["what"] for f in faults] == ["a put-aside row offered on Choose",
+                                           "the Choose Save's rows are not the rows as served"]
+    j = _j()
+    cs._choose_after_the_review(j, question, bad)
+    assert len(j.findings) == 2 and "keel-web 180 FR-3" in j.findings[0]["what"]
+    assert cs.choose_after_review_faults({"dimension": COMPAT, "draft": DRAFTED}, bad) == [], "a list left alone"
