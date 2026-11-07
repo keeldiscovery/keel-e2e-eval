@@ -203,6 +203,46 @@ def test_a_hold_past_the_cap_stops_the_walk_by_name(browser, tmp_path, monkeypat
     assert j.review_holds[COMPAT]["outcome"] == "timeout" and j.review_holds[COMPAT]["review"] == INTERACTION
 
 
+def test_a_hold_the_page_ends_at_its_own_cap_stops_the_walk_too(browser, tmp_path, monkeypatch):
+    """FR-1: keel-web 180 caps its hold at 90 s and moves on as if no review ran -- a hold that ends by moving on within
+    the grace of the cap is the same defect and the same stop (scaled here: cap 0.9 s, grace 0.5 s, the page moving on
+    after 0.7 s of hold)."""
+    monkeypatch.setattr(vs_screens, "REVIEW_HOLD_CAP_S", 0.9)
+    monkeypatch.setattr(vs_screens, "REVIEW_HOLD_GRACE_S", 0.5)
+    page, corridor, cam, _ = _walk(browser, tmp_path, "moved")
+    try:
+        with pytest.raises(vs_screens.ReviewHoldStop, match=r"moved on at its own 0.9 s cap"):
+            corridor.list_check({"dimension": COMPAT, "saves": {"maxWords": 16}})
+    finally:
+        page.close()
+    assert [s["slug"] for s in cam.founder_shots] == [f"check-{COMPAT}"]
+
+
+def test_the_hold_is_pinned_to_keel_web_180s_words_and_ids():
+    """FR-1: the walk's words and ids are keel-web 180's (`translate.ts`, `ListQuestion.tsx`) -- read off keel-web's
+    checkout where 180 has merged, else off its branch's worktree (`keel-web-180` beside it or under `wt/`); skipped by name where neither has it."""
+    from pathlib import Path                                                    # noqa: PLC0415
+    from stack.config import load_config                                        # noqa: PLC0415
+    web = Path(load_config(validate=False).keel_web)
+    candidates = (web, web.parent / "keel-web-180", web.parent / "wt" / "keel-web-180")
+    root = next((r for r in candidates
+                 if (r / "src/lib/translate.ts").is_file()
+                 and "LIST_REVIEWING" in (r / "src/lib/translate.ts").read_text(encoding="utf-8")), None)
+    if root is None:
+        pytest.skip(f"keel-web 180 is in none of {', '.join(str(c) for c in candidates)}")
+    strings = (root / "src/lib/translate.ts").read_text(encoding="utf-8")
+    for const, said in (("LIST_REVIEWING", vs_screens.LIST_REVIEWING), ("LIST_CONTINUE", vs_screens.LIST_CONTINUE),
+                        ("LIST_CONTINUE_CHOOSE", vs_screens.LIST_CONTINUE_CHOOSE)):
+        assert f'export const {const} = "{said}";' in strings, const
+    page = (root / "src/components/calibration/ListQuestion.tsx").read_text(encoding="utf-8")
+    assert f'data-testid="{vs_screens.LIST_REVIEWING_TESTID}"' in page
+    assert f'data-testid="{vs_screens.LIST_PRIMARY_TESTID}"' in page
+    assert 'className="calib__drafting calib__reviewing" role="status"' in page
+    assert 'data-testid="list-changed"' in page and "ccard__foot" in page
+    hold = (root / "src/lib/reviewHold.ts").read_text(encoding="utf-8")
+    assert f"REVIEW_HOLD_MS = {vs_screens.REVIEW_HOLD_CAP_S}_000;" in hold
+
+
 def test_the_lists_that_hold_are_the_three():
     """FR-1: Importance, Current solution and Compatibility save through the hold; every other list as before."""
     assert all(vs.is_list(k) for k in vs_screens.REVIEWED_LISTS)

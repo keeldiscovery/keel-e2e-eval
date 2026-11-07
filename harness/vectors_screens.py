@@ -503,9 +503,17 @@ REVIEWED_LISTS = ("problem.importance", "problem.current_solution_satisfaction",
 LIST_REVIEWING = "Keel is reading your answers"
 LIST_CONTINUE = "Continue"
 LIST_CONTINUE_CHOOSE = "Continue to choose"
+#: keel-web 180 as built (branch `180-save-holds-for-the-review`, `ListQuestion.tsx` at `c0952419`): the hold's status
+#: line (`p.calib__drafting.calib__reviewing[role=status]`) and the Check's primary. The walk reads the texts above first
+#: and these ids beside them (a page that draws either is holding).
+LIST_REVIEWING_TESTID = "list-reviewing"
+LIST_PRIMARY_TESTID = "list-primary"
 #: Spec 144 FR-1: the most the walk waits for the hold to leave (then a `DEFECT (keel-cloud 233)` finding, and the walk
-#: stops by name) -- keel-cloud 233's *Open 1*: no server-side ceiling on a read-back nobody claims.
+#: stops by name) -- keel-cloud 233's *Open 1*: no server-side ceiling on a read-back nobody claims. keel-web 180 caps
+#: its own hold at the same 90 s (`REVIEW_HOLD_MS`) and then moves on as if no review ran, so a hold that ends by moving
+#: on within `REVIEW_HOLD_GRACE_S` of the cap is read as the page's cap -- the same defect, the same stop.
 REVIEW_HOLD_CAP_S = 90
+REVIEW_HOLD_GRACE_S = 5
 #: Spec 144 FR-1: the second founder shot of a Check the review changed, taken after the band -- `check-{dim}` + this.
 REVIEWED_SUFFIX = "-reviewed"
 
@@ -544,10 +552,11 @@ class ReviewHoldStop(AssertionError):
 
 #: Spec 144 FR-1: what the walk reads of a Check while its Save holds -- the address, the hold's words anywhere on the
 #: page as drawn (`innerText`: the status line or the primary's own words), the band (`list-changed`), the primary.
-_HOLD_JS = """([reviewing, band]) => {
+_HOLD_JS = """([reviewing, band, testid]) => {
   const text = document.body ? document.body.innerText : "";
+  const status = !!document.querySelector(`[data-testid=${testid}]`);
   const btn = document.querySelector(".ccard__foot button.btn.primary");
-  return {url: window.location.href, reviewing: text.includes(reviewing), band: !!document.querySelector(band),
+  return {url: window.location.href, reviewing: status || text.includes(reviewing), band: !!document.querySelector(band),
           label: btn ? btn.innerText.trim() : null, disabled: btn ? !!btn.disabled : null};
 }"""
 
@@ -3203,7 +3212,7 @@ class Corridor:
                 held_at = left_at = None
                 pressed_again = False
                 while True:
-                    state = self.page.evaluate(_HOLD_JS, [LIST_REVIEWING, REVIEW_BAND])
+                    state = self.page.evaluate(_HOLD_JS, [LIST_REVIEWING, REVIEW_BAND, LIST_REVIEWING_TESTID])
                     now = time.monotonic()
                     if answers and hold["review"] is None:
                         hold["review"] = review_of_answer(answers[-1])
@@ -3255,6 +3264,14 @@ class Corridor:
                 for event, handler in listeners:
                     self.page.remove_listener(event, handler)
             hold["picked_sent"] = any(_sent_picks(row, name) for row in sent)
+            if hold["outcome"] == "moved" and hold["held"] \
+                    and (hold["held_s"] or 0) >= REVIEW_HOLD_CAP_S - REVIEW_HOLD_GRACE_S:
+                # keel-web 180's own cap: it held to its 90 s and moved on as if no review ran -- the review never landed
+                hold["outcome"] = "timeout"
+                raise ReviewHoldStop(
+                    f"DEFECT (keel-cloud 233): {name}'s Check held on *{LIST_REVIEWING}* {hold['held_s']} s and the page "
+                    f"moved on at its own {REVIEW_HOLD_CAP_S} s cap (the Save's review: "
+                    f"{hold['review'] or 'none named'}) -- the walk stops here", dict(hold, dimension=name))
             out: dict = {"primary": label, "review_hold": hold}
             if hold["outcome"] == "moved":
                 h.add_screenshot(self._b.screenshot(f"check-{name}-saved"))
