@@ -225,6 +225,9 @@ class Journey:
     #: refused result is a finding to record and step past, not the end of the walk. Every one is kept in `findings`.
     retries: int = 0
     findings: list = field(default_factory=list)
+    #: Spec 144 FR-1 (keel-cloud 233, keel-web 180): each reviewed list's Check Save as the walk waited it out --
+    #: `{review, held, held_s, outcome, picked_sent}` by dimension (`Corridor._save_holding`); into `backtest.json`.
+    review_holds: dict = field(default_factory=dict)
     #: Spec 064 (judgement call): a golden number the new build moved -- a standing, a count, a verdict, a card -- is
     #: a finding named with the served words beside the corpus's; it is recorded where it is read and the journey goes
     #: on, so one run names every one; `run` fails at the end on any (`deferred`).
@@ -2239,6 +2242,9 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         _keep_draft(j, question, "answer", answer.text)
         seen.append(_check_screen(j, question, key))
         _hold_check_intro(j, question, seen[-1])
+        if seen[-1].get("review_hold") is not None:
+            # spec 144 FR-1 / FR-2 (keel-cloud 233): what the hold did, and Choose picks on the list as the review left it
+            question = _after_the_review(j, vector, question, seen[-1])
         if key == COMMITMENT_KEY:
             _hold_commitment_check(j, question, seen[-1])
         if key in vs.PICKED:
@@ -2435,6 +2441,31 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         assert not mismatches, json.dumps(mismatches, indent=2)
 
 
+def _after_the_review(j: Journey, vector: str, question: dict, check: dict) -> dict:
+    """Spec 144 FR-1 / FR-2 (keel-cloud 233 FR-1, FR-2; keel-web 180): what a reviewed list's Check Save did --
+    recorded by dimension (`review_holds`) -- and the question Choose is walked on. On Compatibility (the one reviewed
+    list that picks) where the Save named a review or the Check stayed with the band, the calibration is read again and
+    the saved list as the review left it (`answer.list`: `typed`, `why`, `putAside`, `changed`) stands in for the draft,
+    so the pick is by label as served (`_choose_label`) and the strict checks count a changed or put-aside row present
+    (`keel_left_out`, `keel_added`). A Compatibility Check Save that carried a `pickedIndex` (a keel-web before 180) is a
+    finding, never a stop."""
+    key = question.get("dimension")
+    hold = check.get("review_hold") or {}
+    if isinstance(getattr(j, "review_holds", None), dict):
+        j.review_holds[key] = hold
+    if key == COMPATIBILITY_KEY and hold.get("picked_sent") and hasattr(j, "findings"):
+        j.findings.append({"what": f"{key}: the Check's Save sent a pickedIndex -- keel-cloud 233 FR-2 saves the list "
+                                   "before the pick (a keel-web before 180)", "served": {"dimension": key, **hold}})
+    if key not in vs.PICKED or not (hold.get("review") or hold.get("outcome") == "stayed"):
+        return question
+    view = _wait_calibration(j, vector)
+    served = next((q for q in view.get("questions") or [] if q.get("dimension") == key), None) or {}
+    saved = (served.get("answer") or {}).get("list")
+    if not isinstance(saved, dict) or not (vs.review_changed(saved) or vs.review_band(saved)):
+        return question
+    return {**question, "draft": saved}
+
+
 def reviewed_as_saved(want: dict, got: dict) -> bool:
     """Spec 143 FR-2 (keel-cloud 232 FR-3): a stored list the review changed is the founder's as saved where, read back to
     their words (`vs.founder_words`: a changed row's `typed`, a put-aside row's), it holds every row they saved, and
@@ -2473,6 +2504,18 @@ def _check_screen(j: Journey, question: dict, key: str) -> dict:
     -- the golden one and a back-test's -- the founder types there the other Importance difficulties the Answer's 25
     words could not name (`vs.importance_typed`; on a back-test each a finding, never a stop); on a back-test, Current
     solution's rungs the second box could not hold (spec 067 FR-2); else the list is saved as drawn."""
+    try:
+        return _check_screen_saved(j, question, key)
+    except vs_screens.ReviewHoldStop as stop:
+        # spec 144 FR-1: the hold past its cap is a keel-cloud defect to file; the walk stops here, by name
+        if hasattr(j, "findings"):
+            j.findings.append({"what": str(stop), "served": stop.hold})
+        if isinstance(getattr(j, "review_holds", None), dict):
+            j.review_holds[key] = stop.hold
+        raise
+
+
+def _check_screen_saved(j: Journey, question: dict, key: str) -> dict:
     typed = vs.importance_typed(j.entry) if key == "problem.importance" else []
     typed = _not_held_by_review(j, question, key, typed)
     if typed:

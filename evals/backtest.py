@@ -1539,6 +1539,18 @@ def check_did(seen: dict) -> str:
     return ", and ".join(done) + ", then saved"
 
 
+#: Spec 144 FR-1: the suffix of a Check's second shot, taken after the review's band (`vectors_screens.REVIEWED_SUFFIX`).
+REVIEWED_SUFFIX = "-reviewed"
+
+
+def reviewed_did(seen: dict) -> str:
+    """Spec 144 FR-1 (keel-web 180 FR-2): what the founder did on a Check the review changed, after the band -- read it
+    and pressed Continue (the words it carried); nothing put back, nothing edited (spec 143 FR-2)."""
+    pressed = (seen or {}).get("continue") or "Continue"
+    return (f"read what Keel changed after their Save (the band, the changed rows with the words they typed under Was, "
+            f"the rows put aside), then pressed {pressed} -- nothing put back, nothing edited")
+
+
 def founder_answer(j, slug: str) -> Any:
     """The founder's answer from the file for one screen slug (what was typed or picked there)."""
     f = j.founder
@@ -1588,11 +1600,17 @@ def founder_answer(j, slug: str) -> Any:
         # spec 090 FR-4 (keel-web 130 FR-5, `SEND_WHO.OWN`)
         return "People I know by name: each person by name"
     kind, _, key = slug.partition("-")
+    # spec 144 FR-1: the second shot of a Check the review changed (`check-{dim}-reviewed`) is that dimension's
+    reviewed = kind == "check" and key.endswith(REVIEWED_SUFFIX)
+    key = key[: -len(REVIEWED_SUFFIX)] if reviewed else key
     answer = answers.get(key)
     if answer is None:
         return None
     if answer.unsure:
         return "left out of the study (the founder is unsure)"
+    if reviewed:
+        return reviewed_did(next((s for s in (getattr(j, "framing", None) or {}).get(key) or []
+                                  if s.get("screen") == "check"), {}))
     if kind == "q":
         return {k: v for k, v in answer.as_wire().items() if k != "dimension"}
     seen = ((getattr(j, "framing", None) or {}).get(key)) or []
@@ -1648,6 +1666,9 @@ def read_back(j, slug: str, wire: dict) -> Any:
                                     for t in persona.get("respondentTypes") or []], "decider": persona.get("decider"),
                 "deciderTitle": persona.get("deciderTitle")}
     _, _, key = slug.partition("-")
+    # spec 144 FR-1: the second shot of a Check (`check-{dim}-reviewed`) reads back its dimension, as the review left it
+    reviewed = slug.startswith("check-") and key.endswith(REVIEWED_SUFFIX)
+    key = key[: -len(REVIEWED_SUFFIX)] if reviewed else key
     if "." not in key:
         return None
     rows = {r.get("dimension"): r for r in (wire.get(f"review/{_vector_of(key)}") or {}).get("rows") or []}
@@ -1655,6 +1676,8 @@ def read_back(j, slug: str, wire: dict) -> Any:
     seen = (j.framing or {}).get(key) or []
     screen = {"q": "single", "answer": "answer", "check": "check", "choose": "choose"}.get(slug.split("-", 1)[0])
     drawn = next((s for s in seen if s.get("screen") == screen), {}) if screen else {}
+    if reviewed:
+        drawn = {**drawn, **((drawn or {}).get("reviewed") or {}), "test_after": None}
     # spec 134 FR-1: on an Answer and a Check screen the reader gets the belief the screen drew (`belief line on screen`,
     # `keel will test`, `bar` from the camera's `test` / `test_after`), never the wire's row `belief` -- read after the
     # walk, it carries what the founder typed on later screens (purchase friction's time, typed on Choose, reached the
@@ -2311,6 +2334,15 @@ def lists_reviewed(j) -> dict:
     return vs.lists_reviewed(views)
 
 
+def review_hold_said(hold: dict) -> str:
+    """Spec 144 FR-1: one reviewed Check's Save in words -- held or not, for how long, and what followed."""
+    said = (f"held on *Keel is reading your answers* {hold.get('held_s')} s" if hold.get("held")
+            else "no hold seen")
+    said += {"moved": ", then moved on", "stayed": ", then stayed with the band (shot again, Continue pressed)",
+             "timeout": ", past the cap: DEFECT (keel-cloud 233), the walk stopped"}.get(hold.get("outcome"), "")
+    return said + (f" (review `{hold['review']}`)" if hold.get("review") else " (the answer named no review)")
+
+
 def transcript(j, bt: Backtest) -> dict:
     if j is None:
         return {"journey": "never opened"}
@@ -2336,6 +2368,10 @@ def transcript(j, bt: Backtest) -> dict:
         # spec 143 FR-2: what the review did to each list it changed -- the founder's words, the row as served, the why,
         # and the band (absent on a walk where it changed none, as a bundle before 143 reads)
         **({"lists_reviewed": reviewed} if (reviewed := _safe(lambda: lists_reviewed(j), {})) else {}),
+        # spec 144 FR-1: each reviewed list's Check Save as the walk waited it out (`{review, held, held_s, outcome,
+        # picked_sent}`); FR-2: a Choose pick the review moved (`{planned, why, picked, row}`) -- absent where none
+        **({"review_holds": dict(j.review_holds)} if getattr(j, "review_holds", None) else {}),
+        **({"review_picks": dict(j.review_picks)} if getattr(j, "review_picks", None) else {}),
         # spec 106 FR-2: the walk's cap on the person's own link, where `PEOPLE=` named one
         **({"people": bt.people} if bt.people else {}),
         # spec 126 FR-2: every typo the founder typed, `{field, meant, typed, kind}` -- absent on a walk that typed none
@@ -2416,6 +2452,11 @@ def markdown(r: dict) -> str:
                + "; ".join(f"'{c.get('typed')}' -> " + (f"'{c['label']}'" if c.get("label") else "put aside")
                            for c in v.get("review_changed") or [])
                for dim, v in (r.get("lists_reviewed") or {}).items() if isinstance(v, dict)],
+             # spec 144 FR-1 / FR-2: how each reviewed Check's Save held, and a pick the review moved
+             *[f"- The Save of {dim}'s Check: " + review_hold_said(v)
+               for dim, v in (r.get("review_holds") or {}).items() if isinstance(v, dict)],
+             *[f"- The review put {dim}'s planned pick '{v.get('planned')}' aside; the pick fell to '{v.get('picked')}'"
+               for dim, v in (r.get("review_picks") or {}).items() if isinstance(v, dict)],
              f"- THEMES settled before the export: {_q(r.get('themes_settled'))}",
              f"- Keel's AI refused and retried (findings): {len(r.get('findings') or [])}"
              + "".join(f"\n  - {f.get('what')}: "

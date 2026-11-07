@@ -532,6 +532,26 @@ def unreviewed(slug_or_key: str | None) -> str | None:
     return slug_or_key
 
 
+class ReviewHoldStop(AssertionError):
+    """Spec 144 FR-1: a Check Save held on *Keel is reading your answers* past `REVIEW_HOLD_CAP_S` -- the walk stops here
+    by name, a `DEFECT (keel-cloud 233)` finding (`hold` carries what the walk saw: the dimension, the read-back the
+    Save's answer named, the seconds)."""
+
+    def __init__(self, message: str, hold: dict):
+        super().__init__(message)
+        self.hold = hold
+
+
+#: Spec 144 FR-1: what the walk reads of a Check while its Save holds -- the address, the hold's words anywhere on the
+#: page as drawn (`innerText`: the status line or the primary's own words), the band (`list-changed`), the primary.
+_HOLD_JS = """([reviewing, band]) => {
+  const text = document.body ? document.body.innerText : "";
+  const btn = document.querySelector(".ccard__foot button.btn.primary");
+  return {url: window.location.href, reviewing: text.includes(reviewing), band: !!document.querySelector(band),
+          label: btn ? btn.innerText.trim() : null, disabled: btn ? !!btn.disabled : null};
+}"""
+
+
 def _was_line(text: str | None) -> str | None:
     """Spec 143 FR-2 (keel-web 179 FR-2): the founder's words off a changed row's *Was: <typed>* line (the *Put back*
     button's words after it left off); None where the row draws none."""
@@ -716,6 +736,16 @@ def _asked_items(items: list, wire_answers: dict) -> list:
 def _pointed_back(item: dict, wire_answers: dict) -> str | None:
     from harness import vectors_script as vs                       # noqa: PLC0415
     return vs.asked_after(item, wire_answers)[1]
+
+
+def _sent_picks(row: dict, dimension: str | None) -> bool:
+    """Spec 144 FR-1 (keel-cloud 233 FR-2): whether one kept PUT (`_request_row`) carried a `pickedIndex` for
+    `dimension`'s list -- Compatibility's Check sends none since 233."""
+    body = (row or {}).get("body") or {}
+    for answer in body.get("answers") or [] if isinstance(body, dict) else []:
+        if isinstance(answer, dict) and answer.get("dimension") == dimension:
+            return (answer.get("list") or {}).get("pickedIndex") is not None
+    return False
 
 
 def served_picked_index(writes: list[dict], dimension: str | None) -> int | None:
@@ -2053,6 +2083,13 @@ class Corridor:
         if owner is not None and hasattr(owner, "after_edit"):
             owner.after_edit(slug)
 
+    def _evidence(self, slug: str, why: str) -> None:
+        """Spec 144 FR-1: the page as it stood when the review's hold ran past its cap -- kept apart from the founder's
+        screens (`evals/backtest.Camera.evidence`, spec 119 FR-8: a waiting state, never scored); nothing elsewhere."""
+        owner = getattr(self.camera, "__self__", None)
+        if owner is not None and hasattr(owner, "evidence"):
+            owner.evidence(slug, why)
+
     # ------------------------------------------------------------------------ every screen's frame
 
     def frame(self) -> dict:
@@ -3092,10 +3129,143 @@ class Corridor:
         seen["rows_cut_to_fit"] = self._cut_over_cap_rows(name, served_word_cap(question))
         # spec 119 (keel-web 158 T006, keel-cloud 187 FR-1): the Check intro says the served cap (Compatibility's 16)
         seen["intro"] = " ".join(_first_text(self.page, ".corridor__intro").split()) or None
+        if name in REVIEWED_LISTS:
+            # spec 144 FR-1 (keel-cloud 233, keel-web 180): the Save may hold for the review -- waited out, and the Check
+            # shot again after the band where it stays
+            seen.update(self._save_holding(question))
+            return seen
         with self._b.step(f"founder saves {name}") as h:
             seen["primary"] = self._press_primary()
             h.add_screenshot(self._b.screenshot(f"check-{name}-saved"))
             return seen
+
+    def _save_holding(self, question: dict) -> dict:
+        """Spec 144 FR-1 (keel-cloud 233 FR-1, keel-web 180 FR-1 / FR-2): Save pressed on Importance's, Current
+        solution's or Compatibility's Check, then waited out:
+
+        - the page moves on (no `review` in the Save's answer, the review changed nothing, or it failed) -- nothing more
+          is read;
+        - the page holds (*Keel is reading your answers*, `LIST_REVIEWING`, the primary disabled) -- waited for, at most
+          `REVIEW_HOLD_CAP_S` from when it was first seen, then `ReviewHoldStop` (a `DEFECT (keel-cloud 233)`; the walk
+          stops by name);
+        - the Check stays with the band (`list-changed`) and the primary reads *Continue* / *Continue to choose* -- the
+          Check is read again (`reviewed`: the rows as changed, the band, the put-aside rows, the *Keel will test* box),
+          shot a second time for the reader (`check-{dim}-reviewed`, the camera's founder shot) and Continue pressed. Never
+          Put back, never an edit after the hold (spec 143 FR-2).
+
+        Returns `primary` (the Save's words), `review_hold` (`{review, held, held_s, outcome, picked_sent}`: the read-back
+        the Save's answer named, whether the hold's words were seen, its seconds, `moved` / `stayed`, and whether the
+        Save's PUT carried a `pickedIndex` -- keel-cloud 233 FR-2: Compatibility's Check sends none) and, where it
+        stayed, `reviewed` and `continue` (the words Continue carried)."""
+        name = question.get("dimension")
+        with self._b.step(f"founder saves {name} and waits for Keel's review (keel-cloud 233)") as h:
+            primary = self._primary()
+            primary.wait_for(state="visible", timeout=20_000)
+            label = _safe_text(lambda: primary.inner_text()).strip()
+            before = self.page.url
+            budget_s = SAVE_BUDGET_S * self.patience
+            answers: list = []
+            sent: list = []
+            refused: list = []
+
+            def on_response(response) -> None:
+                request = response.request
+                if request.method == "PUT" and CALIBRATION_PUT.search(response.url.split("?")[0]):
+                    if response.status == 409:
+                        refused.append({"url": response.url, "method": "PUT"})
+                    elif response.ok:
+                        answers.append(_json_body(response))
+                    try:
+                        body = request.post_data_json
+                    except Exception:  # noqa: BLE001 - a body that is not JSON
+                        body = request.post_data
+                    sent.append({"method": "PUT", "path": response.url.split("?")[0], "body": body,
+                                 "status": response.status})
+
+            pending: set = set()
+
+            def on_request(request) -> None:
+                if request.method in ("PUT", "POST", "PATCH", "DELETE") and "/v2/" in request.url:
+                    pending.add(request)
+
+            def on_done(request) -> None:
+                pending.discard(request)
+
+            listeners = (("response", on_response), ("request", on_request), ("requestfinished", on_done),
+                         ("requestfailed", on_done))
+            for event, handler in listeners:
+                self.page.on(event, handler)
+            hold = {"review": None, "held": False, "held_s": None, "outcome": None}
+            try:
+                self.page.wait_for_function("(b) => !b.disabled", arg=primary.element_handle(), timeout=30_000)
+                started = time.monotonic()
+                primary.click()
+                held_at = left_at = None
+                pressed_again = False
+                while True:
+                    state = self.page.evaluate(_HOLD_JS, [LIST_REVIEWING, REVIEW_BAND])
+                    now = time.monotonic()
+                    if answers and hold["review"] is None:
+                        hold["review"] = review_of_answer(answers[-1])
+                    if state["url"] != before:
+                        hold["outcome"] = "moved"
+                        break
+                    if state["reviewing"]:
+                        left_at = None
+                        if held_at is None:
+                            held_at, hold["held"] = now, True
+                        elif now - held_at > REVIEW_HOLD_CAP_S:
+                            hold["held_s"] = round(now - held_at, 1)
+                            hold["outcome"] = "timeout"
+                            self._evidence(f"check-{name}-held", f"held past {REVIEW_HOLD_CAP_S} s")
+                            raise ReviewHoldStop(
+                                f"DEFECT (keel-cloud 233): {name}'s Check held on *{LIST_REVIEWING}* past "
+                                f"{REVIEW_HOLD_CAP_S} s (the Save's review: {hold['review'] or 'none named'}) -- the "
+                                "walk stops here", dict(hold, dimension=name))
+                        self.page.wait_for_timeout(250)
+                        continue
+                    if held_at is not None and left_at is None:
+                        left_at = now
+                    if state["band"] and not state["disabled"] and (answers or held_at is not None) \
+                            and state["label"] in (LIST_CONTINUE, LIST_CONTINUE_CHOOSE):
+                        hold["outcome"] = "stayed"
+                        break
+                    if refused and not pressed_again:
+                        # runs/DRIFT.md #80, as `_press_primary`: a 409 on the Save is pressed again once
+                        pressed_again = True
+                        self.page.wait_for_timeout(4_000)
+                        self._primary().click()
+                        self.conflicts.append({"screen": before, "refused": list(refused), "label": label})
+                    # the walk's step budget from the press -- or, once a hold was seen, from when it left
+                    if now - (left_at if left_at is not None else started) > budget_s:
+                        raise AssertionError(
+                            f"{name}'s Save neither moved the page nor stayed with the band and Continue in "
+                            f"{budget_s:.0f} s" + (" after the review's hold left" if left_at is not None else "")
+                            + f" (the primary reads {state['label']!r}, disabled {state['disabled']}, the band "
+                            + ("drawn" if state["band"] else "not drawn") + ")")
+                    self.page.wait_for_timeout(250)
+                if held_at is not None:
+                    hold["held_s"] = round((left_at or time.monotonic()) - held_at, 1)
+                if answers and hold["review"] is None:
+                    hold["review"] = review_of_answer(answers[-1])
+                settle = time.monotonic() + SAVE_SETTLE_S
+                while pending and time.monotonic() < settle:
+                    self.page.wait_for_timeout(200)
+            finally:
+                for event, handler in listeners:
+                    self.page.remove_listener(event, handler)
+            hold["picked_sent"] = any(_sent_picks(row, name) for row in sent)
+            out: dict = {"primary": label, "review_hold": hold}
+            if hold["outcome"] == "moved":
+                h.add_screenshot(self._b.screenshot(f"check-{name}-saved"))
+                return out
+            # the Check stays with the band: read it as the review left it, shoot it for the reader, press Continue
+            out["reviewed"] = {**self._list_rows(), "test": self._keel_test()}
+            self._shot(reviewed_slug(name))
+            h.capture_text("stage_screen", _text(self.page))
+            h.add_screenshot(self._b.screenshot(reviewed_slug(name)))
+            out["continue"] = self._press_primary(state["label"])
+            return out
 
     def _cut_over_cap_rows(self, name: str, cap: int = 9) -> list[dict]:
         """A Check screen whose drafted row is over its word cap keeps *Save* disabled (09-karsa, 2026-10-24: Keel drafted
