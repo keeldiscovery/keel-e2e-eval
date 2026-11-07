@@ -225,6 +225,12 @@ class Journey:
     #: refused result is a finding to record and step past, not the end of the walk. Every one is kept in `findings`.
     retries: int = 0
     findings: list = field(default_factory=list)
+    #: Spec 144 FR-1 (keel-cloud 233, keel-web 180): each reviewed list's Check Save as the walk waited it out --
+    #: `{review, held, held_s, outcome, picked_sent}` by dimension (`Corridor._save_holding`); into `backtest.json`.
+    review_holds: dict = field(default_factory=dict)
+    #: Spec 144 FR-2: a Choose pick the review moved -- the planned row put aside, the pick fallen to the first founder row
+    #: still on the list -- `{planned, why, picked, row}` by dimension; into `backtest.json`.
+    review_picks: dict = field(default_factory=dict)
     #: Spec 064 (judgement call): a golden number the new build moved -- a standing, a count, a verdict, a card -- is
     #: a finding named with the served words beside the corpus's; it is recorded where it is read and the journey goes
     #: on, so one run names every one; `run` fails at the end on any (`deferred`).
@@ -1881,7 +1887,7 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
     121), so the first row equal to the typed label is the pick and a near one is found as on any founder row."""
     typed = _typed_labels(answer)
     index = (answer.listed or {}).get("pickedIndex") or 0
-    if j.strict:
+    if j.strict and not vs.review_changed(question.get("draft")):
         return typed[index], index
     want = typed[index]
     rows = _drafted_labels(question)
@@ -1900,9 +1906,22 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
                                    "232); picked as served", "served": {"dimension": key, "typed": want,
                                                                         "label": rows[changed], "rows": rows}})
         return rows[changed], changed
-    if any(vs.typed_is(want, row) for row in vs.put_aside_of(question.get("draft"))):
-        raise vs.VectorsScriptError(f"{key}: the founder's picked item {want!r} was put aside by the review (keel-cloud "
-                                    "232) -- a picked row the review puts aside is a keel-cloud defect, never put back")
+    aside = next((row for row in vs.put_aside_of(question.get("draft")) if vs.typed_is(want, row)), None)
+    if aside is not None:
+        # spec 144 FR-2 (keel-cloud 233 FR-3 / FR-4): the review put the planned pick aside -- the pick falls to the first
+        # founder row still on the list (recorded), never put back; none left stops by name
+        fell = first_founder_row(question, typed)
+        if fell is None:
+            raise vs.VectorsScriptError(f"{key}: the founder's picked item {want!r} was put aside by the review "
+                                        "(keel-cloud 233) and no founder row is left on the list -- never put back")
+        at, label = fell
+        picked = {"planned": want, "why": aside.get("why"), "picked": label, "row": at}
+        if isinstance(getattr(j, "review_picks", None), dict):
+            j.review_picks[key] = picked
+        j.findings.append({"what": f"the review put the founder's picked row '{want}' aside (keel-cloud 233); the pick "
+                                   f"fell to the first founder row still on the list, '{label}'",
+                           "served": {"dimension": key, **picked, "rows": rows}})
+        return label, at
     near = nearest_rows(want, founders, typed)
     if len(near) == 1:
         j.findings.append({"what": f"DRIFT: Keel reworded the founder's row '{want}' as '{near[0]}' (spec 081)",
@@ -1920,6 +1939,21 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
             said += f"; Keel left out {left_out!r} (spec 108 FR-2)"
     raise vs.VectorsScriptError(
         f"{key}: the founder's picked item {want!r} is not on the drafted list (spec 104 FR-1); {said}")
+
+
+def first_founder_row(question: dict, typed: list[str]) -> tuple[int, str] | None:
+    """Spec 144 FR-2: the first row on the served list that is the founder's -- its label one they typed (folded as
+    `_folded_words` reads it) or its `typed` their words (a row the review changed) -- never Keel's suggestion where the
+    mark is Keel's (`_keels_suggestion`); `(row, label as served)`, or None where none is left."""
+    keels = _keels_suggestion(question)
+    folded = {tuple(_folded_words(t)) for t in typed}
+    for at, row in enumerate(_drafted_rows(question)):
+        if keels and row.get("suggested"):
+            continue
+        label = row.get("label")
+        if tuple(_folded_words(label)) in folded or any(vs.typed_is(t, row) for t in typed):
+            return at, label
+    return None
 
 
 def review_changed_pick(question: dict, want: str) -> int | None:
@@ -2239,6 +2273,9 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         _keep_draft(j, question, "answer", answer.text)
         seen.append(_check_screen(j, question, key))
         _hold_check_intro(j, question, seen[-1])
+        if seen[-1].get("review_hold") is not None:
+            # spec 144 FR-1 / FR-2 (keel-cloud 233): what the hold did, and Choose picks on the list as the review left it
+            question = _after_the_review(j, vector, question, seen[-1])
         if key == COMMITMENT_KEY:
             _hold_commitment_check(j, question, seen[-1])
         if key in vs.PICKED:
@@ -2269,6 +2306,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             duration = vs.walker_duration(j.entry) if key == vs.PURCHASE_FRICTION_KEY else None
             seen.append(j.corridor.list_choose(question, label, duration=duration))
             seen[-1]["row"] = row       # spec 116 FR-1: the drafted row the label was found at
+            _choose_after_the_review(j, question, seen[-1])
         j.framing[key] = seen
     refused = j.corridor.conflicts[conflicts:]
     if refused:
@@ -2398,7 +2436,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             review_defects(j, key, got, vs_screens.served_word_cap(q))
             if j.strict:
                 want = vs.saved_list(j.entry, key)
-                if have != want and not reviewed_as_saved(want, got):
+                if have != want and not reviewed_as_saved(want, got, (getattr(j, "review_picks", None) or {}).get(key)):
                     mismatches.append({"dimension": key, "wire": have, "corpus": want})
             else:
                 codes = [i.get("code") for i in items]
@@ -2435,23 +2473,108 @@ def leg_calibrate(j: Journey, vector: str) -> None:
         assert not mismatches, json.dumps(mismatches, indent=2)
 
 
-def reviewed_as_saved(want: dict, got: dict) -> bool:
+def _after_the_review(j: Journey, vector: str, question: dict, check: dict) -> dict:
+    """Spec 144 FR-1 / FR-2 (keel-cloud 233 FR-1, FR-2; keel-web 180): what a reviewed list's Check Save did --
+    recorded by dimension (`review_holds`) -- and the question Choose is walked on. On Compatibility (the one reviewed
+    list that picks) where the Save named a review or the Check stayed with the band, the calibration is read again and
+    the saved list as the review left it (`answer.list`: `typed`, `why`, `putAside`, `changed`) stands in for the draft,
+    so the pick is by label as served (`_choose_label`) and the strict checks count a changed or put-aside row present
+    (`keel_left_out`, `keel_added`). A Compatibility Check Save that carried a `pickedIndex` (a keel-web before 180) is a
+    finding, never a stop."""
+    key = question.get("dimension")
+    hold = check.get("review_hold") or {}
+    if isinstance(getattr(j, "review_holds", None), dict):
+        j.review_holds[key] = hold
+    if key == COMPATIBILITY_KEY and hold.get("picked_sent") and hasattr(j, "findings"):
+        j.findings.append({"what": f"{key}: the Check's Save sent a pickedIndex -- keel-cloud 233 FR-2 saves the list "
+                                   "before the pick (a keel-web before 180)", "served": {"dimension": key, **hold}})
+    if hold.get("continue_put") and hasattr(j, "findings"):
+        j.findings.append({"what": f"{key}: Continue after the review sent a PUT -- keel-web 180 FR-2 moves on with no "
+                                   "Save on an untouched Check", "served": {"dimension": key, **hold}})
+    if key not in vs.PICKED or not (hold.get("review") or hold.get("outcome") == "stayed"):
+        return question
+    view = _wait_calibration(j, vector)
+    served = next((q for q in view.get("questions") or [] if q.get("dimension") == key), None) or {}
+    saved = (served.get("answer") or {}).get("list")
+    if not isinstance(saved, dict) or not (vs.review_changed(saved) or vs.review_band(saved)):
+        return question
+    return {**question, "draft": saved}
+
+
+def choose_after_review_faults(question: dict, choose: dict) -> list[dict]:
+    """Spec 144 FR-2 (keel-web 180 FR-3, keel-cloud 233 FR-2): Compatibility's Choose on a list the review changed -- the
+    options are the rows as served, no put-aside row among them, and the Save posts the rows as served (their labels) with
+    the pick. `[]` on a list the review left alone; each miss `{what, drawn, want}`."""
+    draft = question.get("draft") or {}
+    if not vs.review_changed(draft):
+        return []
+    served = [i.get("label") for i in vs.served_items(draft)]
+    aside = [r.get("typed") for r in vs.put_aside_of(draft)]
+    faults = []
+    options = [" ".join(str(o).split()) for o in choose.get("options") or []]
+    drawn_aside = [o for o in options if any(vs._same_words(o, a) for a in aside)]
+    if drawn_aside:
+        faults.append({"what": "a put-aside row offered on Choose", "drawn": drawn_aside, "want": []})
+    key = question.get("dimension")
+    for write in choose.get("writes") or []:
+        body = write.get("body") if isinstance(write.get("body"), dict) else {}
+        for answer in body.get("answers") or []:
+            if isinstance(answer, dict) and answer.get("dimension") == key:
+                sent = [i.get("label") for i in (answer.get("list") or {}).get("items") or []]
+                if sent != served:
+                    faults.append({"what": "the Choose Save's rows are not the rows as served", "drawn": sent,
+                                   "want": served})
+    return faults
+
+
+def _choose_after_the_review(j: Journey, question: dict, choose: dict) -> None:
+    """Spec 144 FR-2: `choose_after_review_faults` filed as findings (never a stop: the pick and its index are held by
+    `choose_faults` as before)."""
+    for fault in choose_after_review_faults(question, choose):
+        if hasattr(j, "findings"):
+            j.findings.append({"what": f"{question.get('dimension')}: {fault['what']} (keel-web 180 FR-3, keel-cloud 233 "
+                                       "FR-2)", "served": fault})
+
+
+def reviewed_as_saved(want: dict, got: dict, fell: dict | None = None) -> bool:
     """Spec 143 FR-2 (keel-cloud 232 FR-3): a stored list the review changed is the founder's as saved where, read back to
     their words (`vs.founder_words`: a changed row's `typed`, a put-aside row's), it holds every row they saved, and
-    the pick and the phrase stand. False on a list the review left alone (the strict comparison stands as it was)."""
+    the pick and the phrase stand. False on a list the review left alone (the strict comparison stands as it was).
+
+    Spec 144 FR-2 (keel-cloud 233 FR-2): Compatibility's pick lands on the list as reviewed, so the pick stands by its
+    words, not its index -- the picked row's `typed` (or its label, untouched) is the founder's picked label; where the
+    review put the planned pick aside (`fell`, `Journey.review_picks`) the picked row is the one it fell to."""
     if not (vs.review_changed(got)):
         return False
+    if fell:
+        pick = _picked_row(got).get("label") == fell.get("picked")
+    else:
+        pick = _picked_words(got) == _picked_words(want)
     return sorted(vs.founder_words(got)) == sorted(i.get("label") for i in want.get("items") or []) \
-        and got.get("pickedIndex") == want.get("pickedIndex") and got.get("phrase") == want.get("phrase")
+        and pick and got.get("phrase") == want.get("phrase")
+
+
+def _picked_row(listed: dict) -> dict:
+    items, at = (listed or {}).get("items") or [], (listed or {}).get("pickedIndex")
+    return items[at] if isinstance(at, int) and 0 <= at < len(items) and isinstance(items[at], dict) else {}
+
+
+def _picked_words(listed: dict) -> str | None:
+    """Spec 144 FR-2: the founder's words of a list's picked row -- its `typed` where the review changed it, else its
+    label; None where nothing is picked."""
+    row = _picked_row(listed)
+    return row.get("typed") or row.get("label") if row else None
 
 
 def review_defects(j: Journey, key: str, saved: dict, cap: int) -> list[dict]:
     """Spec 143 FR-2: each changed row over the walk's own word cap (`vs.changed_over_cap`) filed as a keel-cloud defect
     finding -- never a retype, never a stop."""
     over = vs.changed_over_cap(saved, cap)
+    # spec 144 FR-2: Compatibility's rows are changed by keel-cloud 233, Importance's and Current solution's by 232
+    spec = "233" if key == COMPATIBILITY_KEY else "232"
     for row in over:
         if hasattr(j, "findings"):
-            j.findings.append({"what": f"DEFECT (keel-cloud 232): the review changed the founder's row '{row['typed']}' "
+            j.findings.append({"what": f"DEFECT (keel-cloud {spec}): the review changed the founder's row '{row['typed']}' "
                                        f"to '{row['label']}', {row['words']} words, over the {row['cap']}-word cap; "
                                        "left as served", "served": {"dimension": key, **row}})
     return over
@@ -2473,6 +2596,18 @@ def _check_screen(j: Journey, question: dict, key: str) -> dict:
     -- the golden one and a back-test's -- the founder types there the other Importance difficulties the Answer's 25
     words could not name (`vs.importance_typed`; on a back-test each a finding, never a stop); on a back-test, Current
     solution's rungs the second box could not hold (spec 067 FR-2); else the list is saved as drawn."""
+    try:
+        return _check_screen_saved(j, question, key)
+    except vs_screens.ReviewHoldStop as stop:
+        # spec 144 FR-1: the hold past its cap is a keel-cloud defect to file; the walk stops here, by name
+        if hasattr(j, "findings"):
+            j.findings.append({"what": str(stop), "served": stop.hold})
+        if isinstance(getattr(j, "review_holds", None), dict):
+            j.review_holds[key] = stop.hold
+        raise
+
+
+def _check_screen_saved(j: Journey, question: dict, key: str) -> dict:
     typed = vs.importance_typed(j.entry) if key == "problem.importance" else []
     typed = _not_held_by_review(j, question, key, typed)
     if typed:

@@ -285,6 +285,8 @@ def founder_screens(bundle: dict) -> list[Screen]:
         name = s.get("screen") or f"screen-{s.get('n')}"
         match = _FOUNDER_KIND.match(name)
         kind, dimension = (match.group(1), match.group(2)) if match else (name, None)
+        # spec 144 FR-3: the Check shot again after the review's band (`check-{dim}-reviewed`) is its dimension's screen
+        dimension = cards.fold_reviewed(dimension) if kind == "check" else dimension
         body = [f"Screen {s.get('n')} of {len(bundle.get('founder_screens') or [])} of the founder flow ({name}).",
                 f"Kicker: {s.get('kicker') or ''}"]
         if s.get("question"):
@@ -570,7 +572,10 @@ def checked_beliefs(bundle: dict) -> str:
         belief = back.get("belief line on screen") or back.get("belief")
         if not belief:
             continue
-        line = f"- {name.removeprefix('check-')} ({(s.get('kicker') or '').strip()}): {belief}"
+        said = name.removeprefix("check-")
+        if cards.fold_reviewed(said) != said:                   # spec 144 FR-3: the Check after the review's band
+            said = f"{cards.fold_reviewed(said)}, after Keel's review"
+        line = f"- {said} ({(s.get('kicker') or '').strip()}): {belief}"
         if back.get("keel will test"):
             line += f"; Keel will test: {back['keel will test']}"
         if back.get("bar"):
