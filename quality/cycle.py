@@ -238,6 +238,10 @@ class Study:
     # spec 143 FR-2: what the review did on this walk's lists (`backtest.json`'s `lists_reviewed`), `{changed,
     # put_aside}` -- None where the bundle records the switch OFF or predates 143
     review_rows: dict | None = None
+    # spec 144 FR-3: the same per dimension (`{dimension: {changed, put_aside}}`, the three the review reads) and the
+    # second founder shots of a Check taken after the review's band (`check-{dim}-reviewed`) -- None before 144
+    review_dims: dict | None = None
+    review_shots: list | None = None
 
     @property
     def key(self) -> str:
@@ -363,7 +367,8 @@ def _study_data(study: Study) -> dict:
     """A study as the record's data block keeps it -- `vite_timeouts` (spec 140) only where the walk read a web log, so a
     record of walks before 140 is 126's to the byte."""
     data = asdict(study)
-    for key in ("vite_timeouts", "review_switch", "review_rows"):   # spec 143: as 140 -- absent on a bundle before it
+    for key in ("vite_timeouts", "review_switch", "review_rows",    # spec 143: as 140 -- absent on a bundle before it
+                "review_dims", "review_shots"):                       # spec 144 FR-3: the same
         if data.get(key) is None:
             data.pop(key, None)
     return data
@@ -376,15 +381,57 @@ def review_rows(lists_reviewed) -> dict:
     return {"changed": sum(1 for c in rows if c.get("label")), "put_aside": sum(1 for c in rows if not c.get("label"))}
 
 
+#: Spec 144 FR-3: the three lists the review reads back (keel-cloud 232: Importance, Current solution; 233:
+#: Compatibility), in the order the record names them, with their short names.
+REVIEWED_DIMENSIONS = (("problem.importance", "Importance"), ("problem.current_solution_satisfaction", "Current solution"),
+                       ("solution.compatibility", "Compatibility"))
+
+
+def review_dims(lists_reviewed) -> dict:
+    """Spec 144 FR-3: a bundle's `lists_reviewed` counted per dimension -- `{dimension: {changed, put_aside}}` for each
+    of the three the review reads (zero where it changed none)."""
+    out = {}
+    for key, _ in REVIEWED_DIMENSIONS:
+        rows = ((lists_reviewed or {}).get(key) or {}).get("review_changed") or []
+        out[key] = {"changed": sum(1 for c in rows if c.get("label")),
+                    "put_aside": sum(1 for c in rows if not c.get("label"))}
+    return out
+
+
+def review_shots(founder_screens) -> list[str]:
+    """Spec 144 FR-3: the bundle's second founder shots of a Check, taken after the review's band (`check-{dim}-reviewed`),
+    in the walk's order."""
+    return [str(s.get("screen")) for s in founder_screens or []
+            if isinstance(s, dict) and str(s.get("screen") or "").startswith("check-")
+            and cards.fold_reviewed(str(s.get("screen"))) != str(s.get("screen"))]
+
+
 def review_line(d: dict) -> list[str]:
-    """Spec 143 FR-2: under the head of a cycle walked with the review on, what it changed over the walks."""
+    """Spec 143 FR-2: under the head of a cycle walked with the review on, what it changed over the walks. Spec 144 FR-3:
+    where the walks recorded it, per dimension -- the three the review reads -- and the Checks shot again after the
+    band, named by walk (a record of walks before 144 reads as 143 wrote it)."""
     if d.get("review_switch") != "ON":
         return []
-    counted = [s.get("review_rows") for s in d.get("studies") or [] if isinstance(s.get("review_rows"), dict)]
+    studies = d.get("studies") or []
+    counted = [s.get("review_rows") for s in studies if isinstance(s.get("review_rows"), dict)]
     changed, aside = sum(c.get("changed", 0) for c in counted), sum(c.get("put_aside", 0) for c in counted)
-    return [f"  - the review (spec 209, keel-cloud 232): {changed} founder row{'s' if changed != 1 else ''} changed and "
+    head = (f"  - the review (spec 209, keel-cloud 232): {changed} founder row{'s' if changed != 1 else ''} changed and "
             f"{aside} put aside over {len(counted)} walk{'s' if len(counted) != 1 else ''} (each bundle's "
-            "`lists_reviewed`); the readers scored the screens as served"]
+            "`lists_reviewed`)")
+    dims = [s.get("review_dims") for s in studies if isinstance(s.get("review_dims"), dict)]
+    if not dims:
+        return [head + "; the readers scored the screens as served"]
+    per = []
+    for key, short in REVIEWED_DIMENSIONS:
+        c = sum((x.get(key) or {}).get("changed", 0) for x in dims)
+        a = sum((x.get(key) or {}).get("put_aside", 0) for x in dims)
+        per.append(f"{short} {c} changed / {a} put aside")
+    shots = [(f"{s.get('entry')} · {s.get('scope')}", name) for s in studies for name in s.get("review_shots") or []]
+    said = (f"; the Check shot again after the band (keel-cloud 233, spec 144) on {len(shots)} "
+            f"screen{'s' if len(shots) != 1 else ''}: " + ", ".join(f"{w} `{n}`" for w, n in shots)) if shots else \
+        "; no Check stayed with the band (no second shot)"
+    return [head.replace("(spec 209, keel-cloud 232)", "(spec 209, keel-cloud 232, 233)") + " -- " + ", ".join(per)
+            + said + "; the readers scored the screens as served, the second shots under their dimension"]
 
 
 def review_of(record_switch: str | None, studies: list[dict]) -> str | None:
@@ -467,6 +514,10 @@ def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=sub
         study.review_switch = record["review_switch"]
     if study.review_switch == "ON":                             # spec 143 FR-2: what the review changed on its lists
         study.review_rows = review_rows(record.get("lists_reviewed"))
+        if "review_holds" in record or review_shots(record.get("founder_screens")):
+            # spec 144 FR-3: per dimension, and the Checks shot again after the band (a bundle of 144's walk)
+            study.review_dims = review_dims(record.get("lists_reviewed"))
+            study.review_shots = review_shots(record.get("founder_screens"))
     walked_scope = record.get("scope") or "ALL"
     if walked_scope != scope:
         study.error = f"the bundle says scope {walked_scope}, the walk asked {scope}"
@@ -1071,7 +1122,9 @@ def failing_screens(row: dict, files: list[dict], *, limit: int = 12) -> list[st
                                + "; ".join(f"{c.upper()} {r[c]} -- {r['whys'].get(c, '')}" for c in low))
             continue
         for s in f["screens"]:
-            if (s.get("dimension") or "-", s["audience"], s["kind"]) != (row["dimension"], row["audience"], row["kind"]):
+            # spec 144 FR-3: a Check shot again after the review's band is its dimension's, as the table folds it
+            if (cards.fold_reviewed(s.get("dimension")) or "-", s["audience"], s["kind"]) \
+                    != (row["dimension"], row["audience"], row["kind"]):
                 continue
             low = [c for c in row["weak_on"] if s.get(c) is not None and s[c] < 2]
             if low:

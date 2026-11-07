@@ -52,7 +52,7 @@ import re
 import sys
 from pathlib import Path
 
-from quality import rubric
+from quality import cards, rubric
 
 QUALITY = Path(__file__).resolve().parent
 SCORES_DIR = QUALITY / "scores"
@@ -201,7 +201,9 @@ def rows(latest: dict) -> list[dict]:
     grouped: dict = {}
     for f in files:
         for s in f["screens"]:
-            key = (scope_of(f), s.get("dimension") or "-", s["audience"], s["kind"])
+            # spec 144 FR-3: a Check shot again after the review's band (`check-{dim}-reviewed`) folds into its
+            # dimension's row, whatever dimension its score file recorded
+            key = (scope_of(f), cards.fold_reviewed(s.get("dimension")) or "-", s["audience"], s["kind"])
             grouped.setdefault(key, []).append((f["entry"], s))
     out = []
     for (scope, dimension, audience, kind), pairs in sorted(

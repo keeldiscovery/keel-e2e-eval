@@ -65,6 +65,19 @@ def card_for(dimension: str | None, text: str | None = None) -> str | None:
     return card(dimension, text) if dimension in keys(text) else None
 
 
+#: Spec 144 FR-3: the suffix of a Check's second founder shot, taken after the review's band (`check-{dim}-reviewed`,
+#: `harness/vectors_screens.REVIEWED_SUFFIX`) -- a screen of its dimension, sent that dimension's card.
+REVIEWED_SUFFIX = "-reviewed"
+
+
+def fold_reviewed(dimension: str | None) -> str | None:
+    """Spec 144 FR-3: a screen's dimension with the second shot's suffix taken off (`problem.importance-reviewed` ->
+    `problem.importance`), so the reviewed Check is read, carded and tabled as its dimension's; as given otherwise."""
+    if isinstance(dimension, str) and dimension.endswith(REVIEWED_SUFFIX):
+        return dimension[: -len(REVIEWED_SUFFIX)]
+    return dimension
+
+
 def card_sha(key: str, text: str | None = None) -> str:
     """The sha256 of one card as sent -- what a score file can name beside the key."""
     return hashlib.sha256(card(key, text).encode("utf-8")).hexdigest()
