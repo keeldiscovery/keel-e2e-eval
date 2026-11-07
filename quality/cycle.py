@@ -242,6 +242,11 @@ class Study:
     # second founder shots of a Check taken after the review's band (`check-{dim}-reviewed`) -- None before 144
     review_dims: dict | None = None
     review_shots: list | None = None
+    # spec 145 FR-2 (keel-cloud 235): Current solution's ladders the review rewrote whole as one scale (a band whose line
+    # opens *Keel rewrote the scale*), and each reviewed Check's Save hold that held (`{dimension: {held_s, outcome}}`,
+    # off `backtest.json`'s `review_holds`) -- None before 145
+    review_scales: int | None = None
+    review_held: dict | None = None
 
     @property
     def key(self) -> str:
@@ -368,7 +373,8 @@ def _study_data(study: Study) -> dict:
     record of walks before 140 is 126's to the byte."""
     data = asdict(study)
     for key in ("vite_timeouts", "review_switch", "review_rows",    # spec 143: as 140 -- absent on a bundle before it
-                "review_dims", "review_shots"):                       # spec 144 FR-3: the same
+                "review_dims", "review_shots",                        # spec 144 FR-3: the same
+                "review_scales", "review_held"):                      # spec 145 FR-2: the same
         if data.get(key) is None:
             data.pop(key, None)
     return data
@@ -406,6 +412,50 @@ def review_shots(founder_screens) -> list[str]:
             and cards.fold_reviewed(str(s.get("screen"))) != str(s.get("screen"))]
 
 
+#: Spec 145 FR-2 (keel-cloud 235 FR-4, `ReviewedRows.changed`): how the band's line opens where Current solution's ladder
+#: was rewritten whole and its measure held (*Keel rewrote the scale so every answer is a step in {measure}.*); where the
+#: measure was dropped the band is spec 232's count (*Keel changed three answers so they sit on one scale.*).
+SCALE_REWRITTEN = "Keel rewrote the scale"
+CURRENT_SOLUTION_KEY = "problem.current_solution_satisfaction"
+
+
+def review_scales(lists_reviewed) -> int:
+    """Spec 145 FR-2: Current solution ladders the review rewrote whole as one scale on one walk's lists -- 1 where the
+    band served on it opens *Keel rewrote the scale* (keel-cloud 235), else 0. The line is read as served, never built."""
+    band = ((lists_reviewed or {}).get(CURRENT_SOLUTION_KEY) or {}).get("band") or {}
+    return 1 if str(band.get("line") or "").startswith(SCALE_REWRITTEN) else 0
+
+
+def review_held(review_holds) -> dict:
+    """Spec 145 FR-2: each reviewed Check's Save that held on *Keel is reading your answers*, off one bundle's
+    `review_holds` (spec 144 FR-1) -- `{dimension: {held_s, outcome}}` for the three the review reads, where it held.
+    keel-cloud 235's second read-back turn runs inside that hold, so a longer hold is where a second turn shows, with no
+    new wire field."""
+    out = {}
+    for key, _ in REVIEWED_DIMENSIONS:
+        hold = (review_holds or {}).get(key)
+        if isinstance(hold, dict) and hold.get("held") and isinstance(hold.get("held_s"), (int, float)):
+            out[key] = {"held_s": float(hold["held_s"]), "outcome": hold.get("outcome")}
+    return out
+
+
+def _held_said(studies: list[dict]) -> str:
+    """Spec 145 FR-2: the longest hold per dimension over the walks, named by walk; a hold that reached the page's cap
+    (`outcome` timeout) is said as spec 144 FR-1's DEFECT stop."""
+    per = []
+    for key, short in REVIEWED_DIMENSIONS:
+        holds = [(h[key], f"{s.get('entry')} · {s.get('scope')}") for s in studies
+                 if isinstance(h := s.get("review_held"), dict) and isinstance(h.get(key), dict)]
+        if not holds:
+            per.append(f"{short} none")
+            continue
+        hold, walk = max(holds, key=lambda x: x[0].get("held_s") or 0)
+        capped = " -- the page's cap: DEFECT (keel-cloud 233), the walk stopped" if hold.get("outcome") == "timeout" \
+            else ""
+        per.append(f"{short} {hold.get('held_s'):g} s ({walk}{capped})")
+    return "the longest hold on Save (each bundle's `review_holds`): " + ", ".join(per)
+
+
 def review_line(d: dict) -> list[str]:
     """Spec 143 FR-2: under the head of a cycle walked with the review on, what it changed over the walks. Spec 144 FR-3:
     where the walks recorded it, per dimension -- the three the review reads -- and the Checks shot again after the
@@ -430,7 +480,16 @@ def review_line(d: dict) -> list[str]:
     said = (f"; the Check shot again after the band (keel-cloud 233, spec 144) on {len(shots)} "
             f"screen{'s' if len(shots) != 1 else ''}: " + ", ".join(f"{w} `{n}`" for w, n in shots)) if shots else \
         "; no Check stayed with the band (no second shot)"
-    return [head.replace("(spec 209, keel-cloud 232)", "(spec 209, keel-cloud 232, 233)") + " -- " + ", ".join(per)
+    cited = "(spec 209, keel-cloud 232, 233)"
+    scales = ""
+    if any("review_scales" in s or "review_held" in s for s in studies):
+        # spec 145 FR-2 (keel-cloud 235): the ladders rewritten whole and the longest hold, beside the counts (a record of
+        # walks before 145 reads as 144 wrote it)
+        cited = "(spec 209, keel-cloud 232, 233, 235)"
+        n = sum(int(s.get("review_scales") or 0) for s in studies)
+        scales = (f"; {n} Current solution ladder{'s' if n != 1 else ''} rewritten whole as one scale (the band's "
+                  f"*{SCALE_REWRITTEN} ...*, keel-cloud 235); " + _held_said(studies))
+    return [head.replace("(spec 209, keel-cloud 232)", cited) + " -- " + ", ".join(per) + scales
             + said + "; the readers scored the screens as served, the second shots under their dimension"]
 
 
@@ -510,14 +569,7 @@ def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=sub
     study.walk_usd = _usd(record)
     stack = record.get("stack") or {}
     study.cloud_sha, study.web_sha = _sha7(stack.get("keel-cloud")), _sha7(stack.get("keel-web"))
-    if isinstance(record.get("review_switch"), str):            # spec 143 FR-1: the switch the walk ran with
-        study.review_switch = record["review_switch"]
-    if study.review_switch == "ON":                             # spec 143 FR-2: what the review changed on its lists
-        study.review_rows = review_rows(record.get("lists_reviewed"))
-        if "review_holds" in record or review_shots(record.get("founder_screens")):
-            # spec 144 FR-3: per dimension, and the Checks shot again after the band (a bundle of 144's walk)
-            study.review_dims = review_dims(record.get("lists_reviewed"))
-            study.review_shots = review_shots(record.get("founder_screens"))
+    study_review(study, record)                                 # spec 143 FR-1 / FR-2, 144 FR-3, 145 FR-2
     walked_scope = record.get("scope") or "ALL"
     if walked_scope != scope:
         study.error = f"the bundle says scope {walked_scope}, the walk asked {scope}"
@@ -549,6 +601,24 @@ def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=sub
     study.read_usd = obj.get("cost_usd")
     overall = obj["summary"]["overall"]
     study.score_pct, study.flagged_pct = overall.get("score_pct"), overall.get("flagged_pct")
+    return study
+
+
+def study_review(study: Study, record: dict) -> Study:
+    """What the review did on one walk, off its bundle (`backtest.json`): the switch (spec 143 FR-1), the rows changed
+    and put aside (143 FR-2), per dimension and the second shots (144 FR-3), the ladders rewritten whole and the holds
+    (145 FR-2) -- each only where the bundle records what it is read from."""
+    if isinstance(record.get("review_switch"), str):            # spec 143 FR-1: the switch the walk ran with
+        study.review_switch = record["review_switch"]
+    if study.review_switch == "ON":                             # spec 143 FR-2: what the review changed on its lists
+        study.review_rows = review_rows(record.get("lists_reviewed"))
+        if "review_holds" in record or review_shots(record.get("founder_screens")):
+            # spec 144 FR-3: per dimension, and the Checks shot again after the band (a bundle of 144's walk)
+            study.review_dims = review_dims(record.get("lists_reviewed"))
+            study.review_shots = review_shots(record.get("founder_screens"))
+            # spec 145 FR-2: the ladders rewritten whole, and the Save's holds (keel-cloud 235's second turn inside)
+            study.review_scales = review_scales(record.get("lists_reviewed"))
+            study.review_held = review_held(record.get("review_holds"))
     return study
 
 
