@@ -228,6 +228,9 @@ class Journey:
     #: Spec 144 FR-1 (keel-cloud 233, keel-web 180): each reviewed list's Check Save as the walk waited it out --
     #: `{review, held, held_s, outcome, picked_sent}` by dimension (`Corridor._save_holding`); into `backtest.json`.
     review_holds: dict = field(default_factory=dict)
+    #: Spec 144 FR-2: a Choose pick the review moved -- the planned row put aside, the pick fallen to the first founder row
+    #: still on the list -- `{planned, why, picked, row}` by dimension; into `backtest.json`.
+    review_picks: dict = field(default_factory=dict)
     #: Spec 064 (judgement call): a golden number the new build moved -- a standing, a count, a verdict, a card -- is
     #: a finding named with the served words beside the corpus's; it is recorded where it is read and the journey goes
     #: on, so one run names every one; `run` fails at the end on any (`deferred`).
@@ -1884,7 +1887,7 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
     121), so the first row equal to the typed label is the pick and a near one is found as on any founder row."""
     typed = _typed_labels(answer)
     index = (answer.listed or {}).get("pickedIndex") or 0
-    if j.strict:
+    if j.strict and not vs.review_changed(question.get("draft")):
         return typed[index], index
     want = typed[index]
     rows = _drafted_labels(question)
@@ -1903,9 +1906,22 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
                                    "232); picked as served", "served": {"dimension": key, "typed": want,
                                                                         "label": rows[changed], "rows": rows}})
         return rows[changed], changed
-    if any(vs.typed_is(want, row) for row in vs.put_aside_of(question.get("draft"))):
-        raise vs.VectorsScriptError(f"{key}: the founder's picked item {want!r} was put aside by the review (keel-cloud "
-                                    "232) -- a picked row the review puts aside is a keel-cloud defect, never put back")
+    aside = next((row for row in vs.put_aside_of(question.get("draft")) if vs.typed_is(want, row)), None)
+    if aside is not None:
+        # spec 144 FR-2 (keel-cloud 233 FR-3 / FR-4): the review put the planned pick aside -- the pick falls to the first
+        # founder row still on the list (recorded), never put back; none left stops by name
+        fell = first_founder_row(question, typed)
+        if fell is None:
+            raise vs.VectorsScriptError(f"{key}: the founder's picked item {want!r} was put aside by the review "
+                                        "(keel-cloud 233) and no founder row is left on the list -- never put back")
+        at, label = fell
+        picked = {"planned": want, "why": aside.get("why"), "picked": label, "row": at}
+        if isinstance(getattr(j, "review_picks", None), dict):
+            j.review_picks[key] = picked
+        j.findings.append({"what": f"the review put the founder's picked row '{want}' aside (keel-cloud 233); the pick "
+                                   f"fell to the first founder row still on the list, '{label}'",
+                           "served": {"dimension": key, **picked, "rows": rows}})
+        return label, at
     near = nearest_rows(want, founders, typed)
     if len(near) == 1:
         j.findings.append({"what": f"DRIFT: Keel reworded the founder's row '{want}' as '{near[0]}' (spec 081)",
@@ -1923,6 +1939,21 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
             said += f"; Keel left out {left_out!r} (spec 108 FR-2)"
     raise vs.VectorsScriptError(
         f"{key}: the founder's picked item {want!r} is not on the drafted list (spec 104 FR-1); {said}")
+
+
+def first_founder_row(question: dict, typed: list[str]) -> tuple[int, str] | None:
+    """Spec 144 FR-2: the first row on the served list that is the founder's -- its label one they typed (folded as
+    `_folded_words` reads it) or its `typed` their words (a row the review changed) -- never Keel's suggestion where the
+    mark is Keel's (`_keels_suggestion`); `(row, label as served)`, or None where none is left."""
+    keels = _keels_suggestion(question)
+    folded = {tuple(_folded_words(t)) for t in typed}
+    for at, row in enumerate(_drafted_rows(question)):
+        if keels and row.get("suggested"):
+            continue
+        label = row.get("label")
+        if tuple(_folded_words(label)) in folded or any(vs.typed_is(t, row) for t in typed):
+            return at, label
+    return None
 
 
 def review_changed_pick(question: dict, want: str) -> int | None:
@@ -2404,7 +2435,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             review_defects(j, key, got, vs_screens.served_word_cap(q))
             if j.strict:
                 want = vs.saved_list(j.entry, key)
-                if have != want and not reviewed_as_saved(want, got):
+                if have != want and not reviewed_as_saved(want, got, (getattr(j, "review_picks", None) or {}).get(key)):
                     mismatches.append({"dimension": key, "wire": have, "corpus": want})
             else:
                 codes = [i.get("code") for i in items]
@@ -2466,23 +2497,45 @@ def _after_the_review(j: Journey, vector: str, question: dict, check: dict) -> d
     return {**question, "draft": saved}
 
 
-def reviewed_as_saved(want: dict, got: dict) -> bool:
+def reviewed_as_saved(want: dict, got: dict, fell: dict | None = None) -> bool:
     """Spec 143 FR-2 (keel-cloud 232 FR-3): a stored list the review changed is the founder's as saved where, read back to
     their words (`vs.founder_words`: a changed row's `typed`, a put-aside row's), it holds every row they saved, and
-    the pick and the phrase stand. False on a list the review left alone (the strict comparison stands as it was)."""
+    the pick and the phrase stand. False on a list the review left alone (the strict comparison stands as it was).
+
+    Spec 144 FR-2 (keel-cloud 233 FR-2): Compatibility's pick lands on the list as reviewed, so the pick stands by its
+    words, not its index -- the picked row's `typed` (or its label, untouched) is the founder's picked label; where the
+    review put the planned pick aside (`fell`, `Journey.review_picks`) the picked row is the one it fell to."""
     if not (vs.review_changed(got)):
         return False
+    if fell:
+        pick = _picked_row(got).get("label") == fell.get("picked")
+    else:
+        pick = _picked_words(got) == _picked_words(want)
     return sorted(vs.founder_words(got)) == sorted(i.get("label") for i in want.get("items") or []) \
-        and got.get("pickedIndex") == want.get("pickedIndex") and got.get("phrase") == want.get("phrase")
+        and pick and got.get("phrase") == want.get("phrase")
+
+
+def _picked_row(listed: dict) -> dict:
+    items, at = (listed or {}).get("items") or [], (listed or {}).get("pickedIndex")
+    return items[at] if isinstance(at, int) and 0 <= at < len(items) and isinstance(items[at], dict) else {}
+
+
+def _picked_words(listed: dict) -> str | None:
+    """Spec 144 FR-2: the founder's words of a list's picked row -- its `typed` where the review changed it, else its
+    label; None where nothing is picked."""
+    row = _picked_row(listed)
+    return row.get("typed") or row.get("label") if row else None
 
 
 def review_defects(j: Journey, key: str, saved: dict, cap: int) -> list[dict]:
     """Spec 143 FR-2: each changed row over the walk's own word cap (`vs.changed_over_cap`) filed as a keel-cloud defect
     finding -- never a retype, never a stop."""
     over = vs.changed_over_cap(saved, cap)
+    # spec 144 FR-2: Compatibility's rows are changed by keel-cloud 233, Importance's and Current solution's by 232
+    spec = "233" if key == COMPATIBILITY_KEY else "232"
     for row in over:
         if hasattr(j, "findings"):
-            j.findings.append({"what": f"DEFECT (keel-cloud 232): the review changed the founder's row '{row['typed']}' "
+            j.findings.append({"what": f"DEFECT (keel-cloud {spec}): the review changed the founder's row '{row['typed']}' "
                                        f"to '{row['label']}', {row['words']} words, over the {row['cap']}-word cap; "
                                        "left as served", "served": {"dimension": key, **row}})
     return over

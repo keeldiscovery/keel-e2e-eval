@@ -241,16 +241,19 @@ def _answer(labels: list[str], picked: int) -> vs.CalibrationAnswer:
 
 def test_the_choose_pick_stays_by_label_as_served():
     """104 FR-1 / 108 FR-2 on a list served with a changed row: the pick is the row whose `typed` is the founder's,
-    by its label as served (never put back); a changed row is neither left out nor Keel's; a put-aside picked row stops by
-    name."""
+    by its label as served (never put back); a changed row is neither left out nor Keel's; a put-aside picked row falls
+    to the first founder row (eval spec 144 FR-2; it stopped by name under 143)."""
     j = SimpleNamespace(strict=False, findings=[])
     question = {"dimension": "solution.compatibility", "draft": IMPORTANCE}
     assert cs._choose_label(j, question, _answer(ROWS_TYPED, 1)) == ("Taking group enquiries over the phone", 1)
     assert "picked as served" in j.findings[0]["what"] and "DRIFT" not in j.findings[0]["what"]
     assert cs.keel_left_out(question, _answer(ROWS_TYPED, 0)) == []
     assert cs.keel_added(question, _answer(ROWS_TYPED, 0)) == []
-    with pytest.raises(vs.VectorsScriptError, match="put aside by the review"):
-        cs._choose_label(j, question, _answer(ROWS_TYPED, 3))
+    # eval spec 144 FR-2 (keel-cloud 233): a planned pick the review put aside falls to the first founder row still on
+    # the list (recorded), never put back -- it stopped here before 144
+    j = SimpleNamespace(strict=False, findings=[], review_picks={})
+    assert cs._choose_label(j, question, _answer(ROWS_TYPED, 3)) == (ROWS_TYPED[0], 0)
+    assert j.review_picks["solution.compatibility"]["planned"] == ROWS_TYPED[3]
     assert cs.keel_left_out({"dimension": "solution.compatibility", "draft": UNTOUCHED},
                             _answer(ROWS_TYPED, 0)) == [ROWS_TYPED[1], ROWS_TYPED[3]], "untouched: as before"
 
