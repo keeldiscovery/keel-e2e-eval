@@ -490,6 +490,46 @@ ROW_WHY_TESTID = "row-why"
 ROW_WAS_TESTID = "row-was"
 REVIEW_BAND = "[data-testid=list-changed]"
 PUT_ASIDE_ROW = "[data-testid=put-aside] [data-testid=put-aside-row]"
+#: Spec 144 FR-4 (keel-cloud 233 FR-6): the HTTP contract the walk's hold reads -- `x-keel-contract` 63: the Check Save's
+#: answer (`PUT calibration/{vector}`, `AnsweredRows`) names the read-back it started (`review: {interactionId}`), and
+#: Compatibility's Check saves the list with no `pickedIndex` (the pick pending until Choose).
+REVIEW_CONTRACT = 63
+#: Spec 144 FR-1 (keel-cloud 233 FR-1, keel-web 180 FR-1 / FR-2 / FR-4): the lists whose Check Save may hold for the
+#: review -- Importance, Current solution and Compatibility.
+REVIEWED_LISTS = ("problem.importance", "problem.current_solution_satisfaction", "solution.compatibility")
+#: keel-web 180 FR-4: `LIST_REVIEWING` -- the held Check's words (the primary disabled, the `calib__drafting` register,
+#: `role="status"`); `LIST_CONTINUE` / `LIST_CONTINUE_CHOOSE` -- the primary once the review changed a row and the Check
+#: stays with the band. Pinned to the texts (180's test ids are read off its branch when it lands; see tasks.md).
+LIST_REVIEWING = "Keel is reading your answers"
+LIST_CONTINUE = "Continue"
+LIST_CONTINUE_CHOOSE = "Continue to choose"
+#: Spec 144 FR-1: the most the walk waits for the hold to leave (then a `DEFECT (keel-cloud 233)` finding, and the walk
+#: stops by name) -- keel-cloud 233's *Open 1*: no server-side ceiling on a read-back nobody claims.
+REVIEW_HOLD_CAP_S = 90
+#: Spec 144 FR-1: the second founder shot of a Check the review changed, taken after the band -- `check-{dim}` + this.
+REVIEWED_SUFFIX = "-reviewed"
+
+
+def review_of_answer(body) -> str | None:
+    """Spec 144 FR-4 (contract 63): the read-back a Check Save's answer names (`review.interactionId`), or None where the
+    answer names none (the switch off, a put-back-only Save, a list already read back at these words, a stack before
+    233)."""
+    review = (body or {}).get("review") if isinstance(body, dict) else None
+    found = (review or {}).get("interactionId") if isinstance(review, dict) else None
+    return str(found) if found else None
+
+
+def reviewed_slug(name: str) -> str:
+    """Spec 144 FR-1: the camera's slug for the second shot of `name`'s Check -- `check-{name}-reviewed`."""
+    return f"check-{name}{REVIEWED_SUFFIX}"
+
+
+def unreviewed(slug_or_key: str | None) -> str | None:
+    """Spec 144 FR-3: a screen slug or dimension with the second shot's suffix taken off (`check-x-reviewed` ->
+    `check-x`, `x-reviewed` -> `x`); as given otherwise."""
+    if isinstance(slug_or_key, str) and slug_or_key.endswith(REVIEWED_SUFFIX):
+        return slug_or_key[: -len(REVIEWED_SUFFIX)]
+    return slug_or_key
 
 
 def _was_line(text: str | None) -> str | None:

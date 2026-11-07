@@ -511,9 +511,18 @@ How well your idea fits the way they already work: their tools, their routines, 
   sign-off is a permission; a row opening on *could* with no allower is an ability unless the writer says why not; a
   row with no kind (saved before, or reworded since) takes the word test. **The suggestion is never settled:** Keel's
   suggested row is held to the same `settled_by` test as the founder's -- settled, it is refused once and then dropped,
-  and no other is suggested in its place. **The settled note:** a row the writer marks settled by the segment or the
-  usual way carries, under it on the Check and under that option on Choose, *Most of your segment already has this
-  ({settled_by}); it will rarely count against you* -- a note, never a refusal; the founder may pick it.
+  and no other is suggested in its place. **The review may change a condition that breaks this card** (keel-cloud
+  233, the review switch on): on Save of the Check, before the pick, it reads the founder's conditions back -- a
+  permission someone else holds, typed as an ability, is rewritten so the words say so, with a permission code reads
+  (*could forward unanswered calls to another number* -> *was allowed to have unanswered calls forwarded to another
+  number*), the kind following the words; a line that is no condition (a wish, a benefit, a feature or a step of the
+  idea) is rewritten into the condition behind it, else put aside. Code holds every change to the rules above (16
+  words, the kind by its words, no two alike, never the idea's name), never under two rows; Keel's suggested row and
+  Keel's own rows are never changed. The Check says what Keel changed in one line, the founder's words stay under the
+  row behind **Put back**, nothing they typed is lost; a change code refuses is the note alone. **A settled row is put
+  aside, not noted:** a condition all but every one of the segment already has is put aside, its why saying what
+  settles it (*Most of your segment already has this ...*), behind **Put back**; with the review off, a row the writer
+  marks settled carries that sentence as a note under it, never a refusal, and the founder may pick it.
 - **The stranger's item:** *On your last {occasion},* the picked condition asked as a question (*could you have ...?*,
   *was ...?*). **Fixed answers, in order** (`yes_easily` · `yes_with_steps` · `only_with_help` · `no`), worded by the
   row's kind, the codes fixed:

@@ -36,9 +36,10 @@ SEVEN_DAYS = RecallWindow(7, "DAYS")
 #: FR-1: the cards' digest at the round -- keel-cloud `RespondentReview.CARDS_SHA256` at keel-cloud-docs `8b281774`
 #: (219-229 merged), moved by eval spec 142 to keel-cloud-docs `1bbe210e` (231 and 230 merged: the Prevalence card
 #: amended), then by eval spec 143 to keel-cloud-docs `ac81bf6f` (232 merged: Importance §2 and Current solution §2 --
-#: the review may change a row, Put back; was `06fcd867...`); the one constant the 213 and 216 pins read for the current
-#: copy (re-pinned here when a later spec moves the cards again).
-CARDS_SHA256_141 = "2f4f0bf810dc9a5eb75e5af7986fa1a60ba1937e88af8a1923905e95149618f7"
+#: the review may change a row, Put back; was `06fcd867...`), then by eval spec 144 to keel-cloud-docs `9e4b7fda` (233
+#: merged: Compatibility §2 -- the review may change a condition, a settled row put aside; was `2f4f0bf8...`); the one
+#: constant the 213, 216 and 232 pins read for the current copy (re-pinned here when a later spec moves the cards again).
+CARDS_SHA256_141 = "98b7379b8fe68d9ef3c393045804b7837ae759c28e061ed8c812bbb2500b1c7b"
 #: keel-cloud `VectorFixtures` (Lullaby).
 EVENT_PAST = "had to work out why their baby was crying"
 WENT_WRONG = "did not know why the baby cried"

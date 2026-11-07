@@ -51,12 +51,14 @@ def _cloud(rel: str) -> str:
 # ------------------------------------------------------------------------------------------- FR-4 the cards
 
 def test_the_reader_digest_is_232s_cards():
-    """FR-4: the reader's cards are the cloud's vendored copy byte for byte, at 232's digest."""
+    """FR-4: the reader's cards are the cloud's vendored copy byte for byte, at 232's digest -- or a later round's (eval
+    spec 144 moved the copy to keel-cloud 233's, `CARDS_SHA256_141`)."""
     from tests.test_cloud_219_228_mirror_141 import CARDS_SHA256_141   # noqa: PLC0415
     review = _cloud(APPLICATION + "RespondentReview.java")
     sha = re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1)
     ours = cards.CARDS_PATH.read_bytes()
-    assert hashlib.sha256(ours).hexdigest() == sha == CARDS_SHA256_232 == CARDS_SHA256_141
+    assert hashlib.sha256(ours).hexdigest() == sha == CARDS_SHA256_141
+    assert sha in (CARDS_SHA256_232, CARDS_SHA256_141)
     assert (KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md").read_bytes() == ours
 
 
@@ -68,7 +70,8 @@ def test_the_two_amended_sections_say_the_review_may_change_a_row():
     assert "*Answering group requests that come by email* -> *Taking group enquiries over the phone*" in text
     assert "**The review may change such a rung** (spec 232)" in text
     assert "(*Never called back*, never *simply lost*)" in text
-    assert text.count("behind **Put back**") == 2
+    # eval spec 144 (keel-cloud 233 FR-5): Compatibility §2 says it a third time
+    assert text.count("behind **Put back**") >= 2
     assert "The rows are never rewritten" not in text and "Never a rewrite" not in text
 
 
