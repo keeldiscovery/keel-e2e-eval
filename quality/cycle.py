@@ -247,6 +247,10 @@ class Study:
     # off `backtest.json`'s `review_holds`) -- None before 145
     review_scales: int | None = None
     review_held: dict | None = None
+    # spec 147 FR-4 (keel-cloud 237): Relative advantage's bands that say the review changed the hard case (the band's
+    # second line, *... changed the moment the question asks about ...*) -- set only on a bundle of 147's walk (one that
+    # records `reviewed_lists`, the four), whose `review_dims` / `review_held` then count the fourth; None before 147
+    review_moments: int | None = None
 
     @property
     def key(self) -> str:
@@ -374,7 +378,8 @@ def _study_data(study: Study) -> dict:
     data = asdict(study)
     for key in ("vite_timeouts", "review_switch", "review_rows",    # spec 143: as 140 -- absent on a bundle before it
                 "review_dims", "review_shots",                        # spec 144 FR-3: the same
-                "review_scales", "review_held"):                      # spec 145 FR-2: the same
+                "review_scales", "review_held",                       # spec 145 FR-2: the same
+                "review_moments"):                                    # spec 147 FR-4: the same
         if data.get(key) is None:
             data.pop(key, None)
     return data
@@ -391,13 +396,34 @@ def review_rows(lists_reviewed) -> dict:
 #: Compatibility), in the order the record names them, with their short names.
 REVIEWED_DIMENSIONS = (("problem.importance", "Importance"), ("problem.current_solution_satisfaction", "Current solution"),
                        ("solution.compatibility", "Compatibility"))
+#: Spec 147 FR-4 (keel-cloud 237 FR-1): the fourth list the review reads back, Relative advantage's benefits -- counted
+#: where a walk's bundle records it walked the four (`reviewed_lists`).
+RELATIVE_ADVANTAGE_KEY = "solution.relative_advantage"
+REVIEWED_DIMENSIONS_147 = REVIEWED_DIMENSIONS + ((RELATIVE_ADVANTAGE_KEY, "Relative advantage"),)
+#: Spec 147 FR-4 (keel-cloud 237 FR-2, `ReviewedRows.changed`): the words of Relative advantage's band where the review
+#: rewrote the study's hard case -- alone (*Keel changed the moment ...*) or after the benefits put aside (*..., and
+#: changed the moment ...*). Read as served, never built.
+MOMENT_CHANGED = "changed the moment the question asks about"
 
 
-def review_dims(lists_reviewed) -> dict:
+def _dims_of(dims) -> tuple:
+    """The dimensions a bundle's readings cover: the four where it records 147's walk, else 144's three."""
+    return REVIEWED_DIMENSIONS_147 if dims is not None and RELATIVE_ADVANTAGE_KEY in dims else REVIEWED_DIMENSIONS
+
+
+def review_moments(lists_reviewed) -> int:
+    """Spec 147 FR-4: 1 where Relative advantage's band on one walk says the review changed the hard case (the band's
+    `changed.line` carries `MOMENT_CHANGED`), else 0."""
+    band = ((lists_reviewed or {}).get(RELATIVE_ADVANTAGE_KEY) or {}).get("band") or {}
+    return 1 if MOMENT_CHANGED in str(band.get("line") or "") else 0
+
+
+def review_dims(lists_reviewed, dims=None) -> dict:
     """Spec 144 FR-3: a bundle's `lists_reviewed` counted per dimension -- `{dimension: {changed, put_aside}}` for each
-    of the three the review reads (zero where it changed none)."""
+    of the three the review reads (zero where it changed none). Spec 147 FR-4: the four where `dims` (the bundle's
+    `reviewed_lists`) names Relative advantage."""
     out = {}
-    for key, _ in REVIEWED_DIMENSIONS:
+    for key, _ in _dims_of(dims):
         rows = ((lists_reviewed or {}).get(key) or {}).get("review_changed") or []
         out[key] = {"changed": sum(1 for c in rows if c.get("label")),
                     "put_aside": sum(1 for c in rows if not c.get("label"))}
@@ -426,24 +452,24 @@ def review_scales(lists_reviewed) -> int:
     return 1 if str(band.get("line") or "").startswith(SCALE_REWRITTEN) else 0
 
 
-def review_held(review_holds) -> dict:
+def review_held(review_holds, dims=None) -> dict:
     """Spec 145 FR-2: each reviewed Check's Save that held on *Keel is reading your answers*, off one bundle's
     `review_holds` (spec 144 FR-1) -- `{dimension: {held_s, outcome}}` for the three the review reads, where it held.
     keel-cloud 235's second read-back turn runs inside that hold, so a longer hold is where a second turn shows, with no
     new wire field."""
     out = {}
-    for key, _ in REVIEWED_DIMENSIONS:
+    for key, _ in _dims_of(dims):
         hold = (review_holds or {}).get(key)
         if isinstance(hold, dict) and hold.get("held") and isinstance(hold.get("held_s"), (int, float)):
             out[key] = {"held_s": float(hold["held_s"]), "outcome": hold.get("outcome")}
     return out
 
 
-def _held_said(studies: list[dict]) -> str:
+def _held_said(studies: list[dict], dims: tuple = REVIEWED_DIMENSIONS) -> str:
     """Spec 145 FR-2: the longest hold per dimension over the walks, named by walk; a hold that reached the page's cap
-    (`outcome` timeout) is said as spec 144 FR-1's DEFECT stop."""
+    (`outcome` timeout) is said as spec 144 FR-1's DEFECT stop. Spec 147 FR-4: over `dims` (the four on 147's walks)."""
     per = []
-    for key, short in REVIEWED_DIMENSIONS:
+    for key, short in dims:
         holds = [(h[key], f"{s.get('entry')} · {s.get('scope')}") for s in studies
                  if isinstance(h := s.get("review_held"), dict) and isinstance(h.get(key), dict)]
         if not holds:
@@ -471,24 +497,36 @@ def review_line(d: dict) -> list[str]:
     dims = [s.get("review_dims") for s in studies if isinstance(s.get("review_dims"), dict)]
     if not dims:
         return [head + "; the readers scored the screens as served"]
+    # spec 147 FR-4 (keel-cloud 236, 237): a record of 147's walks counts the four, Relative advantage's put-aside rows
+    # beside whether the hard case was changed (the band's second line); a record before 147 reads as 145 wrote it
+    four = any("review_moments" in s for s in studies)
+    named = REVIEWED_DIMENSIONS_147 if four else REVIEWED_DIMENSIONS
     per = []
-    for key, short in REVIEWED_DIMENSIONS:
+    for key, short in named:
         c = sum((x.get(key) or {}).get("changed", 0) for x in dims)
         a = sum((x.get(key) or {}).get("put_aside", 0) for x in dims)
-        per.append(f"{short} {c} changed / {a} put aside")
+        said_dim = f"{short} {c} changed / {a} put aside"
+        if key == RELATIVE_ADVANTAGE_KEY:
+            m = sum(int(s.get("review_moments") or 0) for s in studies)
+            said_dim += (f" (the hard case changed on {m} walk{'s' if m != 1 else ''}: the band's *... {MOMENT_CHANGED} "
+                         "...*, keel-cloud 237)")
+        per.append(said_dim)
     shots = [(f"{s.get('entry')} · {s.get('scope')}", name) for s in studies for name in s.get("review_shots") or []]
+    fourth = sum(1 for _, n in shots if cards.fold_reviewed(n) == f"check-{RELATIVE_ADVANTAGE_KEY}")
     said = (f"; the Check shot again after the band (keel-cloud 233, spec 144) on {len(shots)} "
-            f"screen{'s' if len(shots) != 1 else ''}: " + ", ".join(f"{w} `{n}`" for w, n in shots)) if shots else \
+            f"screen{'s' if len(shots) != 1 else ''}"
+            + (f" (Relative advantage's, the fourth, on {fourth})" if four else "") + ": "
+            + ", ".join(f"{w} `{n}`" for w, n in shots)) if shots else \
         "; no Check stayed with the band (no second shot)"
     cited = "(spec 209, keel-cloud 232, 233)"
     scales = ""
     if any("review_scales" in s or "review_held" in s for s in studies):
         # spec 145 FR-2 (keel-cloud 235): the ladders rewritten whole and the longest hold, beside the counts (a record of
         # walks before 145 reads as 144 wrote it)
-        cited = "(spec 209, keel-cloud 232, 233, 235)"
+        cited = "(spec 209, keel-cloud 232, 233, 235, 236, 237)" if four else "(spec 209, keel-cloud 232, 233, 235)"
         n = sum(int(s.get("review_scales") or 0) for s in studies)
         scales = (f"; {n} Current solution ladder{'s' if n != 1 else ''} rewritten whole as one scale (the band's "
-                  f"*{SCALE_REWRITTEN} ...*, keel-cloud 235); " + _held_said(studies))
+                  f"*{SCALE_REWRITTEN} ...*, keel-cloud 235); " + _held_said(studies, named))
     return [head.replace("(spec 209, keel-cloud 232)", cited) + " -- " + ", ".join(per) + scales
             + said + "; the readers scored the screens as served, the second shots under their dimension"]
 
@@ -614,11 +652,16 @@ def study_review(study: Study, record: dict) -> Study:
         study.review_rows = review_rows(record.get("lists_reviewed"))
         if "review_holds" in record or review_shots(record.get("founder_screens")):
             # spec 144 FR-3: per dimension, and the Checks shot again after the band (a bundle of 144's walk)
-            study.review_dims = review_dims(record.get("lists_reviewed"))
+            # spec 147 FR-4: a bundle of 147's walk records the lists it waited on (`reviewed_lists`, the four)
+            dims = record.get("reviewed_lists") if isinstance(record.get("reviewed_lists"), list) else None
+            study.review_dims = review_dims(record.get("lists_reviewed"), dims)
             study.review_shots = review_shots(record.get("founder_screens"))
             # spec 145 FR-2: the ladders rewritten whole, and the Save's holds (keel-cloud 235's second turn inside)
             study.review_scales = review_scales(record.get("lists_reviewed"))
-            study.review_held = review_held(record.get("review_holds"))
+            study.review_held = review_held(record.get("review_holds"), dims)
+            if dims is not None and RELATIVE_ADVANTAGE_KEY in dims:
+                # spec 147 FR-4 (keel-cloud 237): Relative advantage's band says the hard case changed
+                study.review_moments = review_moments(record.get("lists_reviewed"))
     return study
 
 

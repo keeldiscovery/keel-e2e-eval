@@ -2337,6 +2337,13 @@ def lists_reviewed(j) -> dict:
     return vs.lists_reviewed(views)
 
 
+def reviewed_lists() -> list[str]:
+    """Spec 147 FR-4: the lists the walk waits on after their Check's Save (`vectors_screens.REVIEWED_LISTS`: the four
+    since keel-cloud 237) -- recorded in the bundle so the record counts Relative advantage on a walk that held it."""
+    from harness import vectors_screens as vs_screens               # noqa: PLC0415
+    return list(vs_screens.REVIEWED_LISTS)
+
+
 def review_hold_said(hold: dict) -> str:
     """Spec 144 FR-1: one reviewed Check's Save in words -- held or not, for how long, and what followed."""
     said = (f"held on *Keel is reading your answers* {hold.get('held_s')} s" if hold.get("held")
@@ -2374,6 +2381,9 @@ def transcript(j, bt: Backtest) -> dict:
         # spec 144 FR-1: each reviewed list's Check Save as the walk waited it out (`{review, held, held_s, outcome,
         # picked_sent}`); FR-2: a Choose pick the review moved (`{planned, why, picked, row}`) -- absent where none
         **({"review_holds": dict(j.review_holds)} if getattr(j, "review_holds", None) else {}),
+        # spec 147 FR-4: the lists this walk waits on after the Check's Save (the four since keel-cloud 237), so the
+        # record counts Relative advantage beside the three
+        "reviewed_lists": reviewed_lists(),
         **({"review_picks": dict(j.review_picks)} if getattr(j, "review_picks", None) else {}),
         # spec 106 FR-2: the walk's cap on the person's own link, where `PEOPLE=` named one
         **({"people": bt.people} if bt.people else {}),
