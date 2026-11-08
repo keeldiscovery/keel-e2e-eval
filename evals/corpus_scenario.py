@@ -1801,7 +1801,10 @@ def _founders_rows(question: dict) -> list[str]:
     Purchase friction alone (`_keels_suggestion`); on Compatibility and every other dimension every drafted row is the
     founder's (cycle 13's 10-palus SOLUTION stop: the picked condition was the one 121 marked, and was dropped)."""
     keels = _keels_suggestion(question)
-    return [row.get("label") for row in _drafted_rows(question) if not (keels and row.get("suggested"))]
+    # spec 147 FR-3 (keel-cloud 236 FR-2): the suggestion the review added at the Check is Keel's, never the founder's
+    added = set(question.get("review_suggested") or [])
+    return [row.get("label") for row in _drafted_rows(question) if not (keels and row.get("suggested"))
+            and row.get("label") not in added]
 
 
 #: Spec 108 FR-1: the modals folded to one word -- a reworded tense (*could be forwarded* / *can be forwarded*).
@@ -1869,9 +1872,12 @@ def keel_left_out(question: dict, answer: vs.CalibrationAnswer) -> list[str]:
     put aside (`putAside`) is present, never left out."""
     typed, rows = _typed_labels(answer), _drafted_labels(question)
     draft = question.get("draft")
+    # spec 147 FR-3 (keel-cloud 236 FR-1): Keel's rows are read back too -- a row it drafted near a typed one and the
+    # review then changed or put aside is found by the words it was saved with (`as_drafted`: its `typed`), present
+    near_rows = _founders_rows(question) + [w for w in vs.as_drafted(draft) if w and w not in rows]
     # spec 112 FR-2: a suggested row (keel-cloud 171) is Keel's, never near a typed one
     return [label for label in typed if label not in rows and not vs.held_by_review([label], draft)
-            and not nearest_rows(label, _founders_rows(question), typed)]
+            and not nearest_rows(label, near_rows, typed)]
 
 
 def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> tuple[str, int]:
@@ -1916,14 +1922,21 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
         # founder row still on the list (recorded), never put back; none left stops by name
         fell = first_founder_row(question, typed)
         if fell is None:
+            # spec 147 FR-3 (keel-cloud 236 FR-2): the suggestion the review added in its place is a valid pick
+            rows_served = _drafted_rows(question)
+            fell = next(((i, row.get("label")) for i, row in enumerate(rows_served)
+                         if row.get("label") in set(question.get("review_suggested") or [])), None)
+        if fell is None:
             raise vs.VectorsScriptError(f"{key}: the founder's picked item {want!r} was put aside by the review "
                                         "(keel-cloud 233) and no founder row is left on the list -- never put back")
         at, label = fell
         picked = {"planned": want, "why": aside.get("why"), "picked": label, "row": at}
         if isinstance(getattr(j, "review_picks", None), dict):
             j.review_picks[key] = picked
+        to = "Keel's review suggested in its place (keel-cloud 236 FR-2)" \
+            if label in set(question.get("review_suggested") or []) else "the first founder row still on the list"
         j.findings.append({"what": f"the review put the founder's picked row '{want}' aside (keel-cloud 233); the pick "
-                                   f"fell to the first founder row still on the list, '{label}'",
+                                   f"fell to {to}, '{label}'",
                            "served": {"dimension": key, **picked, "rows": rows}})
         return label, at
     near = nearest_rows(want, founders, typed)
@@ -1951,8 +1964,9 @@ def first_founder_row(question: dict, typed: list[str]) -> tuple[int, str] | Non
     mark is Keel's (`_keels_suggestion`); `(row, label as served)`, or None where none is left."""
     keels = _keels_suggestion(question)
     folded = {tuple(_folded_words(t)) for t in typed}
+    added = set(question.get("review_suggested") or [])              # spec 147 FR-3: the review's, Keel's own
     for at, row in enumerate(_drafted_rows(question)):
-        if keels and row.get("suggested"):
+        if (keels and row.get("suggested")) or row.get("label") in added:
             continue
         label = row.get("label")
         if tuple(_folded_words(label)) in folded or any(vs.typed_is(t, row) for t in typed):
@@ -1979,16 +1993,31 @@ def keel_added(question: dict, answer: vs.CalibrationAnswer) -> list[str]:
     if question.get("dimension") == ADOPTION_KEY:
         return [row["label"] for row in keel_suggested(question)]
     typed = _typed_labels(answer)
-    rows = _drafted_labels(question)
-    founders = _founders_rows(question)
+    draft = question.get("draft")
+    added = set(question.get("review_suggested") or [])
+    # spec 147 FR-3 (keel-cloud 236 FR-1): every row read by the words it was saved with -- a changed row's `typed` (the
+    # founder's, or Keel's own where the review rewrote Keel's row), a put-aside row's -- so a row the review moved is
+    # the same row it was on the draft, and a Keel's row put aside is present
+    said = [(row, row.get("typed") or row.get("label")) for row in _drafted_rows(question)
+            if row.get("label") not in added]
+    said += [(row, row.get("typed")) for row in vs.put_aside_of(draft) if row.get("typed")]
+    words = [w for _, w in said]
+    founders = [w for row, w in said if w in set(_founders_rows(question)) or row.get("typed")
+                or row in vs.put_aside_of(draft)]
     folded = {tuple(_folded_words(label)) for label in typed}
-    near = {row for label in typed if label not in rows for row in nearest_rows(label, founders, typed)}
+    near = {row for label in typed if label not in words for row in nearest_rows(label, founders, typed)}
     keels = _keels_suggestion(question)
-    # spec 143 FR-2 (keel-cloud 232 FR-3): a row the review changed from one the founder typed is theirs, never Keel's
-    return [row.get("label") for row in _drafted_rows(question) if row.get("label") not in typed
-            and not any(vs.typed_is(label, row) for label in typed)
-            and ((keels and row.get("suggested"))
-                 or (tuple(_folded_words(row.get("label"))) not in folded and row.get("label") not in near))]
+    aside = vs.put_aside_of(draft)
+    # spec 143 FR-2 (keel-cloud 232 FR-3): a row the review changed from one the founder typed is theirs, never Keel's;
+    # spec 147 FR-3: the review's own suggestion is named apart (`_name_keel_added`); a Keel's row put aside is named by
+    # its words, *(put aside)*
+    out = []
+    for row, w in said:
+        if w in typed or any(vs.typed_is(label, row) for label in typed):
+            continue
+        if (keels and row.get("suggested")) or (tuple(_folded_words(w)) not in folded and w not in near):
+            out.append(f"{w} (put aside)" if row in aside else row.get("label"))
+    return out
 
 
 def keel_unmarked(question: dict, answer: vs.CalibrationAnswer) -> list[str]:
@@ -2027,6 +2056,15 @@ def _name_keel_added(j: Journey, key: str, question: dict, answer: vs.Calibratio
         j.findings.append({"what": f"{vs.NAMES[key]}: Keel added: " + ", ".join(f"'{label}'" for label in added),
                            "served": {"dimension": key, "drafted": _drafted_labels(question),
                                       "typed": _typed_labels(answer), "added": added}})
+    # spec 147 FR-3 (keel-cloud 236 FR-2): the suggestion the review added at the Check -- Keel's own, named as Keel's rows
+    # are, never a stop
+    suggested = vs.review_suggested(question.get("draft"), question.get("answer_draft")) \
+        if question.get("review_suggested") else []
+    if suggested:
+        j.findings.append({"what": f"{vs.NAMES[key]}: Keel's review suggested at the Check: " + ", ".join(
+            f"'{row['label']}' -- {row['why']}" for row in suggested) + " (keel-cloud 236 FR-2)",
+            "served": {"dimension": key, "drafted": _drafted_labels(question), "typed": _typed_labels(answer),
+                       "suggested": suggested}})
 
 
 #: Spec 116 FR-2 (keel-web 150 FR-1): Current solution's question before 150 -- the served words, kept by 150 only where
@@ -2521,9 +2559,13 @@ def _after_the_review(j: Journey, vector: str, question: dict, check: dict) -> d
     view = _wait_calibration(j, vector)
     served = next((q for q in view.get("questions") or [] if q.get("dimension") == key), None) or {}
     saved = (served.get("answer") or {}).get("list")
-    if not isinstance(saved, dict) or not (vs.review_changed(saved) or vs.review_band(saved)):
+    # spec 147 FR-3 (keel-cloud 236 FR-2): a suggestion the review added at the Check (absent from the Answer's draft)
+    # moves Choose onto the saved list too, even where nothing else changed (236 serves no band for it)
+    suggested = vs.review_suggested(saved, question.get("draft"))
+    if not isinstance(saved, dict) or not (vs.review_changed(saved) or vs.review_band(saved) or suggested):
         return question
-    return {**question, "draft": saved}
+    return {**question, "draft": saved, "answer_draft": question.get("draft"),
+            "review_suggested": [row["label"] for row in suggested]}
 
 
 def choose_after_review_faults(question: dict, choose: dict) -> list[dict]:

@@ -2318,6 +2318,26 @@ def review_changed(saved) -> list[dict]:
     return out + [{"typed": r.get("typed"), "label": None, "why": r.get("why")} for r in put_aside_of(saved)]
 
 
+def review_suggested(saved, draft=None) -> list[dict]:
+    """Spec 147 FR-3 (keel-cloud 236 FR-2): the suggestion the review added at the Check -- a saved row served
+    `suggested` with its why (`suggestedWhy`) whose label the Answer's draft (`draft`) does not carry, Keel's own (the
+    draft's own suggested row, keel-cloud 121's mark on a founder's condition, is not this) -- as `{label, why}`, in the
+    list's order; `[]` where none."""
+    drafted = {" ".join(str(i.get("label") or "").lower().split()) for i in served_items(draft)}
+    return [{"label": i.get("label"), "why": i.get("suggestedWhy") or i.get("suggested_why")}
+            for i in served_items(saved)
+            if i.get("suggested") and (i.get("suggestedWhy") or i.get("suggested_why"))
+            and " ".join(str(i.get("label") or "").lower().split()) not in drafted]
+
+
+def as_drafted(saved) -> list[str]:
+    """Spec 147 FR-3 (keel-cloud 236 FR-1): the served list's rows in the words they were saved with before the review
+    -- each item's `typed` where the review changed it (a founder's row or Keel's), else its label -- then the put-aside
+    rows' `typed`: every row present, whoever wrote it."""
+    return [i.get("typed") or i.get("label") for i in served_items(saved)] + \
+        [r.get("typed") for r in put_aside_of(saved)]
+
+
 def review_band(saved) -> dict | None:
     """Spec 143 FR-2: the band's two sentences (`list.changed`: `line`, `why`), or None where none is served."""
     band = _served(saved).get("changed")
