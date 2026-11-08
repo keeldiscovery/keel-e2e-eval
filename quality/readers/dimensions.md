@@ -521,24 +521,33 @@ How well your idea fits the way they already work: their tools, their routines, 
   row with no kind (saved before, or reworded since) takes the word test. **The suggestion is never settled:** Keel's
   suggested row is held to the same `settled_by` test as the founder's -- settled, it is refused once and then dropped,
   and no other is suggested in its place. **The review may change a condition that breaks this card** (keel-cloud
-  233, the review switch on): on Save of the Check, before the pick, it reads the founder's conditions back -- a
-  permission someone else holds, typed as an ability, is rewritten so the words say so, with a permission code reads
-  (*could forward unanswered calls to another number* -> *was allowed to have unanswered calls forwarded to another
-  number*), the kind following the words; a line that is no condition (a wish, a benefit, a feature or a step of the
-  idea) is rewritten into the condition behind it, else put aside. Code holds every change to the rules above (16
-  words, the kind by its words, no two alike, never the idea's name), never under two rows; Keel's suggested row and
-  Keel's own rows are never changed. The Check says what Keel changed in one line, the founder's words stay under the
-  row behind **Put back**, nothing they typed is lost; a change code refuses is the note alone. **A settled row is put
-  aside, not noted:** a condition all but every one of the segment already has is put aside, its why saying what
+  233, 236, the review switch on): on Save of the Check, before the pick, it reads the conditions back -- **every row
+  is read, Keel's included** (its drafted rows and its suggestion, as the founder's) -- a permission someone else
+  holds, typed as an ability, is rewritten so the words say so, with a permission code reads (*could forward
+  unanswered calls to another number* -> *were allowed to have unanswered calls forwarded to another number*), the kind
+  following the words; a line that is no condition (a wish, a benefit, a feature or a step of the idea) is rewritten
+  into the condition behind it, else put aside. **A rewrite faces the settled test too:** where all but every one of
+  them has what it says, the row is put aside instead. **Two rows about one thing are one, by meaning:** two rows about
+  the same integration, tool or step -- the narrower is put aside, its why naming the row that covers it. Code holds
+  every change to the rules above (16 words, the kind by its words, no two alike, never the idea's name), never under
+  two rows. The Check says what Keel changed in one line, the words it changed stay under the row behind **Put back**
+  (Keel's as served), nothing is lost; a change code refuses is the note alone. **The suggestion moves when put
+  aside:** where the review puts the suggested row aside, or no suggested row is kept, it may suggest the step of the
+  mechanism no kept row tests, in row shape, with its why; code adds it at the end as the suggested row, held to the
+  rules above against every kept row, never beside a kept suggestion nor past four rows, and Choose offers it as
+  Keel's suggestion. **A settled row is put aside, not noted:** a condition all but every one of the segment already has is put aside, its why saying what
   settles it (*Most of your segment already has this ...*), behind **Put back**; with the review off, a row the writer
   marks settled carries that sentence as a note under it, never a refusal, and the founder may pick it.
 - **The stranger's item:** *On your last {occasion},* the picked condition asked as a question (*could you have ...?*,
   *was ...?*). **Fixed answers, in order** (`yes_easily` · `yes_with_steps` · `only_with_help` · `no`), worded by the
   row's kind, the codes fixed:
   - a **permission** (allowed, approval, sign-off, or an act someone else does for them): *Yes, easily · Yes, with some
-    steps · Only with help or approval · No*; where the act is done for the person the stem is in the passive, by code
-    from the asked face (*Think of your last booking call. Could unanswered calls have been forwarded to another
-    number?*), else the face as written;
+    steps · Only with help or approval · No*; **the permission stem is the passive whichever way the row is written**:
+    where the act is done for the person -- a could-row (*could you have forwarded ...*) or an allowed-to row (*were you
+    allowed to have unanswered calls forwarded ...*) alike -- the stem is in the passive, by code from the asked face
+    (*Think of your last booking call. Could unanswered calls have been forwarded to another number?*); a permission
+    the person would exercise themselves (*were allowed to upload the data to an outside tool*) keeps the face as
+    written;
   - an **ability** (could, able): *Yes, easily · Yes, most of the time · Only sometimes · No*;
   - a **fact** (where something is, what they have): **three** -- *Yes · Yes, with some steps · No*; `only_with_help`
     is never served on a fact.
@@ -603,18 +612,32 @@ What your idea must do better than their way today before they would bother to s
 - **The founder's list:** 1 to 4 benefits, all equal, each at most 9 words, a noun phrase naming what changes compared
   with today's way (written against the founder's own Current solution list); one benefit a row, none overlapping; the
   one the founder leads with always a row; a benefit today's way already delivers flagged for the founder to keep or
-  drop; no number the founder did not write. The belief carries every kept benefit, in the order typed, joined with
-  *and*: *For most, with it, {hard_case_theirs} would have given them {value}.* -- the moment it cost them, the
-  study's problem clause in the founder's words (*their last daily log where they lost site notes*), never any last
-  occasion; *their last {occasion}* only where the study holds none.
-- **The stranger's item:** *Think of {hard_case}. Would {Name}, {what it is}, have done that better for you, or
+  drop (the review off); no number the founder did not write. The belief carries every kept benefit, in the order
+  typed, joined with *and*: *For most, with it, {hard_case_theirs} would have given them {value}.* -- the moment it
+  cost them, the study's problem clause in the founder's words (*their last daily log where they lost site notes*),
+  never any last occasion; *their last {occasion}* only where the study holds none. **The review may put a benefit
+  aside** (keel-cloud 237, the review switch on): on Save of the Check it reads the benefits back beside the founder's
+  Current solution list and the study's hard case -- a benefit today's way already gives (the rungs above the
+  founder's line say so), one not true of the hard case, or the second of two rows about one gain (its why naming the
+  first) is put aside, never reworded; the one the founder leads with is never put aside, and one row always stays.
+  The Check says so in one line (*Keel put one benefit aside so what is left is what only your idea would have given
+  them.*), the founder's words stay behind **Put back**, nothing is lost; the belief carries the rows left.
+- **The stranger's item:** *Think of {hard_case}. Would {Name}, {what it is}, have helped you {job} better, or
   not?* -- the hard case the advantage is for, as the study's problem clause says it to them (*the last job that ran
   out of memory*; *the last time ...* is said *the most recent time ...*), never any occasion; where the study holds
-  none, *Think of the last {occasion} when {circumstance}.*; one thing asked, how much better or not; no benefit of
-  the founder's named in the question or the options. The clause is written once per study -- by the founder's
-  Prevalence writer, or by the problem card's where the study has no problem questions -- and held by code (H1 the
-  hurt, never the routine; H2 *the last*, the occasion once; H3 no idea, product, benefit or number; H4 the spoken
-  cap). **Fixed answers, in
+  none, *Think of the last {occasion} when {circumstance}.*; then the question names the job the idea is for (the
+  context's, said to them), never *that* with nothing before it to point at; only the at-stake anchor (*Think of the
+  last {occasion} when you had to {job}.*, where neither fits) keeps *have done that better for you, or not?*, its
+  *that* the job it names. One thing asked, how much better or not; no benefit of the founder's named in the question
+  or the options. The clause is written once per study -- by the founder's Prevalence writer, or by the problem
+  card's where the study has no problem questions -- and held by code (H1 the hurt, never the routine; H2 *the last*,
+  the occasion once; H3 no idea, product, benefit or number; H4 the spoken cap). **The review may rewrite the hard
+  case** (keel-cloud 237, the review switch on): the same read-back reads it against the clause's own went-wrong
+  words -- where it is not one moment and the moment it cost them (the routine, the job again, a standing state, an
+  absence), it is rewritten from the went-wrong words in both shapes, or written where the study holds none; code
+  holds the pair by H1-H4 as the writer's, the clause standing where it fails; the Check says so in one line (*Keel
+  changed the moment the question asks about so it is the one that went wrong.*) and the belief reads the new
+  moment. **Fixed answers, in
   order and in these words, code's:** `a_lot_better` *A lot better* · `a_little_better` *A little better* ·
   `no_difference` *No difference* · `worse` *Worse*; then *I can't tell*. **One measure:** better or not, and how much.
 
@@ -638,9 +661,10 @@ leaves the dimension out.
 
 - **Good (R7 2)** -- Lullaby: benefit *Fewer tries before the baby settles*; belief *For most, with it, their last night
   the baby would not settle would have given them fewer tries before the baby settles.* Stranger: *Think of the last
-  night your baby would not settle. Would Lullaby, a phone app that listens to crying, have done that better for you,
+  night your baby would not settle. Would Lullaby, a phone app, have helped you work out what the baby needs better,
   or not?* *A lot better · A little better · No difference · Worse · I can't tell.* -- the night the baby would not
-  settle, never *their last night*, which a parent whose last night went fine answers *No difference*.
+  settle, never *their last night*, which a parent whose last night went fine answers *No difference*; the job named,
+  so *better* says at what (what it is gives way to its head before the job leaves the question).
 - **Bad (R7 0)** -- the founder's benefits served as the options (the shape before spec 159): *Which of these would have
   made your last night better? Fewer tries before the baby settles · Knowing why the baby cried · Getting back to sleep
   sooner · I can't tell.* **What breaks it:** every option is a benefit -- there is no *No difference* or *Worse*, so
@@ -655,6 +679,10 @@ leaves the dimension out.
   ambiguous word (*your last pole*, *cash decision*); *go better* leaving which better unclear (cycle 7, 68; cycle 8,
   71).
 - The occasion narrowed to a single item no benefit can be true of (*their last shipment*) (cycle 8, 62 and 63).
+- The stranger asked about an ordinary day -- the job or a standing state (*the most recent time you had to get each
+  job to run to the end*, *had no time to manage the cash*), not the moment it went wrong; a benefit today's way
+  already gives kept as the advantage; *done that better* pointing at nothing once the hard case came first (cycles 15
+  to 17).
 <!-- card:solution.relative_advantage:end -->
 
 ---

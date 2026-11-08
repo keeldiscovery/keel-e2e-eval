@@ -39,10 +39,12 @@ SEVEN_DAYS = RecallWindow(7, "DAYS")
 #: the review may change a row, Put back; was `06fcd867...`), then by eval spec 144 to keel-cloud-docs `9e4b7fda` (233
 #: merged: Compatibility §2 -- the review may change a condition, a settled row put aside; was `2f4f0bf8...`), then by
 #: eval spec 145 to keel-cloud-docs `74a04fb5` (235 merged: Current solution §2 *The notes* -- the five rewritten as one
-#: scale -- and Importance §2 *The notes under the rows* -- a part, a cause or a means put aside; was `98b7379b...`); the
-#: one constant the 213, 216, 232 and 233 pins read for the current copy (re-pinned here when a later spec moves the
+#: scale -- and Importance §2 *The notes under the rows* -- a part, a cause or a means put aside; was `98b7379b...`), then
+#: by eval spec 147 to keel-cloud-docs `76620269` (236 and 237 merged: Compatibility §2 -- every row read, Keel's
+#: included, the suggestion moves; Relative advantage §2, §5, §6 -- the benefits read back, the hard case rewritten, the
+#: job in the tail; was `3041f69c...`); the one constant the 213, 216, 232 and 233 pins read for the current copy (re-pinned here when a later spec moves the
 #: cards again).
-CARDS_SHA256_141 = "3041f69cc95ae3ae951e5fd7a393c89acdc05ff31e9b67f3d48261ee4220ebcc"
+CARDS_SHA256_141 = "42fa94dd18d99c3800e507c2225d4e5244d8654425f3287447389ce56c15c0e1"
 #: keel-cloud `VectorFixtures` (Lullaby).
 EVENT_PAST = "had to work out why their baby was crying"
 WENT_WRONG = "did not know why the baby cried"
@@ -211,8 +213,8 @@ HARD_FIVE = {
                   "the last daily log when you lost site notes before writing it",
                   "their last daily log where they lost site notes",
                   ["Hours back at the end of the day", "Action items to the crew the same day"],
-                  "Think of the last daily log when you lost site notes before writing it. Would Fresco, an AI scribe "
-                  "that turns your site-walk videos into notes, have done that better for you, or not?",
+                  "Think of the last daily log when you lost site notes before writing it. Would it have helped you "
+                  "keep an accurate record of the day's work on site better, or not?",
                   "For most, with it, their last daily log where they lost site notes would have given them hours back "
                   "at the end of the day and action items to the crew the same day."),
     "10-palus": ("cash decision", "over the last 3 months, when the company decides where cash from a raise sits until "
@@ -222,7 +224,7 @@ HARD_FIVE = {
                  "the last time their bank cut the yield on their raise cash",
                  ["Higher yield on cash not needed for months", "No treasury hire to manage it"],
                  "Think of the most recent time your bank cut the yield on your raise cash. Would Palus, a treasury "
-                 "account that holds your long-term reserve, have done that better for you, or not?",
+                 "account, have helped you keep the money from a raise safe and earning better, or not?",
                  "For most, with it, the last time their bank cut the yield on their raise cash would have given them "
                  "higher yield on cash not needed for months and no treasury hire to manage it."),
     "13-aircaps": ("conversation", "the last time you tried to follow and join a face-to-face conversation", "AirCaps",
@@ -231,15 +233,15 @@ HARD_FIVE = {
                    "the last time they lost track of a conversation with hearing people",
                    ["More of the talk followed without asking for repeats"],
                    "Think of the most recent time you lost track of a conversation with hearing people. Would AirCaps, "
-                   "an app, have done that better for you, or not?",
+                   "an app, have helped you follow and join a face-to-face conversation better, or not?",
                    "For most, with it, the last time they lost track of a conversation with hearing people would have "
                    "given them more of the talk followed without asking for repeats."),
     "17-expanse": ("job", None, "Expanse", "software on every node that predicts each job's resource needs",
                    "get each job to run to the end without wasting the cluster", "the last job that ran out of memory",
                    "their last job that ran out of memory",
                    ["A job that runs to the end first time", "A shorter wait in the queue"],
-                   "Think of the last job that ran out of memory. Would Expanse, software on every node that predicts "
-                   "each job's resource needs, have done that better for you, or not?",
+                   "Think of the last job that ran out of memory. Would Expanse, software on every node, have helped "
+                   "you get each job to run to the end better, or not?",
                    "For most, with it, their last job that ran out of memory would have given them a job that runs to "
                    "the end first time and a shorter wait in the queue."),
     "21-codyco": ("booking call", "the last time booking calls came in on your shift", "Codyco",
@@ -247,7 +249,7 @@ HARD_FIVE = {
                   "the last time a booking call rang out unanswered", "the last time a booking call rang out unanswered",
                   ["Missed calls turned into bookings", "Callers answered when the desk is busy"],
                   "Think of the most recent time a booking call rang out unanswered. Would Codyco, an AI reservation "
-                  "agent that answers missed calls, have done that better for you, or not?",
+                  "agent, have helped you turn every guest who calls into a booking better, or not?",
                   "For most, with it, the last time a booking call rang out unanswered would have given them missed "
                   "calls turned into bookings and callers answered when the desk is busy."),
 }
@@ -256,12 +258,15 @@ HARD_FIVE = {
 @pytest.mark.parametrize("entry_id", sorted(HARD_FIVE))
 def test_the_five_items_and_beliefs_on_the_hard_case(entry_id):
     """219 FR-4 / FR-5 (`RelativeAdvantageHardCaseTest.theFiveItemsAsServedAndAsReadNow` / `...Beliefs...`): *Think of
-    {hard_case}.* first, the question unchanged after it; the belief on `hard_case_theirs`, every benefit kept."""
+    {hard_case}.* first; the belief on `hard_case_theirs`, every benefit kept. Eval spec 147 FR-1 (keel-cloud 237 FR-3):
+    the items as keel-cloud now serves them -- the question after the hard case names the job (*have helped you {job}
+    better, or not?*), the cap ladder giving way to the what's head, or to *it* (Fresco's ten-word job)."""
     occasion, stem, name, what, job, hard, theirs, benefits, item, belief = HARD_FIVE[entry_id]
     assert spoken_mod.advantage_stem(occasion, name, what, job, stem, hard) == item
     anchor = spoken_mod.hard_case_anchor(hard)
-    assert item.startswith(anchor + " Would " + name + ", ")
-    assert item[len(anchor) + 1:] == spoken_mod.advantage_stem(occasion, name, what, job, stem).split(". ", 1)[1]
+    assert item.startswith(anchor + " Would ") and item.endswith(spoken_mod.helped_tail(job))
+    assert spoken_mod.DONE_BETTER not in item
+    assert item[len(anchor) + 1:] == spoken_mod.advantage_question(name, what, job)
     assert corpus_mod.advantage_belief_219(benefits, occasion, theirs) == belief
     assert corpus_mod.advantage_belief(benefits, occasion, theirs) == belief
 

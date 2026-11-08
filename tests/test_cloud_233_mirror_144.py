@@ -54,11 +54,15 @@ def test_compatibility_says_the_review_may_change_a_condition():
     """FR-4 (233 FR-5): Compatibility §2 -- the review may change a condition that breaks the card, the permission
     example, the founder's words behind Put back, a settled row put aside (the note stands with the review off)."""
     text = " ".join(cards.CARDS_PATH.read_text(encoding="utf-8").split())
-    assert "**The review may change a condition that breaks this card** (keel-cloud 233, the review switch on)" in text
+    assert "**The review may change a condition that breaks this card** (keel-cloud 233, the review switch on)" in text \
+        or "**The review may change a condition that breaks this card** (keel-cloud 233, 236, the review switch on)" in text
+    # eval spec 147 (keel-cloud 236, after 234): the example reads *were allowed to*; the heading names 236 beside 233
     assert ("*could forward unanswered calls to another number* -> *was allowed to have unanswered calls forwarded to "
-            "another number*") in text
+            "another number*") in text or ("*could forward unanswered calls to another number* -> *were allowed to have "
+                                          "unanswered calls forwarded to another number*") in text
     assert "**A settled row is put aside, not noted:**" in text
-    assert text.count("behind **Put back**") == 4, "Importance, Current solution (232); Compatibility twice (233)"
+    assert text.count("behind **Put back**") >= 4, "Importance, Current solution (232); Compatibility twice (233); " \
+        "Relative advantage (237)"
     assert "**The settled note:**" not in text
 
 

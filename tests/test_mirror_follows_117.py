@@ -206,7 +206,11 @@ COMPAT_HINT_153 = ("What must already be true at first-time parents in the US wi
 #: Spec 132 FR-10 re-pin (keel-web 168 FR-1): the people once, by their short name, the list's own count and cap -- no
 #: *Up to 25 words*, never *true at* the segment; *of them* where the screen reads no people.
 COMPAT_HINT = ('What must already be true in their day for this to work? Two to four lines of up to 16 words, each '
-               'reading on from "Most first-time parents ...", e.g. "have their phone with them at that moment".')
+               'reading on from "Most first-time parents ...", e.g. "could talk over the noise on site" (true for some '
+               'of them, not all).')
+#: keel-web 168's example, before 181 (spec 147 FR-1): now a fault.
+COMPAT_HINT_168 = ('What must already be true in their day for this to work? Two to four lines of up to 16 words, each '
+                   'reading on from "Most first-time parents ...", e.g. "have their phone with them at that moment".')
 
 
 @pytest.mark.parametrize("key, hint, faults", [
@@ -216,6 +220,7 @@ COMPAT_HINT = ('What must already be true in their day for this to work? Two to 
     (COMPAT, COMPAT_HINT, []),
     (COMPAT, COMPAT_HINT.replace("Most first-time parents", "Most of them"), []),
     (COMPAT, COMPAT_HINT_153, ["the Answer hint"]),
+    (COMPAT, COMPAT_HINT_168, ["the Answer hint"]),
     (COMPAT, "What they already have or do that it plugs into. Up to 25 words.", ["the Answer hint"]),
     (ADOPTION, "Anything at all.", [])])
 def test_the_answer_hints_are_153s(key, hint, faults):

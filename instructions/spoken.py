@@ -1589,6 +1589,82 @@ def hard_case_anchor(field: str | None) -> str | None:
     return anchor if _spoken_words(anchor) <= STEM_MAX_WORDS else None
 
 
+#: keel-cloud 237 FR-3 (`ScaleFour.HELPED`, `HELPED_END`): the tail that names the job, on the hard case's anchor or the
+#: stem's -- *have helped you {job} better, or not?*.
+HELPED = "have helped you "
+HELPED_END = " better, or not?"
+#: keel-cloud 206 FR-4 (`ScaleFour.TRAILING`): the clause a job trails, which the at-stake anchor and (237) the tail cut.
+_JOB_TRAILING = re.compile(r"(?i)^(.+?)\s+(?:until|without|so that|before|after|while|because|in order to)\s+.+$")
+
+
+def helped_tail(job: str | None) -> str | None:
+    """keel-cloud 237 FR-3 (`ScaleFour.helpedTail`): *have helped you {job} better, or not?* -- the context's job in the
+    second person and the base form, as `at_stake` reads it, without the clause it trails (*until*, *without*, ...,
+    where at least three words are left), so *better* closes on the job's own act; None with no job."""
+    from harness import loss_line as ll                                 # noqa: PLC0415 - `StrangerGrammar.secondPerson`
+    if job is None or not job.strip():
+        return None
+    doing = job.strip()
+    trailing = _JOB_TRAILING.match(doing)
+    if trailing and _spoken_words(trailing.group(1)) >= 3:
+        doing = trailing.group(1).strip()
+    doing = ll.second_person(re.sub(r"[.,;:!?]+$", "", _lower(doing)), False)
+    return HELPED + doing + HELPED_END
+
+
+def idea_ladder(name: str | None, what_it_is: str | None, tail: str) -> list[str]:
+    """keel-cloud 213 FR-6 (`ScaleFour.ideaLadder`, unchanged by 237 but for the room it reads off `tail`): the idea's
+    words before the tail, in the order they give way -- *{Name}, {the whole what},*, the what cut by its trailing
+    phrases to the room `tail` leaves, its head before the first relative clause, the bare name only where there is no
+    what, then *it*."""
+    named = None if not name or not name.strip() else name.strip()
+    what = None if not what_it_is or not what_it_is.strip() else re.sub(r"[.,;:]+$", "", what_it_is.strip())
+    ideas: list[str] = []
+    if what is not None:
+        whats = [what]
+        room = STEM_MAX_WORDS - _spoken_words("Would " + tail) - (0 if named is None else _spoken_words(named))
+        cut = cut_to_fit(what, max(1, room))
+        if cut not in whats:
+            whats.append(cut)
+        head = what_head(what)
+        if head is not None and head not in whats:
+            whats.append(head)
+        ideas += [f"{named}, {one}," if named is not None else one for one in whats]
+    if named is not None and what is None:
+        ideas.append(named)
+    ideas.append("it")
+    return ideas
+
+
+def advantage_question(name: str | None, what_it_is: str | None, job: str | None, at_stake: bool = False) -> str | None:
+    """keel-cloud 237 FR-3 (`ScaleFour.question`'s loop): the question after the anchor -- *Would {idea} {tail}* -- the
+    first rung of `idea_ladder` that keeps it within the 20 spoken words, the tails tried in order: the job's
+    (`helped_tail`, never on the at-stake anchor, which names the job itself), then `DONE_BETTER`. None where nothing
+    fits (the cloud then serves 173's frame)."""
+    helped = None if at_stake else helped_tail(job)
+    for tail in [t for t in (helped, DONE_BETTER) if t is not None]:
+        for idea in idea_ladder(name, what_it_is, tail):
+            asked = f"Would {idea} {tail}"
+            if _spoken_words(asked) <= STEM_MAX_WORDS:
+                return asked
+    return None
+
+
+def advantage_anchor(occasion: str | None, job: str | None, stem: str | None = None,
+                     hard_case_field: str | None = None) -> tuple[str | None, bool]:
+    """`ScaleFour.question`'s anchor (keel-cloud 219 FR-4, 214 FR-2, 198 / 206): the study's hard case
+    (`hard_case_anchor`), else the stem's (`hard_case`), else the job's at-stake anchor (`held_anchor`) -- with whether
+    it is the at-stake one (keel-cloud 237 FR-3: only that one keeps *done that better*). `(None, False)` where none
+    fits."""
+    anchor = hard_case_anchor(hard_case_field)
+    if anchor is None:
+        anchor = hard_case(occasion, stem)
+    if anchor is None and job is not None and job.strip():
+        anchor = held_anchor(occasion, job)
+        return anchor, anchor is not None
+    return anchor, False
+
+
 def advantage_stem(occasion: str | None, name: str | None, what_it_is: str | None, job: str | None,
                    stem: str | None = None, hard_case_field: str | None = None) -> str | None:
     """keel-cloud 213 FR-6 (`ScaleFour.question(occasion, stem, name, whatItIs, job)`): Relative advantage's stranger
@@ -1598,14 +1674,17 @@ def advantage_stem(occasion: str | None, name: str | None, what_it_is: str | Non
     is the hard case (`hard_case`, the occasion stem's when clause), the job's at-stake anchor (`held_anchor`, 198 /
     206) only where there is no stem or it does not fit. None where no anchor fits (the cloud then serves 173's
     frame). keel-cloud 219 FR-4 (spec 141 FR-2; `ScaleFour.question(..., hardCase)`): the study's own hard case first,
-    *Think of {hard_case}.* (`hard_case_anchor`), where it holds one that fits; then 214's, then 198's."""
-    anchor = hard_case_anchor(hard_case_field)
-    if anchor is None:
-        anchor = hard_case(occasion, stem)
-    if anchor is None and job is not None and job.strip():
-        anchor = held_anchor(occasion, job)
+    *Think of {hard_case}.* (`hard_case_anchor`), where it holds one that fits; then 214's, then 198's.
+
+    keel-cloud 237 FR-3 (eval spec 147 FR-1): on the hard case's anchor or the stem's the tail names the job -- *Would
+    {Name}, {what it is}, have helped you {job} better, or not?* (`helped_tail`), the ladder run with it first and once
+    more with the old tail where no rung fits; the at-stake anchor (*... when you had to {job}.*) keeps *have done that
+    better for you, or not?*; no job, the old tail (`advantage_question`)."""
+    anchor, at_stake = advantage_anchor(occasion, job, stem, hard_case_field)
     if anchor is None:
         return None
+    asked = advantage_question(name, what_it_is, job, at_stake)
+    return None if asked is None else anchor + " " + asked
     named = None if not name or not name.strip() else name.strip()
     what = None if not what_it_is or not what_it_is.strip() else re.sub(r"[.,;:]+$", "", what_it_is.strip())
     ideas: list[str] = []

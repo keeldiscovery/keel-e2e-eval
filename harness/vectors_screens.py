@@ -297,12 +297,19 @@ COMPATIBILITY_ANSWER_HINT_153 = re.compile(r"^What must already be true(?: at (?
 #: *true at* it), the list's own count and cap (Compatibility's two to four rows of up to 16 words) -- *What must
 #: already be true in their day for this to work? Two to four lines of up to 16 words, each reading on from "Most
 #: {people} ...", e.g. "have their phone with them at that moment".* -- *of them* where no people are read.
+#: Spec 147 FR-1 (keel-web 181 FR-1, a defect: the old example was a row all but every one of them already has, the
+#: card's own pitfall): the example is a condition true for some of them, not all -- *... e.g. "could talk over the
+#: noise on site" (true for some of them, not all).* (`ANSWER_HINT_OF["solution.compatibility"]`, keel-web `b8682c4f`).
 COMPATIBILITY_ANSWER_HINT = re.compile(r'^What must already be true in their day for this to work\? Two to four lines '
                                        r'of up to 16 words, each reading on from "Most (?P<people>.+?) \.\.\.", e\.g\. '
-                                       r'"have their phone with them at that moment"\.$')
+                                       r'"could talk over the noise on site" \(true for some of them, not all\)\.$')
 COMPATIBILITY_ANSWER_HINT_WANT = ('What must already be true in their day for this to work? Two to four lines of up to 16 '
-                                  'words, each reading on from "Most {people} ...", e.g. "have their phone with them at '
-                                  'that moment".')
+                                  'words, each reading on from "Most {people} ...", e.g. "could talk over the noise on '
+                                  'site" (true for some of them, not all).')
+#: keel-web 168 to 180's example (*e.g. "have their phone with them at that moment".*) -- a fault since 181.
+COMPATIBILITY_ANSWER_HINT_168 = ('What must already be true in their day for this to work? Two to four lines of up to 16 '
+                                 'words, each reading on from "Most {people} ...", e.g. "have their phone with them at '
+                                 'that moment".')
 #: Spec 117 FR-1 / FR-3: the Choose title the walk reads (`.listcheck__title`) on the three Choose screens that moved --
 #: Buyer and payer (keel-web 149, spec 116), Purchase friction (keel-web 153 FR-2, was *Which one is most likely to slow
 #: it down?*) and Compatibility (keel-cloud 179 FR-1's served `choose.prompt`, `SavedList.COMPATIBILITY_CHOOSE_PROMPT`,

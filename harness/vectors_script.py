@@ -1063,14 +1063,35 @@ def benefit_held_with_its_occasion(stem: str | None) -> str | None:
     return f"Would it have made {m.group(2)} go better for you, or not?" if m else None
 
 
-def benefit_frame_of(question: str | None) -> str | None:
-    """Which composition a served Relative advantage question is in: `"173"` (the occasion inside, *Would ... have made
-    your last / the last time go better ...*), `"159"` (*... have made it go better ...*, an item stored before 173),
-    `"085"` (*... made things better ...*, before contract 47), else None. A spec-120 anchor before it is read past."""
+#: keel-cloud 237 FR-3 (`ScaleFour.HELPED` + the job + `HELPED_END`): the question after the hard case's anchor or the
+#: stem's names the job -- *Would {idea} have helped you {job} better, or not?* (frame `"237"`).
+BENEFIT_HELPED = re.compile(r"^Would (?P<idea>.+?) have helped you (?P<job>.+?) better, or not\?$")
+#: keel-cloud 198 FR-8 (`ScaleFour.DONE_BETTER`): the at-stake anchor's tail, and since 237 the fallback where no rung of
+#: the ladder fits with the job (frame `"198"`).
+BENEFIT_DONE_BETTER = re.compile(r"^Would (?P<idea>.+?) have done that better for you, or not\?$")
+
+
+def benefit_split(question: str | None) -> tuple[str | None, str]:
+    """A served Relative advantage question as `(anchor, the question after it)` -- the anchor its first sentence where
+    it opens on *Think* (spec 120's, 198's, 214's or 219's), else None."""
     text = (question or "").strip()
     at = text.find(". ")
     if at > 0 and text.startswith("Think "):
-        text = text[at + 2:].strip()
+        return text[:at + 1], text[at + 2:].strip()
+    return None, text
+
+
+def benefit_frame_of(question: str | None) -> str | None:
+    """Which composition a served Relative advantage question is in: `"237"` (*Would ... have helped you {job} better,
+    or not?*, keel-cloud 237 FR-3), `"198"` (*... have done that better for you, or not?*: the at-stake anchor's, or no
+    rung fitting with the job), `"173"` (the occasion inside, *Would ... have made your last / the last time go better
+    ...*), `"159"` (*... have made it go better ...*, an item stored before 173), `"085"` (*... made things better ...*,
+    before contract 47), else None. An anchor before it is read past (`benefit_split`)."""
+    _, text = benefit_split(question)
+    if BENEFIT_HELPED.match(text):
+        return "237"
+    if BENEFIT_DONE_BETTER.match(text):
+        return "198"
     if _OCCASIONED.match(text):
         return "173"
     if text.endswith(BENEFIT_FRAME_159):

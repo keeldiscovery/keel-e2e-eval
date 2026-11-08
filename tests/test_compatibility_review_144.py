@@ -153,14 +153,15 @@ def test_the_stored_list_holds_the_pick_by_its_words():
 def test_the_stranger_hears_the_permission_four():
     """FR-2 (233 FR-3, its spoken pin): the changed row's words read as a permission by the harness's mirror of
     `ItemFrames.kindOf` (no stored kind: the kind follows the words) -- the registry's four, never the ability's -- and
-    keel-cloud's own pin serves *Were you allowed to have unanswered calls forwarded to another number?*."""
+    keel-cloud's own pin serves *Were you allowed to have unanswered calls forwarded to another number?* -- since
+    keel-cloud 236 FR-3 (eval spec 147) the passive, *Could unanswered calls have been forwarded to another number?*."""
     assert spoken_mod.kind_of(None, ASKED, PERMISSION) == "PERMISSION"
     assert spoken_mod.kind_of(None, None, TYPED[0]) == "ABILITY", "Put back restores the ability with the words"
     path = (KEEL_CLOUD / "src/test/java/com/keeldiscovery/cloud/application/TheReviewChangesTheConditionsTest.java")
     if not path.is_file():
         pytest.skip(f"no keel-cloud checkout at {KEEL_CLOUD}")
     source = " ".join(path.read_text(encoding="utf-8").split())
-    assert ("Think of your last booking call. Were you allowed to have unanswered \" + \"calls forwarded to another "
+    assert ("Think of your last booking call. Could unanswered calls have been \" + \"forwarded to another "
             "number?") in source
     assert vs_screens.served_word_cap({"saves": {"maxWords": 16}}) == 16
 

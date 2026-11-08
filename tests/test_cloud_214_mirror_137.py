@@ -116,20 +116,23 @@ def test_relative_advantage_asks_the_hard_case():
                                        "an AI reservation agent that answers the calls nobody picks up", CODYCO_JOB,
                                        "the last time a booking call rang out unanswered")
     assert codyco.startswith("Think of the most recent time a booking call rang out unanswered. Would Codyco, ")
-    assert codyco.endswith(spoken_mod.DONE_BETTER)
+    # eval spec 147 FR-1 (keel-cloud 237 FR-3, `TheWritersKeepTheCardsRulesTest.relativeAdvantageAsksTheHardCase`): on
+    # the stem's anchor the tail names the job, never *that*
+    assert codyco.endswith(spoken_mod.helped_tail(CODYCO_JOB))
     assert spoken_mod.advantage_stem(
         "conversation", "AirCaps", "captioning glasses", "follow and join a face-to-face conversation",
         "the last time a conversation with hearing people was too fast or too noisy to follow") == (
         "Think of the most recent time a conversation with hearing people was too fast or too noisy to follow. Would "
-        "AirCaps, captioning glasses, have done that better for you, or not?")
+        "AirCaps, captioning glasses, have helped you follow and join a face-to-face conversation better, or not?")
     assert spoken_mod.advantage_stem("time", "Palus", "a treasury account", PALUS_JOB,
                                      "over the last 3 months, when your company decided where cash from a raise would "
                                      "sit").startswith("Think of the most recent time your company decided where cash "
                                                        "from a raise would sit. Would Palus, a treasury account,")
     assert spoken_mod.advantage_stem("daily log", "Fresco", "a voice log for site walks",
                                      "keep an accurate record of the day's work on site",
-                                     "the last time the day's site walks were done").startswith(
-        "Think of the last daily log when the day's site walks were done. Would Fresco")
+                                     "the last time the day's site walks were done") == (
+        "Think of the last daily log when the day's site walks were done. Would it have helped you keep an accurate "
+        "record of the day's work on site better, or not?")       # 237: a ten-word job leaves room for *it* alone
     # no stem: 198's at-stake anchor, as before
     assert spoken_mod.advantage_stem("night", "Lullaby", "a phone app that listens to crying",
                                      "work out what the baby needs and settle the baby").startswith(
