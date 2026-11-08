@@ -101,5 +101,6 @@ def test_compatibilitys_list_saves_without_a_pick_and_savedlist_is_232s():
     dtos = _cloud(FOUNDER + "VectorDtos.java")
     assert ("record SavedListDto(List<SavedItemDto> items, Integer pickedIndex, String phrase, Integer line,\n"
             "            DurationDto duration, Integer lineAfter, List<PutAsideDto> putAside, ChangedDto changed)") in dtos
-    assert vs_screens.REVIEWED_LISTS == ("problem.importance", "problem.current_solution_satisfaction",
-                                         "solution.compatibility")
+    # eval spec 147 FR-2 (keel-cloud 237): Relative advantage's Check holds too, the fourth
+    assert vs_screens.REVIEWED_LISTS[:3] == ("problem.importance", "problem.current_solution_satisfaction",
+                                             "solution.compatibility")

@@ -2470,6 +2470,16 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 continue
             # spec 113 FR-1: the record read through keel-cloud 173's one rule (`spec173Reads`), never rewritten
             want = corpus_mod.engine_belief(j.entry, key)
+            served = belief_after_the_hold(j, key)
+            if served is not None:
+                # spec 147 FR-2 (keel-cloud 237 FR-1 / FR-2, keel-web 181 FR-2): the review put benefits aside or wrote
+                # the moment, so the belief is the one served after the hold (the box on the Check as the review left
+                # it), never the corpus's; the corpus's words a finding beside it
+                if row.get("belief") != want and hasattr(j, "findings"):
+                    j.findings.append({"what": f"{key}: the belief after Keel's review differs from the corpus's "
+                                               "(keel-cloud 237); held to the one served after the hold",
+                                       "served": {"wire": row.get("belief"), "after the hold": served, "corpus": want}})
+                want = served
             if j.strict and row.get("belief") != want:
                 mismatches.append({"dimension": key, "wire": row.get("belief"), "corpus": want})
         h.record_assert({"complete": True, "mismatches": []},
@@ -2477,6 +2487,15 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                          "rows": review.get("rows")})
         assert review.get("complete") is True, review
         assert not mismatches, json.dumps(mismatches, indent=2)
+
+
+def belief_after_the_hold(j: Journey, key: str) -> str | None:
+    """Spec 147 FR-2 (keel-cloud 237, keel-web 181 FR-2): the belief the *Keel will test* box drew on a Check that stayed
+    with the review's band -- the served belief over the rows the review left (and the moment it may have rewritten),
+    read after the hold (`reviewed.test.belief`); None where the Check did not stay or drew no box."""
+    check = next((s for s in (getattr(j, "framing", None) or {}).get(key) or [] if s.get("screen") == "check"), None)
+    belief = (((check or {}).get("reviewed") or {}).get("test") or {}).get("belief")
+    return " ".join(str(belief).split()) or None if belief else None
 
 
 def _after_the_review(j: Journey, vector: str, question: dict, check: dict) -> dict:
@@ -2576,8 +2595,9 @@ def review_defects(j: Journey, key: str, saved: dict, cap: int) -> list[dict]:
     """Spec 143 FR-2: each changed row over the walk's own word cap (`vs.changed_over_cap`) filed as a keel-cloud defect
     finding -- never a retype, never a stop."""
     over = vs.changed_over_cap(saved, cap)
-    # spec 144 FR-2: Compatibility's rows are changed by keel-cloud 233, Importance's and Current solution's by 232
-    spec = "233" if key == COMPATIBILITY_KEY else "232"
+    # spec 144 FR-2: Compatibility's rows are changed by keel-cloud 233, Importance's and Current solution's by 232;
+    # spec 147: Relative advantage's by 237 (which never rewords a benefit: none is ever over the cap)
+    spec = "233" if key == COMPATIBILITY_KEY else "237" if key == RA_KEY else "232"
     for row in over:
         if hasattr(j, "findings"):
             j.findings.append({"what": f"DEFECT (keel-cloud {spec}): the review changed the founder's row '{row['typed']}' "
@@ -5087,18 +5107,61 @@ def _hold_the_idea_name(j: Journey, person, interview: dict, walked: dict) -> No
         if j.strict and want != composed:
             faults.append({"idea line read": want, "composed": composed})
         served_q = (advantage or {}).get("question") or ""
-        if advantage is not None and (served_q != want_question if j.strict else name not in served_q):
+        if advantage is not None:
             # on the back-test the stem and the question are the model's (keel-cloud 120 opens the question with the
-            # occasion stem); only the idea's current name is held there
-            # spec 113 FR-2: the fault says which composition was served (173's, or 159's / 085's -- an item stored
-            # before 173, which a project locked on this run never carries)
-            faults.append({"question": served_q, "frame": vs.benefit_frame_of(served_q),
-                           "want": want_question if j.strict else f"names {name!r}"})
+            # occasion stem); only the idea's current name is held there -- or *it*, where 237's cap ladder reaches it
+            # spec 113 FR-2: the fault says which composition was served (237's, 198's, 173's, or 159's / 085's -- an
+            # item stored before 173, which a project locked on this run never carries)
+            # spec 147 FR-2 (keel-cloud 237): on a scripted journey the question after the anchor is the harness's
+            # composition around the name and the frame (`advantage_question_want`); the anchor's words are never held
+            # (the review may rewrite the hard case)
+            asked_want = advantage_question_want(served_q, name, getattr(j, "idea_what_it_is", None),
+                                                 job=vs._ctx(j.entry).get("job") if j.strict else None,
+                                                 occasion=occasion, strict=j.strict)
+            if asked_want is None:
+                asked_want = vs.benefit_question(occasion, name) if j.strict else f"names {name!r}"
+            _, asked = vs.benefit_split(served_q)
+            held = asked == asked_want if j.strict else (name in asked or asked == asked_want)
+            if not held:
+                faults.append({"question": served_q, "frame": vs.benefit_frame_of(served_q), "want": asked_want})
+            elif not j.strict and name not in asked:
+                j.findings.append({"what": f"{RA_KEY}: the question says *it* where the idea's name {name!r} did not fit "
+                                           "beside the job (keel-cloud 237 FR-3's cap ladder)",
+                                   "served": {"question": served_q, "frame": vs.benefit_frame_of(served_q)}})
         if j.strict and occasion != vs.occasion(j.entry):
             faults.append({"occasion": occasion, "corpus": vs.occasion(j.entry)})
         h.record_assert({"card": want or f"Imagine {name}[, {{what it is}}].", "question": want_question, "faults": []},
                         {"served": dict(served), "question": (advantage or {}).get("question"), "faults": faults})
         assert not faults, json.dumps(faults, indent=2)
+
+
+def advantage_question_want(question: str | None, name: str | None, what_it_is: str | None, *, job: str | None = None,
+                            occasion: str | None = None, strict: bool = False) -> str | None:
+    """Spec 147 FR-2 (keel-cloud 237 FR-3): the question after the anchor the harness wants for a served Relative
+    advantage item -- the idea's name and the frame, never the anchor's words (the review may rewrite the hard case, and
+    on the back-test the anchor is the model's). In the frame served (`vs.benefit_frame_of`):
+
+    - `"237"` / `"198"` on a scripted journey (`strict`, `job` the context's): `spoken.advantage_question` -- the job's
+      tail (`helped_tail`) unless the anchor is the at-stake one (`spoken.held_anchor`), which keeps *done that better*;
+      the cap ladder over the name and `what_it_is`, once more with the old tail;
+    - `"237"` / `"198"` on a back-test: the ladder over the tail as served (the job read off the question), so *Would it
+      ...* is wanted exactly where the name does not fit beside the job;
+    - any other frame: None (the caller holds 173's composition, or the name alone).
+    """
+    frame = vs.benefit_frame_of(question)
+    if frame not in ("237", "198"):
+        return None
+    anchor, asked = vs.benefit_split(question)
+    if strict:
+        at_stake = bool(job) and anchor is not None and anchor == spoken_mod.held_anchor(occasion or None, job)
+        return spoken_mod.advantage_question(name, what_it_is, job, at_stake)
+    helped = vs.BENEFIT_HELPED.match(asked)
+    tail = spoken_mod.HELPED + helped["job"] + spoken_mod.HELPED_END if helped else spoken_mod.DONE_BETTER
+    for idea in spoken_mod.idea_ladder(name, what_it_is, tail):
+        want = f"Would {idea} {tail}"
+        if spoken_mod._spoken_words(want) <= spoken_mod.STEM_MAX_WORDS:
+            return want
+    return None
 
 
 #: keel-web `interviewAnswers.ts`: how many options a control's answer carries (any other one or more). Spec 089 FR-3

@@ -502,8 +502,12 @@ PUT_ASIDE_ROW = "[data-testid=put-aside] [data-testid=put-aside-row]"
 #: Compatibility's Check saves the list with no `pickedIndex` (the pick pending until Choose).
 REVIEW_CONTRACT = 63
 #: Spec 144 FR-1 (keel-cloud 233 FR-1, keel-web 180 FR-1 / FR-2 / FR-4): the lists whose Check Save may hold for the
-#: review -- Importance, Current solution and Compatibility.
-REVIEWED_LISTS = ("problem.importance", "problem.current_solution_satisfaction", "solution.compatibility")
+#: review -- Importance, Current solution and Compatibility. Spec 147 FR-2 (keel-cloud 237 FR-1, keel-web 181 FR-2): and
+#: Relative advantage, the fourth -- its Save names its `review` and the Check holds like the three (`list-reviewing`,
+#: then the band and *Continue*); its put-aside benefits are `put-aside-row`, no row carries `row-changed` (a benefit is
+#: never reworded); the *Keel will test* box reads the served belief while the rows are the saved ones.
+REVIEWED_LISTS = ("problem.importance", "problem.current_solution_satisfaction", "solution.compatibility",
+                  "solution.relative_advantage")
 #: keel-web 180 FR-4: `LIST_REVIEWING` -- the held Check's words (the primary disabled, the `calib__drafting` register,
 #: `role="status"`); `LIST_CONTINUE` / `LIST_CONTINUE_CHOOSE` -- the primary once the review changed a row and the Check
 #: stays with the band. Pinned to the texts (180's test ids are read off its branch when it lands; see tasks.md).
