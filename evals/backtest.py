@@ -1395,8 +1395,11 @@ class Backtest:
 
     def camera(self, j) -> Camera:
         """The camera -- and, set here because it is the back-test's alone, the retries a founder would press
-        (`Journey.retries`, `RETRIES`): a refused model result is a finding, recorded, and the walk goes on."""
+        (`Journey.retries`, `RETRIES`): a refused model result is a finding, recorded, and the walk goes on. Spec 146
+        FR-1: and the back-test's own flag (`Journey.backtest`), which the Importance wire probe reads -- the retries
+        can be spent, the flag cannot."""
         j.retries = RETRIES
+        j.backtest = True
         self.cam = Camera(run_dir=self.run_dir, page=j.page, watched=watched_people(j.people))
         return self.cam
 

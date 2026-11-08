@@ -224,6 +224,10 @@ class Journey:
     #: calibration/{vector}/retry`, `POST questionnaire/retry`) -- 0 everywhere but the back-test, where a live model's
     #: refused result is a finding to record and step past, not the end of the walk. Every one is kept in `findings`.
     retries: int = 0
+    #: Spec 146 FR-1: True on the back-test, set where `retries` is (`Backtest.camera`); the Importance wire probe
+    #: (`_importance_needs_three`) is skipped on it whether or not retries are left -- cycle 17's 17-expanse PROBLEM
+    #: spent its three and the probe ran, and its two wire saves held the lock page past the drift-95 guard.
+    backtest: bool = False
     findings: list = field(default_factory=list)
     #: Spec 144 FR-1 (keel-cloud 233, keel-web 180): each reviewed list's Check Save as the walk waited it out --
     #: `{review, held, held_s, outcome, picked_sent}` by dimension (`Corridor._save_holding`); into `backtest.json`.
@@ -2416,9 +2420,11 @@ def leg_calibrate(j: Journey, vector: str) -> None:
     # body's `hourlyRate` (a rate alone is 422) and the cost step's rate box; hours stay hours, priced nowhere, so the
     # walk sets no rate (`_hourly_rate` is kept for a stack before 180, never called)
     # the 097 F9 probe writes the entry's own Importance labels over Keel's draft through the API; on the back-test
-    # (spec 062, `retries` set) what Keel drafted is the finding, so the probe is skipped (062 follow-up, 2026-10-22:
-    # the 08-fresco and 10-palus judges saw the founder approve one list and strangers served another)
-    if vector == "PROBLEM" and not answers["problem.importance"].unsure and not getattr(j, "retries", 0):
+    # (spec 062, `Journey.backtest`) what Keel drafted is the finding, so the probe is skipped (062 follow-up,
+    # 2026-10-22: the 08-fresco and 10-palus judges saw the founder approve one list and strangers served another).
+    # Spec 146 FR-1: the skip is the back-test's own flag, never the retries left -- a back-test that spent its three
+    # (cycle 17, 17-expanse PROBLEM) ran the probe and its wire saves held the lock page
+    if vector == "PROBLEM" and not answers["problem.importance"].unsure and not getattr(j, "backtest", False):
         _importance_needs_three(j)
     stored = _wait_calibration(j, vector)
     with _step(j, f"{vector.lower()}: every list is stored as the founder saved it -- code's positional codes, "
@@ -2806,6 +2812,10 @@ def _importance_needs_three(j: Journey) -> None:
         after_one = j.revision()
         two, two_body = put(labels[:3], (200,))
         back, back_body = put(labels, (200,))
+        # spec 146 FR-2: each wire save queues a row read-back review (keel-cloud 232/235) and an ASKED job; the page's
+        # own Save would hold for them (keel-web 180), the wire does not -- so the probe waits for the steps it opened
+        # before the walk goes on to a lock page that gates on `Overview.openSteps`
+        _wait_steps_landed(j, "the Importance probe's wire saves")
         j.page.reload(wait_until="load")
         probe = {"own+1": {"status": one, "code": _refusal(one_body),
                            "remedy": (one_body or {}).get("remedy") if isinstance(one_body, dict) else None,
@@ -2820,6 +2830,21 @@ def _importance_needs_three(j: Journey) -> None:
         assert importance_count(probe["own+2"]["belief"]) == importance_count_words("three"), probe
         want = corpus_mod.engine_belief(j.entry, key)
         assert not j.strict or probe["own+4"]["belief"] == want, (probe, want)
+
+
+def _wait_steps_landed(j: Journey, what: str, *, timeout_s: float = 90) -> dict:
+    """Spec 146 FR-2: wait until the overview reads no open step (`Overview.openSteps`, contract 21 -- every job started
+    on the project and not yet landed or failed, the reviews included), the way keel-web's corridor gates its primary
+    button (keel-web 083). For a write made on the wire, past the page's own hold. 90 s times the journey's patience,
+    then the overview as last read is the failure."""
+    deadline = time.monotonic() + timeout_s * j.patience
+    overview: dict = {}
+    while time.monotonic() < deadline:
+        overview = j.get(j.project("/overview")) or {}
+        if int(overview.get("openSteps") or 0) == 0:
+            return overview
+        time.sleep(0.5)
+    raise AssertionError(f"{what}: a step is still open after {timeout_s:.0f} s (Overview.openSteps): {overview}")
 
 
 def _drawn_list(key: str, check: dict) -> dict:
