@@ -728,3 +728,47 @@ def test_the_guidelines_and_the_instruction_say_heard_once():
     assert "## 23. Amendment of 2026-11-09 (keel-cloud spec 240): the reveal is heard once, name to belief" in guidelines
     instruction = " ".join(_cloud("src/main/resources/keel/inference-instructions/solution-mechanism.md").split())
     assert "Say the reveal aloud once: nothing twice, nothing brought *your*." in instruction
+
+
+# ------------------------------------------------------------------------------- FR-5 Ability to pay (241)
+
+ABILITY_LABELS_241 = {"existing_line": "An existing budget line", "charged_to_users": "Charged back to whoever uses it",
+                      "new_line_signed_off": "A new budget line, signed off for it",
+                      "outside_funding": "New money from outside, such as a grant",
+                      "taken_from_other_spend": "Taken from other spending"}
+
+
+def test_ability_to_pays_labels_are_241s_codes_unchanged():
+    """FR-5 (241 FR-1): the registry serves the two new labels under their old codes, in order; no served label names a
+    unit of one kind of organisation; the walk's sides (`BUDGET_SUPPORTS`) read the codes, unmoved."""
+    import json                                                             # noqa: PLC0415
+    from harness import vectors_screens as vs_screens                      # noqa: PLC0415
+    from tests.test_dimension_cards_131 import EXAMPLES                    # noqa: PLC0415
+    registry = json.loads(_cloud("src/main/resources/keel/dimension-registry.json"))
+    entries = registry.get("dimensions") or registry.get("entries") or registry
+    row = next(d for d in (entries if isinstance(entries, list) else entries.values())
+               if isinstance(d, dict) and d.get("key") == "commercial.ability_to_pay")
+    found = {o.get("code"): o.get("label") for o in _options(row)}
+    assert found == ABILITY_LABELS_241, found
+    for label in found.values():
+        assert not re.search(r"(?i)\b(teams?|sites?|departments?|branch(es)?)\b", label), label
+    good = EXAMPLES["commercial.ability_to_pay"]["good"]
+    assert dict(zip(good["codes"], good["options"])) == ABILITY_LABELS_241
+    assert vs_screens.BUDGET_SUPPORTS == ("from_spend", "existing_line", "charged_to_users", "taken_from_other_spend")
+
+
+def _options(row: dict) -> list:
+    """Every `{code, label}` an entry carries, wherever the registry nests its options."""
+    out: list = []
+
+    def walk(node):
+        if isinstance(node, dict):
+            if "code" in node and "label" in node and isinstance(node.get("label"), str):
+                out.append(node)
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+    walk(row)
+    return [o for o in out if o["code"] in ABILITY_LABELS_241]

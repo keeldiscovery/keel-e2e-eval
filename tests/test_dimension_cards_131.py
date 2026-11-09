@@ -460,8 +460,9 @@ EXAMPLES = {
     "commercial.ability_to_pay": {
         "good": {"stem": "You said about $800 to $2,500 a month. If you went ahead at that, where would the money "
                          "come from?",
-                 "options": ["An existing budget line", "Charged to the teams or sites that use it",
-                             "A new budget line, signed off for it", "A grant or outside funding",
+                 # spec 148 FR-5 (keel-cloud 241 FR-1): the two labels that fit every organisation, codes unchanged
+                 "options": ["An existing budget line", "Charged back to whoever uses it",
+                             "A new budget line, signed off for it", "New money from outside, such as a grant",
                              "Taken from other spending"],
                  "codes": ["existing_line", "charged_to_users", "new_line_signed_off", "outside_funding",
                            "taken_from_other_spend"], "variant": "(budget, business)", "escape": "I can't say"},
