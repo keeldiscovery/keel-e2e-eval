@@ -102,6 +102,14 @@ How many of the people you are studying had the problem in the period you chose.
   work in the window and truly answers No to the event, and what was different for them -- and code refuses one set
   apart by the routine or outside the segment (`E9`): if every one of them would say Yes, it is the routine; write the
   part that hurt instead -- the thing that failed, was lost, came back wrong, sat idle or had to be done twice.
+- **The act that hurts, read against the segment (keel-cloud 238).** `E7` also refuses an event every word of which is
+  the segment line's (`circumstance`) or the routine's -- what every one of them does whether or not the problem struck;
+  one that carries none of `went_wrong`'s own words (the kind of thing that went wrong, dropped); and one with a word
+  the founder never gave (in none of `went_wrong`, the routine, the circumstance or the founder's problem: a setting or
+  a kind added). `E9` also refuses a no-sayer who names none of `went_wrong`'s own words: their No is a word of the hurt,
+  denied or not. `E8` also reads *less than it could* and *more than it should* as verdicts, and *let*, *allowed* or
+  *failed to* at the head as blame: what happened to them is said with its subject first (*had the call ring out*),
+  never as their choice (*let the call ring out*). Each refusal names the words and says the test above.
 
 - **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point): the
   founder's question screen carries belief_template as it stands ('... had this at least once in {window}'); the card
@@ -794,15 +802,20 @@ What the problem already costs them: money they spend, time it takes, or a share
   unit is the founder's as typed, its *per {unit}* kept wherever the equation shows it (*of the reserved GPU hours per
   cluster a month*), said once where the base already names it; with none typed, no *per* at all, never a word from
   the base or the loss line. The time path keeps the people who spend the hours.
-- **The stranger's item -- one value box, code's**, in the founder's own unit and period: the question takes its verb
-  and its thing from the founder's loss line, by code where code reads it, else written from the line by the writer
-  under the same rule (keel-cloud 222: the clause in *Last {period}, about what percent of {base} ...?* or *... about how
-  many {measure} ...?*, a word of the line kept, no idea, number or money, the thing said once, within 20 words), in
-  the person's own words and the past -- the thing they see go, never *lose* or *lost*, never *go without* or *fell
-  through* where the writer can say it -- over the founder's period; the label after the box one plain phrase (*hours
-  per site last month*); answered *between ... and ...* (one number fills both). *None* is the number 0 while it is
-  served. Then the one escape; spoken *Or say you can't recall.* **One measure:** the founder's own unit, base and
-  period.
+- **The stranger's item -- one value box, code's**, in the founder's own unit and period: the question takes its verb,
+  its thing and its base from the founder's loss line, by code where code reads it, else written from the line by the
+  writer under the same rule (keel-cloud 222, 239: the clause in *Last {period}, about what percent of {base} ...?* or
+  *... about how many {measure} ...?*, a word of the line kept, every word one {actor_plural} use for the founder's
+  meaning, no idea, number or money, the thing said once, within 20 words; asked whenever the item would otherwise
+  carry a neutral verb, on a money-only study by its part-3 job; two repair turns), in the person's own words and the
+  past -- the thing they see go. Never *lose*, *lost*, *miss*, *go without* or *fell through*: past the writer's second
+  failure, the plain not-done by code where the line has a verb it can say so (*unanswered*: *did not get answered*;
+  *lost track of*: *did you not keep track of*), else the founder's own line said to the person, and the Check says
+  Keel could not name what they see go. The base is the one the line names where it names one (*interest on operating
+  cash*: the operating cash; the Check says so), else the founder's; the typed *per {unit}* kept in the question and
+  the label on the decision-maker's link, said once; the label after the box one plain phrase (*hours per site last
+  month*); answered *between ... and ...* (one number fills both). *None* is the number 0 while it is served. Then the
+  one escape; spoken *Or say you can't recall.* **One measure:** the founder's own unit, base and period.
 
 #### 3. For, against, neither
 
@@ -846,6 +859,11 @@ out, and Ability to pay with it.
   227).
 - A vague verb or *lost* on the item (*miss*, *lost*, *reserve and never use*); a long window in the founder's unit that
   forces the person to multiply (cycle 7, 26; spec 184 FR-8b (c)).
+- The neutral verb served where nobody wrote the clause (*did you go without in booking calls that rang out
+  unanswered*, *did you go without* on the base alone, *fell through*: cycles 13 to 18, the money-only studies, whose
+  one job was never asked); the base another pot than the line's (*the long-term reserve* where the loss was on the
+  operating cash); the typed *per cluster* dropped; a word of the trade's that means something else to the people
+  (cycle 18; keel-cloud 239).
 - Two ways to say nothing: a *None* chip and a spoken *none is 0*, or a second escape (cycle 7, 26; spec 198 FR-3).
 
 #### Open
@@ -967,9 +985,12 @@ Whether the person who pays has money they can use for it at your price.
   come from?*
 - **Fixed answers, in order** (the decision-maker's link) -- five sources of money, each a tenseless noun phrase that
   reads after *did* and after *would*, each where the money comes from, never whether there was any:
-  `existing_line` *An existing budget line* · `charged_to_users` *Charged to the teams or sites that use it* ·
-  `new_line_signed_off` *A new budget line, signed off for it* · `outside_funding` *A grant or outside funding* ·
-  `taken_from_other_spend` *Taken from other spending*; then the escape.
+  `existing_line` *An existing budget line* · `charged_to_users` *Charged back to whoever uses it* ·
+  `new_line_signed_off` *A new budget line, signed off for it* · `outside_funding` *New money from outside, such as a
+  grant* · `taken_from_other_spend` *Taken from other spending*; then the escape.
+- **Each source holds in any organisation** (keel-cloud 241): no label names a unit of one kind of organisation (*team*,
+  *site*, *department*, *branch*), and outside money is told apart from a line already there -- *new money from
+  outside*, never a grant that already sits in a budget line.
 - **The consumer's budget item** (a study where the user pays and cost and price share no base): *Could you pay {price}
   for this from money you already spend, or not?* -- `from_spend` *From money I already spend on this* · `new_money`
   *From other money I'd set aside* · `could_not` *I couldn't pay it*; then *I can't say*.
@@ -1011,12 +1032,12 @@ there, one. The founder's side: no *I'm not sure* of its own -- left out when th
 
 - **Good (R7 2)** -- Fresco, budget reading, a contractor whose Price answer was *$800 to under $2,500*: *You said about
   $800 to $2,500 a month. If you went ahead at that, where would the money come from?* *An existing budget line ·
-  Charged to the teams or sites that use it · A new budget line, signed off for it · A grant or outside funding · Taken
-  from other spending · I can't say.* For: the first, second and fifth; against: the third and fourth.
+  Charged back to whoever uses it · A new budget line, signed off for it · New money from outside, such as a grant ·
+  Taken from other spending · I can't say.* For: the first, second and fifth; against: the third and fourth.
 - **Bad (R7 0)** -- the same item with the list before spec 198: *... where would the money come from?* *A budget line
   we already had · A new budget line, signed off · Taken from other spending · There was no budget for it.* **What
   breaks it:** *There was no budget for it* is not a source of money, and its past tense cannot follow *would*; money
-  charged to the teams that use it and outside funding have no home.
+  money charged back to whoever uses it and new money from outside have no home.
 
 #### 6. Pitfalls the readers have seen
 
@@ -1025,6 +1046,9 @@ there, one. The founder's side: no *I'm not sure* of its own -- left out when th
 - The card reading *1 of 1 (at least 2 in 3)* as met beside a 5-needed floor, and showing Keel's derived belief as one
   the founder checked (cycle 7, 9; cycle 8, 9).
 - Asked of everyone, not only those at the price, it read *Holding up* beside a failing Price (cycle 4; spec 181).
+- *Charged to the teams or sites that use it* named the units of one kind of organisation, and *A grant or outside
+  funding* blurred with a grant already in an existing line: neither held in every organisation the readers walked
+  (cycle 18, proposal 6; keel-cloud 241).
 
 #### Open
 

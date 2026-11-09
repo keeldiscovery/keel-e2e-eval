@@ -42,9 +42,12 @@ SEVEN_DAYS = RecallWindow(7, "DAYS")
 #: scale -- and Importance §2 *The notes under the rows* -- a part, a cause or a means put aside; was `98b7379b...`), then
 #: by eval spec 147 to keel-cloud-docs `76620269` (236 and 237 merged: Compatibility §2 -- every row read, Keel's
 #: included, the suggestion moves; Relative advantage §2, §5, §6 -- the benefits read back, the hard case rewritten, the
-#: job in the tail; was `3041f69c...`); the one constant the 213, 216, 232 and 233 pins read for the current copy (re-pinned here when a later spec moves the
-#: cards again).
-CARDS_SHA256_141 = "42fa94dd18d99c3800e507c2225d4e5244d8654425f3287447389ce56c15c0e1"
+#: job in the tail; was `3041f69c...`), then by eval spec 148 to keel-cloud-docs `155eaca9` (238, 239, 240 and 241
+#: merged: Prevalence §2 -- the act that hurts read against the segment; Existing sacrifice §2, §6 -- the item names the
+#: thing they see go; Ability to pay §2, §5, §6 -- the labels fit every organisation; the steps between 238's
+#: `d764f34f...` and 239's `94f9edc6...`; was `42fa94dd...`); the one constant the 213, 216, 232 and 233 pins read for
+#: the current copy (re-pinned here when a later spec moves the cards again).
+CARDS_SHA256_141 = "78bd11674018b1e2644b2de99256e1fe3c2c781e0f6fca7cefab68fe98e86307"
 #: keel-cloud `VectorFixtures` (Lullaby).
 EVENT_PAST = "had to work out why their baby was crying"
 WENT_WRONG = "did not know why the baby cried"
