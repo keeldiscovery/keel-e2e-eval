@@ -857,3 +857,43 @@ def test_the_window_page_holds_the_typed_when_and_the_note_hook():
         "understands": None, "summary": bt.CONTEXT_WINDOW_NO_SUMMARY, "next_screen_understands": "X."}
     source = _web("src/lib/contextReach.ts")
     assert "export function typedWhenClauseOf" in source and "export function windowPeopleOf" in source
+
+
+# ------------------------------------------------------------------------------- FR-7 the record
+
+def test_the_record_cites_round_a_and_names_the_gate_stops(tmp_path):
+    """FR-7: on a record of 148's walks (bundles that record `gate_refusals`) the review line cites keel-cloud 238 to 241
+    and a gate line counts the E7 / E9 refusals and names each walk stopped by rule; a record before 148 reads as 147
+    wrote it."""
+    import json                                                             # noqa: PLC0415
+    from quality import cycle                                              # noqa: PLC0415
+    from tests.test_record_review_147 import BUNDLES, _walk                 # noqa: PLC0415
+    stop = {"rule": "E7", "refusal": "the segment", "spec": "keel-cloud 238 FR-1", "vector": "PROBLEM",
+            "path": "result.questions[0].event"}
+    bundles = {"17-expanse": {**BUNDLES["17-expanse"], "gate_refusals": []},
+               "21-codyco": {**BUNDLES["21-codyco"], "gate_refusals": [{**stop, "said": "E7: ...", "stopped": False},
+                                                                       {**stop, "said": "E7: ...", "stopped": True}],
+                             "stop_rule": stop}}
+    studies = [_walk(tmp_path, e, b) for e, b in bundles.items()]
+    assert (studies[0].gate_refused, studies[0].stop_rule) == (0, None)
+    assert studies[1].gate_refused == 2 and studies[1].stop_rule == {k: stop[k] for k in
+                                                                     ("rule", "refusal", "spec", "vector")}
+    kw = dict(name="20261110-155eaca", why="spec 148", door="keel", cloud_sha="155eaca", web_sha="36d069e",
+              started="s", ended="e", seconds=1.0, cfg=cycle.load_config(), baseline_path=tmp_path / "BASELINE.md",
+              cycles_dir=tmp_path, decisions=[])
+    text, _ = cycle.compose(studies, review="ON", **kw)
+    review = next(x for x in text.splitlines() if x.startswith("  - the review (spec 209"))
+    assert review.startswith("  - the review (spec 209, keel-cloud 232, 233, 235, 236, 237, 238, 239, 240, 241): ")
+    gate = next(x for x in text.splitlines() if x.startswith("  - the gate (keel-cloud 238"))
+    assert gate == ("  - the gate (keel-cloud 238, 239, 240, 241: the round's mirrors, spec 148): 2 E7 / E9 refusals of "
+                    "Keel's AI over 2 walks (each bundle's `gate_refusals`, retried as the founder's screen retries); "
+                    "stopped by rule on 1: 21-codyco · SOLUTION E7 (the segment, keel-cloud 238 FR-1)")
+    path = tmp_path / "20261110-155eaca.md"
+    path.write_text(text, encoding="utf-8")
+    rendered = cycle.render_record(cycle.load_record(path)).splitlines()
+    assert review in rendered and gate in rendered
+    before = [_walk(tmp_path / "before", e, b) for e, b in BUNDLES.items()]
+    old, _ = cycle.compose(before, review="ON", **{**kw, "cycles_dir": tmp_path / "before"})
+    assert "keel-cloud 238" not in old and "  - the gate (" not in old
+    assert "gate_refused" not in cycle._study_data(before[0])
+    assert json.dumps(cycle._study_data(studies[1]))

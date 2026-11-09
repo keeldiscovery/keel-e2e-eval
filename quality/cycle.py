@@ -251,6 +251,11 @@ class Study:
     # second line, *... changed the moment the question asks about ...*) -- set only on a bundle of 147's walk (one that
     # records `reviewed_lists`, the four), whose `review_dims` / `review_held` then count the fourth; None before 147
     review_moments: int | None = None
+    # spec 148 FR-7 (keel-cloud 238): the gate's E7 / E9 refusals the walk met (`backtest.json`'s `gate_refusals`,
+    # counted) and the one it stopped on by rule (`stop_rule`: `{rule, refusal, spec, vector}`) -- set only on a bundle
+    # of 148's walk (one that records `gate_refusals`, empty or not); None before 148
+    gate_refused: int | None = None
+    stop_rule: dict | None = None
 
     @property
     def key(self) -> str:
@@ -379,7 +384,8 @@ def _study_data(study: Study) -> dict:
     for key in ("vite_timeouts", "review_switch", "review_rows",    # spec 143: as 140 -- absent on a bundle before it
                 "review_dims", "review_shots",                        # spec 144 FR-3: the same
                 "review_scales", "review_held",                       # spec 145 FR-2: the same
-                "review_moments"):                                    # spec 147 FR-4: the same
+                "review_moments",                                     # spec 147 FR-4: the same
+                "gate_refused", "stop_rule"):                         # spec 148 FR-7: the same
         if data.get(key) is None:
             data.pop(key, None)
     return data
@@ -523,12 +529,43 @@ def review_line(d: dict) -> list[str]:
     if any("review_scales" in s or "review_held" in s for s in studies):
         # spec 145 FR-2 (keel-cloud 235): the ladders rewritten whole and the longest hold, beside the counts (a record of
         # walks before 145 reads as 144 wrote it)
-        cited = "(spec 209, keel-cloud 232, 233, 235, 236, 237)" if four else "(spec 209, keel-cloud 232, 233, 235)"
+        cited = (ROUND_A_CITED if round_a(studies) else "(spec 209, keel-cloud 232, 233, 235, 236, 237)") if four \
+            else "(spec 209, keel-cloud 232, 233, 235)"
         n = sum(int(s.get("review_scales") or 0) for s in studies)
         scales = (f"; {n} Current solution ladder{'s' if n != 1 else ''} rewritten whole as one scale (the band's "
                   f"*{SCALE_REWRITTEN} ...*, keel-cloud 235); " + _held_said(studies, named))
     return [head.replace("(spec 209, keel-cloud 232)", cited) + " -- " + ", ".join(per) + scales
             + said + "; the readers scored the screens as served, the second shots under their dimension"]
+
+
+#: Spec 148 FR-7: the review line's citation on a record of 148's walks -- round A's four keel-cloud specs (238 the gate,
+#: 239 Existing sacrifice, 240 the reveal, 241 Ability to pay) beside the review's own.
+ROUND_A_CITED = "(spec 209, keel-cloud 232, 233, 235, 236, 237, 238, 239, 240, 241)"
+
+
+def round_a(studies: list[dict]) -> bool:
+    """Spec 148 FR-7: whether the record's walks are 148's (a bundle that records `gate_refusals`)."""
+    return any("gate_refused" in s for s in studies or [])
+
+
+def gate_line(d: dict) -> list[str]:
+    """Spec 148 FR-7 (keel-cloud 238): under the head, on a record of 148's walks, the gate's E7 / E9 refusals over the
+    walks and the walks stopped by rule, named -- a record before 148 carries no such line."""
+    studies = [s for s in d.get("studies") or [] if "gate_refused" in s]
+    if not studies:
+        return []
+    n = sum(int(s.get("gate_refused") or 0) for s in studies)
+    stopped = [s for s in studies if isinstance(s.get("stop_rule"), dict)]
+    said = (f"  - the gate (keel-cloud 238, 239, 240, 241: the round's mirrors, spec 148): {n} E7 / E9 refusal"
+            f"{'s' if n != 1 else ''} of Keel's AI over {len(studies)} walk{'s' if len(studies) != 1 else ''} (each "
+            "bundle's `gate_refusals`, retried as the founder's screen retries); ")
+    if stopped:
+        said += f"stopped by rule on {len(stopped)}: " + ", ".join(
+            f"{s.get('entry')} · {s.get('scope')} {s['stop_rule'].get('rule')} ({s['stop_rule'].get('refusal')}, "
+            f"{s['stop_rule'].get('spec')})" for s in stopped)
+    else:
+        said += "no walk stopped by rule"
+    return [said]
 
 
 def review_of(record_switch: str | None, studies: list[dict]) -> str | None:
@@ -608,6 +645,7 @@ def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=sub
     stack = record.get("stack") or {}
     study.cloud_sha, study.web_sha = _sha7(stack.get("keel-cloud")), _sha7(stack.get("keel-web"))
     study_review(study, record)                                 # spec 143 FR-1 / FR-2, 144 FR-3, 145 FR-2
+    study_gate(study, record)                                   # spec 148 FR-7: the gate's refusals, by rule
     walked_scope = record.get("scope") or "ALL"
     if walked_scope != scope:
         study.error = f"the bundle says scope {walked_scope}, the walk asked {scope}"
@@ -662,6 +700,17 @@ def study_review(study: Study, record: dict) -> Study:
             if dims is not None and RELATIVE_ADVANTAGE_KEY in dims:
                 # spec 147 FR-4 (keel-cloud 237): Relative advantage's band says the hard case changed
                 study.review_moments = review_moments(record.get("lists_reviewed"))
+    return study
+
+
+def study_gate(study: Study, record: dict) -> Study:
+    """Spec 148 FR-7 (keel-cloud 238): the gate's refusals off a bundle of 148's walk -- how many E7 / E9 refusals it
+    met, and the rule it stopped on (`stop_rule`); nothing on a bundle before 148."""
+    if isinstance(record.get("gate_refusals"), list):
+        study.gate_refused = len(record["gate_refusals"])
+        stop = record.get("stop_rule")
+        study.stop_rule = {k: stop.get(k) for k in ("rule", "refusal", "spec", "vector")} \
+            if isinstance(stop, dict) else None
     return study
 
 
@@ -925,6 +974,7 @@ def render_record(d: dict) -> str:
              + "".join(f"; {k} {_pct(v['score_pct'])}" for k, v in (head.get("by_scope") or {}).items()) + ")",
              *table.walks_lines(d.get("walks")),
              *review_line(d),
+             *gate_line(d),
              *([f"  - R7, fits the dimension (spec 131): fits_pct {_pct(head['fits']['fits_pct'])} over the screens sent "
                 f"a dimension card (founder {_pct(head['fits']['founder'])}, respondent "
                 f"{_pct(head['fits']['respondent'])}); {head['fits']['zeros']} scored 0"] if head.get("fits") else []),

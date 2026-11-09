@@ -2463,9 +2463,9 @@ def transcript(j, bt: Backtest) -> dict:
         # record counts Relative advantage beside the three
         "reviewed_lists": reviewed_lists(),
         **({"review_picks": dict(j.review_picks)} if getattr(j, "review_picks", None) else {}),
-        # spec 148 FR-7 (keel-cloud 238): every E7 / E9 refusal of the gate the walk met, by rule, and the one it stopped
-        # on (`stop_rule`) -- absent on a walk that met none
-        **({"gate_refusals": list(j.gate_refusals)} if getattr(j, "gate_refusals", None) else {}),
+        # spec 148 FR-7 (keel-cloud 238): every E7 / E9 refusal of the gate the walk met, by rule (empty where it met
+        # none: its presence marks a bundle of 148's walk), and the one it stopped on (`stop_rule`, absent where none)
+        "gate_refusals": list(getattr(j, "gate_refusals", None) or []),
         **({"stop_rule": stop} if (stop := gate_stop(j)) else {}),
         # spec 106 FR-2: the walk's cap on the person's own link, where `PEOPLE=` named one
         **({"people": bt.people} if bt.people else {}),
