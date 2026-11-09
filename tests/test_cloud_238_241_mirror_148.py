@@ -772,3 +772,88 @@ def _options(row: dict) -> list:
                 walk(value)
     walk(row)
     return [o for o in out if o["code"] in ABILITY_LABELS_241]
+
+
+# ------------------------------------------------------------------------------- FR-6 the window question (web 183)
+
+WHO_183 = "Volunteer choir leader"
+PEOPLE_183 = "volunteer choir leaders"
+WHEN_183 = "rehearsal starts and half the singers have not got the new score"
+FALLBACK_183 = f"How far back should {PEOPLE_183} look for the last time it happened?"
+
+
+def test_the_typed_when_is_the_clause_before_the_read():
+    """FR-6 (keel-web 183 FR-1, `window-names-the-moment-183.test.tsx` case for case)."""
+    from harness import vectors_screens as vss                             # noqa: PLC0415
+    assert vss.typed_when_clause_of(WHEN_183) == f"the last time {WHEN_183}"
+    assert vss.window_label_of(WHO_183, typed_when=WHEN_183) == \
+        f"How far back should {PEOPLE_183} look for the last time {WHEN_183}?"
+    assert vss.typed_when_clause_of("  When rehearsal starts   and half the singers have not got the new score.  ") \
+        == f"the last time {WHEN_183}"
+    assert vss.typed_when_clause_of("Whenever the hall is double-booked") == "the last time the hall is double-booked"
+    assert vss.typed_when_clause_of("The week before a concert, with the programme still not printed") == \
+        "the last time the week before a concert, with the programme still not printed"
+    assert vss.typed_when_clause_of("Saturday rehearsals run past the hall's booking") == \
+        "the last time Saturday rehearsals run past the hall's booking"
+    assert vss.typed_when_clause_of("After the warm-up, the altos are still missing") == \
+        "the last time after the warm-up, the altos are still missing"
+    assert vss.typed_when_clause_of("You hand out the parts and your copies run short") == \
+        "the last time they hand out the parts and their copies run short"
+    assert vss.typed_when_clause_of("the singers arrive and you're still setting up") == \
+        "the last time the singers arrive and they're still setting up"
+    assert vss.typed_when_clause_of("a singer emails you the night before") is None
+    assert vss.window_label_of(WHO_183, typed_when="a singer emails you the night before") == FALLBACK_183
+    for blank in (None, "   ", "When."):
+        assert vss.typed_when_clause_of(blank) is None, blank
+    assert vss.window_label_of(WHO_183) == FALLBACK_183
+    # FR-2: after the read, its clauses first
+    read = ("Volunteer choir leaders at community choirs. When a rehearsal starts and half the singers do not have the "
+            "new score, they want to start on time with everyone singing. We'll ask about the last 2 weeks.")
+    assert vss.window_label_of(WHO_183, understands=read, typed_when=WHEN_183) == (
+        f"How far back should {PEOPLE_183} look for the last time a rehearsal starts and half the singers do not have "
+        "the new score?")
+    assert vss.window_label_of(WHO_183, "a rehearsal", read, WHEN_183) == \
+        f"How far back should {PEOPLE_183} look for a rehearsal?"
+
+
+def test_the_window_question_is_one_plain_sentence():
+    """FR-6 (keel-web 183 FR-3, `windowPeopleOf`): the people up to the first comma or semicolon, in the plural."""
+    from harness import vectors_screens as vss                             # noqa: PLC0415
+    comma = ("Choir leaders at community choirs in the county, who rehearse every week, singing with a pianist or a "
+             "backing track")
+    assert vss.window_people_of(comma) == "choir leaders at community choirs in the county"
+    assert vss.window_label_of(comma, typed_when=WHEN_183) == \
+        f"How far back should choir leaders at community choirs in the county look for the last time {WHEN_183}?"
+    assert vss.window_people_of("A volunteer choir leader; mostly unpaid") == PEOPLE_183
+    assert vss.window_people_of(WHO_183) == PEOPLE_183
+    assert vss.window_people_of("Parents of babies under six months") == "parents of babies under six months"
+    assert vss.window_people_of("A choir leader who runs two choirs") == "choir leaders who run two choirs"
+    assert vss.window_people_of("") == "people"
+    # the web's own owed example: Codyco's walk, its typos the persona file's
+    assert vss.window_label_of("reservation agent", typed_when="bokoing calls come in on every shift, after hours, at "
+                               "peak and on holidays, and not every one gets answeed") == (
+        "How far back should reservation agents look for the last time bokoing calls come in on every shift, after "
+        "hours, at peak and on holidays, and not every one gets answeed?")
+
+
+def test_the_window_page_holds_the_typed_when_and_the_note_hook():
+    """FR-6: on the walk's 2 of 2 the heading is the typed when's (a fault where it reads *the last time it happened*
+    over a typed when, or parts from the mirror); the note hook and 2 of 2's read-back."""
+    from harness import vectors_screens as vss                             # noqa: PLC0415
+    window = {"count": 7, "unit": "NIGHTS"}
+    drawn = {"screen": "window", "counter": "2 of 2", "count": "", "unit": "", "pressed": []}
+    typed = {"actor": WHO_183, "circumstance": WHEN_183}
+    good = {"drawn": {**drawn, "question": vss.window_label_of(WHO_183, typed_when=WHEN_183)},
+            "picked": {"count": "7", "unit": "NIGHTS"}}
+    assert cs.window_page_faults(good, window, typed) == []
+    old = {"drawn": {**drawn, "question": FALLBACK_183}, "picked": {"count": "7", "unit": "NIGHTS"}}
+    assert [f["rule"] for f in cs.window_page_faults(old, window, typed)] == [
+        "keel-web 183 FR-1: the typed when, never the last time it happened"]
+    assert cs.window_page_faults(old, window) == []                         # no typed fields in hand: 162's shape alone
+    assert vss.SACRIFICE_NOTE_TESTID == "sacrifice-note"
+    web = _web("src/components/calibration/CalibrationPage.tsx")
+    assert 'data-testid="sacrifice-note"' in web and 'id="sacrifice-note"' in web
+    assert bt.read_back(None, "context-window", {"context": {"understands": "X."}}) == {
+        "understands": None, "summary": bt.CONTEXT_WINDOW_NO_SUMMARY, "next_screen_understands": "X."}
+    source = _web("src/lib/contextReach.ts")
+    assert "export function typedWhenClauseOf" in source and "export function windowPeopleOf" in source

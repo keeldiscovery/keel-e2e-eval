@@ -571,7 +571,7 @@ def context_states_faults(states: list[dict], drawn: str) -> list:
     return faults
 
 
-def window_page_faults(page: dict | None, window: dict) -> list:
+def window_page_faults(page: dict | None, window: dict, typed: dict | None = None) -> list:
     """Spec 097 FR-1 (keel-web 141 FR-1): 2 of 2 as the walk found it and left it -- *2 of 2*, its screen named
     `window`, nothing pre-filled (no chip pressed, the count blank, the unit unpicked), and after the pick the count and
     the unit the entry's window; spec 129 (keel-web 162 FR-1): its heading asks *How far back should {actor_plural}
@@ -593,6 +593,18 @@ def window_page_faults(page: dict | None, window: dict) -> list:
     if question and not vs_screens.RECALL_WINDOW_QUESTION.match(question):
         faults.append({"question": question,
                        "want": vs_screens.recall_window_label("{actor_plural}", "{occasion clause}")})
+    # spec 148 FR-6 (keel-web 183 FR-1, FR-3): on the walk's 2 of 2 (a first pass, no read) the clause is the founder's
+    # typed WHEN said of the people -- never *the last time it happened* where a when was typed -- and the people the
+    # typed WHO up to its first comma: one plain sentence
+    asked = vs_screens.RECALL_WINDOW_QUESTION.match(question) if question else None
+    if asked and typed:
+        when, who = typed.get("circumstance"), typed.get("actor")
+        want = vs_screens.window_label_of(who, typed_when=when)
+        if vs_screens.typed_when_clause_of(when) and asked["clause"] == vs_screens.RECALL_WINDOW_LAST_TIME:
+            faults.append({"question": question, "want": want, "rule": "keel-web 183 FR-1: the typed when, never "
+                                                                       "the last time it happened"})
+        elif question != want:
+            faults.append({"question": question, "want": want, "rule": "keel-web 183 FR-1, FR-3"})
     return faults
 
 
@@ -601,7 +613,7 @@ def _hold_the_window_page(j: Journey) -> None:
     picked there (the chip that names it, else the count and the unit)."""
     page = j.corridor.window_page
     window = j.founder.window.as_wire()
-    faults = window_page_faults(page, window)
+    faults = window_page_faults(page, window, getattr(j.founder, "context_fields", None))
     j.changed["context_window_page"] = page
     with _step(j, "the recall window has its own page, 2 of 2 at define/context/window: nothing pre-filled, the "
                   "entry's window picked there -- a chip where one names it, else the count and the unit -- and Save "

@@ -120,6 +120,52 @@ def circumstance_clause_of(understands: str | None) -> str | None:
     return f"the last time {said}" if said else None
 
 
+#: Spec 148 FR-6 (keel-web 183 FR-1, `LOWERED_OPENERS`): the opening words whose first letter is only the sentence's,
+#: lowered mid-sentence; any other first word keeps its case (a name, an acronym).
+_LOWERED_OPENERS = re.compile(
+    r"(?i)^(the|a|an|this|that|these|those|their|they|them|your|you|you're|every|each|any|some|someone|somebody|one|no"
+    r"|nothing|after|before|during|while|once|until|since|as|at|on|in|around|by|if|whenever|late|early|first|most|all"
+    r"|it|its|there|our|we|his|her|my)\b")
+
+
+def typed_when_clause_of(typed: str | None) -> str | None:
+    """keel-web 183 FR-1 (`typedWhenClauseOf`): before the read, the founder's typed WHEN said of the people -- *the last
+    time {typed when}*: whitespace collapsed, the trailing stop dropped, a leading *when* / *whenever* not said twice,
+    the first letter lowered only after a closed-class opener, every other word as typed (typos included); None where
+    nothing was typed or a *you* is left grammar cannot place."""
+    when = re.sub(r"\s+", " ", str(typed or "").strip())
+    when = re.sub(r"[.,;:!?\s]+$", "", when)
+    when = re.sub(r"(?i)^when(ever)?(\s+|$)", "", when)
+    if not when:
+        return None
+    cased = when[:1].lower() + when[1:] if _LOWERED_OPENERS.match(when) else when
+    return said_of_the_people(f"the last time {cased}")
+
+
+def window_people_of(actor: str | None) -> str:
+    """keel-web 183 FR-3 (`windowPeopleOf`): the people the window question names -- the typed WHO up to a clause set
+    off by a comma or a semicolon, in the plural (`people_plural`); the WHO whole where it has none."""
+    head = re.split(r"[,;]", str(actor or ""))[0]
+    return people_plural(head) or people_plural(str(actor or "")) or RECALL_WINDOW_PEOPLE
+
+
+def window_label_of(actor: str | None, occasion_clause: str | None = None, understands: str | None = None,
+                    typed_when: str | None = None) -> str:
+    """keel-web 183 (`windowLabelOf`): *How far back should {people} look for {clause}?* -- the read's occasion clause,
+    then its *When* clause (`circumstance_clause_of`), then the typed WHEN (`typed_when_clause_of`), and
+    `RECALL_WINDOW_LAST_TIME` only where none of them is there; the people `window_people_of`'s. On the walk's 2 of 2 (a
+    first pass, before any read) it is the typed WHEN: the walk always types one, so *the last time it happened* never
+    reads there."""
+    return recall_window_label(window_people_of(actor), occasion_clause or circumstance_clause_of(understands)
+                               or typed_when_clause_of(typed_when) or RECALL_WINDOW_LAST_TIME)
+
+
+#: Spec 148 FR-6 (keel-web 183 FR-5, T007): the Existing sacrifice Check's note -- `p.listrow__warn[role=note]
+#: #sacrifice-note`, inside `[role=group][aria-label="Existing sacrifice"][aria-describedby=sacrifice-note]`, drawn
+#: while the cost is untouched and *I'm not sure* not pressed; its text `CalibrationQuestion.note` as served.
+SACRIFICE_NOTE_TESTID = "sacrifice-note"
+
+
 #: Spec 129 (keel-web 162 FR-2): the market step's question (`.guided-step__question`, the country select's name too;
 #: was *Where will you sell this first?*), the region box's placeholder (`regionPlaceholder`: the country's examples
 #: where it has them) and the hint under it (`market-region-hint`, the box's `aria-describedby`; not drawn on *Another
@@ -2693,6 +2739,8 @@ class Corridor:
                 if unit.count() and unit.first.locator(f"option[value='{interval['unit']}']").count():
                     unit.first.select_option(interval["unit"])
             elif control == "cost_estimate" and self.page.get_by_test_id("chain-cost").count():
+                # spec 148 FR-6 (keel-web 183 FR-5): the served note, read before the cost is touched (an edit drops it)
+                boxes["sacrifice_note"] = _first_text(self.page, f"[data-testid={SACRIFICE_NOTE_TESTID}]") or None
                 seen_chain = self._chain_cost(answer["cost"])
             elif control == "price_range" and self.page.get_by_test_id("chain-price").count():
                 seen_chain = self._chain_price(answer["price"])

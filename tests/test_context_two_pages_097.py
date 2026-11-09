@@ -264,7 +264,10 @@ def test_the_back_test_answers_each_context_screen_with_what_was_typed_there():
     assert bt.founder_answer(two, "context-window") == {"recall window": _WINDOW, "picked with": "chip"}
     assert bt.founder_answer(one, "context") == {**FIELDS, "recall window": _WINDOW}
     wire = {"context": {"understands": SENTENCE}}
-    assert bt.read_back(two, "context-window", wire) == {"understands": SENTENCE}
+    # spec 148 FR-6 re-pin (keel-web 183 J-3): 2 of 2 draws no summary -- the sentence handed as the next screen's
+    assert bt.read_back(two, "context-window", wire) == {"understands": None, "summary": bt.CONTEXT_WINDOW_NO_SUMMARY,
+                                                         "next_screen_understands": SENTENCE}
+    assert bt.read_back(two, "context-card", wire) == {"understands": SENTENCE}
 
 
 # ------------------------------------------------------------------------------ keel-web 141's own selectors

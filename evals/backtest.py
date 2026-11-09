@@ -1650,10 +1650,20 @@ def founder_answer(j, slug: str) -> Any:
 SCREEN_DRAWN_BELIEF = ("answer", "check")
 
 
+#: Spec 148 FR-6 (keel-web 183 J-3): what the readers are told of 2 of 2's summary.
+CONTEXT_WINDOW_NO_SUMMARY = ("2 of 2 draws no summary: the window question is the only sentence about the people on this "
+                             "page; the Keel understands sentence is the next screen's (keel-web 183 J-3)")
+
+
 def read_back(j, slug: str, wire: dict) -> Any:
     """What Keel read back for one screen: the *Keel understands* card, the statement, the idea's lines, the belief
     sentence and the *Keel will test* box, the frame -- from the wire and what the screen drew."""
-    if slug in ("context", "context-window", "context-card"):
+    if slug == "context-window":
+        # spec 148 FR-6 (keel-web 183 J-3): 2 of 2 draws no summary -- the only sentence about the people there is the
+        # window question; the *Keel understands* sentence is the next screen's (the card), handed apart and labelled
+        return {"understands": None, "summary": CONTEXT_WINDOW_NO_SUMMARY,
+                "next_screen_understands": (wire.get("context") or {}).get("understands")}
+    if slug in ("context", "context-card"):
         return {"understands": (wire.get("context") or {}).get("understands")}
     if slug in ("problem-seed", "problem-card"):
         return {"statement": (wire.get("review/PROBLEM") or {}).get("statement")}
