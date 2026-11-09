@@ -594,7 +594,7 @@ def new_word_fault(event, word: str) -> str:
             f"who had the problem; {HURT_SENTENCE}, from went_wrong in the founder's words")
 
 
-def routine_fault(event, routine, went_wrong, actor_plural, circumstance=None, seed=None) -> str | None:
+def routine_fault(event, routine, went_wrong, actor_plural, circumstance=None, seed=None, *given) -> str | None:
     """`WindowFrame.routineFault` (E7): the event is the routine -- every content word of it (`FounderWords`' stop words
     and `actor_plural`'s own out, each in its base) is in `routine`, and none is in what `went_wrong` says beyond the
     routine (212 plan, call 9). Since keel-cloud 238 (spec 148 FR-2) three more, each a refusal naming the words:
@@ -654,7 +654,8 @@ def routine_fault(event, routine, went_wrong, actor_plural, circumstance=None, s
                 f"'{went_wrong.strip()}') -- the kind of thing that went wrong is dropped, so one who met another kind "
                 f"would answer Yes; write event from went_wrong, keeping one of its words. {_upper(ROUTINE_TEST)}")
     if isinstance(seed, str) and seed.strip():
-        added = new_word(event, actor_plural, went_wrong, routine, circumstance, seed)
+        # keel-cloud 242: every field the founder typed counts as given (job, who, when, the statement) -- `given`
+        added = new_word(event, actor_plural, went_wrong, routine, circumstance, seed, *[g for g in given if g])
         if added is not None:
             return new_word_fault(event, added)
     return None

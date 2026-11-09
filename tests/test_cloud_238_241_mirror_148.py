@@ -388,21 +388,21 @@ WALKED = ("01-countly", "05-paidly", "07-mulchrun")
 def test_every_scripted_gate_holds_238(golden):
     """FR-2 (238 FR-1 to FR-3): every golden scripted Prevalence holds E7 on the context's circumstance and, at the
     project step, the founder's seed (the entry's problem statement), its no-sayer E9 and its served gate is never
-    the segment -- except Lullaby's *work* (the founder's job's word, none of 238's four sources: judgement call), never
-    walked on the scripted runtime."""
+    the segment; Lullaby's *work* is the founder's job's word and passes once the job is given (keel-cloud 242)."""
     from harness import vectors_script as vs                               # noqa: PLC0415
     for entry_id, (event, gate) in vs.PROBLEM_CLAUSES.items():
         entry = golden[entry_id]
         ctx = vs._ctx(entry)
         routine, went_wrong = vs.act_that_hurts(entry)
         seed = " ".join(str(entry.statements["problem"]).split())
+        # keel-cloud 242: the founder's job, people and statement count as given, so Lullaby's *work* passes
         fault = wording_mod.routine_fault(event, routine, went_wrong, ctx.get("actor_plural"), ctx.get("circumstance"),
-                                          seed)
+                                          seed, ctx.get("job"), ctx.get("actor"), seed)
+        assert fault is None, (entry_id, fault)
         if entry_id == "03-lullaby":
-            assert fault == wording_mod.new_word_fault(event, "work") and "work" in ctx["job"], fault
-            assert entry_id not in WALKED
-        else:
-            assert fault is None, (entry_id, fault)
+            without_job = wording_mod.routine_fault(event, routine, went_wrong, ctx.get("actor_plural"),
+                                                    ctx.get("circumstance"), seed)
+            assert without_job == wording_mod.new_word_fault(event, "work") and "work" in ctx["job"], without_job
         assert wording_mod.routine_fault(event, routine, went_wrong, ctx.get("actor_plural"),
                                          ctx.get("circumstance")) is None, entry_id
         assert wording_mod.inside_the_segment(gate, ctx.get("circumstance"), ctx.get("actor_plural")) is None, entry_id
