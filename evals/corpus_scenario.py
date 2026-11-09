@@ -1599,6 +1599,7 @@ def leg_interpret_solution(j: Journey) -> None:
     j.framing["idea"] = [seen]
     _hold_the_name_suggestion(j, seen)
     _hold_the_brand_plate(j, seen)
+    reveal_heard_once(j, seen)
     if seen["reloaded"]:
         # runs/DRIFT.md #78, closed by keel-web 066 (IdeaCheck refills from the served idea): spec 041 reloaded the page
         # once. The page object still reloads (so the bundle shows what followed), and the journey fails here.
@@ -4743,6 +4744,51 @@ def _hold_the_brand_plate(j: Journey, seen: dict) -> None:
         faults = vs_screens.brand_plate_faults(plate, seen.get("typed"), plate.get("whatItIs"))
         h.record_assert({"faults": []}, {"plate": plate, "faults": faults})
         assert not faults, faults
+
+
+#: Spec 148 FR-4 (keel-cloud 240 FR-1): the founder's hedge verbs a belief keeps after *would* (*we target 4.5 to 5
+#: percent*: *would target*, never *would earn*) -- English's verbs of aim, in their forms; no trade's.
+HEDGE_VERBS = {"target": ("target", "targets", "targeting", "targeted"), "aim": ("aim", "aims", "aiming", "aimed"),
+               "expect": ("expect", "expects", "expecting", "expected"),
+               "estimate": ("estimate", "estimates", "estimating", "estimated")}
+
+
+def belief_hedge_dropped(belief: str | None, seed: str | None) -> dict | None:
+    """Spec 148 FR-4 (keel-cloud 240 FR-1, the instruction's rule -- code there cannot read it, so the walk does): where
+    the founder's solution seed says one of `HEDGE_VERBS`, the belief opens *would* + that verb; `{hedge, said}` where it
+    opens on another (*would earn* for *we target*), else None."""
+    if not belief or not seed or not str(belief).startswith(vs.BELIEF_FRAME):
+        return None
+    words = re.findall(r"[a-z']+", str(seed).lower())
+    hedge = next((verb for verb, forms in HEDGE_VERBS.items() if any(w in forms for w in words)), None)
+    said = (str(belief)[len(vs.BELIEF_FRAME):].split() or [""])[0].lower().strip(",.;:")
+    if hedge is None or said in HEDGE_VERBS[hedge]:
+        return None
+    return {"hedge": hedge, "said": said}
+
+
+#: Spec 148 FR-4: the findings the served reveal is read for.
+M8_SERVED = "the idea's reveal says a thing twice -- name, what line, how, belief (keel-cloud 240 FR-4)"
+HEDGE_SERVED = "the belief drops the founder's hedge -- would + the founder's verb (keel-cloud 240 FR-1)"
+
+
+def reveal_heard_once(j: Journey, seen: dict) -> list[dict]:
+    """Spec 148 FR-4 (keel-cloud 240): the reveal as the founder's idea check draws it -- the name typed, what it is, the
+    how and the belief -- read once aloud: each thing said again (`vs.m8_breaches`, the cloud's M8 over the served lines)
+    and a dropped hedge (`belief_hedge_dropped`) are findings, never a stop."""
+    lines = (seen or {}).get("lines") or {}
+    found: list[dict] = []
+    if lines.get("how"):
+        for path, why in vs.m8_breaches(seen.get("typed") or None, lines.get("whatItIs") or vs.short_name(j.entry),
+                                        lines.get("how"), lines.get("belief")):
+            found.append({"what": M8_SERVED, "path": path, "said": why.split(";", 1)[0]})
+    hedge = belief_hedge_dropped(lines.get("belief"), getattr(j.founder, "solution_seed", None)
+                                 if getattr(j, "founder", None) is not None else None)
+    if hedge is not None:
+        found.append({"what": HEDGE_SERVED, **hedge, "belief": lines.get("belief")})
+    if isinstance(getattr(j, "findings", None), list):
+        j.findings.extend(found)
+    return found
 
 
 #: keel-web `ExitScreen`'s heading (`INTERVIEW_DONE_TITLE`): the gate's No, outside, and since 127 a story chip.

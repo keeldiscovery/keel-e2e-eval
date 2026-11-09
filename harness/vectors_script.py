@@ -790,15 +790,233 @@ def problem_result(entry) -> dict:
             **problem_clause(entry)}
 
 
+#: Spec 148 FR-4 (keel-cloud 240 FR-4): the scripted belief's pointer where the circumstance would say the how again --
+#: *the belief points back ('all of that')*, the cloud's own words.
+BELIEF_POINTS_BACK = "make a real difference to all of that."
+
+
+def seed_named(seed: str | None) -> str | None:
+    """`IdeaName.named` (spec 128 FR-9): the name the founder quoted in the solution seed (one to five words, no
+    sentence punctuation), or None -- the name M8 reads at the mechanism's apply."""
+    for m in _QUOTED.finditer(seed or ""):
+        phrase = _clean_name(m.group(1) or m.group(2) or m.group(3))
+        if phrase and 1 <= len(phrase.split(" ")) <= NAME_MAX_WORDS and not re.search(r"[.!?;:]", phrase):
+            return phrase
+    return None
+
+
 def idea_lines(entry) -> dict:
     """The idea's three lines as r10 composed them: *Imagine {short_name}.*, the how, the belief. Since keel-cloud 097
     (F7) the what line is not the model's -- the script sends `idea_how` / `idea_belief` alone -- and the what is the
-    name the founder types (`idea_name`)."""
+    name the founder types (`idea_name`). Spec 148 FR-4 (keel-cloud 240 FR-4, M8 one check over the reveal): the
+    scripted lines are heard once -- the first of the how's forms (whole; without its output clause; without its
+    trigger; the mechanism alone) and the belief's (on the circumstance; pointing back, `BELIEF_POINTS_BACK`) that
+    says nothing twice beside the what line (`m8_breaches`), so no scripted result spends a repair turn; an entry whose
+    whole lines already are heard once is composed exactly as before."""
     m = entry.solution_mechanism or {}
     what = f"Imagine {short_name(entry)}."
-    how = _sentence(f"{m['trigger']}, {m['actor']} {m['mechanism']}; it gives {m['output']}.")
-    belief = BELIEF_FRAME + f"make a real difference when {_ctx(entry)['circumstance']}."
-    return {"what": what, "how": how[:300], "belief": belief[:200]}
+    hows = [f"{m['trigger']}, {m['actor']} {m['mechanism']}; it gives {m['output']}.",
+            f"{m['trigger']}, {m['actor']} {m['mechanism']}.",
+            f"{m['actor']} {m['mechanism']}; it gives {m['output']}.", f"{m['actor']} {m['mechanism']}."]
+    beliefs = [BELIEF_FRAME + f"make a real difference when {_ctx(entry)['circumstance']}.",
+               BELIEF_FRAME + BELIEF_POINTS_BACK]
+    suggested = (entry.idea_what() if hasattr(entry, "idea_what") else None) or short_name(entry)
+    name = seed_named((getattr(entry, "statements", None) or {}).get("solution"))
+    for how in hows:
+        for belief in beliefs:
+            said = _sentence(how)[:300]
+            if not m8_breaches(name, suggested, said, belief[:200]):
+                return {"what": what, "how": said, "belief": belief[:200]}
+    return {"what": what, "how": _sentence(hows[0])[:300], "belief": beliefs[0][:200]}
+
+
+# ------------------------------------------------------------- spec 148 FR-4: keel-cloud 240, the reveal heard once
+
+#: keel-cloud 240 FR-4 (`IdeaLines.SMALL_WORDS`): the words that never make a thing said twice on their own -- grammar
+#: words only, no trade.
+IDEA_SMALL_WORDS = frozenset((
+    "a", "an", "the", "and", "or", "but", "nor", "so", "yet", "then", "than", "as", "if", "when", "while", "where",
+    "whether", "because", "though", "until", "before", "after", "since", "once", "to", "of", "in", "on", "at", "by", "for",
+    "with", "from", "into", "onto", "over", "under", "through", "via", "near", "about", "around", "across", "along",
+    "against", "between", "per", "up", "down", "out", "off", "without", "within", "inside", "during", "like", "is", "are",
+    "was", "were", "be", "been", "being", "am", "do", "does", "did", "done", "have", "has", "had", "would", "will", "can",
+    "could", "should", "may", "might", "must", "it", "its", "you", "your", "they", "them", "their", "we", "us", "our",
+    "he", "him", "his", "she", "her", "i", "me", "my", "this", "that", "these", "those", "there", "here", "what", "which",
+    "who", "whom", "whose", "how", "why", "not", "no", "never", "each", "every", "all", "any", "some", "more", "most",
+    "much", "many", "few", "other", "another", "such", "same", "own", "also", "just", "only", "very", "too", "again",
+    "ever", "even", "still", "both", "either", "neither", "imagine"))
+#: keel-cloud 240 FR-4 (`IdeaLines.CLOSES_THE_PHRASE`): the words that close the what line's first noun phrase.
+CLOSES_THE_PHRASE = frozenset((
+    "to", "through", "into", "from", "in", "on", "at", "by", "with", "for", "of", "over", "under", "about", "across",
+    "after", "before", "between", "during", "inside", "onto", "per", "via", "without", "within", "around", "against",
+    "like", "near", "that", "which", "who", "whom", "whose", "where", "when", "while", "and", "or", "but", "so", "if",
+    "as", "than", "because", "the", "a", "an", "your", "their", "its", "his", "her", "our", "my", "them", "it", "you",
+    "they", "we", "this", "these", "those", "is", "are", "was", "were", "will", "would", "can", "could", "may", "might",
+    "should", "does", "do", "has", "have", "then", "every", "each"))
+#: keel-cloud `IdeaLines.CARD_OPENING`.
+CARD_OPENING = "Imagine "
+_EDGE = re.compile(r"^[^\w]+|[^\w]+$")
+
+
+def _bare(word: str) -> str:
+    return re.sub(r"^[\W_]+|[\W_]+$", "", word)
+
+
+def what_is(words) -> str | None:
+    """`IdeaLines.whatIs` (spec 185 FR-2): what it is as the card says it after the name -- one space, no trailing stop
+    or leading comma, a capitalised article lower-cased; None when blank."""
+    if words is None or not str(words).strip():
+        return None
+    text = " ".join(str(words).split())
+    while text.endswith("."):
+        text = text[:-1].strip()
+    while text.startswith(","):
+        text = text[1:].strip()
+    if not text:
+        return None
+    first = text.split(" ")[0]
+    if first in ("A", "An", "The"):
+        text = first.lower() + text[len(first):]
+    return text
+
+
+def card_line(name, what) -> str:
+    """`IdeaLines.card(name, whatItIs)` (spec 185 FR-2): *Imagine {name}, {what it is}.*, the name alone where what it is
+    is the name itself."""
+    said = what_is(what)
+    if said is None or (name is not None and said.lower() == idea_name_of(name).lower()):
+        return CARD_OPENING + ("" if name is None else str(name).strip()) + "."
+    return CARD_OPENING + ("" if name is None else str(name).strip()) + ", " + said + "."
+
+
+def _singular(word: str) -> str:
+    if word.endswith("ies") and len(word) > 4:
+        return word[:-3] + "y"
+    if word.endswith("s") and not word.endswith("ss") and len(word) > 3:
+        return word[:-1]
+    return word
+
+
+def _heard_word(word: str) -> str:
+    return _singular(re.sub(r"['’]s$", "", word.lower()))
+
+
+def kind_of(what) -> str | None:
+    """keel-cloud 240 FR-4 (`IdeaLines.kindOf`): the kind of thing a what line names -- its first noun phrase's last word
+    before the word that closes it (or a comma), as heard; None where none."""
+    line = what_is(what)
+    if line is None:
+        return None
+    kind = None
+    words = line.split()
+    for i, raw in enumerate(words):
+        word = _bare(raw)
+        lower = word.lower()
+        if i > 0 and lower in CLOSES_THE_PHRASE:
+            break
+        if word and lower not in IDEA_SMALL_WORDS:
+            kind = _heard_word(word)
+        if raw.endswith(","):
+            break
+    return kind if kind is not None and re.fullmatch(r"[^\W\d_]+", kind) else None
+
+
+def idea_sentences(line) -> list[str]:
+    """`IdeaLines.sentences` (spec 207 FR-3): a line's sentences, split after . ! or ? and a space."""
+    if line is None or not str(line).strip():
+        return []
+    return [s for s in re.split(r"(?<=[.!?])\s+", str(line).strip()) if s.strip()]
+
+
+def _heard_in(sentence: str, kind, opened: bool, offset: int) -> list[tuple]:
+    raw = sentence.strip().split()
+    bare = [_bare(w) for w in raw]
+    closes = [bool(w) and not w[-1].isalnum() for w in raw]
+    lower = [re.sub(r"['’]s$", "", b.lower()) for b in bare]
+    key = [_singular(x) for x in lower]
+    plain = lambda w: bool(w) and w not in IDEA_SMALL_WORDS                               # noqa: E731
+    units = []
+    for i in range(len(raw)):
+        if not key[i]:
+            continue
+        opens = i == 0 and not opened
+        if not opens and bare[i][:1].isupper() and bare[i] != "I" and bare[i] != bare[i][:1]:
+            units.append(("name:" + key[i], bare[i], offset + i, offset + i))
+        elif re.fullmatch(r"[^\W\d_]+(?:-[^\W\d_]+)+", bare[i]):
+            units.append(("joined:" + key[i], bare[i], offset + i, offset + i))
+        elif key[i] == kind:
+            units.append(("kind:" + kind, bare[i], offset + i, offset + i))
+        if i + 1 < len(raw) and not closes[i] and plain(lower[i]) and plain(lower[i + 1]):
+            units.append(("words:" + key[i] + " " + key[i + 1], bare[i] + " " + bare[i + 1], offset + i, offset + i + 1))
+    return units
+
+
+def said_twice(name, what, how, belief) -> list[tuple[str, str]]:
+    """keel-cloud 240 FR-4 (`IdeaLines.saidTwice`): what the reveal -- the name and what it is, the how, the belief, heard
+    in a row -- says again: `(words, line)` with `line` *what*, *how* or *belief*, each thing once in the order heard, a
+    word inside a longer thing said again not named apart. It hears a name (a capitalised word opening no sentence), a
+    joined word, two plain words in a row (never across a comma) and the what line's kind; the belief's frame is never
+    counted. Grammar only, persona-blind."""
+    lines = []
+    what_line = card_line(name, what) if name is not None and str(name).strip() else what_is(what)
+    if what_line is not None:
+        lines.append(("what", what_line))
+    if how is not None and str(how).strip():
+        lines.append(("how", str(how)))
+    framed = belief is not None and str(belief).strip().startswith(BELIEF_FRAME)
+    if belief is not None and str(belief).strip():
+        lines.append(("belief", str(belief).strip()[len(BELIEF_FRAME):] if framed else str(belief)))
+    kind = kind_of(what)
+    heard: set = set()
+    told: set = set()
+    again: list[tuple[str, str]] = []
+    for where, text in lines:
+        frameless = framed and where == "belief"
+        spans: list[tuple[int, int]] = []
+        repeats: list[tuple] = []
+        offset = 0
+        for sentence in idea_sentences(text):
+            units = _heard_in(sentence, kind, frameless and offset == 0, offset)
+            offset += len(sentence.split())
+            for unit_key, words, start, end in units:
+                fresh = unit_key not in heard
+                heard.add(unit_key)
+                if not fresh and unit_key not in told and all(r[0] != unit_key for r in repeats):
+                    repeats.append((unit_key, words, start, end))
+        for unit_key, words, start, end in sorted(repeats, key=lambda r: -(r[3] - r[2])):
+            if any(s <= start and end <= e for s, e in spans):
+                continue
+            spans.append((start, end))
+            told.add(unit_key)
+            again.append((words, where))
+    return again
+
+
+#: keel-cloud 240 FR-4 (`ScreenResultApplier`'s M8): the line a thing is heard again in, as the breach names it.
+M8_LINES = {"what": "what line", "how": "how line", "belief": "belief"}
+
+
+def m8_breaches(name, what, how, belief, how_decider=None, what_is_short_name: bool = False) -> list[tuple[str, str]]:
+    """keel-cloud 240 FR-4 (`ScreenResultApplier`, after M7): `(path, why)` for every M8 the reveal draws -- each how
+    voice read with the name, what it is and the belief; the path the line's (`result.idea_what`, or
+    `result.short_name` where that is the suggestion; the how's own voice; `result.idea_belief`); once each."""
+    what_path = "result.short_name" if what_is_short_name else "result.idea_what"
+    out: list[tuple[str, str]] = []
+    for line, path in ((how, "result.idea_how.primary"), (how_decider, "result.idea_how.decider")):
+        if line is None or not str(line).strip():
+            continue
+        grouped: dict = {}
+        for words, where in said_twice(name, what, line, belief):
+            grouped.setdefault(where, []).append(f"'{words}'")
+        for where, words in grouped.items():
+            at = {"what": what_path, "how": path}.get(where, "result.idea_belief")
+            why = ("M8: " + ", ".join(words) + (" is" if len(words) == 1 else " are") + " heard again in the "
+                   + M8_LINES[where] + "; the name, what it is, the how and the belief are one reveal heard in a row, "
+                   "so each thing is said once -- the what line's kind is 'it' after it, and the belief points back "
+                   "('all of that')")
+            if (at, why) not in out:
+                out.append((at, why))
+    return out
 
 
 #: keel-cloud 090 (D14): the founder names the idea on S2. Since keel-cloud 097 (F7) every founder does -- Keel drafts

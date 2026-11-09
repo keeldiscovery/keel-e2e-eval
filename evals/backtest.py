@@ -2149,7 +2149,11 @@ LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-
               "W12": "the idea's what-it-is line (`idea_what`): over twelve words, a claim, or a name inside "
                      "(keel-cloud 207 FR-3)",
               "M7": "a how line of more than five sentences (keel-cloud 207 FR-3)",
-              "M8": "a belief saying two or more of the how line's names again (keel-cloud 207 FR-3)",
+              # spec 148 FR-4 (keel-cloud 240 FR-4): one check over the whole reveal (was 207's belief naming two or
+              # more of the how line's names again) -- *M8: 'X'[, 'Y'] is|are heard again in the what line|how line|
+              # belief*, on that line's path (`m8_heard_again`)
+              "M8": "a name, noun or phrase heard twice across the reveal -- name, what line, how, belief (keel-cloud "
+                    "240 FR-4)",
               "P6": "a misspelt number word at an end of a range or choice of figures (keel-cloud 207 FR-2)",
               # spec 133 (keel-cloud 211 FR-2, FR-6): Buyer and payer's rows are the roles typed in this Answer, and a
               # priced Commitment step takes a free smaller step -- each refused once, then noted
@@ -2208,6 +2212,9 @@ def lock_notes(j, interactions: list | None = None) -> list[dict]:
     out, seen = [], set()
     for row in interactions if isinstance(interactions, list) else []:
         texts = [row.get(k) for k in ("detail", "founderNote", "diagnostic")]
+        # spec 148 FR-4 (keel-cloud 240): an M8 breach note's own path -- *breach result.idea_how.primary: M8: ...*
+        paths = {m.group(2)[:160]: m.group(1) for text in texts if isinstance(text, str)
+                 for m in _BREACH_PATH.finditer(text)}
         texts += [(t or {}).get("content") for t in row.get("turns") or [] if isinstance(t, dict)]
         for text in texts:
             if not isinstance(text, str):
@@ -2218,9 +2225,38 @@ def lock_notes(j, interactions: list | None = None) -> list[dict]:
                 if key in seen:
                     continue
                 seen.add(key)
-                out.append({"rule": m.group(1), "means": LOCK_NOTES[m.group(1)], "screen": row.get("screen"),
-                            "said": f"{m.group(1)}: {said}"})
+                note = {"rule": m.group(1), "means": LOCK_NOTES[m.group(1)], "screen": row.get("screen"),
+                        "said": f"{m.group(1)}: {said}"}
+                heard = m8_heard_again(note["said"], paths.get(note["said"][:160]))
+                if heard is not None:
+                    note["heard_again"] = heard
+                out.append(note)
     return out
+
+
+#: Spec 148 FR-4 (keel-cloud 240 FR-4, `ScreenResultApplier`'s M8): *M8: 'X'[, 'Y'] is|are heard again in the what
+#: line|how line|belief* -- the things said again, and the line.
+M8_HEARD_AGAIN = re.compile(r"M8: (?P<words>'[^']+'(?:, '[^']+')*) (?:is|are) heard again in the "
+                            r"(?P<line>what line|how line|belief)\b")
+#: keel-cloud's breach note, *breach {path}: {why}* (spec 213), the path the rule was read on.
+_BREACH_PATH = re.compile(r"breach (result\.[\w\[\].]+): ([^\n]{1,400})")
+#: Spec 148 FR-4: the path each line's M8 is breached on (`ScreenResultApplier`: the how's own voice, the what line's
+#: `result.idea_what` or `result.short_name` where that is the suggestion).
+M8_PATHS = {"what line": ("result.idea_what", "result.short_name"),
+            "how line": ("result.idea_how.primary", "result.idea_how.decider"), "belief": ("result.idea_belief",)}
+
+
+def m8_heard_again(said: str | None, path: str | None = None) -> dict | None:
+    """Spec 148 FR-4 (keel-cloud 240 FR-4): an M8 note read whole -- `{words, line, path}` (the path where the breach note
+    names one and it is that line's, else the line's first) -- or None where the words are not 240's (a note of 207's
+    *the belief names X, Y again* reads as before, by name only)."""
+    m = M8_HEARD_AGAIN.search(str(said or ""))
+    if m is None:
+        return None
+    line = m.group("line")
+    paths = M8_PATHS[line]
+    return {"words": re.findall(r"'([^']+)'", m.group("words")), "line": line,
+            "path": path if path in paths else paths[0]}
 
 
 # ------------------------------------------------------------------------------------------- FR-4.3 the brief

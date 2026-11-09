@@ -625,3 +625,106 @@ def test_the_lossnotdone_words_are_the_clouds():
     chain = re.sub(r'"\s*\+\s*"', "", _cloud(VECTORS + "CommercialChain.java"))
     assert f'AS_TYPED_NOTE = "{vs.AS_TYPED_NOTE}"' in chain
     assert '"People are asked about " + line + ", the base your loss line names."' in chain
+
+
+# ------------------------------------------------------------------------------- FR-4 the reveal heard once (240)
+
+FRAME = "The people building it believe it would "
+
+
+def test_m8_hears_what_the_cloud_hears():
+    """FR-4 (240 FR-4, `IdeaLines.saidTwice`; tasks.md's two reveals): one check over name, what line, how and belief --
+    the what line's phrase or kind said again on the how, the how said again in the belief; the redrafts heard once."""
+    assert vs.said_twice(None, "a pantry app that reads receipts", "After a shop, the pantry app reads your receipt.",
+                         FRAME + "list what runs low before the next shop.") == [("pantry app", "how")]
+    assert vs.said_twice("Sproutcap", "a soil probe that tells you when a bed needs water",
+                         "When you plant a bed, you push your soil probe into it. Your probe pairs to your phone.",
+                         FRAME + "save 20 percent of the water your clock uses.") == [("soil probe", "how")]
+    assert vs.said_twice("Shelfwise", "a pantry app that reads receipts", "After a shop, you snap the receipt. It keeps "
+                         "a count of each item. Before the next shop, it lists what runs low.",
+                         FRAME + "mean nothing is bought twice.") == []
+    assert vs.said_twice("Sproutcap", "a soil probe that tells you when a bed needs water",
+                         "When you plant a bed, you push it into the soil. It pairs to your phone.",
+                         FRAME + "target 20 percent less water than watering by the clock.") == []
+    shelf = vs.said_twice(None, "a pantry app that reads receipts", "After a shop, you snap the receipt. Before the "
+                          "next shop, it lists what runs low.", FRAME + "list what runs low before the next shop.")
+    assert shelf == [("runs low", "belief"), ("next shop", "belief")]
+    assert vs.kind_of("an AI reservation agent for missed hotel calls") == "agent"
+    assert vs.kind_of("an app on lightweight glasses that shows live captions") == "app"
+    assert vs.said_twice(None, "a tool", "It is government-backed. A government-backed fund.", None) == \
+        [("government-backed", "how")]
+
+
+def test_m8_breaches_carry_the_lines_path_and_the_clouds_words():
+    """FR-4: each breach on the path of the line it is heard again in, worded as `ScreenResultApplier` words it; the
+    back-test's lock notes read it whole (`M8: 'X'[, 'Y'] is|are heard again in the (what line|how line|belief)`)."""
+    got = vs.m8_breaches(None, "a pantry app that reads receipts", "After a shop, the pantry app reads your receipt.",
+                         FRAME + "list what runs low before the next shop.", how_decider="Before the next shop, "
+                         "the pantry app lists what runs low.")
+    assert [g[0] for g in got] == ["result.idea_how.primary", "result.idea_how.decider", "result.idea_belief"]
+    assert got[0][1].startswith("M8: 'pantry app' is heard again in the how line; the name, what it is, the how and "
+                                "the belief are one reveal heard in a row")
+    applier = " ".join(re.sub(r'"\s*\+\s*"', "", _cloud(APPLICATION + "ScreenResultApplier.java")).split())
+    assert '" heard again in the " + (where.equals("what") ? "what line" : where.equals("how") ? "how line" : ' \
+           '"belief") + "; the name, what it is, the how and the belief are one reveal heard in a row, so each thing ' \
+           'is said once -- the what line\'s kind is \'it\' after it, and the belief points back (\'all of that\')"' \
+        in applier
+    rows = [{"screen": "SOLUTION_MECHANISM", "detail": "breach result.idea_how.primary: " + got[0][1]},
+            {"screen": "SOLUTION_MECHANISM", "detail": "breach result.idea_belief: M8: 'runs low', 'next shop' are "
+                                                      "heard again in the belief; the name ..."},
+            {"screen": "SOLUTION_MECHANISM", "detail": "M8: the belief names PMS, OPERA Cloud again"}]
+    notes = bt.lock_notes(None, rows)
+    assert [n.get("heard_again") for n in notes] == [
+        {"words": ["pantry app"], "line": "how line", "path": "result.idea_how.primary"},
+        {"words": ["runs low", "next shop"], "line": "belief", "path": "result.idea_belief"}, None]
+    assert "keel-cloud 240 FR-4" in bt.LOCK_NOTES["M8"] and "heard twice across the reveal" in bt.LOCK_NOTES["M8"]
+    assert bt.m8_heard_again("M8: 'Codyco' is heard again in the what line") == \
+        {"words": ["Codyco"], "line": "what line", "path": "result.idea_what"}
+
+
+def test_the_scripted_reveals_are_heard_once(golden):
+    """FR-4 (240's owed list): every golden scripted reveal -- the what line Keel suggests, the how, the belief -- says
+    nothing twice, so no scripted result spends a repair turn; the walked three (Countly, Paidly's redrafted how aside,
+    Mulchrun) keep their lines where they already held."""
+    for entry in golden.values():
+        lines = vs.idea_lines(entry)
+        what = entry.idea_what() or vs.short_name(entry)
+        assert vs.m8_breaches(vs.seed_named(entry.statements.get("solution")), what, lines["how"],
+                              lines["belief"]) == [], entry.id
+        assert lines["belief"].startswith(FRAME) and len(lines["how"].split(". ")) <= 5
+    m = golden["01-countly"].solution_mechanism
+    assert vs.idea_lines(golden["01-countly"])["how"] == vs._sentence(
+        f"{m['trigger']}, {m['actor']} {m['mechanism']}; it gives {m['output']}.")
+    assert vs.idea_lines(golden["02-compliancelog"])["belief"] == FRAME + vs.BELIEF_POINTS_BACK
+
+
+def test_the_walk_reads_the_served_reveal_and_the_hedge():
+    """FR-4 (240 FR-1, FR-4): the served reveal said twice is a finding on its path; the belief keeps the founder's verb
+    after *would* (*would target*, never *would earn*) -- a finding, never a stop."""
+    seed = "Sproutcap is a soil probe. We target 20% less water than watering by the clock."
+    assert cs.belief_hedge_dropped(FRAME + "earn 20 percent less water use.", seed) == {"hedge": "target",
+                                                                                       "said": "earn"}
+    assert cs.belief_hedge_dropped(FRAME + "target 20 percent less water than watering by the clock.", seed) is None
+    assert cs.belief_hedge_dropped(FRAME + "save water.", "A soil probe that tells you when to water.") is None
+
+    class _J:
+        findings: list = []
+        founder = type("F", (), {"solution_seed": seed})()
+        entry = None
+    j = _J()
+    j.findings = []
+    seen = {"typed": "Sproutcap", "lines": {"whatItIs": "a soil probe that tells you when a bed needs water",
+                                            "how": "When you plant a bed, you push your soil probe into it.",
+                                            "belief": FRAME + "earn 20 percent less water use."}}
+    found = cs.reveal_heard_once(j, seen)
+    assert [f["what"] for f in found] == [cs.M8_SERVED, cs.HEDGE_SERVED] and j.findings == found
+    assert found[0]["path"] == "result.idea_how.primary" and found[0]["said"] == \
+        "M8: 'soil probe' is heard again in the how line"
+
+
+def test_the_guidelines_and_the_instruction_say_heard_once():
+    """FR-4 (240 FR-4, FR-6): guidelines §23 and the instruction's closing check, as the cloud wrote them."""
+    guidelines = _cloud("canon/designs/spoken-questions-guidelines.md")
+    assert "## 23. Amendment of 2026-11-09 (keel-cloud spec 240): the reveal is heard once, name to belief" in guidelines
+    instruction = " ".join(_cloud("src/main/resources/keel/inference-instructions/solution-mechanism.md").split())
+    assert "Say the reveal aloud once: nothing twice, nothing brought *your*." in instruction
