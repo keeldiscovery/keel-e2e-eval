@@ -235,6 +235,10 @@ class Journey:
     #: Spec 144 FR-2: a Choose pick the review moved -- the planned row put aside, the pick fallen to the first founder row
     #: still on the list -- `{planned, why, picked, row}` by dimension; into `backtest.json`.
     review_picks: dict = field(default_factory=dict)
+    #: Spec 148 FR-2 / FR-7 (keel-cloud 238): every E7 / E9 refusal of the gate the walk met (`gate_refusal`: `{rule,
+    #: refusal, spec, vector, path, said, stopped}`) -- each retried while retries last, the last one past them the
+    #: walk's named stop (`stopped: True`); into `backtest.json` (`gate_refusals`, `stop_rule`).
+    gate_refusals: list = field(default_factory=list)
     #: Spec 064 (judgement call): a golden number the new build moved -- a standing, a count, a verdict, a card -- is
     #: a finding named with the served words beside the corpus's; it is recorded where it is read and the journey goes
     #: on, so one run names every one; `run` fails at the end on any (`deferred`).
@@ -3349,6 +3353,44 @@ def _hourly_rate(j: Journey) -> None:
         h.record_wire(body, {"default": rate, "set": True, "saved": saved, "reloaded": j.page.url})
 
 
+#: Spec 148 FR-2 (keel-cloud 212, 216, 238): the gate's E7 and E9 refusals by their words -- `(rule, words, refusal,
+#: keel-cloud spec)`, the first that matches; each a `RESULT_INVALID` past the repair turn (thrown, never served).
+GATE_REFUSALS = (
+    ("E7", "is what every one of them does in the segment", "the segment", "238 FR-1"),
+    ("E7", "carries none of went_wrong's own words", "the hurt's kind dropped", "238 FR-3"),
+    ("E7", "a word the founder never gave", "a word the founder never gave", "238 FR-3"),
+    ("E7", "is the routine (", "the routine", "212 FR-2"),
+    ("E7", "beside event", "routine or went_wrong missing", "212 FR-2"),
+    ("E9", "names none of what went wrong", "the no-sayer names no word of the hurt", "238 FR-2"),
+    ("E9", "differs from the rest by the routine", "the no-sayer set apart by the routine", "216 FR-1"),
+    ("E9", "someone outside the segment", "the no-sayer outside the segment", "216 FR-1"),
+    ("E9", "write no_sayer beside event", "the no-sayer missing", "216 FR-1"),
+    ("E9", "", "what might have been", "206 FR-1"),
+)
+_GATE_REFUSED = re.compile(r"(?:(?P<status>[A-Z_]+):\s*)?(?:(?P<path>result\.[\w\[\].]+):\s*)?(?P<rule>E7|E9): "
+                           r"(?P<why>.+)", re.DOTALL)
+
+
+def gate_refusal(said: str | None, vector: str | None = None) -> dict | None:
+    """Spec 148 FR-2 (keel-cloud 238 FR-1 to FR-3, FR-5): a refused job's words (`status: path: why`, as `_retried` reads
+    the interaction) read as the gate's E7 / E9 refusal -- `{rule, refusal, spec, vector, path, said}` -- or None where
+    it is none (another rule, or no `RESULT_INVALID`). E8 (a state, a verdict, blame) is never here: a word rule, served
+    with its note past the repair turn (keel-cloud 231, 238 FR-4), read as a lock note (`backtest.LOCK_NOTES`). The
+    project step's seed refusal (238 FR-3, `wordTheFounderGave`) carries the same `result.questions[0].event` path and
+    reads the same."""
+    text = str(said or "").strip()
+    m = _GATE_REFUSED.search(text)
+    if m is None or (m.group("status") and m.group("status") != "RESULT_INVALID") \
+            or (m.group("status") is None and "RESULT_INVALID" not in text):
+        return None
+    why = m.group("why")
+    for rule, words, refusal, spec in GATE_REFUSALS:
+        if rule == m.group("rule") and words in why:
+            return {"rule": rule, "refusal": refusal, "spec": f"keel-cloud {spec}", "vector": vector,
+                    "path": m.group("path"), "said": f"{rule}: {why}"[:600]}
+    return None
+
+
 def _wait_calibration(j: Journey, vector: str, *, timeout_s: float = 90) -> dict:
     deadline = time.monotonic() + timeout_s * j.patience
     view: dict = {}
@@ -3359,9 +3401,19 @@ def _wait_calibration(j: Journey, vector: str, *, timeout_s: float = 90) -> dict
         if view.get("state") == "FAILED":
             why = j.get(f"/v2/inference-interactions/{view.get('interactionId')}") or {}
             said = f"{why.get('status')}: {why.get('diagnostic') or why.get('refusal')}"
+            # spec 148 FR-2 (keel-cloud 238): the gate's E7 / E9 past the repair turn, by rule -- each kept
+            refused = gate_refusal(said, vector)
+            if refused is not None and isinstance(getattr(j, "gate_refusals", None), list):
+                j.gate_refusals.append({**refused, "stopped": False})
             if _retried(j, f"{vector} calibration", said, j.project(f"/calibration/{vector}/retry")):
                 deadline = time.monotonic() + timeout_s * j.patience
                 continue
+            if refused is not None:
+                if isinstance(getattr(j, "gate_refusals", None), list) and j.gate_refusals:
+                    j.gate_refusals[-1]["stopped"] = True
+                # a named stop: the rule and the refusal, then the words as served
+                raise AssertionError(f"{vector}'s calibration questions FAILED -- stopped by {refused['rule']} "
+                                     f"({refused['refusal']}, {refused['spec']}) past the repair turn: {said}")
             raise AssertionError(f"{vector}'s calibration questions FAILED: {said}")
         time.sleep(0.5)
     raise AssertionError(f"{vector}'s calibration questions never became READY: {view}")
@@ -3386,8 +3438,12 @@ def _retried(j: Journey, what: str, said: str, retry_path: str) -> bool:
     with _step(j, f"{what}: Keel's AI's result was refused ({said}), and the founder retries it (spec 062: a "
                   "finding, recorded)", party="founder", kind="note") as h:
         status, body = j.call("POST", retry_path, {}, ok=(200, 201, 202, 204, 409, 422))
-        j.findings.append({"what": what, "refused": said, "reason": reason,
-                           "retry": {"path": retry_path, "status": status}})
+        finding = {"what": what, "refused": said, "reason": reason, "retry": {"path": retry_path, "status": status}}
+        # spec 148 FR-2 (keel-cloud 238): the gate's E7 / E9 named by rule and refusal beside the reason
+        refused = gate_refusal(said)
+        if refused is not None:
+            finding.update({k: refused[k] for k in ("rule", "refusal", "spec")})
+        j.findings.append(finding)
         h.record_wire({"POST": retry_path, "because": said}, {"status": status, "body": body})
         # the screen is reloaded on the retried job, the way a founder pressing Try again sees it start over
         j.page.reload(wait_until="load")

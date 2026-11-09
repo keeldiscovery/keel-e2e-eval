@@ -198,8 +198,10 @@ STATE_FORMS = {form: row[0] for row in (
     ("possess", "possesses", "possessed", "possessing")) for form in row}
 #: keel-cloud 224 FR-2 (`WindowFrame.VERDICT_WORDS`): the verdict words -- the gate rule's list in
 #: respondent-questions.md, in its order, word for word.
+#: Spec 148 FR-2 (keel-cloud 238 FR-4): *less than it could* and *more than it should* join it, after *more than it
+#: could* (cycle 18's *had raise cash earn less than it could*).
 VERDICT_WORDS = ("idle", "sitting", "still", "stay", "have to", "fail to", "waste", "struggle", "by hand", "manually",
-                 "could have", "would have", "more than it could", "better")
+                 "could have", "would have", "more than it could", "less than it could", "more than it should", "better")
 #: keel-cloud 224 FR-2 (`WindowFrame.VERDICT_VERB_FORMS`): a verdict word's verb in any tense -- its first word's.
 _VERDICT_VERB_FORMS = {"idle": "idle|idles|idled|idling", "stay": "stay|stays|stayed|staying",
                        "have": "have|has|had|having", "fail": "fail|fails|failed|failing",
@@ -207,6 +209,11 @@ _VERDICT_VERB_FORMS = {"idle": "idle|idles|idled|idling", "stay": "stay|stays|st
                        "struggle": "struggle|struggles|struggled|struggling"}
 #: `\p{L}` as the cloud reads it, Latin letters (a clause is English).
 _L = "A-Za-z\u00c0-\u024f"
+
+#: Spec 148 FR-2 (keel-cloud 238 FR-4, `WindowFrame.BLAME_HEADS`): the heads that make what happened to the person their
+#: choice -- *let*, *allowed* in their forms -- and (`FAIL_FORMS`) any form of *fail* before *to* at the clause's head.
+BLAME_HEADS = ("let", "lets", "letting", "allow", "allows", "allowed", "allowing")
+FAIL_FORMS = frozenset(("fail", "fails", "failed", "failing"))
 
 
 def _verdict_pattern(word: str):
@@ -325,6 +332,30 @@ def _carries_verb(went_wrong, head: str) -> bool:
                for i, w in enumerate(words))
 
 
+def blame_head(event) -> str | None:
+    """Spec 148 FR-2 (keel-cloud 238 FR-4, `WindowFrame.blameHead`): the blame at the clause's head -- a `BLAME_HEADS`
+    word, or a form of *fail* before *to* (*failed to*) -- as the clause says it; None where its head is none."""
+    words = _clause_words(clause(event))
+    at = _head_at(words)
+    if at < 0:
+        return None
+    head = words[at]
+    if head in BLAME_HEADS:
+        return head
+    if head in FAIL_FORMS and at + 1 < len(words) and words[at + 1] == "to":
+        return head + " to"
+    return None
+
+
+def blame_fault(event, head: str, unit: str) -> str:
+    """Spec 148 FR-2 (keel-cloud 238 FR-4, FR-5, `WindowFrame.blameFault`): E8's blame refusal, naming the word and the
+    card's subject-first shape -- a note past the repair turn (served), never a stop."""
+    return (f"E8: event '{event}' opens on '{head}', blame -- what happened to them said as their choice, which the "
+            "founder's words do not say; a thing that happened to them is its subject first after had (had {the thing} "
+            "{do} ...: had the call ring out, never let the call ring out); write the act from went_wrong as a person "
+            f"saw it on a given {unit}")
+
+
 def verdict_word(event) -> str | None:
     """keel-cloud 224 FR-2 (`WindowFrame.verdictWord`): the first verdict word the clause carries, in the list's order,
     in any tense -- *have to* at its head not (the act's own frame)."""
@@ -370,8 +401,9 @@ def packed_fault(event, went_wrong, window=None) -> str | None:
     keel-cloud 224 (spec 141 FR-5) then the head verb -- a verb of state (`STATE_VERBS`) unless `went_wrong` carries the
     same verb -- and the verdict words (`VERDICT_WORDS`); `window`'s unit names the moment (*day* where none is in
     hand). Since keel-cloud 231 FR-2 (spec 142 FR-2) 212's state words and 224's head verb also say the moment of a
-    thing left standing (`left_standing`), in the window's unit. The first fault, naming the field; `None` when the
-    event passes."""
+    thing left standing (`left_standing`), in the window's unit. Since keel-cloud 238 FR-4 (spec 148 FR-2) after the
+    judgement the blame at the head (`blame_head`), and two more verdicts. The first fault, naming the field; `None`
+    when the event passes."""
     text = clause(event)
     if not text.strip():
         return None
@@ -385,6 +417,10 @@ def packed_fault(event, went_wrong, window=None) -> str | None:
         return (f"E8: event '{text}' is a judgement on the act ('{judged.group().strip()}'), not the act; write event "
                 "from went_wrong: what they did or had to put up with, one act a person sees happen on a given day or "
                 "not")
+    # spec 148 FR-2 (keel-cloud 238 FR-4): blame -- what happened to the person said as their choice
+    blame = blame_head(text)
+    if blame is not None:
+        return blame_fault(text, blame, unit)
     state = first_word(text, STATE_WORDS)
     if state is not None:
         return (f"E8: event '{text}' says '{state}', a lasting state, not an act; write event from went_wrong: the one "
@@ -434,15 +470,145 @@ def _based(words_: list[str]) -> list[str]:
     return out
 
 
-def routine_fault(event, routine, went_wrong, actor_plural) -> str | None:
+#: Spec 148 FR-2 (keel-cloud 238 FR-5, `WindowFrame.HURT_SENTENCE`): the card's sentence -- what to write in the
+#: routine's place -- said in every refusal of the act that hurts (E7 and E9).
+HURT_SENTENCE = ("write the part that hurt instead -- the thing that failed, was lost, came back wrong, sat idle or had "
+                 "to be done twice")
+#: Spec 148 FR-2 (keel-cloud 238 FR-1, FR-5, `WindowFrame.ROUTINE_TEST`): the card's test, said in each E7 refusal 238
+#: adds; `NO_SAYER_TEST` opens on it.
+ROUTINE_TEST = ("the test: would every one of them who did the day's work in the window say Yes to event? If every one "
+                "would, it is the routine; " + HURT_SENTENCE)
+
+
+def _e8_own() -> frozenset:
+    own = set(STATE_WORDS) | set(STATE_FORMS) | set(BLAME_HEADS) | set(FAIL_FORMS)
+    for word in VERDICT_WORDS:
+        own.update(word.split(" "))
+    for forms in _VERDICT_VERB_FORMS.values():
+        own.update(forms.split("|"))
+    return frozenset(own)
+
+
+#: Spec 148 FR-2 (keel-cloud 238 FR-3, `WindowFrame.E8_OWN`): the words E8 reads -- the state words, every form of a
+#: verb of state, the blame heads, each verdict word's words and its verb's forms; never refused as a new word (E8's
+#: fault is served with a note).
+E8_OWN = _e8_own()
+
+
+def _quoted_words(words_: list[str]) -> str:
+    """`WindowFrame.quoted` (238): *'photos', 'notes' and 'log'*."""
+    out = ""
+    for i, word in enumerate(words_):
+        out += ("" if i == 0 else " and " if i == len(words_) - 1 else ", ") + f"'{word}'"
+    return out
+
+
+def hurt_words(went_wrong, routine, *people) -> list[str]:
+    """Spec 148 FR-2 (keel-cloud 238 FR-2, FR-3, `WindowFrame.hurtWords`): `went_wrong`'s own words -- those whose root is
+    in neither `routine` nor the people's words -- in its order, each once: what the hurt says beyond the work every one
+    of them does."""
+    from harness import qualifiers                                      # noqa: PLC0415
+    from instructions import writers_rules as writers_mod               # noqa: PLC0415
+    out = set(writers_mod.roots(routine))
+    for one in people:
+        out |= set(writers_mod.roots(one))
+    words_, seen = [], set()
+    for word in qualifiers.words(went_wrong):
+        r = set(writers_mod.roots(word))
+        if r and not r <= out and not r <= seen:
+            seen |= r
+            words_.append(word)
+    return words_
+
+
+def new_word(event, actor_plural, *given) -> str | None:
+    """Spec 148 FR-2 (keel-cloud 238 FR-3, `WindowFrame.newWord`): the first content word of `event` found in none of
+    `given` (the founder's fields and problem seed) -- the people's words, the stop words, the small words, numbers and
+    the words E8 reads (`E8_OWN`) out; a word found by its root, its five-letter stem, or the same word spelt otherwise
+    (`spelling.same_word`: the founder's typos are theirs). None where none is new or no text is given."""
+    from harness import qualifiers                                      # noqa: PLC0415
+    from instructions import spelling as spelling_mod                   # noqa: PLC0415
+    from instructions import writers_rules as writers_mod               # noqa: PLC0415
+    given_roots: set = set()
+    given_words: list[str] = []
+    found_any = False
+    for text in given:
+        if text is not None and str(text).strip():
+            found_any = True
+            given_roots |= set(writers_mod.roots(text))
+            given_words += qualifiers.words(text)
+    if not found_any or event is None:
+        return None
+    people = set(writers_mod.roots(actor_plural))
+    for word in qualifiers.words(clause(event)):
+        bare = re.sub(r"'s$", "", word)
+        if len(bare) < 3 or bare in qualifiers.STOP or bare in writers_mod.SMALL or re.fullmatch(r"\d+", bare) \
+                or bare in E8_OWN:
+            continue
+        r = writers_mod.root(bare)
+        if r in people or r in given_roots:
+            continue
+        found = any(spelling_mod.same_word(bare, other) or qualifiers.stem(bare) == qualifiers.stem(other)
+                    or (len(r) > 3 and spelling_mod.same_word(r, writers_mod.root(other))) for other in given_words)
+        if not found:
+            return bare
+    return None
+
+
+def inside_the_segment(event, circumstance, actor_plural=None) -> list[str] | None:
+    """Spec 148 FR-2 (keel-cloud 238 FR-1, the mirror's own reading of a served gate): the event's content words (the
+    people's own and the small words out) where **every** one is the circumstance's -- by root, or the same word spelt
+    otherwise -- so the gate asks what every one of them does in the segment; None where one is not (or nothing to
+    read, or the event turns on a negation: a failure, as 238 reads it). The routine is not in a served gate's hand, so
+    this is FR-1's segment test alone: a finding on the record, never a stop."""
+    from harness import qualifiers                                      # noqa: PLC0415
+    from instructions import writers_rules as writers_mod               # noqa: PLC0415
+    if not isinstance(event, str) or not event.strip() or not isinstance(circumstance, str) \
+            or not circumstance.strip() or qualifiers._negated(clause(event)):
+        return None
+    surface = [w for w in qualifiers.dropped(event, actor_plural or "") if w not in writers_mod.SMALL]
+    if not surface:
+        return None
+    segment_words = " ".join(_based(qualifiers.words(circumstance)))
+    segment_roots = set(writers_mod.roots(circumstance))
+    for word, based in zip(surface, _based(surface)):
+        if writers_mod.root(word) not in segment_roots and qualifiers.dropped_as_spelt(based, segment_words):
+            return None
+    return surface
+
+
+#: Spec 148 FR-2: a served gate's frame -- *In {window}, did ...?* -- off its clause (`WindowFrame.gate`).
+_GATE_FRAME = re.compile(r"(?i)^\s*in\s+[^,]+,\s+did\s+(?:you\s+)?(?P<clause>.+?)\s*\?\s*$")
+
+
+def gate_clause(question) -> str | None:
+    """Spec 148 FR-2: the clause a served gate frames (*In the last 7 nights, did you {clause}?*), or None."""
+    m = _GATE_FRAME.match(str(question or ""))
+    return m.group("clause") if m else None
+
+
+def new_word_fault(event, word: str) -> str:
+    """Spec 148 FR-2 (keel-cloud 238 FR-3, `WindowFrame.newWordFault`): the refusal of a word the founder never gave."""
+    return (f"E7: event '{clause(event)}' says '{word}', a word the founder never gave -- in none of went_wrong, the "
+            "routine, the circumstance or the founder's problem; a setting or a kind they did not name turns away people "
+            f"who had the problem; {HURT_SENTENCE}, from went_wrong in the founder's words")
+
+
+def routine_fault(event, routine, went_wrong, actor_plural, circumstance=None, seed=None) -> str | None:
     """`WindowFrame.routineFault` (E7): the event is the routine -- every content word of it (`FounderWords`' stop words
     and `actor_plural`'s own out, each in its base) is in `routine`, and none is in what `went_wrong` says beyond the
-    routine (212 plan, call 9). The fault names both fields; `None` when the event is not the routine or a field is
-    blank."""
+    routine (212 plan, call 9). Since keel-cloud 238 (spec 148 FR-2) three more, each a refusal naming the words:
+    **the segment** (FR-1) -- every content word of an event that turns on no negation is in `circumstance` or in
+    `routine`; then, on an event E8 does not fault (`packed_fault`: E8's are served with a note), **the hurt's kind**
+    (FR-3) -- no root of `went_wrong`'s own words (`hurt_words`) -- and, where `seed` is in hand, **no word added**
+    (`new_word`). `circumstance` and `seed` may be None (their tests not read). `None` when the event passes or a field
+    is blank. Persona-free: the founder's own fields and English's small words."""
     from harness import qualifiers                                      # noqa: PLC0415
+    from instructions import writers_rules as writers_mod               # noqa: PLC0415
     if not all(isinstance(t, str) and t.strip() for t in (event, routine, went_wrong)):
         return None
-    own = _based(qualifiers.dropped(event, actor_plural or ""))
+    surface = qualifiers.dropped(event, actor_plural or "")
+    own = _based(surface)
     if not own:
         return None
     joined = " ".join(own)
@@ -450,18 +616,54 @@ def routine_fault(event, routine, went_wrong, actor_plural) -> str | None:
     all_routine = not qualifiers.dropped(joined, routine_words)
     went_wrong_own = qualifiers.dropped(" ".join(_based(qualifiers.words(went_wrong))), routine_words)
     none_went_wrong = not went_wrong_own or len(qualifiers.dropped(joined, " ".join(went_wrong_own))) == len(own)
+    is_the_routine = (f"E7: event '{clause(event)}' is the routine ('{routine.strip()}'), what every one of them does "
+                      "whether or not the problem struck -- everyone would answer Yes; write event from went_wrong "
+                      f"('{went_wrong.strip()}'), the act that hurts")
     if all_routine and none_went_wrong:
-        return (f"E7: event '{clause(event)}' is the routine ('{routine.strip()}'), what every one of them does whether "
-                "or not the problem struck -- everyone would answer Yes; write event from went_wrong "
-                f"('{went_wrong.strip()}'), the act that hurts")
+        return is_the_routine
+    # keel-cloud 238 FR-1: the segment line and the routine together -- every word of the event inside them
+    if isinstance(circumstance, str) and circumstance.strip() and not qualifiers._negated(clause(event)):
+        segment_words = " ".join(_based(qualifiers.words(circumstance)))
+        routine_roots = set(writers_mod.roots(routine))
+        segment_roots = set(writers_mod.roots(circumstance))
+        in_segment: list[str] = []
+        all_inside = True
+        for i, word in enumerate(surface):
+            if word in writers_mod.SMALL:
+                continue
+            r = writers_mod.root(word)
+            if r in segment_roots or not qualifiers.dropped_as_spelt(own[i], segment_words):
+                in_segment.append(word)
+            elif r not in routine_roots and qualifiers.dropped(own[i], routine_words):
+                all_inside = False
+        if all_inside and not in_segment:
+            return is_the_routine
+        if all_inside:
+            content = sum(1 for w in surface if w not in writers_mod.SMALL)
+            rest = f", the rest the routine's ('{routine.strip()}')" if len(in_segment) < content else ""
+            return (f"E7: event '{clause(event)}' is what every one of them does in the segment: "
+                    f"{_quoted_words(in_segment)}{' is' if len(in_segment) == 1 else ' are'} the circumstance's "
+                    f"('{circumstance.strip()}'){rest} -- so everyone would answer Yes. {_upper(ROUTINE_TEST)} -- event "
+                    f"from went_wrong ('{went_wrong.strip()}')")
+    # keel-cloud 238 FR-3: an event E8 faults is E8's -- one repair turn, then served with its note (spec 231)
+    if packed_fault(event, went_wrong) is not None:
+        return None
+    hurt = hurt_words(went_wrong, routine, actor_plural)
+    if hurt and not set(writers_mod.roots(clause(event))) & set(writers_mod.roots(" ".join(hurt))):
+        return (f"E7: event '{clause(event)}' carries none of went_wrong's own words ({_quoted_words(hurt)}, in "
+                f"'{went_wrong.strip()}') -- the kind of thing that went wrong is dropped, so one who met another kind "
+                f"would answer Yes; write event from went_wrong, keeping one of its words. {_upper(ROUTINE_TEST)}")
+    if isinstance(seed, str) and seed.strip():
+        added = new_word(event, actor_plural, went_wrong, routine, circumstance, seed)
+        if added is not None:
+            return new_word_fault(event, added)
     return None
 
 
 #: `WindowFrame.NO_SAYER_TEST` (keel-cloud 216 FR-1, E9): the card's test, said in its words in every E9 refusal.
-NO_SAYER_TEST = ("the test: would every one of them who did the day's work in the window say Yes to event? If every one "
-                 "would, it is the routine; write the part that hurt instead -- the thing that failed, was lost, came "
-                 "back wrong, sat idle or had to be done twice -- and no_sayer, one of them who did the day's work and "
-                 "truly answers No, naming what was different for them")
+#: Since keel-cloud 238 (spec 148 FR-2) built on `ROUTINE_TEST`, the same bytes.
+NO_SAYER_TEST = (ROUTINE_TEST + " -- and no_sayer, one of them who did the day's work and truly answers No, naming what "
+                 "was different for them")
 #: `WindowFrame.NEGATION` (E9): the words that turn the no-sayer outside the segment.
 _NEGATION = re.compile(r"(?i)(?<![^\W\d_'])(?:no longer|not|no|never|without|nothing|none|[^\W\d_]+n['\u2019]t)"
                        r"(?![^\W\d_'])")
@@ -476,8 +678,9 @@ def no_sayer_fault(no_sayer, routine, went_wrong, circumstance, *people) -> str 
     names one of the people who did the day's work and truly answers *No* to the event (`no_sayer`), refused where it is
     empty (a breach, noted past the repair turn); where its verbs (`writers_rules.verb_roots`) share a root with the
     routine's own words and none with `went_wrong`'s own -- each field's own words what it says beyond the other; or
-    where a negation comes before a root of the circumstance or of the people's own words (someone outside the segment).
-    The fault says the card's test in its words; None when the no-sayer passes or a field it is read against is blank.
+    where a negation comes before a root of the circumstance or of the people's own words (someone outside the segment);
+    since keel-cloud 238 FR-2 (spec 148 FR-2) where it carries no root of `went_wrong`'s own words (`hurt_words`),
+    negated or not. The fault says the card's test in its words; None when the no-sayer passes or a field it is read against is blank.
     Persona-free: English's small words and the writer's own fields."""
     from instructions import writers_rules as writers_mod               # noqa: PLC0415 - writers_rules reads this
     if no_sayer is None or not str(no_sayer).strip():
@@ -506,6 +709,13 @@ def no_sayer_fault(no_sayer, routine, went_wrong, circumstance, *people) -> str 
         return (f"E9: no_sayer '{text}' differs from the rest by the routine ('{str(routine).strip()}': '{shared[0]}'), "
                 f"not by what went wrong ('{str(went_wrong).strip()}') -- so every one of them who did the day's work "
                 "would answer Yes to event. " + _upper(NO_SAYER_TEST))
+    # spec 148 FR-2 (keel-cloud 238 FR-2): the no-sayer names its No -- a root of went_wrong's own words, negated or not
+    named = hurt_words(went_wrong, routine, *people)
+    if named and not set(writers_mod.roots(text)) & set(writers_mod.roots(" ".join(named))):
+        return (f"E9: no_sayer '{text}' names none of what went wrong ({_quoted_words(named)}, in "
+                f"'{str(went_wrong).strip()}') -- one set apart by nothing the hurt names is set apart by the routine, so "
+                "every one of them who did the day's work would answer Yes to event; name their No by a word of "
+                "went_wrong, denied. " + _upper(NO_SAYER_TEST))
     return None
 
 

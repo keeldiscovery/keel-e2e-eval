@@ -2040,7 +2040,9 @@ def cloud_131(j) -> dict:
     from harness import vectors_script as vs                       # noqa: PLC0415
     entry = j.entry
     out: dict = {"gate": [], "frequency_over_the_cap": [], "per_each": [], "people_get": [], "buyer_instead": [],
+                 "gate_in_the_segment": [],
                  "lock_refused": list((getattr(j, "changed", None) or {}).get("lock_refused") or [])}
+    from instructions import wording as wording_mod               # noqa: PLC0415
     window = _safe(lambda: vs.window_of(entry))
     mirror = _safe(lambda: vs.gate_from_circumstance(window, (entry.context or {}).get("circumstance"))) \
         if window is not None else None
@@ -2050,6 +2052,13 @@ def cloud_131(j) -> dict:
         if gate and mirror and gate != mirror and ("gate", gate) not in seen:
             seen.add(("gate", gate))
             out["gate"].append({"rule": "131 FR-1", "served": gate, "mirror": mirror})
+        # spec 148 FR-2 (keel-cloud 238 FR-1): the served gate is never the routine -- its words all inside the
+        # context's circumstance words would be what every one of them does in the segment
+        inside = wording_mod.inside_the_segment(wording_mod.gate_clause(gate), (entry.context or {}).get("circumstance"),
+                                                (entry.context or {}).get("actor_plural")) if gate else None
+        if inside and ("segment", gate) not in seen:
+            seen.add(("segment", gate))
+            out["gate_in_the_segment"].append({"rule": "238 FR-1", "served": gate, "words": inside})
         for part in (interview or {}).get("parts") or []:
             for item in part.get("items") or []:
                 key = item.get("dimension")
@@ -2075,7 +2084,9 @@ def cloud_131(j) -> dict:
                  "frequency_over_the_cap": "Frequency served over the 20-word cap (131 FR-2)",
                  "per_each": "a unit said twice, *per {unit}, each* (131 FR-8)",
                  "people_get": "the price card pastes a benefit after *your {people} get* (131 FR-9)",
-                 "buyer_instead": "the Buyer set's *someone else would have to agree instead* (131 FR-13)"}
+                 "buyer_instead": "the Buyer set's *someone else would have to agree instead* (131 FR-13)",
+                 "gate_in_the_segment": "the served gate asks what every one of them does in the segment -- its words "
+                                        "all the circumstance's (keel-cloud 238 FR-1)"}
         for key, what in words.items():
             for row in out[key]:
                 findings.append({"what": what, "served": row})
@@ -2118,7 +2129,19 @@ LOCK_NOTES = {"S13": "a saved row over its screen's word cap (keel-cloud 130 FR-
               # name
               "E9": "a gate clause of what might have been -- could, would or should have (keel-cloud 206 FR-1); or "
                     "Prevalence's no-sayer missing, set apart by the routine, or outside the segment (keel-cloud 216 "
-                    "FR-1)",
+                    "FR-1), or naming no word of the hurt -- RESULT_INVALID past the repair turn, a named stop (keel-cloud "
+                    "238 FR-2)",
+              # spec 148 FR-2 (keel-cloud 212, 238): E7 -- the gate's event the routine, what every one of them does in
+              # the segment, the hurt's kind dropped, or a word the founder never gave: thrown, one repair turn, then
+              # RESULT_INVALID (a named stop, `corpus_scenario.gate_refusal`); read here where a repair turn names it
+              "E7": "Prevalence's event the routine, what every one of them does in the segment, the hurt's kind "
+                    "dropped or a word the founder never gave -- RESULT_INVALID past the repair turn, a named stop "
+                    "(keel-cloud 212 FR-2, 238 FR-1, FR-3)",
+              # spec 148 FR-2 (keel-cloud 224, 231, 238 FR-4): E8 -- a state, a judgement, a cause, a verdict (*less
+              # than it could*, *more than it should*) or blame (*let*, *allowed*, *failed to*): a word rule, one repair
+              # turn, then served with the note -- never a stop
+              "E8": "Prevalence's event a lasting state, a judgement, a cause, a verdict or blame -- served with the "
+                    "note past the repair turn, never a stop (keel-cloud 224, 231, 238 FR-4)",
               "K10": "a Compatibility clause with a bare verb after its auxiliary, or *had* before a possessive "
                      "(keel-cloud 206 FR-4)",
               "K8": "an Adoption friction item drafted without its condition, `only_if` (keel-cloud 206 FR-4)",
@@ -2344,6 +2367,15 @@ def reviewed_lists() -> list[str]:
     return list(vs_screens.REVIEWED_LISTS)
 
 
+def gate_stop(j) -> dict | None:
+    """Spec 148 FR-7 (keel-cloud 238): the gate's E7 / E9 refusal the walk stopped on past its retries (`Journey.
+    gate_refusals`, the one marked `stopped`) -- `{rule, refusal, spec, vector, path}` -- or None."""
+    for row in reversed(list(getattr(j, "gate_refusals", None) or [])):
+        if isinstance(row, dict) and row.get("stopped"):
+            return {k: row.get(k) for k in ("rule", "refusal", "spec", "vector", "path")}
+    return None
+
+
 def review_hold_said(hold: dict) -> str:
     """Spec 144 FR-1: one reviewed Check's Save in words -- held or not, for how long, and what followed."""
     said = (f"held on *Keel is reading your answers* {hold.get('held_s')} s" if hold.get("held")
@@ -2385,6 +2417,10 @@ def transcript(j, bt: Backtest) -> dict:
         # record counts Relative advantage beside the three
         "reviewed_lists": reviewed_lists(),
         **({"review_picks": dict(j.review_picks)} if getattr(j, "review_picks", None) else {}),
+        # spec 148 FR-7 (keel-cloud 238): every E7 / E9 refusal of the gate the walk met, by rule, and the one it stopped
+        # on (`stop_rule`) -- absent on a walk that met none
+        **({"gate_refusals": list(j.gate_refusals)} if getattr(j, "gate_refusals", None) else {}),
+        **({"stop_rule": stop} if (stop := gate_stop(j)) else {}),
         # spec 106 FR-2: the walk's cap on the person's own link, where `PEOPLE=` named one
         **({"people": bt.people} if bt.people else {}),
         # spec 126 FR-2: every typo the founder typed, `{field, meant, typed, kind}` -- absent on a walk that typed none
@@ -2443,7 +2479,11 @@ def markdown(r: dict) -> str:
     cli = c.get("cli") or {}
     lines = [f"# Back-test: {entry.get('title') or entry.get('id') or '?'}", "",
              f"- Entry: `{entry.get('id')}` ({entry.get('path')}), the founder's idea name *{entry.get('idea_name')}*",
-             f"- Run: `{r.get('run')}` -- {'walked to the end' if r.get('passed') else 'stopped at: ' + _q(r.get('failed_step'))}",
+             f"- Run: `{r.get('run')}` -- {'walked to the end' if r.get('passed') else 'stopped at: ' + _q(r.get('failed_step'))}"
+             # spec 148 FR-7 (keel-cloud 238): the gate's E7 / E9 the walk stopped on, by rule
+             + (f" -- **stopped by {r['stop_rule'].get('rule')}** ({r['stop_rule'].get('refusal')}, "
+                f"{r['stop_rule'].get('spec')}) on {r['stop_rule'].get('vector')}"
+                if isinstance(r.get("stop_rule"), dict) else ""),
              f"- Stack: keel-cloud `{(r.get('stack') or {}).get('keel-cloud')}`, keel-web "
              f"`{(r.get('stack') or {}).get('keel-web')}`, {answered_by}, founder `{IDENTITY_EMAIL}`"
              # spec 071 FR-4: the study's scope beside the stack, where it is not the whole study

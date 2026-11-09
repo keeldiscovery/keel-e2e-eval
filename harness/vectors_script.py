@@ -311,14 +311,17 @@ ACT_THAT_HURTS = {
 #: and truly answers No to the event, and what was different for them -- written beside `routine` and `went_wrong`,
 #: read by code and never served. The golden seven's own (Lullaby's is the cloud's `VectorFixtures.NO_SAYER`); held to
 #: E9 by test. A back-test entry records no `routine` / `went_wrong`, so its scripted no-sayer is `NO_SAYER_ANY`.
+#: Spec 148 FR-2 (keel-cloud 238 FR-2): the no-sayer names its No by a word of `went_wrong`, denied or not -- Countly's,
+#: Linerly's and Mulchrun's (set apart by nothing the hurt names) each gain the hurt's word, said after what was different
+#: (the harness's own fixtures; the corpus untouched).
 NO_SAYERS = {
-    "01-countly": "a manager whose every delivery that week matched its invoice",
+    "01-countly": "a manager whose every delivery that week matched its invoice, so no stock was recounted",
     "02-compliancelog": "an HR manager whose system pulled the completions for them",
     "03-lullaby": "a parent who knew at once what the cry meant",
-    "04-linerly": "a rider whose tyres held all the way",
+    "04-linerly": "a rider whose tyres held all the way, so no time was lost",
     "05-paidly": "a freelancer whose agency paid on the day the terms said",
     "06-repeatline": "a receptionist whose refill requests came in already typed",
-    "07-mulchrun": "a crew lead whose mulch was loaded the moment they arrived",
+    "07-mulchrun": "a crew lead whose mulch was loaded the moment they arrived, so nobody waited",
 }
 #: Spec 139 FR-2: the scripted no-sayer where the entry records none -- persona-free, no verb of any routine.
 NO_SAYER_ANY = "one of them for whom it went right that time"

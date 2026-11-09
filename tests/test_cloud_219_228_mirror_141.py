@@ -122,6 +122,9 @@ FRESCO = "sorted site photos by hand for the log"
 AIRCAPS = "nodded along without understanding what was said"
 EXPANSE = "had a job fail partway through its run"
 CODYCO = "let a booking call ring out unanswered"
+#: Spec 148 FR-2 re-pin (keel-cloud 238 judgement call 8): Codyco's cycle-14 clause is E8's blame now; its subject-first
+#: form is the passing clause.
+CODYCO_238 = "had a booking call ring out unanswered"
 
 
 def test_the_lists_are_the_clouds():
@@ -171,11 +174,17 @@ def test_each_verdict_word_is_refused():
     """224 FR-2 (`eachVerdictWordIsRefused`)."""
     carrying = {"idle": "watched the truck idle at the gate", "sitting": "found the parcel sitting at the gate",
                 "still": "still waited for the delivery at noon", "stay": "stayed late in the trailer on the log",
-                "have to": "lost the notes they had to file", "fail to": "failed to file the log",
+                "have to": "lost the notes they had to file",
+                # spec 148 FR-2 re-pin (keel-cloud 238 FR-4, `PrevalenceEventIsAMomentTest`): *failed to* at the head is
+                # blame now; the verdict read off the head
+                "fail to": "had the log fail to save",
                 "waste": "wasted an hour on the phone", "struggle": "struggled to follow a conversation",
                 "by hand": FRESCO, "manually": "typed the notes in manually",
                 "could have": "could have saved the notes", "would have": "would have missed the call",
-                "more than it could": "asked for more than it could give", "better": "found a better supplier"}
+                "more than it could": "asked for more than it could give",
+                # spec 148 FR-2 (keel-cloud 238 FR-4): the two verdicts 238 adds
+                "less than it could": "had the cash earn less than it could",
+                "more than it should": "paid a fee that cost more than it should", "better": "found a better supplier"}
     assert tuple(carrying) == wording_mod.VERDICT_WORDS
     for word, event in carrying.items():
         fault = wording_mod.packed_fault(event, event, SEVEN_DAYS)
@@ -194,7 +203,7 @@ def test_each_verdict_word_is_refused():
 def test_cycle_fourteens_clauses_and_the_scripted_seven():
     """224 FR-5 (`theCycleFourteenClauses`); its owed list: 06-repeatline's scripted clause is reworded off *by hand*
     (the harness's fixture, the corpus untouched) and every scripted Prevalence passes E8."""
-    for moment in (AIRCAPS, EXPANSE, CODYCO, EVENT_PAST, "typed up the log after the walk", "took a call from a guest",
+    for moment in (AIRCAPS, EXPANSE, CODYCO_238, EVENT_PAST, "typed up the log after the walk", "took a call from a guest",
                    "waited at the supply yard for mulch"):
         assert wording_mod.packed_fault(moment, moment, SEVEN_DAYS) is None, moment
         assert wording_mod.packed_fault(moment, WENT_WRONG, SEVEN_DAYS) is None, moment

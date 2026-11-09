@@ -596,11 +596,14 @@ def settled_faults(items: list) -> list:
 
 
 def act_that_hurts(question: dict, *, actor_plural: str | None = None, circumstance: str | None = None,
-                   actor: str | None = None, window=None) -> list:
+                   actor: str | None = None, window=None, seed: str | None = None) -> list:
     """Spec 136 FR-2 (keel-cloud 212 FR-2, `ScreenResultApplier.actThatHurts`): Prevalence's `event` is written from
     `went_wrong` beside `routine` -- both written (`E7`, the missing one named), never the routine (`E7`,
     `WindowFrame.routineFault`), never a cause, result, judgement or lasting state packed in (`E8`, `packedFault`).
-    Spec 139 FR-2 (keel-cloud 216 FR-1): `no_sayer` beside them (`E9`, `WindowFrame.noSayerFault`)."""
+    Spec 139 FR-2 (keel-cloud 216 FR-1): `no_sayer` beside them (`E9`, `WindowFrame.noSayerFault`). Spec 148 FR-2
+    (keel-cloud 238 FR-1, FR-3): E7 reads the event against the job's `circumstance` beside the routine and keeps the
+    hurt's kind; `seed` (the founder's problem seed, where in hand) the project step's test -- no word the founder never
+    gave (`ScreenResultApplier.wordTheFounderGave`, thrown as E7)."""
     event = question.get("event")
     if not isinstance(event, str) or not event.strip():
         return []
@@ -616,7 +619,7 @@ def act_that_hurts(question: dict, *, actor_plural: str | None = None, circumsta
                       "or put up with -- event is written from went_wrong")
     # spec 139 FR-2 (keel-cloud 216 FR-1, `E9`, `ScreenResultApplier.noSayer`): the one of them who truly answers No --
     # missing, set apart by the routine, or outside the segment
-    for fault in (wording_mod.routine_fault(event, routine, went_wrong, actor_plural),
+    for fault in (wording_mod.routine_fault(event, routine, went_wrong, actor_plural, circumstance, seed),
                   wording_mod.packed_fault(event, went_wrong, window),     # spec 141 FR-5: keel-cloud 224's E8
                   wording_mod.no_sayer_fault(question.get("no_sayer"), routine, went_wrong, circumstance,
                                              *(p for p in (actor, actor_plural) if p))):

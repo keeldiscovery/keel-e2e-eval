@@ -382,7 +382,12 @@ def _drafted_from(entry, registry, vector) -> dict:
     questions = []
     for d in registry.answered_slice(vector, entry.b2b()):
         if d.key == GATE:
-            questions.append(fx.calibration_question(d) | {"event": "had to work out why their baby was crying"})
+            # spec 148 FR-2 (keel-cloud 238 FR-3): the event keeps the hurt's kind -- Lullaby's clause beside Lullaby's own
+            # routine, went_wrong and no-sayer (`VectorFixtures`), not the keys fixture's
+            questions.append(fx.calibration_question(d) | {"event": "had to work out why their baby was crying",
+                                                           "routine": "settle the baby",
+                                                           "went_wrong": "did not know why the baby cried",
+                                                           "no_sayer": "a parent who knew at once what the cry meant"})
         elif d.founder_list:
             saved = entry.founder_list(d.key) or {}
             items = [{k: i[k] for k in ("label", "asked") if k in i} for i in saved.get("items") or []

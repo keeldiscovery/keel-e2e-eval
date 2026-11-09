@@ -143,7 +143,9 @@ def test_e9_refuses_the_shapes(no_sayer, routine, went_wrong, circumstance, peop
      ("superintendent", "construction superintendents")),
     ("a researcher whose job ran within what it asked for", "submit a job to the cluster",
      "had a job killed for running out of memory", "a job is ready to submit", ("researcher", "researchers and ML engineers")),
-    ("an agent whose shift had every booking call picked up", "answer booking calls on a shift",
+    # spec 148 FR-2 re-pin (keel-cloud 238 judgement call 4): 216's agent example names none of the hurt and is now
+    # refused (`test_cloud_238_241_mirror_148`); the cloud's passing form names the hurt's word, denied
+    ("an agent whose booking calls never rang out", "answer booking calls on a shift",
      "had a booking call ring out unanswered", "a booking call comes in", ("reservation agent", "reservation agents")),
     (NO_SAYER, ROUTINE, WENT_WRONG, "the baby cries in the night", ("parent", "parents of babies under six months")),
 ])
@@ -153,7 +155,12 @@ def test_e9_passes_the_good_examples(no_sayer, routine, went_wrong, circumstance
 
 def test_e9s_words_are_the_clouds():
     text = re.sub(r'"\s*\+\s*"', "", _cloud(VECTORS + "WindowFrame.java"))
-    assert f'NO_SAYER_TEST = "{wording_mod.NO_SAYER_TEST}"' in text
+    # spec 148 FR-2 re-pin (keel-cloud 238): the test is built on `ROUTINE_TEST`, the same bytes
+    assert 'NO_SAYER_TEST = ROUTINE_TEST + " -- and no_sayer, one of them who did the day\'s work and truly answers No, ' \
+           'naming what was different for them"' in text
+    assert wording_mod.NO_SAYER_TEST == wording_mod.ROUTINE_TEST + (" -- and no_sayer, one of them who did the day's "
+                                                                    "work and truly answers No, naming what was "
+                                                                    "different for them")
     roots = re.sub(r'"\s*\+\s*"', "", _cloud(VECTORS + "WritersRules.java"))
     found = re.search(r"ING_NOUNS = Set\.of\(([^)]*)\)", roots).group(1)
     assert set(re.findall(r'"([^"]+)"', found)) == set(writers_mod.ING_NOUNS)
@@ -222,9 +229,16 @@ def test_every_scripted_prevalence_carries_a_no_sayer_that_passes_e9(entries):
         q = next(q for q in vs.calibration_result(entry, "PROBLEM")["questions"] if q["key"] == "problem.prevalence")
         assert q["no_sayer"] == vs.NO_SAYERS.get(entry.id, vs.NO_SAYER_ANY), entry.id
         ctx = vs._ctx(entry)
-        assert wording_mod.no_sayer_fault(q["no_sayer"], q["routine"], q["went_wrong"], ctx.get("circumstance"),
-                                          *(p for p in (ctx.get("actor"), ctx.get("actor_plural")) if p)) is None, \
-            entry.id
+        fault = wording_mod.no_sayer_fault(q["no_sayer"], q["routine"], q["went_wrong"], ctx.get("circumstance"),
+                                           *(p for p in (ctx.get("actor"), ctx.get("actor_plural")) if p))
+        if entry.id in vs.NO_SAYERS:
+            assert fault is None, entry.id
+        else:
+            # spec 148 FR-2 re-pin (keel-cloud 238 FR-2): the persona-free fallback names none of the hurt, so E9 refuses
+            # it on a back-test entry's scripted Prevalence -- never walked on the scripted runtime (the cycle runs
+            # Keel's own model; the scripted journeys walk the golden seven and Countly's seeds), so it stays, named
+            assert fault is None or fault.startswith(f"E9: no_sayer '{vs.NO_SAYER_ANY}' names none of what went "
+                                                     "wrong"), (entry.id, fault)
 
 
 def test_every_scripted_condition_is_an_assurance(entries):

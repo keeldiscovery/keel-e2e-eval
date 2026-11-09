@@ -454,9 +454,20 @@ def test_cloud_131_reads_the_served_words_beside_the_mirror_as_findings():
     assert [len(got[k]) for k in ("frequency_over_the_cap", "per_each", "people_get", "buyer_instead")] == [1, 1, 1, 1]
     assert got["lock_refused"][0]["word"] == "PMS"
     assert len(j.findings) == 5
-    clean = SimpleNamespace(entry=codyco, interviews={"Aylin": {"gate": {"question": got["gate"][0]["mirror"]},
-                                                               "parts": []}}, findings=[], changed={})
-    assert backtest.cloud_131(clean) == {} and clean.findings == []
+    # spec 148 FR-2 re-pin (keel-cloud 238 FR-1): 131's gate on the circumstance's event is what every one of them does
+    # in the segment -- a finding of its own now (never a stop); a gate on the act that hurts draws none
+    segment = SimpleNamespace(entry=codyco, interviews={"Aylin": {"gate": {"question": got["gate"][0]["mirror"]},
+                                                                 "parts": []}}, findings=[], changed={})
+    assert backtest.cloud_131(segment) == {"gate_in_the_segment": [
+        {"rule": "238 FR-1", "served": got["gate"][0]["mirror"], "words": ["booking", "call", "shift"]}]}
+    assert [f["what"] for f in segment.findings] == [
+        "the served gate asks what every one of them does in the segment -- its words all the circumstance's "
+        "(keel-cloud 238 FR-1)"]
+    hurt = "In the last 7 days, did you have a booking call ring out unanswered?"
+    clean = SimpleNamespace(entry=codyco, interviews={"Aylin": {"gate": {"question": hurt}, "parts": []}}, findings=[],
+                            changed={})
+    assert backtest.cloud_131(clean)["gate"][0]["served"] == hurt and "gate_in_the_segment" not in \
+        backtest.cloud_131(clean)
 
 
 # ------------------------------------------------------------------------------- FR-3: the fear-held head
