@@ -3861,9 +3861,14 @@ def _lock_lands(j: Journey) -> None:
             h.record_assert({"questionsState": "READY"}, {"questionsState": state, "jobs": landed})
             raise AssertionError(f"questionsState FAILED after the lock (RESPONDENT_QUESTIONS jobs: {landed}); "
                                  "DRIFT #81 came back if every job is APPLIED")
-    jobs = len(vs.respondent_jobs(j.entry))         # spec 071 (keel-cloud 133 T010): none on money alone
+    # spec 071 (keel-cloud 133 T010): none on money alone -- since keel-cloud 239 FR-1 (spec 148 FR-3) part 3's, where
+    # its Existing sacrifice item wants the writer's clause
+    owed = vs.respondent_jobs(j.entry)
+    jobs = len(owed)
+    which = "part 1, the gate's clause" if owed and owed[0][0] == 1 else \
+        "part 3, the Existing sacrifice item's clause on a study with no part 1 (keel-cloud 239 FR-1)"
     with _step(j, f"the lock started {'ONE' if jobs else 'NO'} RESPONDENT_QUESTIONS job"
-                  + (" -- part 1, the gate's clause -- and no other (keel-cloud 091, contract 14: "
+                  + (f" -- {which} -- and no other (keel-cloud 091, contract 14: "
                      "LockReceipt.questions.interactionIds is exactly 1)" if jobs else
                      " -- money alone serves no gate and its parts are code's (keel-cloud 133 T010); the receipt's "
                      "interactionIds is empty (contract 39, keel-cloud 134: minItems 0) and the study goes on")) as h:
@@ -3888,6 +3893,8 @@ def _lock_lands(j: Journey) -> None:
         else:
             assert [i.get("interaction_id") for i in respondent] == ids, (ids, respondent)
             assert not jobs or respondent[0].get("status") == "APPLIED", respondent[0]
+    if "COMMERCIAL" in vs.scope_vectors(j.entry):
+        sacrifice_note_finding(j)                 # spec 148 FR-3 (keel-cloud 239): the Check's note, named
     with _step(j, "the study is version 1, the three parts' questions are written, READY, and the lock "
                   "holds every saved list and its picked index (D7)") as h:
         plan = j.get(j.project("/plan")) or {}
@@ -5005,6 +5012,39 @@ def cost_item_drift(j: Journey, item: dict) -> None:
     if parted:
         j.findings.append({"what": "DRIFT: the served cost item parts from the keel-cloud 170 mirror "
                                    "(vectors_script.cost_item, spec 110 FR-3)", "parted": parted})
+    # spec 148 FR-3 (keel-cloud 239 FR-2): no served item says a banned verb -- a fault named, never a stop
+    banned = vs.banned_word(item.get("question"))
+    if banned is not None:
+        j.findings.append({"what": SACRIFICE_BANNED, "said": banned, "served": item.get("question")})
+
+
+#: Spec 148 FR-3 (keel-cloud 239 FR-2): the fault a served Existing sacrifice item with a banned verb is named by.
+SACRIFICE_BANNED = ("FAULT: Existing sacrifice: the served item says a word it never says -- lose, lost, miss, go without "
+                    "or fell through (keel-cloud 239 FR-2)")
+#: Spec 148 FR-3 (keel-cloud 239 FR-2, FR-4): the finding the Existing sacrifice row's Check note is named by.
+SACRIFICE_NOTE = "Existing sacrifice: the Check's note -- Keel could not name what they see go, or asks on the loss " \
+                 "line's base (keel-cloud 239 FR-2, FR-4)"
+
+
+def sacrifice_note_finding(j: Journey, view: dict | None = None) -> dict | None:
+    """Spec 148 FR-3 (keel-cloud 239 FR-2, FR-4; `VectorsController.sacrificeNote`): the note the Existing sacrifice row
+    of the founder's Check carries (`CalibrationQuestion.note`, the COMMERCIAL view read after the lock, when the part-3
+    item is written) -- named in `findings` with the note as served, never a stop; None where none is served."""
+    if view is None:
+        try:
+            view = j.get(j.project("/calibration/COMMERCIAL")) or {}
+        except Exception:  # noqa: BLE001 - evidence, never the end of the walk
+            return None
+    question = next((q for q in (view or {}).get("questions") or []
+                     if isinstance(q, dict) and q.get("dimension") == "commercial.existing_sacrifice"), None)
+    note = (question or {}).get("note")
+    if not isinstance(note, str) or not note.strip():
+        return None
+    finding = {"what": SACRIFICE_NOTE, "note": note,
+               "as_typed": vs.AS_TYPED_NOTE in note, "base": note.startswith("People are asked about ")}
+    if isinstance(getattr(j, "findings", None), list):
+        j.findings.append(finding)
+    return finding
 
 
 def pointed_back_question(item: dict, walked: dict) -> str | None:

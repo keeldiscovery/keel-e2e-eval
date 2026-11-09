@@ -1508,7 +1508,7 @@ def seen_event(loss, counted):
     return " ".join(w[verb:]) if base_head in (head, head + "s", head + "es") else None
 
 
-def _loss_count(ladder, opening, team, loss, measure) -> None:
+def _loss_count(ladder, opening, team, loss, measure, per: str = "") -> None:
     if loss is None or loss.shape == ll.NONE:
         return
     thing = _said(loss.thing, team)
@@ -1518,19 +1518,21 @@ def _loss_count(ladder, opening, team, loss, measure) -> None:
     if event is not None:
         for clause in _clauses(event):
             for about in (", about how many ", ", how many "):
-                ladder.append(opening + about + measure + " " + _in_their_past(ll.past(clause), team) + "?")
+                ladder.append(opening + about + measure + per + " " + _in_their_past(ll.past(clause), team) + "?")
     for clause in _clauses(one_verb(loss.clause)):
+        # spec 148 FR-3 (keel-cloud 239 FR-5): the typed unit after the thing (`per`, empty but on the B2B link)
         if loss.shape == ll.DOES:
-            asked = thing + " " + _in_their_past(ll.past(clause), team)
+            asked = thing + per + " " + _in_their_past(ll.past(clause), team)
         elif loss.shape == ll.DONE:
-            asked = thing + " were " + _in_their_past(ll.past(clause), team)
+            asked = thing + per + " were " + _in_their_past(ll.past(clause), team)
         else:
-            asked = thing + " did " + _subject_said(loss.subject, team) + " " + _in_their_past(ll.after_did(clause), team)
+            asked = thing + per + " did " + _subject_said(loss.subject, team) + " " \
+                + _in_their_past(ll.after_did(clause), team)
         for about in (", about how many ", ", how many "):
             ladder.append(opening + about + asked + "?")
 
 
-def _loss_share(ladder, opening, team, loss, base) -> None:
+def _loss_share(ladder, opening, team, loss, base, per: str = "") -> None:
     be = " were " if count_noun(base) or _plural_head(base) else " was "
     # spec 132 FR-9 (keel-cloud 206 FR-5): the event the line names after a lost or missed share, where it happens to the
     # base (*what percent of the reservation calls rang out*)
@@ -1538,14 +1540,15 @@ def _loss_share(ladder, opening, team, loss, base) -> None:
     if event is not None:
         for clause in _clauses(event):
             for about in (", about " + PERCENT_OF, ", " + PERCENT_OF):
-                ladder.append(opening + about + base + " " + _in_their_past(ll.past(clause), team) + "?")
+                ladder.append(opening + about + base + per + " " + _in_their_past(ll.past(clause), team) + "?")
     for clause in _clauses(one_verb(loss.clause)):
         if loss.shape == ll.DOES:
-            asked = base + " " + _in_their_past(ll.past(clause), team)
+            asked = base + per + " " + _in_their_past(ll.past(clause), team)
         elif loss.shape == ll.DONE:
-            asked = base + be + _in_their_past(ll.past(clause), team)
+            asked = base + per + be + _in_their_past(ll.past(clause), team)
         else:
-            asked = base + " did " + _subject_said(loss.subject, team) + " " + _in_their_past(ll.after_did(clause), team)
+            asked = base + per + " did " + _subject_said(loss.subject, team) + " " \
+                + _in_their_past(ll.after_did(clause), team)
         # keel-cloud 206 (FR-5): the question words name the box's unit, a percent
         for about in (", about " + PERCENT_OF, ", " + PERCENT_OF):
             ladder.append(opening + about + asked + "?")
@@ -1559,13 +1562,8 @@ def _loss_gone_without(ladder, opening, team, loss, base) -> None:
     rest = "" if not loss.clause.strip() else _in_their_past(ll.past(loss.clause), team)
     forms = []
     if loss.rest_is_a_place():
-        forms.append((thing, rest))
-        shorter = without_purpose(rest)
-        if shorter is not None:
-            forms.append((thing, shorter))
-        cut = ll.without_its_clause(rest)
-        if cut is not None:
-            forms.append((thing, cut))
+        # spec 148 FR-3 (keel-cloud 239 FR-3): a rest that reads as a place is never appended after the verb -- the
+        # thing alone, and the line goes to the writer (the stem says the neutral verb)
         forms.append((thing, ""))
     else:
         whole = (thing + " " + rest).strip()
@@ -1593,22 +1591,24 @@ LOSER = "you"
 
 
 def _rate_stem(opening: str, noun, team: bool, base, cost: dict) -> tuple:
-    """keel-cloud 222 FR-1 (`CommercialChain.rateStem`): the RATE ladder read -- `(served, wanted, share, measure)`: the
-    stem it serves (`_held`), and whether the writer's `loss_clause` is wanted -- the served stem is none of code's own
-    readings of the founder's loss line (the line's own verb or its seen event; a verbless line whose rest is a place,
-    kept whole after the neutral verb), so it falls to a neutral verb -- and the frame can name the thing (a share its
-    base, a count its measure)."""
+    """keel-cloud 222 FR-1 / 239 FR-1, FR-2, FR-5 (`CommercialChain.rateStem`): the RATE ladder read -- `(served, wanted,
+    share, measure, as_typed, per)`. The ladder's rungs carry the typed unit first on the decision-maker's link (`per`,
+    `per_unit`), then without; `wanted` -- the writer's `loss_clause` is asked -- is decided on the served stem itself
+    (it says a neutral verb, `says_a_neutral_verb`), where a line was typed and the frame can name the thing; and the
+    neutral verb is never served: where it is wanted (until the writer's clause lands, and past its second failure) or
+    the stem says a banned word, code's plain not-done, else the founder's own line said to the person
+    (`loss_not_done`; `as_typed` the Check's note)."""
     ladder: list[str] = []
-    own: set[str] = set()
     measure = cost_measure(cost)
     share = measure is None or measure.strip() == "%"
     loss = ll.read(cost.get("lossPhrase"))
     if loss is not None and same_words(cost.get("lossPhrase"), base):
         loss = None
+    per = per_unit(cost, team, base if share else None if measure is None else measure.strip())
     if not share:
-        start = len(ladder)
+        if per:
+            _loss_count(ladder, opening, team, loss, measure.strip(), per)
         _loss_count(ladder, opening, team, loss, measure.strip())
-        own.update(ladder[start:])
         if loss is not None and loss.shape == ll.NONE:
             thing = without_the_measure(_said(loss.thing, team), measure.strip())
             ladder.append(f"{opening}, in about how many {measure.strip()} did {LOSER} {GONE_WITHOUT} {thing}?")
@@ -1618,23 +1618,25 @@ def _rate_stem(opening: str, noun, team: bool, base, cost: dict) -> tuple:
         openings = [opening] if loss_open == opening else [loss_open, opening]
         if loss is not None and loss.shape != ll.NONE and base is not None:
             for each in openings:
-                start = len(ladder)
+                if per:
+                    _loss_share(ladder, each, team, loss, base, per)
                 _loss_share(ladder, each, team, loss, base)
-                own.update(ladder[start:])
         elif loss is not None and loss.shape == ll.NONE:
             for each in openings:
-                start = len(ladder)
                 _loss_gone_without(ladder, each, team, loss, base)
-                if loss.rest_is_a_place():
-                    own.update(ladder[start:])
         if base is not None:
             ladder.append(opening + ", about " + PERCENT_OF + base
                           + (" " + WENT_WRONG if count_noun(base) else " did " + LOSER + " " + GONE_WITHOUT) + "?")
     ladder.append(f"{opening}, about what percent did {LOSER} {GONE_WITHOUT}?")
     served = _held(ladder)
     frameable = base is not None if share else bool(measure and measure.strip())
-    return served, loss is not None and frameable and served not in own, share, \
-        None if measure is None else measure.strip()
+    typed = not _blank(cost.get("lossPhrase"))
+    wanted = typed and frameable and says_a_neutral_verb(served)
+    counted = None if measure is None else measure.strip()
+    if frameable and (wanted or banned_word(served) is not None):
+        stem, as_typed = loss_not_done(opening, cost, base if share else None, per, None if share else counted)
+        return stem, wanted, share, counted, as_typed, per
+    return served, False, share, counted, False, per
 
 
 def loss_clause_wanted(team: bool, occasion, cost: dict | None) -> bool:
@@ -1643,7 +1645,8 @@ def loss_clause_wanted(team: bool, occasion, cost: dict | None) -> bool:
     if not isinstance(cost, dict) or cost.get("mode") != "RATE":
         return False
     over = cost.get("period") if cost.get("period") in _COST_OPENERS else "month"
-    base = None if _blank(cost.get("base")) else _said(str(cost["base"]), team)
+    # spec 148 FR-3 (keel-cloud 239 FR-4): the base the item asks on
+    base = None if asked_base(cost) is None else _said(asked_base(cost), team)
     return _rate_stem(_COST_OPENERS[over], ll.occasion_noun(occasion), team, base, cost)[1]
 
 
@@ -1693,25 +1696,29 @@ def loss_clause_said(clause, base, measure) -> str | None:
     return " ".join(w).strip()
 
 
-def loss_clause_frames(opening: str, clause: str, base, measure) -> list[str]:
+def loss_clause_frames(opening: str, clause: str, base, measure, per: str = "") -> list[str]:
     """keel-cloud 222 FR-4 (`CommercialChain.lossClauseFrames`): *{opener}, about what percent of {base} {clause}?* (a
-    share) or *{opener}, about how many {measure} {clause}?* (a count), then each without *about*."""
+    share) or *{opener}, about how many {measure} {clause}?* (a count), then each without *about*. Since keel-cloud 239
+    FR-5 (spec 148 FR-3) with the typed unit after the base or measure (`per`) first, then the same without it."""
     asked = PERCENT_OF + base if base is not None else "how many " + str(measure)
-    return [f"{opening}, about {asked} {clause}?", f"{opening}, {asked} {clause}?"]
+    frames = []
+    for unit in ([per, ""] if per else [""]):
+        frames += [f"{opening}, about {asked}{unit} {clause}?", f"{opening}, {asked}{unit} {clause}?"]
+    return frames
 
 
-def loss_clause_question(opening: str, loss_clause, base, measure) -> str | None:
+def loss_clause_question(opening: str, loss_clause, base, measure, per: str = "") -> str | None:
     """keel-cloud 222 FR-4 (`CommercialChain.lossClauseQuestion`): the first of the clause's frames within the spoken cap
-    that says no *lose*; else None (today's ladder)."""
+    that says no banned word (since keel-cloud 239: `banned_word`, *lose* / *miss* and the neutral verbs); else None."""
     clause = loss_clause_said(loss_clause, base, measure)
     if clause is None:
         return None
-    return next((rung for rung in loss_clause_frames(opening, clause, base, measure)
-                 if loss_word(rung) is None and ll.words(rung) <= STEM_MAX_WORDS), None)
+    return next((rung for rung in loss_clause_frames(opening, clause, base, measure, per)
+                 if banned_word(rung) is None and ll.words(rung) <= STEM_MAX_WORDS), None)
 
 
-#: Spec 141 FR-7 (keel-cloud 222 FR-2): the writer's `loss_clause` the scripted part-1 result carries where an entry
-#: holds one and the cost wants it (`loss_clause_wanted`). **None today**: no golden entry's line falls to a neutral
+#: Spec 141 FR-7 (keel-cloud 222 FR-2): the writer's `loss_clause` the scripted part-1 result (since keel-cloud 239, on a
+#: money-only study, part 3's) carries where an entry holds one and the cost wants it (`loss_clause_wanted`). **None today**: no golden entry's line falls to a neutral
 #: verb, and the cycle-14 five (Codyco, Expanse, Palus, AirCaps, Fresco) were COMMERCIAL studies, which run no part-1
 #: job (222's judgement call 2) -- so the item takes code's reading, as today (no pin moves).
 LOSS_CLAUSES: dict[str, str] = {}
@@ -1725,6 +1732,315 @@ def scripted_loss_clause(entry) -> str | None:
     if clause is None or not loss_clause_wanted(is_b2b(entry), entry.occasion(), cost):
         return None
     return clause
+
+
+# ------------------------------------------------------------- spec 148 FR-3: keel-cloud 239, the thing they see go
+
+#: keel-cloud 239 FR-2 (`LossNotDone.NEUTRAL_PHRASES`): the two neutral verbs the rate ladder fell to, in any tense.
+NEUTRAL_PHRASES = ("go without", "goes without", "went without", "gone without", "going without", "fell through",
+                   "fall through", "falls through", "fallen through", "falling through")
+
+
+def banned_word(stem: str | None) -> str | None:
+    """keel-cloud 239 FR-2 (`LossNotDone.bannedWord`): the word no served Existing sacrifice item says -- *lose*'s and
+    *miss*'s forms (`loss_word`), then *go without* and *fell through* in any tense -- or None."""
+    said = loss_word(stem)
+    if said is not None:
+        return said
+    text = " " + re.sub(r"[^a-z' ]+", " ", (stem or "").lower()) + " "
+    return next((phrase for phrase in NEUTRAL_PHRASES if " " + phrase + " " in text), None)
+
+
+def says_a_neutral_verb(stem: str | None) -> bool:
+    """keel-cloud 239 FR-1 (`CommercialChain.saysANeutralVerb`): whether a stem says *go without* or *fell through*."""
+    said = (stem or "").lower()
+    return GONE_WITHOUT in said or WENT_WRONG in said
+
+
+#: keel-cloud 239 FR-2 (`LossNotDone.NOT_DONE`): each banned verb's form to its plain not-done -- `(verb, of the thing,
+#: words)`: *lose* *did you not keep*, *miss* / *go without* *did you not get*, *fall through* *did not go through*.
+_NOT_DONE: dict = {}
+for _form in ("lose", "loses", "lost", "losing"):
+    _NOT_DONE[_form] = ("keep", False, 1)
+for _form in ("miss", "misses", "missed", "missing"):
+    _NOT_DONE[_form] = ("get", False, 1)
+for _form in ("go", "goes", "went", "gone", "going"):
+    _NOT_DONE[_form + " without"] = ("get", False, 2)
+for _form in ("fell", "fall", "falls", "fallen", "falling"):
+    _NOT_DONE[_form + " through"] = ("go through", True, 2)
+#: `LossNotDone.NO_OBJECT`: words a verb's own object never opens on.
+_NO_OBJECT = frozenset(("to", "when", "because", "before", "after", "until", "if", "while", "since", "as", "on", "in",
+                        "at", "from", "by", "for", "with", "over", "during", "due", "than", "which", "who", "that",
+                        "where", "once", "unless", "and", "or", "but"))
+
+
+def _nd_words(text) -> list[str]:
+    return [] if text is None or not str(text).strip() else str(text).strip().split()
+
+
+def _nd_held(rungs: list[str]) -> str | None:
+    """`LossNotDone.held`: the first rung within the spoken cap, else the shortest."""
+    shortest = None
+    for rung in rungs:
+        if ll.words(rung) <= STEM_MAX_WORDS:
+            return rung
+        shortest = rung if shortest is None or ll.words(rung) < ll.words(shortest) else shortest
+    return shortest
+
+
+def _nd_frame(opening, base, per, measure, predicate, about) -> str:
+    asked = "what percent of " + base if base is not None else "how many " + str(measure)
+    return f"{opening}, {'about ' if about else ''}{asked}{per} {predicate}?"
+
+
+def _nd_object(w: list[str], start: int) -> str | None:
+    """`LossNotDone.object`: what the line names after its banned verb, where that is the verb's own object."""
+    if start >= len(w) or ll.clean(w[start]) in _NO_OBJECT:
+        return None
+    end = start
+    while end < len(w) and (end == start or ll.clean(w[end]) not in ll.SUBORDINATORS):
+        end += 1
+    obj = re.sub(r"[,;:.]+$", "", " ".join(w[start:end])).strip()
+    return obj.lower() if obj else None
+
+
+def _not_done_rungs(opening, cost: dict, base, per: str, measure) -> list[str]:
+    """`LossNotDone.notDoneRungs`: the plain not-done -- a negated participle the line names (*unanswered* -> *did not get
+    answered*), else one of the card's banned verbs said not done, keeping its own object (*did you not keep track of*);
+    with the typed unit, then without; about, then not."""
+    predicates: list[str] = []
+    w = _nd_words(cost.get("lossPhrase"))
+    i = 0
+    while i < len(w) and not predicates:
+        x = ll.clean(w[i])
+        if len(x) > 5 and x.startswith("un") and not x.startswith("under") and ll.participle(x[2:]):
+            predicates.append("did not get " + x[2:])
+            i += 1
+            continue
+        two = x + " " + ll.clean(w[i + 1]) if i + 1 < len(w) else None
+        said = _NOT_DONE.get(two) if two is not None and two in _NOT_DONE else _NOT_DONE.get(x)
+        if said is not None:
+            verb, of_the_thing, n = said
+            obj = _nd_object(w, i + n)
+            head = ("did not " if of_the_thing else "did you not ") + verb
+            if obj is not None:
+                predicates.append(head + " " + obj)
+            predicates.append(head)
+        i += 1
+    rungs = []
+    for with_unit in (True, False):
+        if not with_unit and not per:
+            continue
+        for predicate in predicates:
+            for about in (True, False):
+                rungs.append(_nd_frame(opening, base, per if with_unit else "", measure, predicate, about))
+    return [r for r in rungs if banned_word(r) is None]
+
+
+def _nd_cut_at_a_place(said: str) -> str | None:
+    w = _nd_words(said)
+    for i in range(3, len(w)):
+        x = ll.clean(w[i])
+        if x in ll.PREPOSITIONS or x in ll.SUBORDINATORS:
+            return re.sub(r"[,;:]+$", "", " ".join(w[:i]))
+    return None
+
+
+def _nd_thing(said: str) -> str | None:
+    w = _nd_words(said)
+    for i in range(1, len(w)):
+        x = ll.clean(w[i])
+        if x in ll.RELATIVE or x in ll.SUBJECTS or x in ll.PREPOSITIONS or w[i - 1].endswith(","):
+            return re.sub(r"[,;:]+$", "", " ".join(w[:i]))
+    return None
+
+
+def _nd_plural_base(base: str) -> bool:
+    head = None
+    for word in _nd_words(base):
+        x = ll.clean(word)
+        if head is not None and (x in ll.PREPOSITIONS or x in ll.RELATIVE or x in ll.SUBJECTS):
+            break
+        head = x
+    return head is not None and ll.is_plural(head)
+
+
+def _nd_names_the_measure(thing: str, measure) -> bool:
+    from instructions import writers_rules as writers_mod                # noqa: PLC0415
+    shared = set(writers_mod.roots(thing)) & set(writers_mod.roots(measure or ""))
+    return bool(shared) and without_the_measure(thing, measure or "") == thing.strip()
+
+
+def _seen_go(opening, base, per: str, measure) -> list[str]:
+    asked = "what percent of " + base if base is not None else "how many " + str(measure)
+    return [f"{opening}, {about}{asked}{unit} did you see go?" for unit in ([per, ""] if per else [""])
+            for about in ("about ", "")]
+
+
+def _as_typed_rungs(opening, cost: dict, base, per: str, measure) -> list[str]:
+    """`LossNotDone.asTypedRungs`: the founder's own line said to the person -- *... what percent of {base} was|were
+    {line}?*, *... how many {line} were there?*, a count whose line names a thing other than the measure *in how many
+    {measure} did you not get {thing}?* -- given way: the line whole, without its purpose, cut before its first clause or
+    place, then its thing alone; a line that is only the base the words that set it apart, else *did you see go?*."""
+    line = ll.lower_first(re.sub(r"[.!?]+$", "", str(cost.get("lossPhrase") or "").strip()))
+    said = "" if not line.strip() else ll.past(ll.second_person(line, False))
+    rungs: list[str] = []
+    if base is not None and same_words(line, base):
+        content, plain = [], True
+        for word in _nd_words(said):
+            x = ll.clean(word)
+            if x in ll.DETERMINERS:
+                continue
+            plain = plain and x not in ll.PREPOSITIONS and x not in ll.RELATIVE and x not in ll.SUBJECTS \
+                and x not in ll.SUBORDINATORS and not ll.verb_like(x)
+            content.append(x)
+        if plain and 2 <= len(content) <= 4:
+            head = content[-1]
+            rungs.append(f"{opening}, about what percent of the {head}{per}"
+                         + (" were " if ll.is_plural(head) else " was ") + " ".join(content[:-1]) + "?")
+        rungs += _seen_go(opening, base, per, None)
+        return [r for r in rungs if banned_word(r) is None]
+    forms = [said] if said.strip() else []
+    shorter = None if not said.strip() else without_purpose(said)
+    if shorter is not None:
+        forms.append(shorter)
+    cut = _nd_cut_at_a_place(said)
+    if cut is not None:
+        forms.append(cut)
+    thing = None if not said.strip() else _nd_thing(said)
+    if thing is not None:
+        forms.append(thing)
+    be = " were " if base is not None and _nd_plural_base(base) else " was "
+    if base is None and thing is not None and not _nd_names_the_measure(thing, measure):
+        said1 = without_the_measure(thing, measure or "")
+        for unit in ([per, ""] if per else [""]):
+            for about in (True, False):
+                rungs.append(f"{opening}, in {'about ' if about else ''}how many {measure}{unit} did you not get "
+                             f"{said1}?")
+        rungs = [r for r in rungs if banned_word(r) is None]
+        if rungs:
+            return rungs
+    distinct = list(dict.fromkeys(forms))
+    for unit in ([per, ""] if per else [""]):
+        for form in distinct:
+            for about in (True, False):
+                rungs.append(f"{opening}, {'about ' if about else ''}what percent of {base}{unit}{be}{form}?"
+                             if base is not None else
+                             f"{opening}, {'about ' if about else ''}how many {form} were there?")
+    rungs = [r for r in rungs if banned_word(r) is None]
+    if not rungs:
+        rungs = _seen_go(opening, base, per, measure)
+    return rungs
+
+
+def loss_not_done(opening, cost: dict, base, per: str, measure) -> tuple[str | None, bool]:
+    """keel-cloud 239 FR-2 (`LossNotDone.of`): the item code serves for a rate cost the writer could not ask -- `(stem,
+    as_typed)`: the plain not-done where the line has a verb code can say so, else the founder's own line said to the
+    person (`as_typed`, which the founder's Check notes; True only where a line was typed)."""
+    rungs = _not_done_rungs(opening, cost, base, per, measure)
+    if rungs:
+        return _nd_held(rungs), False
+    typed = not _blank(cost.get("lossPhrase"))
+    return _nd_held(_as_typed_rungs(opening, cost, base, per, measure)), typed
+
+
+def loss_not_done_rungs(opening, cost: dict, base, per: str, measure) -> list[str]:
+    """`LossNotDone.rungs`: every rung `loss_not_done` can serve, in its order -- the banned-word test reads each."""
+    return _not_done_rungs(opening, cost, base, per, measure) + _as_typed_rungs(opening, cost, base, per, measure)
+
+
+def typed_unit(cost: dict | None) -> str | None:
+    """`CommercialChain.typedUnit`: the founder's typed unit, or None."""
+    return None if not isinstance(cost, dict) or _blank(cost.get("unit")) else str(cost["unit"]).strip()
+
+
+def per_unit(cost: dict, team: bool, counted) -> str:
+    """keel-cloud 239 FR-5 (`CommercialChain.perUnit`): the typed unit as the decision-maker's question says it, *" per
+    cluster"* -- once: nothing where `counted` already names it, on a consumer link, or where none was typed (or it runs
+    past three words)."""
+    from instructions import writers_rules as writers_mod                # noqa: PLC0415
+    unit = typed_unit(cost) if team else None
+    if unit is None or ll.words(unit) > 3:
+        return ""
+    if counted is not None and set(writers_mod.roots(counted)) & set(writers_mod.roots(unit)):
+        return ""
+    return " per " + unit
+
+
+def line_base(cost: dict | None) -> str | None:
+    """keel-cloud 239 FR-4 (`CommercialChain.lineBase`): the plain base the loss line names (a share's thing *on* a noun
+    phrase and nothing after it) where the typed base does not name it; else None."""
+    from instructions import writers_rules as writers_mod                # noqa: PLC0415
+    if not isinstance(cost, dict) or cost.get("mode") != "RATE":
+        return None
+    measure = cost_measure(cost)
+    if measure is not None and measure.strip() != "%":
+        return None
+    read = ll.read(cost.get("lossPhrase"))
+    if read is None or read.shape != ll.NONE or not read.clause.strip():
+        return None
+    w = read.clause.strip().split()
+    if len(w) < 2 or ll.clean(w[0]) != "on":
+        return None
+    for word in w[1:]:
+        x = ll.clean(word)
+        if x in ll.RELATIVE or x in ll.SUBORDINATORS or x in ll.PREPOSITIONS or x in ll.SUBJECTS or ll.verb_like(x) \
+                or word.endswith(","):
+            return None
+    phrase = re.sub(r"[.;:]+$", "", " ".join(w[1:])).strip()
+    typed = str(cost.get("base") or "")
+    if set(writers_mod.roots(phrase)) & set(writers_mod.roots(typed)) or same_words(phrase, typed):
+        return None
+    return phrase if ll.clean(w[1]) in ll.DETERMINERS else "the " + phrase
+
+
+def asked_base(cost: dict | None) -> str | None:
+    """keel-cloud 239 FR-4 (`CommercialChain.askedBase`): the base the stranger's item asks on -- the one the loss line
+    names, where it names a plain one, else the base the founder typed."""
+    if not isinstance(cost, dict):
+        return None
+    typed = None if _blank(cost.get("base")) else str(cost["base"]).strip()
+    line = line_base(cost)
+    return line if line is not None else typed
+
+
+def base_note(cost: dict | None) -> str | None:
+    """keel-cloud 239 FR-4 (`CommercialChain.baseNote`): the Check's line where the item asks on the line's base."""
+    line = line_base(cost)
+    return None if line is None else f"People are asked about {line}, the base your loss line names."
+
+
+#: keel-cloud 239 FR-2 (`CommercialChain.AS_TYPED_NOTE`): the Check note's opening words.
+AS_TYPED_NOTE = "Keel couldn't name what they see go in your loss line, so people are asked:"
+
+
+def check_note(team: bool, occasion, cost: dict | None, served: str | None) -> str | None:
+    """keel-cloud 239 FR-2 (`CommercialChain.checkNote`): the founder's Check note on Existing sacrifice where the item
+    the people are served is the founder's own line said to them -- *Keel couldn't name ... "{served}" Reword it as what
+    happens to the thing, in their words.* -- None everywhere else."""
+    if served is None or not isinstance(cost, dict) or cost.get("mode") != "RATE":
+        return None
+    over = cost.get("period") if cost.get("period") in _COST_OPENERS else "month"
+    base = None if asked_base(cost) is None else _said(asked_base(cost), team)
+    rate = _rate_stem(_COST_OPENERS[over], ll.occasion_noun(occasion), team, base, cost)
+    if not rate[4] or served != rate[0]:
+        return None
+    return f'{AS_TYPED_NOTE} "{served}" Reword it as what happens to the thing, in their words.'
+
+
+def sacrifice_note(team: bool, occasion, cost: dict | None, served: str | None) -> str | None:
+    """keel-cloud 239 FR-2, FR-4 (`VectorsController.sacrificeNote`, keel-web 183 T008's shape): the note the Existing
+    sacrifice row of the founder's Check carries -- `base_note` then `check_note`, one space -- or None."""
+    parts = [n for n in (base_note(cost), check_note(team, occasion, cost, served)) if n]
+    return " ".join(parts) or None
+
+
+def framed_per(cost: dict, team: bool) -> str:
+    """keel-cloud 239 FR-5 (`CommercialChain.framedPer`): the typed unit as the clause's frame says it on the link."""
+    measure = cost_measure(cost)
+    share = measure is None or measure.strip() == "%"
+    base = None if asked_base(cost) is None else _said(asked_base(cost), team)
+    return per_unit(cost, team, base if share else measure.strip())
 
 
 def cost_question(team: bool, occasion, job, cost: dict, loss_clause: str | None = None) -> str:
@@ -1741,6 +2057,8 @@ def cost_question(team: bool, occasion, job, cost: dict, loss_clause: str | None
     over = cost.get("period") if cost.get("period") in _COST_OPENERS else "month"
     opening = _COST_OPENERS[over]
     base = None if _blank(cost.get("base")) else _said(str(cost["base"]), team)
+    if cost.get("mode") == "RATE" and asked_base(cost) is not None:
+        base = _said(asked_base(cost), team)          # spec 148 FR-3 (keel-cloud 239 FR-4): the line's base
     noun = ll.occasion_noun(occasion)
     doing = None if _blank(job) else _said(str(job).strip(), team)
     unit = str(cost["unit"]).strip() if team and not _blank(cost.get("unit")) else None
@@ -1748,8 +2066,9 @@ def cost_question(team: bool, occasion, job, cost: dict, loss_clause: str | None
     if cost.get("mode") == "HOURS":
         missed = None if cost.get("base") is None else gone_without(cost.get("base"))
         if missed is not None:
+            # spec 148 FR-3 (keel-cloud 239 FR-2): never *go without* served -- the plain not-done
             ladder.append(f"{opening}, about how many hours of {_said(missed, team)} did {_who(team, missed)} "
-                          f"{GONE_WITHOUT}?")
+                          "not get?")
         elif base is not None or noun is not None:
             thing = base if base is not None else ll.plural(noun)
             if unit is not None and ll.words(unit) <= 2:
@@ -1762,9 +2081,9 @@ def cost_question(team: bool, occasion, job, cost: dict, loss_clause: str | None
     if cost.get("mode") == "RATE":
         # spec 141 FR-7 (keel-cloud 222 FR-1, FR-4): where code's own reading of the line falls to a neutral verb, the
         # writer's clause in its place (`loss_clause_question`); everywhere else the ladder's own stem, word for word
-        served, wanted, share, measure = _rate_stem(opening, noun, team, base, cost)
-        written = loss_clause_question(opening, loss_clause, base if share else None, None if share else measure) \
-            if wanted else None
+        served, wanted, share, measure, _, per = _rate_stem(opening, noun, team, base, cost)
+        written = loss_clause_question(opening, loss_clause, base if share else None, None if share else measure,
+                                       per) if wanted else None
         return written if written is not None else served
     if over == "each" and noun is not None:
         thing = base if base is not None else "it"
@@ -1808,10 +2127,14 @@ def stranger_cost_label(cost: dict, occasion, role_word, team: bool) -> str:
         measure = cost_measure(cost)
         if measure is not None and measure.strip() != "%":
             return (measure.strip() + " " + when).strip()
-        base = str(cost["base"]).strip() if not _blank(cost.get("base")) else ll.occasion_noun(occasion)
+        # spec 148 FR-3 (keel-cloud 239 FR-4, FR-5): the base the item asks on; the typed unit kept, said once
+        base = asked_base(cost) if asked_base(cost) is not None else \
+            str(cost["base"]).strip() if not _blank(cost.get("base")) else ll.occasion_noun(occasion)
         if not team:
             return ("% " + ("" if base is None else "of " + _said(base, False))).strip()
-        return ("% " + ("" if base is None else "of " + _without_possessive(base) + " ") + _label_time(period, None)).strip()
+        of = "" if base is None else _without_possessive(base)
+        return ("% " + ("" if base is None else "of " + of + per_unit(cost, True, of) + " ")
+                + _label_time(period, None)).strip()
     base = None if _blank(cost.get("base")) or (period == "each" and unit is not None) else str(cost["base"]).strip()
     return (("" if base is None else "of " + _said(base, team) + " ") + when).strip()
 
@@ -3159,12 +3482,32 @@ def plan_keys(entry, part: int, link: str) -> list[str]:
     return [k for k in keys if k not in left_out]
 
 
+def part_three_link(entry) -> str:
+    """The link part 3 is routed to: the decision-maker's on B2B, else the primary (`EvidencePlan`)."""
+    return LINK_B2B if is_b2b(entry) else LINK_PRIMARY
+
+
+def part_three_writes(entry) -> bool:
+    """Spec 148 FR-3 (keel-cloud 239 FR-1, `EvidencePlan.plan`'s `partThreeWrites`): on a study with no part 1 (money
+    alone), part 3 is the writer's job where its Existing sacrifice item wants the `loss_clause` (the served stem would
+    carry a neutral verb, `loss_clause_wanted`) and part 3 asks something on its link."""
+    if serves_gate(entry) or "COMMERCIAL" not in scope_vectors(entry) or not entry.chain():
+        return False
+    cost = entry.cost() if callable(getattr(entry, "cost", None)) else None
+    return bool(cost) and loss_clause_wanted(is_b2b(entry), entry.occasion(), cost) \
+        and bool(plan_keys(entry, 3, part_three_link(entry)))
+
+
 def respondent_jobs(entry) -> list[tuple[int, str]]:
     """The RESPONDENT_QUESTIONS jobs a lock starts: since keel-cloud 091 (contract 14, design §6) **one**, part 1 on the
     primary link -- the part that carries the gate's clause -- on either persona; parts 2 and 3 (on B2B part 3 the
     decision-maker's link's) are code's, written with the lock. Spec 071 (keel-cloud 133 T010): none where the scope
-    serves no gate (money alone has no model job)."""
-    return [(1, LINK_PRIMARY)] if serves_gate(entry) else []
+    serves no gate (money alone has no part 1) -- since keel-cloud 239 FR-1 (spec 148 FR-3) except part 3, on its link,
+    where its Existing sacrifice item wants the writer's clause (`part_three_writes`): one job, held and priced as every
+    lock's (70 credits)."""
+    if serves_gate(entry):
+        return [(1, LINK_PRIMARY)]
+    return [(3, part_three_link(entry))] if part_three_writes(entry) else []
 
 
 def respondent_item(entry, key: str) -> dict:
@@ -3190,8 +3533,10 @@ def respondent_result(entry, part: int, link: str) -> dict:
         decider = decider_screener(entry) if is_b2b(entry) else None
         if decider:
             out["decider_condition"] = decider
-    if part == 1 and link == LINK_PRIMARY:
-        # spec 141 FR-7 (keel-cloud 222 FR-2): beside them, the Existing sacrifice item's `loss_clause` where held
+    # spec 141 FR-7 (keel-cloud 222 FR-2): beside them, the Existing sacrifice item's `loss_clause` where held -- on part 1;
+    # since keel-cloud 239 FR-1 (spec 148 FR-3) on part 3 where the study has no part 1 and part 3 is the writer's job
+    if (part == 1 and link == LINK_PRIMARY and serves_gate(entry)) or (part == 3 and part_three_writes(entry)
+                                                                      and link == part_three_link(entry)):
         clause = scripted_loss_clause(entry)
         if clause:
             out["loss_clause"] = clause

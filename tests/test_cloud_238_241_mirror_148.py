@@ -422,3 +422,206 @@ def test_the_instruction_bytes_are_the_rounds():
             pytest.skip(f"no {name} at {KEEL_CLOUD}")
         assert path.stat().st_size == size, name
     assert INSTRUCTION_BYTES["respondent-questions.md"] <= 9_969          # 170's cap
+
+
+# ------------------------------------------------------------------------------- FR-3 Existing sacrifice (239)
+
+from harness import vectors_script as vs                                    # noqa: E402
+
+
+def _rate(measure, base, unit, period, line):
+    return {"mode": "RATE", "low": 3, "high": 5, "measure": measure, "base": base, "unit": unit, "period": period,
+            "currency": "USD", "lossPhrase": line}
+
+
+#: `ExistingSacrificeNamesTheThingTest`'s three invented shapes.
+RANG_OUT = _rate("%", "the after-hours enquiries", "clinic", "month", "Enquiries that rang out unanswered")
+GAVE_UP = _rate("%", "the stored harvest", "farm", "year", "Value they gave up by holding the harvest in storage too long")
+LOST_TRACK = _rate("recipes", "the recipes they save", "household", "month", "Recipes they lost track of")
+BANNED = ("go without", "goes without", "went without", "fell through", "fall through", "lose", "lost", "miss",
+          "missed")
+
+
+def test_the_three_shapes_after_two_failures_are_the_clouds():
+    """FR-3 (239 FR-2, `Fr2ThePlainNotDone`): with no clause landed, code's plain not-done -- never the banned verb --
+    else the founder's own line said to the person, and the Check says so."""
+    assert vs.cost_question(True, "shift", None, RANG_OUT) == \
+        "Last month, about what percent of the after-hours enquiries per clinic did not get answered?"
+    assert vs.cost_question(False, "night", None, {**LOST_TRACK, "unit": None}) == \
+        "Last month, about how many recipes did you not keep track of?"
+    served = vs.cost_question(True, "delivery", None, GAVE_UP)
+    assert served == "Last year, about what percent of the stored harvest per farm was value you gave up?"
+    assert vs.check_note(True, "delivery", GAVE_UP, served) == (
+        f'{vs.AS_TYPED_NOTE} "{served}" Reword it as what happens to the thing, in their words.')
+    assert vs.check_note(False, "night", LOST_TRACK, "Last month, about how many recipes did you not keep track of?") \
+        is None
+    assert vs.check_note(True, "delivery", GAVE_UP, None) is None
+    for wanted in (RANG_OUT, GAVE_UP):
+        assert vs.loss_clause_wanted(True, "shift", wanted) is True
+
+
+def test_the_other_banned_verbs_and_the_place_rung():
+    """FR-3 (239 FR-2, FR-3, `theOtherBannedVerbs`, `thePlaceRungIsGone`)."""
+    assert vs.cost_question(True, "shift", None, _rate("%", "the export orders", "depot", "month",
+                                                        "Export orders that fell through at customs")) == \
+        "Last month, about what percent of the export orders per depot did not go through?"
+    assert vs.cost_question(False, "night", None, _rate("nights", "the nights on call", None, "month",
+                                                         "Nights of sleep they go without")) == \
+        "Last month, about how many nights did you not get?"
+    assert vs.cost_question(True, "shift", None, _rate("callbacks", "the callbacks booked", "office", "month",
+                                                        "Callbacks they missed")) == \
+        "Last month, about how many callbacks per office did you not get?"
+    interest = _rate("%", "the balance", "company", "year", "Interest on cash that sits in the operating account")
+    assert vs.loss_clause_wanted(True, "cash review", interest) is True
+    assert vs.cost_question(True, "cash review", None, interest) == (
+        "Last year, about what percent of the balance per company was interest on cash that sat in the operating "
+        "account?")
+
+
+def test_the_base_is_the_loss_lines_and_the_unit_is_kept():
+    """FR-3 (239 FR-4, FR-5, `Fr4Fr5TheBaseAndTheUnit`)."""
+    on_the_line = _rate("%", "the long-term reserve", "company", "year", "Interest on operating cash")
+    assert vs.asked_base(on_the_line) == "the operating cash"
+    assert "of the operating cash" in vs.cost_question(True, "cash review", None, on_the_line)
+    assert vs.stranger_cost_label(on_the_line, "cash review", None, True) == \
+        "% of the operating cash per company last year"
+    assert vs.base_note(on_the_line) == "People are asked about the operating cash, the base your loss line names."
+    assert vs.cost_question(True, "cash review", None, on_the_line, "earned no interest") == \
+        "Last year, about what percent of the operating cash per company earned no interest?"
+    assert vs.asked_base(RANG_OUT) == "the after-hours enquiries" and vs.asked_base(GAVE_UP) == "the stored harvest"
+    assert vs.asked_base(_rate("%", "the operating account", "company", "year", "Interest on the operating account")) \
+        == "the operating account"
+    assert vs.asked_base(_rate("%", "the balance", "company", "year",
+                               "Interest on cash that sits in the operating account")) == "the balance"
+    assert vs.asked_base(LOST_TRACK) == "the recipes they save" and vs.base_note(RANG_OUT) is None
+    idle = _rate("%", "the booked machine hours", "workshop", "month", "Booked machine hours that sit idle")
+    assert vs.cost_question(True, "shift", None, idle) == \
+        "Last month, about what percent of the booked machine hours per workshop sat idle?"
+    assert vs.stranger_cost_label(idle, "shift", None, True) == "% of the booked machine hours per workshop last month"
+    owned = _rate("%", "the workshop's machine hours", "workshop", "month", "Booked machine hours that sit idle")
+    assert vs.cost_question(True, "shift", None, owned) == \
+        "Last month, about what percent of the workshop's machine hours sat idle?"
+    assert vs.stranger_cost_label(owned, "shift", None, True) == "% of machine hours per workshop last month"
+    assert vs.cost_question(True, "shift", None, _rate("deals", "the deals in the pipeline", "sales team", "month",
+                                                        "Deals lost to a faster competitor"),
+                            "went to a faster competitor") == \
+        "Last month, about how many deals per sales team went to a faster competitor?"
+    assert "per household" not in vs.cost_question(False, "night", None, LOST_TRACK)
+    long_unit = _rate("%", "the after-hours enquiries sent in by patients", "dental clinic", "month",
+                      "Enquiries that rang out unanswered")
+    assert len(vs.cost_question(True, "shift", None, long_unit).split()) <= vs.STEM_MAX_WORDS
+
+
+def test_the_check_note_is_the_webs_fixture_shape():
+    """FR-3 (239 FR-2, FR-4; keel-web 183 T008): `base_note` then `check_note`, one space, on an invented choir."""
+    fees = _rate("%", "the choir's budget", "choir", "month", "Fees on rehearsal space")
+    served = vs.cost_question(True, "rehearsal", None, fees)
+    note = vs.sacrifice_note(True, "rehearsal", fees, served)
+    assert vs.asked_base(fees) == "the rehearsal space" and "of the rehearsal space per choir" in served
+    assert note.startswith("People are asked about the rehearsal space, the base your loss line names.")
+    if vs.check_note(True, "rehearsal", fees, served) is not None:
+        assert note == vs.base_note(fees) + " " + vs.check_note(True, "rehearsal", fees, served)
+    assert vs.sacrifice_note(True, "shift", RANG_OUT, vs.cost_question(True, "shift", None, RANG_OUT)) is None
+
+
+def test_no_served_item_says_a_banned_verb(golden):
+    """FR-3 (239 FR-2): every corpus and back-test entry's chain item as served with no clause, and every rung code's
+    fallback can serve on it, says no banned verb in any form -- the frames read for each word."""
+    from instructions import corpus as corpus_mod                          # noqa: PLC0415
+    entries = list(golden.values())
+    if corpus_mod.backtest_dir(KEEL_CLOUD).is_dir():
+        entries += vs.load(KEEL_CLOUD, backtest=True).entries
+    checked = 0
+    for entry in entries:
+        item = vs.cost_item(entry)
+        if not item:
+            continue
+        checked += 1
+        assert vs.banned_word(item["question"]) is None, (entry.id, item["question"])
+        cost = entry.cost()
+        if cost.get("mode") == "RATE":
+            for team in (True, False):
+                over = cost.get("period") if cost.get("period") in vs._COST_OPENERS else "month"
+                base = None if vs.asked_base(cost) is None else vs._said(vs.asked_base(cost), team)
+                measure = vs.cost_measure(cost)
+                share = measure is None or measure.strip() == "%"
+                for rung in vs.loss_not_done_rungs(vs._COST_OPENERS[over], cost, base if share else None,
+                                                   vs.per_unit(cost, team, base if share else measure),
+                                                   None if share else measure):
+                    assert vs.banned_word(rung) is None, (entry.id, rung)
+    assert checked >= 20
+    for word in BANNED:
+        assert vs.banned_word(f"Last month, about how many calls did you {word} today?") is not None, word
+
+
+def test_the_part_three_job_on_a_money_only_study(golden):
+    """FR-3 (239 FR-1): on money alone part 3 is the lock's one model job where its item wants the clause -- on the
+    decision-maker's link on B2B -- and its result carries `loss_clause` where the script holds one; a line code reads
+    whole starts none; a study with part 1 keeps its job there."""
+    import dataclasses                                                     # noqa: PLC0415
+    from instructions import corpus as corpus_mod                          # noqa: PLC0415
+    if not corpus_mod.backtest_dir(KEEL_CLOUD).is_dir():
+        pytest.skip("no back-test entries")
+    backtest = {e.id: e for e in vs.load(KEEL_CLOUD, backtest=True).entries}
+    money = {k: dataclasses.replace(e, scope="COMMERCIAL") for k, e in backtest.items()}
+    assert vs.respondent_jobs(money["21-codyco"]) == [(3, vs.LINK_B2B)]
+    assert vs.respondent_jobs(money["10-palus"]) == [(3, vs.LINK_B2B)]
+    assert vs.respondent_jobs(money["13-aircaps"]) == [(3, vs.LINK_PRIMARY)]
+    assert vs.respondent_jobs(money["17-expanse"]) == []                   # the line code reads whole
+    assert vs.respondent_jobs(backtest["21-codyco"]) == [(1, vs.LINK_PRIMARY)] or not vs.serves_gate(
+        backtest["21-codyco"])
+    for entry in golden.values():                                           # off the chain: as before
+        assert vs.respondent_jobs(dataclasses.replace(entry, scope="COMMERCIAL")) == []
+    codyco = money["21-codyco"]
+    assert "loss_clause" not in vs.respondent_result(codyco, 3, vs.LINK_B2B)
+    held = dict(vs.LOSS_CLAUSES)
+    try:
+        vs.LOSS_CLAUSES["21-codyco"] = "rang out unanswered"
+        assert vs.respondent_result(codyco, 3, vs.LINK_B2B)["loss_clause"] == "rang out unanswered"
+        assert "loss_clause" not in vs.respondent_result(codyco, 3, vs.LINK_PRIMARY)
+        assert vs.cost_item(codyco)["question"] == \
+            "Last month, about what percent of the reservation calls per hotel rang out unanswered?"
+    finally:
+        vs.LOSS_CLAUSES.clear()
+        vs.LOSS_CLAUSES.update(held)
+
+
+class _Walk:
+    def __init__(self, view):
+        self.view, self.findings = view, []
+
+    def project(self, path):
+        return path
+
+    def get(self, path):
+        return self.view
+
+
+def test_the_walk_names_the_check_note_and_a_banned_verb_never_a_stop(golden):
+    """FR-3: the Check's note is a finding with its words (as typed / the base), and a served banned verb a fault named
+    in the findings -- the walk goes on."""
+    note = (f'{vs.AS_TYPED_NOTE} "Last year, about what percent of the stored harvest per farm was value you gave up?" '
+            "Reword it as what happens to the thing, in their words.")
+    j = _Walk({"questions": [{"dimension": "commercial.price"},
+                             {"dimension": "commercial.existing_sacrifice", "note": note}]})
+    found = cs.sacrifice_note_finding(j)
+    assert found == {"what": cs.SACRIFICE_NOTE, "note": note, "as_typed": True, "base": False} and j.findings == [found]
+    assert cs.sacrifice_note_finding(_Walk({"questions": [{"dimension": "commercial.existing_sacrifice"}]})) is None
+    walk = _Walk({})
+    walk.entry = golden["01-countly"]
+    cs.cost_item_drift(walk, {"dimension": "commercial.existing_sacrifice",
+                              "question": "Last month, about how many deliveries fell through?"})
+    assert [f for f in walk.findings if f["what"] == cs.SACRIFICE_BANNED] == [
+        {"what": cs.SACRIFICE_BANNED, "said": "fell through",
+         "served": "Last month, about how many deliveries fell through?"}]
+
+
+def test_the_lossnotdone_words_are_the_clouds():
+    """FR-3: the neutral phrases, the card's banned verbs' plain not-done and the note's opening, word for word."""
+    text = re.sub(r'"\s*\+\s*"', "", _cloud(VECTORS + "LossNotDone.java"))
+    phrases = text.split("NEUTRAL_PHRASES = List.of(", 1)[1].split(");", 1)[0]
+    assert tuple(re.findall(r'"([^"]+)"', phrases)) == vs.NEUTRAL_PHRASES
+    assert 'new NotDone("keep", false, 1)' in text and 'new NotDone("go through", true, 2)' in text
+    chain = re.sub(r'"\s*\+\s*"', "", _cloud(VECTORS + "CommercialChain.java"))
+    assert f'AS_TYPED_NOTE = "{vs.AS_TYPED_NOTE}"' in chain
+    assert '"People are asked about " + line + ", the base your loss line names."' in chain

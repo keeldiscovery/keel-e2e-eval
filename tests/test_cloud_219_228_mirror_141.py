@@ -428,16 +428,18 @@ def test_the_two_boxes_stand_as_spec_140_read_them():
 LOSS_CLAUSES = {"21-codyco": "rang out unanswered", "13-aircaps": "did you stop following the thread of",
                 "10-palus": "went unearned at the bank", "17-expanse": "went unused by any job",
                 "08-fresco": "went into the daily log"}
-#: `theFiveEntries`: (wanted, as cycle 14 served it, with the clause).
+#: `theFiveEntries`: (wanted, as code serves it with no clause, with the clause). Spec 148 FR-3 re-pin (keel-cloud 239 FR-2,
+#: FR-5, `SacrificeItemNamesTheLossTest` at keel-cloud-docs 155eaca9): with no clause never the neutral verb cycle 14
+#: served -- the plain not-done, else the founder's own line said to the person -- and the typed unit on the
+#: decision-maker's link, the clause framed with it.
 LOSS_ITEMS = {
-    "21-codyco": (True, "Last month, about what percent of the reservation calls did you go without in booking calls "
-                        "that rang out unanswered?",
-                  "Last month, about what percent of the reservation calls rang out unanswered?"),
-    "13-aircaps": (True, "Last month, about how many conversations fell through?",
+    "21-codyco": (True, "Last month, about what percent of the reservation calls per hotel did not get answered?",
+                  "Last month, about what percent of the reservation calls per hotel rang out unanswered?"),
+    "13-aircaps": (True, "Last month, about how many conversations did you not keep the thread of?",
                    "Last month, about how many conversations did you stop following the thread of?"),
-    "10-palus": (True, "Last year, about what percent of the long-term reserve did you go without?",
-                 "Last year, about what percent of the long-term reserve went unearned at the bank?"),
-    "17-expanse": (False, "Last month, about what percent of the reserved GPU hours sat idle?", None),
+    "10-palus": (True, "Last year, about what percent of the long-term reserve per company was yield you gave up?",
+                 "Last year, about what percent of the long-term reserve per company went unearned at the bank?"),
+    "17-expanse": (False, "Last month, about what percent of the reserved GPU hours per cluster sat idle?", None),
     "08-fresco": (False, "Last month, about how many hours per site did your team spend on the daily log?", None),
 }
 

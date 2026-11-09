@@ -293,10 +293,13 @@ FRAMES = [
      "Last month, about what percent of the cluster's GPU hours did jobs never use?"),
     (True, "cash decision", _rate("%", "the balance", "company", "year",
                                   "Interest on cash that sits in the operating account"),
-     "Last year, about what percent of the balance did you go without in interest?"),
+     # spec 148 FR-3 re-pins (keel-cloud 239 FR-2 to FR-5, `CostQuestionInTheirWordsTest` at keel-cloud-docs 155eaca9):
+     # no neutral verb, no place rung, the line's base, the typed unit on the decision-maker's link
+     "Last year, about what percent of the balance per company was interest on cash that sat in the operating "
+     "account?"),
     (True, "reservation shift", _rate("%", "the reservation calls", "hotel", "month",
                                       "Bookings lost when a call rings out after hours, at peak or on a holiday"),
-     "Last month, about what percent of the reservation calls rang out after hours, at peak or on a holiday?"),
+     "Last month, what percent of the reservation calls per hotel rang out after hours, at peak or on a holiday?"),
     (True, "release", _rate("%", "the agent's runs in production", "agent", "month",
                             "Runs that fail in front of customers before anyone notices"),
      "Last month, about what percent of the agent's runs in production failed in front of customers before anyone "
@@ -306,7 +309,7 @@ FRAMES = [
      "Last month, about how many questions did you give up on because search showed only sellers' pages?"),
     (True, "quote", _rate("deals", "the deals they quote", "sales team", "month",
                           "Deals lost or signed on worse terms because the pricing was worked out by hand"),
-     "Last month, about how many deals fell through?"),
+     "Last month, about how many deals per sales team did you not keep?"),
     (False, "reading session", _rate("days", "reading with no one listening", "child", "month",
                                      "School days the child reads with no one listening"),
      "Last month, about how many school days did the child read with no one listening?"),
@@ -314,12 +317,13 @@ FRAMES = [
      "Last month, about how many hours per site did your team spend on the daily log?"),
     (False, "group conversation", _rate("conversations", "the conversations they are in", "person", "month",
                                         "The thread of the conversation, and the moment with the people in it"),
-     "Last month, in about how many conversations did you go without the thread?"),
+     "Last month, in about how many conversations did you not get the thread?"),
     (True, "billing cycle", _rate("%", "the practice's collections", "practice", "month",
                                   "What billing staff or a billing company costs, plus claims rejected and never paid"),
-     "Last month, about what percent of the practice's collections fell through?"),
+     "Last month, about what percent of the practice's collections were what billing staff or a billing company "
+     "costs?"),
     (True, "shipment", _rate("%", "the shipments", "terminal", "month", None),
-     "Last month, about what percent of the shipments fell through?"),
+     "Last month, about what percent of the shipments per terminal did you see go?"),
 ]
 
 
@@ -329,12 +333,12 @@ def test_the_cost_frame_is_keel_cloud_170s(team, occasion, cost, question):
 
 
 def test_with_no_loss_line_the_frame_says_the_measures_neutral_verb():
-    # a share and a count with no line: *fell through* (spec 132 FR-9, keel-cloud 206 FR-5: never *miss*); hours:
-    # *spend on*; a line that says *now* keeps its present
+    # a share and a count with no line: since keel-cloud 239 FR-2 (spec 148 FR-3) never *fell through* -- the share or
+    # count the person saw go; hours: *spend on*; a line that says *now* keeps its present
     assert _asked(True, "shipment", _rate("%", "the shipments", "terminal", "month", None)).endswith(
-        "fell through?")
+        "did you see go?")
     assert _asked(False, "x", _rate("conversations", None, None, "month", None)) == \
-        "Last month, about how many conversations fell through?"
+        "Last month, about how many conversations did you see go?"
     assert _asked(True, "x", {"mode": "HOURS", "base": None, "unit": "site", "period": "month"}) == \
         "Last month, about how many hours per site did your team spend on xes?", "the occasion's plural, as code makes it"
     assert _asked(True, "time", {"mode": "HOURS", "base": None, "unit": None, "period": "week"}) == \
@@ -343,7 +347,9 @@ def test_with_no_loss_line_the_frame_says_the_measures_neutral_verb():
     # place clause -- the present of *now* never turned (*sold*)
     now = _asked(False, "sale", _rate("%", "the sales", "seller", "month",
                                       "Fees on every sale, on the sites they sell on now"))
-    assert now == "On your last sale, about what percent of the sales did you go without in fees?" and "sold" not in now
+    # spec 148 FR-3 re-pin (keel-cloud 239 FR-2, FR-3): the founder's own line said to the person, its present kept
+    assert now == "Last month, about what percent of the sales were fees on every sale, on the sites you sell on now?" \
+        and "sold" not in now
     assert ll.read(None) is None and ll.read("  ") is None
     assert ll.read("What billing staff costs, plus claims never paid") is None, "a free relative names no thing"
 
@@ -363,8 +369,9 @@ def test_the_loss_line_is_read_in_four_shapes():
 
 
 @pytest.mark.parametrize("cost, occasion, role, team, label", [
+    # spec 148 FR-3 re-pin (keel-cloud 239 FR-5): the typed unit kept on the decision-maker's label, said once
     (_rate("%", "the cluster's GPU hours", "cluster", "month", None), "job submission", "researcher", True,
-     "% of GPU hours last month"),
+     "% of GPU hours per cluster last month"),
     ({"mode": "HOURS", "measure": "hours", "base": "the daily log", "unit": "site", "period": "month"}, "daily log",
      "superintendent", True, "hours per site last month"),
     (_rate("conversations", "the conversations they are in", "person", "month", None), "group conversation", "wearer",
@@ -471,12 +478,15 @@ def _backtest(entry_id: str):
     # re-pin (keel-cloud 217, corpus revision 25, its judgement call 8 and `TheQuestionScreensDefectsTest`): Palus' and
     # Expanse's amended lines as 217 says the walk sees them; Codyco's reworded line (*Booking calls that rang out
     # unanswered*: no verb of its own by `LossLine.read`, so *go without*), which 217 does not pin, as the port composes it
-    ("10-palus", "Last year, about what percent of the long-term reserve did you go without?",
-     "% of the long-term reserve last year"),
-    ("17-expanse", "Last month, about what percent of the reserved GPU hours sat idle?",
-     "% of the reserved GPU hours last month"),
-    ("21-codyco", "Last month, about what percent of the reservation calls did you go without in booking calls that "
-                  "rang out unanswered?", "% of the reservation calls last month"),
+    # spec 148 FR-3 re-pin (keel-cloud 239, `TheQuestionScreensDefectsTest` at 155eaca9): with no clause, never the
+    # neutral verb -- Codyco's plain not-done, Palus' own line said to them (the Check notes it), Expanse word for word;
+    # each with the typed unit on the decision-maker's link
+    ("10-palus", "Last year, about what percent of the long-term reserve per company was yield you gave up?",
+     "% of the long-term reserve per company last year"),
+    ("17-expanse", "Last month, about what percent of the reserved GPU hours per cluster sat idle?",
+     "% of the reserved GPU hours per cluster last month"),
+    ("21-codyco", "Last month, about what percent of the reservation calls per hotel did not get answered?",
+     "% of the reservation calls per hotel last month"),
 ])
 def test_the_three_entries_cost_items_are_170s_lines(entry_id, question, label):
     """170's tasks.md (FR-5 T014, not foreseen 6): Palus *your team* ... interest missed, Expanse word for word, Codyco
