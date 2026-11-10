@@ -52,9 +52,9 @@ one leg and leave the others alone:
                       its region.
 
 After them each scenario's `extra` runs: S-006's makes one more link on Sent by name and a new one for it
-(`leg_sent_more`). **The contacts leg is gone since spec 150** (keel-web 185: Interviews is Sent alone): S-006 ended
-with it (spec 043, keel-cloud 093, `evals/contacts_leg.py`, on the wire and on Contacts' screens) and S-005 with its B2C
-`NOT_B2B` refusal.
+(`leg_sent_more`), and S-005's opens the old sub-pages' addresses and lands on Sent (`leg_old_addresses`). **The
+contacts leg is gone since spec 150** (keel-web 185: Interviews is Sent alone): S-006 ended with it (spec 043,
+keel-cloud 093, `evals/contacts_leg.py`, on the wire and on Contacts' screens) and S-005 with its B2C `NOT_B2B` refusal.
 
 Every inference job is answered by keel-runtime's **scripted** executor from the entry's own stored
 texts (`harness/vectors_script.py`); no model runs anywhere in this file (`evals/policy.py`).
@@ -4970,6 +4970,40 @@ def leg_sent_more(j: Journey) -> dict:
     # spec 059 G16: the links table past ten -- the contacts leg's batch read it until spec 150 (keel-web 088 FR-4)
     links_reading(j, "after Send more", sent)
     return record
+
+
+#: Spec 150 FR-3: the query each old address is opened with -- one a page of Contacts once read (`?view=names`), one C3's
+#: hand-off to Send more (`?send=...&dataset=...`), one any -- each dropped on the way to Sent.
+OLD_ADDRESS_QUERY = {"contacts": "?view=names", "contacts/{dataset}": "?send=COMMERCIAL_B2B&dataset=old",
+                     "managed": "?from=nav", "keel-managed": "?from=nav"}
+
+
+def old_address_faults(j: Journey, landed: dict) -> list:
+    """Spec 150 FR-3: each old address landed on the project's own Sent -- the exact address, the query dropped, no
+    hash -- and Sent drew there (its kinds, or W1 the walkthrough over Sent's own address)."""
+    want = f"{(j.web_base or '').rstrip('/')}/p/{j.project_id}/interviews/sent"
+    return [{sub: got} for sub, got in landed.items()
+            if (got or {}).get("landed") != want or (got or {}).get("drew") not in ("sent", "walkthrough")]
+
+
+def leg_old_addresses(j: Journey) -> dict:
+    """Spec 150 FR-3 (keel-web 185 FR-1): a journey that opens an old sub-page's address -- `/interviews/contacts`, a
+    dataset under it, `/interviews/managed`, `/interviews/keel-managed`, each with a query -- lands on
+    `/interviews/sent`, the query dropped (`AppRoutes.tsx`'s `Navigate ... replace`), and Sent draws there. Each open
+    passes keel-web 088's sheet by as every open of Sent does (on the guide journey G13 holds that none draws it again).
+    There is no screen to press: the redirect is the router's, so the leg holds where the address landed."""
+    sent = iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
+    landed: dict = {}
+    with _step(j, "the old addresses (keel-web 185 FR-1): /interviews/contacts, a dataset under it, /interviews/managed "
+                  "and /interviews/keel-managed each land on /interviews/sent, the query dropped, and Sent draws",
+               party="founder") as h:
+        for sub in iv_screens.REDIRECTED:
+            landed[sub] = sent.redirected(j.project_id, sub.format(dataset="old-dataset"), OLD_ADDRESS_QUERY[sub])
+            sent.pass_sheet()
+        faults = old_address_faults(j, landed)
+        h.record_assert({sub: f"/p/{j.project_id}/interviews/sent" for sub in landed}, landed)
+        assert not faults, faults
+    return landed
 
 
 #: keel-web `ExitScreen`'s heading (`INTERVIEW_DONE_TITLE`): the gate's No, outside, and since 127 a story chip.

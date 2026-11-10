@@ -77,7 +77,9 @@ def _countly_extras(j) -> None:
     # Spec 076 FR-6 (keel-cloud 145 FR-6, keel-web 127 FR-4): Priya Natarajan's follow-up is not about the question --
     # the script groups it NOT_ABOUT_THIS, so the Insights box counts it apart and still shows it under her
     corpus_scenario.hold_not_about_this(j)
-    # Spec 043's NOT_B2B refusal on Contacts is gone with the page (spec 150, keel-web 185).
+    # Spec 150 FR-3 (keel-web 185 FR-1): the old sub-pages' addresses land on Sent, the query dropped -- where spec 043's
+    # NOT_B2B refusal on Contacts stood (the page is gone).
+    corpus_scenario.leg_old_addresses(j)
     # Spec 044: the AI interviewer's short form on a consumer study -- the recording's charge, READY, one AI link.
     interviewer_leg.leg_interviewer_short(j)
 
