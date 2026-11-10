@@ -18,7 +18,8 @@ The journey (`evals/corpus_scenario.py`) builds the record from what the wire an
 - **FM2** Importance is the own item plus exactly the difficulties the founder's Answer named: Keel's first draft is
   the own item alone, the redraft from the Answer adds those and none other, and the list saved is that redraft and
   whatever the founder typed on the Check screen themselves.
-- **FM3** Keel's base query carries no industry: no `categories` on any kind's base query.
+- **FM3** (retired, v2) Keel's base query carried no industry: no `categories` on any kind's base query. Its subject
+  was the contacts leg's Contacts tabs, gone with spec 150 (keel-web 185, keel-cloud 244), so FM3 is no mark of v2.
 - **FM4** the idea's name is the seed's product name when the seed carries one; else Keel served none, the Check
   screen demanded one (Save refused `IDEA_NAME_REQUIRED` on the wire; on the screen an empty field with its
   placeholder and Save off), and the name stored is the one the journey typed, at most five words.
@@ -36,7 +37,8 @@ from typing import Any, Callable
 from harness import vectors_script as vs
 
 #: Bumped whenever a mark is born, retired, or reads its record differently.
-FEEDBACK_MARKS_VERSION = 1
+#: v2 (spec 150, keel-web 185): FM3 retired with the contacts leg that read Keel's base query (FM1, FM2, FM4-FM6 hold).
+FEEDBACK_MARKS_VERSION = 2
 
 #: keel-cloud 097 `VectorCalibration.IMPORTANCE_MIN_ITEMS`: Save and the lock need the own item and two others.
 IMPORTANCE_MIN_ITEMS = 3
@@ -114,15 +116,6 @@ def importance_is_own_plus_named(r: dict) -> tuple[bool, Any]:
                 "saved": saved, "invented": invented, "missing": missing}
 
 
-def base_query_has_no_industry(r: dict) -> tuple[bool, Any]:
-    """FM3: Keel's base query carries no industry -- no `categories` on any kind's base query (097 F5)."""
-    queries = r["base_query"] or {}
-    with_industry = {kind: q.get("categories") for kind, q in queries.items() if (q or {}).get("categories")}
-    present = {kind: q is not None for kind, q in queries.items()}
-    ok = bool(queries) and all(present.values()) and not with_industry
-    return ok, {"kinds": sorted(queries), "present": present, "categories": with_industry}
-
-
 def idea_named_by_the_founder(r: dict) -> tuple[bool, Any]:
     """FM4: the idea's name is the seed's product name when it has one; else Keel served none, Save and approve were
     refused IDEA_NAME_REQUIRED, the Check screen (when walked unnamed) drew an empty field with its placeholder and
@@ -193,7 +186,6 @@ def typed_field_carries_heard(r: dict) -> tuple[bool, Any]:
 MARKS: list[tuple[str, str, Callable[[dict], tuple[bool, Any]]]] = [
     ("FM1", "lists", no_unnamed_role),
     ("FM2", "importance", importance_is_own_plus_named),
-    ("FM3", "base_query", base_query_has_no_industry),
     ("FM4", "idea", idea_named_by_the_founder),
     ("FM5", "ai_flow", advances_without_next),
     ("FM6", "typed_fields", typed_field_carries_heard),

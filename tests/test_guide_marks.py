@@ -21,7 +21,8 @@ TEACHING = ["G6", "G7", "G8", "G9", "G10", "G11", "G12"]
 #: Spec 059's marks (Interviews › Sent), unmeasured on a record that carries none of their subjects.
 SENT = ["G13", "G14", "G15", "G16", "G17"]
 #: keel-web 080 FR-1's hand-worked times (`welcome.cues.json`).
-ATS = (0.3, 13.25, 23.7, 33.67, 46.38, 51.84, 60.46, 73.82, 76.39, 80.92, 83.13, 86.08, 92.51, 98.31)  # keel-web 081, v2
+# keel-web 081, v2; keel-web 185 FR-4 (spec 150): `contacts` at 51.84 gone, the other thirteen where they were
+ATS = (0.3, 13.25, 23.7, 33.67, 46.38, 60.46, 73.82, 76.39, 80.92, 83.13, 86.08, 92.51, 98.31)
 SKIP = {"present": True, "visible": True, "enabled": True, "in_view": True, "hit": True, "focused": True,
         "words": "Skip ›"}
 CONTROLS = [{"tag": "button", "testid": None, "role": None, "words": "", "label": "Sound on", "visible": True},
@@ -91,20 +92,21 @@ def _fails(record: dict, mark: str) -> None:
 
 # ---------------------------------------------------------------------------------------------- good records
 
-def test_the_version_is_three_and_the_instruction_marks_did_not_move():
-    assert marks.GUIDE_MARKS_VERSION == 3
+def test_the_version_is_four_and_the_instruction_marks_did_not_move():
+    assert marks.GUIDE_MARKS_VERSION == 4                         # spec 150: G14's Contacts half retired, G5's 13 cues
     assert instruction_marks.MARKS_VERSION == 24                  # spec 059 call 3: a journey ruler moved; 078: `read`; 093: L1/L5; 091: L1's draft count; 112: 171's adoption
     source = (REPO / "evals" / "guide_marks.py").read_text(encoding="utf-8")
     assert "v1 (spec 054, keel-cloud 106 / keel-web 080, contract 20)" in source
     assert "v2 (spec 057, keel-web 086 / keel-cloud 109, contract 22)" in source
     assert "v3 (spec 059, keel-web 088 / keel-cloud 111, contract 24)" in source
+    assert "v4 (spec 150, keel-web 185: Interviews is Sent alone)" in source
     assert [m for m, _, _ in marks.MARKS] == ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9", "G10", "G11",
                                               "G12", "G13", "G14", "G15", "G16", "G17"]
 
 
 def test_every_mark_is_met_on_s005s_local_record():
     card = marks.scorecard(s005_local())
-    assert card["version"] == 3
+    assert card["version"] == 4
     assert card["measured"] == card["met"] == 5 and card["unmeasured"] == TEACHING + SENT, card
     assert marks.owed(s005_local()) == ["G1", "G2", "G3", "G4", "G5"]
 
@@ -402,6 +404,60 @@ def test_the_twelve_cues_are_keel_webs_own():
     assert tuple(c["id"] for c in served) == marks.WELCOME_CUES
     assert served[1]["at"] == marks.SECOND_CUE_AT
     assert tuple(c["at"] for c in served) == ATS
+
+
+# ------------------------------------------------- spec 150 (keel-web 185 FR-4): the cues without Contacts
+
+def test_the_cue_counts_without_contacts():
+    """The welcome thirteen (`phone-interview` then `interviewer-clip`), the scoped welcomes 8 / 9 / 8 / 9 in
+    `WELCOME_CLIPS`' order, `page-interviews-first` five, `landing-intro` seven -- no cue names Contacts or Keel-managed."""
+    assert len(marks.WELCOME_CUES) == 13 and "contacts" not in marks.WELCOME_CUES
+    i = marks.WELCOME_CUES.index("phone-interview")
+    assert marks.WELCOME_CUES[i + 1] == "interviewer-clip"
+    scoped = [marks.SCOPED_WELCOME_CUES[marks.WELCOME_CLIPS[s]]
+              for s in ("PROBLEM", "SOLUTION", "SOLUTION_COMMERCIAL", "COMMERCIAL")]
+    assert [len(c) for c in scoped] == [8, 9, 8, 9]
+    assert marks.INTERVIEWS_FIRST_CUES == ("pi-ask", "pi-yes", "pi-format", "pi-answers", "pi-close")
+    assert len(marks.LANDING_INTRO_CUES) == 7 and "li-contacts" not in marks.LANDING_INTRO_CUES
+    every = [*marks.WELCOME_CUES, *(c for cs in scoped for c in cs), *marks.INTERVIEWS_FIRST_CUES,
+             *marks.LANDING_INTRO_CUES]
+    assert not [c for c in every if "contact" in c or "managed" in c or c == "pi-no"], every
+
+
+def _cues(name: str) -> tuple:
+    path = _web_080() / "public/guide" / f"{name}.cues.json"
+    if not path.is_file():
+        pytest.skip(f"keel-web has no public/guide/{name}.cues.json")
+    return tuple(c["id"] for c in json.loads(path.read_text(encoding="utf-8")))
+
+
+def _web_185() -> Path:
+    root = _web_080()
+    if (root / "public/guide/page-contacts.cues.json").is_file() or "contacts" in _cues("welcome"):
+        pytest.skip("keel-web predates spec 185 (the welcome's contacts cue and page-contacts still served)")
+    return root
+
+
+@pytest.mark.parametrize("clip", ["welcome-problem", "welcome-solution", "welcome-solution-money", "welcome-money"])
+def test_the_scoped_welcomes_cues_are_keel_webs_own(clip):
+    _web_185()
+    assert _cues(clip) == marks.SCOPED_WELCOME_CUES[clip]
+
+
+def test_the_interviews_sheet_and_the_landing_tours_cues_are_keel_webs_own():
+    _web_185()
+    assert _cues("page-interviews-first") == marks.INTERVIEWS_FIRST_CUES
+    assert _cues("landing-intro") == marks.LANDING_INTRO_CUES
+
+
+def test_page_contacts_is_served_nowhere():
+    """`/guide/page-contacts.*` is 404: no file of it in keel-web's `public/guide/`, no manifest entry, no page clip."""
+    root = _web_185()
+    assert not list((root / "public/guide").glob("page-contacts*"))
+    manifest = json.loads((root / "public/guide/manifest.json").read_text(encoding="utf-8"))
+    keys = [(m.get("key") if isinstance(m, dict) else m) for m in manifest]
+    assert "page-contacts" not in keys and marks.PAGE_CLIPS == ("page-interviews-first", "page-sent")
+    assert not hasattr(marks, "CONTACTS_CLIP") and not hasattr(marks, "_contacts_pill_faults")
 
 
 def test_the_words_are_keel_webs_own():

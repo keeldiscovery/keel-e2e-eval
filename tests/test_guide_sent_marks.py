@@ -49,6 +49,7 @@ def sent_pill(*, seam: bool = True) -> dict:
 
 
 def contacts_pill(view: str = "datasets") -> dict:
+    """A reading of Contacts' pill as a journey before spec 150 kept it -- G14 v4 reads none of it."""
     if view != "datasets":
         return {"view": view, "applicable": True, "pills": []}
     return {"view": "datasets", "applicable": True,
@@ -106,7 +107,7 @@ def role_counts() -> dict:
 
 
 def full() -> dict:
-    return {"interviews": interviews(), "page_pills": {"sent": sent_pill(), "contacts": contacts_pill("consumer")},
+    return {"interviews": interviews(), "page_pills": {"sent": sent_pill()},
             "sent_order": sent_order(), "links": links(), "role_counts": role_counts()}
 
 
@@ -133,23 +134,33 @@ def test_every_sent_mark_is_met_on_the_guide_journeys_record():
     assert marks.owed(full())[-5:] == list(marks.SENT_MARKS)
 
 
-def test_the_links_journey_carries_g14s_contacts_half_and_g16s_paging():
-    record = {"page_pills": {"contacts": contacts_pill()}, "links": links(28)}
+def test_the_links_journey_carries_g16s_paging():
+    """S-006 since spec 150 (`leg_sent_more`, 21 links): G16's paging, and no G14 subject -- Contacts' pill was its."""
+    record = {"links": links(21)}
     card = marks.scorecard(record)
-    assert marks.owed(record) == ["G14", "G16"]
-    assert all(c["ok"] for c in card["checks"] if c["mark"] in ("G14", "G16")), card["checks"]
+    assert marks.owed(record) == ["G16"]
+    assert all(c["ok"] for c in card["checks"] if c["mark"] == "G16"), card["checks"]
+
+
+def test_g14_reads_no_contacts_half_since_150():
+    """keel-web 185 removed Contacts and `page-contacts`: G14 v4 holds Sent's pill alone. A Contacts reading beside it is
+    not read (a fault seeded into it moves nothing), and a record before 150 that read Contacts' pill alone is not
+    applicable."""
+    for broken in (contacts_pill(), {**contacts_pill(), "src": "/guide/page-sent.mp4", "closed": False},
+                   {"view": "consumer", "applicable": True, "pills": [{"testid": "guide-pill-page"}]}):
+        _met({"page_pills": {"sent": sent_pill(), "contacts": broken}}, "G14")
+    alone = _check({"page_pills": {"contacts": contacts_pill()}}, "G14")
+    assert alone.measured and alone.ok and not alone.applicable, alone.detail
 
 
 def test_the_sent_marks_pass_as_not_applicable_where_the_page_clips_are_absent():
-    record = {"interviews": interviews(False), "page_pills": {"sent": {"applicable": False, "pills": []},
-                                                              "contacts": {"view": "datasets", "applicable": False,
-                                                                           "pills": []}}}
+    record = {"interviews": interviews(False), "page_pills": {"sent": {"applicable": False, "pills": []}}}
     card = marks.scorecard(record)
     assert card["not_applicable"] == ["G13", "G14"], card
 
 
 def test_the_design_ids_and_the_version():
-    assert marks.GUIDE_MARKS_VERSION == 3
+    assert marks.GUIDE_MARKS_VERSION == 4                         # spec 150: G14's Contacts half retired
     assert {m: marks.DESIGN_IDS[m] for m in marks.SENT_MARKS} == {
         "G13": "D44", "G14": "D43 D46", "G15": "D43 (088 FR-1)", "G16": "088 FR-4", "G17": "088 FR-3"}
 
@@ -194,16 +205,10 @@ def test_g13_an_absent_clip_drawing_a_sheet_fails():
     ("sent", lambda r: r.update(src_second="/guide/page-interviews-first.mp4")),
     ("sent", lambda r: r.update(closed=False)),
     ("sent", lambda r: r.update(pill_back=False)),
-    ("contacts", lambda r: r.update(src="/guide/page-sent.mp4")),
-    ("contacts", lambda r: r.update(chip="Chapter 1 of 1 · This page")),
-    ("contacts", lambda r: r.update(closed=False)),
-    ("contacts", lambda r: r.update(opened=False)),
-    ("contacts", lambda r: r.update(pills=[])),
 ], ids=["sent no band", "not in place", "chip 1 words", "chapter 1 clip", "chip 2 words", "chapter 2 clip",
-        "sent never closed", "pill not back", "contacts clip", "a chip on one clip", "contacts never closed",
-        "contacts no band", "contacts no pill"])
+        "sent never closed", "pill not back"])
 def test_g14_fails_on_each_fault(half, fault):
-    record = {"page_pills": {"sent": sent_pill(), "contacts": contacts_pill()}}
+    record = {"page_pills": {"sent": sent_pill()}}
     _met(record, "G14")
     fault(record["page_pills"][half])
     _failed(record, "G14")
@@ -211,13 +216,6 @@ def test_g14_fails_on_each_fault(half, fault):
 
 def test_g14_on_the_remote_profile_reads_chapter_one_alone():
     _met({"page_pills": {"sent": sent_pill(seam=False)}}, "G14")
-
-
-@pytest.mark.parametrize("view", ["consumer", "credits line"])
-def test_g14_a_pill_off_the_datasets_view_fails(view):
-    record = {"page_pills": {"contacts": {"view": view, "applicable": True,
-                                          "pills": [{"testid": "guide-pill-page"}]}}}
-    _failed(record, "G14")
 
 
 # -------------------------------------------------------------------------------------- G15: the order

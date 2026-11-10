@@ -193,7 +193,7 @@ class Journey:
     #: never runs that leg.
     stack: Any = None
     founder_identity: Any = None
-    #: Spec 046: the record `evals/feedback_marks.py` scores at the end of the journey (FM1-FM6).
+    #: Spec 046: the record `evals/feedback_marks.py` scores at the end of the journey (FM1-FM6; FM3 retired, spec 150).
     feedback: dict = field(default_factory=dict)
     #: Spec 068 FR-4 / FR-5: keel-web 106's changed screens and contract 36's wire, as the walk read them (the occasion
     #: field and the PUT, the idea-name suggestion, the needs-input screen, the Another-country line, the friction row
@@ -1435,33 +1435,6 @@ def sent_pill(j: Journey) -> None:
         one["pill_back"] = len(pills()) == 1
         h.record_assert({"chips": list(guide_marks.SENT_CHIPS), "in place": True, "closed": True, "pill back": True},
                         one)
-
-
-def contacts_pill(j: Journey, view: str) -> None:
-    """G14's Contacts half (keel-web 088 FR-5): on the datasets view the pill opens its one clip, `page-contacts`, with
-    no chapter chip, and Skip closes it; on the consumer card (or the credits line) no pill at all (088 call 11)."""
-    teach = j.teach or vs_screens.GuideTeaching(j.page, j.recorder, j.web_base)
-    one: dict = {"view": view, "applicable": teach.present(guide_marks.CONTACTS_CLIP) and _guide_on(j)}
-    j.guide.setdefault("page_pills", {})["contacts"] = one
-    pill = j.page.locator(f"{vs_screens.GUIDE_PILL}[data-testid='guide-pill-page']")
-    if one["applicable"] and view == "datasets":
-        try:
-            pill.first.wait_for(state="visible", timeout=10_000)
-        except Exception:  # noqa: BLE001 - its absence is the mark's to read
-            pass
-    one["pills"] = [p for p in teach.pills() if p.get("testid") == "guide-pill-page"]
-    if not (one["applicable"] and view == "datasets" and one["pills"]):
-        return
-    with _step(j, "Contacts' pill How this page works opens its one clip, page-contacts, with no chapter chip; Skip "
-                  "closes it (keel-web 088 FR-5)", party="founder") as h:
-        opened = teach.open_pill("page")
-        band = opened["band"]
-        one.update({"opened": opened["opened"], "src": band.get("src"), "chip": band.get("chip")})
-        if band.get("snippet"):
-            j.guide.setdefault("snippets", []).append(band["snippet"])
-        if opened["opened"]:
-            one.update(teach.band_skip())
-        h.record_assert({"clip": guide_marks.CONTACTS_CLIP, "chip": "", "closed": True}, one)
 
 
 def sent_reading(j: Journey, when: str, sent=None) -> None:
@@ -6304,7 +6277,8 @@ def expected_not_asked(j: Journey, vector: str) -> list[dict]:
 def feedback_record(j: Journey) -> dict:
     """Spec 046: the record `evals/feedback_marks.py` scores -- the lists Keel drafted (FM1) with the role words keel-cloud
     exported (`common.role_words`) and the founder's own words, Importance's drafts and saved list (FM2), and what the
-    legs kept for FM3-FM6 (the base query, the idea, the AI flow, the typed fields)."""
+    legs kept for FM4-FM6 (the idea, the AI flow, the typed fields; FM3's base query went with the contacts leg, spec
+    150)."""
     record = {k: v for k, v in j.feedback.items() if k not in ("lists", "importance_probe", "importance_typed")}
     lists = list(j.feedback.get("lists") or [])
     if lists:
@@ -6403,7 +6377,7 @@ def _score_guide(j: Journey) -> dict:
     (run_dir / "guide.json").write_text(json.dumps(record, indent=2, default=str) + "\n", encoding="utf-8")
     (run_dir / "guide-marks.json").write_text(json.dumps(card, indent=2, default=str) + "\n", encoding="utf-8")
     require = guide_marks.owed(record)
-    with _step(j, f"guide marks v{guide_marks.GUIDE_MARKS_VERSION} (specs 054, 057, 059): {card['met']} of "
+    with _step(j, f"guide marks v{guide_marks.GUIDE_MARKS_VERSION} (specs 054, 057, 059, 150): {card['met']} of "
                   f"{card['measured']} "
                   f"met ({', '.join(require) or 'none'} owed; {', '.join(card['unmeasured']) or 'none'} unmeasured; "
                   f"{', '.join(card['not_applicable']) or 'none'} not applicable)",

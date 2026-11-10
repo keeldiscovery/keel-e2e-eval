@@ -45,9 +45,6 @@ def good() -> dict:
                        "first_draft": ["Getting paid on time"],
                        "redraft": ["Getting paid on time", "Finding enough steady work", "Getting fair rates for work"],
                        "saved": ["Getting paid on time", "Finding enough steady work", "Getting fair rates for work"]},
-        "base_query": {"PRIMARY": {"titles": ["translator"], "levels": [], "categories": [], "companySizes": []},
-                       "COMMERCIAL_B2B": {"titles": ["project manager"], "levels": ["MANAGER", "DIRECTOR"],
-                                          "companySizes": ["11-50"]}},
         "idea": {"seed_name": None, "served": None, "typed": "Invoice payout service",
                  "typed_name": "invoice payout service", "stored": "invoice payout service", "approved": True,
                  "refusals": {"approve": {"status": 422, "code": "IDEA_NAME_REQUIRED"},
@@ -68,10 +65,10 @@ def _by_mark(record: dict) -> dict:
 
 def test_every_mark_is_met_on_a_good_record():
     card = marks.scorecard(good())
-    assert card["version"] == marks.FEEDBACK_MARKS_VERSION == 1
-    assert card["measured"] == card["met"] == len(marks.MARKS) == 6, card
+    assert card["version"] == marks.FEEDBACK_MARKS_VERSION == 2                # spec 150: FM3 retired
+    assert card["measured"] == card["met"] == len(marks.MARKS) == 5, card
     assert card["unmeasured"] == []
-    assert marks.owed(good()) == ["FM1", "FM2", "FM3", "FM4", "FM5", "FM6"]
+    assert marks.owed(good()) == ["FM1", "FM2", "FM4", "FM5", "FM6"]
 
 
 @pytest.mark.parametrize("mark,key", [(m, k) for m, k, _ in marks.MARKS])
@@ -180,17 +177,12 @@ def test_fm2_counts_what_the_founder_typed_on_the_check_screen():
     assert _by_mark(record)["FM2"].ok, _by_mark(record)["FM2"].detail
 
 
-def test_fm3_fails_on_an_industry_in_any_base_query():
-    record = good()
-    record["base_query"]["COMMERCIAL_B2B"]["categories"] = ["political organizations"]
-    check = _by_mark(record)["FM3"]
-    assert not check.ok and check.detail["categories"] == {"COMMERCIAL_B2B": ["political organizations"]}
-    record = good()
-    record["base_query"] = {}
-    assert not _by_mark(record)["FM3"].ok, "no base query read is not a pass"
-    record = good()
-    record["base_query"]["PRIMARY"] = None
-    assert not _by_mark(record)["FM3"].ok
+def test_fm3_is_retired_with_the_contacts_leg():
+    """Spec 150 (keel-web 185, keel-cloud 244): Keel's base query was read off Contacts' tabs by the contacts leg; with the
+    leg gone FM3 is no mark of v2, and a record that still carries a `base_query` (one before 150) scores nothing for it."""
+    assert "FM3" not in {m for m, _, _ in marks.MARKS} and not hasattr(marks, "base_query_has_no_industry")
+    record = {**good(), "base_query": {"PRIMARY": {"categories": ["political organizations"]}}}
+    assert "FM3" not in _by_mark(record) and marks.owed(record) == ["FM1", "FM2", "FM4", "FM5", "FM6"]
 
 
 @pytest.mark.parametrize("fault,why", [
@@ -278,4 +270,4 @@ def test_the_journey_builds_the_record_and_scores_it_last():
     assert source.index("extra(journey)") < source.index("score_feedback(journey)")
     assert isinstance(corpus_scenario.NAME_ON_THE_WIRE, bool)
     record = copy.deepcopy(good())
-    assert marks.scorecard(record)["met"] == 6
+    assert marks.scorecard(record)["met"] == 5                     # spec 150: FM3 retired

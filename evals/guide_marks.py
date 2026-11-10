@@ -59,9 +59,10 @@ that an absent clip drew nothing (086 FR-1: no pill, no sheet). A missing render
   journey read, contains `night|baby|cry|parent|payroll|chocolate|lullaby` (as words: *described* is not *cry*).
 
 **Spec 059 (keel-web 088, keel-cloud 111, contract 24; design §15 D42-D49): Interviews › Sent reworked, G13-G17.** The
-founder journey (S-005) holds them where it reaches Sent; G14's Contacts half and G16's paging also run on the journey
-that sends a batch of links (S-006, its contacts leg). Every other open of Sent passes 088's sheet by
-(`harness/interviews_screens.pass_interviews_sheet`), and a record that only passed it carries no G13 subject.
+founder journey (S-005) holds them where it reaches Sent; G16's paging also runs on the journey with more than ten links
+(S-006, `leg_sent_more` since spec 150 -- its contacts leg before, which held G14's Contacts half too). Every other
+open of Sent passes 088's sheet by (`harness/interviews_screens.pass_interviews_sheet`), and a record that only passed it
+carries no G13 subject.
 
 - **G13 the Interviews sheet once** (`interviews`, D44's twin for Sent): `page-interviews-first` in the sheet
   (`guide-interviews`) at the founder's first open of Sent over an overview that said `interviewsSeen: false`; Skip (or
@@ -69,8 +70,9 @@ that sends a batch of links (S-006, its contacts leg). Every other open of Sent 
   nor at any later open of Sent.
 - **G14 the page pills** (`page_pills`, D43): Sent's *How this page works* (`guide-pill-page`) opens the band in the
   pill's own place -- *Chapter 1 of 2 · Where to start* on `page-interviews-first`, then (the seam, local) *2 of 2 ·
-  This page* on `page-sent` -- and Skip gives the pill back; Contacts' pill on the datasets view opens its one clip,
-  `page-contacts`, with no chapter chip (and no pill on the consumer card, 088 call 11).
+  This page* on `page-sent` -- and Skip gives the pill back. (Contacts' pill on the datasets view, its one clip
+  `page-contacts`, was G14's second half until spec 150: keel-web 185 removed the page and the clip, so a record's
+  `contacts` reading is no longer read.)
 - **G15 Sent's order** (`sent_order`, D43): top to bottom the kicker and the total line, the pill, the who-asks band,
   the role cards, the links; no control named *How it works* anywhere on the page; the band drawn where the account
   records an interviewer (at least one reading with it, where any is owed).
@@ -82,8 +84,8 @@ that sends a batch of links (S-006, its contacts leg). Every other open of Sent 
   more*, *... · enough for now* once the server's aim is met, or *nothing sent yet · invite about <k>* -- the numbers
   the wire's kinds and the register's own rows agree on; no count line under the buttons.
 
-G12's word guard covers the three page clips with the rest (29 in the manifest at keel-web 088; 42 at 114, the
-four scoped welcomes among them -- spec 073 FR-4).
+G12's word guard covers the page clips with the rest (29 in the manifest at keel-web 088; 42 at 114, the four scoped
+welcomes among them -- spec 073 FR-4; since keel-web 185 the two of Sent, 41 in the manifest, `page-contacts` gone).
 
 G4 and G5 are measured once per matrix, on S-005's local journey; every other journey and the remote profile carry no
 `replay` or `walk`, so the card reports them **unmeasured** and the record's `notes` say why (`REMOTE_WHY` /
@@ -109,12 +111,33 @@ from typing import Any, Callable
 #: v3 (spec 059, keel-web 088 / keel-cloud 111, contract 24): G13 (the Interviews sheet once), G14 (Sent's two-chapter
 #: pill in place, Contacts' one clip), G15 (Sent's order, no *How it works*), G16 (the links table: search, sort, range,
 #: the csv) and G17 (the role counts) born; G12 reads the three page clips with the rest (29 in the manifest).
-GUIDE_MARKS_VERSION = 3
+#: v4 (spec 150, keel-web 185: Interviews is Sent alone): G14's Contacts half retired (`page-contacts` and its pill are
+#: gone; a record's `contacts` reading is not read); G5 holds the welcome's thirteen cues (`contacts` dropped); G12
+#: reads the two page clips with the rest (41 in the manifest).
+GUIDE_MARKS_VERSION = 4
 
-#: keel-web 081 FR-2 / design §7.1 v2: the welcome's fourteen cues, in the order they play (`welcome.cues.json`'s
-#: ids); 080's twelve gained `contacts` and `interviewer-clip` after `phone-interview` (the founder, 2026-10-18).
-WELCOME_CUES = ("wordmark", "three-questions", "three-chips", "thirteen-dots", "phone-interview", "contacts",
-                "interviewer-clip", "report", "rows-hold", "quote", "price-pilot", "promise", "explainer-pill", "start")
+#: keel-web 081 FR-2 / design §7.1 v2: the welcome's cues, in the order they play (`welcome.cues.json`'s ids); 080's
+#: twelve gained `contacts` and `interviewer-clip` after `phone-interview` (the founder, 2026-10-18), and keel-web 185
+#: FR-4 dropped `contacts` (spec 150): thirteen, `phone-interview` then `interviewer-clip`.
+WELCOME_CUES = ("wordmark", "three-questions", "three-chips", "thirteen-dots", "phone-interview", "interviewer-clip",
+                "report", "rows-hold", "quote", "price-pilot", "promise", "explainer-pill", "start")
+#: keel-web 185 FR-4 (spec 150): the four scoped welcomes' cues (`welcome-<scope>.cues.json`), each without its
+#: `contacts` -- 8 / 9 / 8 / 9 (9 / 10 / 9 / 10 before). No mark walks them (G5 is the whole study's); they are pinned
+#: against keel-web's own files so a cue that comes back is seen.
+SCOPED_WELCOME_CUES = {
+    "welcome-problem": ("wordmark", "scope-questions", "phone-interview", "scope-cards", "scope-dots", "report",
+                        "rows-hold", "start"),
+    "welcome-solution": ("wordmark", "scope-questions", "phone-interview", "scope-cards", "scope-dots",
+                         "interviewer-clip", "report", "rows-hold", "start"),
+    "welcome-solution-money": ("wordmark", "scope-questions", "phone-interview", "scope-cards", "scope-dots", "report",
+                               "price-pilot", "start"),
+    "welcome-money": ("wordmark", "scope-questions", "phone-interview", "scope-cards", "scope-dots", "interviewer-clip",
+                      "report", "price-pilot", "start"),
+}
+#: keel-web 185 FR-4: `page-interviews-first` (G13's sheet, chapter 1 of Sent's pill) has five cues -- `pi-no` and
+#: `pi-managed` (Keel-managed's card) gone; the landing tour, `landing-intro`, seven -- no `li-contacts`.
+INTERVIEWS_FIRST_CUES = ("pi-ask", "pi-yes", "pi-format", "pi-answers", "pi-close")
+LANDING_INTRO_CUES = ("li-hi", "li-three", "li-chips", "li-phone", "li-who", "li-report", "li-rows")
 #: keel-web 080 FR-1: cue 2's `at` -- a read with no seam to ask (remote) is "before any cue but the wordmark" when the
 #: video's clock is below it.
 SECOND_CUE_AT = 13.25
@@ -287,7 +310,7 @@ def replay_posts_nothing(r: dict) -> tuple[bool, Any]:
 
 
 def cues_in_order(r: dict) -> tuple[bool, Any]:
-    """G5: the fourteen cues served in order, ids unique, `at` rising; each seek draws its cue and `cuesFired` grows by
+    """G5: the thirteen cues served in order (fourteen until keel-web 185), ids unique, `at` rising; each seek draws its cue and `cuesFired` grows by
     that id alone."""
     x = r["walk"]
     served = list(x.get("served") or [])
@@ -555,7 +578,7 @@ def no_project_word(r: dict) -> tuple[bool | None, Any]:
     for text in x.get("snippets") or []:
         if project_words(text):
             faults.append({"snippet": text, "words": project_words(text)})
-    # spec 059: every clip the manifest says is present is read -- the three page clips with the rest (29 at 088)
+    # spec 059: every clip the manifest says is present is read -- the page clips with the rest (29 at 088; two since 185)
     unread = [k for k in x.get("present") or [] if k not in clips]
     if unread:
         faults.append({"present but not read": unread})
@@ -570,8 +593,8 @@ def no_project_word(r: dict) -> tuple[bool | None, Any]:
 INTERVIEWS = {"interviews": True}
 INTERVIEWS_CLIP = "page-interviews-first"
 SENT_CHAPTERS = ("page-interviews-first", "page-sent")
-CONTACTS_CLIP = "page-contacts"
-PAGE_CLIPS = (*SENT_CHAPTERS, CONTACTS_CLIP)
+#: Spec 150 (keel-web 185 FR-4): Sent's two chapters are the page clips -- `page-contacts` (`CONTACTS_CLIP`) is gone.
+PAGE_CLIPS = SENT_CHAPTERS
 #: keel-web 088 `guideChapter` with `GUIDE_CHAPTER_TITLES`: the Sent pill's two chips.
 SENT_CHIPS = ("Chapter 1 of 2 · Where to start", "Chapter 2 of 2 · This page")
 #: G15: Sent's regions top to bottom (088 FR-1); the band only where an interviewer is recorded or recording.
@@ -588,9 +611,9 @@ AIM_LEFT = re.compile(r"\baim for (-?\d+) more\b", re.IGNORECASE)
 CSV_HEADER = "name,kind,from,format,link made,status,answered at"
 #: Every mark of 059, and why a journey that carries none of their subjects reports them unmeasured.
 SENT_MARKS = ("G13", "G14", "G15", "G16", "G17")
-SENT_ELSEWHERE_WHY = ("Interviews › Sent's marks (G13-G17) are the founder journey's (S-005); G14's Contacts pill and "
-                      "G16's paging also run on the journey that sends a batch of links (S-006); this journey passes "
-                      "keel-web 088's Interviews sheet by with Skip")
+SENT_ELSEWHERE_WHY = ("Interviews › Sent's marks (G13-G17) are the founder journey's (S-005); G16's paging also runs on "
+                      "the journey with more than ten links (S-006); this journey passes keel-web 088's Interviews "
+                      "sheet by with Skip")
 
 
 def sent_range(start: int, end: int, total: int) -> str:
@@ -679,29 +702,11 @@ def _sent_pill_faults(one: dict) -> list:
     return faults
 
 
-def _contacts_pill_faults(one: dict) -> list:
-    pills = list(one.get("pills") or [])
-    if one.get("view") != "datasets":
-        # 088 call 11: the pill is the datasets view's alone -- none on the consumer card or the credits line
-        return [{"a pill off the datasets view": pills}] if pills else []
-    if len(pills) != 1:
-        return [{"Contacts' pills": pills}]
-    faults = []
-    if not one.get("opened"):
-        return ["Contacts' pill opened no band"]
-    if CONTACTS_CLIP not in str(one.get("src") or ""):
-        faults.append({"Contacts' clip": one.get("src")})
-    if one.get("chip"):
-        faults.append({"a chapter chip on one clip": one.get("chip")})
-    if not one.get("closed"):
-        faults.append("Contacts' band did not close on Skip")
-    return faults
-
-
 def page_pills(r: dict) -> tuple[bool | None, Any]:
-    """G14: Sent's pill opens two chapters in place; Contacts' pill opens its one clip."""
+    """G14: Sent's pill opens two chapters in place. (Contacts' pill opened its one clip until spec 150: keel-web 185
+    removed the page, so a record's `contacts` reading is not read -- v4.)"""
     x = r["page_pills"]
-    sent, contacts = x.get("sent"), x.get("contacts")
+    sent = x.get("sent")
     faults, measured = [], []
     if sent is not None:
         if sent.get("applicable"):
@@ -709,19 +714,12 @@ def page_pills(r: dict) -> tuple[bool | None, Any]:
             faults += [{"sent": f} for f in _sent_pill_faults(sent)]
         elif sent.get("pills"):
             faults.append({"sent": "a pill drawn with its chapters absent"})
-    if contacts is not None:
-        if contacts.get("applicable") and contacts.get("view") == "datasets":
-            measured.append("contacts")
-        if contacts.get("applicable"):
-            faults += [{"contacts": f} for f in _contacts_pill_faults(contacts)]
-        elif contacts.get("pills"):
-            faults.append({"contacts": "a pill drawn with its clip absent"})
     if not measured and not faults:
-        absent = [h for h, one in (("sent", sent), ("contacts", contacts)) if one is not None
-                  and not one.get("applicable")]
-        if absent:
-            return NOT_APPLICABLE, {"absent": absent, "contacts view": (contacts or {}).get("view")}
-    return not faults, {"faults": faults, "measured": measured, "contacts view": (contacts or {}).get("view")}
+        if sent is not None and not sent.get("applicable"):
+            return NOT_APPLICABLE, {"absent": ["sent"]}
+        if sent is None:                    # a record before 150 that read Contacts' pill alone (S-006's)
+            return NOT_APPLICABLE, {"absent": ["sent"], "not read": sorted(k for k in x if k != "sent")}
+    return not faults, {"faults": faults, "measured": measured}
 
 
 def sent_order(r: dict) -> tuple[bool | None, Any]:

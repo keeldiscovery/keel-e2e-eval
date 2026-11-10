@@ -124,6 +124,13 @@ reads the three page clips with the rest (29 in the manifest) -- and `evals/inte
 her hello in the who-asks band to its end, the still returns; absent for a retired face); the interviewer leg's W1
 replay reading retires with *How it works* (it was a leg step, never a row).
 
+**Spec 150 (2026-11-09)**: keel-web 185 (Interviews is Sent alone: the Contacts and Keel-managed pages gone) moved no
+screen schema, no instruction and no corpus file, so **v24 stands**. The contacts leg is gone, and with it
+`evals/contacts_marks.py` (CM1-CM14) and **`CONTACTS_MARKS_VERSION`** (2), which was never a row of this rubric (spec
+043 call 135) -- retired, not replaced. The journey rulers move on their own: `evals/guide_marks.py`
+**`GUIDE_MARKS_VERSION` 4** (G14's Contacts half retired, G5's welcome thirteen cues, G12's two page clips) and
+`evals/feedback_marks.py` **`FEEDBACK_MARKS_VERSION` 2** (FM3, Keel's base query on Contacts, retired).
+
 **Corpus revision 24 (2026-11-04, keel-cloud 215; eval 135, the harness half)**: the fourteen gallery entries (08-fresco
 to 21-codyco) move to revision 24 -- eval 134's card review applied (128 rows reworded, Palus' and Issen's Relative
 advantage and AirCaps' Compatibility split, three Purchase friction rows dropped, Issen's Compatibility pick moved, 22

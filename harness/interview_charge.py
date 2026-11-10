@@ -22,7 +22,8 @@ import os
 
 # ------------------------------------------------------------------------------------------------ FR-1: the prices
 
-#: keel-cloud `InferenceCharge.VERSION` (the interviewer's and the contacts' fakes carry it as `PRICE_VERSION`): 12
+#: keel-cloud `InferenceCharge.VERSION` (the interviewer's fake carries it as `PRICE_VERSION`, and the contacts' fake
+#: did until spec 150): 12
 #: since spec 156, **13** since keel-cloud 169 (spec 105 FR-2: the two frame prices doubled; INTERVIEW, the readings
 #: and every founder-side row unmoved), **14** since keel-cloud 170 (spec 110 FR-1: `RESPONDENT_QUESTIONS` 35 -> 70, the
 #: lock's job on the frontier tier, routing v15), **15** since keel-cloud 190 (spec 121 FR-3: `CONTEXT_INTERPRET` and
