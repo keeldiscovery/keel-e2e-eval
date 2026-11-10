@@ -693,31 +693,70 @@ READ_JS = """() => {
                              value: boxed(smallerBox), after: frame[1] || null} : null,
       smaller_add: smallerAdd ? plain(smallerAdd) || null : null} : null;
   // spec 139 FR-3 (keel-web 175 FR-6): Keel's suggested row, set apart, with its served why under it
-  const suggested = Array.from(document.querySelectorAll("li.listrow--suggested")).map((li) => {
+  // spec 149 FR-3 (keel-web 184 FR-1): and Keel's standalone suggestion drawn in the pattern (`data-keel=suggestion`)
+  const suggested = Array.from(document.querySelectorAll("li.listrow--suggested, li.listrow[data-keel=suggestion]"))
+      .map((li) => {
       const ta = li.querySelector("textarea");
-      const why = li.querySelector("[data-testid=check-suggestion]");
+      const why = li.querySelector("[data-testid=check-suggestion]") || li.querySelector("[data-testid=row-why]");
       return {row: ((ta && ta.value) || "").replace(/\\s+/g, " ").trim(),
               why: why ? said(why) || null : null};
   });
   // spec 143 FR-2 (keel-web 179 FR-1 to FR-3): what the review changed, as the Check draws it -- the band, each changed
   // row (its words as served, the founder's own under *Was:*, the why) and the rows put aside; read, never pressed
   const bandEl = document.querySelector("[data-testid=list-changed]");
+  // spec 149 FR-3 (keel-web 184 FR-1, keel-cloud 243): one pattern for every row Keel changed -- Keel's row
+  // (`li.listrow--keel[data-keel]`, `data-n`) with the words behind it on its line (*Reworded from "..."* / *In place of
+  // "..."*, `row-line`), its why (`row-why`, a span in the line), and the record under the rows (`keel-changed`, each
+  // entry's struck words, whose, reason, and *Replaced by* / *Reworded as*); 179's hooks still read on a web before 184
+  const lineWords = (li) => { const k = li.querySelector("[data-testid=row-line] .listrow__keel-k");
+      const m = k ? said(k).match(/^(?:Reworded from|In place of)\\s*["\u201c](.*)["\u201d]\\.?$/) : null;
+      return m ? m[1].trim() || null : null; };
+  const whyOf = (li) => li.querySelector("[data-testid=row-why]") ? said(li.querySelector("[data-testid=row-why]")) : null;
+  const numOf = (li) => li.getAttribute("data-n") ? Number(li.getAttribute("data-n")) : null;
   const changedRows = Array.from(document.querySelectorAll("li.listrow"))
-      .filter((li) => li.querySelector("[data-testid=row-changed]")).map((li) => {
+      .filter((li) => li.querySelector("[data-testid=row-changed]") || li.getAttribute("data-keel") === "reworded")
+      .map((li) => {
       const ta = li.querySelector("textarea");
-      return {row: ((ta && ta.value) || "").replace(/\\s+/g, " ").trim(),
+      const out = {row: ((ta && ta.value) || "").replace(/\\s+/g, " ").trim(),
               was: li.querySelector("[data-testid=row-was] .listrow__was-said")
-                  ? said(li.querySelector("[data-testid=row-was] .listrow__was-said")) : null,
-              why: li.querySelector("[data-testid=row-why]") ? said(li.querySelector("[data-testid=row-why]")) : null};
+                  ? said(li.querySelector("[data-testid=row-was] .listrow__was-said")) : lineWords(li),
+              why: whyOf(li)};
+      if (numOf(li) !== null) out.n = numOf(li);
+      return out;
+  });
+  const inPlaceRows = Array.from(document.querySelectorAll("li.listrow[data-keel=in-place]")).map((li) => {
+      const ta = li.querySelector("textarea");
+      const out = {row: ((ta && ta.value) || "").replace(/\\s+/g, " ").trim(), in_place_of: lineWords(li),
+                   why: whyOf(li)};
+      if (numOf(li) !== null) out.n = numOf(li);
+      return out;
+  });
+  const record = Array.from(document.querySelectorAll("[data-testid=keel-changed] [data-testid=keel-changed-entry]"))
+      .map((li) => {
+      const as = li.querySelector("[data-testid=keel-changed-as]");
+      const out = {kind: li.getAttribute("data-kind"), whose: li.getAttribute("data-whose"),
+                   struck: Array.from(li.querySelectorAll("s.keelrecord__struck")).map(said).filter(Boolean),
+                   why: li.querySelector("[role=note]") ? said(li.querySelector("[role=note]")) : null,
+                   now: as ? said(as).replace(/^(?:Replaced by|Reworded as)\\s*/, "") || null : null};
+      if (numOf(li) !== null) out.n = numOf(li);
+      return out;
   });
   const asideRows = Array.from(document.querySelectorAll("[data-testid=put-aside] [data-testid=put-aside-row]"))
       .map((li) => ({typed: li.querySelector("s") ? said(li.querySelector("s")) : said(li),
-                     why: li.querySelector("[role=note]") ? said(li.querySelector("[role=note]")) : null}));
-  const review = (bandEl || changedRows.length || asideRows.length) ? {
+                     why: li.querySelector("[role=note]") ? said(li.querySelector("[role=note]")) : null}))
+      .concat(record.filter((e) => e.kind === "replaced" || e.kind === "aside").map((e) => {
+          const out = {typed: e.struck[0] || null, why: e.why};
+          if (e.kind === "replaced" && e.now) out.replaced_by = e.now;
+          if (e.whose === "keels") out.keels = true;
+          return out;
+      }));
+  const review = (bandEl || changedRows.length || asideRows.length || inPlaceRows.length) ? {
       band: bandEl ? {line: said(bandEl.querySelector(".calib__changed-line") || bandEl),
                       why: bandEl.querySelector(".calib__changed-why") ? said(bandEl.querySelector(".calib__changed-why"))
                           : null} : null,
       changed: changedRows, put_aside: asideRows} : null;
+  if (review && inPlaceRows.length) review.in_place = inPlaceRows;
+  if (review && record.length) review.record = record;
   const ownRow = document.querySelector("[data-testid=answer-own-row] li.listrow");
   const notes = all("li.listrow--note, .listcheck__note");
   const dialog = document.querySelector("[role=dialog]");
@@ -1550,8 +1589,10 @@ def reviewed_did(seen: dict) -> str:
     """Spec 144 FR-1 (keel-web 180 FR-2): what the founder did on a Check the review changed, after the band -- read it
     and pressed Continue (the words it carried); nothing put back, nothing edited (spec 143 FR-2)."""
     pressed = (seen or {}).get("continue") or "Continue"
-    return (f"read what Keel changed after their Save (the band, the changed rows with the words they typed under Was, "
-            f"the rows put aside), then pressed {pressed} -- nothing put back, nothing edited")
+    # spec 149 FR-3 (keel-web 184): Keel's rows with the line under each (*Reworded from* / *In place of* / *Keel's
+    # suggestion*) and the record of what Keel changed -- no *Was* any more
+    return (f"read what Keel changed after their Save (the band, Keel's rows with the words they typed on the line under "
+            f"each, the record of the rows put aside), then pressed {pressed} -- nothing put back, nothing edited")
 
 
 def founder_answer(j, slug: str) -> Any:
@@ -2549,6 +2590,8 @@ def markdown(r: dict) -> str:
              # spec 143 FR-2: what the review changed, list by list (only where it changed one)
              *[f"- The review changed {dim}: " + (f"*{(v.get('band') or {}).get('line')}* " if v.get("band") else "")
                + "; ".join(f"'{c.get('typed')}' -> " + (f"'{c['label']}'" if c.get("label") else "put aside")
+                           # spec 149 FR-3 (keel-cloud 243): Keel's row in its place, where one stands
+                           + (f", Keel's '{c['replacedBy']}' in its place" if c.get("replacedBy") else "")
                            for c in v.get("review_changed") or [])
                for dim, v in (r.get("lists_reviewed") or {}).items() if isinstance(v, dict)],
              # spec 144 FR-1 / FR-2: how each reviewed Check's Save held, and a pick the review moved

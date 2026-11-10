@@ -1939,15 +1939,28 @@ def _choose_label(j: Journey, question: dict, answer: vs.CalibrationAnswer) -> t
         # founder row still on the list (recorded), never put back; none left stops by name
         fell = first_founder_row(question, typed)
         if fell is None:
-            # spec 147 FR-3 (keel-cloud 236 FR-2): the suggestion the review added in its place is a valid pick
+            # spec 147 FR-3 (keel-cloud 236 FR-2): the suggestion the review added in its place is a valid pick; spec
+            # 149 FR-3 (keel-cloud 243 FR-3): several may stand now -- Keel's row in place of the planned pick first
             rows_served = _drafted_rows(question)
-            fell = next(((i, row.get("label")) for i, row in enumerate(rows_served)
-                         if row.get("label") in set(question.get("review_suggested") or [])), None)
+            suggested = [(i, row.get("label")) for i, row in enumerate(rows_served)
+                         if row.get("label") in set(question.get("review_suggested") or [])]
+            by = vs.replaced_by(aside, question.get("draft"))
+            fell = next(((i, label) for i, label in suggested if by and vs._same_words(label, by)),
+                        suggested[0] if suggested else None)
         if fell is None:
             raise vs.VectorsScriptError(f"{key}: the founder's picked item {want!r} was put aside by the review "
                                         "(keel-cloud 233) and no founder row is left on the list -- never put back")
         at, label = fell
         picked = {"planned": want, "why": aside.get("why"), "picked": label, "row": at}
+        # spec 149 FR-3 (keel-cloud 243 FR-4): the pair, where one stands -- Keel's row in place of the planned pick
+        # (`replacedBy`), and the row picked in place of another (`inPlaceOf`)
+        by = vs.replaced_by(aside, question.get("draft"))
+        if by:
+            picked["replacedBy"] = by
+        stood_for = vs.in_place_of(next((i for i in vs.served_items(question.get("draft"))
+                                         if vs._same_words(i.get("label"), label)), None))
+        if stood_for:
+            picked["inPlaceOf"] = stood_for
         if isinstance(getattr(j, "review_picks", None), dict):
             j.review_picks[key] = picked
         to = "Keel's review suggested in its place (keel-cloud 236 FR-2)" \
@@ -2078,8 +2091,11 @@ def _name_keel_added(j: Journey, key: str, question: dict, answer: vs.Calibratio
     suggested = vs.review_suggested(question.get("draft"), question.get("answer_draft")) \
         if question.get("review_suggested") else []
     if suggested:
+        # spec 149 FR-3 (keel-cloud 243 FR-3): a suggestion in place of a row put aside says which
         j.findings.append({"what": f"{vs.NAMES[key]}: Keel's review suggested at the Check: " + ", ".join(
-            f"'{row['label']}' -- {row['why']}" for row in suggested) + " (keel-cloud 236 FR-2)",
+            f"'{row['label']}'" + (f" in place of '{row['inPlaceOf']}'" if row.get("inPlaceOf") else "")
+            + f" -- {row['why']}" for row in suggested)
+            + (" (keel-cloud 243 FR-3)" if any(row.get("inPlaceOf") for row in suggested) else " (keel-cloud 236 FR-2)"),
             "served": {"dimension": key, "drafted": _drafted_labels(question), "typed": _typed_labels(answer),
                        "suggested": suggested}})
 
@@ -2571,11 +2587,20 @@ def _after_the_review(j: Journey, vector: str, question: dict, check: dict) -> d
     if hold.get("continue_put") and hasattr(j, "findings"):
         j.findings.append({"what": f"{key}: Continue after the review sent a PUT -- keel-web 180 FR-2 moves on with no "
                                    "Save on an untouched Check", "served": {"dimension": key, **hold}})
-    if key not in vs.PICKED or not (hold.get("review") or hold.get("outcome") == "stayed"):
+    if not (hold.get("review") or hold.get("outcome") == "stayed"):
+        return question
+    # spec 149 FR-3 / FR-4 (keel-cloud 243, keel-web 184): a Check that stayed with the band is held to the list as
+    # served -- the pattern as drawn (`check_pattern_faults`) and the pairs, the reasons and the band
+    # (`vs.in_place_faults`); a picked list is read again for Choose as before
+    if key not in vs.PICKED and (hold.get("outcome") != "stayed" or not callable(getattr(j, "get", None))):
         return question
     view = _wait_calibration(j, vector)
     served = next((q for q in view.get("questions") or [] if q.get("dimension") == key), None) or {}
     saved = (served.get("answer") or {}).get("list")
+    if hold.get("outcome") == "stayed" and isinstance(saved, dict):
+        _hold_in_place(j, key, check, saved)
+    if key not in vs.PICKED:
+        return question
     # spec 147 FR-3 (keel-cloud 236 FR-2): a suggestion the review added at the Check (absent from the Answer's draft)
     # moves Choose onto the saved list too, even where nothing else changed (236 serves no band for it)
     suggested = vs.review_suggested(saved, question.get("draft"))
@@ -2583,6 +2608,106 @@ def _after_the_review(j: Journey, vector: str, question: dict, check: dict) -> d
         return question
     return {**question, "draft": saved, "answer_draft": question.get("draft"),
             "review_suggested": [row["label"] for row in suggested]}
+
+
+#: Spec 149 FR-4: the lists whose first row is never put aside (Importance's own row, Relative advantage's lead benefit);
+#: Compatibility's and Current solution's are read whole.
+FIRST_FIXED = (IMPORTANCE_KEY, "solution.relative_advantage")
+
+
+def handed_rows(check: dict) -> list[str]:
+    """Spec 149 FR-4: the rows the founder saved on a Check, in order -- as the walk left them before the Save (the list
+    read again after any rows it typed, `after`), with any row it cut to fit (`rows_cut_to_fit`) as cut."""
+    rows = [r.get("text") for r in ((check or {}).get("after") or check or {}).get("rows") or [] if r.get("text")]
+    for cut in (check or {}).get("rows_cut_to_fit") or []:
+        if isinstance(cut, dict) and isinstance(cut.get("row"), int) and 0 <= cut["row"] < len(rows):
+            rows[cut["row"]] = cut.get("now") or rows[cut["row"]]
+    return [" ".join(str(r).split()) for r in rows]
+
+
+def check_pattern_faults(reviewed: dict | None, saved: dict | None) -> list[dict]:
+    """Spec 149 FR-3 (keel-web 184 FR-1 to FR-3, keel-cloud 243): the Check the review left, as drawn, against the list
+    as served -- Keel's row in place of each put aside drawn *In place of "{its words}"* with Put back, a reworded row
+    *Reworded from "{typed}"* with Put back, a suggestion with none, no row drawn with *Was* (179's), each numbered row's
+    number shared with its record entry, and every row put aside in the record (*Replaced by* its Keel row, else its own
+    Put back; *Keel's draft* where its words were Keel's). `[]` where it holds -- or where the page draws neither Keel's
+    rows nor the record (a web before 184, read as 179 drew it). Each fault `{what, ...}`."""
+    reviewed, saved = reviewed or {}, saved or {}
+    rows = reviewed.get("rows") or []
+    record = reviewed.get("keel_changed") or []
+    if not record and not any(r.get("keel") for r in rows):
+        return []
+    faults: list[dict] = []
+    drawn = {" ".join(str(r.get("text") or "").split()): r for r in rows}
+    for item in vs.served_items(saved):
+        row = drawn.get(" ".join(str(item.get("label") or "").split()))
+        if vs.in_place_of(item):
+            if row is None or row.get("keel") != "in-place" \
+                    or not vs._same_words(row.get("in_place_of"), vs.in_place_of(item)) or not row.get("put_back"):
+                faults.append({"what": "Keel's row in place is not drawn *In place of* its row with Put back",
+                               "label": item.get("label"), "inPlaceOf": vs.in_place_of(item), "drawn": row})
+        elif item.get("typed"):
+            if row is None or row.get("keel") != "reworded" or not vs._same_words(row.get("was"), item.get("typed")) \
+                    or not row.get("put_back"):
+                faults.append({"what": "a reworded row is not drawn *Reworded from* its words with Put back",
+                               "label": item.get("label"), "typed": item.get("typed"), "drawn": row})
+    for row in rows:
+        if row.get("keel") == "suggestion" and row.get("put_back"):
+            faults.append({"what": "Keel's suggestion drawn with Put back", "row": row.get("text")})
+        if row.get("changed") and not row.get("keel"):
+            faults.append({"what": "a changed row drawn with *Was* (keel-web 179), not Keel's line", "row": row.get("text")})
+        if row.get("n") is not None:
+            entry = next((e for e in record if e.get("n") == row["n"]), None)
+            if entry is None:
+                faults.append({"what": "a numbered row with no record entry of its number", "row": row.get("text"),
+                               "n": row["n"]})
+            elif row.get("keel") == "in-place" and not (entry.get("kind") == "replaced"
+                                                         and vs._same_words(entry.get("now"), row.get("text"))):
+                faults.append({"what": "a row in place and its record entry are not one pair", "row": row.get("text"),
+                               "entry": entry})
+    for aside in vs.put_aside_of(saved):
+        entry = next((e for e in record if any(vs._same_words(t, aside.get("typed")) for t in e.get("struck") or [])),
+                     None)
+        by = vs.replaced_by(aside, saved)
+        if entry is None:
+            faults.append({"what": "a row put aside is not in the record", "typed": aside.get("typed")})
+            continue
+        if by and (entry.get("kind") != "replaced" or not vs._same_words(entry.get("now"), by) or entry.get("put_back")):
+            faults.append({"what": "a row put aside with Keel's row in its place is not recorded *Replaced by* it",
+                           "typed": aside.get("typed"), "replacedBy": by, "entry": entry})
+        if not by and (entry.get("kind") != "aside" or not entry.get("put_back")):
+            faults.append({"what": "a row put aside with nothing in its place has no Put back of its own",
+                           "typed": aside.get("typed"), "entry": entry})
+        if bool(aside.get("keels")) != (entry.get("whose") == "keels"):
+            faults.append({"what": "the record says the wrong owner of a row put aside", "typed": aside.get("typed"),
+                           "keels": bool(aside.get("keels")), "entry": entry})
+    return faults
+
+
+def _hold_in_place(j: Journey, key: str, check: dict, saved: dict) -> None:
+    """Spec 149 FR-3 / FR-4 (keel-cloud 243, keel-web 184; the staging shape of 2026-11-09): on a Check that stayed with
+    the band, the list as served is held to the rows the founder saved (`vs.in_place_faults`: the right rows struck,
+    each reason on its own row, a Keel row in each place, nothing lost, the band counting both) and the Check as drawn
+    to it (`check_pattern_faults`). The strict walk (S-005's Importance Check, S-015's) asserts both in a named step; the
+    back-test files each as a finding, never a stop. Never Put back."""
+    reviewed = (check or {}).get("reviewed") or {}
+    notes = [(r.get("text"), r.get("note")) for r in reviewed.get("rows") or [] if r.get("note")]
+    handed = handed_rows(check)
+    # no rows read before the Save (a Check the walk did not draw): nothing to hold the list against
+    faults = [{"layer": "keel-cloud 243", **f} for f in vs.in_place_faults(handed, saved, first_fixed=key in FIRST_FIXED,
+                                                                            notes=notes)] if handed else []
+    faults += [{"layer": "keel-web 184", **f} for f in check_pattern_faults(reviewed, saved)]
+    if getattr(j, "strict", False) and getattr(j, "recorder", None) is not None:
+        with _step(j, f"{key}: the review's list holds -- the right rows struck, each reason on its own row, a Keel row "
+                      "in each place, the band counting both, the Check drawn as 184 draws it (keel-cloud 243, "
+                      "keel-web 184)") as h:
+            h.record_assert([], faults)
+            assert not faults, json.dumps(faults, indent=2)
+        return
+    for fault in faults:
+        if hasattr(j, "findings"):
+            j.findings.append({"what": f"{vs.NAMES.get(key, key)}: {fault['what']} ({fault['layer']})",
+                               "served": {"dimension": key, **fault}})
 
 
 def choose_after_review_faults(question: dict, choose: dict) -> list[dict]:

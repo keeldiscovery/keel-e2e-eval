@@ -543,6 +543,77 @@ ROW_WHY_TESTID = "row-why"
 ROW_WAS_TESTID = "row-was"
 REVIEW_BAND = "[data-testid=list-changed]"
 PUT_ASIDE_ROW = "[data-testid=put-aside] [data-testid=put-aside-row]"
+#: Spec 149 FR-3 (keel-web 184 at master `82a746d9`, `KeelChanged.tsx` / `ListQuestion.tsx`; its tasks.md's owed list,
+#: keel-cloud 243): one pattern for every row Keel changed, on all four reviewed Checks. Keel's row is
+#: `li.listrow.listrow--keel[data-keel=reworded|in-place|suggestion]` (`data-n` where numbered to its record entry), its
+#: pill `row-keel` (*Keel*) and number `row-num` inside the row's box (`span.listrow__box`, the textarea in it); the line
+#: under it `row-line[data-kind]` (`p.listrow__keel`), its lead `.listrow__keel-k` (*Reworded from "..."*, *In place of
+#: "..."*, *Keel's suggestion.*), the served why `row-why` (a span in the line, no longer a `.listrow__warn`) and Put
+#: back `row-put-back` (none on a suggestion; never pressed). The record under the rows is `keel-changed` (*What Keel
+#: changed*), each entry `keel-changed-entry[data-kind=replaced|aside|reworded|scale][data-whose=yours|keels][data-n]`:
+#: the struck words `s.keelrecord__struck`, the tag `keel-changed-tag` (*yours* / *Keel's draft*), the reason
+#: `[role=note]`, `keel-changed-as` (*Replaced by ...* / *Reworded as ...*), and on `aside` alone `put-aside-back` (never
+#: pressed). Gone: `row-changed`, `row-was`, `put-aside`, `put-aside-row`, `.listrow__was`, `li.listrow--aside` -- read
+#: still where a web before 184 draws them (179's path, kept by name).
+KEEL_ROW = "listrow--keel"
+KEEL_KIND_ATTR = "data-keel"
+KEEL_KINDS = ("reworded", "in-place", "suggestion")
+KEEL_N_ATTR = "data-n"
+ROW_KEEL_TESTID = "row-keel"
+ROW_NUM_TESTID = "row-num"
+ROW_LINE_TESTID = "row-line"
+ROW_LINE_LEAD = ".listrow__keel-k"
+ROW_PUT_BACK_TESTID = "row-put-back"
+KEEL_CHANGED_TESTID = "keel-changed"
+KEEL_CHANGED_ENTRY_TESTID = "keel-changed-entry"
+KEEL_CHANGED_TAG_TESTID = "keel-changed-tag"
+KEEL_CHANGED_AS_TESTID = "keel-changed-as"
+PUT_ASIDE_BACK_TESTID = "put-aside-back"
+#: keel-web 184 (`translate.ts`): the pattern's fixed words.
+LIST_KEEL_PILL = "Keel"
+LIST_REWORDED_FROM = "Reworded from"
+LIST_IN_PLACE_OF = "In place of"
+LIST_KEEL_SUGGESTION = "Keel's suggestion"
+LIST_KEEL_CHANGED = "What Keel changed"
+LIST_KEELS_DRAFT = "Keel's draft"
+LIST_REPLACED_BY = "Replaced by"
+LIST_REWORDED_AS = "Reworded as"
+#: keel-web 184 `keelLineLead`: *Reworded from "{words}".* / *In place of "{words}".* -- the words behind Keel's row.
+KEEL_LINE_LEAD = re.compile(r'^\s*(?P<kind>Reworded from|In place of)\s*["\u201c](?P<words>.*)["\u201d]\.?\s*$', re.DOTALL)
+
+
+def keel_line_words(lead: str | None) -> str | None:
+    """Spec 149 FR-3 (keel-web 184 `keelLineLead`): the words behind Keel's row off its line's lead -- *Reworded from
+    "{typed}".* or *In place of "{inPlaceOf}".* -- or None (a suggestion's *Keel's suggestion.*, or no line)."""
+    found = KEEL_LINE_LEAD.match(" ".join(str(lead or "").split()))
+    return (found.group("words").strip() or None) if found else None
+
+
+def record_now(said: str | None) -> str | None:
+    """Spec 149 FR-3 (keel-web 184 `KeelRecord`): what stands now off an entry's *Replaced by ...* / *Reworded as ...*
+    line, its lead taken off; None where none is drawn."""
+    text = " ".join(str(said or "").split())
+    for lead in (LIST_REPLACED_BY, LIST_REWORDED_AS):
+        if text.startswith(lead):
+            return text[len(lead):].strip() or None
+    return text or None
+
+
+def record_put_aside(record) -> list[dict]:
+    """Spec 149 FR-3 (keel-web 184 FR-1): the rows the review put aside, off the record's *replaced* and *aside* entries
+    -- `{typed, why}` as 179's put-aside rows read, with `replaced_by` (Keel's row in its place) and `keels` (*Keel's
+    draft*) where drawn; in the record's order."""
+    out = []
+    for entry in record or []:
+        if not isinstance(entry, dict) or entry.get("kind") not in ("replaced", "aside"):
+            continue
+        row = {"typed": (entry.get("struck") or [None])[0], "why": entry.get("why")}
+        if entry.get("kind") == "replaced" and entry.get("now"):
+            row["replaced_by"] = entry["now"]
+        if entry.get("whose") == "keels":
+            row["keels"] = True
+        out.append(row)
+    return out
 #: Spec 144 FR-4 (keel-cloud 233 FR-6): the HTTP contract the walk's hold reads -- `x-keel-contract` 63: the Check Save's
 #: answer (`PUT calibration/{vector}`, `AnsweredRows`) names the read-back it started (`review: {interactionId}`), and
 #: Compatibility's Check saves the list with no `pickedIndex` (the pick pending until Choose). Spec 149 FR-1 (keel-cloud
@@ -578,6 +649,53 @@ REVIEW_HOLD_GRACE_S = 5
 REVIEW_HOLD_CEILING_S = 120
 #: Spec 144 FR-1: the second founder shot of a Check the review changed, taken after the band -- `check-{dim}` + this.
 REVIEWED_SUFFIX = "-reviewed"
+
+
+def keel_row(li, kind: str) -> dict:
+    """Spec 149 FR-3 (keel-web 184 FR-1, FR-3): one of Keel's rows as drawn -- `keel` its kind (*reworded*,
+    *in-place*, *suggestion*), `n` the number it shares with its record entry, `line` the lead as drawn, the words
+    behind it (`was` on a reworded row, as 179's *Was:*; `in_place_of` on a row in place), `why` the served why, and
+    `put_back` whether Put back is drawn (never pressed). A reworded row reads `changed`, a row in place and a
+    suggestion `suggested` (Keel's), as the walk read them before 184."""
+    n = li.get_attribute(KEEL_N_ATTR)
+    lead = " ".join(_first_text(li, f"[data-testid={ROW_LINE_TESTID}] {ROW_LINE_LEAD}").split())
+    out: dict = {"keel": kind, "line": lead or None,
+                 "put_back": bool(li.locator(f"[data-testid={ROW_PUT_BACK_TESTID}]").count())}
+    if n and n.isdigit():
+        out["n"] = int(n)
+    why = " ".join(_first_text(li, f"[data-testid={ROW_WHY_TESTID}]").split())
+    if why:
+        out["why"] = why
+    words = keel_line_words(lead)
+    if kind == "reworded":
+        out["changed"] = True
+        if words:
+            out["was"] = words
+    else:
+        out["suggested"] = True
+        if kind == "in-place" and words:
+            out["in_place_of"] = words
+    return out
+
+
+def keel_record(page) -> list[dict]:
+    """Spec 149 FR-3 (keel-web 184 FR-1, FR-3): *What Keel changed* as drawn -- each entry `{kind, whose, n, struck,
+    tag, why, now, put_back}` (`struck` every original, one but on *scale*; `now` what stands, its *Replaced by* /
+    *Reworded as* taken off); `[]` where none is drawn (a web before 184, or nothing changed)."""
+    out = []
+    for li in page.locator(f"[data-testid={KEEL_CHANGED_TESTID}] [data-testid={KEEL_CHANGED_ENTRY_TESTID}]").all():
+        n = li.get_attribute(KEEL_N_ATTR)
+        struck = [" ".join(t.split()) for t in li.locator("s.keelrecord__struck").all_inner_texts()]
+        entry = {"kind": li.get_attribute("data-kind"), "whose": li.get_attribute("data-whose"),
+                 "struck": [t for t in struck if t],
+                 "tag": " ".join(_first_text(li, f"[data-testid={KEEL_CHANGED_TAG_TESTID}]").split()) or None,
+                 "why": " ".join(_first_text(li, "[role=note]").split()) or None,
+                 "now": record_now(_first_text(li, f"[data-testid={KEEL_CHANGED_AS_TESTID}]")),
+                 "put_back": bool(li.locator(f"[data-testid={PUT_ASIDE_BACK_TESTID}]").count())}
+        if n and n.isdigit():
+            entry["n"] = int(n)
+        out.append(entry)
+    return out
 
 
 def review_of_answer(body) -> str | None:
@@ -3010,9 +3128,16 @@ class Corridor:
                                                f":not([data-testid={ROW_WHY_TESTID}])")}
             if note:
                 row["note"] = note
+            # spec 149 FR-3 (keel-web 184 FR-1, keel-cloud 243): Keel's row -- its kind, its number, the line's lead and
+            # the words behind it, its why and whether Put back is drawn -- read, never pressed
+            kind = li.get_attribute(KEEL_KIND_ATTR) if KEEL_ROW in (li.get_attribute("class") or "").split() else None
+            if kind:
+                keel = keel_row(li, kind)
+                row.update(keel)
             # spec 143 FR-2 (keel-web 179 FR-2, keel-cloud 232 FR-3): a row the review changed -- the tag *changed* in
             # place of the word count, and *Was: <the founder's words>* with Put back under it -- read, never pressed
-            if li.locator(f"[data-testid={ROW_CHANGED_TESTID}]").count():
+            # (a web before 184)
+            elif li.locator(f"[data-testid={ROW_CHANGED_TESTID}]").count():
                 row["changed"] = True
                 was = (_first_text(li, f"[data-testid={ROW_WAS_TESTID}] .listrow__was-said").strip()
                        or _was_line(_first_text(li, f"[data-testid={ROW_WAS_TESTID}]")))
@@ -3032,6 +3157,8 @@ class Corridor:
                 row["suggested"] = True
                 row["why"] = _first_text(li, f"[data-testid={CHECK_SUGGESTION_TESTID}]") or None
             rows.append(row)
+        # spec 149 FR-3 (keel-web 184 FR-1): the record under the rows, *What Keel changed* -- read, never pressed
+        record = keel_record(self.page)
         field = self.page.locator(".listcheck .listcheck__field textarea.listrow__ed")
         founder_note = _first_text(self.page, f".listcheck {LIST_FOUNDER_NOTE}")
         guidance = _first_text(self.page, ".listcheck__note")
@@ -3049,6 +3176,8 @@ class Corridor:
         for li in self.page.locator(PUT_ASIDE_ROW).all():
             put_aside.append({"typed": " ".join(_first_text(li, "s").split()) or None,
                               "why": " ".join(_first_text(li, "[role=note]").split()) or None})
+        # spec 149 FR-3 (keel-web 184): the rows put aside are the record's *replaced* and *aside* entries now
+        put_aside += record_put_aside(record)
         out = {"rows": rows, "field": _value(field.first) if field.count() else None,
                "line": _first_text(self.page, ".listcheck__line"),
                "line_at": int(line_at) if line_at and line_at.isdigit() else None,
@@ -3063,6 +3192,8 @@ class Corridor:
             out["band"] = band
         if put_aside:
             out["put_aside"] = put_aside
+        if record:
+            out["keel_changed"] = record
         return out
 
     def _commitment_block(self) -> dict | None:
@@ -3360,8 +3491,10 @@ class Corridor:
         rows = self.page.locator(".listcheck ul.listrows li.listrow")
         # spec 143 FR-2 (keel-cloud 232): a row the review changed is never cut -- over the cap it is a keel-cloud defect
         # (`corpus_scenario.review_defects` files it off the wire), never a retype
+        # spec 149 FR-3 (keel-web 184): nor Keel's row the review wrote -- reworded, or in place of a row put aside
         over = [i for i in range(rows.count()) if rows.nth(i).locator(".listrow__wc--over").count()
-                and not rows.nth(i).locator(f"[data-testid={ROW_CHANGED_TESTID}]").count()]
+                and not rows.nth(i).locator(f"[data-testid={ROW_CHANGED_TESTID}]").count()
+                and rows.nth(i).get_attribute(KEEL_KIND_ATTR) not in ("reworded", "in-place")]
         if not over or not self._primary().is_disabled():
             return []
         out = []

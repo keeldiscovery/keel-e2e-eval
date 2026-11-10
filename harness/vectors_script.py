@@ -3233,6 +3233,109 @@ def band_line(dimension: str, saved) -> str | None:
     return f"Keel {did} and put {_band_word(put)} aside so the rest sit {moment}"
 
 
+#: Spec 149 FR-4: the small words a reason is read without when it is held to its row (`reason_row`).
+_REASON_STOPS = frozenset("""a an the to of on in at by for with from into and or but so that this these those it its
+    they them their there is are was were be been being has have had not no any all every one first row rows""".split())
+
+
+def _reason_words(text: str | None) -> set[str]:
+    words = re.findall(r"[a-z0-9]+", str(text or "").lower())
+    return {w[:-1] if w.endswith("s") and len(w) > 3 else w for w in words if w not in _REASON_STOPS and len(w) > 2}
+
+
+def reason_row(why: str | None, rows: list[str]) -> int | None:
+    """Spec 149 FR-4: the row (index into `rows`) a reason is most about -- the one sharing the most of its content
+    words, with at least two shared and no other row as near; None where none stands out. A reason the review wrote
+    for one row and code set under another (the staging misread) names the other row's words, not its own."""
+    said = _reason_words(why)
+    shared = [len(said & _reason_words(row)) for row in rows]
+    if not shared:
+        return None
+    most = max(shared)
+    return shared.index(most) if most >= 2 and shared.count(most) == 1 else None
+
+
+def in_place_faults(handed: list[str], saved, *, first_fixed: bool = True,
+                    notes: list[tuple[str, str]] | None = None) -> list[dict]:
+    """Spec 149 FR-4 (keel-cloud 243, the staging shape of 2026-11-09): what a list the review changed must hold, read
+    against the rows the founder saved (`handed`, in order, the own row first where `first_fixed`) -- each a fault
+    `{what, ...}`, `[]` where it holds:
+
+    - the right rows are struck: every row put aside is a row the founder saved, never the own row;
+    - each reason on its own row: every row put aside carries a reason, no two the same, and none is more about another
+      saved row than its own (`reason_row`);
+    - a Keel row in each place: every row put aside with a row in its place (`replacedBy`, read off the rows) has Keel's
+      row standing where it stood (`inPlaceOf` its words), and every Keel row in place stands for a row put aside;
+    - nothing the founder saved is lost (`founder_words`);
+    - the band counts both (`band_counts` against the list: put aside, suggested in place);
+    - and a note kept under a row (`notes`, `(row, note)` as the Check draws them) is about that row, never another."""
+    handed = [h for h in handed or [] if h]
+    items, aside = served_items(saved), put_aside_of(saved)
+    faults: list[dict] = []
+
+    def at_of(words) -> int | None:
+        return next((i for i, h in enumerate(handed) if _same_words(h, words)), None)
+
+    whys = []
+    for row in aside:
+        at = at_of(row.get("typed"))
+        if at is None:
+            faults.append({"what": "a row put aside the founder never saved", "typed": row.get("typed")})
+            continue
+        if first_fixed and at == 0:
+            faults.append({"what": "the own row put aside", "typed": row.get("typed")})
+        why = " ".join(str(row.get("why") or "").split())
+        if not why:
+            faults.append({"what": "a row put aside with no reason", "typed": row.get("typed")})
+        else:
+            if any(_same_words(why, w) for w in whys):
+                faults.append({"what": "two rows put aside with one reason", "typed": row.get("typed"), "why": why})
+            whys.append(why)
+            about = reason_row(why, handed)
+            if about is not None and about != at:
+                faults.append({"what": "a reason on the wrong row", "typed": row.get("typed"), "why": why,
+                               "about": handed[about]})
+    standing_aside = {i for i, h in enumerate(handed)
+                      if any(_same_words(h, r.get("typed")) for r in aside)}
+    in_place = {i: item for i, item in enumerate(items) if in_place_of(item)}
+    for row in aside:
+        by = replaced_by(row, saved)
+        at = at_of(row.get("typed"))
+        if not by or at is None:
+            continue
+        # where the struck row stood: its index, less the rows above it put aside with nothing in their place
+        bare_above = sum(1 for i in standing_aside if i < at
+                         and not replaced_by(next(r for r in aside if _same_words(handed[i], r.get("typed"))), saved))
+        want = at - bare_above
+        found = next((i for i, item in in_place.items() if _same_words(in_place_of(item), row.get("typed"))), None)
+        if found is None:
+            faults.append({"what": "no Keel row stands in place of a row put aside", "typed": row.get("typed"),
+                           "replacedBy": by})
+        elif found != want:
+            faults.append({"what": "Keel's row does not stand where the row put aside stood", "typed": row.get("typed"),
+                           "label": items[found].get("label"), "at": found, "want": want})
+    for i, item in in_place.items():
+        if not any(_same_words(in_place_of(item), r.get("typed")) for r in aside):
+            faults.append({"what": "a Keel row in place of a row not put aside", "label": item.get("label"),
+                           "inPlaceOf": in_place_of(item)})
+    for row, said in notes or []:
+        about = reason_row(said, handed)
+        at = at_of(row)
+        if about is not None and at is not None and about != at:
+            faults.append({"what": "a note on the wrong row", "row": row, "note": said, "about": handed[about]})
+    lost = [h for h in handed if not row_present(h, saved)]
+    if lost:
+        faults.append({"what": "a row the founder saved is lost", "rows": lost})
+    band = review_band(saved)
+    if band:
+        counted = band_counts(band.get("line"))
+        have = {"put_aside": len(aside), "in_place": len(in_place)}
+        if (counted["put_aside"], counted["in_place"]) != (have["put_aside"], have["in_place"]):
+            faults.append({"what": "the band does not count the list", "line": band.get("line"), "counted": counted,
+                           "list": have})
+    return faults
+
+
 def rungs_plan(entry, drawn: list[str], max_items: int, typed: dict[str, str] | None = None) -> dict:
     """Spec 067 FR-2 (keel-cloud 128 FR-16; Pairio typed two of five): what the founder does to Keel's draft on the
     Check screen so that every one of the entry's Current-solution rungs is served, in the entry's order. The rungs are
