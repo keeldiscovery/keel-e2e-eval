@@ -2856,10 +2856,58 @@ def typed_by_label(*lists) -> dict[str, str]:
 
 def review_changed(saved) -> list[dict]:
     """Spec 143 FR-2: what the review did to one list, for `backtest.json` -- every changed row `{typed, label, why}` in
-    the list's order, then every put-aside row `{typed, label: None, why}`; `[]` on a list the review left alone."""
-    out = [{"typed": i.get("typed"), "label": i.get("label"), "why": i.get("why")}
-           for i in served_items(saved) if i.get("typed")]
-    return out + [{"typed": r.get("typed"), "label": None, "why": r.get("why")} for r in put_aside_of(saved)]
+    the list's order, then every put-aside row `{typed, label: None, why}`; `[]` on a list the review left alone.
+
+    Spec 149 FR-2 (keel-cloud 243 FR-4, contract 64): a put-aside row carries `replacedBy` (Keel's row standing in its
+    place, read off the rows) and `keels` (its words were Keel's) where served, a changed row `typedKeels` (the words
+    behind Put back were Keel's) -- each key absent where none is served, so a list before 243 reads as 143 wrote it.
+    Keel's rows in place are counted apart (`review_in_place`), never as a changed row."""
+    out = []
+    for i in served_items(saved):
+        if i.get("typed"):
+            row = {"typed": i.get("typed"), "label": i.get("label"), "why": i.get("why")}
+            if i.get("typedKeels"):
+                row["typedKeels"] = True
+            out.append(row)
+    for r in put_aside_of(saved):
+        row = {"typed": r.get("typed"), "label": None, "why": r.get("why")}
+        by = replaced_by(r, saved)
+        if by:
+            row["replacedBy"] = by
+        if r.get("keels"):
+            row["keels"] = True
+        out.append(row)
+    return out
+
+
+def in_place_of(item) -> str | None:
+    """Spec 149 FR-2 (keel-cloud 243 FR-3, contract 64): the words of the row put aside that Keel's row stands in place
+    of (`inPlaceOf`, `in_place_of` read too), or None."""
+    if not isinstance(item, dict):
+        return None
+    said = item.get("inPlaceOf") if item.get("inPlaceOf") is not None else item.get("in_place_of")
+    return said or None
+
+
+def replaced_by(aside, saved) -> str | None:
+    """Spec 149 FR-2 (keel-cloud 243 FR-4, `SavedList.replacedBy`): Keel's row standing in place of a put-aside row --
+    the served `replacedBy`, else read off the rows (the item whose `inPlaceOf` is its words, case folded); None."""
+    if not isinstance(aside, dict):
+        return None
+    served = aside.get("replacedBy") if aside.get("replacedBy") is not None else aside.get("replaced_by")
+    if served:
+        return served
+    typed = " ".join(str(aside.get("typed") or "").lower().split())
+    return next((i.get("label") for i in served_items(saved)
+                 if in_place_of(i) and " ".join(in_place_of(i).lower().split()) == typed), None)
+
+
+def review_in_place(saved) -> list[dict]:
+    """Spec 149 FR-2 (keel-cloud 243 FR-3): Keel's rows standing in place of rows the review put aside, in the list's
+    order -- `{label, inPlaceOf, why}` (`why` the served `suggestedWhy`); `[]` where none (a list before 243)."""
+    return [{"label": i.get("label"), "inPlaceOf": in_place_of(i),
+             "why": i.get("suggestedWhy") or i.get("suggested_why")}
+            for i in served_items(saved) if in_place_of(i)]
 
 
 def review_suggested(saved, draft=None) -> list[dict]:
@@ -2868,7 +2916,10 @@ def review_suggested(saved, draft=None) -> list[dict]:
     draft's own suggested row, keel-cloud 121's mark on a founder's condition, is not this) -- as `{label, why}`, in the
     list's order; `[]` where none."""
     drafted = {" ".join(str(i.get("label") or "").lower().split()) for i in served_items(draft)}
-    return [{"label": i.get("label"), "why": i.get("suggestedWhy") or i.get("suggested_why")}
+    # spec 149 FR-3 (keel-cloud 243 FR-3): several now -- one in place of each row put aside (`inPlaceOf`, named), and
+    # 236's at the end where nothing was put aside
+    return [{"label": i.get("label"), "why": i.get("suggestedWhy") or i.get("suggested_why"),
+             **({"inPlaceOf": in_place_of(i)} if in_place_of(i) else {})}
             for i in served_items(saved)
             if i.get("suggested") and (i.get("suggestedWhy") or i.get("suggested_why"))
             and " ".join(str(i.get("label") or "").lower().split()) not in drafted]
@@ -2877,8 +2928,9 @@ def review_suggested(saved, draft=None) -> list[dict]:
 def as_drafted(saved) -> list[str]:
     """Spec 147 FR-3 (keel-cloud 236 FR-1): the served list's rows in the words they were saved with before the review
     -- each item's `typed` where the review changed it (a founder's row or Keel's), else its label -- then the put-aside
-    rows' `typed`: every row present, whoever wrote it."""
-    return [i.get("typed") or i.get("label") for i in served_items(saved)] + \
+    rows' `typed`: every row present, whoever wrote it. Spec 149 FR-2 (keel-cloud 243 FR-3): Keel's row in place of a
+    row put aside was never saved before the review (the row it stands for is, put aside) -- left out."""
+    return [i.get("typed") or i.get("label") for i in served_items(saved) if not in_place_of(i)] + \
         [r.get("typed") for r in put_aside_of(saved)]
 
 
@@ -2900,8 +2952,10 @@ def changed_over_cap(saved, cap: int) -> list[dict]:
 
 def founder_words(saved) -> list[str]:
     """The served list read back to the founder's own words: each item's `typed` where the review changed it, else its
-    `label`, then the put-aside rows' `typed` -- what the founder saved, whatever the review did."""
-    return [i.get("typed") or i.get("label") for i in served_items(saved)] + \
+    `label`, then the put-aside rows' `typed` -- what the founder saved, whatever the review did. Spec 149 FR-2
+    (keel-cloud 243 FR-3): Keel's row in place of a put-aside row is not the founder's (the row put aside is) -- left
+    out."""
+    return [i.get("typed") or i.get("label") for i in served_items(saved) if not in_place_of(i)] + \
         [r.get("typed") for r in put_aside_of(saved)]
 
 
@@ -2917,7 +2971,266 @@ def lists_reviewed(views: dict) -> dict:
             changed, band = review_changed(saved), review_band(saved)
             if changed or band:
                 out[q.get("dimension")] = {"review_changed": changed, "band": band}
+                # spec 149 FR-3 (keel-cloud 243 FR-3): Keel's rows in place, with the row each stands for (absent
+                # where none, so a list before 243 reads as 143 wrote it)
+                in_place = review_in_place(saved)
+                if in_place:
+                    out[q.get("dimension")]["in_place"] = in_place
     return out
+
+
+# --------------------------------------- spec 149 FR-2: every read-back names its rows, and suggests in place (243)
+#
+# keel-cloud 243 (`RespondentReview.numbered`, `shiftOf`, `readBackReadings`, `ReviewedRows.held` / `floor`,
+# `SavedList.replacedBy`, `ReviewedRows.changed`), mirrored on the harness's side so the staging shape of 2026-11-09 is
+# guarded at this layer too: every read-back hands its rows `[{index, label}]` from 0 (Importance's rows, Current
+# solution's rungs, Relative advantage's benefits and the ladder beside them; Compatibility's conditions were already
+# numbered, 236); an answer whose indices run from 1 to the count handed is read shifted by one (`review.shift: 1`); an
+# index outside both readings is a refusal line; beside each `drop` a `suggest` `{label, why}` stands where the dropped
+# row stood (`inPlaceOf` on Keel's row, `replacedBy` on the row put aside, read off the rows); the floor counts only
+# the drops with no row in their place; the band counts both. Generic over every list: no trade is named here, and
+# code's word rules for a suggestion (`spokenFault`, `rowFault`, `pieceFault`) are keel-cloud's, never mirrored -- the
+# mirror holds the places, the reasons and the counts.
+
+#: The three read-backs 243 FR-1 numbers (the conditions' were numbered by 236): the dimension and the key the rows
+#: are handed under.
+READ_BACK_ROWS = {"problem.importance": "rows", "problem.current_solution_satisfaction": "rungs",
+                  "solution.relative_advantage": "rows"}
+
+
+def numbered(rows) -> list[dict]:
+    """keel-cloud 243 FR-1 (`RespondentReview.numbered`): rows as the review is handed them -- `[{index, label}]` in
+    order, the first index 0 (Importance's own row, Current solution's first rung, the lead benefit)."""
+    return [{"index": i, "label": row} for i, row in enumerate(rows or [])]
+
+
+def labels_of(handed) -> list[str]:
+    """keel-cloud 243 FR-1 (`RespondentReview.labelsOf`): the labels of rows handed numbered, or as plain words (a job
+    queued before 243)."""
+    return [str(r.get("label")) if isinstance(r, dict) else str(r) for r in handed or []]
+
+
+def read_back_context(dimension: str, rows, *, phrase: str | None = None, line_after: int | None = None,
+                      clause: dict | None = None, ladder: dict | None = None) -> dict:
+    """keel-cloud 243 FR-1: the `read_back` object of a read-back's context -- Importance `{rows}`, Current solution
+    `{phrase, rungs, line_after}`, Relative advantage `{rows, clause, ladder}` (the ladder's `rungs` numbered too, 243
+    judgement call 1) -- every row list handed `[{index, label}]` from 0."""
+    key = READ_BACK_ROWS.get(dimension)
+    if key is None:
+        raise VectorsScriptError(f"{dimension}: no numbered read-back (243 FR-1 names Importance, Current solution and "
+                                 "Relative advantage; Compatibility's conditions are 236's)")
+    if key == "rungs":
+        return {"phrase": phrase, "rungs": numbered(rows), "line_after": line_after}
+    back: dict = {"rows": numbered(rows)}
+    if dimension == "solution.relative_advantage":
+        back["clause"] = clause
+        back["ladder"] = None if ladder is None else {**ladder, "rungs": numbered(labels_of(ladder.get("rungs")))}
+    return back
+
+
+def review_shift(notes, count: int) -> int:
+    """keel-cloud 243 FR-2 (`RespondentReview.shiftOf`): 1 where an answer's indices run from 1 to the count handed --
+    none is 0 and the largest equals `count`, an index no 0-based reading has -- else 0."""
+    indices = [int(n["index"]) for n in notes or [] if isinstance(n, dict) and isinstance(n.get("index"), (int, float))
+               and not isinstance(n.get("index"), bool)]
+    if not indices or count <= 0:
+        return 0
+    return 1 if min(indices) >= 1 and max(indices) == count else 0
+
+
+def _suggestion(said) -> dict | None:
+    if isinstance(said, dict) and isinstance(said.get("label"), str):
+        return {"label": said["label"], "why": said.get("why") if isinstance(said.get("why"), str) else None}
+    return None
+
+
+def read_back_answer(answer, rows) -> dict:
+    """keel-cloud 243 FR-2 / FR-3 (`RespondentReview.readBackReadings`): a read-back's answer as code reads it --
+    `readings` (`{at, note, label, drop, suggest}` per note, `at` the row handed, shifted where the answer counted from
+    1), `shift` (the log's `review.shift`), `refused` (one line per index outside both readings: *index 7 is outside the
+    4 rows handed (0 to 3)*) and 236's top-level `suggest`."""
+    rows = list(rows or [])
+    notes = answer.get("notes") if isinstance(answer, dict) else None
+    if not isinstance(notes, list):
+        return {"readings": [], "shift": 0, "refused": [], "suggest": None}
+    shift = review_shift(notes, len(rows))
+    readings, refused = [], []
+    for note in notes:
+        if not isinstance(note, dict) or not isinstance(note.get("index"), (int, float)) \
+                or isinstance(note.get("index"), bool):
+            continue
+        at = int(note["index"]) - shift
+        if at < 0 or at >= len(rows):
+            refused.append(f"index {int(note['index'])} is outside the {len(rows)} rows handed (0 to {len(rows) - 1}"
+                           + (", the answer read from 1" if shift == 1 else "") + ")")
+            continue
+        readings.append({"at": at, "note": note.get("note") if isinstance(note.get("note"), str) else None,
+                         "label": note.get("label") if isinstance(note.get("label"), str) else None,
+                         "drop": note.get("drop") is True, "suggest": _suggestion(note.get("suggest"))})
+    return {"readings": readings, "shift": shift, "refused": refused, "suggest": _suggestion(answer.get("suggest"))}
+
+
+def read_back_notes(answer, rungs) -> list[tuple[str, str]]:
+    """keel-cloud 243 FR-2 (`RespondentReview.readBackNotes`): the notes alone, each against the row it was written for
+    (shifted as `read_back_answer` shifts) -- the first for an index said twice; a blank note, an index outside the
+    rows, or a note that only says the row again is none."""
+    rungs = list(rungs or [])
+    notes = answer.get("notes") if isinstance(answer, dict) else None
+    if not isinstance(notes, list):
+        return []
+    shift = review_shift(notes, len(rungs))
+    by_index: dict[int, tuple[str, str]] = {}
+    for note in notes:
+        words = note.get("note") if isinstance(note, dict) else None
+        if not isinstance(words, str) or not words.strip() or not isinstance(note.get("index"), (int, float)):
+            continue
+        at = int(note["index"]) - shift
+        if at < 0 or at >= len(rungs) or at in by_index \
+                or re.sub(r"[.!]+$", "", words.strip()).lower() == rungs[at].strip().lower():
+            continue
+        by_index[at] = (rungs[at], words)
+    return [by_index[k] for k in sorted(by_index)]
+
+
+def in_place_applied(rows, readings, *, floor: int, first_fixed: bool = True) -> dict:
+    """keel-cloud 243 FR-3 (`ReviewedRows.rows` / `benefits` / `conditions`, the places, the floor and the pair): the
+    list a read-back's answer comes to -- `{items, putAside, notes, refused}` in the wire's shape (contract 64). Each
+    `drop` puts its row aside with its own note as the why; a `suggest` beside it stands where the dropped row stood
+    (`suggested`, `suggestedWhy`, `inPlaceOf` the row's words; the put-aside carries `replacedBy`); a suggestion beside
+    no drop, blank, with no why, or saying again a row as saved is a refusal line; the floor counts only the drops with
+    no row in their place, the last rows giving way first (the note alone). A `label` beside a note (a rewrite) is
+    applied as the row changed (`typed`, `why`). `first_fixed`: the first row is never changed or put aside
+    (Importance's own row, the lead benefit). Code's word rules are keel-cloud's, never mirrored here."""
+    labels = list(rows or [])
+    notes: dict[int, str] = {}
+    drops: list[int] = []
+    rewrites: dict[int, str] = {}
+    offered: dict[int, dict] = {}
+    for r in readings or []:
+        at = r["at"]
+        if r.get("note") and at not in notes:
+            notes[at] = r["note"]
+        if r.get("suggest") and at not in offered:
+            offered[at] = r["suggest"]
+        if (first_fixed and at < 1) or at in drops or at in rewrites or not notes.get(at):
+            continue
+        label = (r.get("label") or "").strip() or None
+        if label and label.lower() != labels[at].strip().lower():
+            rewrites[at] = label
+        elif label is None and r.get("drop"):
+            drops.append(at)
+    drops.sort()
+    refused: list[str] = []
+    in_place: dict[int, dict] = {}
+    for at in sorted(offered):
+        suggest = offered[at]
+        text = " ".join(str(suggest.get("label") or "").split()) or None
+        if at not in drops:
+            fault = "beside no row put aside"
+        elif text is None:
+            fault = "blank"
+        elif not suggest.get("why"):
+            fault = "no why: a row in another's place says why"
+        else:
+            same = next((row for row in labels if _same_words(row, text)), None)
+            fault = f"L14: '{text}' means what '{same.strip()}' means" if same is not None else None
+        if fault:
+            refused.append(f"suggest '{text or suggest.get('label')}' in place of '{labels[at]}': {fault}")
+        else:
+            in_place[at] = {"label": text, "why": suggest.get("why")}
+    bare = [d for d in drops if d not in in_place]
+    while bare and len(labels) - len(bare) < floor:
+        last = bare.pop()
+        drops.remove(last)
+        refused.append(f"'{labels[last]}' put aside: the list keeps at least {floor} {'row' if floor == 1 else 'rows'}")
+    items, aside, kept = [], [], []
+    for i, label in enumerate(labels):
+        if i in drops:
+            aside.append({"typed": label, "why": notes.get(i)})
+            if i in in_place:
+                items.append({"label": in_place[i]["label"], "suggested": True, "suggestedWhy": in_place[i]["why"],
+                              "inPlaceOf": label})
+                aside[-1]["replacedBy"] = in_place[i]["label"]
+        elif i in rewrites:
+            items.append({"label": rewrites[i], "typed": label, "why": notes.get(i)})
+        else:
+            items.append({"label": label})
+            if notes.get(i):
+                kept.append({"row": label, "note": notes[i]})
+    return {"items": items, "putAside": aside, "notes": kept, "refused": refused}
+
+
+_BAND_COUNT_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
+_BAND_N = r"(one|two|three|four|five|\d+)"
+#: keel-cloud 243 FR-4 (`ReviewedRows.changed`): the band's counts as served -- rows (answers, conditions) changed,
+#: put aside (rows, benefits, conditions), and suggested in place (*... and suggested three in their place*, *...,
+#: and suggested one in its place.*). Read off the served line, never built.
+BAND_CHANGED = re.compile(rf"\bchanged {_BAND_N} (?:rows?|answers?|conditions?)\b")
+BAND_PUT_ASIDE = re.compile(rf"\bput {_BAND_N}(?: (?:rows?|benefits?|conditions?))? aside\b")
+BAND_IN_PLACE = re.compile(rf"\bsuggested {_BAND_N} in (?:its|their) place\b")
+
+
+def _band_count(m) -> int:
+    if m is None:
+        return 0
+    said = m.group(1)
+    return _BAND_COUNT_WORDS.get(said, int(said) if said.isdigit() else 0)
+
+
+def band_counts(line: str | None) -> dict:
+    """Spec 149 FR-2 (keel-cloud 243 FR-4): what a served band's line counts -- `{changed, put_aside, in_place}` -- off
+    its words (`BAND_CHANGED`, `BAND_PUT_ASIDE`, `BAND_IN_PLACE`); zeros on a line with none (or none served)."""
+    text = str(line or "")
+    return {"changed": _band_count(BAND_CHANGED.search(text)), "put_aside": _band_count(BAND_PUT_ASIDE.search(text)),
+            "in_place": _band_count(BAND_IN_PLACE.search(text))}
+
+
+def _band_word(n: int) -> str:
+    return {1: "one", 2: "two", 3: "three", 4: "four", 5: "five"}.get(n, str(n))
+
+
+def band_line(dimension: str, saved) -> str | None:
+    """keel-cloud 243 FR-4 (`ReviewedRows.changed`, the line alone): the band's line code serves over a list the review
+    changed -- Importance's and every other row list's, Relative advantage's (the moment not mirrored: read as served,
+    147), Compatibility's, Current solution's count (235's scale line read as served) -- counting the rows changed, put
+    aside and suggested in their place. None where nothing was changed or put aside."""
+    items, aside = served_items(saved), put_aside_of(saved)
+    changed = sum(1 for i in items if i.get("typed"))
+    put = len(aside)
+    suggested = sum(1 for i in items if in_place_of(i))
+    if not changed and not put:
+        return None
+    place = f"in {'its' if suggested == 1 else 'their'} place"
+    in_place = f" and suggested {_band_word(suggested)} {place}" if suggested else ""
+    rows = "row" if put == 1 else "rows"
+    moment = "at the moment your problem names."
+    if dimension == "problem.current_solution_satisfaction":
+        sits = "answer so it sits" if changed == 1 else "answers so they sit"
+        return f"Keel changed {_band_word(changed)} {sits} on one scale."
+    if dimension == "solution.relative_advantage":
+        return (f"Keel put {_band_word(put)} {'benefit' if put == 1 else 'benefits'} aside{in_place}"
+                f"{',' if suggested else ''} so what is left is what only your idea would have given them.")
+    if dimension == "solution.compatibility":
+        changes = (f"changed {_band_word(changed)} {'condition' if changed == 1 else 'conditions'} so strangers are asked "
+                   "what they can do themselves")
+        asides = f"put {_band_word(put)} " + ("condition aside because your segment already has it" if put == 1
+                                         else "conditions aside because your segment already has them")
+        suggests = f"suggested {_band_word(suggested)} {place}"
+        if put == 0:
+            return f"Keel {changes}."
+        if changed == 0:
+            return f"Keel {asides}" + (f", and {suggests}." if suggested else ".")
+        return f"Keel {changes}, {asides}, and {suggests}." if suggested else f"Keel {changes}, and {asides}."
+    if put == 0:
+        return f"Keel changed {_band_word(changed)} {'row so it sits' if changed == 1 else 'rows so they sit'} {moment}"
+    if suggested:
+        head = f"changed {_band_word(changed)} {'row' if changed == 1 else 'rows'}, " if changed else ""
+        rest = "every row sits" if suggested == put else "the rest sit"
+        return f"Keel {head}put {_band_word(put)}{'' if changed else ' ' + rows} aside{in_place}, so {rest} {moment}"
+    if not changed:
+        return f"Keel put {_band_word(put)} {rows} aside so the rest sit {moment}"
+    did = f"changed {_band_word(changed)} {'row' if changed == 1 else 'rows'}"
+    return f"Keel {did} and put {_band_word(put)} aside so the rest sit {moment}"
 
 
 def rungs_plan(entry, drawn: list[str], max_items: int, typed: dict[str, str] | None = None) -> dict:
