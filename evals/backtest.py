@@ -11,8 +11,9 @@ corpus-shaped file written from public material with no golden expectations. Wha
    hands it and is never read, logged, echoed or written here; only its presence is checked.
 2. **The founder** (FR-2): `Backtest Founder`, `backtest@keel-backtest.test`, registered at run time on the local
    stub (`POST /identities`, ungated locally) -- outside keel-cloud's `keel.v2.vendors.fake-for` -- and signed up through
-   keel-web's `/signup`, the one door that makes an account on Keel's AI. Contacts, renders and the transcriber stay the
-   local stack's fakes (`stack/cloud.py`), so nothing but model calls leaves the machine.
+   keel-web's `/signup`, the one door that makes an account on Keel's AI. Renders and the transcriber stay the local
+   stack's fakes (`stack/cloud.py`; Contacts too until spec 150, when keel-web 185 removed the page and no walk reads
+   it), so nothing but model calls leaves the machine.
 3. **The camera** (FR-3): one full-page screenshot of every founder screen as it is about to be answered, and of every
    served respondent screen on one person a link, into `runs/<run>/screens/` as `founder-NN-<slug>.png` /
    `respondent-<link>-NN-<slug>.png`, with what each screen drew (kicker, question, hint, the options as rendered).

@@ -156,7 +156,14 @@ refusal is read as the validator's rule (DRIFT #76 closed, the reclassification 
 **109 of 109**, `brief_facts` **94 of 94**. The journeys (S-005 / 006 / 007) walk revision 11 and contract 14: one
 RESPONDENT_QUESTIONS job a lock, and on S-006 the founder names the idea on S2 (keel-cloud 090).
 
-### The contacts leg — contract 15 on the wire (spec `043-contacts-journey`, 2026-10-15)
+### The contacts leg — contract 15 on the wire (spec `043-contacts-journey`, 2026-10-15) — gone since spec 150
+
+**Since spec `150-the-journeys-without-the-contacts-leg` (2026-11-09) this leg is past**: keel-web 185 made Interviews
+Sent alone (the Contacts and Keel-managed pages gone, their addresses redirecting to Sent), so `evals/contacts_leg.py`,
+`evals/contacts_marks.py` (and `CONTACTS_MARKS_VERSION`), `harness/contacts_fake.py` and `harness/interviews_screens.py`'s
+Contacts page object are removed. S-006's links past the twenty are made on Sent's *Send more* by name, with *New link*
+and the links table past ten (`corpus_scenario.leg_sent_more`); S-005 opens the old addresses and lands on Sent
+(`leg_old_addresses`). The cloud's contacts endpoints are keel-cloud 244's to retire. What follows is the history.
 
 keel-cloud 092 / 093 (merged at keel-cloud-docs `7850360`: contract 15, `InferenceCharge` 8, document 21; the stack's
 default contact source is keel-cloud's in-process fake, so nothing in Compose or the env moved). S-006 ends with the

@@ -1266,7 +1266,11 @@ worth, reversed in a `finally`, local profiles only), Keel's base query, a datas
 for 150, three emails for 36, links in one Text batch, one found person through FOUND -> LINK_MADE -> OPENED -> ANSWERED,
 *Make a new link* (the old link 404), a second page and a second dataset that repeat nobody, `FORMAT_NOT_AVAILABLE`, both
 422 credit refusals at 20 and the ledger's HOLD / SPEND pairs at `price_version` 8; S-005 asserts `NOT_B2B`. They are scored
-by `evals/contacts_marks.py` (CM1-CM14, `CONTACTS_MARKS_VERSION` 1, a journey ruler apart from `MARKS_VERSION`). **Since spec
+by `evals/contacts_marks.py` (CM1-CM14, `CONTACTS_MARKS_VERSION` 1, a journey ruler apart from `MARKS_VERSION`) -- **all of
+it past since spec `150-the-journeys-without-the-contacts-leg` (2026-11-09; keel-web 185, Interviews is Sent alone)**: the
+leg, its marks and their version, the fake contact source and the Contacts page object are removed; S-006 makes its links
+past the twenty on Sent's *Send more* by name (`leg_sent_more`: *New link*, G16 past ten), S-005 holds the old addresses'
+redirect to Sent (`leg_old_addresses`); guide marks v4 (G14 Sent's half alone), feedback marks v2 (FM3 retired). **Since spec
 043's second commit they run keel-cloud-docs `a4f2c95` (DRIFT #83 closed) on keel-web `752a8c4` (068: People became
 Interviews)**: every journey's links are made on Sent's *Send more* (W1 held once per account), the contacts leg runs on
 068's own screens (`harness/interviews_screens.py`) with every wire assertion kept, and the readings 068 no longer
