@@ -5,14 +5,15 @@ reproducible.
   respondent behaviour), up to 700 (a seeded draw past that).
 * **R2** one item with two or three follow-ups and their replies, then a second item, 2 to 4 minutes: about 200, drawn
   so every follow-up kind is covered.
-* **R3** every item in the founder's own order with follow-ups and a few own-note stretches, 12 to 30 minutes: about 120.
+* **R3** every item in the founder's own order with follow-ups and a few own-note stretches, 12 to 30 minutes:
+  about 120.
 * **R4** R3 run long -- an item at ten minutes of follow-ups, a five-minute silence, an item never reached -- 45 to 60
   minutes: about 12.
 
 A plan entry: `{"id", "round", "seed", "items": [ids in asking order], "founder": {id: habit}, "respondent": {id:
-behaviour}, "also": {id: second id} (stacked), "extras": [kinds around the asking], "follow_ups": {id: n}, "never_reached":
-[ids], "silence": seconds | None, "long_item": id | None, "kinds": [every kind the script must show], "seconds": [low,
-high]}`.
+behaviour}, "also": {id: second id} (stacked), "extras": [kinds around the asking], "follow_ups": {id: n},
+"never_reached": [ids], "silence": seconds | None, "long_item": id | None, "kinds": [every kind the script must show],
+"seconds": [low, high]}`.
 """
 
 from __future__ import annotations
@@ -62,10 +63,9 @@ def round1(q: dict, seed: int) -> list[dict]:
         for habit in cat.FOUNDER:
             if not cat.applicable(habit, item, round_=1, n_items=len(items)):
                 continue
-            needs = cat.FOUNDER[habit].needs
+            if habit == "clarifying":
+                continue                                               # every counter-question script carries it
             for beh in _behaviours(item, 1):
-                if needs and beh not in needs:
-                    continue
                 combos.append((item["id"], habit, beh, other))
     if len(combos) > R1_CAP:
         combos = sorted(random.Random(seed).sample(combos, R1_CAP), key=combos.index)

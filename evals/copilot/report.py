@@ -16,9 +16,9 @@ from pathlib import Path
 from evals.copilot import bars as B
 
 REGISTER = "copilot-bench-register.md"
-REGISTER_HEAD = ("# The copilot call bench's register (spec 151 FR-7)\n\nOne row a stack a `make copilot-bench` run; a "
-                 "row is never rewritten.\n\n| Run | Round | Level | Stack | Certificate | A same meaning | A own-words "
-                 "options | B offered | G question | G answer | Scripts | Cost | Folder |\n"
+REGISTER_HEAD = ("# The copilot call bench's register (spec 151 FR-7)\n\nOne row a stack a `make copilot-bench` run; "
+                 "a row is never rewritten.\n\n| Run | Round | Level | Stack | Certificate | A same meaning | "
+                 "A own-words options | B offered | G question | G answer | Scripts | Cost | Folder |\n"
                  "|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 
 
@@ -61,15 +61,17 @@ def stack_markdown(sh: dict) -> str:
           f"- E: unsure on every answer {sh['E']['unsure_of_all_answers']}% ({sh['E']['written_unclear']} of "
           f"{sh['E']['answers']} answers written unclear on purpose).",
           f"- G: question recognised split {json.dumps(sh['G']['question_parts'])}; answer shown split "
-          f"{json.dumps(sh['G']['answer_parts'])}; shown after the next turn began {sh['G']['after_the_next_turn_began']}.",
+          f"{json.dumps(sh['G']['answer_parts'])}; shown after the next turn began "
+          f"{sh['G']['after_the_next_turn_began']}.",
           f"- Cost: {json.dumps(sh['cost']['usd'])}" + (f"; counted, not priced: {', '.join(sh['cost']['unpriced'])}"
                                                         if sh["cost"]["unpriced"] else ""), ""]
     if sh["misses"]:
-        w += [f"### Misses ({len(sh['misses'])} shown)", "", "| Script | Turn | Who | Kind | Words | Heard | Truth | Read |",
-              "|---|---|---|---|---|---|---|---|"]
+        w += [f"### Misses ({len(sh['misses'])} shown)", "",
+              "| Script | Turn | Who | Kind | Words | Heard | Truth | Read |", "|---|---|---|---|---|---|---|---|"]
         for m in sh["misses"]:
             truth = f"{m.get('truth_q')} {m.get('truth_v')}" if "truth_v" in m else json.dumps(m.get("expected"))
-            read = f"{m.get('got_q')} {m.get('got_v')}" if "got_v" in m else f"{json.dumps(m.get('got'))} {m.get('tier')}"
+            read = (f"{m.get('got_q')} {m.get('got_v')}" if "got_v" in m
+                    else f"{json.dumps(m.get('got'))} {m.get('tier')}")
             words = (m.get("text") or "").replace("|", "/")[:120]
             heard = (m.get("heard") or "").replace("|", "/")[:120]
             w.append(f"| {m['script']} | {m['turn']} | {m['who']} | {m.get('kind') or ''} | {words} | {heard} | "

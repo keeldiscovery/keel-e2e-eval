@@ -52,8 +52,9 @@ class Kind:
 
 
 FOUNDER = {k.name: k for k in [
-    Kind("verbatim", "founder", "reads Keel's spoken question exactly as written (the stem; the anchor first when there is "
-         "one)", verdict="as_written", state_after="listening", offers_options=True, asking=True, word_rule=True),
+    Kind("verbatim", "founder", "reads Keel's spoken question exactly as written (the stem; the anchor first when "
+         "there is one)", verdict="as_written", state_after="listening", offers_options=True, asking=True,
+         word_rule=True),
     Kind("light_reword", "founder", "asks the same question in slightly different words, the time window and the "
          "subject kept", verdict="same_meaning", state_after="listening", offers_options=False, asking=True,
          word_rule=True),
@@ -75,8 +76,8 @@ FOUNDER = {k.name: k for k in [
          offers_options=False, asking=True, extra={"items_needed": 2}),
     Kind("leading", "founder", "asks the question so it suggests the answer (\"you do that every time, right?\")",
          verdict="leading", state_after="listening", offers_options=False, asking=True),
-    Kind("restart", "founder", "starts the question, breaks off (marked with ...), and starts again", verdict="as_written",
-         state_after="listening", offers_options=True, asking=True, word_rule=True),
+    Kind("restart", "founder", "starts the question, breaks off (marked with ...), and starts again",
+         verdict="as_written", state_after="listening", offers_options=True, asking=True, word_rule=True),
     Kind("clarifying", "founder", "after the respondent asks what they mean, explains the question -- still the same "
          "question, not a new one", verdict="same_meaning", state_after="listening", needs=("counter_question",),
          word_rule=True),
@@ -349,7 +350,8 @@ def turn_faults(script: dict, items: dict, questionnaire_order: list[str]) -> li
             faults.append(f"{where}: a restart carries no break (... or sorry)")
         elif kind == "clarifying":
             prev = turns[i - 1] if i else None
-            if not (prev and prev["who"] == "them" and prev["truth"].get("q") == q and prev["truth"].get("option") is None):
+            if not (prev and prev["who"] == "them" and prev["truth"].get("q") == q
+                    and prev["truth"].get("option") is None):
                 faults.append(f"{where}: a clarifying line that does not follow a counter-question on its item")
         elif kind == "follow_ups_in_a_row":
             same = [j for j, t in enumerate(turns) if t["who"] == "founder" and t["truth"].get("verdict") == "follow_up"

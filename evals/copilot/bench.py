@@ -58,7 +58,7 @@ def parse_args(argv):
     ap.add_argument("--round", type=int, required=True, choices=[1, 2, 3, 4])
     ap.add_argument("--level", required=True, choices=["text", "audio"])
     ap.add_argument("--stacks", default=None, help="comma list of 1, 2, 3 (default all the level allows)")
-    ap.add_argument("--questionnaire", default=None, help="a fixture (default the committed 08-fresco one)")
+    ap.add_argument("--questionnaire", default=None, help="a fixture (default questionnaire.DEFAULT_FIXTURE)")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--sample", type=int, default=0, help="write this many scripts to sample.md and stop")
     ap.add_argument("--resume", default=None)

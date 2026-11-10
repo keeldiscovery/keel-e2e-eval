@@ -3,11 +3,12 @@
 end per turn) that are the truth's clocks.
 
 The voices are `evals.noise.synth.tts` (gpt-4o-mini-tts): the founder's turns with an instruction for a person reading
-from a card and digressing, the respondent's with the noise check's own. One voice pair by default (`VOICES=founder:them`
-overrides). A turn starts at its script time or once the turn before has ended and its silence passed, whichever is
-later; a turn that follows one talked over (`interrupted`) starts a beat before that turn ends. The respondent's track
-may carry one of the noise check's beds at a signal-to-noise ratio (`SNRS=`, on at most a tenth of R3 by
-`NOISE_SHARE`), mixed as `evals.noise.synth.do_mix` does (speech RMS over its active frames against the bed's).
+from a card and digressing, the respondent's with the noise check's own. One voice pair by default
+(`VOICES=founder:them` overrides). A turn starts at its script time or once the turn before has ended and its silence
+passed, whichever is later; a turn that follows one talked over (`interrupted`) starts a beat before that turn ends.
+The respondent's track may carry one of the noise check's beds at a signal-to-noise ratio (`SNRS=`, on at most a tenth
+of R3 by `NOISE_SHARE`), mixed as `evals.noise.synth.do_mix` does (speech RMS over its active frames against the
+bed's).
 
 **It spends money** (the voices, about $0.015 a minute) and needs numpy and soundfile (the noise synth's own); the
 timeline is pure Python and unit-tested without either.
@@ -24,8 +25,8 @@ from pathlib import Path
 SR = 24_000
 DEFAULT_VOICES = ("onyx", "nova")
 FOUNDER_TTS = ("You are a founder on a video call, reading a question from a card and then putting it in your own "
-               "words. Speak at a natural conversational pace. Keep every preface, restart, filler and pause exactly as "
-               "written.")
+               "words. Speak at a natural conversational pace. Keep every preface, restart, filler and pause exactly "
+               "as written.")
 NOISE_BEDS = ("cafe", "traffic")
 NOISE_SHARE_DEFAULT = 0.1
 OVERLAP_S = 0.6
@@ -45,7 +46,7 @@ def voices(raw: str | None = None) -> tuple[str, str]:
 def timeline(turns: list[dict], durations: list[float]) -> list[dict]:
     """The rendered clocks: `[{"turn", "who", "start", "end"}]`."""
     out, prev_end, prev_gap, prev_kind = [], None, 0.0, None
-    for i, (turn, dur) in enumerate(zip(turns, durations)):
+    for i, (turn, dur) in enumerate(zip(turns, durations, strict=True)):
         start = float(turn["t"])
         if prev_end is not None:
             if prev_kind == "interrupted":
@@ -114,7 +115,7 @@ def render(script: dict, out_dir: Path, key: str, *, pair: tuple[str, str] | Non
             say(turn["text"], fv, path, FOUNDER_TTS)
         else:
             say(turn["text"], tv, path, synth.TTS_INSTRUCTIONS)
-        y, sr = sf.read(path, dtype="float32")
+        y, _sr = sf.read(path, dtype="float32")
         if y.ndim > 1:
             y = y.mean(axis=1)
         takes.append(y)
@@ -122,7 +123,7 @@ def render(script: dict, out_dir: Path, key: str, *, pair: tuple[str, str] | Non
     clocks = timeline(script["turns"], durations)
     total = int((clocks[-1]["end"] + float(script["turns"][-1].get("silence_after") or 0) + 0.5) * SR)
     tracks = {"founder": np.zeros(total, np.float32), "them": np.zeros(total, np.float32)}
-    for c, y in zip(clocks, takes):
+    for c, y in zip(clocks, takes, strict=True):
         a = int(c["start"] * SR)
         tracks[c["who"]][a:a + len(y)] += y[:max(0, total - a)]
     if noise and beds_root is not None:

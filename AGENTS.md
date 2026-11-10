@@ -294,6 +294,24 @@ added to this line rather than quietly written — which is exactly how the thir
   (`evals/noise/` has no `test_*.py`); everything that scores is offline and unit-tested on the canon's stored rows
   (`tests/test_noise_check.py`).
 
+- **The copilot call bench** (`make copilot-bench`, spec 151 FR-8) -- argued here beside the noise-capture certificate,
+  as the rule asks. The founder's question of 2026-11-10 is whether a copilot can tell, from a founder's own words on a
+  call, which of Keel's questions was just asked, read the answer against Keel's options, tag the follow-ups and follow
+  the founder -- and which OpenAI model carries it; only the models can answer that, so the bench is paid for the same
+  reason (**the thing under referee is a model's behaviour**), and nothing of the copilot is built. Its named model
+  places are exactly these: **the script writer** (`evals/copilot/writer.py`, `claude-sonnet-5-5` on
+  `instructions/script-writer.md`, its scripts checked offline against `evals/copilot/catalogue.py`'s rules), **the
+  matcher instructions** (`evals/copilot/instructions/copilot-match.md`, `copilot-state.md`, `copilot-audio.md`) and
+  **the three stacks** (`evals/copilot/stacks/`: gpt-transcribe then Haiku 5.5 turn by turn; gpt-live-transcribe and a
+  running state on Haiku 5.5; gpt-audio-mini on the audio), with the voices (`evals/noise/synth.tts`) at the audio
+  level. The same key and money rules: both keys from the shell (`KEEL_OPENAI_API_KEY`, `KEEL_ANTHROPIC_API_KEY`) into
+  the request headers alone, never logged, echoed or written; on the founder's word per round (R1 text, then audio,
+  then R2, R3, R4, each gated by the round before); never in `make eval` / `make unit`, the matrix or a schedule
+  (`evals/copilot/` has no `test_*.py`). It writes `runs/<stamp>-copilot-bench-r<round>-<level>/` and a row a stack on
+  `runs/copilot-bench-register.md`; the certificate line is PASS, FAIL naming the first failing cell, or INCOMPLETE
+  against `evals/copilot/bars.py` (the founder's to change). `DRY=1` needs no key (the fake writer, canned events,
+  nothing spent), and everything that scores is offline and unit-tested with no call (`tests/test_copilot_bench.py`).
+
 **The canon comes first**: keel-cloud `canon/CANON.md` holds the governing documents,
 their precedence, and the ledger this repo's `tests/test_journey_coverage.py` enforces. This
 repo deliberately floats at sibling HEADs (a referee pinned to the past can't call the present).

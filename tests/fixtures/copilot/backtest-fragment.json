@@ -1,0 +1,53 @@
+{
+ "run": "20261110T000000Z-backtest-fragment",
+ "scope": "FULL",
+ "respondents": {
+  "PRIMARY": {
+   "person": "A respondent",
+   "served": {
+    "kind": "FULL",
+    "occasion": "a weekly task",
+    "idea": {"what": "Imagine a helper for the weekly task.", "how": "It does the first pass for you."},
+    "gate": {
+     "itemId": "aaaa", "dimension": "problem.prevalence",
+     "question": "In the last month, did you do the weekly task yourself?",
+     "storyPrompt": "Think of the most recent time you did it. Tell us what happened.",
+     "spoken": {"anchor": null, "stem": "In the last month, did you do the weekly task yourself?", "optionsLine": "Yes or no.", "transform": "none"}
+    },
+    "parts": [
+     {"part": 1, "kicker": null, "items": [
+      {"dimension": "problem.importance", "question": "Which two of these would you most like made easier?", "control": "pick_two", "hint": null,
+       "options": ["The first step", "The second step", "The third step", "The fourth step"], "escape": "None of these",
+       "spoken": {"stem": "Which two of these would you most like made easier?", "countLine": "I'll read four options.", "optionsLine": "The first step; the second step; the third step; or the fourth step.", "escapeLine": "Or say none of these.", "transform": "none"}}
+     ]}
+    ],
+    "reveal": null
+   }
+  },
+  "COMMERCIAL_B2B": {
+   "person": "Another respondent",
+   "served": {
+    "kind": "COMMERCIAL_LINK",
+    "occasion": "a weekly task",
+    "idea": {"what": "Imagine a helper for the weekly task.", "how": "It does the first pass for you."},
+    "gate": null,
+    "parts": [
+     {"part": 3, "kicker": null, "items": [
+      {"dimension": "commercial.existing_sacrifice", "question": "Last month, about how many hours did the weekly task take?", "control": "value_box", "hint": null,
+       "options": [], "escape": "I can't recall",
+       "valueBox": {"measure": "hours", "label": "hours last month", "nothing": {"code": "NOTHING", "label": "None"}},
+       "spoken": {"stem": "Last month, about how many hours did the weekly task take?", "optionsLine": "A number of hours last month.", "escapeLine": "Or say you can't recall.", "transform": "none"}},
+      {"dimension": "commercial.price", "question": "What would it be worth to you a month?", "control": "price_ladder", "hint": null,
+       "options": ["Under $50", "$50 to under $200", "$200 or more", "I wouldn't pay for this"], "escape": "I can't say",
+       "spoken": {"stem": "What would it be worth to you a month?", "countLine": "I'll read three options.", "optionsLine": "Under $200; $200 or more; or you wouldn't pay for this.", "escapeLine": "Or say: I can't say.", "transform": "two_steps", "under": "Under $50, or $50 to under $200?"}},
+      {"dimension": "commercial.ability_to_pay", "question": "Think of the price you just gave. Where would the money come from?", "control": "single_choice", "hint": null,
+       "options": ["An existing budget line", "A new budget line"], "escape": "I can't say",
+       "spoken": {"anchor": "Think of the price you just gave.", "stem": "Where would the money come from?", "transform": "none"},
+       "askedAfter": {"itemId": "bbbb", "answers": [{"question": "You said about $50 to $200 a month. Where would the money come from?"}]}}
+     ]}
+    ],
+    "reveal": null
+   }
+  }
+ }
+}

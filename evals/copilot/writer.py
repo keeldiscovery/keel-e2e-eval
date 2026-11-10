@@ -138,8 +138,9 @@ def finish(entry: dict, script: dict | None, faults: list, tries: int, usage: di
 # ---------------------------------------------------------------------------------------- the fake writer
 
 LATE_ASK_S = 1850
-FOLLOW_UPS = ["Why is that, would you say?", "And who else deals with that, usually?", "How did that go, the last time?",
-              "What happens when it doesn't work out?", "Is that the same for everyone you work with?"]
+FOLLOW_UPS = ["Why is that, would you say?", "And who else deals with that, usually?",
+              "How did that go, the last time?", "What happens when it doesn't work out?",
+              "Is that the same for everyone you work with?"]
 REPLIES = ["Mostly because it takes time, I'd say.", "A couple of the others, now and then.",
            "It went fine in the end, it just took longer.", "Then it waits until someone has a minute.",
            "Pretty much, yeah, give or take."]
@@ -339,7 +340,8 @@ def sample_markdown(scripts: list[dict], n: int = 20) -> str:
         plan = s.get("plan") or {}
         w += [f"## {s['id']} -- round {s['round']}", "",
               f"Kinds: {', '.join(plan.get('kinds') or [])}. Items: {', '.join(plan.get('items') or [])}.", "",
-              "| t | who | words | kind | q | verdict | option | tier | box after |", "|---|---|---|---|---|---|---|---|---|"]
+              "| t | who | words | kind | q | verdict | option | tier | box after |",
+              "|---|---|---|---|---|---|---|---|---|"]
         for t in s["turns"]:
             tr = t["truth"]
             words = t["text"].replace("|", "/")

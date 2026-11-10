@@ -7,6 +7,7 @@ from __future__ import annotations
 import base64
 
 from evals.copilot.stacks import base
+from evals.noise.pipeline import parse
 
 AUDIO_MODEL = "gpt-audio-mini"
 #: The methodology page's figure (OpenAI's pricing page, 2026-11-10): $10 a million audio tokens in. Its text-token
@@ -52,7 +53,6 @@ class AudioDirect(base.Stack):
         system = base.instruction(self.instruction_file)
         items = {it["id"]: it for it in q["items"]}
         current, state, events = None, "listening", []
-        from evals.noise.pipeline import parse                                # noqa: PLC0415
         for i, turn in enumerate(script["turns"]):
             wav = base.cut_wav(base.track_of(audio_dir, turn["who"]), clocks[i]["start"], clocks[i]["end"])
             user = "\n".join([base.questionnaire_block(q), ""] + base.status_lines(current, state)

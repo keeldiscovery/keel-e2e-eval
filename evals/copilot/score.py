@@ -66,6 +66,13 @@ def _offered(turn) -> bool:
     return turn["truth"].get("verdict") in ("as_written", "options_own_words")
 
 
+def _tagged_at(turns: list, evs: dict, k: int, q: str | None) -> bool:
+    """Turn `k`'s event tags it as a follow-up under `q` (a reply: its state is follow-up)."""
+    e = evs.get(k) or {}
+    return e.get("q") == q and (e.get("verdict") == "follow_up" or (turns[k]["who"] == "them"
+                                                                    and e.get("state") == "follow_up"))
+
+
 def rows(scripts: list[dict], events: dict, q: dict, *, noisy: set | None = None) -> dict:
     """Every scored row, by number."""
     items = {it["id"]: it for it in q["items"]}
@@ -113,10 +120,10 @@ def rows(scripts: list[dict], events: dict, q: dict, *, noisy: set | None = None
                 asking = _asking(turns, i, tr["q"])
                 tier = e.get("tier") if e.get("tier") else ("unsure" if got.get("unclear") else None)
                 good = ok(tr["option"], got)
-                out["B"].append(dict(base, q=tr["q"], control=items[tr["q"]]["control"], item_kind=items[tr["q"]]["kind"],
-                                     expected=tr["option"], got=got, ok=good, truth_tier=tr.get("tier"), tier=tier,
-                                     offered=_offered(asking), noisy=s["id"] in noisy,
-                                     confident_wrong=tier == "sure" and not good))
+                out["B"].append(dict(base, q=tr["q"], control=items[tr["q"]]["control"],
+                                     item_kind=items[tr["q"]]["kind"], expected=tr["option"], got=got, ok=good,
+                                     truth_tier=tr.get("tier"), tier=tier, offered=_offered(asking),
+                                     noisy=s["id"] in noisy, confident_wrong=tier == "sure" and not good))
             # C: the follow-ups (founder and replies)
             if tr.get("verdict") == "follow_up":
                 tagged = got_q == tr.get("q") and (got_v == "follow_up" or (t["who"] == "them"
@@ -140,14 +147,10 @@ def rows(scripts: list[dict], events: dict, q: dict, *, noisy: set | None = None
             while j + 1 < len(turns) and turns[j + 1]["truth"].get("verdict") == "follow_up" \
                     and turns[j + 1]["truth"].get("q") == tr.get("q"):
                 j += 1
-
-            def tagged_at(k, qq=tr.get("q")):
-                e = evs.get(k) or {}
-                return e.get("q") == qq and (e.get("verdict") == "follow_up" or (turns[k]["who"] == "them"
-                                                                               and e.get("state") == "follow_up"))
-            inside = all(tagged_at(k) for k in range(i, j + 1))
-            before = i > 0 and tagged_at(i - 1) and turns[i - 1]["truth"].get("verdict") != "follow_up"
-            after = j + 1 < len(turns) and tagged_at(j + 1)
+            qq = tr.get("q")
+            inside = all(_tagged_at(turns, evs, k, qq) for k in range(i, j + 1))
+            before = i > 0 and _tagged_at(turns, evs, i - 1, qq) and turns[i - 1]["truth"].get("verdict") != "follow_up"
+            after = j + 1 < len(turns) and _tagged_at(turns, evs, j + 1, qq)
             out["C_blocks"].append({"script": s["id"], "start": i, "end": j, "q": tr.get("q"),
                                     "right": inside and not before and not after})
             i = j + 1

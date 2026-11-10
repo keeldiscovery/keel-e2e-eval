@@ -44,7 +44,7 @@ class FakeClients:
         texts = heard if heard is not None else [t["text"] for t in script["turns"]]
         self.heard = deque(texts)
         self.by_track = {"founder": deque(), "them": deque()}
-        for t, text in zip(script["turns"], texts):
+        for t, text in zip(script["turns"], texts, strict=True):
             self.by_track[t["who"]].append(text)
         self.classify_ms, self.transcribe_ms = classify_ms, transcribe_ms
         self.usage = usage or {"input_tokens": 0, "output_tokens": 0}
