@@ -82,10 +82,10 @@ def test_relative_advantage_and_compatibility_suggest_in_place():
 
 def test_the_contract_is_64_and_the_screen_contract_25():
     """FR-1 (243 FR-4): `x-keel-contract` 64 names `inPlaceOf`, `typedKeels`, `replacedBy` and `keels`; the walk's
-    `REVIEW_CONTRACT` reads 64; `ScreenResponseContracts.CONTRACT_VERSION` stays 25 (the per-note `suggest` is optional
+    `REVIEW_CONTRACT` reads 64 or a later one that keeps them (keel-cloud 244 moved it to 65); `ScreenResponseContracts.CONTRACT_VERSION` stays 25 (the per-note `suggest` is optional
     and no screen's)."""
     spec = _cloud("canon/openapi-v2.yaml")
-    assert int(re.search(r"x-keel-contract: (\d+)", spec).group(1)) == vs_screens.REVIEW_CONTRACT == 64
+    assert int(re.search(r"x-keel-contract: (\d+)", spec).group(1)) == vs_screens.REVIEW_CONTRACT >= 64
     for name in ("inPlaceOf", "typedKeels", "replacedBy", "keels"):
         assert re.search(rf"\b{name}: \{{ type: (string|boolean), description: \"Spec 243", spec), name
     contracts = _cloud(APPLICATION + "ScreenResponseContracts.java")

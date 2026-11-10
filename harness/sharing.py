@@ -32,7 +32,7 @@ from typing import Any
 #: keel-cloud 201: the contract the sharing routes arrived with, and the project document's version (the root's
 #: `sharing`, additive; 21 to 35 read as shared with nobody).
 CONTRACT = 58
-DOCUMENT_VERSION = 36
+DOCUMENT_VERSION = 37  # keel-cloud 244: the upcaster copies datasetName + a valid email onto DATASET invitations
 #: `Overview.access` (contract 58).
 ACCESS = ("OWNER", "CO_FOUNDER", "VIEWER", "LINK")
 #: The public reads under `/v2/s/{token}` (the root is `""`), the read set the shared pages draw.

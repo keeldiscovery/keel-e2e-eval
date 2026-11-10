@@ -73,6 +73,7 @@ def test_contract_58_names_the_shapes_the_journeys_read():
 
 
 def test_document_version_36():
+    """Document 36 (163); keel-cloud 244 lifted it to 37 (`sharing.DOCUMENT_VERSION`), the upcaster unchanged for 36."""
     text = _cloud("src/main/java/com/keeldiscovery/cloud/infrastructure/persistence/project/ProjectDocument.java")
     assert f"static final int SCHEMA_VERSION = {sharing.DOCUMENT_VERSION};" in text
     assert "static final int MIN_READABLE_VERSION = 21;" in text
