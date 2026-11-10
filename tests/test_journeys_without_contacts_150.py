@@ -52,8 +52,10 @@ def test_no_journey_seeds_people_through_the_contacts_endpoints():
     for folder in ("evals", "harness", "stack"):
         for path in (REPO / folder).rglob("*.py"):
             for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-                if re.search(r"""["'/]contacts/(datasets|suggest|plan)|/managed-requests|interviews/contacts\b""", line) \
-                        and "REDIRECTED" not in line and not line.lstrip().startswith(("#", "`")):
+                # the cloud's routes (keel-cloud 244 retires them); the web's old *page* addresses are FR-3's, opened
+                # on purpose by `leg_old_addresses`
+                if re.search(r"""["'/]contacts/(datasets|suggest|plan)|/managed-requests""", line) \
+                        and not line.lstrip().startswith(("#", "`")):
                     hits.append(f"{path.relative_to(REPO)}:{n}: {line.strip()}")
     assert not hits, hits
 
