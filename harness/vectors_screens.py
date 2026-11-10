@@ -545,8 +545,10 @@ REVIEW_BAND = "[data-testid=list-changed]"
 PUT_ASIDE_ROW = "[data-testid=put-aside] [data-testid=put-aside-row]"
 #: Spec 144 FR-4 (keel-cloud 233 FR-6): the HTTP contract the walk's hold reads -- `x-keel-contract` 63: the Check Save's
 #: answer (`PUT calibration/{vector}`, `AnsweredRows`) names the read-back it started (`review: {interactionId}`), and
-#: Compatibility's Check saves the list with no `pickedIndex` (the pick pending until Choose).
-REVIEW_CONTRACT = 63
+#: Compatibility's Check saves the list with no `pickedIndex` (the pick pending until Choose). Spec 149 FR-1 (keel-cloud
+#: 243 FR-4): 64 -- `SavedList.items[i].inPlaceOf` / `.typedKeels`, `putAside[k].replacedBy` / `.keels`; the Save's
+#: `review` unchanged.
+REVIEW_CONTRACT = 64
 #: Spec 144 FR-1 (keel-cloud 233 FR-1, keel-web 180 FR-1 / FR-2 / FR-4): the lists whose Check Save may hold for the
 #: review -- Importance, Current solution and Compatibility. Spec 147 FR-2 (keel-cloud 237 FR-1, keel-web 181 FR-2): and
 #: Relative advantage, the fourth -- its Save names its `review` and the Check holds like the three (`list-reviewing`,

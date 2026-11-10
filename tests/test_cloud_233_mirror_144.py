@@ -69,9 +69,10 @@ def test_compatibility_says_the_review_may_change_a_condition():
 # ------------------------------------------------------------------------------------------ FR-4 contract 63
 
 def test_the_contract_is_63():
-    """FR-4 (233 FR-6): `x-keel-contract` 63 -- the walk's hold reads it (`REVIEW_CONTRACT`)."""
+    """FR-4 (233 FR-6): `x-keel-contract` 63 -- the walk's hold reads it (`REVIEW_CONTRACT`) -- or a later one that
+    keeps the Save's `review` (eval spec 149: keel-cloud 243 moved it to 64, `inPlaceOf` / `replacedBy`)."""
     spec = _cloud("canon/openapi-v2.yaml")
-    assert int(re.search(r"x-keel-contract: (\d+)", spec).group(1)) == vs_screens.REVIEW_CONTRACT == 63
+    assert int(re.search(r"x-keel-contract: (\d+)", spec).group(1)) == vs_screens.REVIEW_CONTRACT >= 63
 
 
 def test_the_save_answer_names_its_review():

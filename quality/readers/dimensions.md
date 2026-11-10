@@ -278,7 +278,7 @@ How much they want this problem made easier, next to the other things that are h
 
 - **The founder's list** (code `own` first, then `rival_1` to `rival_4`): the founder's own difficulty -- the problem
   itself, locked, **first** -- then the other difficulties the founder named, **one to four, in their words; Keel adds
-  none**. Save needs three in all (the own item and two), because the stranger picks two.
+  none but a row in place of one the review puts aside** (keel-cloud 243). Save needs three in all (the own item and two), because the stranger picks two.
 - The own item is the founder's problem whole: their verb and the when or where they named, both halves of a pair kept,
   never narrowed to one part, never the circumstance said again. The own row is the hurt Prevalence tests
   (keel-cloud 216, `L37b`): `went_wrong` said as the difficulty, on its verb, never the circumstance or the whole job
@@ -308,7 +308,15 @@ How much they want this problem made easier, next to the other things that are h
   the founder's row and borrows no word of the own row the founder's row did not have, else it is put aside; where no
   such reading exists, put aside -- never the own row, never under three rows. The Check says what Keel changed in one
   line, the founder's words stay under the row behind **Put back**, and nothing they typed is lost; a change code
-  refuses under the floor is the note alone.
+  refuses under the floor is the note alone. **In place of each row put aside, Keel suggests one** (keel-cloud 243): a
+  difficulty these same people meet themselves at the moment the problem names, drawn from who they are, their job,
+  the circumstance and the founder's words, never a part, a cause or a means of the own row (it never opens on the own
+  row's act nor says mostly its words), held by code to the rules for the rows above where the row put aside stood;
+  the floor of three is met by it, and one code refuses leaves today's floor (the note alone). The rows are handed to
+  the review numbered from 0, the own row 0. The Check shows Keel's row with *In place of "{the founder's words}"* and
+  **Put back** (one action: the founder's row back where it stood, Keel's row gone); the record below keeps the row put
+  aside, struck, with its reason and *Replaced by ...*; the line counts both (*Keel put three rows aside and suggested
+  three in their place, so every row sits at the moment your problem names.*).
 - The belief: *{actor_plural} have {list_size} things that are hard when {circumstance}. {value} is one of the two they
   would most like made easier.* Keel's bar is fixed: one of their two.
 - **The stranger's item:** *Think of your last {occasion}. Which one of these would you most like made easier?*, then,
@@ -543,7 +551,11 @@ How well your idea fits the way they already work: their tools, their routines, 
   aside:** where the review puts the suggested row aside, or no suggested row is kept, it may suggest the step of the
   mechanism no kept row tests, in row shape, with its why; code adds it at the end as the suggested row, held to the
   rules above against every kept row, never beside a kept suggestion nor past four rows, and Choose offers it as
-  Keel's suggestion. **A settled row is put aside, not noted:** a condition all but every one of the segment already has is put aside, its why saying what
+  Keel's suggestion. **A condition in place of each put aside** (keel-cloud 243): beside every row it puts aside, Keel's
+  or the founder's, the review suggests one -- the step of the mechanism no kept row tests, never one all but every
+  one of the segment already has -- added where the row put aside stood as Keel's suggestion with its why, held to the
+  rules above, the floor of two met by it; the suggestion moving when put aside is one case of it, and only with
+  nothing put aside is it added at the end. The record says whose row each entry was (*yours* or *Keel's draft*). **A settled row is put aside, not noted:** a condition all but every one of the segment already has is put aside, its why saying what
   settles it (*Most of your segment already has this ...*), behind **Put back**; with the review off, a row the writer
   marks settled carries that sentence as a note under it, never a refusal, and the founder may pick it.
 - **The stranger's item:** *On your last {occasion},* the picked condition asked as a question (*could you have ...?*,
@@ -628,6 +640,10 @@ What your idea must do better than their way today before they would bother to s
   Current solution list and the study's hard case -- a benefit today's way already gives (the rungs above the
   founder's line say so), one not true of the hard case, or the second of two rows about one gain (its why naming the
   first) is put aside, never reworded; the one the founder leads with is never put aside, and one row always stays.
+  **In place of each benefit put aside, Keel suggests one** (keel-cloud 243): a gain only the idea would have given
+  them in the hard case, never one today's way already gives, held by code to the rules for the rows where the one put
+  aside stood (*Keel put one benefit aside and suggested one in its place, so what is left is what only your idea would
+  have given them.*).
   The Check says so in one line (*Keel put one benefit aside so what is left is what only your idea would have given
   them.*), the founder's words stay behind **Put back**, nothing is lost; the belief carries the rows left.
 - **The stranger's item:** *Think of {hard_case}. Would {Name}, {what it is}, have helped you {job} better, or
