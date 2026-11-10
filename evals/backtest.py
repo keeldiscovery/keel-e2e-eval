@@ -1473,9 +1473,13 @@ class Backtest:
 
     # ------------------------------------------------------------------------------------------ 5. transcript
 
-    def finish(self, j, *, passed: bool, failed_step: Any = None) -> dict:
+    def finish(self, j, *, passed: bool, failed_step: Any = None, ended_by: BaseException | None = None) -> dict:
         """FR-4: `backtest.json` and `backtest.md`, from whatever the journey reached. Never raises. On the host door
-        (spec 066 FR-5) the runtime is stopped first, and its teardown is part of the record."""
+        (spec 066 FR-5) the runtime is stopped first, and its teardown is part of the record.
+
+        Spec 149 FR-5: `reached_end` (the walk's last leg ran, `reached_end`) and, on a walk that did not reach its end,
+        the stop named (`stop`, `walk_stop`: a rule, a product stop or a harness stop, the step or the leg it was in,
+        and the words it ended on -- `ended_by`, the exception the journey raised, a stop outside any step included)."""
         teardown = self.stop_runtime()
         record: dict = {"spec": "062", "run": Path(self.run_dir).name, "passed": passed,
                         "failed_step": _step_name(failed_step),
@@ -1485,6 +1489,11 @@ class Backtest:
             record.update(transcript(j, self))
         except Exception as broke:  # noqa: BLE001 - the transcript is evidence; it must never mask the run
             record["transcript_error"] = repr(broke)[:500]
+        record["reached_end"] = reached_end(passed, record["legs"])
+        stop = walk_stop(passed=passed, failed_step=record["failed_step"], legs=record["legs"],
+                         stop_rule=record.get("stop_rule"), ended_by=ended_by)
+        if stop is not None:
+            record["stop"] = stop
         if self.door == "host":
             record["spec"] = "062+066"
             try:
@@ -1526,6 +1535,71 @@ def themes_settle(j, *, timeout_s: float = THEMES_WAIT_S) -> dict:
                     "waited_s": round(waited, 1)}
         time.sleep(2)
         waited += 2
+
+
+#: Spec 149 FR-5: the legs a walk ends on (`corpus_scenario.run`'s laps) -- the whole study's report leg and a scoped
+#: study's (`scope_journey.walk`), then the export. A walk whose last lap is one of them reached its end, whatever
+#: failed after it (spec 064's deferred golden readings, an assertion at the close).
+END_LEGS = ("leg_report and leg_one_currency", "leg_scoped_report", "export")
+#: Spec 149 FR-5: the words of a product stop -- Keel's AI refused or failed past the walk's retries (an interaction's
+#: terminal status in the words the walk raises), or a keel-cloud defect the walk stops on by name (spec 144 FR-1).
+PRODUCT_STOP = re.compile(r"\b(?:FAILED|RESULT_INVALID|DOMAIN_REFUSED|APPLY_ERROR|JOB_FAILED|STATE_CONFLICT)\b"
+                          r"|DEFECT \(keel-")
+STOP_KINDS = ("rule", "product", "harness")
+
+
+def reached_end(passed: bool, legs) -> bool:
+    """Spec 149 FR-5: whether the walk reached its end -- it passed, or its last lap is one of `END_LEGS`."""
+    laps = [leg.get("leg") for leg in legs or [] if isinstance(leg, dict)]
+    return bool(passed) or (bool(laps) and laps[-1] in END_LEGS)
+
+
+def walk_stop(*, passed: bool, failed_step: str | None, legs, stop_rule: dict | None = None,
+              ended_by: BaseException | str | None = None) -> dict | None:
+    """Spec 149 FR-5: a walk that did not reach its end, its stop named -- `{kind, step, after, said}`: `kind` `rule`
+    (the gate's E7 / E9 past the repair turn, `stop_rule`), `product` (Keel's AI refused or failed past the retries, or
+    a keel-cloud defect, `PRODUCT_STOP`) or `harness` (anything else the walk raised); `step` the step it failed in
+    (None outside one), `after` the last leg it finished, `said` the words it ended on. None where it reached its end:
+    a refusal the walk retried is never a stop -- it is counted on the gate line alone (spec 148 FR-7)."""
+    if reached_end(passed, legs):
+        return None
+    laps = [leg.get("leg") for leg in legs or [] if isinstance(leg, dict)]
+    said = " ".join(str(ended_by).split())[:600] if ended_by else None
+    words = " ".join(filter(None, (said, failed_step)))
+    kind = "rule" if isinstance(stop_rule, dict) else "product" if PRODUCT_STOP.search(words) else "harness"
+    return {"kind": kind, "step": failed_step, "after": laps[-1] if laps else None, "said": said}
+
+
+def stop_of_bundle(record: dict) -> dict | None:
+    """Spec 149 FR-5: the stop of a bundle written before 149 (no `stop`), read off what it records -- None where it
+    passed or its last lap is an end; else `walk_stop` over its step and laps, and where it names no step: its retried
+    refusals (`failure_screens`, the walk's evidence of each) -- as many as the walk's retries (`RETRIES`) say the next
+    refusal could not be retried: a product stop past the retries, in the leg after its last lap (`inferred`: the
+    words it ended on are in the walk's log, not the bundle)."""
+    passed, legs = bool(record.get("passed")), record.get("legs") or []
+    if reached_end(passed, legs):
+        return None
+    stop = walk_stop(passed=passed, failed_step=record.get("failed_step"), legs=legs,
+                     stop_rule=record.get("stop_rule"))
+    shots = [s for s in record.get("failure_screens") or [] if isinstance(s, dict)]
+    if stop["step"] is None and stop["kind"] == "harness" and len(shots) >= RETRIES:
+        last = shots[-1]
+        stop.update(kind="product", inferred=True,
+                    said=f"{len(shots)} refusals of Keel's AI retried (the walk's {RETRIES} retries spent), the last "
+                         f"at {last.get('slug')}; the refusal past them is in the walk's log")
+    elif stop["step"] is None:
+        stop["inferred"] = True
+    return stop
+
+
+def stop_said(stop: dict | None) -> str:
+    """Spec 149 FR-5: one stop in the record's words -- *in {step}* or *after {leg}*, then *-- a {kind} stop: {said}*."""
+    if not isinstance(stop, dict):
+        return "no stop named"
+    where = (f"in {str(stop['step']).split(':', 1)[0].strip()}" if stop.get("step")
+             else f"after {stop.get('after')}" if stop.get("after") else "before its first leg")
+    said = f": {stop['said']}" if stop.get("said") else ""
+    return f"{where} -- a {stop.get('kind') or 'harness'} stop{said}"
 
 
 def _step_name(step: Any) -> str | None:
@@ -2566,7 +2640,12 @@ def markdown(r: dict) -> str:
     cli = c.get("cli") or {}
     lines = [f"# Back-test: {entry.get('title') or entry.get('id') or '?'}", "",
              f"- Entry: `{entry.get('id')}` ({entry.get('path')}), the founder's idea name *{entry.get('idea_name')}*",
-             f"- Run: `{r.get('run')}` -- {'walked to the end' if r.get('passed') else 'stopped at: ' + _q(r.get('failed_step'))}"
+             # spec 149 FR-5: a walk that did not reach its end says where and why it stopped
+             f"- Run: `{r.get('run')}` -- "
+             + ("walked to the end" if r.get("passed")
+                else "stopped " + stop_said(r["stop"]) if isinstance(r.get("stop"), dict)
+                else "walked to the end; failed at: " + _q(r.get("failed_step")) if r.get("reached_end")
+                else "stopped at: " + _q(r.get("failed_step")))
              # spec 148 FR-7 (keel-cloud 238): the gate's E7 / E9 the walk stopped on, by rule
              + (f" -- **stopped by {r['stop_rule'].get('rule')}** ({r['stop_rule'].get('refusal')}, "
                 f"{r['stop_rule'].get('spec')}) on {r['stop_rule'].get('vector')}"

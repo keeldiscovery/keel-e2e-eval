@@ -1,0 +1,108 @@
+{
+  "_source": {
+    "bundle": "20261109T194118Z-backtest-08-fresco",
+    "file": "backtest.json",
+    "sha256": "eef7f715fdf554730b7058ceed37c37e3ed79f1e669ab236c50d22027ec8ce05",
+    "kept": "the fields the record reads, verbatim (spec 149 FR-5); `said` / `why` cut to 240 characters"
+  },
+  "entry": {
+    "id": "08-fresco"
+  },
+  "scope": "PROBLEM",
+  "run": "20261109T194118Z-backtest-08-fresco",
+  "passed": false,
+  "failed_step": null,
+  "wall_s": 155.8,
+  "legs": [
+    {
+      "leg": "leg_project",
+      "seconds": 5.5
+    },
+    {
+      "leg": "teaching",
+      "seconds": 30.0
+    },
+    {
+      "leg": "leg_context",
+      "seconds": 29.3
+    },
+    {
+      "leg": "leg_interpret_problem",
+      "seconds": 17.5
+    }
+  ],
+  "review_switch": "ON",
+  "stack": {
+    "keel-cloud": "76c633d5",
+    "keel-web": "36d069ed"
+  },
+  "founder_screens": [
+    {
+      "screen": "name"
+    },
+    {
+      "screen": "market"
+    },
+    {
+      "screen": "context"
+    },
+    {
+      "screen": "context-window"
+    },
+    {
+      "screen": "context-card"
+    },
+    {
+      "screen": "problem-seed"
+    },
+    {
+      "screen": "problem-card"
+    }
+  ],
+  "failure_screens": [
+    {
+      "n": 1,
+      "slug": "failed-problem-calibration-RESULT_INVALID",
+      "why": "RESULT_INVALID: result.questions[0].no_sayer: E9: no_sayer 'a superintendent who finished the log before leaving the site' names none of what went wrong ('typed', 'notes', 'sorted', 'photos' and 'daily', in 'typed notes and sorted photos in"
+    },
+    {
+      "n": 2,
+      "slug": "failed-problem-calibration-RESULT_INVALID",
+      "why": "RESULT_INVALID: result.questions[0].no_sayer: E9: no_sayer 'a superintendent who logged everything from the field before leaving' differs from the rest by the routine ('walk the site and fill in the daily log': 'log'), not by what went wron"
+    },
+    {
+      "n": 3,
+      "slug": "failed-problem-calibration-RESULT_INVALID",
+      "why": "RESULT_INVALID: result.questions[0].no_sayer: E9: no_sayer 'a superintendent whose log was done before leaving the walk' names none of what went wrong ('typed', 'end' and 'day', in 'typed up the daily log after the site walks, at the end of"
+    }
+  ],
+  "gate_refusals": [
+    {
+      "rule": "E9",
+      "refusal": "the no-sayer names no word of the hurt",
+      "spec": "keel-cloud 238 FR-2",
+      "vector": "PROBLEM",
+      "path": "result.questions[0].no_sayer",
+      "stopped": false,
+      "said": "E9: no_sayer 'a superintendent who finished the log before leaving the site' names none of what went wrong ('typed', 'notes', 'sorted', 'photos' and 'daily', in 'typed notes and sorted photos into the daily log after site walks') -- one set"
+    },
+    {
+      "rule": "E9",
+      "refusal": "the no-sayer set apart by the routine",
+      "spec": "keel-cloud 216 FR-1",
+      "vector": "PROBLEM",
+      "path": "result.questions[0].no_sayer",
+      "stopped": false,
+      "said": "E9: no_sayer 'a superintendent who logged everything from the field before leaving' differs from the rest by the routine ('walk the site and fill in the daily log': 'log'), not by what went wrong ('typed up site notes and photos in the trai"
+    },
+    {
+      "rule": "E9",
+      "refusal": "the no-sayer names no word of the hurt",
+      "spec": "keel-cloud 238 FR-2",
+      "vector": "PROBLEM",
+      "path": "result.questions[0].no_sayer",
+      "stopped": false,
+      "said": "E9: no_sayer 'a superintendent whose log was done before leaving the walk' names none of what went wrong ('typed', 'end' and 'day', in 'typed up the daily log after the site walks, at the end of the day') -- one set apart by nothing the hur"
+    }
+  ]
+}

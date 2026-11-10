@@ -1,0 +1,99 @@
+{
+  "_source": {
+    "bundle": "20261109T211406Z-backtest-17-expanse",
+    "file": "backtest.json",
+    "sha256": "724fe8603add512edb5ff1899ba2d6234c29d1ed31352491e0d2f10c52a6a06e",
+    "kept": "the fields the record reads, verbatim (spec 149 FR-5); `said` / `why` cut to 240 characters"
+  },
+  "entry": {
+    "id": "17-expanse"
+  },
+  "scope": "PROBLEM",
+  "run": "20261109T211406Z-backtest-17-expanse",
+  "passed": false,
+  "failed_step": null,
+  "wall_s": 161.2,
+  "legs": [
+    {
+      "leg": "leg_project",
+      "seconds": 5.4
+    },
+    {
+      "leg": "teaching",
+      "seconds": 30.0
+    },
+    {
+      "leg": "leg_context",
+      "seconds": 21.0
+    },
+    {
+      "leg": "leg_interpret_problem",
+      "seconds": 17.4
+    }
+  ],
+  "review_switch": "ON",
+  "stack": {
+    "keel-cloud": "76c633d5",
+    "keel-web": "36d069ed"
+  },
+  "founder_screens": [
+    {
+      "screen": "name"
+    },
+    {
+      "screen": "market"
+    },
+    {
+      "screen": "context"
+    },
+    {
+      "screen": "context-window"
+    },
+    {
+      "screen": "context-card"
+    },
+    {
+      "screen": "problem-seed"
+    },
+    {
+      "screen": "problem-card"
+    }
+  ],
+  "failure_screens": [
+    {
+      "n": 1,
+      "slug": "failed-problem-calibration-RESULT_INVALID",
+      "why": "RESULT_INVALID: result.questions[0].no_sayer: E9: no_sayer 'a researcher whose jobs all ran to the end' names none of what went wrong ('failed', 'request' and 'wrong', in 'a submitted job failed because the request was wrong') -- one set ap"
+    },
+    {
+      "n": 2,
+      "slug": "failed-problem-calibration-RESULT_INVALID",
+      "why": "RESULT_INVALID: result.questions[0].no_sayer: E9: no_sayer 'a researcher whose jobs all ran to the end' names none of what went wrong ('failed', 'partway', 'through', 'request' and 'small', in 'a submitted job failed partway through because"
+    },
+    {
+      "n": 3,
+      "slug": "failed-problem-calibration-RESULT_INVALID",
+      "why": "RESULT_INVALID: result.questions[0].event: E2: event 'had a job fail because the request was guessed wrong' is 10 words; at most 8 in the last 5 working days, so the strangers' question 'On how many of the last 5 working days did you {event"
+    }
+  ],
+  "gate_refusals": [
+    {
+      "rule": "E9",
+      "refusal": "the no-sayer names no word of the hurt",
+      "spec": "keel-cloud 238 FR-2",
+      "vector": "PROBLEM",
+      "path": "result.questions[0].no_sayer",
+      "stopped": false,
+      "said": "E9: no_sayer 'a researcher whose jobs all ran to the end' names none of what went wrong ('failed', 'request' and 'wrong', in 'a submitted job failed because the request was wrong') -- one set apart by nothing the hurt names is set apart by "
+    },
+    {
+      "rule": "E9",
+      "refusal": "the no-sayer names no word of the hurt",
+      "spec": "keel-cloud 238 FR-2",
+      "vector": "PROBLEM",
+      "path": "result.questions[0].no_sayer",
+      "stopped": false,
+      "said": "E9: no_sayer 'a researcher whose jobs all ran to the end' names none of what went wrong ('failed', 'partway', 'through', 'request' and 'small', in 'a submitted job failed partway through because its request was too small') -- one set apart "
+    }
+  ]
+}

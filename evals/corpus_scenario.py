@@ -6406,6 +6406,9 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
         inputs["typos"] = typed
     write_generated(run_dir, script=script.to_json() if script is not None else None, inputs=inputs)
     journey = None
+    # spec 149 FR-5: what ended a walk that did not pass -- the stop is named in `backtest.json` even where it was raised
+    # outside any step (cycle 19's 08-fresco and 17-expanse PROBLEM: the calibration's refusal past the retries)
+    ended_by: BaseException | None = None
     try:
         exported = contract_mod.export(stack.keel_cloud,
                                        run_dir / ("export" if backtest is None else backtest.contract_dir))
@@ -6514,10 +6517,13 @@ def run(stack, founder_one, browser, run_dir, *, entry_id: str, slug: str,
                 journey.findings.append({"what": "a back-test entry changed under the run", "refused": str(moved)[:400]})
             h.record_assert(hashes_before, dict(corpus.hashes))
         passed = True
+    except BaseException as stop:
+        ended_by = stop
+        raise
     finally:
         if backtest is not None:
             # spec 062 FR-4: the transcript, from the recorder's captures and the wire, before the session closes
-            backtest.finish(journey, passed=passed, failed_step=recorder.failed_step)
+            backtest.finish(journey, passed=passed, failed_step=recorder.failed_step, ended_by=ended_by)
         context.close()
         finalize_run(run_dir, slug=slug, facts=corpus_facts.vectors_facts_for(entry),
                      passed=passed, failed_step=recorder.failed_step,

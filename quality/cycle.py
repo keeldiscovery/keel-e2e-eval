@@ -256,6 +256,11 @@ class Study:
     # of 148's walk (one that records `gate_refusals`, empty or not); None before 148
     gate_refused: int | None = None
     stop_rule: dict | None = None
+    # spec 149 FR-5: whether the walk reached its end (`backtest.json`'s `reached_end`, or read off its laps on a bundle
+    # before 149) and, where it did not, its stop named (`stop`: `{kind, step, after, said}`, `backtest.walk_stop` /
+    # `stop_of_bundle`) -- None where the bundle passed and records neither
+    reached_end: bool | None = None
+    stop: dict | None = None
 
     @property
     def key(self) -> str:
@@ -385,7 +390,8 @@ def _study_data(study: Study) -> dict:
                 "review_dims", "review_shots",                        # spec 144 FR-3: the same
                 "review_scales", "review_held",                       # spec 145 FR-2: the same
                 "review_moments",                                     # spec 147 FR-4: the same
-                "gate_refused", "stop_rule"):                         # spec 148 FR-7: the same
+                "gate_refused", "stop_rule",                          # spec 148 FR-7: the same
+                "reached_end", "stop"):                               # spec 149 FR-5: the same
         if data.get(key) is None:
             data.pop(key, None)
     return data
@@ -646,6 +652,7 @@ def walk_one(entry: str, scope: str, steps: list[dict], *, door: str, runner=sub
     study.cloud_sha, study.web_sha = _sha7(stack.get("keel-cloud")), _sha7(stack.get("keel-web"))
     study_review(study, record)                                 # spec 143 FR-1 / FR-2, 144 FR-3, 145 FR-2
     study_gate(study, record)                                   # spec 148 FR-7: the gate's refusals, by rule
+    study_stop(study, record)                                   # spec 149 FR-5: reached its end, or the stop named
     walked_scope = record.get("scope") or "ALL"
     if walked_scope != scope:
         study.error = f"the bundle says scope {walked_scope}, the walk asked {scope}"
@@ -711,6 +718,21 @@ def study_gate(study: Study, record: dict) -> Study:
         stop = record.get("stop_rule")
         study.stop_rule = {k: stop.get(k) for k in ("rule", "refusal", "spec", "vector")} \
             if isinstance(stop, dict) else None
+    return study
+
+
+def study_stop(study: Study, record: dict) -> Study:
+    """Spec 149 FR-5: whether one walk reached its end, and the stop of one that did not -- off a bundle of 149's walk
+    (`reached_end`, `stop`), else read off what an older bundle records (`backtest.stop_of_bundle`: its laps, its step,
+    its retried refusals), only where it did not pass. A refusal the walk retried is never a stop (the gate line counts
+    it, spec 148 FR-7)."""
+    from evals import backtest as bt                                   # noqa: PLC0415
+    if isinstance(record.get("reached_end"), bool):
+        study.reached_end = record["reached_end"]
+        study.stop = record.get("stop") if isinstance(record.get("stop"), dict) else None
+    elif not record.get("passed"):
+        study.reached_end = bt.reached_end(False, record.get("legs"))
+        study.stop = bt.stop_of_bundle(record)
     return study
 
 
@@ -823,20 +845,32 @@ def study_shas(study: dict, root: Path | None = None) -> dict:
 
 def _stop_step(study: dict) -> str:
     """The step a walk stopped at, by its name (the step's words before its first colon); a stop outside any step
-    (an error the journey raised between steps) and a walk that wrote no bundle said as such."""
+    (an error the journey raised between steps) and a walk that wrote no bundle said as such. Spec 149 FR-5: a walk
+    whose stop is named (`stop`) is said by it -- *in {step}* / *after {leg}* -- *a {kind} stop: {words}*."""
     if not study.get("bundle"):
         return study.get("error") or "no bundle written"
+    if isinstance(study.get("stop"), dict):
+        from evals import backtest as bt                               # noqa: PLC0415
+        return bt.stop_said(study["stop"])
     step = study.get("failed_step")
     if not step:
         return "no step named (stopped outside a step)"
     return step.split(":", 1)[0].strip()
 
 
+def _reached(study: dict) -> bool:
+    """Spec 149 FR-5: whether a study's walk reached its end -- its `reached_end` where recorded, else whether it
+    passed (a record before 149)."""
+    return study["reached_end"] if isinstance(study.get("reached_end"), bool) else bool(study.get("passed"))
+
+
 def walks_of(record: dict, root: Path | None = None) -> dict:
     """Spec 082 FR-3: how many walks reached their end and which stopped (study -- the step), and every move of the
     keel-cloud or keel-web sha from the kick-off's pin, in the order the studies were walked -- named, never refused."""
     studies = record.get("studies") or []
-    stopped = [{"study": f"{s['entry']} · {s['scope']}", "step": _stop_step(s)} for s in studies if not s.get("passed")]
+    # spec 149 FR-5: *stopped early* only where the walk did not reach its end (`reached_end`, where the study records
+    # it; else as before, a walk that did not pass)
+    stopped = [{"study": f"{s['entry']} · {s['scope']}", "step": _stop_step(s)} for s in studies if not _reached(s)]
     pins = {"keel-cloud": _sha7(record.get("cloud_sha")), "keel-web": _sha7(record.get("web_sha"))}
     moved = []
     for repo, pin in pins.items():
@@ -1015,6 +1049,11 @@ def render_record(d: dict) -> str:
               "|---|---|---|---|---|---|---|---|---|"]
     for s in d["studies"]:
         walk = ("passed" if s.get("passed") else f"failed at {s.get('failed_step')!r}") if s.get("bundle") else "--"
+        if s.get("bundle") and not s.get("passed") and isinstance(s.get("reached_end"), bool):
+            # spec 149 FR-5: a walk that did not reach its end is said by its stop; one that did, by the step it failed
+            from evals import backtest as bt                           # noqa: PLC0415
+            walk = (f"reached its end; failed at {s.get('failed_step')!r}" if s["reached_end"]
+                    else f"stopped {bt.stop_said(s.get('stop'))}")
         if s.get("error"):
             walk += f"; {s['error']}"
         minutes = round(((s.get("walk_s") or 0) + (s.get("read_s") or 0)) / 60, 1)
