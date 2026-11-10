@@ -137,6 +137,7 @@ def finish(entry: dict, script: dict | None, faults: list, tries: int, usage: di
 
 # ---------------------------------------------------------------------------------------- the fake writer
 
+LATE_ASK_S = 1850
 FOLLOW_UPS = ["Why is that, would you say?", "And who else deals with that, usually?", "How did that go, the last time?",
               "What happens when it doesn't work out?", "Is that the same for everyone you work with?"]
 REPLIES = ["Mostly because it takes time, I'd say.", "A couple of the others, now and then.",
@@ -280,6 +281,9 @@ def compose(entry: dict, q: dict) -> dict:
     for n, iid in enumerate(entry["items"]):
         item = items[iid]
         habit = entry["founder"][iid]
+        if entry["round"] == 4 and asked and n == len(entry["items"]) - 1:
+            while c.t < LATE_ASK_S:                                    # R4: the last question asked late in the call
+                c.follow_ups(items[asked[-1]], 2)
         c.ask(item, habit)
         asked.append(iid)
         c.respond(item, entry["respondent"][iid], habit)

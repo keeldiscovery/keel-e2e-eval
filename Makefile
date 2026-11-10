@@ -4,7 +4,7 @@ PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
-        matrix-check keels-ai sample backtest gallery noise-check read-screens read-table \
+        matrix-check keels-ai sample backtest gallery noise-check copilot-bench read-screens read-table \
         quality-walk quality-advise quality-accept quality-due remote
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
@@ -162,6 +162,30 @@ noise-check:
 	@if [ -z "$$KEEL_OPENAI_API_KEY" ] || [ -z "$$KEEL_ANTHROPIC_API_KEY" ]; then echo "make noise-check refuses: KEEL_OPENAI_API_KEY and KEEL_ANTHROPIC_API_KEY must both be set in this shell -- the check calls gpt-transcribe and Haiku as the product does (spec 074 FR-3, about \$$2); they are never logged, echoed or written"; exit 2; fi
 	@$(MAKE) --no-print-directory venv
 	PYTHONPATH=. $(PY) -m evals.noise.pipeline $(if $(ONLY),--only "$(ONLY)",) $(if $(SNRS),--snrs "$(SNRS)",) $(if $(LIMIT),--limit $(LIMIT),) $(if $(RESUME),--resume "$(RESUME)",)
+
+# make copilot-bench (spec 151 FR-7) is THE COPILOT CALL BENCH: synthetic founder and respondent calls on one
+# questionnaire (QUESTIONNAIRE=, default the committed evals/copilot/fixtures/questionnaire-08-fresco.json), written by
+# Sonnet 5.5 to a fixed form and checked offline against the catalogue's rules (evals/copilot/catalogue.py), rendered to
+# two tracks with gpt-4o-mini-tts at LEVEL=audio, and run through three OpenAI stacks -- 1 gpt-transcribe + Haiku 5.5
+# turn by turn, 2 gpt-live-transcribe + a running state on Haiku 5.5, 3 gpt-audio-mini on the audio (no text level) --
+# then scored offline for the seven numbers against evals/copilot/bars.py. It writes
+# runs/<stamp>-copilot-bench-r<ROUND>-<LEVEL>/ (scripts.jsonl, sample.md, audio/, transcripts.jsonl, events.jsonl,
+# sheet.json, sheet.md, page/, register-row.md) and appends a row a stack to runs/copilot-bench-register.md.
+#
+# PAID: both keys from this shell, read into the request headers alone and never logged, echoed or written. Never in
+# `make eval`, `make unit`, the matrix or a schedule; on the founder's word per round (R1 text, then audio, then R2, R3,
+# R4, each gated by the round before). STACKS=1,2,3, LIMIT=n, SAMPLE=20 (write the scripts and sample.md, then stop for
+# the reviewer), RESUME=runs/<stamp>-copilot-bench-... (continue), SNRS= / NOISE_SHARE= (R3's noise beds), VOICES=
+# founder:them, SEED=. DRY=1 needs no key: three scripts by the fake writer, nothing rendered, the scorer on canned
+# events, nothing spent.
+#
+#   make copilot-bench ROUND=1 LEVEL=text DRY=1
+#   KEEL_OPENAI_API_KEY="$$(...)" KEEL_ANTHROPIC_API_KEY="$$(...)" make copilot-bench ROUND=1 LEVEL=text SAMPLE=20
+copilot-bench:
+	@if [ -z "$(ROUND)" ] || [ -z "$(LEVEL)" ]; then echo "make copilot-bench refuses: name ROUND=1..4 and LEVEL=text|audio (spec 151 FR-7)"; exit 2; fi
+	@if [ -z "$(DRY)" ] && { [ -z "$$KEEL_OPENAI_API_KEY" ] || [ -z "$$KEEL_ANTHROPIC_API_KEY" ]; }; then echo "make copilot-bench refuses: KEEL_OPENAI_API_KEY and KEEL_ANTHROPIC_API_KEY must both be set in this shell -- the bench calls Sonnet 5.5, Haiku 5.5 and OpenAI's speech models (spec 151 FR-7); they are never logged, echoed or written. DRY=1 needs neither"; exit 2; fi
+	@$(MAKE) --no-print-directory venv
+	PYTHONPATH=. $(PY) -m evals.copilot.bench --round $(ROUND) --level $(LEVEL) $(if $(DRY),--dry,) $(if $(STACKS),--stacks "$(STACKS)",) $(if $(QUESTIONNAIRE),--questionnaire "$(QUESTIONNAIRE)",) $(if $(LIMIT),--limit $(LIMIT),) $(if $(SAMPLE),--sample $(SAMPLE),) $(if $(RESUME),--resume "$(RESUME)",) $(if $(SNRS),--snrs "$(SNRS)",) $(if $(NOISE_SHARE),--noise-share $(NOISE_SHARE),) $(if $(VOICES),--voices "$(VOICES)",) $(if $(SEED),--seed $(SEED),)
 
 # make read-screens (spec 078) is THE QUESTION-QUALITY READERS: one back-test bundle's backtest.json (spec 062 FR-4)
 # read as text, every founder screen by the founder-reader (the entry's .sources.md whole) and every served respondent
