@@ -194,6 +194,15 @@ def test_a_back_channel_carries_no_question_mark(q):
     assert any("back-channel turn carries a question mark" in f for f in cat.validate(_script(bad), q))
 
 
+def test_an_own_note_asks_something(q):
+    good = _ask_answer(q) + [_turn(9, "founder", "And how many people are on a typical site for you?",
+                                   kind="own_note", verdict="own_note", state="note")]
+    assert cat.validate(_script(good), q) == []
+    bad = _ask_answer(q) + [_turn(9, "founder", "Great, that's all I needed, thanks for your time.", kind="own_note",
+                                  verdict="own_note", state="note")]
+    assert any("own note that asks nothing" in f for f in cat.validate(_script(bad), q))
+
+
 def test_the_clocks_are_monotone(q):
     turns = _ask_answer(q)
     turns[1]["t"] = 1.2                                                        # before the first turn's silence ends

@@ -121,6 +121,10 @@ KINDS = {**FOUNDER, **RESPONDENT}
 SCRIPT_KINDS = ("any_order",)
 #: The founder kinds that ask; the others need an asking turn of their own around them.
 ASKING = tuple(k for k, v in FOUNDER.items() if v.asking and k != "went_back")
+#: An own note is the founder asking or prompting something of their own; a greeting, a thank-you or "that's all I
+#: needed" asks nothing and is a back-channel (the reviewer's correction on round 1's first scripts, 2026-11-10).
+ASK_WORDS = re.compile(r"\?|\b(tell me|walk me through|talk me through|describe|explain|what|how|why|who|when|where|"
+                       r"which|could you|can you|would you|do you|did you)\b", re.I)
 #: Round 2's follow-up kinds (drawn so each is covered).
 FOLLOW_UP_KINDS = ("follow_up", "follow_ups_in_a_row", "answered_for_them", "back_channel", "any_order", "went_back",
                    "own_note")
@@ -311,6 +315,8 @@ def turn_faults(script: dict, items: dict, questionnaire_order: list[str]) -> li
         # whatever the kind
         if tr.get("verdict") == "back_channel" and "?" in text:
             faults.append(f"{where}: a back-channel turn carries a question mark")
+        if turn["who"] == "founder" and tr.get("verdict") == "own_note" and not ASK_WORDS.search(text):
+            faults.append(f"{where}: an own note that asks nothing (a pleasantry is a back-channel)")
         if turn["who"] == "founder" and tr.get("verdict") == "follow_up" and not (q and _answered_before(turns, i, q)):
             faults.append(f"{where}: a follow-up before its question was answered")
         if turn["who"] == "founder" and tr.get("option") is not None:

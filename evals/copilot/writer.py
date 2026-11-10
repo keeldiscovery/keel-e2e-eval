@@ -276,7 +276,7 @@ def compose(entry: dict, q: dict) -> dict:
     c = _Composer(entry, items)
     extras = set(entry.get("extras") or [])
     if "own_note" in extras:
-        c.say("founder", "Before we start, thanks for making the time today, I know it is a busy week.",
+        c.say("founder", "Before we start, how many sites does your team run at once?",
               kind="own_note", verdict="own_note", state="note")
     asked = []
     for n, iid in enumerate(entry["items"]):
