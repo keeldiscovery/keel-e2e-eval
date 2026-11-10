@@ -261,6 +261,10 @@ class Study:
     # `stop_of_bundle`) -- None where the bundle passed and records neither
     reached_end: bool | None = None
     stop: dict | None = None
+    # spec 149 FR-6 (keel-cloud 243): Keel's rows suggested in place of rows the review put aside, per dimension
+    # (`lists_reviewed[dim].in_place`) -- set only on a bundle of 149's walk (one that records `reached_end`) with the
+    # review ON; None before 149
+    review_in_place: dict | None = None
 
     @property
     def key(self) -> str:
@@ -391,7 +395,8 @@ def _study_data(study: Study) -> dict:
                 "review_scales", "review_held",                       # spec 145 FR-2: the same
                 "review_moments",                                     # spec 147 FR-4: the same
                 "gate_refused", "stop_rule",                          # spec 148 FR-7: the same
-                "reached_end", "stop"):                               # spec 149 FR-5: the same
+                "reached_end", "stop",                                # spec 149 FR-5: the same
+                "review_in_place"):                                   # spec 149 FR-6: the same
         if data.get(key) is None:
             data.pop(key, None)
     return data
@@ -428,6 +433,13 @@ def review_moments(lists_reviewed) -> int:
     `changed.line` carries `MOMENT_CHANGED`), else 0."""
     band = ((lists_reviewed or {}).get(RELATIVE_ADVANTAGE_KEY) or {}).get("band") or {}
     return 1 if MOMENT_CHANGED in str(band.get("line") or "") else 0
+
+
+def review_in_place(lists_reviewed) -> dict:
+    """Spec 149 FR-6 (keel-cloud 243 FR-3): Keel's rows suggested in place of rows the review put aside on one walk, per
+    dimension (`lists_reviewed[dim].in_place`, `vectors_script.review_in_place`) -- `{dimension: n}`, zero where none."""
+    return {key: len(((lists_reviewed or {}).get(key) or {}).get("in_place") or [])
+            for key, _ in REVIEWED_DIMENSIONS_147}
 
 
 def review_dims(lists_reviewed, dims=None) -> dict:
@@ -513,11 +525,15 @@ def review_line(d: dict) -> list[str]:
     # beside whether the hard case was changed (the band's second line); a record before 147 reads as 145 wrote it
     four = any("review_moments" in s for s in studies)
     named = REVIEWED_DIMENSIONS_147 if four else REVIEWED_DIMENSIONS
+    # spec 149 FR-6 (keel-cloud 243): a record of 149's walks counts Keel's rows suggested in place, per dimension
+    placed = [s.get("review_in_place") for s in studies if isinstance(s.get("review_in_place"), dict)]
     per = []
     for key, short in named:
         c = sum((x.get(key) or {}).get("changed", 0) for x in dims)
         a = sum((x.get(key) or {}).get("put_aside", 0) for x in dims)
         said_dim = f"{short} {c} changed / {a} put aside"
+        if placed:
+            said_dim += f" / {sum(int(x.get(key) or 0) for x in placed)} suggested in place"
         if key == RELATIVE_ADVANTAGE_KEY:
             m = sum(int(s.get("review_moments") or 0) for s in studies)
             said_dim += (f" (the hard case changed on {m} walk{'s' if m != 1 else ''}: the band's *... {MOMENT_CHANGED} "
@@ -537,9 +553,16 @@ def review_line(d: dict) -> list[str]:
         # walks before 145 reads as 144 wrote it)
         cited = (ROUND_A_CITED if round_a(studies) else "(spec 209, keel-cloud 232, 233, 235, 236, 237)") if four \
             else "(spec 209, keel-cloud 232, 233, 235)"
+        if placed:
+            cited = IN_PLACE_CITED                                     # spec 149 FR-6: keel-cloud 243 joins
         n = sum(int(s.get("review_scales") or 0) for s in studies)
         scales = (f"; {n} Current solution ladder{'s' if n != 1 else ''} rewritten whole as one scale (the band's "
                   f"*{SCALE_REWRITTEN} ...*, keel-cloud 235); " + _held_said(studies, named))
+    if placed:
+        # spec 149 FR-6: the head counts Keel's rows suggested in place beside the rows changed and put aside
+        n = sum(sum(int(v or 0) for v in x.values()) for x in placed)
+        head = head.replace(f"changed and {aside} put aside over",
+                            f"changed, {aside} put aside and {n} suggested in place (keel-cloud 243) over")
     return [head.replace("(spec 209, keel-cloud 232)", cited) + " -- " + ", ".join(per) + scales
             + said + "; the readers scored the screens as served, the second shots under their dimension"]
 
@@ -547,6 +570,9 @@ def review_line(d: dict) -> list[str]:
 #: Spec 148 FR-7: the review line's citation on a record of 148's walks -- round A's four keel-cloud specs (238 the gate,
 #: 239 Existing sacrifice, 240 the reveal, 241 Ability to pay) beside the review's own.
 ROUND_A_CITED = "(spec 209, keel-cloud 232, 233, 235, 236, 237, 238, 239, 240, 241)"
+#: Spec 149 FR-6: the review line's citation on a record of 149's walks -- keel-cloud 243 (a row in place of each row
+#: put aside, the rows handed numbered) beside round A's.
+IN_PLACE_CITED = "(spec 209, keel-cloud 232, 233, 235, 236, 237, 238, 239, 240, 241, 243)"
 
 
 def round_a(studies: list[dict]) -> bool:
@@ -707,6 +733,9 @@ def study_review(study: Study, record: dict) -> Study:
             if dims is not None and RELATIVE_ADVANTAGE_KEY in dims:
                 # spec 147 FR-4 (keel-cloud 237): Relative advantage's band says the hard case changed
                 study.review_moments = review_moments(record.get("lists_reviewed"))
+        if isinstance(record.get("reached_end"), bool):
+            # spec 149 FR-6 (keel-cloud 243): a bundle of 149's walk -- Keel's rows suggested in place, per dimension
+            study.review_in_place = review_in_place(record.get("lists_reviewed"))
     return study
 
 
