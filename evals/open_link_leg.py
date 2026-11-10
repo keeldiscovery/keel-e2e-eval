@@ -9,8 +9,8 @@ inactive) and records the interviewer the one way contract 16 gives a locked pro
 the fake renderer). Then, through keel-web 136's screens:
 
 1. **The link.** Sent, *Send more* on the people-with-the-problem kind, *Let them choose*, *A group, with one open link*
-   (the third way), the group named, *Make the link · Let them choose*; the one link read off the ready screen
-   (`group-link-made`) -- that is the copy.
+   (the second way since keel-web 185, the third before), the group named, *Make the link · Let them choose*; the one
+   link read off the ready screen (`group-link-made`) -- that is the copy.
 2. **Stranger A** (the browser) opens the link: the arrival card, as the group's token serves it (`GROUP_ARRIVAL`);
    *Continue with Google*, A's own button on the stub's picker, keel-cloud's participant callback, A's own `/i/{token}`;
    the intro greets A by the given name with *Signed in with Google as {A's email} · not you?* (keel-web 140, spec 094
@@ -250,11 +250,12 @@ def make_the_link(j, sent, record: dict) -> dict:
     primary = kinds[vs.LINK_PRIMARY]
     made = sent.send_group(j.project_id, primary.get("label"), GROUP_NAME, FORMAT)
     record["made"] = made
-    with cs._step(j, "keel-web 136 FR-1: Send more's third way -- the three ways in order, the group named, the cap line "
-                     "fixed, *Make the link · Let them choose* posting POST groups {expectedRevision, roleId, name, "
-                     "format}; 201 {groupId, url}, the link shown once", party="founder") as h:
+    # spec 150 (keel-web 185 FR-3): Send more's ways are OWN and GROUP -- the dataset way between them is gone
+    with cs._step(j, "keel-web 136 FR-1: Send more's group way -- the two ways in order (keel-web 185), the group "
+                     "named, the cap line fixed, *Make the link · Let them choose* posting POST groups "
+                     "{expectedRevision, roleId, name, format}; 201 {groupId, url}, the link shown once", party="founder") as h:
         sent_body = made.get("sent") or {}
-        want = {"ways": [iv_screens.WHO_OWN, iv_screens.WHO_DATASET, iv_screens.WHO_GROUP],
+        want = {"ways": [iv_screens.WHO_OWN, iv_screens.WHO_GROUP],
                 "ids": list(iv_screens.SEND_WHO_IDS),
                 "panel": {"label": iv_screens.SEND_GROUP_NAME_LABEL, "max_length": str(iv_screens.GROUP_NAME_MAX),
                           "placeholder": iv_screens.SEND_GROUP_NAME_EXAMPLE, "cap": iv_screens.SEND_GROUP_CAP_LINE},

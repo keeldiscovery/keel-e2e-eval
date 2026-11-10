@@ -292,8 +292,10 @@ def test_make_sample_and_make_eval():
 def test_s006_takes_the_export_only_when_asked():
     source = (REPO / "evals" / "test_s006_paidly.py").read_text(encoding="utf-8")
     assert "sample_export.pending(run_dir)" in source and "if sample is not None:" in source
-    # the export is taken before the contacts leg (twenty answers), and settled after the journey
-    assert source.index("sample.take(j)") < source.index("contacts_leg.leg_contacts(j)")
+    # the export is taken before the legs that add links (twenty answers: spec 150's Send more, the contacts leg until
+    # then), and settled after the journey
+    assert "contacts_leg" not in source
+    assert source.index("sample.take(j)") < source.index("corpus_scenario.leg_sent_more(j)")
     assert source.index("corpus_scenario.run(") < source.index("sample.settle()")
 
 

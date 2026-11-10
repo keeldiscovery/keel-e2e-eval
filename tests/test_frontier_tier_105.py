@@ -134,15 +134,15 @@ def test_s012s_per_job_check_reads_the_resolver_that_falls_back():
 def test_price_version_15_is_pinned_in_the_mirror_and_both_fakes():
     # 13 at keel-cloud 169 (this spec); 14 since keel-cloud 170 (eval spec 110 FR-1: RESPONDENT_QUESTIONS 35 -> 70); 15
     # since keel-cloud 190 (eval spec 121 FR-3: CONTEXT_INTERPRET and ASKED 3 -> 1)
-    from harness import contacts_fake, interviewer_fake                     # noqa: PLC0415
+    from harness import interviewer_fake                                    # noqa: PLC0415 - spec 150: no contacts fake
     from harness import interview_charge as charge                          # noqa: PLC0415
-    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == 15
+    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == 15
     # §6.3's classic five-participant figure moved no row at 13, 14 or 15
     assert charge.FIVE_PARTICIPANTS == charge.project_credits(5, version=12) == 1_355
 
 
 @pytest.mark.parametrize("rel", ["harness/interview_charge.py", "harness/interviewer_fake.py",
-                                 "harness/contacts_fake.py", "evals/test_s012_journey_through_a_host.py"])
+                                 "evals/test_s012_journey_through_a_host.py"])    # spec 150: contacts_fake.py gone
 def test_the_prose_beside_each_pin_names_13_and_14(rel):
     text = (REPO / rel).read_text(encoding="utf-8")
     assert "13" in text and "169" in text, rel

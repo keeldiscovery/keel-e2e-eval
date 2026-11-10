@@ -16,8 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from evals import contacts_leg, interviewer_leg
-from harness import contacts_fake
+from evals import interviewer_leg
 from harness import interview_charge as charge
 from harness import interviewer_fake
 from harness import vectors_script as vs
@@ -51,8 +50,9 @@ def _charge_table() -> tuple[int, dict[str, int]]:
 # --------------------------------------------------------------------------------------------- FR-1: the prices
 
 def test_both_fakes_carry_price_version_15():
-    # 14 since keel-cloud 170 (spec 110); 15 since keel-cloud 190 (spec 121 FR-3: CONTEXT_INTERPRET and ASKED 3 -> 1)
-    assert interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == charge.PRICE_VERSION == 15
+    # 14 since keel-cloud 170 (spec 110); 15 since keel-cloud 190 (spec 121 FR-3: CONTEXT_INTERPRET and ASKED 3 -> 1).
+    # Spec 150: the contacts fake is gone with the contacts leg (keel-web 185), so the interviewer's fake is the one left.
+    assert interviewer_fake.PRICE_VERSION == charge.PRICE_VERSION == 15
 
 
 def test_the_mirror_is_keel_clouds_charge_table():
@@ -62,7 +62,7 @@ def test_the_mirror_is_keel_clouds_charge_table():
     assert {k: rows[k] for k in charge.READ_PRICES} == charge.READ_PRICES == {"INTERPRET": 0, "THEMES": 0}
     # the founder-side rows 156 left alone, as the two fakes state them
     assert rows["INTERVIEWER_RECORDING"] == rows["INTERVIEWER_CHANGE"] == interviewer_fake.CREDITS
-    assert rows["CONTACT_PAGE"] == contacts_fake.PAGE_CREDITS and rows["CONTACT_EMAIL"] == contacts_fake.EMAIL_CREDITS
+    # spec 150: CONTACT_PAGE / CONTACT_EMAIL are no fake's here any more (the contacts leg is gone; keel-cloud 244)
     # what 13 moved (keel-cloud 169, spec 105 FR-2): the two frame prices, the old ones doubled
     assert (rows["PROBLEM_INTERPRET"], rows["SOLUTION_MECHANISM"]) == (26, 28)
     # what 14 moved (keel-cloud 170, spec 110 FR-1): the lock's one job, on the frontier tier, doubled
@@ -139,7 +139,7 @@ def test_the_no_other_row_sweeps_let_a_begin_through_and_nothing_else():
     assert not charge.is_charge(_row(credits=-10))
     assert not charge.is_charge({"kind": "HOLD", "action": "INTERPRET", "credits": 0})
     assert charge.charges([_row(), {"kind": "GRANT", "credits": 5}], PROJECT) == [_row()]
-    for leg in (interviewer_leg._leg, contacts_leg.leg_contacts):
+    for leg in (interviewer_leg._leg,):                    # spec 150: the contacts leg's sweep went with it
         assert "charge.is_charge(x, j.project_id)" in inspect.getsource(leg), leg.__name__
 
 
@@ -162,9 +162,9 @@ def test_the_scripted_links_post_begin_first():
 
 
 def test_the_screens_read_the_row_behind_the_131_marker():
-    for fn in (interviewer_leg._ai_link, interviewer_leg._chip_ends_it, contacts_leg._the_work):
+    for fn in (interviewer_leg._ai_link, interviewer_leg._chip_ends_it):      # spec 150: no contacts leg
         assert "_begun_on_screen(" in inspect.getsource(fn), fn.__name__
-    for fn in (interviewer_leg._begun_on_screen, contacts_leg._begun_on_screen):
+    for fn in (interviewer_leg._begun_on_screen,):
         source = inspect.getsource(fn)
         assert "charge.web_131_built()" in source and "WEB_131_PENDING" in source, fn.__name__
 

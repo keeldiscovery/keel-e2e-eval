@@ -248,10 +248,11 @@ def test_h9_no_advantages_are_read_off_a_47_wire():
 from harness import interviews_screens as iv                            # noqa: E402
 
 
-def test_send_mores_two_ways_are_130s_words():
-    """keel-web 130 FR-5 (`SEND_WHO`): *People I know by name* / *People I found with Keel*; the radio is matched on the
-    name's start, the line after it."""
-    assert (iv.WHO_OWN, iv.WHO_DATASET) == ("People I know by name", "People I found with Keel")
+def test_send_mores_way_by_name_is_130s_words():
+    """keel-web 130 FR-5 (`SEND_WHO`): *People I know by name*; the radio is matched on the name's start, the line after
+    it. Spec 150 (keel-web 185 FR-3): the dataset way, *People I found with Keel*, is gone -- OWN and GROUP are left."""
+    assert iv.WHO_OWN == "People I know by name"
+    assert not hasattr(iv, "WHO_DATASET") and iv.SEND_WHO_IDS == ("send-who-OWN", "send-who-GROUP")
     src = inspect.getsource(iv.Interviews.send_someone) if hasattr(iv, "Interviews") else inspect.getsource(iv)
     assert 'name=re.compile(rf"^{re.escape(WHO_OWN)}")' in src
 

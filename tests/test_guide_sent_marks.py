@@ -415,13 +415,14 @@ def test_the_helper_keeps_every_later_open_on_the_judged_record():
 
 
 def test_every_way_into_sent_goes_through_the_helper():
-    """FR-4 / judgement call 2: the helper lives in `interviews_screens`; `Interviews.land`, `Contacts.go_to_send_more`
-    and `Persona.sent` call it, and `walkthrough_again` (the *How it works* replay) is gone."""
+    """FR-4 / judgement call 2: the helper lives in `interviews_screens`; `Interviews.land` and `Persona.sent` call it
+    (`Contacts.go_to_send_more` did until spec 150), and `walkthrough_again` (the *How it works* replay) is gone."""
     source = Path(iv.__file__).read_text(encoding="utf-8")
     persona = Path(ivs.__file__).read_text(encoding="utf-8")
-    assert source.count("pass_interviews_sheet(") >= 3 and "_iv.pass_interviews_sheet(" in persona
+    assert source.count("pass_interviews_sheet(") >= 2 and "_iv.pass_interviews_sheet(" in persona
+    assert "class Contacts" not in source                         # spec 150 (keel-web 185): the page object is gone
     assert "def walkthrough_again" not in persona
-    assert "Show all" not in source.split("class Contacts")[0].split("def register")[1].split("def _row")[0]
+    assert "Show all" not in source.split("def register")[1].split("def _row")[0]
 
 
 # ------------------------------------------------------------------- keel-web 088's own ids and words

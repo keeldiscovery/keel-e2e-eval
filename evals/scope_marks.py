@@ -1,9 +1,9 @@
 """The study-scope marks (spec 071 FR-2 / FR-3; keel-cloud 133, contract 38; keel-web 109): SC1-SC8, scored at the end
 of S-015 (the problem study) and S-016 (money alone) from the record `evals/scope_journey.py` keeps.
 
-A journey ruler, like `contacts_marks` and `guide_marks`: versioned on its own (`SCOPE_MARKS_VERSION`), never a row of
-the instruction eval's `judge()`, and `MARKS_VERSION` (20) does not move. Every mark is deterministic and measured on
-what the screens drew and the wire served:
+A journey ruler, like `guide_marks` (and `contacts_marks` until spec 150): versioned on its own
+(`SCOPE_MARKS_VERSION`), never a row of the instruction eval's `judge()`, and `MARKS_VERSION` (20) does not move. Every
+mark is deterministic and measured on what the screens drew and the wire served:
 
 * **SC1 choose** -- the scope's card picked on *What do you want to validate?*, the plan card's scope, badge and lines
   keel-web 109's own, the create request carrying the scope and the project serving it;

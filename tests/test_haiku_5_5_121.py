@@ -234,9 +234,9 @@ POLICY_JAVA = "src/main/java/com/keeldiscovery/cloud/application/CreditPolicy.ja
 
 
 def test_price_version_15_and_the_light_prices_in_the_mirror():
-    from harness import contacts_fake, interviewer_fake                     # noqa: PLC0415
+    from harness import interviewer_fake                                    # noqa: PLC0415 - spec 150: no contacts fake
     from harness import interview_charge as charge                          # noqa: PLC0415
-    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == contacts_fake.PRICE_VERSION == 15
+    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == 15
     assert charge.LIGHT_PRICES == {"CONTEXT_INTERPRET": 1, "ASKED": 1}
     assert charge.LIGHT_PRICES_V14 == {"CONTEXT_INTERPRET": 3, "ASKED": 3}
     assert charge.NEW_PROJECT_PRICE == 1 + 26 + 28 + 3 * 81 == 298
@@ -268,7 +268,7 @@ def test_the_mirror_is_keel_clouds_enum_at_version_15():
 
 
 @pytest.mark.parametrize("rel", ["harness/interview_charge.py", "harness/interviewer_fake.py",
-                                 "harness/contacts_fake.py", "evals/test_s012_journey_through_a_host.py"])
+                                 "evals/test_s012_journey_through_a_host.py"])    # spec 150: contacts_fake.py gone
 def test_the_prose_beside_each_pin_names_15_and_190(rel):
     text = (REPO / rel).read_text(encoding="utf-8")
     assert "15" in text and "190" in text and "spec 121" in text.replace("spec\n121", "spec 121"), rel

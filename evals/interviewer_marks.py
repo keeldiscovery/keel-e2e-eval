@@ -1,6 +1,6 @@
 """The AI interviewer marks (spec 044): keel-cloud spec 094's and keel-web 069's rules, held over one interviewer leg's
-record -- deterministic, zero spend, the shape of `evals/contacts_marks.py` (one check a rule, all of them owed, nothing
-named apart).
+record -- deterministic, zero spend, the shape of `evals/contacts_marks.py` (retired with spec 150): one check a rule,
+all of them owed, nothing named apart.
 
 A **journey** ruler with its own version: the recording is code's (`PassageComposer` composes every script from the
 lock; no model turn anywhere in 094), so `instructions/marks.py`'s `MARKS_VERSION` stays where it is (spec 044 FR-001).

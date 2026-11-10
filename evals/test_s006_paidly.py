@@ -1,5 +1,6 @@
 """S-006: `05-paidly`, the widest B2B entry, walked through the vector corridor (spec 039; spec 041: corpus
-revision 10, keel-web 063 / 064; spec 042: corpus revision 11, contract 14; spec 043: contract 15, the contacts leg).
+revision 10, keel-web 063 / 064; spec 042: corpus revision 11, contract 14; spec 043: contract 15, the contacts leg --
+gone since spec 150, keel-web 185: Interviews is Sent alone, and S-006's links past the twenty are made on Sent).
 
 Twenty people on **two links**: twelve freelance translators answer parts 1 and 2 on the primary
 link, and eight agency project managers -- the decision-makers -- answer part 3 alone on their own
@@ -31,7 +32,7 @@ import pytest
 
 from functools import partial
 
-from evals import contacts_leg, corpus_scenario, interviewer_leg, sample_export
+from evals import corpus_scenario, interviewer_leg, sample_export
 from harness import vectors_script as vs
 
 #: Spec 130: one of the remote six (`make remote`).
@@ -174,18 +175,19 @@ def _paidly_extras(j, sample: sample_export.Pending | None = None) -> None:
         assert frequency.get("status") == "HOLDING_UP" and frequency.get("n") == 9, frequency
         assert "3 months" in (j.framing["problem.frequency"][0].get("question") or ""), j.framing["problem.frequency"]
 
-    # Spec 060 (design §18.11): with KEEL_SAMPLE_EXPORT set, the finished project at its twenty answers -- before the two
-    # legs below add three more -- is exported as the landing's sample (`make sample`). Unset, nothing happens here.
+    # Spec 060 (design §18.11): with KEEL_SAMPLE_EXPORT set, the finished project at its twenty answers -- before the
+    # legs below add more -- is exported as the landing's sample (`make sample`). Unset, nothing happens here.
     if sample is not None:
         sample.take(j)
-    # Spec 043 (keel-cloud 093, contract 15): the decision-makers found through Contacts, on the wire, last -- its one
-    # answer moves no standing this module holds above.
-    contacts_leg.leg_contacts(j)
-    # Spec 076 FR-4: one more decision-maker answers the screener outside -- after the contacts leg (which counts the
-    # decision-makers' kind), before the AI interviewer's links; it moves `outsideSegment` alone
+    # Spec 150 FR-1 (keel-web 185): one more decision-maker's link made on Sent's Send more by name, and a new one for
+    # it, then the links table past ten (G16) -- the contacts leg's found people (spec 043) until 150; never answered,
+    # so no standing held above moves.
+    corpus_scenario.leg_sent_more(j)
+    # Spec 076 FR-4: one more decision-maker answers the screener outside -- after the links made on Sent, before the AI
+    # interviewer's links; it moves `outsideSegment` alone
     corpus_scenario.leg_outside_decider(j)
     # Spec 044 (keel-cloud 094, contract 16; keel-web 069): the AI interviewer, recorded on Keel's door after the
-    # contacts leg -- its two answered links come last too, and move no standing held above.
+    # links made on Sent -- its two answered links come last too, and move no standing held above.
     interviewer_leg.leg_interviewer(j)
 
 

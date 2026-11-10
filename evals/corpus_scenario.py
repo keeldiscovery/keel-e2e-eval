@@ -51,8 +51,10 @@ one leg and leave the others alone:
                       journey's), and the project's market the entry's own: since revision 12 the US, en-US,
                       its region.
 
-After them each scenario's `extra` runs: S-006's ends with **the contacts leg** (spec 043, keel-cloud 093,
-`evals/contacts_leg.py`) on the wire, and S-005's with the B2C `NOT_B2B` refusal.
+After them each scenario's `extra` runs: S-006's makes one more link on Sent by name and a new one for it
+(`leg_sent_more`). **The contacts leg is gone since spec 150** (keel-web 185: Interviews is Sent alone): S-006 ended
+with it (spec 043, keel-cloud 093, `evals/contacts_leg.py`, on the wire and on Contacts' screens) and S-005 with its B2C
+`NOT_B2B` refusal.
 
 Every inference job is answered by keel-runtime's **scripted** executor from the entry's own stored
 texts (`harness/vectors_script.py`); no model runs anywhere in this file (`evals/policy.py`).
@@ -186,8 +188,9 @@ class Journey:
     idea_line: str | None = None
     #: The lock's receipt (`LockReceipt`), as keel-web received it from `POST lock`.
     receipt: dict = field(default_factory=dict)
-    #: The stack and the identity the founder signed in as (spec 043: the contacts leg reads the ledger and stands the
-    #: founder on Keel's door, `stack/ledger.py`). None on S-012, which never runs that leg.
+    #: The stack and the identity the founder signed in as (spec 044: the interviewer leg reads the ledger and stands the
+    #: founder on Keel's door, `stack/ledger.py`; spec 043's contacts leg did too until spec 150). None on S-012, which
+    #: never runs that leg.
     stack: Any = None
     founder_identity: Any = None
     #: Spec 046: the record `evals/feedback_marks.py` scores at the end of the journey (FM1-FM6).
@@ -4078,18 +4081,23 @@ def leg_invite(j: Journey) -> None:
     me_before = j.get("/v2/me") or {}
     # spec 059: the guide journey holds keel-web 088's Interviews sheet up at its first open and judges it (G13)
     walked = interviews_sheet(j, sent) if j.teach is not None else sent.land(j.project_id)
-    with _step(j, "Interviews (keel-web 068 FR-002 / FR-003): the side nav's group with its three sub-rows, Sent "
-                  "current; the walkthrough played exactly when the account had never seen it, and Got it stamped it",
-               party="founder") as h:
+    # spec 150 (keel-web 185 FR-1): Interviews is Sent alone -- one row in the side nav, current inside the section, no
+    # sub-rows (068's group of three: Sent, Contacts, Keel-managed), and Sent's kicker says Interviews
+    with _step(j, "Interviews (keel-web 068 FR-002 / FR-003; keel-web 185 FR-1): the side nav's one Interviews row, "
+                  "current on Sent, no sub-rows, the kicker Interviews; the walkthrough played exactly when the account "
+                  "had never seen it, and Got it stamped it", party="founder") as h:
         nav = sent.nav()
+        kicker = sent.kicker()
         me_after = j.get("/v2/me") or {}
-        h.record_assert({"row": iv_screens.NAV_INTERVIEWS, "subs": iv_screens.SUBPAGES, "current": ["Sent"],
-                         "walkthrough": me_before.get("walkthroughSeenAt") is None},
-                        {"nav": nav, "walkthrough": walked, "seen before": me_before.get("walkthroughSeenAt"),
+        h.record_assert({"row": iv_screens.NAV_INTERVIEWS, "subs": [], "current": [iv_screens.NAV_INTERVIEWS],
+                         "kicker": iv_screens.SENT_KICKER, "walkthrough": me_before.get("walkthroughSeenAt") is None},
+                        {"nav": nav, "kicker": kicker, "walkthrough": walked,
+                         "seen before": me_before.get("walkthroughSeenAt"),
                          "seen after": me_after.get("walkthroughSeenAt")})
         assert nav["row"] == iv_screens.NAV_INTERVIEWS and (nav["href"] or "").endswith(
             f"/p/{j.project_id}/interviews/sent"), nav
-        assert nav["subs"] == iv_screens.SUBPAGES and nav["current"] == ["Sent"], nav
+        assert nav["subs"] == [] and nav["current"] == [iv_screens.NAV_INTERVIEWS], nav
+        assert kicker == iv_screens.SENT_KICKER, kicker
         assert (walked is not None) == (me_before.get("walkthroughSeenAt") is None), (walked, me_before)
         if walked is not None:
             assert walked["title"] == iv_screens.WALKTHROUGH_TITLE and walked["patch"]["status"] == 200, walked
@@ -4926,6 +4934,69 @@ def reveal_heard_once(j: Journey, seen: dict) -> list[dict]:
     if isinstance(getattr(j, "findings", None), list):
         j.findings.extend(found)
     return found
+
+
+#: Spec 150 FR-1: the decision-maker S-006 sends on Send more by name after the twenty -- no corpus person: the link is
+#: made, made again with *New link* and never answered, so no standing moves (the contacts leg's found people until 150).
+SENT_MORE_DECIDER = "Tobiah Lindqvist"
+
+
+def leg_sent_more(j: Journey) -> dict:
+    """Spec 150 FR-1 (keel-web 185: Interviews is Sent alone): S-006's links past the corpus's twenty are made on Sent, as
+    every link is -- they were the contacts leg's found people, from a dataset, until 150. One more decision-maker by
+    name on *Send more* (`send_someone`: Read and tap, *People I know by name*, the name alone); *New link* on that row,
+    not answered (keel-cloud 093 D7, held by the contacts leg until 150): the old link answers 404, the new one opens,
+    the same invitation, the register's *Link made* moved to the new link's; an answered row's relink refused 422
+    ALREADY_ANSWERED on the wire (no screen offers it); then G16 the links table past ten (`links_reading`, 21 links).
+    The link is never answered, so no standing held above moves."""
+    sent = iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
+    labels = {k.get("respondentType"): k.get("label")
+              for k in (j.get(j.project("/invitations")) or {}).get("kinds") or []}
+    made = sent.send_someone(j.project_id, labels[vs.LINK_B2B], SENT_MORE_DECIDER)
+    link = ((made.get("batch") or {}).get("links") or [{}])[0]
+    with _step(j, f"{SENT_MORE_DECIDER}: one more decision-maker's link, made on Send more by name (keel-web 185: no "
+                  "dataset way) -- 201, the name alone, the link drawn as it came", party="founder") as h:
+        h.record_assert({"status": 201, "personName": SENT_MORE_DECIDER, "drawn": link.get("url")},
+                        {"status": made.get("status"), "link": link, "drawn": made.get("url"),
+                         "sent": made.get("sent")})
+        assert made.get("status") == 201 and made.get("url") == link.get("url"), made
+        assert link.get("personName") == SENT_MORE_DECIDER and link.get("invitationId"), link
+        assert name_alone_faults(made, SENT_MORE_DECIDER) == [], name_alone_faults(made, SENT_MORE_DECIDER)
+    invitations = (j.get(j.project("/invitations")) or {}).get("invitations") or []
+    first_made = next((r.get("linkMadeAt") for r in invitations if r.get("invitationId") == link["invitationId"]), None)
+    answered = next((r for r in invitations if r.get("status") == "ANSWERED"), {})
+    with _step(j, f"New link for {SENT_MORE_DECIDER} on Sent (keel-cloud 093 D7): the old link answers 404, the new "
+                  "one opens, the same invitation, Link made moved to the new link's; an answered link's relink is "
+                  "refused ALREADY_ANSWERED on the wire", party="founder") as h:
+        relink = sent.make_new_link(SENT_MORE_DECIDER)
+        relinked = relink.get("relinked") or {}
+        token = lambda url: (url or "").rstrip("/").rsplit("/", 1)[-1]  # noqa: E731
+        stranger = j.browser.new_context()
+        try:
+            old_status = stranger.request.get(f"{j.cloud_base}/v2/i/{token(made['url'])}/interview",
+                                              timeout=20_000).status
+            new_status = stranger.request.get(f"{j.cloud_base}/v2/i/{token(relink.get('url'))}/interview",
+                                              timeout=20_000).status
+        finally:
+            stranger.close()
+        refused, refusal = j.call("POST", j.project(f"/invitations/{answered.get('invitationId')}/relink"),
+                                  {"expectedRevision": j.revision()}, ok=(422,))
+        moved = next((r for r in (j.get(j.project("/invitations")) or {}).get("invitations") or []
+                      if r.get("invitationId") == link["invitationId"]), {})
+        record = {"old_url": made["url"], "new_url": relink.get("url"), "old_status": old_status,
+                  "new_status": new_status, "drawn_is_served": relink.get("url") == relinked.get("url"),
+                  "same_invitation": relinked.get("invitationId") == link["invitationId"],
+                  "first_linkMadeAt": first_made, "register_linkMadeAt": moved.get("linkMadeAt"),
+                  "relinked_at": relinked.get("linkMadeAt"), "retried": relink.get("retried"),
+                  "answered_refusal": {"invitation": answered.get("personName"), "status": refused, "body": refusal}}
+        h.record_assert({"old": 404, "new": 200, "same invitation": True, "answered": "ALREADY_ANSWERED"}, record)
+        assert relink.get("status") == 201 and record["drawn_is_served"], relink
+        assert record["same_invitation"] and (old_status, new_status) == (404, 200), record
+        assert moved.get("linkMadeAt") == relinked.get("linkMadeAt") != first_made, record
+        assert answered and (refusal or {}).get("code") == "ALREADY_ANSWERED", record
+    # spec 059 G16: the links table past ten -- the contacts leg's batch read it until spec 150 (keel-web 088 FR-4)
+    links_reading(j, "after Send more", sent)
+    return record
 
 
 #: keel-web `ExitScreen`'s heading (`INTERVIEW_DONE_TITLE`): the gate's No, outside, and since 127 a story chip.

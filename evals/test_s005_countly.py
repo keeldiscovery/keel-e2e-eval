@@ -1,6 +1,6 @@
 """S-005: `01-countly`, the B2C entry, walked through the vector corridor (spec 039; spec 041: corpus revision 10,
 keel-web 063 / 064; spec 042: revision 11, contract 14 -- Keel's draft name for the idea kept on S2; spec 043: contract 15,
-a consumer study's Contacts refused NOT_B2B).
+a consumer study's Contacts refused NOT_B2B -- until spec 150, keel-web 185: Interviews is Sent alone).
 
 Countly is the corpus's B2C entry with the most people (twelve), and it earns its place three ways:
 
@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from evals import contacts_leg, corpus_scenario, interviewer_leg
+from evals import corpus_scenario, interviewer_leg
 from harness import vectors_script as vs
 
 #: Spec 130: one of the remote six (`make remote`).
@@ -77,8 +77,7 @@ def _countly_extras(j) -> None:
     # Spec 076 FR-6 (keel-cloud 145 FR-6, keel-web 127 FR-4): Priya Natarajan's follow-up is not about the question --
     # the script groups it NOT_ABOUT_THIS, so the Insights box counts it apart and still shows it under her
     corpus_scenario.hold_not_about_this(j)
-    # Spec 043 (keel-cloud 093 D10): Contacts are B2B only; a consumer study is refused NOT_B2B, before the door.
-    contacts_leg.leg_contacts_not_b2b(j)
+    # Spec 043's NOT_B2B refusal on Contacts is gone with the page (spec 150, keel-web 185).
     # Spec 044: the AI interviewer's short form on a consumer study -- the recording's charge, READY, one AI link.
     interviewer_leg.leg_interviewer_short(j)
 

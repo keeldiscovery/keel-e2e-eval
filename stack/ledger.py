@@ -1,6 +1,9 @@
 """keel-cloud's credit ledger, read off the local stack's Postgres -- and the **three stand-ins** spec 043's contacts leg
-writes, each named, each reversed by the leg itself (judgement calls 129-131), which spec 044's interviewer leg writes
-too under its own key (judgement call 148); and, since spec 044, the project's stored recording (`recording`).
+wrote, each named, each reversed by the leg itself (judgement calls 129-131), which spec 044's interviewer leg writes
+too under its own key (judgement call 148); and, since spec 044, the project's stored recording (`recording`). **Spec
+150**: the contacts leg is gone (keel-web 185: Interviews is Sent alone); the stand-ins stay, written by the
+interviewer leg (`e2e-eval:044:`) and the open-link leg (`e2e-eval:092:`), and the paragraphs below about Contacts are
+their history.
 
 **Why the referee reads the database at all.** keel-cloud spec 093 settles every purchase of names or emails as a
 `HOLD` and its `SPEND`, written together with no job, the `HOLD` carrying `price_version` 8 (`CreditLedgerEntry.
@@ -41,7 +44,7 @@ import uuid
 from stack import postgres
 from stack.config import REPO_ROOT, StackConfig
 
-#: What every stand-in row says it is -- and which spec wrote it (043's contacts leg, 044's interviewer leg).
+#: What every stand-in row says it is -- and which spec wrote it (043's contacts leg until spec 150, 044's interviewer leg).
 REASON = "e2e-eval spec {spec}: {what} (a stand-in; keel-cloud has no route to this state on a stack with no Keel's-AI key)"
 
 
@@ -54,7 +57,7 @@ def reason(spec: str, what: str) -> str:
     return REASON.format(spec=spec, what=what)
 
 
-#: Spec 043's own rows (the contacts leg filters its ledger on it).
+#: Spec 043's own rows (the contacts leg filtered its ledger on it until spec 150; the stand-ins' default key).
 KEY_PREFIX = key_prefix("043")
 #: Any spec's stand-in row.
 STAND_IN_PREFIX = "e2e-eval:"

@@ -1,5 +1,5 @@
 """The AI interviewer leg (spec 044; keel-cloud 094 at contract 16, `InferenceCharge` 9; keel-web 069): after S-006's
-contacts leg the founder's project gets its interviewer -- Saskia since spec 083 (Chukwu since 058, Tito before), recorded once by the
+links made on Sent (its contacts leg until spec 150) the founder's project gets its interviewer -- Saskia since spec 083 (Chukwu since 058, Tito before), recorded once by the
 stack's fake renderer -- and the leg walks everything 094 and 069 say about it: the recording's one charge, the persona
 line through RECORDING to READY, the links that wait for it (`INTERVIEWER_NOT_READY`) and the text link that never
 does, the spoken order of every role's clips, the solution passage's three facts, no founder's word (spec 073: none written, the thanks the default), *Try it yourself* writing nothing,
@@ -253,7 +253,8 @@ def _labels(j) -> dict[str, str]:
 # --------------------------------------------------------------------------------------------- the legs
 
 def leg_interviewer(j) -> dict:
-    """S-006 (05-paidly, B2B), after the contacts leg: the whole of spec 044 FR-002 (see the module docstring)."""
+    """S-006 (05-paidly, B2B), after the links made on Sent (spec 150; the contacts leg before): the whole of spec 044
+    FR-002 (see the module docstring)."""
     return _leg(j, short=False)
 
 
