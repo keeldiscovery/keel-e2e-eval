@@ -9,9 +9,11 @@ carries `inPlaceOf`, the put-aside `replacedBy`; the band counts both). keel-web
 *In place of*, *Keel's suggestion*, one record list tagged *yours* / *Keel's draft*, Put back on Keel's row, no *Was*.
 
 **The record's stops.** Cycle 19 listed `08-fresco · PROBLEM` and `17-expanse · PROBLEM` as *stopped early -- no step
-named (stopped outside a step)*. Both walks reached their end and were scored; what they had was E9 refusals of Keel's
-AI at the calibration, retried as the founder's screen retries (spec 148 FR-2's `gate_refusals`, all `stopped: false`).
-A refusal that was retried is a finding, never a stop; `stopped` names only a walk that did not reach its end.
+named (stopped outside a step)*. CORRECTED by the builder (2026-11-09 20:08 ET): both walks did stop -- three refusals were retried (the walk's three
+retries), then a fourth, E2 (the event over 8 words), ended the walk outside any step, so no step was named. What was
+wrong was the naming, not the count: a stop is named by its kind (rule / product / harness), the leg it followed and
+the words it ended on; a retried refusal is a finding on the gate line. E2 refusing the writer four times running on two
+studies is a keel-cloud question (filed by the coordinator).
 
 ## Rules
 
@@ -27,8 +29,9 @@ A refusal that was retried is a finding, never a stop; `stopped` names only a wa
   three distinct reasons) is a named test of the mirror AND an assertion in the scripted Importance journey (S-0xx that
   walks an Importance Check): the right rows are struck, each reason on its own row, a Keel row in each place.
 - **FR-5 Stops.** `quality/cycle.py` / `evals/backtest.py`: a walk is *stopped early* only when it did not reach its end
-  (`stop_rule`, a product stop, a harness stop); a retried refusal is counted on the gate line alone. Cycle 19's record
-  re-read gives *15 of 15 reached their end* with 5 refusals; a unit test pins it on the two bundles' json.
+  (`stop_rule`, a product stop, a harness stop); a retried refusal is counted on the gate line alone. Cycle 19's two bundles
+  re-read give *13 of 15 reached their end*, both stops named after `leg_interpret_problem` as a product stop, with 5
+  retried refusals on the gate line; a unit test pins it on trimmed copies of the two bundles.
 - **FR-6 The record.** The review line cites 243; a *suggested in place* count joins the review line.
 - **FR-7 Tests.** `make unit` green at the head; the new pins named for what they guard.
 
