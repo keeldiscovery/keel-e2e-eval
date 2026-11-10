@@ -1,0 +1,164 @@
+{
+ "version": 1,
+ "source": "20261109T195556Z-backtest-08-fresco",
+ "run": "20261109T195556Z-backtest-08-fresco",
+ "scope": "COMMERCIAL",
+ "links": {
+  "COMMERCIAL_B2B": {
+   "kind": "COMMERCIAL_LINK",
+   "occasion": "daily log",
+   "idea": {
+    "what": "Imagine Fresco, an AI scribe that turns videos into notes.",
+    "how": "During the site walk, your superintendents take short videos and talk over them. It turns them into notes with photos, assignees and due dates. Then it texts the crew their action items. With one click, it sends the notes to Procore or ACC."
+   }
+  }
+ },
+ "items": [
+  {
+   "id": "q1",
+   "link": "COMMERCIAL_B2B",
+   "dimension": "commercial.existing_sacrifice",
+   "control": "value_box",
+   "kind": "number",
+   "question": "Last month, about how many hours per site did your team spend on the daily log?",
+   "options": [],
+   "escape": "I can't recall",
+   "spoken": {
+    "stem": "Last month, about how many hours per site did your team spend on the daily log?",
+    "optionsLine": "A number of hours per site last month.",
+    "escapeLine": "Or say you can't recall.",
+    "transform": "none"
+   },
+   "unit": "hours",
+   "range": [
+    0,
+    1000000000
+   ],
+   "nothing": "None"
+  },
+  {
+   "id": "q2",
+   "link": "COMMERCIAL_B2B",
+   "dimension": "commercial.price",
+   "control": "price_ladder",
+   "kind": "single",
+   "question": "What would Fresco be worth to you a month, per site?",
+   "options": [
+    "Under $500",
+    "$500 to under $800",
+    "$800 to under $2,500",
+    "$2,500 to under $5,000",
+    "$5,000 or more",
+    "I wouldn't pay for this"
+   ],
+   "escape": "I can't say",
+   "spoken": {
+    "stem": "What would Fresco be worth to you a month, per site?",
+    "countLine": "I'll read four options.",
+    "optionsLine": "Under $800; $800 to under $2,500; $2,500 or more; or you wouldn't pay for this.",
+    "escapeLine": "Or say: I can't say.",
+    "under": "Under $500, or $500 to under $800?",
+    "over": "$2,500 to under $5,000, or $5,000 or more?",
+    "transform": "two_steps"
+   }
+  },
+  {
+   "id": "q3",
+   "link": "COMMERCIAL_B2B",
+   "dimension": "commercial.ability_to_pay",
+   "control": "single_choice",
+   "kind": "single",
+   "question": "Think of the price you just gave. If you went ahead at that, where would the money come from?",
+   "options": [
+    "An existing budget line",
+    "Charged back to whoever uses it",
+    "A new budget line, signed off for it",
+    "New money from outside, such as a grant",
+    "Taken from other spending"
+   ],
+   "escape": "I can't say",
+   "spoken": {
+    "anchor": "Think of the price you just gave.",
+    "stem": "If you went ahead at that, where would the money come from?",
+    "countLine": "I'll read five options.",
+    "optionsLine": "An existing budget line; charged back to whoever uses it; a new budget line, signed off for it; new money from outside, such as a grant; or taken from other spending.",
+    "escapeLine": "Or say: I can't say.",
+    "transform": "none"
+   },
+   "asked_after": [
+    "You said about $800 to $2,500 a month. If you went ahead at that, where would the money come from?",
+    "You said about $2,500 to $5,000 a month. If you went ahead at that, where would the money come from?",
+    "You said about $5,000 or more a month. If you went ahead at that, where would the money come from?"
+   ]
+  },
+  {
+   "id": "q4",
+   "link": "COMMERCIAL_B2B",
+   "dimension": "commercial.buyer_payer_alignment",
+   "control": "fixed_four",
+   "kind": "single",
+   "question": "Could you sign off on about $800 per site a month yourself, or would the CFO have to agree?",
+   "options": [
+    "I could sign off myself",
+    "The CFO would have to agree",
+    "Several people would have to agree",
+    "It's someone else's call"
+   ],
+   "escape": "I can't say",
+   "spoken": {
+    "stem": "Could you sign off on about $800 per site a month yourself, or would the CFO have to agree?",
+    "countLine": "I'll read four options.",
+    "optionsLine": "You could sign off yourself; the CFO would have to agree; several people would have to agree; or it's someone else's call.",
+    "escapeLine": "Or say: I can't say.",
+    "transform": "none"
+   }
+  },
+  {
+   "id": "q5",
+   "link": "COMMERCIAL_B2B",
+   "dimension": "commercial.purchase_friction",
+   "control": "duration_bands",
+   "kind": "single",
+   "question": "If you bought Fresco, how long would a check that it works with Procore take?",
+   "options": [
+    "Under 1 week",
+    "1 to under 2 weeks",
+    "2 weeks to 1 month",
+    "1 to 3 months",
+    "Over 3 months",
+    "It wouldn't be needed"
+   ],
+   "escape": "I can't tell",
+   "spoken": {
+    "stem": "If you bought Fresco, how long would a check that it works with Procore take?",
+    "countLine": "I'll read four options.",
+    "optionsLine": "Under 2 weeks; 2 weeks to 1 month; over 1 month; or it wouldn't be needed.",
+    "escapeLine": "Or say you can't tell.",
+    "under": "Under 1 week, or 1 to under 2 weeks?",
+    "over": "1 to 3 months, or over 3 months?",
+    "transform": "two_steps"
+   }
+  },
+  {
+   "id": "q6",
+   "link": "COMMERCIAL_B2B",
+   "dimension": "commercial.commitment",
+   "control": "fixed_four",
+   "kind": "single",
+   "question": "If it were ready today, would you start a paid pilot on one site, or not?",
+   "options": [
+    "Yes, I'd start a paid pilot on one site",
+    "Probably, after a free look at it first",
+    "Probably not",
+    "No"
+   ],
+   "escape": null,
+   "spoken": {
+    "stem": "If it were ready today, would you start a paid pilot on one site, or not?",
+    "countLine": "I'll read four options.",
+    "optionsLine": "Yes, you'd start a paid pilot on one site; probably, after a free look at it first; probably not; or no.",
+    "transform": "none"
+   }
+  }
+ ]
+}
