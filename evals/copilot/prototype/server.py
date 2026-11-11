@@ -200,6 +200,7 @@ class Session:
         self.keyed_seqs: set[int] = set()
         self.events: list[dict] = []
         self.keys = 0
+        self.rev = 0
         self.started = now_iso()
         self._cv = threading.Condition()
         self._io = threading.Lock()
@@ -273,6 +274,7 @@ class Session:
             late = self._applied_max > idx
             self._applied_max = max(self._applied_max, idx)
             row = self._apply(ev, current=current, late=late)
+            self.rev += 1
             ev["late"] = late
             ev["superseded"] = bool(row.get("superseded"))
             self.turns[seq].update(done=True, q=ev["q"] or current)
@@ -359,19 +361,21 @@ class Session:
     # -------------------------------------------------------------------------------------------- keys
 
     def key(self, *, key: str, seq_of_turn: int | None = None, at: float | None = None,
-            shown: dict | None = None) -> dict:
+            shown: dict | None = None, resume: bool = False) -> dict:
+        """One key. `resume` is `P` pressed on the five-minute pause: the page stops showing it, listening stays on."""
         if shown:
             self.shown(shown)
         key = {" ": "Space", "x": "X", "f": "F", "z": "Z", "p": "P", "r": "R", "t": "T", "Esc": "Escape",
                "→": "ArrowRight", "←": "ArrowLeft"}.get(key, key)
         with self._cv:
-            if key in PAGE_KEYS:
-                applied, message = "page", None
+            if key in PAGE_KEYS or (key == "P" and resume and self.listening):
+                applied, message = "page", ("resumed after the silence" if key == "P" else None)
             elif key not in SERVER_KEYS:
                 applied, message = False, f"{key!r} is not a copilot key"
             else:
                 applied, message = self._key(key, seq_of_turn)
             self.keys += 1
+            self.rev += 1
             row = {"key": key, "seq_of_turn": seq_of_turn, "at": at, "received_at": round(time.time(), 3),
                    "applied": applied, "message": message, "current": self.current,
                    "filed_q": (self.filed_row or {}).get("q")}
@@ -501,7 +505,7 @@ class Session:
     def card(self) -> dict:
         """What the card shows, as the server holds it."""
         row = self._row_view(self.filed_row)
-        return {"current": self.current, "n": (self.order.index(self.current) + 1) if self.current else 0,
+        return {"rev": self.rev, "current": self.current, "n": (self.order.index(self.current) + 1) if self.current else 0,
                 "N": len(self.order), "state": self.state, "listening": self.listening, "done": self.done(),
                 "flags": dict(self.flags), "note_next": sorted(self.note_next), "filed_row": row,
                 "heard_row": self.heard_row, "filings": dict(self.filings), "counts": self.counts(),
@@ -615,7 +619,7 @@ class Handler(BaseHTTPRequestHandler):
                 seq = k.get("seq_of_turn")
                 shown = {int(s): float(t) for s, t in (k.get("shown") or {}).items()}
                 out = self.session.key(key=str(k.get("key") or ""), seq_of_turn=int(seq) if seq is not None else None,
-                                       at=_num(k.get("at")), shown=shown)
+                                       at=_num(k.get("at")), shown=shown, resume=bool(k.get("resume")))
                 return self._json(200, out)
         except (BadTurn, ValueError) as bad:
             return self._json(400, {"error": str(bad)})

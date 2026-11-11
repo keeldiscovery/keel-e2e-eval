@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keel copilot prototype</title>
+<link rel="stylesheet" href="copilot.css">
+</head>
+<body>
+<div class="wrap">
+<span class="k">Keel copilot · prototype · spec 152 · Stack 1 as the bench ran it · Chrome on the desktop</span>
+<h1>The copilot, on a real call.</h1>
+<p class="lead">Start a source, press Float, click the card once, and run the call. Every turn is cut at 0.7 s of silence, written down by gpt-transcribe and read by Haiku against the questionnaire; the card files what it can and hands you the rest as keys. Nothing is said to the box. Wear headphones on a real call, so your microphone does not hear the other side.</p>
+
+<div class="layout">
+<div>
+  <div class="host" id="host"><div class="cp" id="cp"></div></div>
+</div>
+<div>
+  <div class="ctl">
+    <button type="button" id="mic">Microphone</button>
+    <button type="button" id="share">Share the call tab</button>
+    <label><input type="checkbox" id="rehearsal"> Rehearsal: one microphone, <span class="key">T</span> switches sides</label>
+    <button type="button" class="primary" id="float">Float</button>
+  </div>
+  <div class="status" id="status">Loading the questionnaire…</div>
+  <div class="meters">
+    <div class="meter"><span>You</span><span class="bar"><i id="lvl-founder"></i><b id="thr-mark-founder"></b></span><input type="range" id="thr-founder" min="-70" max="-15" step="1" aria-label="Your speech threshold, dBFS"></div>
+    <div class="meter"><span>Them</span><span class="bar"><i id="lvl-them"></i><b id="thr-mark-them"></b></span><input type="range" id="thr-them" min="-70" max="-15" step="1" aria-label="Their speech threshold, dBFS"></div>
+  </div>
+  <p class="note"><b>Real call:</b> Microphone is you; Share asks Chrome for a tab: pick the call's tab and keep <i>Also share tab audio</i> on; that stream is the respondent (the video is dropped). <b>Rehearsal:</b> tick Rehearsal, start the Microphone only, and press <span class="key">T</span> before you speak as the other side. The sliders set the level a turn opens at; the bar turns red when it is above.</p>
+  <p class="note">Keys, in whichever window holds the card: <span class="key">1</span>…<span class="key">6</span> file that option for the question in the Filed row · <span class="key">0</span> its escape · <span class="key">X</span> not an answer, keep as a note · <span class="key">F</span> keep as filed (clears the frame flag) · <span class="key">R</span> ask again (the spoken form, large) · <span class="key">Z</span> undo the last filing · <span class="key">→</span>/<span class="key">Space</span> next unanswered · <span class="key">←</span> previous · <span class="key">P</span> pause and resume · <span class="key">Esc</span> float or return · <span class="key">T</span> switch sides (rehearsal).</p>
+  <h3>Turns</h3>
+  <div class="tw"><table>
+    <thead><tr><th>#</th><th>Who</th><th>Heard</th><th>Read</th><th>Speech end → shown</th><th>Split</th></tr></thead>
+    <tbody id="log"></tbody>
+  </table></div>
+  <p class="note" id="runnote"></p>
+</div>
+</div>
+</div>
+<script src="copilot.js"></script>
+</body>
+</html>
