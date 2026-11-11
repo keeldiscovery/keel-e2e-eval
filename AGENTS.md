@@ -312,6 +312,21 @@ added to this line rather than quietly written — which is exactly how the thir
   against `evals/copilot/bars.py` (the founder's to change). `DRY=1` needs no key (the fake writer, canned events,
   nothing spent), and everything that scores is offline and unit-tested with no call (`tests/test_copilot_bench.py`).
 
+- **The copilot prototype** (`make copilot-prototype [PORT=8765] [QUESTIONNAIRE=...]`, spec 152 FR-6) -- the founder's
+  hand test of the copilot on a real Google Meet, built from the UX page of 2026-11-11 (round 1 of the bench). It is
+  **Stack 1 exactly as the bench ran it** (`evals/copilot/stacks/turn_by_turn.py`: gpt-transcribe, then Haiku 5.5 on
+  `instructions/copilot-match.md`, `base.event_from` / `base.advance`), called -- not copied -- by a stdlib server on
+  127.0.0.1 (`evals/copilot/prototype/server.py`) behind one vanilla page (`copilot.html`, `.js`, `.css`): the
+  microphone is the founder, the shared Meet tab the respondent (or one microphone and `T` in rehearsal), turns cut at
+  0.7 s of silence, and the UX page's card (Now with the frame pills of `frames.json`, Heard, Filed, every key) in a
+  380 x 560 picture-in-picture window. It prints the URL and opens no browser. Its log is
+  `runs/<stamp>-copilot-prototype/` (`turns/<seq>-<who>.wav`, `events.jsonl` in the bench's event shape plus `heard`,
+  `reply`, `parts`, `seq`, `who`, `wall`, `keys.jsonl`, `session.json`), so a hand call can be scored like a synthetic
+  one; no register. **Not product code**: no sign-in, no project, nothing in keel-cloud or keel-web. The same key and
+  money rules as the bench: both keys from the shell into the request headers alone, refused in one line (exit 2)
+  without them, cents a turn, on the founder's word, never in `make eval` / `make unit`, the matrix or a schedule; its
+  tests run the server on `FakeClients` with no key and no call (`tests/test_copilot_prototype.py`).
+
 **The canon comes first**: keel-cloud `canon/CANON.md` holds the governing documents,
 their precedence, and the ledger this repo's `tests/test_journey_coverage.py` enforces. This
 repo deliberately floats at sibling HEADs (a referee pinned to the past can't call the present).
