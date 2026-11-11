@@ -1,0 +1,12 @@
+{
+ "_about": "Spec 152 FR-3: the frame pills the copilot card shows under each question, keyed by the questionnaire item's id. window = the time window, unit = what the number is counted in or per, anchor = the words that make it this question (a price, a party, a condition). Pills are shown in that order; an id that is missing here shows no pills. Data, not code: edit freely for another questionnaire.",
+ "questionnaire": "evals/copilot/fixtures/questionnaire-08-fresco.json",
+ "items": {
+  "q1": {"window": ["last month"], "unit": ["per site", "hours"], "anchor": []},
+  "q2": {"window": ["a month"], "unit": ["per site"], "anchor": []},
+  "q3": {"window": [], "unit": [], "anchor": ["the price you just gave"]},
+  "q4": {"window": ["a month"], "unit": ["per site"], "anchor": ["$800", "the CFO"]},
+  "q5": {"window": [], "unit": [], "anchor": ["a check it works", "Procore"]},
+  "q6": {"window": ["today"], "unit": ["one site"], "anchor": ["paid pilot"]}
+ }
+}
