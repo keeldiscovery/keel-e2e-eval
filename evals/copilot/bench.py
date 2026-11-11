@@ -47,6 +47,15 @@ def _jsonl(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+def _done_events(path: Path) -> dict:
+    """`events.jsonl` as {stack: {script id: [events]}}, so a resumed run skips what a crashed one finished."""
+    out: dict = {}
+    for row in _jsonl(path):
+        e = {k: v for k, v in row.items() if k not in ("stack", "script")}
+        out.setdefault(row["stack"], {}).setdefault(row["script"], []).append(e)
+    return out
+
+
 def _append(path: Path, rows: list[dict]):
     with path.open("a", encoding="utf-8") as f:
         for r in rows:
@@ -138,23 +147,27 @@ def run(argv: list[str] | None = None, *, env=None) -> int:
                 got, tts_seconds = r["clocks"], tts_seconds + r["tts_seconds"]
             clocks[s["id"]] = got
 
-    # the stacks
+    # the stacks (a resumed run reuses every script's events already on disk; each script's events land as it ends)
     events: dict = {}
+    done_events = _done_events(out / "events.jsonl")
     for n in stacks:
         stack = STACKS[n]()
         evs = {}
         for s in scripts:
+            if s["id"] in done_events.get(n, {}):
+                evs[s["id"]] = done_events[n][s["id"]]
+                continue
             if a.dry and "text" not in stack.levels:
                 evs[s["id"]] = canned_events(s)
-                continue
-            clients = FakeClients(s) if a.dry else HttpClients(keys)
-            level = "text" if a.dry else a.level
-            evs[s["id"]] = stack.run(s, q, clients, level=level, audio_dir=out / "audio" / s["id"],
-                                     clocks=clocks.get(s["id"]))
+            else:
+                clients = FakeClients(s) if a.dry else HttpClients(keys)
+                level = "text" if a.dry else a.level
+                evs[s["id"]] = stack.run(s, q, clients, level=level, audio_dir=out / "audio" / s["id"],
+                                         clocks=clocks.get(s["id"]))
+            _append(out / "events.jsonl", [dict(e, stack=n, script=s["id"]) for e in evs[s["id"]]])
+            _append(out / "transcripts.jsonl", [{"stack": n, "script": s["id"], "turn": e["turn"],
+                                                 "heard": e.get("heard")} for e in evs[s["id"]]])
         events[n] = evs
-        _append(out / "events.jsonl", [dict(e, stack=n, script=sid) for sid, es in evs.items() for e in es])
-        _append(out / "transcripts.jsonl", [{"stack": n, "script": sid, "turn": e["turn"], "heard": e.get("heard")}
-                                            for sid, es in evs.items() for e in es])
 
     # the sheets
     sheets = [score.sheet(scripts, events[n], q, round_=a.round, level=a.level, stack=STACKS[n].name, number=n,

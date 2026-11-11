@@ -24,6 +24,14 @@ CHUNK_SECONDS = 0.1
 LIVE_PROMPT = "A video call: a founder asking survey questions in their own words, and the respondent answering."
 
 
+def _closed_exceptions() -> tuple:
+    try:
+        from websockets.exceptions import ConnectionClosed                    # noqa: PLC0415
+    except ImportError:
+        return ()
+    return (ConnectionClosed,)
+
+
 def window_turns(env=None) -> int:
     env = os.environ if env is None else env
     raw = (env.get("WINDOW_TURNS") or "").strip()
@@ -46,12 +54,27 @@ class LiveTranscriber:
     COMPLETED = "conversation.item.input_audio_transcription.completed"
     FAILED = ("error", "conversation.item.input_audio_transcription.failed")
 
-    def __init__(self, transport, *, prompt: str = LIVE_PROMPT, rate: int = 24_000, width: int = 2):
-        self.transport, self.rate, self.width = transport, rate, width
+    def __init__(self, transport, *, prompt: str = LIVE_PROMPT, rate: int = 24_000, width: int = 2, reopen=None):
+        self.transport, self.rate, self.width, self.prompt, self.reopen = transport, rate, width, prompt, reopen
         self.transport.send(json.dumps(session_update(prompt=prompt, rate=rate)))
         self.seconds = 0.0
+        self.reopened = 0
 
     def say(self, pcm: bytes, *, timeout: float = 30.0) -> tuple[str, int]:
+        """One turn; a socket that drops mid-turn (a keepalive timeout, a closed connection) is reopened once and the
+        turn sent again, when a `reopen` factory was given."""
+        try:
+            return self._say(pcm, timeout=timeout)
+        except (ConnectionError, OSError, TimeoutError, *_closed_exceptions()):
+            if self.reopen is None:
+                raise
+            self.close()
+            self.transport = self.reopen()
+            self.transport.send(json.dumps(session_update(prompt=self.prompt, rate=self.rate)))
+            self.reopened += 1
+            return self._say(pcm, timeout=timeout)
+
+    def _say(self, pcm: bytes, *, timeout: float) -> tuple[str, int]:
         step = int(self.rate * CHUNK_SECONDS) * self.width
         for i in range(0, len(pcm), step):
             self.transport.send(json.dumps({"type": "input_audio_buffer.append",
@@ -98,7 +121,7 @@ class RunningState(base.Stack):
         items = {it["id"]: it for it in q["items"]}
         live = {}
         if level == "audio":
-            live = {who: LiveTranscriber(clients.realtime()) for who in ("founder", "them")}
+            live = {who: LiveTranscriber(clients.realtime(), reopen=clients.realtime) for who in ("founder", "them")}
         current, state, events, said = None, "listening", [], []
         try:
             for i, turn in enumerate(script["turns"]):

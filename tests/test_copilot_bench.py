@@ -500,6 +500,34 @@ def test_the_live_transcriber_gives_up_on_a_failed_turn():
     assert text == ""
 
 
+def test_the_live_transcriber_reopens_a_dropped_socket_once():
+    class Dropping(FakeRealtime):
+        def recv(self):
+            raise ConnectionError("keepalive ping timeout")
+
+    opened = []
+
+    def reopen():
+        opened.append(FakeRealtime(None))
+        return opened[-1]
+
+    live = LiveTranscriber(Dropping(None), reopen=reopen)
+    text, _ms = live.say(b"\x00\x00" * 2400)
+    assert live.reopened == 1 and len(opened) == 1 and opened[0].sent[0]["type"] == "session.update"
+    with pytest.raises(ConnectionError):
+        LiveTranscriber(Dropping(None)).say(b"\x00\x00" * 2400)             # no factory: the turn fails loudly
+
+
+def test_a_resumed_run_reuses_each_stacks_finished_scripts(tmp_path, no_network):
+    assert bench.run(["--round", "1", "--level", "text", "--dry", "--runs-dir", str(tmp_path)], env={}) == 0
+    (run_dir,) = list(tmp_path.glob("*-copilot-bench-r1-text"))
+    before = (run_dir / "events.jsonl").read_text().splitlines()
+    assert bench.run(["--round", "1", "--level", "text", "--dry", "--resume", str(run_dir)], env={}) == 0
+    assert (run_dir / "events.jsonl").read_text().splitlines() == before     # nothing re-run, nothing duplicated
+    done = bench._done_events(run_dir / "events.jsonl")
+    assert sorted(done) == [1, 2, 3] and all(len(v) == 3 for v in done.values())
+
+
 def test_stack_three_sends_the_turn_as_audio_and_has_no_text_level(q, audio_run):
     s, clocks, d = audio_run
     fake = FakeClients(s, audio_usage={"prompt_tokens": 900, "completion_tokens": 40,
