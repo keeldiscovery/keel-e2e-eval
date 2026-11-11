@@ -41,13 +41,23 @@ PAD = 0.5          # the recording window opens a little before and closes a lit
 TTS_INSTRUCTIONS = ("You are an ordinary person answering a survey question on your phone, speaking naturally at a "
                     "normal everyday pace. Keep every hesitation, pause and filler exactly as written.")
 
+TTS_TRIES = 4      # a read timeout or a 429/5xx is retried with a short backoff; the fifth failure raises
+
 def tts(text, voice, path, instructions=TTS_INSTRUCTIONS):
     if path.exists(): return
-    import requests
-    r = requests.post("https://api.openai.com/v1/audio/speech", headers={"Authorization": "Bearer " + KEY},
-                      json={"model": "gpt-4o-mini-tts", "voice": voice, "input": text, "instructions": instructions,
-                            "response_format": "wav"}, timeout=60)
-    r.raise_for_status()
+    import requests, time
+    for attempt in range(TTS_TRIES):
+        try:
+            r = requests.post("https://api.openai.com/v1/audio/speech", headers={"Authorization": "Bearer " + KEY},
+                              json={"model": "gpt-4o-mini-tts", "voice": voice, "input": text,
+                                    "instructions": instructions, "response_format": "wav"}, timeout=60)
+            if r.status_code == 429 or r.status_code >= 500:
+                raise requests.ConnectionError(f"HTTP {r.status_code}")
+            r.raise_for_status()
+            break
+        except (requests.ConnectionError, requests.Timeout):
+            if attempt == TTS_TRIES - 1: raise
+            time.sleep(2 ** (attempt + 1))
     path.write_bytes(r.content)
     y, sr = sf.read(path, dtype="float32")
     if y.ndim > 1: y = y.mean(axis=1)

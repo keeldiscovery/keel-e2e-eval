@@ -776,3 +776,28 @@ def test_the_page_carries_every_stack_and_script(q, tmp_path):
     text = path.read_text(encoding="utf-8")
     assert text.count("<audio controls") == 2 * len(scripts) and all(s["id"] in text for s in scripts)
     assert "prefers-color-scheme: dark" in text
+
+
+def test_tts_retries_a_read_timeout(tmp_path, monkeypatch):
+    import requests
+    import numpy as np
+    import soundfile as sf
+    from evals.noise import synth
+    calls = []
+    wav = tmp_path / "ok.wav"
+    sf.write(wav, np.zeros(2400, dtype="float32"), 24000)
+
+    class R:
+        status_code, content = 200, wav.read_bytes()
+        def raise_for_status(self): pass
+
+    def post(*a, **k):
+        calls.append(1)
+        if len(calls) < 3:
+            raise requests.ConnectionError("Read timed out.")
+        return R()
+    monkeypatch.setattr(requests, "post", post)
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    synth.KEY = "x"
+    synth.tts("hello", "alloy", tmp_path / "out.wav")
+    assert len(calls) == 3 and (tmp_path / "out.wav").exists()
