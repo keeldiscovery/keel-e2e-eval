@@ -32,4 +32,4 @@ This replaces spec 152's live path and reuses its page, window, sources, run fol
 
 ## Judgement calls left to the builder
 
-The chunk length (≤ 60 s) and WAV rate; the typed-number field's behaviour on a non-number; whether the Filed row shows the last two filings or one; the exact against sets and hints, each traced to the product's code and the lock in tasks.md. Where the product's composer needs data the fixture does not carry, the builder writes what it needs into `follow-ups.json` and says so; it does not change the fixture.
+The chunk length (≤ 60 s); the WAV rate is 16 kHz, 16-bit mono (about 58 MB a side for a 30-minute call; the product would store Opus at about 7 MB a side); the typed-number field's behaviour on a non-number; whether the Filed row shows the last two filings or one; the exact against sets and hints, each traced to the product's code and the lock in tasks.md. Where the product's composer needs data the fixture does not carry, the builder writes what it needs into `follow-ups.json` and says so; it does not change the fixture.
