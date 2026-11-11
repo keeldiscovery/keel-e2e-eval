@@ -26,7 +26,8 @@ def _v(cell: dict) -> str:
     v = cell.get("value")
     if v is None:
         return "–"
-    return f"{v} s" if cell.get("op") and cell.get("what", "").find("seconds") >= 0 else f"{v}%"
+    seconds = cell.get("name", "").endswith("_s") or cell.get("what", "").find("seconds") >= 0
+    return f"{v} s" if seconds else f"{v}%"
 
 
 def stack_markdown(sh: dict) -> str:

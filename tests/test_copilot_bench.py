@@ -419,6 +419,21 @@ def test_event_from_reads_a_reply_as_the_product_would(q):
                          items=items, current="q1", state="listening")
     assert ev["option"] == {"unclear": True} and ev["tier"] == "unsure"           # out of range reads unclear
     assert base.event_from(None, turn=0, who="them", items=items, current=None, state="answered")["parsed"] is False
+    # a founder verdict echoed onto the respondent's line is noise: the option is still read, nothing moves
+    ev = base.event_from({"q": "q1", "verdict": "same_meaning", "option": {"value": 20}, "tier": "likely",
+                          "state": "answered", "reason": "echo"}, turn=1, who="them", items=items, current="q1",
+                         state="listening")
+    assert (ev["verdict"], ev["option"], ev["tier"]) == (None, {"value": 20}, "likely")
+    assert base.advance(ev, "q1") == "q1" and ev["reply"]["reason"] == "echo"
+    ev = base.event_from({"q": "q1", "verdict": "follow_up", "option": {"value": 20}}, turn=1, who="them",
+                         items=items, current="q1", state="follow_up")
+    assert ev["verdict"] == "follow_up" and ev["option"] is None       # a follow-up reply is never an answer
+
+
+def test_the_sheet_prints_every_clock_in_seconds():
+    from evals.copilot import report, score
+    assert report._v(score._cell("G.worst_s", 125.404, 10)) == "125.404 s"
+    assert report._v(score._cell("A.same_meaning", 89.5, 10)) == "89.5%"
 
 
 @pytest.mark.parametrize("stack", [TurnByTurn(), RunningState()])

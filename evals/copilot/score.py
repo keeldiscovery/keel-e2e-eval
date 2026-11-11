@@ -161,9 +161,9 @@ def rows(scripts: list[dict], events: dict, q: dict, *, noisy: set | None = None
 def _cell(name: str, value, n: int, *, vacuous: bool = False) -> dict:
     op, bar, what = next((o, b, w) for c, o, b, w in B.BARS if c == name)
     if value is None or (n == 0 and not vacuous):
-        return {"value": None, "n": n, "op": op, "bar": bar, "what": what, "status": "not measured"}
+        return {"name": name, "value": None, "n": n, "op": op, "bar": bar, "what": what, "status": "not measured"}
     good = value >= bar if op == ">=" else value <= bar
-    return {"value": value, "n": n, "op": op, "bar": bar, "what": what, "status": "ok" if good else "fail",
+    return {"name": name, "value": value, "n": n, "op": op, "bar": bar, "what": what, "status": "ok" if good else "fail",
             **({"vacuous": True} if vacuous else {})}
 
 

@@ -23,6 +23,8 @@ VERDICTS = ("as_written", "same_meaning", "options_own_words", "meaning_changed"
 QUESTION_VERDICTS = ("as_written", "same_meaning", "options_own_words", "meaning_changed", "stacked", "leading")
 #: Meaning kept: as written or reworded; A's first bar reads these two as one.
 MEANING_KEPT = ("as_written", "same_meaning")
+#: The verdicts only a founder's line can carry; on a respondent's line they are noise and the option is still read.
+FOUNDER_VERDICTS = QUESTION_VERDICTS + ("own_note", "back_channel")
 #: The AI interviewer's three tiers (keel-cloud's classifier says high / medium / low: read onto these in order).
 TIERS = ("sure", "likely", "unsure")
 CONFIDENCE_TIER = {"high": "sure", "medium": "likely", "low": "unsure"}

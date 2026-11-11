@@ -65,10 +65,14 @@ def read_reply(reply: dict) -> dict | None:
 
 def event_from(parsed: dict | None, *, turn: int, who: str, items: dict, current: str | None, state: str) -> dict:
     """A model's JSON as an event: an unknown id, verdict, tier or state is dropped (null); a founder turn carries no
-    answer; an answer is read through `norm_out` against its item, as `Classification.validated()` reads it."""
+    answer; a respondent turn carries no founder verdict (a question verdict, an own note or a back-channel echoed onto
+    the respondent's line is dropped and the option read); an answer is read through `norm_out` against its item, as
+    `Classification.validated()` reads it. The model's JSON stays on the event as `reply`, for the audit."""
     p = parsed if isinstance(parsed, dict) else {}
     q = p.get("q") if p.get("q") in items else None
     verdict = p.get("verdict") if p.get("verdict") in cat.VERDICTS else None
+    if who == "them" and verdict in cat.FOUNDER_VERDICTS:
+        verdict = None          # a respondent asks no Keel question: a verdict echoed from the founder's line is noise
     tier = p.get("tier")
     tier = cat.CONFIDENCE_TIER.get(tier, tier) if tier is not None else None
     tier = tier if tier in cat.TIERS else None
@@ -81,7 +85,7 @@ def event_from(parsed: dict | None, *, turn: int, who: str, items: dict, current
     if who == "founder":
         tier = None
     return {"turn": turn, "q": q, "verdict": verdict, "option": option, "tier": tier, "state": new_state,
-            "parsed": parsed is not None}
+            "parsed": parsed is not None, "reply": parsed if isinstance(parsed, dict) else None}
 
 
 def advance(ev: dict, current: str | None) -> str | None:
