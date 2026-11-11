@@ -278,7 +278,7 @@ class Session:
             self.turns[seq].update(done=True, q=ev["q"] or current)
             ev["wall"]["shown_at"] = round(time.time(), 3)
             self.events.append(ev)
-            out = dict(ev, filed_row=row, card=self.card())
+            out = dict(ev, filed_row=self._row_view(row), card=self.card())
         self._write_events()
         self._write_session()
         return out
@@ -489,11 +489,18 @@ class Session:
         return {"filed_by_box": by.count("box"), "filed_by_key": by.count("key"), "filed_as_notes": by.count("note"),
                 "own_notes": len(self.notes), "items": len(self.order)}
 
+    def _row_view(self, row: dict | None) -> dict | None:
+        """A Filed row with the filing it shows, when it shows one."""
+        if not row:
+            return None
+        row = dict(row)
+        if row.get("q") in self.filings and row["kind"] in ("sure", "likely", "keyed", "kept_note"):
+            row["filing"] = self.filings[row["q"]]
+        return row
+
     def card(self) -> dict:
         """What the card shows, as the server holds it."""
-        row = dict(self.filed_row) if self.filed_row else None
-        if row and row.get("q") in self.filings and row["kind"] not in ("undone",):
-            row["filing"] = self.filings[row["q"]]
+        row = self._row_view(self.filed_row)
         return {"current": self.current, "n": (self.order.index(self.current) + 1) if self.current else 0,
                 "N": len(self.order), "state": self.state, "listening": self.listening, "done": self.done(),
                 "flags": dict(self.flags), "note_next": sorted(self.note_next), "filed_row": row,

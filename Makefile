@@ -4,7 +4,7 @@ PIP := $(VENV)/bin/pip
 PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
-        matrix-check keels-ai sample backtest gallery noise-check copilot-bench read-screens read-table \
+        matrix-check keels-ai sample backtest gallery noise-check copilot-bench copilot-prototype read-screens read-table \
         quality-walk quality-advise quality-accept quality-due remote
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
@@ -186,6 +186,24 @@ copilot-bench:
 	@if [ -z "$(DRY)" ] && { [ -z "$$KEEL_OPENAI_API_KEY" ] || [ -z "$$KEEL_ANTHROPIC_API_KEY" ]; }; then echo "make copilot-bench refuses: KEEL_OPENAI_API_KEY and KEEL_ANTHROPIC_API_KEY must both be set in this shell -- the bench calls Sonnet 5.5, Haiku 5.5 and OpenAI's speech models (spec 151 FR-7); they are never logged, echoed or written. DRY=1 needs neither"; exit 2; fi
 	@$(MAKE) --no-print-directory venv
 	PYTHONPATH=. $(PY) -m evals.copilot.bench --round $(ROUND) --level $(LEVEL) $(if $(DRY),--dry,) $(if $(STACKS),--stacks "$(STACKS)",) $(if $(QUESTIONNAIRE),--questionnaire "$(QUESTIONNAIRE)",) $(if $(LIMIT),--limit $(LIMIT),) $(if $(SAMPLE),--sample $(SAMPLE),) $(if $(RESUME),--resume "$(RESUME)",) $(if $(SNRS),--snrs "$(SNRS)",) $(if $(NOISE_SHARE),--noise-share $(NOISE_SHARE),) $(if $(VOICES),--voices "$(VOICES)",) $(if $(SEED),--seed $(SEED),)
+
+# make copilot-prototype (spec 152) is THE COPILOT PROTOTYPE: Stack 1 of the bench (gpt-transcribe then Haiku 5.5 on
+# evals/copilot/instructions/copilot-match.md, turn by turn) behind a local page, for the founder's hand test on a real
+# Google Meet. It starts a server on 127.0.0.1:$(PORT) (default 8765) and prints the URL; open it in Chrome (it opens no
+# browser): Microphone is the founder, Share (the Meet tab, with its audio) is the respondent, Rehearsal is one
+# microphone with T switching sides; Float puts the card in a 380x560 picture-in-picture window. QUESTIONNAIRE=
+# defaults to evals/copilot/fixtures/questionnaire-08-fresco.json; the frame pills are evals/copilot/prototype/frames.json.
+# The session's log is runs/<stamp>-copilot-prototype/ (turns/*.wav, events.jsonl, keys.jsonl, session.json). Ctrl-C ends
+# it. An eval-repo tool, not product code.
+#
+# PAID per turn (cents a call): both keys from this shell, read into the request headers alone and never logged, echoed
+# or written. Never in `make eval`, `make unit`, the matrix or a schedule.
+#
+#   KEEL_OPENAI_API_KEY="$$(...)" KEEL_ANTHROPIC_API_KEY="$$(...)" make copilot-prototype [PORT=8765]
+copilot-prototype:
+	@if [ -z "$$KEEL_OPENAI_API_KEY" ] || [ -z "$$KEEL_ANTHROPIC_API_KEY" ]; then echo "make copilot-prototype refuses: KEEL_OPENAI_API_KEY and KEEL_ANTHROPIC_API_KEY must both be set in this shell -- the prototype calls gpt-transcribe and Haiku 5.5 on every turn (spec 152); they are never logged, echoed or written"; exit 2; fi
+	@$(MAKE) --no-print-directory venv
+	@PYTHONPATH=. $(PY) -m evals.copilot.prototype.server $(if $(PORT),--port $(PORT),) $(if $(QUESTIONNAIRE),--questionnaire "$(QUESTIONNAIRE)",)
 
 # make read-screens (spec 078) is THE QUESTION-QUALITY READERS: one back-test bundle's backtest.json (spec 062 FR-4)
 # read as text, every founder screen by the founder-reader (the entry's .sources.md whole) and every served respondent
