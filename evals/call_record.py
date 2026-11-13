@@ -78,12 +78,18 @@ def build_key_log(script: dict, client_id: str = "c-eval-154") -> dict:
     item after item 1; none: no follow-up); the third filing undone at `undo` and filed again at `refile`; the pilot's
     first option; the two closing stretches; End. Returns the log and `plan`: what was filed, per item, for the leg."""
     parts = passages_of(script)
-    gate, items, pilot = parts.get("gate"), parts["items"][:6], parts.get("pilot")
+    # six items the card can file: a number, or a choice with an option that carries an id (a ladder's by its second
+    # step) -- an item the card cannot file is passed over and named in the plan
+    fileable = [i for i in parts["items"] if i.get("control") == "number" or _first_option(i) is not None]
+    gate, items, pilot = parts.get("gate"), fileable[:6], parts.get("pilot")
     if gate is None or len(items) < 6:
         raise ValueError(f"the script has no gate or fewer than six items ({len(items)}): the fake record needs six")
     filings: list[dict] = []
     stretches: list[dict] = []
-    plan: dict = {"items": [], "follow_up_item": None, "heard_item": items[0]["itemId"]}
+    plan: dict = {"items": [], "follow_up_item": None, "heard_item": items[0]["itemId"],
+                  "passed_over": [{"itemId": i.get("itemId"), "control": i.get("control"),
+                                   "options": [{k: o.get(k) for k in ("optionId", "step")} for o in i.get("options") or []]}
+                                  for i in parts["items"] if i not in fileable]}
     yes = _first_option(gate)
     filings.append({"at": TIMES["gate"], "itemId": gate["itemId"], "option": yes["optionId"]})
     stretches.append({"kind": "STORY", "from": TIMES["gate"], "to": TIMES["story_to"], "itemId": gate["itemId"]})
@@ -174,6 +180,7 @@ def write_record(run_dir: Path, script: dict) -> dict:
     the log and the plan."""
     out = Path(run_dir) / "call-record"
     out.mkdir(parents=True, exist_ok=True)
+    (out / "script.json").write_text(json.dumps(script, indent=2) + "\n", encoding="utf-8")   # what the log was built off
     built = build_key_log(script)
     audio = tracks(built["log"], built["plan"])
     (out / "keys.json").write_text(json.dumps(built["log"], indent=2) + "\n", encoding="utf-8")
