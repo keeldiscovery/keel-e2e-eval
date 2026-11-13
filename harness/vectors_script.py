@@ -4375,8 +4375,12 @@ def generate(entry) -> GeneratedScript:
     if "PROBLEM" in vectors and not entry.unsure("problem.importance"):
         # spec 154 FR-0: the Importance probe's wire saves each start an ASKED job (short names), after the problem
         # stage's own (where the founder typed rows) and before the solution lists'
+        # the probe's two jobs come only where the founder typed rows on the Check (the list then carries rows owed a
+        # name the probe's saves move): on keel-cloud 34735d05 S-005 (01-countly, three typed rows) starts both and S-006
+        # (05-paidly, none typed) starts neither -- an unconsumed entry here is handed to the next ASKED job, the
+        # solution lists', and refused there (K1)
         asked = ([_completed(importance)] if importance else []) \
-            + [_completed(x) for x in importance_probe_asked_results(entry)] + asked
+            + ([_completed(x) for x in importance_probe_asked_results(entry)] if importance else []) + asked
     if asked:
         screens[ASKED_SCREEN] = asked
         # a refused asked turn's repair (the asked ladder) carries `repair`: answered with the same entries again

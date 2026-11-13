@@ -135,9 +135,11 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     # spec 129 (keel-cloud 200 FR-1): where the founder types Importance rows of his own (01-countly) and the writer
     # names them, the problem stage's face-less ASKED job comes first
     importance = vs.importance_asked_result(entry)
-    # spec 154 FR-0: then the Importance probe's wire saves' jobs (the own row; the rows past the third), then the two
-    # faced lists, every row phrased (keel-cloud 245)
-    assert asked == ([importance] if importance else []) + vs.importance_probe_asked_results(entry) + [
+    # spec 154 FR-0: then the Importance probe's wire saves' jobs (the own row; the rows past the third) -- only where
+    # rows were typed (S-006, none typed, starts neither on keel-cloud 34735d05) -- then the two faced lists, every row
+    # phrased (keel-cloud 245)
+    probe = vs.importance_probe_asked_results(entry) if importance else []
+    assert asked == ([importance] if importance else []) + probe + [
         vs.asked_result(entry, "solution.compatibility"), vs.asked_result(entry, "solution.adoption_friction")]
 
 
