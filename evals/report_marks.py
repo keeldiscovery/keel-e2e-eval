@@ -624,7 +624,12 @@ def report_no_repeat(r: dict) -> tuple[bool, Any]:
     # keel-web 155 FR-7 (keel-cloud 180 FR-11): each box opens like its card -- the served `statusLine` (the count and the
     # bar, *5 of 8 said ... · bar 6 of 8 · 1 short*) and `countLine` are the box's own words, as its pill is (spec 154:
     # S-005 on keel-web 697a7a2b, the first scripted walk to reach the report since 2026-10-30)
-    own += [str(i.get(k)) for i in (r["standings"].get("insights") or []) for k in ("statusLine", "countLine") if i.get(k)]
+    own += [str(i.get(k)) for i in (r["standings"].get("insights") or []) for k in ("statusLine", "countLine", "belief")
+            if i.get(k)]
+    # and each quote's own option words, drawn beside it (keel-cloud 119 FR-2 `InsightQuote.option`: *$20 to under $50*)
+    own += [str(q.get("option")) for i in (r["standings"].get("insights") or [])
+            for q in list(i.get("quotes") or []) + [x for t in i.get("themes") or [] for x in t.get("quotes") or []]
+            + list(i.get("rawQuotes") or []) if q.get("option")]
     found = repeats(page.get("text"), page.get("quotes"), own, numbers)
     return not found, {"repeated": found}
 
