@@ -57,6 +57,12 @@ def passages_of(script: dict) -> dict:
 
 def _first_option(item: dict, *, prefer_against: bool = False) -> dict | None:
     options = [o for o in item.get("options") or [] if o.get("optionId")]
+    if not options and item.get("twoSteps"):
+        # keel-cloud 248 FR-6: a two-step ladder's first step is bands with no id (`step` under / over) -- the band
+        # opens its second step, whose options carry the served ids; the filing is the second step's option
+        band = next((o for o in item.get("options") or [] if o.get("step")), None)
+        second = ((item.get("twoSteps") or {}).get(band.get("step")) if band else None) or {}
+        options = [o for o in second.get("options") or [] if o.get("optionId")]
     if prefer_against:
         against = set((item.get("followUp") or {}).get("against") or [])
         for option in options:
