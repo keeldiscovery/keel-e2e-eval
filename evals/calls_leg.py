@@ -102,6 +102,8 @@ TYPED_NICKNAME = "Reni"
 #: keel-cloud 248's and 249's log lines (ids only).
 LOG_PLANNED, LOG_SIGNED_IN, LOG_STARTED = "call_planned", "call_signed_in", "call_started"
 LOG_ENDED, LOG_DIGESTED, LOG_COUNTED = "call_ended", "call_digested", "call_counted"
+#: `stack/cloud.py`'s KEEL_INTERVIEWER_FAKE_TRANSCRIPT: the one word the stack's fake transcriber hears in a window.
+FAKE_TRANSCRIPT = "yes"
 #: keel-cloud 249: the digest's thread polls every 10 s; a call is ANSWERED within this.
 DIGEST_WITHIN_S = 90
 
@@ -791,50 +793,61 @@ def upload_fixture_record(j, call: dict, record: dict) -> dict:
 
 def the_digest(j, call: dict, record: dict, *, founder_id: str | None, since: str | None) -> None:
     """Spec 154 FR-4 (keel-cloud 249 FR-2, FR-5): what the digest filed for the fixture call -- the detail (format CALL,
-    identity NONE, the six filed answers TAPPED with their seconds, `heard` on item 1 naming option 3, the story the
-    fake transcriber heard, one follow-up, two notes with both voices), the timeline (the filings, the four stretch
-    kinds, `heard`), Hear the call's two tracks with Range, and NO INTERVIEW ledger row (keel-cloud 250 overrides the
-    30)."""
+    identity NONE, the six filed answers with their seconds, the story RECORDED, one follow-up RECORDED, two notes with
+    both voices -- every window as the stack's fake hears it, `FAKE_TRANSCRIPT`; so no `heard`: the worded fake that
+    names option 3 is keel-cloud's test seam, walked by its TheCallsRecordJourneyTest), the timeline (the filings, the
+    four stretch kinds), Hear the call's two tracks with Range, and NO INTERVIEW ledger row (keel-cloud 250 overrides
+    the 30)."""
     call_id = call["callId"]
     plan = record["fixture"]["plan"]
     detail = j.get(j.project(f"/invitations/{call_id}")) or {}
     timeline = j.get(j.project(f"/calls/{call_id}/timeline")) or {}
-    answers = detail.get("answers") or {}
-    items = answers.get("items") or []
-    by_item = {i.get("itemId"): i for i in items}
-    heard_item = plan["heard_item"]
+    # InvitationDetail: the person's answers are `interview` (spec 075's *See {name}'s answers*), one row per dimension
+    interview = detail.get("interview") or {}
+    items = interview.get("items") or []
     notes = detail.get("notes") or []
-    follow_ups = answers.get("followUps") or []
-    with _step(j, "keel-cloud 249 FR-2 / FR-5: the detail of the fixture call -- format CALL, identity NONE, six answers "
-                  "TAPPED each with its second, item 1 *heard* as option 3's label, the story as the fake heard it, one "
-                  "follow-up with its words, two notes (own questions, their questions) with both voices") as h:
+    # what the stack's fake transcriber hears in every window over the silence floor (`stack/cloud.py`
+    # KEEL_INTERVIEWER_FAKE_TRANSCRIPT): the one word -- keel-cloud 103's per-window words are a test-only seam no
+    # environment reaches, so the story, the follow-up and the notes are that word here, and the pick check names no
+    # other option (no `heard`); keel-cloud 249's TheCallsRecordJourneyTest walks the worded fake
+    said = FAKE_TRANSCRIPT
+    stored = None
+    if j.stack is not None and not j.stack.is_remote:
+        from stack import ledger as stack_ledger                           # noqa: PLC0415
+        stored = stack_ledger.stored_follow_ups(j.stack, j.project_id).get(call_id)
+    recorded = [f for f in stored or [] if f.get("how") == "RECORDED" and not f.get("skipped")]
+    follow_dimension = next((i.get("dimension") for i in plan["items"] if i["itemId"] == plan["follow_up_item"]), None)
+    with _step(j, "keel-cloud 249 FR-2 / FR-5: the detail of the fixture call -- format CALL, identity NONE, ANSWERED, "
+                  "the six filed answers each with its second, the story RECORDED as the stack's fake heard it, one "
+                  "follow-up RECORDED on the item the key log stretched, two notes (own questions, their questions) "
+                  "with both voices; no `heard` (the stack's fake names no other option)") as h:
         got = {"format": detail.get("format"), "callId": detail.get("callId"), "identity": detail.get("identity"),
                "status": detail.get("status"), "answers": len(items),
-               "hows": sorted({i.get("how") for i in items}), "ats": sum(1 for i in items if isinstance(i.get("at"), (int, float))),
-               "heard": {k: v.get("heard") for k, v in by_item.items() if v.get("heard")},
-               "story": answers.get("story"), "anchoring": answers.get("anchoring"),
-               "followUps": [{k: f.get(k) for k in ("dimension", "text", "how")} for f in follow_ups],
+               "ats": sum(1 for i in items if isinstance(i.get("at"), (int, float))),
+               "dimensions": [i.get("dimension") for i in items],
+               "heard": {i.get("dimension"): i.get("heard") for i in items if i.get("heard")},
+               "story": interview.get("story"), "anchoring": interview.get("anchoring"),
+               "followUps": [{k: f.get(k) for k in ("dimension", "text", "how")} for f in recorded],
                "notes": [{k: n.get(k) for k in ("kind", "from", "to", "founder", "them")} for n in notes]}
         record["detail"] = got
-        want = {"format": "CALL", "callId": call_id, "identity": "NONE", "status": "ANSWERED", "answers": 6,
-                "hows": ["TAPPED"], "heard": {heard_item: plan["heard_option_label"]}, "story": call_record.STORY,
-                "followUps": [{"text": call_record.FOLLOW_UP, "how": "RECORDED"}] if plan["follow_up_item"] else [],
-                "notes": [{"kind": "OWN_QUESTIONS", "founder": call_record.OWN_FOUNDER, "them": call_record.OWN_THEM},
-                          {"kind": "THEIR_QUESTIONS", "founder": call_record.THEIR_FOUNDER, "them": call_record.THEIR_THEM}]}
+        filed = [i.get("dimension") for i in plan["items"]]
+        want = {"format": "CALL", "callId": call_id, "identity": "NONE", "status": "ANSWERED", "answers": len(filed),
+                "dimensions": filed, "heard": {}, "story": said,
+                "followUps": [{"dimension": follow_dimension, "text": said, "how": "RECORDED"}] if follow_dimension else [],
+                "notes": [{"kind": "OWN_QUESTIONS", "founder": said, "them": said},
+                          {"kind": "THEIR_QUESTIONS", "founder": said, "them": said}]}
         h.record_assert(want, got)
         assert got["format"] == "CALL" and got["callId"] == call_id and got["identity"] == "NONE", got
         assert got["status"] == "ANSWERED", got
-        assert len(items) >= 6 and got["hows"] == ["TAPPED"] and got["ats"] == len(items), got
-        assert got["heard"] == {heard_item: plan["heard_option_label"]}, got["heard"]
-        assert got["story"] == call_record.STORY, got["story"]
-        if plan["follow_up_item"]:
-            assert len(follow_ups) == 1 and follow_ups[0].get("text") == call_record.FOLLOW_UP, follow_ups
+        assert sorted(got["dimensions"]) == sorted(filed) and got["ats"] == len(items) == len(filed) >= 6, got
+        assert got["heard"] == {}, got["heard"]
+        assert got["story"] == said, got["story"]
+        if follow_dimension and stored is not None:
+            assert got["followUps"] == [{"dimension": follow_dimension, "text": said, "how": "RECORDED"}], got["followUps"]
         assert [n.get("kind") for n in notes] == ["OWN_QUESTIONS", "THEIR_QUESTIONS"], notes
-        assert (notes[0].get("founder"), notes[0].get("them")) == (call_record.OWN_FOUNDER, call_record.OWN_THEM), notes
-        assert (notes[1].get("founder"), notes[1].get("them")) == (call_record.THEIR_FOUNDER, call_record.THEIR_THEM), notes
+        assert all((n.get("founder"), n.get("them")) == (said, said) for n in notes), notes
     with _step(j, "keel-cloud 249 FR-5: the timeline -- the filings kept after the undo in time order, the stretches as the "
-                  "key log had them (STORY, FOLLOW_UP, OWN_QUESTIONS, THEIR_QUESTIONS), the notes' windows, `heard` on "
-                  "item 1") as h:
+                  "key log had them (STORY, FOLLOW_UP, OWN_QUESTIONS, THEIR_QUESTIONS), the notes' windows, no `heard`") as h:
         kinds = [s.get("kind") for s in timeline.get("stretches") or []]
         got = {"duration": timeline.get("duration"), "filings": len(timeline.get("filings") or []),
                "ats_sorted": [f.get("at") for f in timeline.get("filings") or []] == sorted(f.get("at") for f in timeline.get("filings") or []),
@@ -844,11 +857,11 @@ def the_digest(j, call: dict, record: dict, *, founder_id: str | None, since: st
         surviving = len(record["fixture"]["log"]["filings"]) - len(record["fixture"]["log"]["undos"])
         h.record_assert({"filings": surviving, "ats_sorted": True,
                          "kinds": ["STORY", "FOLLOW_UP", "OWN_QUESTIONS", "THEIR_QUESTIONS"] if plan["follow_up_item"] else ["STORY", "OWN_QUESTIONS", "THEIR_QUESTIONS"],
-                         "notes": 2, "heard": [(heard_item, plan["heard_option_label"])]}, got)
+                         "notes": 2, "heard": []}, got)
         assert got["filings"] == surviving and got["ats_sorted"], got
         assert kinds == (["STORY", "FOLLOW_UP", "OWN_QUESTIONS", "THEIR_QUESTIONS"] if plan["follow_up_item"]
                          else ["STORY", "OWN_QUESTIONS", "THEIR_QUESTIONS"]), kinds
-        assert got["notes"] == 2 and got["heard"] == [(heard_item, plan["heard_option_label"])], got
+        assert got["heard"] == [], got
         assert isinstance(got["duration"], (int, float)) and got["duration"] >= call_record.TIMES["end"], got
     with _step(j, "keel-cloud 249 FR-5: Hear the call -- each track answers 206 to a Range and 200 whole with "
                   "Accept-Ranges; another track word is the bare 404", party="founder") as h:

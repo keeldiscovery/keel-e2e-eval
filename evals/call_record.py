@@ -113,7 +113,8 @@ def build_key_log(script: dict, client_id: str = "c-eval-154") -> dict:
             # the third filing undone and filed again (the record keeps the later one)
             undos.append({"at": TIMES["undo"], "itemId": item["itemId"]})
             filings.append({**filing, "at": TIMES["refile"]})
-        plan["items"].append({"itemId": item["itemId"], "filed": option["optionId"] if option else None, "label": label,
+        plan["items"].append({"itemId": item["itemId"], "dimension": item.get("dimension"),
+                              "filed": option["optionId"] if option else None, "label": label,
                               "control": control, "options": [o.get("label") for o in item.get("options") or []]})
         if want_against and option is not None and option["optionId"] in set((item.get("followUp") or {}).get("against") or []):
             stretches.append({"kind": "FOLLOW_UP", "from": at, "to": at + TIMES["follow_up_to"], "itemId": item["itemId"]})
