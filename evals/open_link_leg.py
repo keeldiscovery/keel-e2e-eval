@@ -536,7 +536,10 @@ def the_register(j, sent, ctx: dict, record: dict) -> None:
                          "wire": {"begun": 2, "answered": 1, "cap": 20, "closedAt": None, "format": FORMAT,
                                   "rows": 3}}, record["sent"])
         assert tabs.get("label") == iv_screens.SENT_TABS_LABEL, tabs
-        assert tabs["group"] == {"text": iv_screens.sent_tab_by_group(1), "role": "tab", "selected": True}, tabs
+        # keel-web 187 FR-1: each tab also names its panel (`aria-controls`), read beside these
+        assert {k: tabs["group"].get(k) for k in ("text", "role", "selected")} == \
+            {"text": iv_screens.sent_tab_by_group(1), "role": "tab", "selected": True}, tabs
+        assert tabs["group"].get("controls") == "sent-panel-group", tabs
         assert tabs["name"]["text"] == iv_screens.sent_tab_by_name(len(named)) and not tabs["name"]["selected"], tabs
         assert line and (line == want_line or line.startswith(f"{want_line} · ")), (line, want_line)
         assert (group.get("begun"), group.get("answered"), group.get("cap"), group.get("closedAt")) == (2, 1, 20, None), \
