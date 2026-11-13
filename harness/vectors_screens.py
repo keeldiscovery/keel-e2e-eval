@@ -3652,7 +3652,7 @@ class Corridor:
                 typed_duration = {"count": _value(self.page.get_by_test_id(DURATION_COUNT_TESTID).first),
                                   "unit": self.page.get_by_test_id(DURATION_UNIT_TESTID).first.input_value()}
             # spec 154 FR-0 (keel-web 186 FR-2): the asked line under the picked radio, once the writing line has left
-            asked_line = self._choose_asked_line()
+            asked_line = self._choose_asked_line(owed=name in ASKED_LINE_KEYS)
             if asked_line.get("kind") is None and wire_question is not None and name in ASKED_LINE_KEYS:
                 # past the ceiling with no line drawn: ONE GET of the calibration (the leg's) -- where the wire serves
                 # the picked row's question, the page is reloaded (its own fresh read) and the line read once more; the
@@ -3668,7 +3668,7 @@ class Corridor:
                         radios.nth(index).click()
                     else:
                         group.get_by_role("radio", name=label, exact=True).click()
-                    asked_line = {**self._choose_asked_line(), "wire": served, "after_reload": True}
+                    asked_line = {**self._choose_asked_line(owed=True), "wire": served, "after_reload": True}
             seen = {"screen": "choose", "frame": self.frame(), "options": options, "label": label,
                     "asked_line": asked_line,
                     **({"index": index} if index is not None else {}),
@@ -3693,13 +3693,18 @@ class Corridor:
             seen["writes"] = [_request_row(r) for r in writes]
             seen["served_index"] = served_picked_index(seen["writes"], name)
             seen["duration_sent"] = sent_duration(seen["writes"], name)
+            # spec 154 FR-0: what the Choose read of the asked line, in the step's own record
+            h.record_wire({"pick": label if index is None else f"option {index}"},
+                          {"asked_line": asked_line, "served_index": seen["served_index"]})
             return seen
 
-    def _choose_asked_line(self) -> dict:
+    def _choose_asked_line(self, *, owed: bool = True) -> dict:
         """Spec 154 FR-0 (keel-web 186 FR-2, keel-cloud 245 FR-3): the line under the picked radio -- `kind` *asked*
         (`question` the served words), *as_written*, *writing* (the cap passed with the job still writing, recorded for
         the leg's one GET) or None (a list that is not asked: a keel-web before 186, or another dimension); `waited_s`
-        how long the writing line was waited out (polled every `CHOOSE_ASKED_POLL_S`, capped `CHOOSE_ASKED_CAP_S`)."""
+        how long the writing line was waited out (polled every `CHOOSE_ASKED_POLL_S`, capped `CHOOSE_ASKED_CAP_S`).
+        `owed` False (a dimension outside `ASKED_LINE_KEYS`): no line is owed, so the page is read at once unless it
+        draws the writing line -- the ceiling is never spent on a Choose that has no asked list."""
         writing = self.page.get_by_test_id(CHOOSE_ASKED_WRITING_TESTID)
         asked = self.page.get_by_test_id(CHOOSE_ASKED_TESTID)
         as_written = self.page.get_by_test_id(CHOOSE_ASKED_AS_WRITTEN_TESTID)
@@ -3708,6 +3713,8 @@ class Corridor:
         # job lands) is given the same ceiling to draw one, polled every 2 s
         while time.monotonic() - started < CHOOSE_ASKED_CAP_S * self.patience:
             if asked.count() or as_written.count():
+                break
+            if not owed and not writing.count():
                 break
             self.page.wait_for_timeout(int(CHOOSE_ASKED_POLL_S * 1000))
         waited = round(time.monotonic() - started, 1)

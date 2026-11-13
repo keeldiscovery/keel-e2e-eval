@@ -2113,7 +2113,11 @@ def choose_faults(choose: dict | None, key: str, *, row: int | None, b2b: bool =
         # "..."* -- or *Keel will ask this row as written.*; the writing line waited out (90 s) before the read (a Choose
         # read without the key is a reading from before 186, held to the pick alone)
         line = choose.get("asked_line") or {}
-        fault("the asked line under the pick (keel-web 186)", line.get("kind") in ("asked", "as_written"), True)
+        if line.get("kind") in ("asked", "as_written", "writing") or line.get("wire"):
+            # owed where the wire serves the row's question by then (keel-cloud 245 FR-4); where it serves none -- the
+            # Save's asked job not started before the Choose (on keel-cloud dfdad66a Adoption friction's starts at the
+            # Choose's Save) -- nothing can be drawn, and the leg files it as a finding instead
+            fault("the asked line under the pick (keel-web 186)", line.get("kind") in ("asked", "as_written"), True)
         if line.get("kind") == "asked":
             fault("the asked line's lead", (line.get("lead") or "").startswith(vs_screens.CHOOSE_ASKED_LEAD), True)
             fault("the asked line's question", bool(line.get("question")), True)
@@ -2461,7 +2465,17 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 elif screen["screen"] == "choose":
                     faults += [{"dimension": key, **f}
                                for f in choose_faults(screen, key, row=screen.get("row"), b2b=vs.is_b2b(j.entry))]
-                    if (screen.get("asked_line") or {}).get("after_reload") and hasattr(j, "findings"):
+                    line = screen.get("asked_line") or {}
+                    if key in vs_screens.ASKED_LINE_KEYS and line.get("kind") is None and not line.get("wire") \
+                            and hasattr(j, "findings"):
+                        # spec 154 FR-0: no line and no question on the wire within the ceiling -- the Save's asked job
+                        # had not started before the Choose (keel-cloud dfdad66a starts Adoption friction's at the
+                        # Choose's Save; keel-web 186 FR-3 names the Check's); the faces are held on the stored list
+                        j.findings.append({"what": f"{key}: Choose drew no asked line and the wire served no question "
+                                                   f"within {vs_screens.CHOOSE_ASKED_CAP_S:.0f} s of the pick -- the asked job "
+                                                   "starts at the Choose's Save on this build (keel-cloud 245 FR-2 / keel-web 186 FR-3)",
+                                           "served": line})
+                    if line.get("after_reload") and hasattr(j, "findings"):
                         # spec 154 FR-0: the page drew the line only after a reload -- the Save's asked job had landed
                         # before the page's first poll (the stub answers at once); the wire served it all along
                         j.findings.append({"what": f"{key}: Choose drew no asked line within {vs_screens.CHOOSE_ASKED_CAP_S:.0f} s; "

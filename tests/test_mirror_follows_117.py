@@ -156,6 +156,13 @@ OLD = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _a_short_asked_ceiling(monkeypatch):
+    """Spec 154 FR-0: these fixture pages draw no asked line (keel-web 153 / 168, before 186), so the walk's 90 s ceiling
+    for Compatibility's and Adoption friction's line is cut to one poll here -- the line is read, never awaited."""
+    monkeypatch.setattr(vs_screens, "CHOOSE_ASKED_CAP_S", vs_screens.CHOOSE_ASKED_POLL_S)
+
+
 def _choose(browser, tmp_path, key, **opts):
     page = browser.new_page()
     screen = {**SCREENS[key], "rows": ROWS, "dim": key, **opts}
