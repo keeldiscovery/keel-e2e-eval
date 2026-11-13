@@ -4028,6 +4028,12 @@ class Corridor:
                 "problem_kicker": _first_text(main, "[data-testid=lock-problem]").split("\n")[0].strip()
                 if main.get_by_test_id("lock-problem").count() else None,
                 "plan_rows": main.get_by_test_id("lock-plan-row").count(),
+                # the founder's own words the lock screen shows back (the problem as typed, the plan's beliefs) -- read
+                # apart, so a rule about Keel's words on the screen (IM2: no price) reads the frame alone
+                "problem_text": " ".join((main.get_by_test_id("lock-problem").first.text_content() or "").split())
+                if main.get_by_test_id("lock-problem").count() else "",
+                "plan_text": " ".join((main.get_by_test_id("lock-plan").first.text_content() or "").split())
+                if main.get_by_test_id("lock-plan").count() else "",
                 "sentence": " ".join(_first_text(main, "[data-testid=lock-sentence]").split()) or None,
                 "price": button.get_attribute("data-price") if button.count() else None,
                 "price_words": " ".join((price.first.text_content() or "").split()) if price.count() else None,

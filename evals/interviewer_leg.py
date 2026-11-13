@@ -419,8 +419,8 @@ def _lock_body(j, record: dict) -> None:
     sent = l1.get("sent")
     record["lock"] = {"switch": switch, "sent": sent, "flags": lock_flags(sent), "carousel": l1.get("carousel"),
                       "keys": sorted(sent) if isinstance(sent, dict) else None,
-                      "price words": marks.price_words_on("L1", l1.get("text"))}
-    record.setdefault("screens", {})["L1"] = l1.get("text") or ""
+                      "price words": marks.price_words_on("L1", _lock_frame_text(l1))}
+    record.setdefault("screens", {})["L1"] = _lock_frame_text(l1)   # IM2 reads Keel's words, not the founder's shown back
     with j.recorder.step("interviewer (spec 154 FR-1, keel-cloud 247 FR-1, keel-web 187 FR-7): the lock picks no face "
                          "-- the body is {expectedRevision} alone, no switch and no carousel drawn, no price word on the "
                          "screen", party="founder", kind="assert") as h:
@@ -429,6 +429,17 @@ def _lock_body(j, record: dict) -> None:
         assert record["lock"]["keys"] == ["expectedRevision"], sent
         assert int(switch.get("drawn") or 0) == 0 and not l1.get("carousel"), l1
         assert not record["lock"]["flags"] and not record["lock"]["price words"], record["lock"]
+
+
+def _lock_frame_text(l1: dict) -> str:
+    """keel-web 191 FR-1: the lock screen's text without the founder's own words it shows back -- the problem as typed
+    and the plan's belief rows (*about $20 to $60 a month* is the founder's answer, not a price Keel names). What is
+    left -- the title, the sentence, the button -- carries no price on its own AI."""
+    text = " ".join(str(l1.get("text") or "").split())
+    for part in (l1.get("plan_text"), l1.get("problem_text")):
+        if part:
+            text = text.replace(part, " ")
+    return text
 
 
 def _lock_switch(j, record: dict) -> None:
