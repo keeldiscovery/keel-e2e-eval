@@ -1,11 +1,12 @@
-"""Spec 154 -- the walk and the fakes follow Sent's three tabs and the calls (keel-cloud-docs master `e4497962`: 245 / 247
-/ 250 / 248, contract 69; keel-web master `697a7a2b`: 186 / 187 / 188 / 189 / 190).
+"""Spec 154 -- the walk and the fakes follow Sent's three tabs and the calls (keel-cloud-docs master `dfdad66a`: 245 / 247
+/ 250 / 248 / 249, contract 70, document 40; `e4497962` at contract 69 the first pass; keel-web master `697a7a2b`: 186 /
+187 / 188 / 189 / 190).
 
 - FR-0 the digest: `quality/readers/dimensions.md` is keel-cloud's `dimension-cards.md` byte for byte at 245's
   `CARDS_SHA256` (`4dc14231...`), 243's the step before; the scripted drafts carry no `asked` / `only_if`; the ASKED stub
   answers every index; the Choose line's test ids are keel-web 186's.
 - FR-1 / FR-6 the two gates and the contract: `InferenceCharge.VERSION` 17, PROJECT 1,000, INTERVIEWER_RECORDING 1,500,
-  INTERVIEW 0, the grant 2,500; `x-keel-contract` 69 (`REVIEW_CONTRACT`; TODO(249): 70).
+  INTERVIEW 0, the grant 2,500; `x-keel-contract` 70 (`REVIEW_CONTRACT`), `canon/openapi-v2.yaml`'s sha256 at `dfdad66a`.
 - FR-2 / FR-3 / FR-4 the selectors: Sent's three tabs, New link, New group link, Plan a call, the kind card and its face
   step, the Calls table, the arrival card, the copilot card -- every id the harness presses is in keel-web's source.
 - FR-7 the FIRST_PERSON kind: wired into the instruction eval, its file where keel-cloud keeps it, never run.

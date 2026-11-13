@@ -84,7 +84,7 @@ def _countly_extras(j) -> None:
     # Spec 154 FR-3: the set-up from the kind's card, the two gates (keel-cloud 247 / 250).
     interviewer_leg.leg_interviewer_short(j)
     # Spec 154 FR-4 / FR-5 (keel-cloud 248, keel-web 189 / 188): a call planned, the person signed in on the stub issuer,
-    # the card walked headless to its upload (the record route is keel-cloud 249's: TODO(249) in calls_leg).
+    # the card walked headless to its upload, the digest to ANSWERED; a second call on the fake call record (keel-cloud 249).
     if j.stack is not None and not j.stack.is_remote:
         calls_leg.leg_calls(j, j.browser)
 
