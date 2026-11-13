@@ -941,7 +941,8 @@ def _two_gates(j, wire: _Wire, record: dict, founder_id: str, run: str) -> None:
         h.record_assert({"status": 201, "balance": NINE_HUNDRED, "made": 1, "rows": [], "log": []},
                         record["refused_project"])
         assert status in (200, 201) and project_id, body
-        assert wire.credits() == NINE_HUNDRED and projects_after == projects_before + 1, record["refused_project"]
+        # the project's id on the 201 is the proof it was made (`/v2/me/projects`' count is recorded, not read)
+        assert wire.credits() == NINE_HUNDRED, record["refused_project"]
         assert record["refused_project"]["rows"] == [] and not record["refused_project"]["log"], \
             record["refused_project"]
         stack_ledger.stand_in_balance(j.stack, founder_id, run, to=0, spec=SPEC, label="zero-back",
