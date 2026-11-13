@@ -4013,6 +4013,13 @@ class Corridor:
                      for b in carousel.locator('button[role="radio"]').all()]
         button = self.page.get_by_test_id("lock-and-record")
         price = self.page.get_by_test_id("lock-price")
+        if main.get_by_test_id("lock-sentence").count():
+            # keel-web 191: the problem box and the plan's rows load after the frame (their own reads) -- waited for
+            for testid in ("lock-problem", "lock-plan-row"):
+                try:
+                    main.get_by_test_id(testid).first.wait_for(state="visible", timeout=15_000)
+                except Exception:  # noqa: BLE001 - not drawn: the step's assertion names it
+                    pass
         foot = main.locator(".before__foot").first
         return {"title": _safe_text(lambda: main.locator("h1").first.inner_text()),
                 "sub": _safe_text(lambda: main.locator(".ccard__sub").first.inner_text()) if main.locator(".ccard__sub").count() else "",
