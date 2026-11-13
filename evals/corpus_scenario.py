@@ -6257,8 +6257,27 @@ def expected_cards(j: Journey) -> list[dict]:
         if expected_status(j.entry, dimension.key) == "LEFT_OUT":
             standing = {"status": "LEFT_OUT"}
         # spec 064 FR-4a (keel-cloud 116): Prevalence's line is the founder's clause the journey scripted, in the window
-        cards.append(brief_facts_mod.card(j.entry, dimension, standing, clause=vs.event_past(j.entry)))
+        cards.append(brief_facts_mod.card(_AsServed(j.entry), dimension, standing, clause=vs.event_past(j.entry)))
     return cards
+
+
+class _AsServed:
+    """The entry with its Adoption friction tested item as the scripted walk served it: spec 154 FR-0 (keel-cloud 245
+    FR-2, K8 strict) -- the scripted ASKED stub writes every row's condition (`vs.adoption_condition`, the entry's own
+    else the step's), so the conditional yes is served *Only if {condition}* and the card says it (keel-cloud 198 FR-9's
+    `onlyIfWords`). Everything else is the entry's."""
+
+    def __init__(self, entry):
+        self._entry = entry
+
+    def __getattr__(self, name):
+        return getattr(self._entry, name)
+
+    def tested(self, key: str):
+        item = self._entry.tested(key)
+        if key == vs.ADOPTION_KEY and item and not (item.get("condition") or item.get("only_if")):
+            return {**item, "condition": vs.adoption_condition(item)}
+        return item
 
 
 def _card(card: dict) -> dict:
