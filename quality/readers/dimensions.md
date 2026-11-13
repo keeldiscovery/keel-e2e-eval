@@ -522,8 +522,9 @@ How well your idea fits the way they already work: their tools, their routines, 
 #### 2. The options' shape
 
 - **The founder's list:** 2 to 4 conditions the idea must meet, each at most 16 words, a verb phrase with no subject of
-  its own (it reads whole after *Most {actor_plural}*), each with its stranger's clause (`asked`: second person, framed
-  by code to at most 20 words, no question mark). Each is one whole act with one thing to weigh -- a clear yes or no for
+  its own (it reads whole after *Most {actor_plural}*). The draft carries no stranger's clause: Keel writes each row's
+  (`asked`: second person, framed by code to at most 20 words, no question mark) when the founder saves, on the rows as
+  read back (keel-cloud 245), and Choose shows the question each will be asked. Each is one whole act with one thing to weigh -- a clear yes or no for
   every usual way of doing the job (two things joined are two conditions); none already true of everyone the study is
   about, by the founder's segment or by the usual way of doing the job; none narrower than the part of the mechanism it
   tests; the step the idea depends on most never missing; no two about the same thing; no number the founder did not
@@ -727,8 +728,9 @@ The extra effort it asks of them to start using it: setting it up, learning it, 
 
 - **The founder's list:** 1 to 4 efforts, the founder's own, in their order, each one effort of at most 9 words, a
   base-form verb phrase in one voice (*their*, never *your*), each a step these people take **themselves** -- never
-  another role's sign-off, a setup the founder's team or the product does. Each carries its stranger's clause (`asked`,
-  at most 10 words, *it* for the idea), framed by code to at most 20. Keel may add **at most one** suggested step -- a
+  another role's sign-off, a setup the founder's team or the product does. The draft carries no stranger's clause: Keel
+  writes each row's (`asked`, at most 10 words, *it* for the idea), framed by code to at most 20, when the founder saves
+  (keel-cloud 245). Keel may add **at most one** suggested step -- a
   one-time step before first use, or the new habit first use asks -- last, with its why, outside the 1 to 4, never the
   belief unless the founder picks it. No two the same step; none a condition another screen already tests (fitting what
   they use now is Compatibility, getting it bought Purchase friction); only the founder's numbers. The founder picks one.

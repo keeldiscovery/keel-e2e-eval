@@ -156,8 +156,10 @@ READ_REASON = marks.READ_REASON
 #: Spec 058: IM28 (tap to hear) on the short form too -- it records from the same popup; IM29's Let-them-choose link is
 #: the full leg's.
 #: Spec 059: IM30 (the band's *Hear <name>*) on both -- each leg records, and Sent's band follows.
+#: Spec 154: IM30 retired (the who-asks band is gone from Sent, keel-web 187 FR-5); IM28 (tap to hear) now on the card's
+#: face step (`set-up-interviewer-popup`), still owed on both forms.
 SHORT_FORM = ["IM1", "IM3", "IM4", "IM5", "IM6", "IM7", "IM9", "IM13", "IM14", "IM15", "IM16", "IM17", "IM19",
-              "IM20", "IM21", "IM22", "IM23", "IM24", "IM26", "IM28", "IM30"]
+              "IM20", "IM21", "IM22", "IM23", "IM24", "IM26", "IM28"]
 #: Spec 059 FR-2: keel-web 088 removed *How it works* from Sent, so W1's replay -- the reading that held frame 2 to the
 #: recorded face -- has no control to press. The first-visit walkthrough is unchanged and stays `leg_invite`'s.
 W1_REPLAY_RETIRED = ("keel-web 088 FR-1 removed *How it works* from Sent (the page's pill *How this page works* "

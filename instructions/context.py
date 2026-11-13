@@ -246,6 +246,44 @@ def build_solution_mechanism(entry, keys=None) -> dict:
                         "interaction_history": []})
 
 
+#: Spec 154 FR-7: the FIRST_PERSON job's keys (`FirstPersonLines.payload`): the card's three lines, the belief the one to
+#: say again in the first person; `repair` only on the second turn.
+FIRST_PERSON_KEYS = ["idea_belief", "idea_what", "idea_how"]
+
+
+def build_first_person(entry) -> dict:
+    """`FIRST_PERSON` (keel-cloud 248 FR-7b): the idea card's three lines as the corpus records them -- the golden
+    `SOLUTION_MECHANISM` answer's `idea_what` / `idea_how` / `idea_belief` where the entry carries them (keel-cloud 084's
+    three reveal lines), else the mechanism's `output` as the belief's stand-in is NOT used: an entry with no belief line
+    builds no case (the job is owed only where a belief stands)."""
+    m = entry.solution_mechanism or {}
+    return {"idea_belief": (m.get("idea_belief") or "").strip() or None,
+            "idea_what": (m.get("idea_what") or "").strip() or None,
+            "idea_how": (m.get("idea_how") or "").strip() or None}
+
+
+def first_person_faults(line, belief: str | None = None) -> list[str]:
+    """keel-cloud `IdeaLines.firstPersonFault` restated (F1 to F3) and the instruction's own words: empty; over 200
+    characters; still in the third person (*the people building it*, *the founder*, or the third-person frame); not
+    opening *I believe it would*; a *we* / *our* for the founder; a name of a trade or a company is the reader's to
+    see, never a rule here."""
+    from . import contract as c                        # noqa: PLC0415
+    text = (line or "").strip() if isinstance(line, str) else ""
+    faults = []
+    if not text:
+        return ["F1: the first-person belief is empty"]
+    if len(text) > c.FIRST_PERSON_MAX:
+        faults.append(f"F2: the first-person belief runs {len(text)} characters; at most {c.FIRST_PERSON_MAX}")
+    lower = text.lower()
+    if "the people building it" in lower or "the founder" in lower:
+        faults.append("F3: the first-person belief still speaks of the founder in the third person")
+    if not lower.startswith(c.FIRST_PERSON_OPENING.lower()):
+        faults.append(f"F4: the line does not open {c.FIRST_PERSON_OPENING!r}")
+    if any(f" {w} " in f" {lower} " for w in ("we", "our", "ours", "us")):
+        faults.append("F5: a plural first person (we / our) where the founder speaks alone")
+    return faults
+
+
 def seed_of(entry, screen: str) -> str:
     """What the founder typed in chat, for the two screens whose `input.content` it is."""
     statements = entry.statements or {}

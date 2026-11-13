@@ -215,7 +215,7 @@ def test_the_asked_schema_requires_the_index_alone_and_takes_a_short_name():
     assert 'Map<String, Object> item = object(List.of("index"), properties);' in contracts
     assert 'properties.put("short_name", described(SHORT_NAME_MAX, ROW_SHORT_NAME_RULE));' in contracts
     assert "ASKED_MAX_ITEMS = com.keeldiscovery.cloud.domain.vectors.DimensionRegistry.MAX_FIXED_ANSWERS;" in contracts
-    assert "public static final int CONTRACT_VERSION = 25;" in contracts, "200 moved no contract"
+    assert re.search(r"public static final int CONTRACT_VERSION = (25|26);", contracts), "200 moved no contract; 26 at 245 (spec 154)"
 
 
 def test_l29_and_k9_are_reported_by_name():

@@ -49,7 +49,9 @@ SEVEN_DAYS = RecallWindow(7, "DAYS")
 #: merged: Importance §2, Relative advantage §2, Compatibility §2 -- a row in place of each row put aside, the rows
 #: handed numbered from 0; was `78bd1167...`); the one constant the 213, 216, 232 and 233 pins read for the current copy
 #: (re-pinned here when a later spec moves the cards again).
-CARDS_SHA256_141 = "94fd69c097176c877571e300312eb2d380788fbcc0a9358fe31d1881b86b6be5"
+# eval spec 154 moved the copy to keel-cloud 245's (`4dc14231...`, master `e4497962`); 243's `94fd69c0...` is
+# `tests/test_cloud_243_web_184_mirror_149.CARDS_SHA256_243`, the step before.
+CARDS_SHA256_141 = "4dc14231eebf3decfca7b26f26781a0b816e308007a724fcfad2cba2968f5f76"
 #: keel-cloud `VectorFixtures` (Lullaby).
 EVENT_PAST = "had to work out why their baby was crying"
 WENT_WRONG = "did not know why the baby cried"

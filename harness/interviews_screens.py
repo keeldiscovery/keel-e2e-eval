@@ -127,6 +127,8 @@ SEND_MAKE_ONE = "Make their link"
 #: drawn.
 SEND_ABOUT_LABEL = "A short line the top of their page will show"
 SEND_DONE = "Done"
+SEND_CANCEL = "Cancel"
+FORMAT_STATUS_187 = "[data-testid='format-status']"
 REGISTER_STATUS = {"SENT": "Not opened", "OPENED": "Opened, not answered", "ANSWERED": "Answered"}
 
 # ---- keel-web 136 (spec 092 FR-3; keel-cloud 162, contract 48): Send more's third way, Sent's two tabs, a group's
@@ -151,7 +153,72 @@ SEND_GROUP_HINT = ("Post it where the people already are. Each person who opens 
                    "interviewed. Sent keeps this link under By group, to copy again or close.")
 SENT_STUDY_LINE = "[data-testid='sent-study-line']"
 SENT_TABS_LABEL = "Links by name or by group"
-SENT_TAB = {"name": "[data-testid='sent-tab-name']", "group": "[data-testid='sent-tab-group']"}
+#: Spec 154 FR-2 (keel-web 187 FR-1, 189 FR-1): three tabs from the first day -- By name, By group, Calls with me -- each
+#: its panel `sent-panel-{key}` (`[role=tabpanel]` under `.sent__tabs`; the register lives inside it since 187, so G15's
+#: `:scope > [data-testid=links]` read is the panel's).
+SENT_TAB = {"name": "[data-testid='sent-tab-name']", "group": "[data-testid='sent-tab-group']",
+            "calls": "[data-testid='sent-tab-calls']"}
+SENT_PANEL = {"name": "[data-testid='sent-panel-name']", "group": "[data-testid='sent-panel-group']",
+              "calls": "[data-testid='sent-panel-calls']"}
+SENT_TABS_LABEL_187 = "Links by name or by group"
+#: 187's leads (`SENT_LEAD_*`) and the tab's button at the top of each panel.
+SENT_LEAD = {"name": "One link per person. You send it yourself.",
+             "group": "One open link, up to 20 people. Post it where they already are.",
+             "calls": "You ask the questions on a Google Meet, in Chrome. Keel shows you what to say."}
+NEW_LINK_BUTTON = "[data-testid='new-link']"
+NEW_GROUP_LINK_BUTTON = "[data-testid='new-group-link']"
+PLAN_CALL_BUTTON = "[data-testid='plan-call']"
+NEW_LINK_POPUP = "[data-testid='new-link-popup']"
+NEW_LINK_TITLE = "[data-testid='new-link-title']"
+SEND_KIND = "[data-testid='send-kind']"
+SEND_NAME_BOX = "#send-name"
+SEND_FORMAT_TITLE_187 = "[data-testid='send-format-title']"
+SEND_MAKE = "[data-testid='send-make']"
+LINK_MADE = "[data-testid='link-made']"
+FORMAT_SET_UP_ON_CARD = "[data-testid='format-set-up-on-card']"
+SEND_NEW_LINK = "New link"
+SEND_NEW_GROUP_LINK = "New group link"
+SEND_PLAN_CALL = "Plan a call"
+SEND_NEW_LINK_KICKER = "By name · new link"
+SEND_NEW_GROUP_LINK_KICKER = "By group · new group link"
+SEND_KIND_LABEL = "Who is it for?"
+SEND_GROUP_KIND_LABEL = "Who are they?"
+SENT_EMPTY = "[data-testid='sent-empty']"
+SENT_NO_GROUPS = "[data-testid='sent-no-groups']"
+SENT_NO_CALLS = "[data-testid='sent-no-calls']"
+#: 187 FR-3(c): the video rows' status on a kind not set up / recording / ready (`format-status[data-format]`).
+FORMAT_SET_UP_FIRST = "Set up first"
+FORMAT_RECORDING_SOON = "Recording · a few minutes"
+FORMAT_READY_NOW = "Ready now"
+
+
+def send_format_id(fmt: str) -> str:
+    return f"[data-testid='send-format-{fmt}']"
+
+
+def send_kind_id(role_id: str) -> str:
+    return f"[data-testid='send-kind-{role_id}']"
+
+
+def sent_tab_calls(n: int) -> str:
+    return f"Calls with me · {n}"
+
+
+def send_make_one(first: str | None) -> str:
+    """187 `sendMakeOne`: *Make Renee's link* (the first name typed), *Make their link* before one is."""
+    return f"Make {first}'s link" if first else SEND_MAKE_ONE
+
+
+def send_link_ready(first: str) -> str:
+    return f"{first}'s link is ready"
+
+
+def format_set_up_first(price: int | None) -> str:
+    return FORMAT_SET_UP_FIRST if price is None else f"{FORMAT_SET_UP_FIRST} · {price:,} once"
+
+
+def format_set_up_on_card(kind_label: str) -> str:
+    return f"Set up the AI interviewer on the {kind_label} card first"
 #: `SENT_GROUP`: one group's section on *By group*; its root carries `data-group`, `data-closed` and `data-url` (the
 #: whole served `/i/<token>` url, open or closed -- keel-web 142 FR-1 draws no shortened `group-link`; eval 098).
 SENT_GROUP = "[data-testid='sent-group']"
@@ -174,9 +241,10 @@ GROUP_NOBODY_YET = "Nobody has signed in on this link yet."
 KIND_FROM_GROUP = "Group · opened the link"
 
 
-def send_make_group(word: str) -> str:
-    """136 `sendMakeGroup`: *Make the link · Daphne* -- the face on the AI interviewer, else step 1's format word."""
-    return f"Make the link · {word}"
+def send_make_group(word: str | None = None) -> str:
+    """keel-web 187 `SEND_MAKE_GROUP`: *Make the link* -- one screen, no format word (136's *Make the link · Daphne* is
+    gone with the wizard)."""
+    return "Make the link"
 
 
 def send_group_ready(name: str) -> str:
@@ -561,22 +629,94 @@ class Interviews:
         dialog.get_by_role("radiogroup", name="Who").wait_for(state="visible", timeout=10_000)
         return formats
 
+    def _role_id(self, kind_label: str) -> str | None:
+        """The kind's `roleId`, off its card (`kind-card[data-role]`, keel-web 187 FR-5)."""
+        card = self._kind_card(kind_label)
+        return card.get_attribute("data-role") if card.count() else None
+
+    def _new_link_formats(self, dialog) -> dict:
+        """Spec 154 FR-2 (keel-web 187 FR-3(c)): the three format rows of the one screen -- checked, disabled, the greyed
+        word (`b.fmt__na`, the own-AI *needs Keel's credits*), the status under the row (`format-status`: *Ready now*,
+        *Set up first · 1,500 once*, *Recording · a few minutes*) -- keyed by the row's name as `_formats` keyed them;
+        and the one line under the rows naming the kind card (`format-set-up-on-card`), where drawn."""
+        out = {}
+        for radio in dialog.locator("[role=radiogroup] [role=radio][data-testid^='send-format-']").all():
+            name = _safe_text(lambda r=radio: r.locator(".fmt__name").first.inner_text())
+            word = radio.locator("b.fmt__na")
+            status = radio.locator(FORMAT_STATUS_187)
+            out[name] = {"checked": radio.get_attribute("aria-checked") == "true", "disabled": radio.is_disabled(),
+                         "word": " ".join((word.first.text_content() or "").split()) if word.count() else None,
+                         "status": _words(status) if status.count() else None,
+                         "format": radio.get_attribute("data-testid").rsplit("-", 1)[-1]}
+        on_card = dialog.locator(FORMAT_SET_UP_ON_CARD)
+        out["_on_card"] = _words(on_card) if on_card.count() else None
+        return out
+
+    def open_new_link(self, project_id: str, kind_label: str | None, *, mode: str = "name") -> tuple:
+        """Spec 154 FR-2 (keel-web 187 FR-3 / FR-4): **New link** on By name (or **New group link** on By group) -- the one
+        popup (`new-link-popup`), the kind row pressed when the project has two kinds (`send-kind-{roleId}`; absent on
+        one kind). Returns the dialog and what it drew: the kicker, the title, the kind row (its ids and which is
+        checked), the formats as served for the picked kind."""
+        if not (self.page.url.split("?")[0].endswith(f"/p/{project_id}/interviews/sent")
+                and self.page.locator(".sent__kinds").count()):
+            self.land(project_id)
+        else:
+            self.pass_sheet()
+        self.open_tab("group" if mode == "group" else "name")
+        self.page.locator(NEW_GROUP_LINK_BUTTON if mode == "group" else NEW_LINK_BUTTON).first.click()
+        dialog = self.page.locator(NEW_LINK_POPUP).first
+        dialog.wait_for(state="visible", timeout=10_000)
+        drawn: dict = {"kicker": _words(dialog.locator(".pop__kicker")), "title": _words(dialog.locator(NEW_LINK_TITLE))}
+        kind_row = dialog.locator(SEND_KIND)
+        role_id = self._role_id(kind_label) if kind_label else None
+        if kind_row.count():
+            drawn["kind_label"] = _words(kind_row.locator("label").first)
+            if role_id:
+                radio = dialog.locator(send_kind_id(role_id)).first
+                if radio.get_attribute("aria-checked") != "true":
+                    radio.click()
+                    self.page.wait_for_function("(sel) => document.querySelector(sel)?.getAttribute('aria-checked') === 'true'",
+                                                arg=send_kind_id(role_id), timeout=5_000)
+            drawn["kinds"] = [{"id": r.get_attribute("data-testid"), "text": _words(r),
+                               "checked": r.get_attribute("aria-checked") == "true"}
+                              for r in kind_row.locator("[role=radio]").all()]
+        else:
+            drawn["kinds"] = []
+        drawn["role_id"] = role_id
+        drawn["format_title"] = _words(dialog.locator(SEND_FORMAT_TITLE_187))
+        drawn["formats"] = self._new_link_formats(dialog)
+        return dialog, drawn
+
+    def cancel_new_link(self, dialog) -> None:
+        dialog.get_by_role("button", name=SEND_CANCEL, exact=True).first.click()
+        dialog.wait_for(state="hidden", timeout=10_000)
+
+    def formats_for(self, project_id: str, kind_label: str) -> dict:
+        """Spec 154 FR-3: New link's rows for `kind_label` as served -- read and cancelled, nothing made."""
+        dialog, drawn = self.open_new_link(project_id, kind_label)
+        text = _words(dialog)
+        self.cancel_new_link(dialog)
+        return {**drawn, "text": text}
+
     def send_someone(self, project_id: str, kind_label: str, person: str, fmt: str = "TEXT") -> dict:
-        """*Send more* (or *Send the questions*) on a kind's row, for someone the founder knows: Text, their name, *Make
-        their link*; returns the link drawn, the batch keel-web received, what it sent (`sent`) and step 1's formats.
-        Spec 076 FR-3 (keel-web 127 FR-1): the step is the name alone -- the second box (*A short line the top of their
-        page will show*, `#send-about`) is gone and the harness types no line; `about_boxes` counts any drawn."""
-        with self._b.step(f"founder sends the questions to {person} from Sent") as h:
-            if not self.page.url.split("?")[0].endswith(f"/p/{project_id}/interviews/sent"):
-                self.land(project_id)
-            card = self._kind_card(kind_label)
-            card.locator(".btn.primary").click()
-            dialog = self.page.get_by_role("dialog")
-            formats = self._step_one(dialog, fmt)
-            self._shot("send-who")
-            dialog.get_by_role("radio", name=re.compile(rf"^{re.escape(WHO_OWN)}")).click()
-            dialog.locator("#send-name").fill(person)
+        """Spec 154 FR-2 (keel-web 187 FR-3): **New link**, one screen -- the kind row when the project has two kinds, *Their
+        name*, the format (*Read and tap* preselected; the AI interviewer and Let them choose live only on a kind READY),
+        *Make {first}'s link* -> `POST invitations/batch`; the link shown on the same popup (`link-made`), Done. Returns
+        the link drawn, the batch keel-web received, what it sent (`sent`) and the formats as served (`formats`, keyed by
+        row name as before; `formats["_on_card"]` the one line under the rows). Spec 076 FR-3 (keel-web 127 FR-1): the
+        name alone -- no about box (`about_boxes` counts any drawn)."""
+        with self._b.step(f"founder makes {person}'s link with New link on Sent's By name tab") as h:
+            dialog, drawn = self.open_new_link(project_id, kind_label)
+            formats = drawn["formats"]
+            self._shot("send-format")
+            dialog.locator(SEND_NAME_BOX).fill(person)
+            radio = dialog.locator(send_format_id(fmt)).first
+            if radio.get_attribute("aria-checked") != "true":
+                # spec 074 (keel-web 119 FR-2): the AI row carries *Hear her* inside it, whose press opens the popup and
+                # does not choose the row -- so the row is picked by its name, never its middle
+                radio.locator(".fmt__name").first.click()
             about_boxes = dialog.locator("#send-about").count() + dialog.get_by_label(SEND_ABOUT_LABEL).count()
+            press = _words(dialog.locator(SEND_MAKE))
             batches: list = []
             keep = lambda r: batches.append(r) if (r.request.method == "POST"  # noqa: E731
                                                    and r.url.endswith("/invitations/batch")) else None
@@ -584,7 +724,7 @@ class Interviews:
             try:
                 with self.page.expect_response(lambda r: r.request.method == "POST"
                                                and r.url.endswith("/invitations/batch"), timeout=30_000) as made:
-                    dialog.get_by_role("button", name=SEND_MAKE_ONE, exact=True).click()
+                    dialog.locator(SEND_MAKE).first.click()
                 response = made.value
                 retried = []
                 if response.status == 409 and (_json(response) or {}).get("rule") == "concurrency":
@@ -602,19 +742,21 @@ class Interviews:
             batch = _json(made_value)
             if made_value.status >= 400:                     # refused: what keel-web received, and what it drew
                 h.add_screenshot(self._b.screenshot(f"link-refused-{person.split()[0]}"))
-                drawn = " ".join((dialog.text_content() or "").split())
+                drawn_text = " ".join((dialog.text_content() or "").split())
                 return {"url": None, "batch": batch, "status": made_value.status, "formats": formats,
-                        "drawn": drawn, "sent": made_value.request.post_data_json, "retried": retried,
-                        "about_boxes": about_boxes}
-            box = dialog.locator(".linkbox").first
+                        "drawn": drawn_text, "sent": made_value.request.post_data_json, "retried": retried,
+                        "about_boxes": about_boxes, "press": press, "popup": drawn}
+            box = dialog.locator(LINK_MADE).first
             box.wait_for(state="visible", timeout=20_000)
             url = (box.text_content() or "").strip()
+            ready = _words(dialog.get_by_role("heading", level=2))
             h.add_screenshot(self._b.screenshot(f"link-{person.split()[0]}"))
-            drawn = " ".join((dialog.text_content() or "").split())
+            drawn_text = " ".join((dialog.text_content() or "").split())
             dialog.get_by_role("button", name=SEND_DONE, exact=True).click()
             dialog.wait_for(state="hidden", timeout=10_000)
             return {"url": url, "batch": batch, "status": made_value.status, "formats": formats, "retried": retried,
-                    "drawn": drawn, "sent": made_value.request.post_data_json, "about_boxes": about_boxes}
+                    "drawn": drawn_text, "sent": made_value.request.post_data_json, "about_boxes": about_boxes,
+                    "press": press, "ready": ready, "popup": drawn}
 
     def make_new_link(self, person: str) -> dict:
         """*New link, {person}* on `person`'s row (keel-web 088; *Make a new link* in the status cell before it), the
@@ -661,22 +803,15 @@ class Interviews:
         each step drew (the ways in order, the group's box and its cap line, the button's words), the `POST .../groups` keel-web
         sent and the 201 it received (the last of keel-web's one silent retry on a stale revision), the link drawn and
         the ready screen's words; *Done* pressed."""
-        with self._b.step(f"founder makes one open link for the group {name!r} from Send more") as h:
-            # Sent with its kinds drawn -- not the walkthrough W1 plays over Sent's own address once per account
-            if not (self.page.url.split("?")[0].endswith(f"/p/{project_id}/interviews/sent")
-                    and self.page.locator(".sent__kinds").count()):
-                self.land(project_id)
-            else:
-                self.pass_sheet()                  # keel-web 088's first-open sheet, when it is over Sent
-            self._kind_card(kind_label).locator(".btn.primary").click()
-            dialog = self.page.get_by_role("dialog")
-            formats = self._step_one(dialog, fmt)
-            who_group = dialog.get_by_role("radiogroup", name="Who")
-            ways = [{"id": r.get_attribute("data-testid"), "name": _words(r.locator(".fmt__name")),
-                     "line": _words(r.locator(".fmt__d")), "checked": r.get_attribute("aria-checked") == "true"}
-                    for r in who_group.locator("[role=radio]").all()]
+        with self._b.step(f"founder makes one open link for the group {name!r} with New group link on Sent's By group "
+                          "tab") as h:
+            # spec 154 FR-2 (keel-web 187 FR-4): one screen -- the kind row on two kinds, *Name this group* with the cap
+            # line, the format, *Make the link*; 136's wizard (format -> who -> the link) and its *Who gets a link?* radios
+            # are gone, so `ways` is the kind row and `panel` the name box as before
+            dialog, popup = self.open_new_link(project_id, kind_label, mode="group")
+            formats = popup["formats"]
+            ways = [{"id": k["id"], "name": k["text"], "line": "", "checked": k["checked"]} for k in popup["kinds"]]
             self._shot("send-who")
-            dialog.locator("[data-testid='send-who-GROUP']").click()
             panel = dialog.locator(SEND_GROUP).first
             panel.wait_for(state="visible", timeout=10_000)
             box = dialog.locator(SEND_GROUP_NAME).first
@@ -685,9 +820,12 @@ class Interviews:
                            "placeholder": box.get_attribute("placeholder"),
                            "cap": _words(dialog.locator(SEND_GROUP_CAP)),
                            "cap_lead": _words(dialog.locator(f"{SEND_GROUP_CAP} b"))}
-            button = dialog.get_by_role("button", name=re.compile(r"^Make the link · "))
+            button = dialog.locator(SEND_MAKE)
             disabled_before = button.first.is_disabled() if button.count() else None
             box.fill(name)
+            radio = dialog.locator(send_format_id(fmt)).first
+            if radio.get_attribute("aria-checked") != "true":
+                radio.locator(".fmt__name").first.click()
             words = _words(button)
             made: list = []
             keep = lambda r: made.append(r) if (r.request.method == "POST"  # noqa: E731
@@ -710,7 +848,7 @@ class Interviews:
             body = _json(response)
             out = {"status": response.status, "made": body, "sent": response.request.post_data_json,
                    "retried": [r.status for r in made[:-1]], "formats": formats, "ways": ways, "panel": drawn_panel,
-                   "button": words, "button_disabled_before": disabled_before}
+                   "button": words, "button_disabled_before": disabled_before, "popup": popup}
             if response.status >= 400:
                 out["drawn"] = " ".join((dialog.text_content() or "").split())
                 h.add_screenshot(self._b.screenshot("group-link-refused"))
@@ -720,7 +858,7 @@ class Interviews:
             out["url"] = (link.text_content() or "").strip()
             out["ready"] = _words(dialog.get_by_role("heading", level=2))
             out["hint"] = " ".join(t for t in (_words(p) for p in dialog.locator("p.hint").all()) if t)
-            out["copy"] = dialog.get_by_role("button", name=GROUP_COPY_LINK, exact=True).count()
+            out["copy"] = dialog.get_by_role("button", name=re.compile(rf"^{GROUP_COPY_LINK}")).count()
             h.add_screenshot(self._b.screenshot("group-link-made"))
             dialog.get_by_role("button", name=SEND_DONE, exact=True).click()
             dialog.wait_for(state="hidden", timeout=10_000)
@@ -732,15 +870,28 @@ class Interviews:
         return " ".join((found.first.text_content() or "").split()) if found.count() else None
 
     def tabs(self) -> dict:
-        """136 FR-2: the tab list (its name) and its two tabs -- words and `aria-selected` -- or {} with no group link."""
+        """136 FR-2 / spec 154 FR-2 (keel-web 187 FR-1): the tab list (its name) and its three tabs -- words,
+        `aria-selected`, `aria-controls` -- the open panel (`panel`: its testid and lead) and the tab's button at the top
+        of it (`button`); {} on a page with no tab list (a keel-web before 187 with no group link)."""
         tablist = self.page.locator(".sent__tabs[role=tablist]")
         if not tablist.count():
             return {}
         out = {"label": tablist.first.get_attribute("aria-label")}
         for key, selector in SENT_TAB.items():
             tab = self.page.locator(selector).first
+            if not tab.count():
+                continue
             out[key] = {"text": " ".join((tab.text_content() or "").split()), "role": tab.get_attribute("role"),
-                        "selected": tab.get_attribute("aria-selected") == "true"}
+                        "selected": tab.get_attribute("aria-selected") == "true",
+                        "controls": tab.get_attribute("aria-controls")}
+        panel = self.page.locator("[role=tabpanel][data-testid^='sent-panel-']").first
+        if panel.count():
+            button = panel.locator(f"{NEW_LINK_BUTTON}, {NEW_GROUP_LINK_BUTTON}, {PLAN_CALL_BUTTON}").first
+            out["panel"] = {"id": panel.get_attribute("data-testid"), "lead": _words(panel.locator(".sent__lead")),
+                            "button": {"id": button.get_attribute("data-testid"), "text": _words(button),
+                                       "disabled": button.is_disabled(), "title": button.get_attribute("title")}
+                            if button.count() else None,
+                            "empty": _words(panel.locator(f"{SENT_EMPTY}, {SENT_NO_GROUPS}, {SENT_NO_CALLS}")) or None}
         return out
 
     def open_tab(self, key: str) -> dict:

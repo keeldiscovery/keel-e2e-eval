@@ -49,30 +49,40 @@ def _charge_table() -> tuple[int, dict[str, int]]:
 
 # --------------------------------------------------------------------------------------------- FR-1: the prices
 
-def test_both_fakes_carry_price_version_15():
-    # 14 since keel-cloud 170 (spec 110); 15 since keel-cloud 190 (spec 121 FR-3: CONTEXT_INTERPRET and ASKED 3 -> 1).
+def test_both_fakes_carry_price_version_17():
+    # 14 since keel-cloud 170 (spec 110); 15 since keel-cloud 190 (spec 121 FR-3: CONTEXT_INTERPRET and ASKED 3 -> 1);
+    # 16 since 247 and 17 since 250 (spec 154 FR-1: the two gates).
     # Spec 150: the contacts fake is gone with the contacts leg (keel-web 185), so the interviewer's fake is the one left.
-    assert interviewer_fake.PRICE_VERSION == charge.PRICE_VERSION == 15
+    assert interviewer_fake.PRICE_VERSION == charge.PRICE_VERSION == 17
 
 
 def test_the_mirror_is_keel_clouds_charge_table():
     version, rows = _charge_table()
     assert version == charge.PRICE_VERSION
-    assert rows[charge.INTERVIEW] == charge.INTERVIEW_CREDITS == 30
+    # spec 154 (keel-cloud 250): INTERVIEW is 0 and never written; the project row is 1,000
+    assert rows[charge.INTERVIEW] == charge.INTERVIEW_CREDITS == 0
+    assert rows[charge.PROJECT] == charge.PROJECT_PRICE == 1000 and not charge.written_at_begin()
     assert {k: rows[k] for k in charge.READ_PRICES} == charge.READ_PRICES == {"INTERPRET": 0, "THEMES": 0}
     # the founder-side rows 156 left alone, as the two fakes state them
-    assert rows["INTERVIEWER_RECORDING"] == rows["INTERVIEWER_CHANGE"] == interviewer_fake.CREDITS
+    # spec 154 (keel-cloud 247 / 250): the recording 1,500 once per project, the change 0
+    assert rows["INTERVIEWER_RECORDING"] == interviewer_fake.CREDITS == 1500
+    assert rows["INTERVIEWER_CHANGE"] == interviewer_fake.CHANGE_PRICE == 0
     # spec 150: CONTACT_PAGE / CONTACT_EMAIL are no fake's here any more (the contacts leg is gone; keel-cloud 244)
-    # what 13 moved (keel-cloud 169, spec 105 FR-2): the two frame prices, the old ones doubled
-    assert (rows["PROBLEM_INTERPRET"], rows["SOLUTION_MECHANISM"]) == (26, 28)
+    # what 13 moved (keel-cloud 169, spec 105 FR-2): the two frame prices, the old ones doubled -- and what 17 moved
+    # (keel-cloud 250, spec 154): every job row to 0, the mirror keeping 13's figures as the prices of record
+    assert (rows["PROBLEM_INTERPRET"], rows["SOLUTION_MECHANISM"]) == (0, 0)
+    assert (charge.FRAME_PRICES["PROBLEM_INTERPRET"], charge.FRAME_PRICES["SOLUTION_MECHANISM"]) == (26, 28)
     # what 14 moved (keel-cloud 170, spec 110 FR-1): the lock's one job, on the frontier tier, doubled
-    assert rows["RESPONDENT_QUESTIONS"] == charge.RESPONDENT_QUESTIONS_CREDITS == 70
+    # spec 154 (keel-cloud 250): every job row is priced 0 at 17; the mirror keeps 14's 70 as the lock's price of record
+    assert rows["RESPONDENT_QUESTIONS"] == 0 and charge.RESPONDENT_QUESTIONS_CREDITS == 70
 
 
 def test_section_6_3s_five_participants_re_summed():
     assert charge.project_credits(5, version=11) == 1_250             # §6.3's table as written
-    assert charge.FIVE_PARTICIPANTS == charge.project_credits(5) == 540 + 105 + 560 + 5 * 30 == 1_355
-    assert charge.project_credits(20) == 540 + 105 + 560 + 20 * 30
+    assert charge.project_credits(5, version=12) == charge.project_credits(5, version=16) == 540 + 105 + 560 + 5 * 30 == 1_355
+    assert charge.project_credits(20, version=15) == 540 + 105 + 560 + 20 * 30
+    # spec 154 (keel-cloud 250): the project is bought once, 1,000, whatever its people
+    assert charge.FIVE_PARTICIPANTS == charge.project_credits(5) == charge.project_credits(20) == 1_000
 
 
 @pytest.mark.parametrize("rel", ["Makefile", "matrix/cells.toml", "tests/test_matrix_cells.py",
@@ -86,7 +96,7 @@ def test_no_harness_line_states_the_old_five_participant_total(rel):
 @pytest.mark.parametrize("rel", ["Makefile", "matrix/cells.toml", "tests/test_matrix_cells.py"])
 def test_the_new_total_is_stated(rel):
     text = (REPO / rel).read_text(encoding="utf-8")
-    assert f"{charge.FIVE_PARTICIPANTS:,} credits" in text and "$13.55" in text, rel
+    assert f"{charge.FIVE_PARTICIPANTS:,} credits" in text and "$10.00" in text, rel     # spec 154: 1,000 flat
 
 
 # ------------------------------------------------------------------------------------------- FR-2: Begin on the wire
@@ -98,6 +108,7 @@ PROJECT = "0b8e5f8e-3a5c-4b7e-8f0e-6c2b1d9a7e22"
 
 
 def _row(**over) -> dict:
+    # the row as a keel-cloud before 250 wrote it (price version 15); at 17 none is written (spec 154)
     row = {"kind": "INTERVIEW", "action": "INTERVIEW", "credits": -30, "price_credits": 30, "price_version": 15,
            "inference_job_id": None, "actual_cost_micro_usd": None, "reason": f"invitation:{INVITATION}",
            "idempotency_key": f"interview:{INVITATION}", "project_id": PROJECT}
@@ -110,8 +121,13 @@ def test_the_key_is_cloud_s_interview_key():
 
 
 def test_one_row_of_the_right_shape_is_charged_once():
-    assert charge.charged_once([_row()], INVITATION, PROJECT) == []
-    assert charge.charged_once([{"kind": "GRANT", "credits": 2000}, _row()], INVITATION) == []
+    # spec 154 (keel-cloud 250, price version 17): Begin writes no row -- none is the pass, a row found is the fault
+    assert not charge.written_at_begin() and charge.written_at_begin(16) and not charge.written_at_begin(11)
+    assert charge.charged_once([], INVITATION, PROJECT) == []
+    assert charge.charged_once([{"kind": "GRANT", "credits": 2500}], INVITATION) == []
+    assert any("Begin writes none" in f for f in charge.charged_once([_row()], INVITATION, PROJECT))
+    # the shape of record (12 to 16) still read by `row_faults`
+    assert charge.row_faults(_row(price_version=charge.PRICE_VERSION), invitation_id=INVITATION, project_id=PROJECT) == []
 
 
 @pytest.mark.parametrize("ledger, fault", [
@@ -128,7 +144,15 @@ def test_one_row_of_the_right_shape_is_charged_once():
     ([_row(project_id="another")], "project_id"),
 ])
 def test_a_wrong_charge_is_named(ledger, fault):
-    faults = charge.charged_once(ledger, INVITATION, PROJECT)
+    # spec 154: `charged_once` refuses any row at 17; the shape test is `row_faults`'s (the 16 shape, version of record)
+    if not ledger:
+        assert charge.charged_once(ledger, INVITATION, PROJECT) == []
+        return
+    if len(ledger) == 2:
+        assert any("rows" in f for f in charge.charged_once(ledger, INVITATION, PROJECT))
+        return
+    faults = charge.row_faults({**ledger[0], "price_version": charge.PRICE_VERSION if fault != "price_version" else 11},
+                               invitation_id=INVITATION, project_id=PROJECT)
     assert faults and any(fault in f for f in faults), faults
 
 
@@ -202,8 +226,8 @@ def test_the_inactive_body_is_keel_clouds():
         pytest.skip("keel-cloud predates spec 156 (no Inactive link)")
     assert f'"{charge.INACTIVE_STATE}", "{charge.INACTIVE_MESSAGE}"' in text
     assert '@PostMapping("/v2/i/{token}/interview/begin")' in text
-    _, rows = _charge_table()
-    assert charge.INACTIVE_BELOW == rows[charge.INTERVIEW]       # CreditPolicy.INTERVIEW_PRICE: inactive below one
+    # spec 154 (keel-cloud 250): INTERVIEW is 0 and no link is INACTIVE for the balance -- the threshold of record is 16's
+    assert charge.INACTIVE_BELOW == charge.INTERVIEW_CREDITS_V16 == 30 and charge.INACTIVE_RETIRED
 
 
 def test_what_reads_inactive():

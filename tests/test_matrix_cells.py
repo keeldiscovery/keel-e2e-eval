@@ -256,9 +256,9 @@ def test_weekly_carries_the_one_keels_ai_cell(matrix):
     """spec `024-keels-ai-cell`; keel-cloud `canon/designs/ai-credits-design.md` §6.
 
     The ninth cell, and the only one in the whole matrix that spends **Keel's own** Anthropic
-    account rather than the founder's plan -- about 1,355 credits a journey, $13.55 at list price
-    and about $2.44 of actual inference (§6.3, the five-participant row at price version 12:
-    readings 0, 30 at each person's Begin -- keel-cloud 156, spec 088). Once a Saturday, whole,
+    account rather than the founder's plan -- about 1,000 credits a journey, $10.00 at list price
+    and about $2.44 of actual inference (§6.3's five-participant row was 1,355 at price version 12;
+    since keel-cloud 250 / spec 154 the project is bought once, 1,000 -- spec 088's 30 at Begin is gone). Once a Saturday, whole,
     installing nothing, and refused in `per_change` by name.
     """
     keels_ai = [c for c in matrix.sets["weekly"] if c.host in matrix.hostless_hosts]

@@ -436,6 +436,20 @@ COMMITMENT_DECIDER_BAR = re.compile(r"^Set by Keel\. Holds if no more than 1 in 
 #: keel-web 153 FR-3 (`KEEL_TEST_COMPATIBILITY_KEPT`, `p.keeltest__n[data-testid=keeltest-note]`): the box's last line on
 #: Compatibility's Choose, before and after a pick; on no other screen.
 KEEL_TEST_NOTE_TESTID = "keeltest-note"
+#: Spec 154 FR-0 (keel-web 186 FR-2, keel-cloud 245 FR-3): under the picked radio on Compatibility's and Adoption
+#: friction's Choose -- `choose-asked` *Asked as "<served question>"* (lead `.calib__asked-k`, question `.calib__asked-q`),
+#: or `choose-asked-as-written` *Keel will ask this row as written.*, or, while the Save's asked job writes,
+#: `choose-asked-writing` (`role=status`). The walk waits for the writing line to leave: polled every 2 s, capped 90 s.
+CHOOSE_ASKED_TESTID = "choose-asked"
+CHOOSE_ASKED_AS_WRITTEN_TESTID = "choose-asked-as-written"
+CHOOSE_ASKED_WRITING_TESTID = "choose-asked-writing"
+CHOOSE_ASKED_LEAD = "Asked as"
+CHOOSE_ASKED_AS_WRITTEN = "Keel will ask this row as written."
+CHOOSE_ASKED_WRITING = "Keel is writing the stranger's question"
+CHOOSE_ASKED_POLL_S = 2.0
+CHOOSE_ASKED_CAP_S = 90.0
+#: keel-web 186 FR-1: the reword line (*Keel couldn't phrase this as a question; reword it*) is gone from the Check.
+REWORD_WORDS = "reword it"
 #: Spec 134 FR-2 (keel-web 168 FR-4, `ListQuestion.tsx`): the redraft's note about a row the founder typed and Keel left
 #: off (L32, purchase friction's *Your own offer ... stays off this list*), drawn as an `li.listrow` in the list where the
 #: row would have stood -- read as the screen's `note`, never as a row (`LIST_ROW` leaves it out).
@@ -619,7 +633,7 @@ def record_put_aside(record) -> list[dict]:
 #: Compatibility's Check saves the list with no `pickedIndex` (the pick pending until Choose). Spec 149 FR-1 (keel-cloud
 #: 243 FR-4): 64 -- `SavedList.items[i].inPlaceOf` / `.typedKeels`, `putAside[k].replacedBy` / `.keels`; the Save's
 #: `review` unchanged.
-REVIEW_CONTRACT = 65  # keel-cloud 244: contacts, datasets and Keel-managed retired
+REVIEW_CONTRACT = 69  # keel-cloud 248 (spec 154): 66 at 245, 67 at 247, 68 at 250, 69 at 248; TODO(249): 70
 #: Spec 144 FR-1 (keel-cloud 233 FR-1, keel-web 180 FR-1 / FR-2 / FR-4): the lists whose Check Save may hold for the
 #: review -- Importance, Current solution and Compatibility. Spec 147 FR-2 (keel-cloud 237 FR-1, keel-web 181 FR-2): and
 #: Relative advantage, the fourth -- its Save names its `review` and the Check holds like the three (`list-reviewing`,
@@ -3126,6 +3140,8 @@ class Corridor:
                        # spec 143 FR-2 (keel-web 179): the changed row's why is a `.listrow__warn` too -- read apart
                        "warn": _first_text(li, f".listrow__warn:not([data-testid={ROW_NOTE_TESTID}])"
                                                f":not([data-testid={ROW_WHY_TESTID}])")}
+                # spec 154 FR-0 (keel-web 186 FR-1): no row carries the reword line any more -- counted, owed 0
+                row["reword"] = REWORD_WORDS in (row["warn"] or "").lower()
             if note:
                 row["note"] = note
             # spec 149 FR-3 (keel-web 184 FR-1, keel-cloud 243): Keel's row -- its kind, its number, the line's lead and
@@ -3627,7 +3643,10 @@ class Corridor:
                 self.page.get_by_test_id(DURATION_UNIT_TESTID).first.select_option(value=str(duration["unit"]))
                 typed_duration = {"count": _value(self.page.get_by_test_id(DURATION_COUNT_TESTID).first),
                                   "unit": self.page.get_by_test_id(DURATION_UNIT_TESTID).first.input_value()}
+            # spec 154 FR-0 (keel-web 186 FR-2): the asked line under the picked radio, once the writing line has left
+            asked_line = self._choose_asked_line()
             seen = {"screen": "choose", "frame": self.frame(), "options": options, "label": label,
+                    "asked_line": asked_line,
                     **({"index": index} if index is not None else {}),
                     **({"waiting": " ".join(waiting.split()), "waiting_bar": waiting_bar}
                        if drawn_duration.count() else {}),
@@ -3651,6 +3670,31 @@ class Corridor:
             seen["served_index"] = served_picked_index(seen["writes"], name)
             seen["duration_sent"] = sent_duration(seen["writes"], name)
             return seen
+
+    def _choose_asked_line(self) -> dict:
+        """Spec 154 FR-0 (keel-web 186 FR-2, keel-cloud 245 FR-3): the line under the picked radio -- `kind` *asked*
+        (`question` the served words), *as_written*, *writing* (the cap passed with the job still writing, recorded for
+        the leg's one GET) or None (a list that is not asked: a keel-web before 186, or another dimension); `waited_s`
+        how long the writing line was waited out (polled every `CHOOSE_ASKED_POLL_S`, capped `CHOOSE_ASKED_CAP_S`)."""
+        writing = self.page.get_by_test_id(CHOOSE_ASKED_WRITING_TESTID)
+        started = time.monotonic()
+        while writing.count() and time.monotonic() - started < CHOOSE_ASKED_CAP_S * self.patience:
+            self.page.wait_for_timeout(int(CHOOSE_ASKED_POLL_S * 1000))
+        waited = round(time.monotonic() - started, 1)
+        asked = self.page.get_by_test_id(CHOOSE_ASKED_TESTID)
+        as_written = self.page.get_by_test_id(CHOOSE_ASKED_AS_WRITTEN_TESTID)
+        if asked.count():
+            return {"kind": "asked", "text": " ".join((asked.first.text_content() or "").split()),
+                    "lead": " ".join(_first_text(asked.first, ".calib__asked-k").split()),
+                    "question": " ".join(_first_text(asked.first, ".calib__asked-q").split()),
+                    "id": asked.first.get_attribute("id"), "waited_s": waited}
+        if as_written.count():
+            return {"kind": "as_written", "text": " ".join((as_written.first.text_content() or "").split()),
+                    "id": as_written.first.get_attribute("id"), "waited_s": waited}
+        if writing.count():
+            return {"kind": "writing", "text": " ".join((writing.first.text_content() or "").split()),
+                    "role": writing.first.get_attribute("role"), "waited_s": waited}
+        return {"kind": None, "waited_s": waited}
 
     def _choose_confirm(self, question: dict, h) -> dict:
         """Spec 132 FR-10 (keel-web 168 T006): Buyer and payer's Choose where the list holds only *Nobody else* -- no

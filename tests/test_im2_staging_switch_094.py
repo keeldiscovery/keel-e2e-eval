@@ -23,6 +23,12 @@ from stack.config import load_config
 
 WEB = load_config(validate=False).keel_web
 
+#: Spec 154: keel-web 187 FR-7 / keel-cloud 247 FR-1 removed the lock's face and with it 132's switch, and keel-web 190
+#: removed the 30-credit note; IM2 reads 247 / 250's screens now (`tests/test_interviewer_marks.py`). This module's
+#: readings of the retired switch stay as the record of 094 and are skipped by name.
+pytestmark = pytest.mark.skip(reason="retired by spec 154: keel-web 187 removed the lock's face and the record-at-lock switch; "
+                                     "keel-web 190 the 30-credit note (IM2 v18 in test_interviewer_marks.py)")
+
 
 def _web_source(relative: str) -> str:
     path = WEB / relative

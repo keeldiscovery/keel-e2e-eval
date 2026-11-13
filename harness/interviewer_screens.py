@@ -838,6 +838,94 @@ class Persona:
                 "checked": [b.get_attribute("data-face") for b in
                             carousel.locator('button[role="radio"][aria-checked="true"]').all()]}
 
+    # ------------------------------------------------- spec 154 FR-3 (keel-web 187 FR-5 / FR-6, keel-cloud 247): the kind card
+
+    def card(self, kind_label: str) -> dict:
+        """The kind card as drawn (`kind-card[data-role][data-interviewer]`): its label, role id, the interviewer state the
+        card reads (NOT_SET_UP / RECORDING / READY / FAILED / OWN_AI), the line's tail (`kind-asks`: *Daphne asks* /
+        *Daphne is recording*), the primary button (its testid, words, enabled), the progress bar and its words
+        (`kind-progress`), the failure line, and *Read their questions*."""
+        card = self.page.locator(".sent__kinds .role",
+                                 has=self.page.locator(".role__label", has_text=re.compile(
+                                     rf"^{re.escape(kind_label)}$"))).first
+        card.wait_for(state="visible", timeout=20_000)
+        primary = card.locator(".btn.primary").first
+        bar = card.locator("[data-testid=kind-progress] [role=progressbar]")
+        progress = card.locator("[data-testid=kind-progress]")
+        return {"label": _words(card.locator(".role__label").first), "role_id": card.get_attribute("data-role"),
+                "state": card.get_attribute("data-interviewer"),
+                "asks": _words(card.get_by_test_id("kind-asks")) or None,
+                "primary": {"id": primary.get_attribute("data-testid"), "text": _words(primary),
+                            "enabled": primary.is_enabled()} if primary.count() else None,
+                "progress": {"now": bar.get_attribute("aria-valuenow"), "max": bar.get_attribute("aria-valuemax"),
+                             "label": bar.get_attribute("aria-label"), "words": _words(progress.locator(".hint"))}
+                if bar.count() else None,
+                "failure": _words(card.get_by_test_id("kind-failure")) or None,
+                "count": _words(card.get_by_test_id("role-count")), "text": _words(card)}
+
+    def wait_card_state(self, kind_label: str, *states: str, timeout_s: float = 45) -> dict:
+        """The kind's card reaching one of `states` (keel-web polls `GET interviewer` while a kind records)."""
+        role_id = self.card(kind_label)["role_id"]
+        selector = ", ".join(f'[data-testid=kind-card][data-role="{role_id}"][data-interviewer="{s}"]' for s in states)
+        self.page.locator(selector).first.wait_for(state="attached", timeout=timeout_s * 1000 * self.patience)
+        return self.card(kind_label)
+
+    def set_up(self, kind_label: str, face: str, *, expect_status: int | None = None,
+               hear_s: float | None = None) -> dict:
+        """Spec 154 FR-3 (keel-web 187 FR-6; keel-cloud 247 FR-3): *Set up the AI interviewer* on the kind's card -> the
+        face step (`set-up-interviewer-popup`: kicker, title, the carousel, the cost box with `data-paid`) -> the face
+        tapped (`hear_s`: the tap heard, as 058's) -> *Record {Face} · 1,500 credits* (`set-up-record`) -> `POST
+        interviewer/kinds/{roleId}/record {face}`: what the popup drew, what keel-web sent and received; on a refusal
+        the popup's words (it stays open; *Not now* closes it)."""
+        with self._b.step(f"founder sets up the AI interviewer for {kind_label} -- {face.title()} -- from the kind's "
+                          "card") as h:
+            card = self.card(kind_label)
+            button = self.page.locator(f'[data-testid=kind-card][data-role="{card["role_id"]}"] '
+                                       '[data-testid=set-up-interviewer]').first
+            words_before = _words(button)
+            button.click()
+            popup = self.page.get_by_test_id("set-up-interviewer-popup")
+            popup.wait_for(state="visible", timeout=10_000)
+            cost = popup.get_by_test_id("set-up-cost")
+            drawn = {"kicker": _words(popup.locator(".pop__kicker")), "title": _words(popup.get_by_test_id("set-up-title")),
+                     "faces": [b.get_attribute("data-face") for b in popup.locator('button[role="radio"]').all()],
+                     "checked": [b.get_attribute("data-face") for b in
+                                 popup.locator('button[role="radio"][aria-checked="true"]').all()],
+                     "cost": _words(cost) if cost.count() else None,
+                     "paid": cost.first.get_attribute("data-paid") if cost.count() else None,
+                     "role_id": popup.get_attribute("data-role"), "button_before": words_before}
+            heard = None
+            if hear_s is None:
+                popup.locator(f'[data-face="{face}"]').click()
+            else:
+                heard = hear_card(self.page, popup, face, wait_s=hear_s)
+                h.add_screenshot(self._b.screenshot(f"heard-{face.lower()}"))
+            confirm = popup.get_by_test_id("set-up-record")
+            drawn["confirm"] = _words(confirm)
+            drawn["not_now"] = _words(popup.get_by_test_id("set-up-not-now"))
+            route = f"/interviewer/kinds/{card['role_id']}/record"
+            with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith(route),
+                                           timeout=30_000) as posted:
+                confirm.click()
+            out = {"popup": drawn, "sent": posted.value.request.post_data_json, "status": posted.value.status,
+                   "body": _json(posted.value), "route": route, "role_id": card["role_id"]}
+            if heard is not None:
+                out["hear"] = heard
+            if posted.value.status >= 400:
+                refusal = self.page.locator(".remedy, [role=alert], .banner, [data-testid=credits-refusal], .pop h2")
+                refusal.first.wait_for(state="visible", timeout=10_000)
+                out["refusal"] = _words(refusal.first)
+                out["popup_text"] = _words(popup)
+                h.add_screenshot(self._b.screenshot("set-up-refused"))
+                close = self.page.get_by_role("button", name="Close", exact=True)
+                if close.count():
+                    close.first.click()
+                popup.get_by_test_id("set-up-not-now").click()
+            else:
+                popup.wait_for(state="hidden", timeout=10_000)
+            h.add_screenshot(self._b.screenshot(f"set-up-{face.lower()}"))
+            return out
+
     def try_it(self, project_id: str, role_label: str) -> None:
         """*Try it yourself* on the kind's card: the dry run's route."""
         card = self.page.locator(".sent__kinds .role",

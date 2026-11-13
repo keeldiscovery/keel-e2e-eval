@@ -136,9 +136,10 @@ def test_price_version_15_is_pinned_in_the_mirror_and_both_fakes():
     # since keel-cloud 190 (eval spec 121 FR-3: CONTEXT_INTERPRET and ASKED 3 -> 1)
     from harness import interviewer_fake                                    # noqa: PLC0415 - spec 150: no contacts fake
     from harness import interview_charge as charge                          # noqa: PLC0415
-    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == 15
-    # §6.3's classic five-participant figure moved no row at 13, 14 or 15
-    assert charge.FIVE_PARTICIPANTS == charge.project_credits(5, version=12) == 1_355
+    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == 17   # spec 154: 16 at 247, 17 at 250
+    # §6.3's classic five-participant figure moved no row at 13, 14 or 15; 17 (spec 154) prices the project 1,000 flat
+    assert charge.project_credits(5, version=15) == charge.project_credits(5, version=12) == 1_355
+    assert charge.FIVE_PARTICIPANTS == 1_000
 
 
 @pytest.mark.parametrize("rel", ["harness/interview_charge.py", "harness/interviewer_fake.py",

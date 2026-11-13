@@ -165,7 +165,7 @@ def test_the_value_box_has_one_escape_and_says_its_unit_alone():
 def test_screen_response_contract_25_names_condition_where_only_if_was():
     _after_198()
     contracts = _cloud(APPLICATION + "ScreenResponseContracts.java")
-    assert "public static final int CONTRACT_VERSION = 25;" in contracts
+    assert re.search(r"public static final int CONTRACT_VERSION = (25|26);", contracts)   # 26 at keel-cloud 245 (spec 154)
     assert 'properties.put("condition", described(ONLY_IF_MAX, CONDITION_RULE));' in contracts
     assert 'properties.put("only_if", described(ONLY_IF_MAX, ONLY_IF_RULE));' not in contracts
     asked = _cloud(APPLICATION + "AskedRules.java")

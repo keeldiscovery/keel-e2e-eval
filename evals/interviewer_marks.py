@@ -111,7 +111,7 @@ from harness import interviewer_fake as fake
 #: `start_enabled` and the fallback as before. The status line's *Writing it down…* (`WRITING_DOWN`) is another string
 #: and unchanged. No mark born or dropped; the tiers, the hold, the browser path's marks and the classifier guard read
 #: as v16. Live `make eval-live K=s012` re-scoring is the founder's call (paid).
-INTERVIEWER_MARKS_VERSION = 17
+INTERVIEWER_MARKS_VERSION = 18   # spec 154: IM2 on 247 / 250's screens; IM10, IM11, IM30 retired
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -173,9 +173,22 @@ SPEAK_ASKING = "Allow the microphone…"
 PRICE_WORD = re.compile(r"\bcredits?\b|[$£€]\s?\d|\bprice[sd]?\b|\bcosts?\b|\bpaid\b|\bcharge[sd]?\b", re.I)
 #: A key on the wire that would carry the recording's own price (only `changePrice` may).
 PRICE_KEY = re.compile(r"price|credit|cost|charge", re.I)
-ALLOWED_PRICE_KEYS = {"changePrice"}
+#: Spec 154 (keel-cloud 247 / 250): `InterviewerFaces.recordPrice` / `recordingPaid` / `recordingOpen` and `MeResponse.prices`
+#: join `changePrice` as the keys a founder's wire may carry a price under.
+ALLOWED_PRICE_KEYS = {"changePrice", "recordPrice", "recordingPaid", "recordingOpen", "prices"}
 #: S2's one priced action, the single place a number of credits is drawn (decision 3).
 CHANGE_ACTION = f"Change who asks · {fake.CHANGE_PRICE} AI credits"
+#: Spec 154 (keel-web 187 FR-5 / FR-3, keel-cloud 247): the kind card's one priced control before the project has paid --
+#: *Set up the AI interviewer · 1,500 once* -- and New link's greyed video rows' status, *Set up first · 1,500 once*; the
+#: number is the served `InterviewerFaces.recordPrice`. The lock screen (L1) carries no price at all any more.
+SET_UP_LABEL = re.compile(r"Set up the AI interviewer · (?P<credits>\d[\d,]*) once")
+SET_UP_FIRST = re.compile(r"Set up first · (?P<credits>\d[\d,]*) once")
+#: The marks retired by spec 154, and why: the product has no door for them (keel-cloud 247 FR-1 / FR-6, keel-web 187).
+RETIRED = {
+    "IM10": "retired (spec 154): *Change who asks* is gone from the web (keel-web 187); the face-change route has no door",
+    "IM11": "retired (spec 154): no change of face, so no refusal at a low balance; the two gates are IM1's and the leg's",
+    "IM30": "retired (spec 154): the who-asks band is gone from Sent (keel-web 187 FR-5: no interviewer line above the cards)",
+}
 #: keel-web 130 FR-2 / 132 FR-1 (`beforeInterviewerSub`, keel-web e4f204e): L1's one served credits sentence -- the
 #: face recorded once for this project, which uses Keel's credits (the faceless fallback, before the faces are read) or
 #: the render's served price (`changePrice`, 400). Spec 091 FR-3: the screen's own words, never a price the founder typed.
@@ -273,14 +286,16 @@ def price_words_on(name: str, text: str | None, served: set[int] | None = None) 
     Send more's one credits note (`FORMAT_CREDITS_NOTE`, keel-web 131) is the screen's own the same way, its number the
     interview's 30 credits (`charge.INTERVIEW_CREDITS`)."""
     text = text or ""
-    if name == "S2":
-        return PRICE_WORD.findall(text.replace(CHANGE_ACTION, ""))
+    # spec 154 (keel-cloud 247 / 250, keel-web 187 / 190): L1 picks no face and names no price -- any price word on it is
+    # a fault; Sent's cards (S1, S2) own one *Set up the AI interviewer · N once* (another kind's card, before the project
+    # has paid); New link's rows (S3) own *Set up first · N once* on a kind not set up, and carry no credits note (190:
+    # the 30-credit sentence has no source any more). N is the served `recordPrice`.
+    prices = {int(p) for p in served or ()} or {fake.RECORD_PRICE}
+    if name in ("S1", "S2"):
+        return _own_words(text, ((SET_UP_LABEL, "set-up button", prices),))
     if name == "S3":
-        return _own_words(text, ((FORMAT_CREDITS_NOTE, "credits note", {charge.INTERVIEW_CREDITS}),))
-    if name != "L1":
-        return PRICE_WORD.findall(text)
-    prices = {int(p) for p in served or ()} or {fake.CHANGE_PRICE}
-    return _own_words(text, ((LOCK_CREDITS_SENTENCE, "credits sentence", prices), (LOCK_SWITCH_LABEL, "switch", prices)))
+        return _own_words(text, ((SET_UP_FIRST, "set-up-first status", prices),))
+    return CURRENCY.findall(text) + PRICE_WORD.findall(text)
 
 
 def _own_words(text: str, owns) -> list[str]:
@@ -303,7 +318,7 @@ def served_prices(r: dict) -> set[int]:
     def walk(value):
         if isinstance(value, dict):
             for k, v in value.items():
-                if k == "changePrice" and isinstance(v, int) and not isinstance(v, bool):
+                if k in ("changePrice", "recordPrice") and isinstance(v, int) and not isinstance(v, bool):
                     yield v
                 else:
                     yield from walk(v)
@@ -328,15 +343,13 @@ def no_price_shown(r: dict) -> tuple[bool, Any]:
     priced = {k: v for k, v in priced.items() if v}
     keys = sorted({k for body in r.get("wire_views") or [] for k in _keys(body)
                    if PRICE_KEY.search(k.rsplit(".", 1)[-1]) and k.rsplit(".", 1)[-1] not in ALLOWED_PRICE_KEYS})
-    drawn = {"L1", "S1", "S2", "S3"} <= set(screens) and CHANGE_ACTION in s2
-    credits = LOCK_CREDITS_SENTENCE.search(screens.get("L1") or "")
-    switch = LOCK_SWITCH_LABEL.search(screens.get("L1") or "")
+    # spec 154: the four screens drawn; no change action (gone), no L1 sentence or switch (gone), no S3 credits note (gone)
+    drawn = {"L1", "S1", "S2", "S3"} <= set(screens)
     note = FORMAT_CREDITS_NOTE.search(screens.get("S3") or "")
-    return drawn and not priced and not keys, {"priced": priced, "keys": keys, "drawn": sorted(screens),
-                                               "change action drawn": CHANGE_ACTION in s2,
-                                               "L1 credits sentence": credits.group(0) if credits else None,
-                                               "L1 switch": switch.group(0) if switch else None,
-                                               "S3 credits note": note.group(0) if note else None}
+    set_up = [m.group(0) for n in ("S1", "S2") for m in SET_UP_LABEL.finditer(screens.get(n) or "")]
+    return drawn and not priced and not keys and not note, {
+        "priced": priced, "keys": keys, "drawn": sorted(screens), "change action drawn": CHANGE_ACTION in s2,
+        "set-up buttons": set_up, "S3 credits note": note.group(0) if note else None}
 
 
 def _expected_kinds(role: dict, *, with_condition: bool = True) -> list[tuple[str, str | None]]:
@@ -1221,6 +1234,10 @@ def score(record: dict) -> list[Check]:
     checks = []
     for mark, key, rule in MARKS:
         doc = (rule.__doc__ or "").strip().split("\n")[0]
+        if mark in RETIRED:
+            # spec 154: a retired mark is never measured, whatever the record carries, and says why
+            checks.append(Check(mark, doc, measured=False, ok=False, detail={"retired": RETIRED[mark]}))
+            continue
         if key not in record:
             checks.append(Check(mark, doc, measured=False, ok=False))
             continue

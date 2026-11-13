@@ -29,7 +29,10 @@ import os
 #: lock's job on the frontier tier, routing v15), **15** since keel-cloud 190 (spec 121 FR-3: `CONTEXT_INTERPRET` and
 #: `ASKED` 3 -> 1, the light tier on Haiku 5.5, routing v16). The New-project gate those prices sum to is **298** (1 +
 #: 26 + 28 + 3 x 81; 300 at 13 and 14, 273 before), the lock's 70 (470 with the recording).
-PRICE_VERSION = 15
+#: **17** since keel-cloud 250 (spec 154 FR-1): the two gates -- `PROJECT` 1,000 written whole at New project (one SPEND,
+#: `project:new`), INTERVIEWER_RECORDING 1,500 once per project at the first kind's set-up (247); every job row priced 0,
+#: INTERVIEW among them (**nothing writes it any more**: Begin writes no row, and no link is ever INACTIVE for the balance).
+PRICE_VERSION = 17
 #: The founder-side rows of `InferenceCharge` at version 15 that `CreditPolicy.NEW_PROJECT_PRICE` sums, and the asked
 #: turn: the light tier's two priced rows at 1 credit since keel-cloud 190 (3 at 14 and before), the frame and
 #: calibration rows unmoved since 169. Mirrored for the record and pinned against keel-cloud's enum; no walk sums them.
@@ -38,14 +41,24 @@ LIGHT_PRICES_V14 = {"CONTEXT_INTERPRET": 3, "ASKED": 3}
 FRAME_PRICES = {"PROBLEM_INTERPRET": 26, "SOLUTION_MECHANISM": 28}
 CALIBRATION_QUESTIONS_CREDITS = 81
 #: `CreditPolicy.NEW_PROJECT_PRICE`: the context, the problem, the mechanism and three calibrations, summed, never typed.
-NEW_PROJECT_PRICE = (LIGHT_PRICES["CONTEXT_INTERPRET"] + FRAME_PRICES["PROBLEM_INTERPRET"]
-                     + FRAME_PRICES["SOLUTION_MECHANISM"] + 3 * CALIBRATION_QUESTIONS_CREDITS)
+NEW_PROJECT_PRICE_V15 = (LIGHT_PRICES["CONTEXT_INTERPRET"] + FRAME_PRICES["PROBLEM_INTERPRET"]
+                         + FRAME_PRICES["SOLUTION_MECHANISM"] + 3 * CALIBRATION_QUESTIONS_CREDITS)
+#: Spec 250 (`InferenceCharge.PROJECT`, `CreditPolicy.PROJECT_PRICE`): the project's own price, 1,000, no longer the
+#: corridor's sum (298 at 15); one SPEND row `PROJECT` of -1,000 at New project, reason `project:new`.
+PROJECT = "PROJECT"
+PROJECT_PRICE = 1000
+NEW_PROJECT_PRICE = PROJECT_PRICE
+PROJECT_REASON = "project:new"
+#: Spec 250: the grant a Google sign-up writes, sized to the two gates (one project with the interviewer leaves 0).
+GRANT_CREDITS = 2500
 #: `InferenceCharge.RESPONDENT_QUESTIONS` at version 14 (35 at 13): the lock's one job, and with it
 #: `CreditPolicy.LOCK_PRICE`.
 RESPONDENT_QUESTIONS_CREDITS = 70
 #: `InferenceCharge.INTERVIEW` -- the one row a person's Begin writes ($0.06 basis x 5).
 INTERVIEW = "INTERVIEW"
-INTERVIEW_CREDITS = 30
+INTERVIEW_CREDITS_V16 = 30
+#: Spec 250 (price version 17): the INTERVIEW row is 0 and **never written** -- `written_at_begin()` says so.
+INTERVIEW_CREDITS = 0
 #: The two readings priced 0 by 156 (10 and 8 at version 11): their HOLD is written at 0 and their SPEND carries the
 #: measured cost, so a balance never moves for a reading.
 READ_PRICES = {"INTERPRET": 0, "THEMES": 0}
@@ -63,11 +76,19 @@ CONVERSATION_CREDITS = 560
 READING_CREDITS_V11 = 9
 
 
+def written_at_begin(version: int = PRICE_VERSION) -> bool:
+    """Whether a person's Begin writes the INTERVIEW row: 12 to 16 yes, 17 (keel-cloud 250) no."""
+    return 12 <= version < 17
+
+
 def project_credits(people: int, *, version: int = PRICE_VERSION) -> int:
     """What §6.3 says a project of `people` participants costs: 1,250 at five on version 11, 1,355 on version 12 and
-    on 13, 14 and 15 (which moved no row of this figure)."""
+    on 13, 14 and 15 (which moved no row of this figure); **1,000 flat from 17** (spec 250: the project is bought once,
+    and nothing inside it takes credits)."""
+    if version >= 17:
+        return PROJECT_PRICE
     if version >= 12:
-        return FRAMING_CREDITS + BRIEF_CREDITS + CONVERSATION_CREDITS + people * INTERVIEW_CREDITS
+        return FRAMING_CREDITS + BRIEF_CREDITS + CONVERSATION_CREDITS + people * INTERVIEW_CREDITS_V16
     return FRAMING_CREDITS + BRIEF_CREDITS + CONVERSATION_CREDITS + people * READING_CREDITS_V11
 
 
@@ -109,7 +130,7 @@ def rows_for(ledger: list[dict], invitation_id: str) -> list[dict]:
 def row_faults(row: dict, *, invitation_id: str, project_id: str | None = None) -> list[str]:
     """What is wrong with one Begin's row against `CreditLedgerEntry.interview`: kind and action `INTERVIEW`, credits
     -30, `price_credits` 30, `price_version` 15 (14 before keel-cloud 190, 13 before 170, 12 before 169), no job, no cost, `reason` `invitation:<id>`, the key, the project."""
-    want = {"kind": INTERVIEW, "action": INTERVIEW, "credits": -INTERVIEW_CREDITS, "price_credits": INTERVIEW_CREDITS,
+    want = {"kind": INTERVIEW, "action": INTERVIEW, "credits": -INTERVIEW_CREDITS_V16, "price_credits": INTERVIEW_CREDITS_V16,
             "price_version": PRICE_VERSION, "inference_job_id": None, "actual_cost_micro_usd": None,
             "reason": f"invitation:{invitation_id}", "idempotency_key": key(invitation_id)}
     if project_id is not None:
@@ -125,8 +146,12 @@ def row_faults(row: dict, *, invitation_id: str, project_id: str | None = None) 
 
 
 def charged_once(ledger: list[dict], invitation_id: str, project_id: str | None = None) -> list[str]:
-    """FR-2's assertion on one person's Begin: exactly one row under the key, of the shape above."""
+    """FR-2's assertion on one person's Begin: exactly one row under the key, of the shape above -- **at 17 and later,
+    none** (spec 250: Begin writes no row), so a row found is the fault."""
     mine = rows_for(ledger, invitation_id)
+    if not written_at_begin():
+        return [f"{len(mine)} INTERVIEW rows under {key(invitation_id)}: Begin writes none at price version {PRICE_VERSION}"] \
+            if mine else []
     if len(mine) != 1:
         return [f"{len(mine)} rows under {key(invitation_id)}, not one"]
     return row_faults(mine[0], invitation_id=invitation_id, project_id=project_id)
@@ -137,7 +162,7 @@ def is_charge(row: dict, project_id: str | None = None) -> bool:
     under an `interview:` key, -30."""
     return (row.get("kind") == INTERVIEW and row.get("action") == INTERVIEW
             and (row.get("idempotency_key") or "").startswith("interview:")
-            and int(row.get("credits") or 0) == -INTERVIEW_CREDITS
+            and int(row.get("credits") or 0) == -INTERVIEW_CREDITS_V16
             and (project_id is None or row.get("project_id") == project_id))
 
 
@@ -152,8 +177,10 @@ def charges(ledger: list[dict], project_id: str | None = None) -> list[dict]:
 INACTIVE_STATE = "INACTIVE"
 INACTIVE_MESSAGE = "This link is no longer active."
 INACTIVE_BODY = {"state": INACTIVE_STATE, "message": INACTIVE_MESSAGE}
-#: The highest balance a never-begun link is inactive at (one under an interview).
-INACTIVE_BELOW = INTERVIEW_CREDITS
+#: The highest balance a never-begun link was inactive at (one under an interview) -- until keel-cloud 250: **no link is
+#: INACTIVE for the balance any more** (`INACTIVE_RETIRED`); a link is served with the owner at 0.
+INACTIVE_BELOW = INTERVIEW_CREDITS_V16
+INACTIVE_RETIRED = PRICE_VERSION >= 17
 
 
 def inactive_faults(status: int, body) -> list[str]:
@@ -188,3 +215,46 @@ def page_faults(text: str | None) -> list[str]:
     if any(c.isdigit() for c in text) or "credit" in text.lower():
         faults.append(f"a number or the word credits on the page: {text[:200]!r}")
     return faults
+
+
+# ------------------------------------------------------------------------------- spec 154 (keel-cloud 250): the two gates
+
+def project_key(project_id: str) -> str:
+    """`CreditLedgerEntry.projectKey`: one PROJECT row per project, ever."""
+    return f"project:{project_id}:spend"
+
+
+def project_rows(ledger: list[dict], project_id: str | None = None) -> list[dict]:
+    """Every `PROJECT` row (any project, or `project_id`'s)."""
+    return [x for x in ledger if x.get("action") == PROJECT
+            and (project_id is None or x.get("project_id") == project_id)]
+
+
+def project_row_faults(row: dict, *, project_id: str) -> list[str]:
+    """What is wrong with the project's one row against `CreditLedgerEntry.project` (spec 250 FR-1): one SPEND, credits
+    -1,000, `price_credits` 1,000, `price_version` 17, no job, reason `project:new`, the key, the project."""
+    want = {"kind": "SPEND", "action": PROJECT, "credits": -PROJECT_PRICE, "price_credits": PROJECT_PRICE,
+            "price_version": PRICE_VERSION, "inference_job_id": None, "reason": PROJECT_REASON,
+            "idempotency_key": project_key(project_id), "project_id": project_id}
+    faults = []
+    for field, value in want.items():
+        got = row.get(field)
+        if field in ("credits", "price_credits", "price_version") and got is not None:
+            got = int(got)
+        if got != value:
+            faults.append(f"{field}: {got!r}, not {value!r}")
+    return faults
+
+
+def bought_once(ledger: list[dict], project_id: str) -> list[str]:
+    """Spec 250 FR-1: exactly one PROJECT row under the project's key, of the shape above."""
+    mine = project_rows(ledger, project_id)
+    if len(mine) != 1:
+        return [f"{len(mine)} PROJECT rows for {project_id}, not one"]
+    return project_row_faults(mine[0], project_id=project_id)
+
+
+def moves_balance(row: dict) -> bool:
+    """Whether a ledger row moves `creditsAvailable` at all: at 17 only PROJECT and INTERVIEWER_RECORDING (and the
+    stand-ins / grants / refunds) carry credits; every job row is 0."""
+    return int(row.get("credits") or 0) != 0

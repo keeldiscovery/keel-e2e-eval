@@ -33,6 +33,8 @@ STEMS = {
     "CALIBRATION_QUESTIONS": "founder-lists",
     "RESPONDENT_QUESTIONS": "respondent-questions",
     "ASKED": "asked",
+    # spec 154 FR-7 (keel-cloud 248): the FIRST_PERSON job's one-field instruction
+    "FIRST_PERSON": "first-person",
 }
 
 

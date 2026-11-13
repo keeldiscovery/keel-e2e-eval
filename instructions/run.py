@@ -66,13 +66,18 @@ from . import validate as validate_mod
 COST_PER_CASE_ESTIMATE_USD = 0.04
 
 #: The eight model screens (spec 029 FR-016; spec 040). `COMPARE` is not one: it is never sent.
-SCREENS = contract_mod.MODEL_SCREENS
+SCREENS = contract_mod.MODEL_SCREENS + (contract_mod.SCREEN_FIRST_PERSON,)
 
 #: `-k` kind words (research R6): each selects by `Case.kind` exactly. `interpret` is deliberately
 #: not one -- it would be ambiguous between the three interpretation screens and the reads; the
 #: slash form `03-lullaby/INTERPRET` selects the reads.
 KIND_WORDS = {"context": "CONTEXT", "frame": "FRAME", "calibration": "CALIBRATION",
-              "asked": "ASKED", "respondent": "RESPONDENT", "reading": "READING", "compare": "COMPARE"}
+              "asked": "ASKED", "respondent": "RESPONDENT", "reading": "READING", "compare": "COMPARE",
+              # spec 154 FR-7 (keel-cloud 248): the FIRST_PERSON job, `first-person.md` -- also `<entry>/FIRST_PERSON`
+              "first_person": "FIRST_PERSON", "first-person": "FIRST_PERSON"}
+#: Spec 154 FR-7: the FIRST_PERSON kind is screened and validated by this repository's own field rule
+#: (`context.first_person_faults`), never by keel-cloud's screen validator (it is no InferenceScreen) and never scored.
+FIRST_PERSON_SCREEN = contract_mod.SCREEN_FIRST_PERSON
 
 
 def main(argv=None) -> int:
@@ -787,7 +792,7 @@ def _produced_key(case) -> str:
         return f"ASKED_{case.subject}"
     if case.kind == "READING":
         return f"INTERPRET/{case.subject}"
-    return case.screen
+    return case.screen            # CONTEXT, FRAME and (spec 154) FIRST_PERSON: the screen's own name
 
 
 def _score(case, entry, answer, failed, state, judge) -> dict:
@@ -809,6 +814,15 @@ def _score(case, entry, answer, failed, state, judge) -> dict:
     if screen_mod.is_extra(case):
         # spec 105 FR-3 / spec 110 FR-4: a back-test entry's or a probe's case has no golden expectations -- rendered
         # and validated, never scored (a probe's mark is `_score_probe`'s); its entry is not the golden corpus's
+        return diff
+    if case.kind == "FIRST_PERSON":
+        # spec 154 FR-7 (keel-cloud 248 FR-7b): one field, held to `IdeaLines.firstPersonFault`'s rule here (the cloud's
+        # validator takes no such screen); reported, never a mark -- the founder reads it for new refusal classes
+        from . import context as context_mod                  # noqa: PLC0415
+        line = (result or {}).get(contract_mod.FIRST_PERSON_FIELD) if isinstance(result, dict) else None
+        faults = context_mod.first_person_faults(line, case.meta.get("idea_belief"))
+        diff.update(faults=faults, first_person=line)
+        diff["line"] = f"  {line!r}" + (f" · {len(faults)} fault(s): {'; '.join(faults)}" if faults else " · holds F1-F5")
         return diff
     if case.kind == "CALIBRATION":
         score = score_mod.score_calibration(case, entry, entry.registry, result, judge=judge,

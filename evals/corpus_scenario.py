@@ -2107,6 +2107,16 @@ def choose_faults(choose: dict | None, key: str, *, row: int | None, b2b: bool =
             faults.append({"what": what, "drawn": drawn, "want": want})
 
     label, options = choose.get("label"), list(choose.get("options") or [])
+    if key in (COMPATIBILITY_KEY, ADOPTION_KEY):
+        # spec 154 FR-0 (keel-web 186 FR-2, keel-cloud 245 FR-3): under the picked row, the served question -- *Asked as
+        # "..."* -- or *Keel will ask this row as written.*; the writing line waited out (90 s) before the read
+        line = choose.get("asked_line") or {}
+        fault("the asked line under the pick (keel-web 186)", line.get("kind") in ("asked", "as_written"), True)
+        if line.get("kind") == "asked":
+            fault("the asked line's lead", (line.get("lead") or "").startswith(vs_screens.CHOOSE_ASKED_LEAD), True)
+            fault("the asked line's question", bool(line.get("question")), True)
+        elif line.get("kind") == "as_written":
+            fault("the as-written line's words", line.get("text"), vs_screens.CHOOSE_ASKED_AS_WRITTEN)
     if key != BUYER_PAYER_KEY:
         fault("the pick by label", label in options, True)
         fault("the served pickedIndex", choose.get("served_index"), row)
@@ -2448,6 +2458,11 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 elif screen["screen"] == "choose":
                     faults += [{"dimension": key, **f}
                                for f in choose_faults(screen, key, row=screen.get("row"), b2b=vs.is_b2b(j.entry))]
+                elif screen["screen"] == "check":
+                    # spec 154 FR-0 (keel-web 186 FR-1): no row of the Check carries the reword line any more
+                    faults += [{"dimension": key, "what": "a reword line on the Check (keel-web 186 FR-1)",
+                                "drawn": r.get("warn"), "want": None}
+                               for r in (screen.get("after") or screen).get("rows") or [] if r.get("reword")]
         h.record_assert([], faults)
         assert not faults, json.dumps(faults, indent=2)
 

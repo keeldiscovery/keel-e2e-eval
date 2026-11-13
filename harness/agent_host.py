@@ -99,7 +99,8 @@ CLI_HOSTS = tuple(h for h in HOSTS if h not in HOSTS_WITHOUT_A_CLI)
 #: `/v2/me.creditsAvailable` answers, and as the sentence keel-web renders from it. A run where
 #: the two disagree is a formatting change; a run where both moved is a grant change; and a
 #: bundle that could not tell them apart would be no use on the morning either happened.
-KEELS_AI_GRANT = 2000
+#: **2,500 since keel-cloud 250** (spec 154): one project (1,000) with the AI interviewer (1,500) leaves 0.
+KEELS_AI_GRANT = 2500
 
 #: keel-cloud's own two words for which AI an account runs on (`/v2/me.aiPath`; keel-cloud spec
 #: 044 FR-033, `canon/openapi-v2.yaml`'s `MeResponse.aiPath`). `OWN` is a founder's own Claude

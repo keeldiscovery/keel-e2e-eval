@@ -350,9 +350,9 @@ eval-live: venv
 # started, and this run's KEEL_HOME is asserted empty at the end.
 #
 # IT SPENDS THE COMPANY'S MONEY, NOT THE FOUNDER'S. Every other live target bills the founder's
-# own plan; this one bills Keel's Anthropic account -- about 1,355 credits a journey, which is
-# $13.55 at list price and about $2.44 of actual inference (design §6.3, the five-participant
-# row, re-summed at price version 12: readings 0, 30 at each person's Begin -- keel-cloud 156). That is why the matrix buys it once a Saturday and never on a merge, and why there is no
+# own plan; this one bills Keel's Anthropic account -- about 1,000 credits a journey, which is
+# $10.00 at list price and about $2.44 of actual inference (design §6.3's five-participant row was
+# 1,355 at price version 12; since keel-cloud 250 / spec 154 the project is bought once, 1,000, and nothing inside it takes credits). That is why the matrix buys it once a Saturday and never on a merge, and why there is no
 # short form of it here.
 #
 # PROFILE=remote by default, because the door only exists on a deployment: it needs keel-cloud

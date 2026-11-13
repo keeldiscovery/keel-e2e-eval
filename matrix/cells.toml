@@ -174,9 +174,9 @@ weekly = [
     # THE OTHER DOOR (spec 024-keels-ai-cell), and the only cell in the matrix that spends Keel's
     # own money rather than the founder's. S-012 whole, through keel-web's /signup: 1,500 credits
     # on the shell line, no agent line, no runtime, every job answered by keel-cloud on Keel's own
-    # Anthropic account and priced in the ledger. About 1,355 credits a run -- $13.55 at list
-    # price, about $2.44 of actual inference (ai-credits-design.md §6.3, the five-participant
-    # row at price version 12: readings 0, 30 at each person's Begin -- keel-cloud 156) -- comfortably inside the 1,500 the grant gives and inside keel-cloud spec 045's
+    # Anthropic account and priced in the ledger. About 1,000 credits a run -- $10.00 at list
+    # price, about $2.44 of actual inference (ai-credits-design.md §6.3's five-participant row was 1,355 at price
+    # version 12; since keel-cloud 250 / spec 154 the project is bought once, 1,000) -- comfortably inside the 2,500 the grant gives and inside keel-cloud spec 045's
     # $10.00-a-day-per-founder cap.
     #
     # `install = "none"` because there is nothing to install; the id stays

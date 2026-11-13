@@ -57,7 +57,9 @@ def load_runtime(keel_runtime: Path):
 
 #: `Case.kind` at `MARKS_VERSION` 9 (data-model §4). `FRAME` is the two typed-seed interpretations.
 #: Spec 052: `BRIEF` left with keel-cloud 104's BRIEF screen.
-KINDS = ("CONTEXT", "FRAME", "CALIBRATION", "ASKED", "RESPONDENT", "READING", "COMPARE")
+#: Spec 154 FR-7: `FIRST_PERSON` (keel-cloud 248 FR-7b) -- rendered, held to the field rule, never scored; its cases are
+#: built only when the entry's mechanism carries a belief line.
+KINDS = ("CONTEXT", "FRAME", "CALIBRATION", "ASKED", "RESPONDENT", "READING", "FIRST_PERSON", "COMPARE")
 
 #: The `ASKED` cases' subjects (keel-cloud 088): the two lists whose items carry a stranger's face.
 ASKED_SUBJECTS = {"solution.compatibility": "COMPATIBILITY", "solution.adoption_friction": "ADOPTION_FRICTION"}
@@ -207,6 +209,19 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
         add(f"{entry.id}/{screen}", "FRAME", screen, screen,
             builder(entry, exported.keys_for(screen)),
             content=context_mod.seed_of(entry, screen))
+
+    # Spec 154 FR-7 (keel-cloud 248 FR-7b): the FIRST_PERSON job -- the stored belief in, the founder's own line out. The
+    # export carries no contract for it (it is no InferenceScreen), so the contract is `FIRST_PERSON_CONTRACT`, the
+    # keys the job's own, and the instruction the one `first-person.md`; built only where the entry has an idea belief.
+    first_person = context_mod.build_first_person(entry)
+    if first_person.get("idea_belief") and instructions_by_screen.get(c.SCREEN_FIRST_PERSON):
+        payload = payload_for(instructions_by_screen[c.SCREEN_FIRST_PERSON], first_person, c.FIRST_PERSON_CONTRACT)
+        for run_index in range(1, n_runs + 1):
+            case = Case(case_id=f"{entry.id}/FIRST_PERSON/run{run_index}", kind="FIRST_PERSON",
+                        entry_id=entry.id, screen=c.SCREEN_FIRST_PERSON, subject=c.SCREEN_FIRST_PERSON,
+                        run_index=run_index, payload=payload, meta={"idea_belief": first_person["idea_belief"]})
+            case.prompt = render(executor_module, payload, job_id=_slug(case.case_id), host=host)
+            cases.append(case)
 
     # Calibration: one constant, three jobs, one a vector (A-3).
     keys = exported.keys_for(c.SCREEN_CALIBRATION)

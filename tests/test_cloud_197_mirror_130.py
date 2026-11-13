@@ -44,7 +44,7 @@ def test_the_short_name_is_eight_words_and_the_founders_name_five():
     assert (vs.SHORT_NAME_MAX_WORDS, vs.SHORT_NAME_MAX_WORDS_196, corpus_mod.IDEA_NAME_MAX_WORDS) == (8, 5, 5)
     contracts = _cloud(CONTRACTS)
     assert 'SHORT_NAME_RULE = "At most eight words: the kind of thing and what it does' in contracts
-    assert "public static final int CONTRACT_VERSION = 25;" in contracts, "198's; 197 moved a description only"
+    assert re.search(r"public static final int CONTRACT_VERSION = (25|26);", contracts), "198's; 197 moved a description only; 26 at 245 (spec 154)"
 
 
 def test_the_grammar_words_are_idea_lines_own():

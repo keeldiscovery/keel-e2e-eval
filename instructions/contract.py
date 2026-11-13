@@ -33,6 +33,20 @@ SCREEN_READING = SCREEN_INTERPRET
 SCREEN_COMPARE = "COMPARE"
 # keel-cloud 088 (contract 12): the `asked` faces of a saved Compatibility or Adoption friction list.
 SCREEN_ASKED = "ASKED"
+#: Spec 154 FR-7 (keel-cloud 248 FR-7b): the one-field job `FirstPersonLines` runs off a Plan a call -- not an
+#: `InferenceScreen`, no interaction row, no charge; its instruction `first-person.md`, its one field
+#: `idea_belief_first_person`. Screened by `make instruction-screen K=<entry>/FIRST_PERSON WHY=instruction:first-person.md`.
+SCREEN_FIRST_PERSON = "FIRST_PERSON"
+FIRST_PERSON_FIELD = "idea_belief_first_person"
+#: keel-cloud `IdeaLines.BELIEF_MAX` and `firstPersonFault`: the field rule the writer is held to (F1 to F3).
+FIRST_PERSON_MAX = 200
+FIRST_PERSON_OPENING = "I believe it would"
+#: The contract the job hands the executor (`FirstPersonLines.contract()`): COMPLETED alone, one string field.
+FIRST_PERSON_CONTRACT = {
+    "allowed_outcomes": ["COMPLETED"],
+    "completed_result_schema": {"type": "object", "required": [FIRST_PERSON_FIELD], "additionalProperties": False,
+                                "properties": {FIRST_PERSON_FIELD: {"type": "string", "maxLength": FIRST_PERSON_MAX}}},
+}
 
 #: The seven screens a model answers (contract 13; spec 052: keel-cloud 104 deleted the BRIEF screen, so the reading
 #: marks retired with it), in the order a run builds them (FR-016; spec 040 FR-003).

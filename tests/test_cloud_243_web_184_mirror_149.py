@@ -51,7 +51,9 @@ def test_the_reader_digest_is_243s_cards():
     review = _cloud(APPLICATION + "RespondentReview.java")
     sha = re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1)
     ours = cards.CARDS_PATH.read_bytes()
-    assert hashlib.sha256(ours).hexdigest() == sha == CARDS_SHA256_243 == CARDS_SHA256_141
+    # eval spec 154 moved the copy to keel-cloud 245's (`CARDS_SHA256_141`); 243's is the step before
+    assert hashlib.sha256(ours).hexdigest() == sha == CARDS_SHA256_141
+    assert sha in (CARDS_SHA256_243, CARDS_SHA256_141)
     assert (KEEL_CLOUD / CARDS).read_bytes() == ours
     assert CARDS_SHA256_241 == "78bd11674018b1e2644b2de99256e1fe3c2c781e0f6fca7cefab68fe98e86307" != CARDS_SHA256_243
 
@@ -89,4 +91,5 @@ def test_the_contract_is_64_and_the_screen_contract_25():
     for name in ("inPlaceOf", "typedKeels", "replacedBy", "keels"):
         assert re.search(rf"\b{name}: \{{ type: (string|boolean), description: \"Spec 243", spec), name
     contracts = _cloud(APPLICATION + "ScreenResponseContracts.java")
-    assert "public static final int CONTRACT_VERSION = 25;" in contracts
+    # keel-cloud 245 moved it to 26 (the draft serves no `asked`, each row its `question`; spec 154)
+    assert re.search(r"public static final int CONTRACT_VERSION = (25|26);", contracts)

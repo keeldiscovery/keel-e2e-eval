@@ -31,7 +31,7 @@ brief is written. Leg two is the same leg two: the founder's journey is the foun
 whichever AI is answering it.
 
 It is also **the only run in this repository that spends the company's money** rather than the
-founder's own plan -- about 1,355 credits, $13.55 at list price and about $2.44 of actual
+founder's own plan -- about 1,000 credits (the project, bought once; keel-cloud 250), $10.00 at list price and about $2.44 of actual
 inference (design §6.3, re-summed at price version 12: readings 0, 30 at each person's Begin --
 keel-cloud 156, spec 088; price version 13, keel-cloud 169, doubled the corridor's two frame prices
 and moved no row of this classic figure, spec 105; 14, keel-cloud 170, doubled the lock's one job to 70 and moved none

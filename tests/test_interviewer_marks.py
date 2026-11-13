@@ -28,10 +28,11 @@ IS_THAT_RIGHT = "Is that right? Say yes, or tell me the right one"
 
 
 def _pair(action: str) -> list[dict]:
-    return [{"kind": "HOLD", "credits": -400, "action": action, "price_version": fake.PRICE_VERSION, "project_id": PROJECT,
+    # spec 154 (keel-cloud 247 / 250): the recording's pair at 1,500 / 7,500,000 µUSD, price version 17
+    return [{"kind": "HOLD", "credits": -fake.CREDITS, "action": action, "price_version": fake.PRICE_VERSION, "project_id": PROJECT,
              "inference_job_id": None, "price_credits": None, "actual_cost_micro_usd": None},
             {"kind": "SPEND", "credits": 0, "action": action, "price_version": None, "project_id": PROJECT,
-             "inference_job_id": None, "price_credits": 400, "actual_cost_micro_usd": 2_000_000}]
+             "inference_job_id": None, "price_credits": fake.CREDITS, "actual_cost_micro_usd": fake.COST_MICRO_USD}]
 
 
 AI_INVITATION = str(uuid.uuid4())
@@ -237,21 +238,22 @@ def good() -> dict:
     return {
         "entry": "05-paidly", "project_id": PROJECT,
         "ledger": [{"kind": "GRANT", "credits": 1500, "action": None, "price_version": None},
-                   *_pair("INTERVIEWER_RECORDING"), *_pair("INTERVIEWER_CHANGE"),
+                   *_pair("INTERVIEWER_RECORDING"),            # spec 154: no change pair (IM10 retired)
                    _reading("INTERPRET", f"read-on-arrival:{AI_INVITATION}"), _reading("THEMES", "themes:on-return"),
                    {"kind": "PURCHASE", "credits": -800, "action": None, "price_version": None}],
         # spec 091 FR-3 (IM2 v15): L1 carries keel-web 130 / 132's one served credits sentence, the screen's own words
-        "screens": {"L1": "Who should ask them your questions? Daphne is picked for you. Tap the other face to hear "
-                          "Saskia and pick Saskia instead. Keel records Daphne once for this project, which uses 400 "
-                          "credits. People get the link by text message either way. The voice goes with the face. "
-                          "Lock and record Daphne",
-                    "S1": "Saskia asks your questions. Recording now, usually ready in about five minutes. 3 of 19 clips",
-                    "S2": "Recorded today at 16:02. Change who asks · 400 AI credits",
-                    # spec 094 FR-1a (IM2 v16): S3 carries keel-web 131's one credits note, the screen's own words
-                    "S3": "AI interviewer · Saskia Text only Let them choose Each person who answers uses 30 credits, "
-                          "whichever way they answer. The interviewer is already recorded."},
-        "wire_views": [{"face": {"code": "SASKIA"}, "status": "READY", "progress": {"done": 19, "total": 19},
-                        "changePrice": 400, "faces": [{"code": "DAPHNE"}]},
+        # spec 154 (keel-web 187, keel-cloud 247 / 250): L1 picks no face and names no price; Sent's cards carry the
+        # kind's line (*Saskia is recording*, *Saskia asks*) and another kind's *Set up the AI interviewer · 1,500 once*;
+        # New link's rows carry no credits note
+        "screens": {"L1": "Lock the questions. People get the link by text message either way. Lock the questions",
+                    "S1": "Budget owners · Saskia is recording 3 of 19 clips done · Read and tap links can be made "
+                          "meanwhile. Site managers Set up the AI interviewer · 1,500 once",
+                    "S2": "Budget owners · Saskia asks Try it yourself Site managers Set up the AI interviewer · 1,500 once",
+                    "S3": "Read and tap Ready now AI interviewer · Saskia Ready now Let them choose Ready now"},
+        "wire_views": [[{"roleId": "r1", "face": {"code": "SASKIA"}, "status": "READY",
+                         "progress": {"done": 19, "total": 19}}],
+                       {"faces": [{"code": "DAPHNE"}, {"code": "SASKIA"}], "recordPrice": 1500, "recordingPaid": True,
+                        "recordingOpen": True},
                        {"interviewer": {"face": "SASKIA", "status": "RECORDING"}, "revision": 40}],
         "recording": {"face": "DAPHNE", "status": "READY", "clips": primary + commercial},
         "roles": {"PRIMARY": {"kind": "FULL", "parts": [
@@ -277,13 +279,7 @@ def good() -> dict:
                            {"itemId": "d", "how": "TYPED"},                     # a value typed into the field
                            {"itemId": "e", "how": "RECORDED", "heard": "the second one"}]},
                        "register_row": {"formatUsed": "AI_INTERVIEWER"}},
-        "change": {"face": "DAPHNE", "face_before": "SASKIA", "face_after": "DAPHNE", "ready_face": "DAPHNE",
-                   "balance_before": 1100, "balance_after": 700, "trail": ["RECORDING", "RECORDING", "READY"]},
-        "low_balance": {"status": 422, "balance": 100, "balance_after": 100, "ledger_rows_added": 0,
-                        "face_before": "DAPHNE", "face_after": "DAPHNE",
-                        "body": {"rule": "credits", "code": "INSUFFICIENT_CREDITS_FOR_INTERVIEWER", "required": 400,
-                                 "available": 100, "remedy": fake.INSUFFICIENT_REMEDY.format(required=400,
-                                                                                            available=100)}},
+        # spec 154: "change" and "low_balance" are gone with IM10 / IM11 (retired)
         "retry": {"status": "READY", "ledger_rows_added": 0, "clip": {"attempts": 2, "status": "DONE"}},
         "hold": {"holds": [{"question": "Did it happen?", "status": HELD, "lit": ["Yes"], "heard": "", "went_on": True,
                             "presses": [], "said": "yes"},
@@ -406,10 +402,12 @@ def _by_mark(record: dict) -> dict:
 
 def test_a_good_record_meets_every_mark():
     checks = _by_mark(good())
-    assert all(c.measured and c.ok for c in checks.values()), {m: c.detail for m, c in checks.items() if not c.ok}
+    live = {m: c for m, c in checks.items() if m not in marks.RETIRED}
+    assert all(c.measured and c.ok for c in live.values()), {m: c.detail for m, c in live.items() if not c.ok}
     card = marks.scorecard(good())
-    assert (card["measured"], card["met"], card["unmeasured"]) == (30, 30, [])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 17      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19
+    # spec 154: 27 measured (IM10, IM11, IM30 retired, never measured)
+    assert (card["measured"], card["met"], card["unmeasured"]) == (27, 27, ["IM10", "IM11", "IM30"])
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 18      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19; 154: v18
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -488,21 +486,19 @@ SEEDED = [
     ("IM1", ["ledger", 2, "actual_cost_micro_usd"], 1_430_000),                         # the vendor's bill passed on
     ("IM1", ["ledger", 1, "inference_job_id"], str(uuid.uuid4())),                       # held on a job
     ("IM2", ["screens", "L1"], "Who asks the questions · 400 credits"),                  # a price on Lock
-    # spec 091 FR-3 (IM2 v15): the credits sentence is L1's own, once, at the served price, with no currency
-    ("IM2", ["screens", "L1"], "Keel records Daphne once for this project, which uses 900 credits."),
-    ("IM2", ["screens", "L1"], "Keel records Daphne once for this project, which uses 400 credits. Keel records "
-                               "Daphne once for this project, which uses 400 credits."),
-    ("IM2", ["screens", "L1"], "Keel records Daphne once for this project, which uses 400 credits. About $2."),
-    # spec 094 FR-1 (IM2 v16): staging's switch is L1's own, once, at the served price -- a second, or another number
-    ("IM2", ["screens", "L1"], lambda t: "Record Daphne at lock · 400 credits" + t + " Record Saskia at lock · 400 credits"),
-    ("IM2", ["screens", "L1"], lambda t: "Record Daphne at lock · 900 credits" + t),
-    # spec 094 FR-1a: Send more's credits note is S3's own, once, at 30, no currency -- a second line, another number
+    # spec 154 (keel-web 187, keel-cloud 247 / 250): L1 names no price at all any more -- 091's sentence and 094's switch
+    # are faults now; Sent's cards own one *Set up the AI interviewer · N once* at the served recordPrice; New link's rows
+    # own *Set up first · N once* and no credits note (keel-web 190: the 30-credit sentence has no source)
+    ("IM2", ["screens", "L1"], lambda t: t + " Keel records Daphne once for this project, which uses 1,500 credits."),
+    ("IM2", ["screens", "L1"], lambda t: "Record Daphne at lock · 1,500 credits " + t),
+    ("IM2", ["screens", "S2"], lambda t: t.replace("1,500 once", "900 once")),             # another number
+    ("IM2", ["screens", "S2"], lambda t: t + " Set up the AI interviewer · 1,500 once"),     # a second button
+    ("IM2", ["screens", "S2"], lambda t: t + " Change who asks · 400 AI credits"),          # 094's action is gone
     ("IM2", ["screens", "S3"], lambda t: t + " Each person who answers uses 30 credits, whichever way they answer."),
-    ("IM2", ["screens", "S3"], lambda t: t.replace("uses 30 credits", "uses 45 credits")),
+    ("IM2", ["screens", "S3"], lambda t: t + " Set up first · 900 once"),
     ("IM2", ["screens", "S3"], lambda t: t + " About $0.12 each."),
-    ("IM2", ["screens", "S1"], "Saskia asks your questions. Recording now ($1.43)."),
-    ("IM2", ["screens", "S3"], "AI interviewer · Saskia · 400 credits"),
-    ("IM2", ["screens", "S2"], "Recorded today at 16:02. Change who asks"),              # the one action missing
+    ("IM2", ["screens", "S1"], "Saskia is recording ($1.43)."),
+    ("IM2", ["screens", "S3"], "AI interviewer · Saskia · 1,500 credits"),
     ("IM2", ["screens"], lambda s: {k: v for k, v in s.items() if k != "S3"}),           # a screen not drawn
     ("IM2", ["wire_views"], lambda v: v + [{"interviewer": {"face": "SASKIA", "creditsCharged": 400}}]),
     ("IM3", ["recording"], _clips(lambda c: [c[4]] + c[:4] + c[5:])),                    # the idea before the problem
@@ -554,16 +550,7 @@ SEEDED = [
     ("IM9", ["ai_answers", "register_row", "formatUsed"], None),
     ("IM9", ["ai_answers", "body", "answers", 4, "heard"], ""),                          # recorded, nothing heard
     ("IM9", ["ai_answers", "body", "answers", 4, "how"], "WHISPERED"),
-    ("IM10", ["ledger"], lambda rows: [r for r in rows if r["action"] != "INTERVIEWER_CHANGE"]),  # changed for free
-    ("IM10", ["ledger"], lambda rows: rows + _pair("INTERVIEWER_CHANGE")),                # charged twice
-    ("IM10", ["change", "balance_after"], 1100),
-    ("IM10", ["change", "trail"], ["READY"]),                                             # never re-recorded
-    ("IM10", ["change", "ready_face"], "SASKIA"),                                           # READY on the old face
-    ("IM11", ["low_balance", "status"], 200),                                             # changed anyway
-    ("IM11", ["low_balance", "body", "remedy"], "Not enough credits."),
-    ("IM11", ["low_balance", "ledger_rows_added"], 2),
-    ("IM11", ["low_balance", "face_after"], "SASKIA"),
-    ("IM11", ["low_balance", "body", "available"], 0),
+    # spec 154: IM10 / IM11 retired (no change of face in the product) -- no seeded fault; `test_retired_marks` below
     ("IM12", ["retry", "clip", "attempts"], 1),                                           # never failed, never retried
     ("IM12", ["retry", "ledger_rows_added"], 2),                                          # the retry paid again
     ("IM12", ["retry", "status"], "FAILED"),
@@ -806,28 +793,31 @@ HEAR_BAND_FAULTS = [
     ("still marked hearing", ["hear_band", "after", "hearing"], "true"),
     ("the hello not served", ["hear_band", "hello"], None),
 ]
-SEEDED += [("IM30", path, value) for _, path, value in HEAR_BAND_FAULTS]
+# spec 154: IM30 retired with the who-asks band (keel-web 187 FR-5) -- HEAR_BAND_FAULTS stay as the record of its table
 
 
-@pytest.mark.parametrize("why,path,value", HEAR_FACE_FAULTS + HEAR_INTRO_FAULTS + HEAR_BAND_FAULTS,
-                         ids=[w for w, _, _ in HEAR_FACE_FAULTS + HEAR_INTRO_FAULTS + HEAR_BAND_FAULTS])
+@pytest.mark.parametrize("why,path,value", HEAR_FACE_FAULTS + HEAR_INTRO_FAULTS,
+                         ids=[w for w, _, _ in HEAR_FACE_FAULTS + HEAR_INTRO_FAULTS])
 def test_a_hear_fault_fails_its_mark_alone(why, path, value):
     checks = _by_mark(_seed(path, value))
-    failed = {m for m, c in checks.items() if not c.ok}
-    assert failed == {{"hear_face": "IM28", "hear_intro": "IM29", "hear_band": "IM30"}[path[0]]}, (why, failed)
+    failed = {m for m, c in checks.items() if c.measured and not c.ok}
+    assert failed == {{"hear_face": "IM28", "hear_intro": "IM29"}[path[0]]}, (why, failed)
 
 
-def test_a_retired_face_meets_im30_by_drawing_no_hear_button():
-    """Spec 059 FR-2: absent for a retired face -- no journey can record one (keel-cloud 110 refuses it FACE_UNKNOWN),
-    so the branch is this table's: no button and no hello meets IM30; a button drawn for it fails. Spec 083: 094's
-    TITO (retired by 110) and 143's CHUKWU (a constant, served with helloUrl null) alike."""
-    for face in ("TITO", "CHUKWU"):
-        record = good()
-        record["hear_band"] = {"present": False, "face": face, "hello": fake.served_hello(face), "retired": True,
-                               "state": "READY"}
-        assert _by_mark(record)["IM30"].ok, _by_mark(record)["IM30"].detail
-        record["hear_band"]["present"] = True
-        assert not _by_mark(record)["IM30"].ok
+def test_retired_marks_are_never_measured_and_say_why():
+    """Spec 154: IM10 (the change), IM11 (the refusal at a low balance) and IM30 (the band's Hear) are retired -- the
+    product has no door for them (keel-web 187, keel-cloud 247) -- so a record carrying their keys leaves them unmeasured,
+    with the reason, and the short form owes IM30 no more."""
+    from evals import interviewer_leg                                     # noqa: PLC0415
+    record = good()
+    record["hear_band"] = {"present": True, "face": "SASKIA"}
+    record["change"] = {"face": "DAPHNE"}
+    record["low_balance"] = {"status": 200}
+    checks = _by_mark(record)
+    for mark in ("IM10", "IM11", "IM30"):
+        assert not checks[mark].measured and "retired" in (checks[mark].detail or {}), checks[mark]
+        assert mark in marks.RETIRED and "154" in marks.RETIRED[mark]
+    assert "IM30" not in interviewer_leg.SHORT_FORM
 
 
 def test_the_w1_replay_is_retired_and_says_why():
@@ -837,7 +827,7 @@ def test_the_w1_replay_is_retired_and_says_why():
     assert "How it works" in interviewer_leg.W1_REPLAY_RETIRED and "088" in interviewer_leg.W1_REPLAY_RETIRED
     source = Path(interviewer_leg.__file__).read_text(encoding="utf-8")
     assert "walkthrough_again" not in source and "W1_REPLAY_RETIRED" in source
-    assert "IM30" in interviewer_leg.SHORT_FORM
+    assert "IM30" not in interviewer_leg.SHORT_FORM            # spec 154: retired with the band
     assert not any(key == "W1" for _, key, _ in marks.MARKS)
 
 
@@ -856,7 +846,8 @@ def test_each_mark_fails_on_its_seeded_fault(mark, path, value):
 
 
 def test_every_mark_has_a_seeded_fault():
-    assert {m for m, _, _ in SEEDED} == {m for m, _, _ in marks.MARKS}
+    # spec 154: a retired mark (IM10, IM11, IM30) is never measured, so it has no seeded fault
+    assert {m for m, _, _ in SEEDED} == {m for m, _, _ in marks.MARKS} - set(marks.RETIRED)
 
 
 def test_a_record_missing_a_key_is_unmeasured_not_passed():
@@ -876,8 +867,10 @@ def test_the_price_word_finds_a_price_and_leaves_plain_words_alone():
 # ------------------------------------------------------------------------------- the fake and charge v9, restated
 
 def test_charge_v9_and_the_fixed_lines():
-    # price version 15 since keel-cloud 190 (spec 121 FR-3); the interviewer's two rows unmoved
-    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (15, 400, 2_000_000, 400)
+    # price version 17 since keel-cloud 250 (spec 154 FR-1): the recording 1,500 / 7,500,000 µUSD once per project
+    # (247), the change 0 (250), the project 1,000, the grant 2,500
+    assert (fake.PRICE_VERSION, fake.CREDITS, fake.COST_MICRO_USD, fake.CHANGE_PRICE) == (17, 1500, 7_500_000, 0)
+    assert (fake.PROJECT_PRICE, fake.GRANT, fake.PRICES) == (1000, 2500, {"project": 1000, "recording": 1500})
     # spec 083 (keel-cloud 143): the two studio faces, DAPHNE preselected; 110's four retired with 094's (less DAPHNE)
     assert fake.FACES == ("DAPHNE", "SASKIA") and fake.PRESELECTED == "DAPHNE"
     assert fake.FACE_NAMES == {"DAPHNE": "Daphne", "SASKIA": "Saskia"}

@@ -2638,8 +2638,11 @@ def said_phrase(phrase: str | None) -> str | None:
 
 def drafted_list(entry, key: str) -> dict:
     """The `CALIBRATION_QUESTIONS` result's `list` for a list dimension (founder-lists.md): the entry's own
-    items in its order -- Buyer and payer's "Nobody else" left to code, which adds it -- each `label`, the
-    `asked` face on Compatibility and Adoption friction, and Current solution's `phrase`."""
+    items in its order -- Buyer and payer's "Nobody else" left to code, which adds it -- each `label` and Current
+    solution's `phrase`. **Spec 154 FR-0 (keel-cloud 245 FR-1): the draft carries no stranger's face and no condition**
+    -- `asked` and `only_if` are the Save's ASKED job's to write for every row (ignored if sent) -- so Compatibility's
+    and Adoption friction's rows are labels alone; the corpus face is still read for the row's `kind` (L-kind) and the
+    stub's answer (`asked_result`)."""
     saved = founder_list(entry, key)
     items = []
     cap = ROW_CAP.get(key)
@@ -2652,21 +2655,18 @@ def drafted_list(entry, key: str) -> dict:
         # scripted writer's draft carries it cut (`RowCap.cut`), so the Check screen is always saveable
         from instructions import spoken as spoken_mod                 # noqa: PLC0415
         out = {"label": spoken_mod.row_cap_cut(item["label"], cap) if cap else item["label"]}
-        if key in ASKED_FACES:
-            if not item.get("asked"):
-                raise VectorsScriptError(f"{entry.id}: {key} item {item['label']!r} carries no `asked` face (L4)")
-            out["asked"] = item["asked"]
-        if key == ADOPTION_KEY:
-            # spec 132 FR-7 (keel-cloud 206 FR-4, `K8` on the draft): every Adoption friction item carries its
-            # condition, so the scripted founder spends no repair turn an item
-            out["only_if"] = adoption_condition(item)
+        if key in ASKED_FACES and not item.get("asked"):
+            # the corpus still records a face per row (L4): the stub's ASKED answer reads it (`asked_result`)
+            raise VectorsScriptError(f"{entry.id}: {key} item {item['label']!r} carries no `asked` face (L4)")
+        # spec 154 FR-0 (keel-cloud 245 FR-1): no `asked` on the draft -- the Save's ASKED job phrases every row -- and no
+        # `only_if` (132 FR-7's K8 on the draft is 245's: the condition comes back with the face from the asked job)
         if key == COMPATIBILITY_KEY:
             # spec 136 FR-3 (keel-cloud 212 FR-4, L35): each condition shows its test -- the corpus's conditions are the
             # ones the study tests, so every row is settled by nobody
             out["settled_by"] = "nobody"
             # spec 141 FR-8 (keel-cloud 225 FR-1, L-kind): the kind beside it, the word test's own reading
             # (`spoken.condition_kind`) -- today's frame kept, and no L-kind repair turn spent
-            out["kind"] = spoken_mod.condition_kind(out["asked"], out["label"]).lower()
+            out["kind"] = spoken_mod.condition_kind(item["asked"], out["label"]).lower()
         items.append(out)
     if key == COMMITMENT_KEY and keels_smaller_step(entry):
         # spec 133 FR-2 (keel-cloud 211 FR-6, L34): a step that costs money, data or a signature carries Keel's free
@@ -4059,10 +4059,12 @@ def calibration_answers(entry, vector: str) -> list[CalibrationAnswer]:
 
 def asked_result(entry, key: str) -> dict:
     """The `ASKED` result for one saved list (keel-cloud 088 FR-003): each item's stranger's face by its
-    index, the corpus's own `asked` (K1: one face per index handed). The journey saves every list untouched,
-    so code vouches for every face and no ASKED job runs; the entry is here so one would be answered."""
+    index, the corpus's own `asked` (K1: one face per index handed). **Spec 154 FR-0 (keel-cloud 245 FR-2)**: the draft
+    carries no face, so the first Save hands the asked job **every row** of the list (after the read-back where the
+    switch is on) and the stub answers every index -- a row the corpus records no face for is answered with its label
+    read as the stranger's question, never left out."""
     saved = founder_list(entry, key)
-    items = [{"index": i, "asked": item["asked"]} for i, item in enumerate(saved["items"]) if item.get("asked")]
+    items = [{"index": i, "asked": item.get("asked") or item["label"]} for i, item in enumerate(saved["items"])]
     # spec 129 (keel-cloud 200 FR-1): each faced row's hidden short name beside its face, where the writer names it
     names = row_short_names(entry, key)
     for out in items:

@@ -236,14 +236,17 @@ POLICY_JAVA = "src/main/java/com/keeldiscovery/cloud/application/CreditPolicy.ja
 def test_price_version_15_and_the_light_prices_in_the_mirror():
     from harness import interviewer_fake                                    # noqa: PLC0415 - spec 150: no contacts fake
     from harness import interview_charge as charge                          # noqa: PLC0415
-    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == 15
+    assert charge.PRICE_VERSION == interviewer_fake.PRICE_VERSION == 17   # spec 154: 16 at 247, 17 at 250
     assert charge.LIGHT_PRICES == {"CONTEXT_INTERPRET": 1, "ASKED": 1}
     assert charge.LIGHT_PRICES_V14 == {"CONTEXT_INTERPRET": 3, "ASKED": 3}
-    assert charge.NEW_PROJECT_PRICE == 1 + 26 + 28 + 3 * 81 == 298
+    assert charge.NEW_PROJECT_PRICE_V15 == 1 + 26 + 28 + 3 * 81 == 298
+    assert charge.NEW_PROJECT_PRICE == charge.PROJECT_PRICE == 1000     # spec 154 (keel-cloud 250): the project's own price
     # nothing the interview's charge or the two fakes read moved
-    assert (charge.INTERVIEW_CREDITS, charge.RESPONDENT_QUESTIONS_CREDITS, charge.READ_PRICES) == (
+    assert (charge.INTERVIEW_CREDITS_V16, charge.RESPONDENT_QUESTIONS_CREDITS, charge.READ_PRICES) == (
         30, 70, {"INTERPRET": 0, "THEMES": 0})
-    assert charge.FIVE_PARTICIPANTS == 1_355 and interviewer_fake.CREDITS == 400
+    # spec 154 (keel-cloud 250): INTERVIEW 0, the five-participant figure 1,000 flat, the recording 1,500
+    assert charge.INTERVIEW_CREDITS == 0 and charge.project_credits(5, version=15) == 1_355
+    assert charge.FIVE_PARTICIPANTS == 1_000 and interviewer_fake.CREDITS == 1500
 
 
 def test_the_mirror_is_keel_clouds_enum_at_version_15():
@@ -262,9 +265,11 @@ def test_the_mirror_is_keel_clouds_enum_at_version_15():
             for m in re.finditer(r"^\s{4}([A-Z_]+)\s*\(\s*([\d_]+)\s*,", text, re.M)}
     for action, credits in {**charge.LIGHT_PRICES, **charge.FRAME_PRICES,
                             "CALIBRATION_QUESTIONS": charge.CALIBRATION_QUESTIONS_CREDITS}.items():
-        assert rows[action] == credits, action
+        # spec 154 (keel-cloud 250, version 17): every job row is 0 on the wire; the mirror keeps 15's prices of record
+        assert rows[action] == (0 if version >= 17 else credits), action
     policy = (cloud / POLICY_JAVA).read_text(encoding="utf-8")
-    assert "<b>298</b>" in policy and "3 * InferenceCharge.CALIBRATION_QUESTIONS.priceCredits()" in policy
+    # spec 154 (keel-cloud 250): the gate is the project's own price, no longer the corridor's sum (298 kept as history)
+    assert "PROJECT_PRICE = InferenceCharge.PROJECT.priceCredits()" in policy and "298" in policy
 
 
 @pytest.mark.parametrize("rel", ["harness/interview_charge.py", "harness/interviewer_fake.py",

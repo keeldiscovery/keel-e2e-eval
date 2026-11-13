@@ -40,16 +40,49 @@ from pathlib import Path
 #: **14** since 170 (spec 110: RESPONDENT_QUESTIONS 35 -> 70, the lock's job on frontier; the interviewer's two rows did
 #: not move), **15** since 190 (spec 121: CONTEXT_INTERPRET and ASKED 3 -> 1, the light tier on Haiku 5.5; the
 #: interviewer's two rows did not move).
-PRICE_VERSION = 15
-#: The first recording, written at lock (or, on a project with none, at the first face chosen) -- and the change.
+#: **16** since 247 (INTERVIEWER_RECORDING 400 -> 1,500, paid once per project at the first kind's set-up, never at the
+#: lock), **17** since 250 (spec 154: PROJECT 1,000 written whole at New project; every job row to 0 -- the balance moves
+#: only for PROJECT and INTERVIEWER_RECORDING; INTERVIEWER_CHANGE 400 -> 0).
+PRICE_VERSION = 17
+#: The first recording, written at the first kind's set-up (`POST interviewer/kinds/{roleId}/record`, keel-cloud 247
+#: FR-3) -- and the change (a route with no door in the web since 247; 0 since 250).
 RECORDING = "INTERVIEWER_RECORDING"
 CHANGE = "INTERVIEWER_CHANGE"
 ACTIONS = (RECORDING, CHANGE)
-#: Both rows are a flat 400 credits (094 judgement call 2) and pass through 2,000,000 µUSD.
-CREDITS = 400
-COST_MICRO_USD = 2_000_000
-#: `InterviewerView.changePrice` / `InterviewerFaces.changePrice`: the one price the wire carries.
-CHANGE_PRICE = CREDITS
+#: Spec 154 (keel-cloud 247 / 250): the recording is 1,500 credits once per project (7,500,000 µUSD, twice 094's
+#: 400 / 2,000,000); the change is 0 since 250 (its cost 2,000,000 kept). `CREDITS` stays the recording's price.
+CREDITS = 1500
+RECORD_PRICE = CREDITS
+COST_MICRO_USD = 7_500_000
+CHANGE_PRICE = 0
+CHANGE_COST_MICRO_USD = 2_000_000
+#: Spec 250 (contract 68): the project is bought at New project -- one SPEND of 1,000 (`InferenceCharge.PROJECT`,
+#: reason `project:new`, key `project:<id>:spend`); `MeResponse.prices {project, recording}`; the grant 2,500.
+PROJECT = "PROJECT"
+PROJECT_PRICE = 1000
+PROJECT_COST_MICRO_USD = 723_172
+GRANT = 2500
+PRICES = {"project": PROJECT_PRICE, "recording": RECORD_PRICE}
+#: Spec 247 (FR-5): a kind's view before the founder picks a face on its card.
+NOT_SET_UP = "NOT_SET_UP"
+
+
+def view_of(kinds, role_id: str) -> dict | None:
+    """keel-cloud 247 FR-5: `GET interviewer` is a LIST, one `InterviewerView` per kind of people the study gives a link
+    (the primary first, then on B2B the decision-maker); the view of `role_id`, or None. A dict (a server before 247)
+    is handed back as it is."""
+    if isinstance(kinds, dict):
+        return kinds
+    return next((v for v in kinds or [] if isinstance(v, dict) and v.get("roleId") == role_id), None)
+
+
+def record_route(role_id: str) -> str:
+    """247 FR-3: the kind's own set-up route, under the project."""
+    return f"/interviewer/kinds/{role_id}/record"
+
+
+def try_route(role_id: str) -> str:
+    return f"/interviewer/try/{role_id}"
 
 # ------------------------------------------------------------------------------------------ faces (FR-A)
 
@@ -99,12 +132,28 @@ INSUFFICIENT = "INSUFFICIENT_CREDITS_FOR_INTERVIEWER"  # 422 CreditRefusal at PO
 REFUSAL_STATUS = {NOT_READY: 409, NEEDS_CREDITS: 422, FACE_UNKNOWN: 422, IN_FLIGHT: 409, INSUFFICIENT: 422}
 #: contract 16 `CreditRefusal.remedy` for the change.
 INSUFFICIENT_REMEDY = "Changing who asks records the interviewer again, which is {required} credits. You have {available}."
+#: Spec 250 (contract 68): the two gates' remedies, the wire's two numbers.
+PROJECT_REMEDY = "A project is 1,000 credits. You have {available}."
+RECORDING_REMEDY = "Setting up the AI interviewer records it, which is {required} credits. You have {available}."
 
 # ---------------------------------------------------------------------------- the wire's fixed words
 
 MARK = "Keel · AI interviewer"
 FAILURE = "One of the clips could not be recorded."
 RECORDING_STATES = ("NOT_RECORDED", "RECORDING", "READY", "FAILED")
+#: Spec 247 (FR-5): a kind's own states -- NOT_SET_UP in place of 094's project-level NOT_RECORDED.
+KIND_STATES = (NOT_SET_UP, "RECORDING", "READY", "FAILED")
+#: keel-cloud 247 / 250's log lines (ids only) the local profile reads off `runs/.stack/cloud.log` (`stack/cloud_log.py`).
+LOG_SET_UP = "interviewer set up: "
+LOG_READY = "interviewer ready: "
+LOG_PROJECT_BOUGHT = "project bought: "
+LOG_INTERVIEWER_BOUGHT = "interviewer bought: "
+LOG_CREDITS_REFUSED = "credits refused: "
+#: 247: 409 on a second set-up of a kind RECORDING or READY.
+ALREADY_RECORDED = "ALREADY_RECORDED"
+#: 250 (contract 68): the New project refusal is **422** (409 before), `required` 1000.
+INSUFFICIENT_PROJECT = "INSUFFICIENT_CREDITS_FOR_NEW_PROJECT"
+
 
 # -------------------------------------------------------------------------- the scripts (FR-B, code)
 
