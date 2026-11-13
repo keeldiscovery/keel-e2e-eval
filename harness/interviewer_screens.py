@@ -607,7 +607,12 @@ def _json(response) -> dict:
 
 
 def _words(locator) -> str:
-    return " ".join((locator.text_content() or "").split()) if locator.count() else ""
+    """The locator's words, or "" -- read once, at most two seconds: a line the page takes away between the count and
+    the read (the heard line as the hold ends) is read as gone, never waited for thirty."""
+    try:
+        return " ".join((locator.text_content(timeout=2_000) or "").split()) if locator.count() else ""
+    except Exception:  # noqa: BLE001 - gone between the count and the read
+        return ""
 
 
 # ------------------------------------------------------------------------------------- tap to hear (087)
