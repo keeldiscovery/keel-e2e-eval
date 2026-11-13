@@ -1901,7 +1901,27 @@ def _question_words(question: str) -> str:
     return " ".join(words)
 
 
-def _read_aloud_item(interview: dict, expected: dict) -> str | None:
+def _back_spots(interview: dict, expected: dict, owes) -> list[str]:
+    """Spec 154 (IM16): the questions the way back can be tried on, in the walk's order -- a one-of answered with one
+    option that owes no follow-up, not the last item, with another option (within the ordinals) that owes none either
+    (`_Walk`'s rule: the wrong first answer must not be asked a follow-up)."""
+    answers = {a["itemId"]: a for a in expected.get("answers") or []}
+    items = [i for part in interview.get("parts") or [] for i in part.get("items") or []]
+    out = []
+    for i in items[:-1]:
+        a = answers.get(i.get("itemId")) or {}
+        picked = a.get("optionIds") or []
+        options = [o.get("optionId") for o in i.get("options") or []][:len(ORDINALS)]
+        if i.get("control") in PICK_CONTROLS or len(picked) != 1 or a.get("chip") or len(options) < 2:
+            continue
+        if owes(i, picked[0]):
+            continue
+        if any(o != picked[0] and not owes(i, o) for o in options):
+            out.append(i.get("itemId"))
+    return out
+
+
+def _read_aloud_item(interview: dict, expected: dict, avoid: frozenset = frozenset()) -> str | None:
     """Spec 049 judgement call 1: the question that carries the read-aloud step -- the "better" one (Relative
     advantage, `scale_four` since keel-cloud 159: *A lot better* and *A little better* share words) where the person picks
     one of its options, else the first one-of question whose labels share a word, else the first one-of question."""
@@ -1919,7 +1939,7 @@ def _read_aloud_item(interview: dict, expected: dict) -> str | None:
                  lambda i: any(_shared_word(label, labels(i)) for label in labels(i)),
                  lambda i: True):
         for i in items:
-            if one_of(i) and rule(i):
+            if one_of(i) and rule(i) and i.get("itemId") not in avoid:
                 return i.get("itemId")
     return None
 
@@ -1983,6 +2003,11 @@ class _Walk:
         #: Spec 075: whether an answer would be owed a follow-up (`owes(item, optionId)`): the way back's wrong first
         #: answer is never one, so the route asks nothing the person's own answers do not owe.
         self.owes = owes or (lambda _item, _option: False)
+        # spec 154 (IM16): where the read-aloud question is the only one the way back can be tried on (01-countly's AI
+        # reader on keel-cloud 34735d05: Relative advantage alone has an answer owing nothing beside another), the
+        # read-aloud moves to the next question its own rule names, so both steps are walked
+        if _back_spots(interview, expected, self.owes) == [self.aloud_item]:
+            self.aloud_item = _read_aloud_item(interview, expected, frozenset({self.aloud_item})) or self.aloud_item
         #: The item answered last -- the one a follow-up asked on the spot hangs on (keel-web 124 FR-4: Back from it).
         self.last_item: dict | None = None
         #: Spec 074 FR-2 (keel-web 116 FR-2): *End* pressed before the pilot ask (S-005), and what followed.
