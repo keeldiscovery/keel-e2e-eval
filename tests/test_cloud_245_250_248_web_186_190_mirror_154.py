@@ -406,3 +406,33 @@ def test_the_first_person_case_composes_its_belief_where_the_corpus_records_none
     assert '("idea_belief", "idea_what", "idea_how")' in source
     from instructions import screen_entries                                   # noqa: PLC0415
     assert "first_person_cases" in inspect.getsource(screen_entries.build_cases)
+
+
+def test_a_first_person_case_takes_its_runs_mechanism_answer():
+    """FR-7: `<entry>/FIRST_PERSON/runN` takes `idea_belief`, `idea_what` and `idea_how.primary` from the same run's
+    accepted `<entry>/SOLUTION_MECHANISM/runN` answer where present (the run loop keeps them); else the composed
+    stand-in stays."""
+    from types import SimpleNamespace                                           # noqa: PLC0415
+
+    if not Path(CONFIG.keel_runtime).is_dir():
+        pytest.skip(f"no keel-runtime checkout at {CONFIG.keel_runtime}")
+    executor_module, _ = prompts_mod.load_runtime(CONFIG.keel_runtime)
+    composed = {"idea_belief": "The people building it believe it would stops it.", "idea_what": "w", "idea_how": "h"}
+    case = SimpleNamespace(case_id="01-countly/FIRST_PERSON/run2", meta={"composed": ["idea_belief"]}, prompt="",
+                           payload={"instruction": "i", "context": dict(composed), "interaction_history": [],
+                                    "input": {"content": ""}, "response_contract": {}})
+    assert prompts_mod.first_person_from_mechanism(case, None, executor_module) is False
+    assert prompts_mod.first_person_from_mechanism(case, {"idea_belief": " "}, executor_module) is False
+    assert case.payload["context"] == composed
+    mechanism = {"idea_belief": "The people building it believe it would stop it.", "idea_what": "an alert",
+                 "idea_how": {"primary": "When it comes, you scan it.", "decider": None}}
+    assert prompts_mod.first_person_from_mechanism(case, mechanism, executor_module) is True
+    assert case.payload["context"] == {"idea_belief": "The people building it believe it would stop it.",
+                                       "idea_what": "an alert", "idea_how": "When it comes, you scan it."}
+    assert case.meta["from"] == "01-countly/SOLUTION_MECHANISM/run2" and case.meta["composed"] == []
+    assert "would stop it" in case.prompt
+    run = inspect.getsource(run_mod)
+    assert "prompts_mod.first_person_from_mechanism(" in run and "mechanisms[case.case_id] = accepted.result" in run
+    source = inspect.getsource(prompts_mod.first_person_from_mechanism)
+    assert 'how.get("primary")' in source and '"from": case.case_id.replace("/FIRST_PERSON/", "/SOLUTION_MECHANISM/")' \
+        in source

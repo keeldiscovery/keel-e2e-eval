@@ -517,13 +517,23 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     # rule refusal gets the one repair turn the cloud would queue; the rest wait for the batch.
     verdicts = _Verdicts(config.keel_cloud, run_dir / "verdicts",
                          validate_mod.shapes_taken(config.keel_cloud))
+    mechanisms: dict[str, dict] = {}       # spec 154 FR-7: each run's SOLUTION_MECHANISM result, for its FIRST_PERSON
     for index, case in enumerate(model_cases, start=1):
         models_mod.apply_fallback(executor, case, table, routing_runtime=routing_runtime)
+        if case.kind == "FIRST_PERSON":
+            prompts_mod.first_person_from_mechanism(
+                case, mechanisms.get(case.case_id.replace("/FIRST_PERSON/", "/SOLUTION_MECHANISM/")),
+                executor_module, host=args.host)
         answer = runner_mod.ask_with_redraw(
             executor_module, validator_module, executor, case, verdicts,
             render=lambda payload, case=case: prompts_mod.render(
                 executor_module, payload, job_id=prompts_mod._slug(case.case_id) + "-turn2",
                 host=args.host))
+        if case.screen == contract_mod.SCREEN_SOLUTION_MECHANISM:
+            # only an answer the aggregate accepted is what keel-cloud would store on the card
+            accepted = answer.accepted
+            if accepted is not None and accepted.outcome == "COMPLETED" and isinstance(accepted.result, dict):
+                mechanisms[case.case_id] = accepted.result
         entry = corpus.by_id(case.entry_id)
         for draft in (answer, answer.redraw):
             if draft is not None:

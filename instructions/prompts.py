@@ -304,3 +304,26 @@ def first_person_cases(entry, instructions_by_screen, executor_module, *, n_runs
         case.prompt = render(executor_module, payload, job_id=_slug(case.case_id), host=host)
         out.append(case)
     return out
+
+
+def first_person_from_mechanism(case, mechanism: dict | None, executor_module, *, host: str = "claude") -> bool:
+    """Spec 154 FR-7 (the coordinator, 2026-11-13): a `<entry>/FIRST_PERSON/runN` case takes the idea lines its run's
+    `<entry>/SOLUTION_MECHANISM/runN` answer wrote, where that answer is present -- `idea_belief`, `idea_what`,
+    `idea_how.primary` (keel-cloud stores the primary line as the card's how) -- the way the cloud hands the job the
+    stored card; else it keeps the composed stand-in. Re-renders the case's prompt; returns whether it took them."""
+    belief = (mechanism or {}).get("idea_belief")
+    if not isinstance(belief, str) or not belief.strip():
+        return False
+    how = (mechanism or {}).get("idea_how")
+    how = how.get("primary") if isinstance(how, dict) else how
+    handed = dict(case.payload.get("context") or {})
+    handed["idea_belief"] = belief.strip()
+    if isinstance(mechanism.get("idea_what"), str) and mechanism["idea_what"].strip():
+        handed["idea_what"] = mechanism["idea_what"].strip()
+    if isinstance(how, str) and how.strip():
+        handed["idea_how"] = how.strip()
+    case.payload = {**case.payload, "context": handed}
+    case.meta = {**(case.meta or {}), "idea_belief": handed["idea_belief"], "composed": [],
+                 "from": case.case_id.replace("/FIRST_PERSON/", "/SOLUTION_MECHANISM/")}
+    case.prompt = render(executor_module, case.payload, job_id=_slug(case.case_id), host=host)
+    return True
