@@ -175,7 +175,10 @@ PRICE_WORD = re.compile(r"\bcredits?\b|[$£€]\s?\d|\bprice[sd]?\b|\bcosts?\b|\
 PRICE_KEY = re.compile(r"price|credit|cost|charge", re.I)
 #: Spec 154 (keel-cloud 247 / 250): `InterviewerFaces.recordPrice` / `recordingPaid` / `recordingOpen` and `MeResponse.prices`
 #: join `changePrice` as the keys a founder's wire may carry a price under.
-ALLOWED_PRICE_KEYS = {"changePrice", "recordPrice", "recordingPaid", "recordingOpen", "prices"}
+#: keel-cloud 251 FR-3 (contract 71): `InterviewerFaces` also serves the project's own price and whether it is paid --
+#: `projectPrice` / `projectPaid`, the lock button's served price -- the wire's own words, as `recordPrice` is.
+ALLOWED_PRICE_KEYS = {"changePrice", "recordPrice", "recordingPaid", "recordingOpen", "prices", "projectPrice",
+                      "projectPaid"}
 #: S2's one priced action, the single place a number of credits is drawn (decision 3).
 CHANGE_ACTION = f"Change who asks · {fake.CHANGE_PRICE} AI credits"
 #: Spec 154 (keel-web 187 FR-5 / FR-3, keel-cloud 247): the kind card's one priced control before the project has paid --
