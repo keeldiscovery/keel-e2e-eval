@@ -1308,6 +1308,13 @@ def stage_band(j: Journey, vector: str) -> None:
     if not one["applicable"]:
         one["pills"] = j.teach.pills()
         return
+    if not j.page.locator("[data-testid='guide-pill-stage']").count():
+        # keel-web 155 FR-9 (the founder, 2026-10-31): *How to read these charts* -- the stage page's pill and band --
+        # is behind the build flag VITE_KEEL_SHOW_CHART_GUIDE, off on every build until the clips are re-recorded; with
+        # no pill drawn the chapters cannot be played, so G8 / G9 are not applicable, named, never a pass
+        one.update(applicable=False, not_drawn="keel-web 155 FR-9: the chart guide is behind VITE_KEEL_SHOW_CHART_GUIDE "
+                                               "(off on this build): no stage pill drawn", pills=j.teach.pills())
+        return
     with _step(j, f"the {vector.lower()} page's band plays two chapters, {keys[0]} then {keys[1]}, the chip 1 of 2 "
                   "then 2 of 2 (keel-web 086 FR-7)", party="founder") as h:
         opened = j.teach.open_pill("stage")
@@ -1445,7 +1452,9 @@ def sent_reading(j: Journey, when: str, sent=None) -> None:
         return
     sent = sent or iv_screens.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
     me = j.get("/v2/me") or {}
-    band_owed = me.get("aiPath") != "OWN"                # 088: an account on its own AI draws no who-asks band
+    # keel-web 187 (spec 154, IM30 retired): Sent draws no who-asks band on either door -- who asks is on each kind's
+    # card (*{Face} asks*); 088's band is owed nowhere now
+    band_owed = False
     if band_owed:
         try:
             j.page.get_by_test_id("persona-line").wait_for(state="visible", timeout=15_000)

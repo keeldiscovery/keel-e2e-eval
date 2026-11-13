@@ -530,7 +530,7 @@ class Interviews:
             .filter((el) => (el.textContent || '').replace(/\s+/g, ' ').trim() === how);
           return {regions: {kicker: top(q(':scope > .corridor__kicker')), total: top(q(':scope > .sent__counts')),
                             pill: top(q(':scope > .sent__guide')), band: top(q(':scope > [data-testid=persona-line]')),
-                            cards: top(kinds), links: top(q(':scope > [data-testid=links], :scope > .sent__links'))},
+                            cards: top(kinds), links: top(q(':scope > [data-testid=links], :scope > .sent__links') || q('[role=tabpanel] [data-testid=links]'))},
                   words: {kicker: words(q(':scope > .corridor__kicker')), total: words(q(':scope > .sent__counts')),
                           pill: words(q(':scope > .sent__guide'))},
                   how_it_works: controls.length};

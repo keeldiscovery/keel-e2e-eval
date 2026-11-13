@@ -1846,6 +1846,15 @@ class GuideWelcome:
 
     def end(self, seconds: float) -> dict:
         """Seeks to the video's end through the seam (local only); the sheet closes by itself. `{door: end, ...}`."""
+        # the clip's own length where the sheet's media says it (spec 154: the welcome grew past the 86 s of record, so a
+        # seek to 86.5 s left it a few seconds short of its end and the sheet open)
+        try:
+            media = float(self.page.evaluate(
+                "(sel) => { const v = document.querySelector(sel + ' video'); return v && isFinite(v.duration) ? "
+                "v.duration : 0; }", self.sheet) or 0)
+        except Exception:  # noqa: BLE001 - a read
+            media = 0.0
+        seconds = max(seconds, media + 0.5)
         with self._b.step(f"the welcome plays to its end ({seconds:.1f} s, through the seam)") as h:
             out = {"door": "end", **self._close(lambda: self.seek(seconds))}
             h.add_screenshot(self._b.screenshot("guide-ended"))
