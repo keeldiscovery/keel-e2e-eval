@@ -3157,13 +3157,15 @@ def _ai_person(j, interview: dict, token: str, *, want: int = 1):
             person = vs.with_pick(person, last["dimension"], [against[0]])
             plan = vs.follow_up_plan(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
     # spec 154: where the last item is already a planned rung (01-countly on keel-cloud dfdad66a: Commitment's smaller step,
-    # its #also, is the last item and the only rung owed), the latest other served rung is answered with its first answer
-    # against instead -- one tap, so the walk still meets two follow-ups on the spot
-    for item in reversed(items):
+    # its #also, is the last item and the only rung owed, and the last part's other rungs are the lock's), the earliest
+    # other one-of rung is answered with its first answer against instead -- one tap, so the walk still meets two
+    # follow-ups on the spot, and the later plain one-of questions stay for the way back (IM16) and the veto
+    for item in items:
         if len(plan) >= want:
             break
         dimension = item.get("dimension")
-        if dimension not in rungs or dimension in {a["dimension"] for a in plan}:
+        if dimension not in rungs or dimension in {a["dimension"] for a in plan} or not item.get("options") \
+                or item.get("control") == "pick_one_then_one":
             continue
         against = (fake.rung(dimension) or (None, ()))[1]
         if against and against != fake.LOCK_RULE:

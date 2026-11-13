@@ -385,7 +385,10 @@ def spoken_order(r: dict) -> tuple[bool, Any]:
         said = []
         for c in fake.spoken(clips):
             if c.get("kind") == "ITEM_MORE":
-                if not said or said[-1] != ("ITEM", c.get("itemId")):
+                # a step of the item said after it -- Importance's *And one more?*, and the price ladder's second step
+                # (`commercial.price#under` / `#over`, one clip a side): the item's own, by its key before the `#`
+                base = str(c.get("itemId") or "").split("#", 1)[0]
+                if not said or said[-1] != ("ITEM", base):
                     said.append(("ITEM_MORE?", c.get("itemId")))
                 continue
             said.append((c.get("kind"), c.get("itemId") if c.get("kind") == "ITEM" else None))
