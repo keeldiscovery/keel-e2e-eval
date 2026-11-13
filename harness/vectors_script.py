@@ -4127,8 +4127,8 @@ def asked_result(entry, key: str) -> dict:
             out["short_name"] = name
     if key == ADOPTION_KEY:
         # spec 130 (keel-cloud 198 FR-9, screen response contract 25): Adoption friction's own condition is `condition`
-        # (155's `only_if` retired) -- written where the entry records one; an item without one meets K8 once, then is
-        # served with the fixed yes (the corpus records none, so no golden walk runs an ASKED job for it)
+        # (155's `only_if` retired) -- the entry's own where it records one, over the step's (spec 154: every row carries
+        # one, `adoption_condition` above)
         for out in items:
             raw = saved["items"][out["index"]]
             condition = raw.get("condition") or raw.get("only_if")
