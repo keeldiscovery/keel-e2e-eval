@@ -635,7 +635,7 @@ def record_put_aside(record) -> list[dict]:
 #: Compatibility's Check saves the list with no `pickedIndex` (the pick pending until Choose). Spec 149 FR-1 (keel-cloud
 #: 243 FR-4): 64 -- `SavedList.items[i].inPlaceOf` / `.typedKeels`, `putAside[k].replacedBy` / `.keels`; the Save's
 #: `review` unchanged.
-REVIEW_CONTRACT = 70  # keel-cloud 249 (spec 154): 66 at 245, 67 at 247, 68 at 250, 69 at 248, 70 at 249
+REVIEW_CONTRACT = 71  # keel-cloud 251 (spec 154): 66 at 245, 67 at 247, 68 at 250, 69 at 248, 70 at 249, 71 at 251
 #: Spec 144 FR-1 (keel-cloud 233 FR-1, keel-web 180 FR-1 / FR-2 / FR-4): the lists whose Check Save may hold for the
 #: review -- Importance, Current solution and Compatibility. Spec 147 FR-2 (keel-cloud 237 FR-1, keel-web 181 FR-2): and
 #: Relative advantage, the fourth -- its Save names its `review` and the Check holds like the three (`list-reviewing`,

@@ -322,7 +322,8 @@ def _leg(j, *, short: bool) -> dict:
             _retry(j, wire, record)
         record["ledger"] = stack_ledger.rows(j.stack, founder_id, since=since)
         with j.recorder.step("interviewer (spec 154, keel-cloud 250): the ledger since Keel's door -- the stand-in grant, "
-                             "the recording's one HOLD / SPEND pair of 1,500, the second project's one SPEND of 1,000, "
+                             "the recording's one HOLD / SPEND pair of 1,500, NO PROJECT row (the projects made here were "
+                             "never locked: keel-cloud 251), "
                              "the stand-ins, the readings on arrival at 0 (keel-cloud 095), NO row at any Begin and no "
                              "other row", party="stack", kind="assert") as h:
             reading_jobs = {x.get("inference_job_id") for x in record["ledger"]
@@ -345,7 +346,7 @@ def _leg(j, *, short: bool) -> dict:
                      (charge.PROJECT, fake.RECORDING) and not (x.get("idempotency_key") or "").startswith(
                          stack_ledger.key_prefix(SPEC)) and x.get("kind") not in ("GRANT", "PURCHASE")]
             h.record_assert({"other rows": [], "reading HOLDs not at 0": [], "Begin rows": [], "moved by a job": [],
-                             "project rows": "one, the second project's"},
+                             "project rows": []},
                             {"rows": [(x["kind"], x.get("action"), x["credits"]) for x in record["ledger"]],
                              "others": others, "reading HOLDs not at 0": priced_reads, "Begin rows": begun,
                              "moved by a job": moved, "project rows": projects})
@@ -353,6 +354,7 @@ def _leg(j, *, short: bool) -> dict:
             assert not priced_reads, priced_reads
             assert not begun, {"a Begin wrote a row (keel-cloud 250 writes none)": begun}
             assert not moved, moved
+            assert not projects, {"a PROJECT row where no project here was locked on Keel's door (keel-cloud 251)": projects}
     finally:
         _restore(j, wire, founder_id, run)
         if record.get("arrivals"):
@@ -829,38 +831,53 @@ def _ready(j, wire: _Wire, record: dict, face: str, what: str, *, link: str = vs
 
 
 def _two_gates(j, wire: _Wire, record: dict, founder_id: str, run: str) -> None:
-    """Spec 154 FR-1 (keel-cloud 250): the two gates on Keel's door, after the first kind's 1,500. (a) A second project
-    bought through the API is ONE SPEND `PROJECT` of 1,000 at price version 17 (reason `project:new`), the balance 0
-    after (the grant of 2,500 less 1,500 less 1,000) and the `project bought:` line; (b) a text link on this project is
-    served with the owner at 0 (no INACTIVE any more); (c) on a B2B study the other kind's New-link rows read *Set up
-    first* (paid: no price) with the on-card line, then that kind is set up for nothing (*Already paid*, *Record
-    {Face}*), the balance still 0, and reaches READY; (d) the balance stood in at 900, New project is refused **422**
-    INSUFFICIENT_CREDITS_FOR_NEW_PROJECT with `required` 1000, nothing made, the `credits refused:` line; the balance is
-    put back to 0 for the rest of the leg. Nothing at Begin is the closing sweep's."""
+    """Spec 154 FR-1 (keel-cloud 250, moved by 251): the two gates on Keel's door, after the first kind's 1,500. (a) A
+    second project created through the API writes NO row (251: the 1,000 is written at a project's first lock), the
+    balance unmoved, no `project bought:` line; its lock, uncalibrated, answers its own refusal first and writes nothing;
+    the balance then stood in at 0, as the journey's own lock would leave it on Keel's door; (b) a text link on this
+    project is served with the owner at 0 (no INACTIVE any more); (c) on a B2B study the other kind's New-link rows read
+    *Set up first* (paid: no price) with the on-card line, then that kind is set up for nothing (*Already paid*,
+    *Record {Face}*), the balance still 0, and reaches READY; (d) the balance stood in at 900, New project is NOT
+    refused (201, no row, no `credits refused:` line); the balance is put back to 0 for the rest of the leg. The lock's
+    own SPEND of 1,000 and its 422 at 900 are not walked here (the journey's project locks on its own AI, before Keel's
+    door; a second project would have to be calibrated whole) -- tasks.md says so. Nothing at Begin is the closing
+    sweep's."""
     roles = _role_ids(j)
     labels = _labels(j)
-    with j.recorder.step("interviewer (keel-cloud 250 FR-1): a second project is bought through the API -- one SPEND "
-                         "PROJECT of 1,000 at price version 17, reason project:new, written whole; the balance 0 after "
-                         "(2,500 - 1,500 - 1,000); the project bought: line", party="founder", kind="assert") as h:
+    with j.recorder.step("interviewer (keel-cloud 251 FR-1 / FR-2): a second project is created through the API for "
+                         "NOTHING -- 201, no PROJECT row, no project bought: line, the balance unmoved (2,500 - 1,500); "
+                         "its lock, uncalibrated, answers its own refusal before any credit is read and writes no row",
+                         party="founder", kind="assert") as h:
         before = wire.credits()
         offset = cloud_log.offset(j.stack)
         status, made = j.call("POST", "/v2/projects", _new_project_body(j), ok=(200, 201))
         project_id = made.get("projectId") or made.get("id") or (made.get("project") or {}).get("projectId")
+        after_create = wire.credits()
+        locked, lock_body = j.call("POST", f"/v2/projects/{project_id}/lock",
+                                   {"expectedRevision": made.get("revision") or 0}, ok=(400, 404, 409, 422))
         rows = stack_ledger.rows(j.stack, founder_id)
-        faults = charge.bought_once(rows, project_id) if project_id else ["no projectId on the body"]
         record["second_project"] = {"status": status, "projectId": project_id, "balance_before": before,
-                                    "balance_after": wire.credits(), "faults": faults,
-                                    "rows": charge.project_rows(rows, project_id),
-                                    "log": cloud_log.wait_lines(j.stack, "project_bought", project_id=project_id,
+                                    "balance_after": after_create, "rows": charge.project_rows(rows, project_id),
+                                    "lock": {"status": locked, "code": (lock_body or {}).get("code")},
+                                    "balance_after_lock": wire.credits(),
+                                    "log": cloud_log.lines(j.stack, "project_bought", project_id=project_id,
                                                            since_offset=offset)}
-        h.record_assert({"status": 201, "row": {"kind": "SPEND", "action": charge.PROJECT,
-                                                 "credits": -charge.PROJECT_PRICE, "price_version": charge.PRICE_VERSION},
-                         "balance": f"{before} - {charge.PROJECT_PRICE} = 0", "faults": []}, record["second_project"])
+        h.record_assert({"status": 201, "rows": [], "balance": f"{before} unmoved", "log": [],
+                         "lock": {"status": "a refusal of its own", "code": f"not {fake.INSUFFICIENT_PROJECT}"}},
+                        record["second_project"])
         assert status in (200, 201) and project_id, made
-        assert not faults, faults
-        assert record["second_project"]["balance_after"] == before - charge.PROJECT_PRICE == 0, record["second_project"]
-        if record["second_project"]["log"] is not None:
-            assert len(record["second_project"]["log"]) == 1, record["second_project"]["log"]
+        assert record["second_project"]["rows"] == [], record["second_project"]
+        assert after_create == before == charge.GRANT_CREDITS - fake.RECORD_PRICE, record["second_project"]
+        assert locked >= 400 and (lock_body or {}).get("code") != fake.INSUFFICIENT_PROJECT, record["second_project"]
+        assert record["second_project"]["balance_after_lock"] == before, record["second_project"]
+        assert not record["second_project"]["log"], record["second_project"]
+    with j.recorder.step("interviewer: STAND-IN -- the balance at 0, as one project with the interviewer leaves it once "
+                         "its first lock is bought (keel-cloud 251: 2,500 - 1,000 at the lock - 1,500)", party="stack",
+                         kind="protocol") as h:
+        stack_ledger.stand_in_balance(j.stack, founder_id, run, to=0, spec=SPEC, label="zero-at-lock",
+                                      what="the balance at 0, as the journey's own lock would have left it on Keel's door")
+        h.record_wire({"to": 0}, {"creditsAvailable": wire.credits()})
+        assert wire.credits() == 0
     with j.recorder.step("interviewer (keel-cloud 250 FR-7): a text link on this project is served with the owner at 0 "
                          "-- state OPEN, its parts; nothing reads INACTIVE for the balance any more",
                          party="participant", kind="assert") as h:
@@ -906,29 +923,27 @@ def _two_gates(j, wire: _Wire, record: dict, founder_id: str, run: str) -> None:
             assert wire.credits() == balance_before == 0, wire.credits()
             assert record["second_kind"]["ledger_rows_added"] == 0, record["second_kind"]
         _ready(j, wire, record, fake.PRESELECTED, "the second kind's set-up (free)", link=vs.LINK_B2B)
-    with j.recorder.step(f"interviewer (keel-cloud 250 FR-1): STAND-IN -- the balance at {NINE_HUNDRED}; New project is "
-                         "refused 422 INSUFFICIENT_CREDITS_FOR_NEW_PROJECT with required 1000 and keel-cloud's sentence, "
-                         "nothing made, the credits refused: line; then the balance back to 0", party="stack",
-                         kind="assert") as h:
+    with j.recorder.step(f"interviewer (keel-cloud 251 FR-1): STAND-IN -- the balance at {NINE_HUNDRED}; New project is "
+                         "NOT refused (201, no row, no credits refused: line) -- the 422 moved to the first lock; then the "
+                         "balance back to 0", party="stack", kind="assert") as h:
         stack_ledger.stand_in_balance(j.stack, founder_id, run, to=NINE_HUNDRED, spec=SPEC, label="nine-hundred",
-                                      what="the balance at 900, under one project, to see the New project refusal")
+                                      what="the balance at 900, under one project, to see New project stay free")
         projects_before = len((j.get("/v2/me/projects") or {}).get("projects") or [])
         offset = cloud_log.offset(j.stack)
-        status, body = j.call("POST", "/v2/projects", _new_project_body(j), ok=(422,))
+        status, body = j.call("POST", "/v2/projects", _new_project_body(j), ok=(200, 201))
+        project_id = body.get("projectId") or body.get("id") or (body.get("project") or {}).get("projectId")
         projects_after = len((j.get("/v2/me/projects") or {}).get("projects") or [])
-        record["refused_project"] = {"balance": wire.credits(), "status": status, "body": body,
+        rows = stack_ledger.rows(j.stack, founder_id)
+        record["refused_project"] = {"balance": wire.credits(), "status": status, "projectId": project_id,
                                      "projects": [projects_before, projects_after],
-                                     "log": cloud_log.wait_lines(j.stack, "credits_refused", since_offset=offset)}
-        h.record_assert({"status": 422, "code": fake.INSUFFICIENT_PROJECT, "required": charge.PROJECT_PRICE,
-                         "available": NINE_HUNDRED, "remedy": fake.PROJECT_REMEDY.format(available=NINE_HUNDRED),
-                         "made": 0}, record["refused_project"])
-        assert status == 422 and body.get("code") == fake.INSUFFICIENT_PROJECT, body
-        assert (body.get("required"), body.get("available")) == (charge.PROJECT_PRICE, NINE_HUNDRED), body
-        assert body.get("remedy") == fake.PROJECT_REMEDY.format(available=NINE_HUNDRED), body
-        assert projects_before == projects_after, record["refused_project"]
-        if record["refused_project"]["log"] is not None:
-            assert any(x.get("needed") == str(charge.PROJECT_PRICE) for x in record["refused_project"]["log"]), \
-                record["refused_project"]["log"]
+                                     "rows": charge.project_rows(rows, project_id) if project_id else None,
+                                     "log": cloud_log.lines(j.stack, "credits_refused", since_offset=offset)}
+        h.record_assert({"status": 201, "balance": NINE_HUNDRED, "made": 1, "rows": [], "log": []},
+                        record["refused_project"])
+        assert status in (200, 201) and project_id, body
+        assert wire.credits() == NINE_HUNDRED and projects_after == projects_before + 1, record["refused_project"]
+        assert record["refused_project"]["rows"] == [] and not record["refused_project"]["log"], \
+            record["refused_project"]
         stack_ledger.stand_in_balance(j.stack, founder_id, run, to=0, spec=SPEC, label="zero-back",
                                       what="the balance back to 0 for the rest of the leg")
         assert wire.credits() == 0

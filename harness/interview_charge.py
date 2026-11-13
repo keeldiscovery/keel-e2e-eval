@@ -48,7 +48,10 @@ NEW_PROJECT_PRICE_V15 = (LIGHT_PRICES["CONTEXT_INTERPRET"] + FRAME_PRICES["PROBL
 PROJECT = "PROJECT"
 PROJECT_PRICE = 1000
 NEW_PROJECT_PRICE = PROJECT_PRICE
-PROJECT_REASON = "project:new"
+#: keel-cloud 251 (contract 71): the row is written at the project's FIRST LOCK, never at creation, reason `project:lock`;
+#: a row written under 250 (at New project) keeps `project:new` and is read as the project's one row too.
+PROJECT_REASON = "project:lock"
+PROJECT_REASON_250 = "project:new"
 #: Spec 250: the grant a Google sign-up writes, sized to the two gates (one project with the interviewer leaves 0).
 GRANT_CREDITS = 2500
 #: `InferenceCharge.RESPONDENT_QUESTIONS` at version 14 (35 at 13): the lock's one job, and with it

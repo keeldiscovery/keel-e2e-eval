@@ -53,6 +53,9 @@ CARDS_SHA256_245 = "4dc14231eebf3decfca7b26f26781a0b816e308007a724fcfad2cba2968f
 #: FR-6: keel-cloud 249 (keel-cloud-docs master `dfdad66a`): `canon/openapi-v2.yaml` at `x-keel-contract` 70, byte for byte.
 CONTRACT_SHA256_70 = "8f218c427937722b58647cc9c825722b1677155ca971e087d0c7f479d425ab63"
 CONTRACT_70 = 70
+#: FR-6: keel-cloud 251 (keel-cloud-docs master `34735d05`): the project bought at its first lock -- contract 71.
+CONTRACT_SHA256_71 = "f5a078b1e935c1b2e29303ddfd8591638dace2a00930747008b11f96b25abd29"
+CONTRACT_71 = 71
 DOCUMENT_VERSION_40 = 40
 #: FR-6, the web's side: keel-web master `aa8b49c6` (spec 188's contract-70 pass, keel-web b0111338) vendors contract 70
 #: whole -- `specs/044-vector-corridor/contracts/openapi-v2.yaml`, this sha256 with its vendoring header, and byte for byte
@@ -166,8 +169,8 @@ def test_the_contract_is_70_and_the_kinds_and_calls_routes():
     """FR-6 (keel-cloud 249): the vendored contract digest at 70 -- the walk's `REVIEW_CONTRACT`, the file's sha256 and
     the document version 40; the kinds', the calls' and the record's routes."""
     spec = _cloud("canon/openapi-v2.yaml")
-    assert int(re.search(r"x-keel-contract: (\d+)", spec).group(1)) == vs_screens.REVIEW_CONTRACT == CONTRACT_70
-    assert hashlib.sha256((KEEL_CLOUD / "canon/openapi-v2.yaml").read_bytes()).hexdigest() == CONTRACT_SHA256_70
+    assert int(re.search(r"x-keel-contract: (\d+)", spec).group(1)) == vs_screens.REVIEW_CONTRACT == CONTRACT_71
+    assert hashlib.sha256((KEEL_CLOUD / "canon/openapi-v2.yaml").read_bytes()).hexdigest() == CONTRACT_SHA256_71
     document = _cloud("src/main/java/com/keeldiscovery/cloud/infrastructure/persistence/project/ProjectDocument.java")
     assert int(re.search(r"static final int SCHEMA_VERSION = (\d+);", document).group(1)) == DOCUMENT_VERSION_40
     for route in ("/v2/projects/{projectId}/interviewer/kinds/{roleId}/record", "/v2/projects/{projectId}/interviewer/try/{roleId}",
@@ -197,20 +200,26 @@ def test_keel_web_vendors_the_same_contract_70():
     head = 0
     while head < len(lines) and lines[head].startswith(b"#"):
         head += 1
-    assert b"dfdad66a" in b"".join(lines[:head]), "the vendoring header names keel-cloud-docs dfdad66a"
-    assert hashlib.sha256(b"".join(lines[head:])).hexdigest() == CONTRACT_SHA256_70
-    assert hashlib.sha256(raw).hexdigest() == WEB_CONTRACT_SHA256_70
+    body = hashlib.sha256(b"".join(lines[head:])).hexdigest()
+    if int(version.group(1)) == CONTRACT_70:
+        # keel-web at 70 (`aa8b49c6` .. before its contract-71 vendoring): cloud's `dfdad66a` copy, byte for byte
+        assert b"dfdad66a" in b"".join(lines[:head]), "the vendoring header names keel-cloud-docs dfdad66a"
+        assert body == CONTRACT_SHA256_70 and hashlib.sha256(raw).hexdigest() == WEB_CONTRACT_SHA256_70
+    else:
+        # keel-web at 71 (keel-cloud 251): cloud's `34735d05` copy under its header
+        assert int(version.group(1)) == CONTRACT_71 and body == CONTRACT_SHA256_71, (version.group(1), body)
 
 
 def test_the_project_row_and_the_leg_hold_the_gates():
     row = {"kind": "SPEND", "action": "PROJECT", "credits": -1000, "price_credits": 1000, "price_version": 17,
-           "inference_job_id": None, "reason": "project:new", "idempotency_key": charge.project_key("p1"), "project_id": "p1"}
+           "inference_job_id": None, "reason": "project:lock", "idempotency_key": charge.project_key("p1"), "project_id": "p1"}
     assert charge.bought_once([row], "p1") == [] and charge.bought_once([], "p1") and charge.bought_once([row, row], "p1")
     assert charge.project_row_faults({**row, "credits": -298}, project_id="p1") == ["credits: -298, not -1000"]
     assert charge.moves_balance(row) and not charge.moves_balance({**row, "credits": 0})
     source = inspect.getsource(leg._two_gates)
-    for needle in ("charge.bought_once(", "NINE_HUNDRED", "fake.INSUFFICIENT_PROJECT", "charge.served(", "ivs.SETUP_ALREADY_PAID",
-                   'cloud_log.wait_lines(j.stack, "project_bought"', 'cloud_log.wait_lines(j.stack, "credits_refused"'):
+    # keel-cloud 251: creation writes no row and is never refused -- the leg reads both lines' absence
+    for needle in ("charge.project_rows(", "NINE_HUNDRED", "fake.INSUFFICIENT_PROJECT", "charge.served(", "ivs.SETUP_ALREADY_PAID",
+                   'cloud_log.lines(j.stack, "project_bought"', 'cloud_log.lines(j.stack, "credits_refused"', "/lock"):
         assert needle in source, needle
     assert leg.NINE_HUNDRED == 900 and leg._new_project_body.__doc__
     lock = inspect.getsource(leg._lock_body)
