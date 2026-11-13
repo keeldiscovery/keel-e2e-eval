@@ -3191,6 +3191,46 @@ def _ai_person(j, interview: dict, token: str, *, want: int = 1):
     the plan, `{rung: the line they say}`)."""
     person = _person_for_the_link(j)
     plan = vs.follow_up_plan(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
+    items = [i for part in interview.get("parts") or [] for i in part.get("items") or []]
+    rungs = {f.get("dimension") for f in interview.get("followUps") or []}
+    owes = _owes(j, interview, token)
+
+    def earliest_other(person, plan):
+        """The earliest one-of rung not yet planned answered with its rung's first answer against, one tap, until the
+        walk has `want` follow-ups (spec 154: S-005's second follow-up's rule)."""
+        for item in items:
+            if len(plan) >= want:
+                break
+            dimension = item.get("dimension")
+            if dimension not in rungs or dimension in {a["dimension"] for a in plan} or not item.get("options") \
+                    or item.get("control") == "pick_one_then_one":
+                continue
+            against = (fake.rung(dimension) or (None, ()))[1]
+            if against and against != fake.LOCK_RULE:
+                person = vs.with_pick(person, dimension, [against[0]])
+                plan = vs.follow_up_plan(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
+        return person, plan
+
+    if not _pick_back_spots(j, items, person, token, owes):
+        # spec 154 (IM16; the coordinator's call on S-006, 2026-11-13): where the reader's answers leave the way back no
+        # question to be tried on (05-paidly's last reader: Compatibility's and Adoption friction's other answers all
+        # owe, Relative advantage answered *No difference*, owed), the earliest question answered with an owed answer
+        # that offers two answers owing nothing is answered with the first of them instead -- a support, so no standing
+        # held above moves (the report is read before this leg) -- and the follow-up it gave up is taken on the earliest
+        # other question, as S-005's second follow-up is. The walk's Back rule is not loosened.
+        for item in items[:-1]:
+            dimension = item.get("dimension")
+            pick = next((p for p in person.picks if p.dimension == dimension), None)
+            if pick is None or len(pick.codes or []) != 1 or item.get("control") in PICK_CONTROLS:
+                continue
+            free = [c for c in _answer_codes(j, dimension)
+                    if any(o.get("optionId") == vs.option_id(token, dimension, c) for o in item.get("options") or [])
+                    and not owes(item, vs.option_id(token, dimension, c))]
+            if owes(item, vs.option_id(token, dimension, pick.codes[0])) and len(free) >= 2:
+                person = vs.with_pick(person, dimension, [free[0]])
+                plan = vs.follow_up_plan(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
+                person, plan = earliest_other(person, plan)
+                break
     if not plan:
         # keel-cloud 118 (FR-1): the conditional yes is served only where the founder's list carries a smaller step
         # (01-countly's does not, so *Yes, after ... first* is not on the sheet); the other conditional yes, Adoption
@@ -3201,9 +3241,7 @@ def _ai_person(j, interview: dict, token: str, *, want: int = 1):
         else:
             person = vs.with_pick(person, "solution.adoption_friction", ["yes_if_worth_it"])
         plan = vs.follow_up_plan(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
-    items = [i for part in interview.get("parts") or [] for i in part.get("items") or []]
     last = items[-1] if items else {}
-    rungs = {f.get("dimension") for f in interview.get("followUps") or []}
     if len(plan) < want and last.get("dimension") in rungs and last.get("dimension") not in {a["dimension"] for a in plan}:
         against = (fake.rung(last["dimension"]) or (None, ()))[1]
         if against != fake.LOCK_RULE and against:
@@ -3213,23 +3251,40 @@ def _ai_person(j, interview: dict, token: str, *, want: int = 1):
     # its #also, is the last item and the only rung owed, and the last part's other rungs are the lock's), the earliest
     # other one-of rung is answered with its first answer against instead -- one tap, so the walk still meets two
     # follow-ups on the spot, and the later plain one-of questions stay for the way back (IM16) and the veto
-    for item in items:
-        if len(plan) >= want:
-            break
-        dimension = item.get("dimension")
-        if dimension not in rungs or dimension in {a["dimension"] for a in plan} or not item.get("options") \
-                or item.get("control") == "pick_one_then_one":
-            continue
-        against = (fake.rung(dimension) or (None, ()))[1]
-        if against and against != fake.LOCK_RULE:
-            person = vs.with_pick(person, dimension, [against[0]])
-            plan = vs.follow_up_plan(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
+    person, plan = earliest_other(person, plan)
     assert len(plan) >= want, {"the AI link's person is asked fewer follow-ups than the walk meets": person.person,
                                "plan": plan, "want": want}
     mine = next((p for p in j.entry.people() if p.person == person.person), None)
     lines = {a["dimension"]: (getattr(mine, "follow_up", None) if getattr(mine, "follow_up_dimension", None)
                               == a["dimension"] else None) or vs.FOLLOW_UP_LINES[a["dimension"]][0] for a in plan}
     return person, plan, lines
+
+
+def _answer_codes(j, dimension: str) -> list[str]:
+    """The stranger's answer codes for `dimension`, in the registry's order (Relative advantage's scale of four)."""
+    from instructions import registry as registry_mod                    # noqa: PLC0415
+    if dimension == registry_mod.BENEFIT_KEY:
+        return list(registry_mod.BENEFIT_CODES)
+    try:
+        return list(j.registry.by_key(dimension).fixed_answer_codes) if j.registry is not None else []
+    except Exception:  # noqa: BLE001 - a dimension the registry does not hold: none
+        return []
+
+
+def _pick_back_spots(j, items: list[dict], person, token: str, owes) -> list[str]:
+    """`_back_spots` over the reader's picks before the walk: a one-of answered with one code owing nothing, not the last
+    item, with another option owing nothing."""
+    out = []
+    for item in items[:-1]:
+        dimension = item.get("dimension")
+        pick = next((p for p in person.picks if p.dimension == dimension), None)
+        options = [o.get("optionId") for o in item.get("options") or []][:len(ORDINALS)]
+        if pick is None or len(pick.codes or []) != 1 or item.get("control") in PICK_CONTROLS or len(options) < 2:
+            continue
+        meant = vs.option_id(token, dimension, pick.codes[0])
+        if not owes(item, meant) and any(o != meant and not owes(item, o) for o in options):
+            out.append(item.get("itemId"))
+    return out
 
 
 def _owes(j, interview: dict, token: str) -> Callable[[dict, str], bool]:
