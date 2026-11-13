@@ -3403,7 +3403,9 @@ def saved_list(entry, key: str) -> dict:
     for i, (_, item) in enumerate(kept_items(entry, key)):
         out = {"code": wire_code(key, i), "label": item["label"]}
         if key in ASKED_FACES and item.get("asked"):
-            out["asked"] = item["asked"]
+            # spec 154 FR-0: the stored face is the asked job's -- Adoption friction's cut to the frame where the corpus's
+            # does not fit (`adoption_face`)
+            out["asked"] = adoption_face(item) if key == ADOPTION_KEY else item["asked"]
         items.append(out)
     if key == COMMITMENT_KEY and keels_smaller_step(entry):
         # spec 133 FR-2 (keel-cloud 211 FR-6): the founder saves Keel's free smaller step beside the step, as drawn
@@ -4085,6 +4087,24 @@ def calibration_answers(entry, vector: str) -> list[CalibrationAnswer]:
     return out
 
 
+#: keel-cloud `ItemFrames.adoptionFrame` (spec 112, keel-cloud 171 FR-4b) and `AskedRules` K2: the question a stranger
+#: hears is at most 20 words, the face framed (a leading *you'd* on the face is the frame's own, said once).
+ADOPTION_FRAME = "To use it, you'd {asked}. Would you do that, or not?"
+ASKED_MAX_WORDS = 20
+
+
+def adoption_face(item: dict) -> str:
+    """Spec 154 FR-0 (keel-cloud 245 FR-2 + K2): the stranger's face the asked job writes for one Adoption friction row --
+    the corpus's own where it frames within 20 words; else (the job phrases every row now, where code once vouched for the
+    corpus face unframed) the row's own step said to the stranger, *you'd {step}*, which the frame fits and K3 takes."""
+    face = str(item.get("asked") or "").strip()
+    bare = face[len("you'd "):] if face.lower().startswith("you'd ") else face
+    if face and len(ADOPTION_FRAME.format(asked=bare).split()) <= ASKED_MAX_WORDS:
+        return face
+    label = str(item.get("label") or "").strip().rstrip(".")
+    return f"you'd {label[:1].lower()}{label[1:]}" if label else face
+
+
 def asked_result(entry, key: str) -> dict:
     """The `ASKED` result for one saved list (keel-cloud 088 FR-003): each item's stranger's face by its
     index, the corpus's own `asked` (K1: one face per index handed). **Spec 154 FR-0 (keel-cloud 245 FR-2)**: the draft
@@ -4092,7 +4112,8 @@ def asked_result(entry, key: str) -> dict:
     switch is on) and the stub answers every index -- a row the corpus records no face for is answered with its label
     read as the stranger's question, never left out."""
     saved = founder_list(entry, key)
-    items = [{"index": i, "asked": item.get("asked") or item["label"]} for i, item in enumerate(saved["items"])]
+    items = [{"index": i, "asked": (adoption_face(item) if key == ADOPTION_KEY else item.get("asked") or item["label"])}
+             for i, item in enumerate(saved["items"])]
     if key == ADOPTION_KEY:
         # spec 154 FR-0 (keel-cloud 198 FR-9 K8, strict on the first turn): every Adoption friction row carries its
         # condition -- the entry's own, else the step's (`adoption_condition`); before 245 the draft carried it as `only_if`

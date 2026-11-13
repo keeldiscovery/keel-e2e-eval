@@ -3016,9 +3016,20 @@ def _importance_needs_three(j: Journey) -> None:
     labels = [{"label": i["label"]} for i in saved["items"]]
 
     def put(items: list[dict], ok: tuple) -> tuple[int, Any]:
-        body = {"expectedRevision": j.revision(),
-                "answers": [{"dimension": key, "list": {"items": items, "pickedIndex": None}}]}
-        return j.call("PUT", j.project("/calibration/PROBLEM"), body, ok=ok)
+        # spec 154 FR-0 (keel-cloud 200 / 245): each wire save starts an ASKED job for the rows owed a short name, applied
+        # behind the Save -- so the next PUT waits for the open steps to land and reads the revision after, and a 409
+        # concurrency that still slips in is read again once (keel-web's own one silent retry, DRIFT #88)
+        _wait_steps_landed(j, "the Importance probe's previous wire save", timeout_s=60)
+        for attempt in (1, 2):
+            body = {"expectedRevision": j.revision(),
+                    "answers": [{"dimension": key, "list": {"items": items, "pickedIndex": None}}]}
+            status, answer = j.call("PUT", j.project("/calibration/PROBLEM"), body, ok=(*ok, 409))
+            if status == 409 and attempt == 1 and isinstance(answer, dict) and answer.get("code") == "CONCURRENCY":
+                _wait_steps_landed(j, "the Importance probe's wire save after a 409", timeout_s=60)
+                continue
+            assert status in ok, f"PUT calibration/PROBLEM answered {status}: {answer}"
+            return status, answer
+        raise AssertionError("unreachable")
 
     def belief(rows: Any) -> str:
         return next((r.get("belief") or "" for r in (rows or {}).get("rows") or [] if r.get("dimension") == key), "")
