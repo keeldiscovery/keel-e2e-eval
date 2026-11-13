@@ -3,3 +3,9 @@ playwright>=1.45
 requests>=2.31
 # spec 009: the golden corpus is YAML, and instructions/corpus.py reads it read-only.
 pyyaml>=6.0
+# spec 154: spec 151's bench test (`tests/test_copilot_bench.py::test_tts_retries_a_read_timeout`) needs
+# `evals/noise/synth.py`'s three -- numpy, soundfile, scipy (its optional import block); plain omissions (a fresh venv
+# failed that one test).
+numpy>=2.0
+soundfile>=0.12
+scipy>=1.11
