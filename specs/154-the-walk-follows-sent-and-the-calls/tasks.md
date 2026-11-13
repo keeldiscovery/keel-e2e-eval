@@ -82,7 +82,7 @@ In the coordinator's order:
    (creation free at 2,500 and at 900, an uncalibrated lock refused before any credit is read).
 4. `requirements.txt` gains **numpy, soundfile, scipy** -- spec 151's bench test needs `evals/noise/synth.py`'s three
    (numpy alone was not enough); plain omissions.
-5. keel-web 191's lock screen held (`2c3b1d3`, `0e1...`): *Save your answers*, the problem box (waited for: it loads
+5. keel-web 191's lock screen held (`2c3b1d3`, `bd9ef3c`, `5238176`): *Save your answers*, the problem box (waited for: it loads
    after the frame), the plan's rows, the one sentence, *Save and write the questions* with its price on Keel's door
    while unpaid and none on its own AI, no Back; IM2's no-price rule reads Keel's frame, not the founder's own answers
    the screen shows back (*$20 to $60 a month*). `scope-more` is absent on New project: the walk's scope picker already
@@ -93,6 +93,14 @@ In the coordinator's order:
    in its words since keel-cloud 229); guide marks: G8 / G9 not applicable where keel-web 155 FR-9's chart-guide flag
    hides the stage pill, G15 reads the links inside Sent's tab and owes no who-asks band (keel-web 187), G4's second
    replay seeks the welcome to its media's own end; the AI sheet's lines read at most two seconds (a stall under load).
+7. S-006 and S-017, walked once each to their ends here, met: the scripted ASKED queue holds the Importance probe's
+   jobs only where rows were typed on the Check (05-paidly types none and starts neither; the stray entries were handed
+   to Compatibility's job and refused K1) -- an inference from the two entries walked, said as one; the report's
+   no-repeat rule reads each box's served belief and each quote's option words as the box's own; the Relative advantage
+   question held to keel-cloud's current composer (`spoken.advantage_stem`); stand-ins 4 / 5 and the backfill / retry
+   reads on every kind's recording (`corridor.lock.recordings`, keel-cloud 247 -- the old single path wrote null over
+   the document); New group link as keel-web 187's one screen; the second Begin writes no row (250); the By group tab
+   read with its `aria-controls`; IM2 allows `InterviewerFaces`' `projectPrice` / `projectPaid` (251).
 
 ## What was built, per FR
 
@@ -237,29 +245,63 @@ In the coordinator's order:
 | `914c22a` | Spec 154 FR-1 / FR-6 on keel-cloud 251 (contract 71): New project writes no row and is never refused; the leg's second project is created free, its uncalibrated lock answers its own refusal and writes nothing; 900 creates; the closing sweep owes no PROJECT row; the row's reason pro... |
 | `a7e0813` | Spec 154 FR-1: the 900 step proves the project made by the 201's id, not by a count of `/v2/me/projects` (which the leg reads empty) |
 | `f99b59d` | Spec 154 FR-4: the call row's *You wrote {typed}* is read without the separator keel-web 189 draws inside its span |
-| (this) | tasks.md: the third pass, the counts, what remains |
+| `fdcb663` | Spec 154 tasks.md: the third pass (keel-cloud-docs 34735d05, contract 71), the counts, what remains said plainly (IM16 on S-005's AI link, the copilot card held on the own-AI first-person line, 251's lock SPEND and 422 not walked); the web pin read at keel-web 851ca8c2 |
+| `2c3b1d3` | Spec 154 on keel-web 47ebf528 (191, contract 71 vendored): the lock screen held as 191 draws it -- *Save your answers*, the problem box, the plan's rows, the one sentence, *Save and write the questions* with its price on Keel's door while unpaid and none on its own AI, no Back; the... |
+| `4ba9c88` | Spec 154 IM16: where the read-aloud question is the only one the way back can be tried on, the read-aloud moves to the next question its own rule names (01-countly's AI reader on keel-cloud 34735d05: Relative advantage alone has an answer owing nothing beside another) |
+| `ffcef65` | Spec 154 FR-4 / FR-5: the first-person line stood in before the card -- the FIRST_PERSON job runs on Keel's AI alone, which the local stack has off on either door (no key), so keel-cloud logs it owed and the script holds firstPersonPending; the owed line held, the line written as t... |
+| `e6fd879` | requirements.txt: numpy, soundfile and scipy -- spec 151's bench test needs evals/noise/synth.py's three; plain omissions |
+| `bd9ef3c` | Spec 154 (keel-web 191): the lock screen's problem box and plan rows are waited for before they are read (they load after the frame) |
+| `5238176` | Spec 154 IM2 on keel-web 191: the lock screen's no-price rule reads Keel's frame alone -- the problem as typed and the plan's belief rows (the founder's own answers, *$20 to $60 a month*) are read apart |
+| `6301899` | Spec 154 FR-5: the card's upload parts read off the page's own FormData (Chromium hands Playwright no body for a multipart request carrying blobs); the request itself is still kept off the wire |
+| `47e85a2` | Spec 154: the AI sheet's lines are read once at most two seconds -- a heard line the page takes away between the count and the read stalled the veto for thirty and failed the walk under load |
+| `2430814` | Spec 154 FR-4: the fake call record files a two-step ladder's item by its second step's option (the first step's bands carry no id, keel-cloud 248 FR-6) |
+| `19151a9` | Spec 154 FR-4: the fake call record files the first six items the card can file (an item it cannot is passed over and named in the plan); the served script kept beside the record |
+| `1a19d03` | Spec 154 FR-4: the fixture call's digest read where keel-cloud serves it (InvitationDetail.interview, by dimension) and held to what the stack's fake hears -- the story, the follow-up (the stored response, RECORDED) and both notes are the stack's one word; no `heard` here (the word... |
+| `6f0a5ed` | Spec 154 FR-0: the report's expected Adoption friction card reads the tested item as the scripted walk served it -- with the condition the ASKED stub wrote (*1 of them only if scanning never slowed my work*) |
+| `7b01e56` | Spec 154: feedback marks v3 -- FM2's first draft is the one own row in Keel's words (keel-cloud 229 writes it from the problem clause), kept first on the redraft; the saved list opens on the founder's own item |
+| `e1302af` | Spec 154 guide marks on keel-web 47ebf528: G8 / G9 not applicable where the stage pill is not drawn (keel-web 155 FR-9's chart-guide flag, off); G15 reads the links inside Sent's tab and owes no who-asks band (keel-web 187); G4's second replay seeks the welcome to its media's own end |
+| `a2c15f5` | Spec 154 tasks.md: the fourth pass drafted (counts follow) |
+| `9d278ae` | Spec 154 IM2 on keel-cloud 251: InterviewerFaces' projectPrice / projectPaid are the wire's own price keys, as recordPrice is |
+| `209cd33` | Spec 154 FR-0: the scripted ASKED queue holds the Importance probe's two jobs only where rows were typed on the Check -- S-006 (none typed) starts neither on keel-cloud 34735d05, and its unconsumed entries were handed to Compatibility's job and refused (K1) |
+| `48df542` | Spec 154 report_no_repeat: each Insights box's served belief (keel-web 155 FR-7) and each quote's own option words are the box's own, not repeated Overview numbers |
+| `7123a63` | Spec 154 S-006: the Relative advantage question held to keel-cloud's current composer (the anchor, then *Would {Name}, {what it is}, have done that better for you, or not?*, spoken.advantage_stem), 173's frame only where no anchor fits |
+| `b5affd3` | Spec 154 FR-3 (keel-cloud 247): stand-ins 4 and 5 and the backfill and retry reads work on every kind's recording (corridor.lock.recordings), where 094's one recording stood -- S-006 wrote null over the document |
+| `50c83dc` | Spec 154 FR-2 S-017: New group link held as keel-web 187's one screen -- kicker and title, the kind row only on two kinds, *Make the link*; 136's two ways gone |
+| `53922a4` | Spec 154 FR-1 S-017: stranger B's second Begin writes no row (keel-cloud 250), as the first does |
+| `9cf6f71` | Spec 154 FR-2 S-017: the By group tab read with keel-web 187's aria-controls beside its text, role and selection |
+| `d6463fa` | Spec 154: spec 150's ways test reads S-017's group link as keel-web 187's one screen (no ways, the kind row only on two kinds) |
+| (this) | tasks.md: the fourth pass, its counts, what remains |
 
 ## Counts
 
-Third pass, 2026-11-13 ET, the stack (playground profile) on the two main checkouts through the uncommitted
-`stack.toml`; the unit suite needs no stack.
+Fourth pass, 2026-11-13 ET: cloud `34735d05` (contract 71) and keel-web `47ebf528` (contract 71 vendored), the stack
+(playground profile) on the two main checkouts through the uncommitted `stack.toml`, `make down` / `make up` before
+every journey run; the unit suite needs no stack.
 
-- **`make unit`** (`.venv/bin/python -m pytest tests -q -rs`), 09:07 ET at `a7e0813` + the mirror test's web pin:
-  **1 failed, 5,918 passed, 124 skipped** in 361 s. The one failure is environmental and not this spec's:
-  `tests/test_copilot_bench.py::test_tts_retries_a_read_timeout` imports numpy, which `requirements.txt` does not carry
-  (spec 151's tasks.md says so). The skips: 12 retired by spec 154 by name, the rest the long-standing ones (the corpus
-  past revision 2, the live-only, a thin stub). The first run of the pass (06:51 ET) failed one more,
-  `test_cloud_198_mirror_130::test_the_scripted_asked_result_writes_condition_and_never_only_if` (the first pass's
-  every-row condition, its pin moved: `5eb95eb`), and ran slow (every Choose fixture waited the 90 s ceiling: `1336c74`).
-- **S-005 on the fakes** (`make eval K=s005 PROFILE=playground`), sixteen runs 07:19 -- 09:25 ET, `make down` / `make
-  up` before each; each fix above is the reading one run stopped on. The last full run on the committed code
-  (`20261113T135724Z-s005-countly`, cloud `34735d05`, web master as served at 08:57) walked **386 of its steps green and
-  stopped at step 387, the interviewer marks: 21 of 22 met, IM16 owed** (below). A probe run with IM16 tolerated
-  (an uncommitted edit, reverted; never committed) went on: the calls leg walked **Sent's Calls tab, Plan a call (201,
-  PLANNED), the row, the Start sheet, the person's CALL_ARRIVAL and sign-in on the stub issuer** green, and stopped where
-  the copilot card never drew (below). The two gates on 251 (`914c22a`, `a7e0813`) walked green in those runs.
-- **S-006 and S-017 not walked in this pass** (time); the three remote journeys on staging are the coordinator's.
-
+- **`make unit`** (`.venv/bin/python -m pytest tests -q`): 12:05 ET, at `9cf6f71`: **1 failed, 5,924 passed, 124
+  skipped** in 329 s -- the one, spec 150's pin on S-017's two ways, moved the same minute (`d6463fa`); the run after it, 12:05 -- 12:11 ET at `d6463fa`: **5,925 passed, 124 skipped, 0
+  failed** in 332 s. The 124 skips: 12 retired by spec 154 by name, the rest the long-standing (the corpus past revision 2,
+  live-only, a thin stub). numpy / soundfile / scipy now in `requirements.txt` (the bench test green).
+- **S-005** (`make eval K=s005 PROFILE=playground`): **green**, 11:00 -- 11:08 ET, `20261113T160053Z-s005-countly`:
+  **409 steps, 0 failed**; report marks v3 5 of 5, interviewer marks v18 22 of 23 measured with every owed one met
+  (IM16 the way back walked; IM2 is the full leg's), feedback marks v3 4 of 4, guide marks v4 17 of 17 (G8 / G9 not
+  applicable: keel-web 155 FR-9's flag). Its legs: the four stages, the links and the strangers, the report, the
+  interviewer on Keel's door with the two gates on 251, the AI link (two follow-ups, the way back, the read-aloud on
+  Compatibility), **the calls**: Plan a call twice, the CALL arrival and the stub sign-in (GOOGLE, *You wrote*), the
+  first-person stand-in, **the card walked headless** (two fake mics, the remembered one, Start -> ON_CALL, six filings
+  with one undo, the stretches, End -> **one multipart, parts founder / them / keys, 200 -> ENDED -> ANSWERED**), the n
+  line **`unverified` 0**; the second call's **fake record** uploaded (200, ENDED, ANSWERED), its digest (format CALL,
+  identity NONE, six answers each with its second, the story RECORDED, one follow-up RECORDED, two notes with both
+  voices -- each the stack fake's one word), the timeline (eight filings after the undo, STORY / FOLLOW_UP /
+  OWN_QUESTIONS / THEIR_QUESTIONS), Hear the call (206 to a Range, 200 whole, 404), **no INTERVIEW row**, the n line
+  **`unverified` 1**, the register. Thirteen runs in this pass to get there (09:33 -- 11:08 ET; 29 since 07:19), each fix the reading one
+  run stopped on.
+- **S-017** (`make eval K=s017 PROFILE=playground`): **green**, 11:55 -- 11:59 ET, `20261113T165542Z-s017-open-link`:
+  **153 steps, 0 failed** (four runs).
+- **S-006** (`make eval K=s006 PROFILE=playground`): **not green** -- 11:33 -- 11:41 ET,
+  `20261113T163338Z-s006-paidly`, five runs: **483 of 484 steps green**, stopped at the last, the interviewer marks:
+  25 of 25 measured met, **IM16 unmeasured** (below).
+- The three remote journeys on staging: the coordinator's (not run here).
 
 ## Judgement calls
 
@@ -303,29 +345,20 @@ Third pass, 2026-11-13 ET, the stack (playground profile) on the two main checko
 
 ## Left for the coordinator
 
-Said plainly -- **S-005 is not green yet**; it stops at two places this pass did not finish:
-
-1. **IM16 (the way back) is owed on S-005's AI link.** The walk tries Back on a plain one-of question whose answer owes
-   no follow-up and that has another answer owing none. On `34735d05` the AI link's reader (01-countly) has none
-   left: Relative advantage (the only item with a safe other answer) carries the read-aloud step
-   (`_read_aloud_item`, spec 049 call 1), Compatibility's *Yes, most of the time* owes its #also and its other answers
-   all owe, Adoption friction's other answers all owe (its *Only if ...* is a #also), Buyer and payer is the lock's
-   rung. Fix owed: move the read-aloud step off the one item that can carry Back, or choose the AI link's reader by a
-   Back spot. Not a product fault.
-2. **FR-4 / FR-5 on the fakes: the copilot card never draws.** `GET calls/{id}/script` keeps `firstPersonPending`:
-   keel-cloud logs *first-person owed: ... not written reason=own-ai* (the eval founder is back on their own AI after
-   the interviewer leg's restore), and keel-web 188 holds the writing line and draws no card until the first-person line
-   lands. So the card walk (Start, the six filings, End, the three-part upload, ENDED -> ANSWERED) and the fixture call's
-   digest (the filed answers, the story, one follow-up, two notes, `heard` on item 1, no INTERVIEW row, `unverified` 0
-   then 1) were **not re-confirmed against `dfdad66a` / `34735d05` on the fakes in this pass** -- the assertions are in
-   `evals/calls_leg.py` and the unit suite holds their shapes against cloud 249's contract, but no run reached them.
-   Fix owed: walk the calls leg on Keel's door (the stand-in, as the interviewer leg does) or have the scripted runtime
-   answer the first-person job, then re-run.
-3. **251 at the lock, not walked**: the SPEND of 1,000 (`project:lock`) at the first lock, and the 422
-   `INSUFFICIENT_CREDITS_FOR_NEW_PROJECT` at 900 at the lock -- S-005's project locks on its own AI before Keel's door;
-   walking it needs the stand-in grant before the lock (or a second project calibrated whole).
-4. **The web digest**: the mirror test pins keel-web's vendored contract by version -- at keel-web master `851ca8c2`
-   (and `aa8b49c6` .. `965ad85a`) it is still **70** (`a6de15c4...`, its body = cloud's 70 byte for byte); once the
-   contract-71 vendoring lands, the test asserts its body = cloud's 71 (`f5a078b1...`). Pin the final web sha in
-   `WEB_MASTER_70` / a 71 constant when it arrives.
+1. **S-006: IM16 (the way back) unmeasured.** 05-paidly's AI reader (the last readable person, fixed: the scripted
+   executor repeats its INTERPRET entry) has no question Back can be tried on under the walk's rule (a one-of answered
+   with an option owing no follow-up, another option owing none): Compatibility's and Adoption friction's other answers
+   all owe, Relative advantage is answered *No difference* (owed: the one follow-up), Buyer and payer is the lock's rung.
+   Moving the read-aloud does not help (it is not the read-aloud's item that blocks). Ways on: let Back be tried where
+   the meant answer owes its follow-up (the follow-up then asked after the changed tap -- keel-web 124 FR-4 says Back
+   lands on the main ask), or answer that reader's Relative advantage as a support and take its one follow-up on the
+   earliest other one-of rung (what S-005's second follow-up now does). Not loosened; not a product fault.
+2. **`heard` on item 1** is not exercisable on the fakes: the stack's transcriber hears one word in every window
+   (keel-cloud 103's worded fake is a test-only seam no environment reaches); keel-cloud 249's
+   TheCallsRecordJourneyTest walks it. The leg holds `heard` absent.
+3. **251's lock SPEND and its 422 at 900** are not reachable on the fakes (an own-AI lock is never charged; a Keel's-AI
+   account cannot reach a lock with Keel's AI off on the local stack); keel-cloud's TwoGatesJourneyTest covers both.
+4. **The first-person line on the fakes is a stand-in** (stand-in 6): the FIRST_PERSON job runs on Keel's AI alone,
+   off on the local stack on either door; the leg holds the owed line logged first. On staging (Keel's AI on) the job
+   runs for real -- the remote journeys there are the check of it.
 5. `stack.toml` is **uncommitted** (absolute paths to the main checkouts; the repo documents no override).
