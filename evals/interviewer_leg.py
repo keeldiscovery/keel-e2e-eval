@@ -93,6 +93,7 @@ from harness import interviewer_screens as ivs
 from harness import interviews_screens as iv
 from harness import vectors_screens as vs_screens
 from harness import vectors_script as vs
+from stack import cloud_log
 from stack import ledger as stack_ledger
 
 SPEC = "044"
@@ -111,8 +112,12 @@ CHANGED_FACE = fake.PRESELECTED
 #: navigation timeout, as the welcome's mp4 is (a clip over the wire may take its time to load).
 HEAR_WAIT_S = 20
 HEAR_WAIT_REMOTE_S = 90
-#: The balance the change is refused at (stand-in 2): under one change (400), over nothing else the leg needs.
+#: Spec 154 FR-1 (keel-cloud 250): the balance New project is refused at -- under one project (1,000).
+NINE_HUNDRED = 900
+#: Spec 094's low balance for the change of face -- retired with the change (IM11), kept for the record.
 LOW_BALANCE = 100
+#: Spec 154 FR-1 (keel-cloud 250 FR-7): the person whose text link is served with the owner at 0.
+ZERO_PERSON = "Someone the founder knows, served at zero"
 AI_PERSON = "Someone the founder knows, by voice"
 #: Spec 075 FR-5 (keel-cloud 144 FR-1, keel-web 126 FR-2): the founder's story on Try it yourself -- said into the
 #: story's window, written down through `POST /v2/projects/{id}/interviewer/transcribe` on the gate's id (the stack's
@@ -268,17 +273,24 @@ def leg_interviewer_short(j) -> dict:
 
 
 def _leg(j, *, short: bool) -> dict:
+    """Spec 154 (keel-cloud 247 / 250, keel-web 187): the leg on the interviewer per kind and the two gates. The lock
+    picks no face (`_lock_body`); on their own AI the founder reads the kinds' list and is refused a set-up and an AI link
+    (`_own_ai`); on Keel's door (the stand-in grant of 2,500) the first kind is set up from its card -- the face step, the
+    1,500 line, 202 -- and reaches READY on the fake renderer; the two gates are walked (`_two_gates`: a second project
+    bought for 1,000 leaving 0, a link served at 0, the second kind for nothing, 900 refused 422); the clips are read per
+    kind; an AI link for the set-up kind is answered; the doors the product lost (the change, the low balance, the
+    inactive link, the band) are named retired, never walked."""
     record: dict = {"entry": j.entry.id, "project_id": j.project_id, "short": short, "responses": [],
                     "wire_views": []}
     wire = _Wire(j, record)
-    _lock_switch(j, record)
+    _lock_body(j, record)
     _own_ai(j, wire, record)
     if j.stack is None or j.stack.is_remote:
         with j.recorder.step("interviewer: the rest of the leg needs the local stack's database (the stand-in door, "
                              "the ledger and the stored recording) and is skipped on the remote profile",
                              party="stack", kind="note") as h:
             h.record_wire({"profile": getattr(j.stack, "profile", None)},
-                          {"skipped": "Keel's door, the recording, the links, the change, the refusal"})
+                          {"skipped": "Keel's door, the set-up, the two gates, the links"})
         if j.stack is not None:
             _score(j, record, require=[], note=REMOTE_MARKS)
         return record
@@ -288,12 +300,12 @@ def _leg(j, *, short: bool) -> dict:
     since = stack_ledger.now(j.stack)
     try:
         _keels_door(j, wire, founder_id, run)
-        _first_recording(j, wire, record)
+        _first_set_up(j, wire, record)
         if not short:
             _screens_recording(j, wire, record)
-            _while_recording(j, wire, record)
-        _ready(j, wire, record, FIRST_FACE, "the first recording")
-        _hear_the_band(j, record)
+        _ready(j, wire, record, FIRST_FACE, "the first set-up")
+        _two_gates(j, wire, record, founder_id, run)
+        _sent_after_set_up(j, record)
         if not short:
             _screens_ready(j, wire, record)
         _the_recording(j, wire, record)
@@ -305,36 +317,41 @@ def _leg(j, *, short: bool) -> dict:
         if not short:
             _choice_link(j, wire, record)
             _recorded_link(j, wire, record)
-            _inactive_link(j, wire, record, founder_id, run)
-            _change_face(j, wire, record)
-            _low_balance(j, wire, record, founder_id, run)
+            _retired_doors(j, record)
             _retry(j, wire, record)
         record["ledger"] = stack_ledger.rows(j.stack, founder_id, since=since)
-        with j.recorder.step("interviewer: the ledger since Keel's door -- the stand-in grant, the recording's one "
-                             "HOLD / SPEND pair, the change's, the stand-in low balance, the readings on arrival "
-                             "(keel-cloud 095), and no other row",
-                             party="stack", kind="assert") as h:
+        with j.recorder.step("interviewer (spec 154, keel-cloud 250): the ledger since Keel's door -- the stand-in grant, "
+                             "the recording's one HOLD / SPEND pair of 1,500, the second project's one SPEND of 1,000, "
+                             "the stand-ins, the readings on arrival at 0 (keel-cloud 095), NO row at any Begin and no "
+                             "other row", party="stack", kind="assert") as h:
             reading_jobs = {x.get("inference_job_id") for x in record["ledger"]
                             if x.get("kind") == "HOLD" and x.get("action") in marks.READ_ACTIONS
                             and READ_REASON.match(x.get("reason") or "")}
-            # spec 088 FR-2 (keel-cloud 156): each person's Begin writes one INTERVIEW row of -30 under
-            # `interview:<invitationId>` -- the scripted links' posts, and keel-web 131's intro on the screens
-            begun = charge.charges(record["ledger"], j.project_id)
+            # spec 154 FR-1 (keel-cloud 250): Begin writes no row -- any INTERVIEW row is the fault
+            begun = charge.charges(record["ledger"]) + [x for x in record["ledger"] if x.get("action") == charge.INTERVIEW]
+            projects = charge.project_rows(record["ledger"])
             others = [x for x in record["ledger"] if x.get("action") not in fake.ACTIONS
                       and not (x.get("idempotency_key") or "").startswith(stack_ledger.key_prefix(SPEC))
                       and not (x.get("inference_job_id") and x.get("inference_job_id") in reading_jobs)
-                      and not charge.is_charge(x, j.project_id)]
+                      and x.get("action") != charge.PROJECT]
             record["interview_charges"] = [x.get("idempotency_key") for x in begun]
-            # spec 088 (keel-cloud 156, price version 12): the readings and the themes are priced 0 -- every HOLD of
-            # theirs is written at 0 (INTERPRET was 10 and THEMES 8), so none moves `creditsAvailable`
+            record["project_rows"] = projects
+            # spec 088 (keel-cloud 156) and 250: the readings and the themes are priced 0 -- every HOLD of theirs at 0
             priced_reads = [x for x in record["ledger"] if x.get("kind") == "HOLD" and x.get("action") in
                             marks.READ_ACTIONS and int(x.get("credits") or 0) != -charge.READ_PRICES[x["action"]]]
-            h.record_assert({"other rows": [], "reading HOLDs not at 0": []},
+            # 250: every job row at 0 -- nothing but PROJECT, the recording's pair and the stand-ins moves the balance
+            moved = [x for x in record["ledger"] if charge.moves_balance(x) and x.get("action") not in
+                     (charge.PROJECT, fake.RECORDING) and not (x.get("idempotency_key") or "").startswith(
+                         stack_ledger.key_prefix(SPEC)) and x.get("kind") not in ("GRANT", "PURCHASE")]
+            h.record_assert({"other rows": [], "reading HOLDs not at 0": [], "Begin rows": [], "moved by a job": [],
+                             "project rows": "one, the second project's"},
                             {"rows": [(x["kind"], x.get("action"), x["credits"]) for x in record["ledger"]],
-                             "others": others, "reading HOLDs not at 0": priced_reads})
+                             "others": others, "reading HOLDs not at 0": priced_reads, "Begin rows": begun,
+                             "moved by a job": moved, "project rows": projects})
             assert not others, others
             assert not priced_reads, priced_reads
-            assert len(set(record["interview_charges"])) == len(begun), {"two rows under one Begin key": begun}
+            assert not begun, {"a Begin wrote a row (keel-cloud 250 writes none)": begun}
+            assert not moved, moved
     finally:
         _restore(j, wire, founder_id, run)
         if record.get("arrivals"):
@@ -343,8 +360,9 @@ def _leg(j, *, short: bool) -> dict:
     # spec 048: the answer path's five are owed on the full leg whatever the record carries -- a walk that never went
     # back is a walk that failed to, not a mark left unmeasured (spec 051: and the follow-up's five)
     answer_path = ["IM14", "IM15", "IM16", "IM17", "IM18", "IM19", "IM20", "IM21", "IM22", "IM23", "IM24", "IM25",
-                   "IM26", "IM27", "IM28", "IM29", "IM30"]
-    require = SHORT_FORM if short else [m for m, _, _ in marks.MARKS if m in _owed(record) or m in answer_path]
+                   "IM26", "IM27", "IM28", "IM29"]
+    require = SHORT_FORM if short else [m for m, _, _ in marks.MARKS
+                                        if (m in _owed(record) or m in answer_path) and m not in marks.RETIRED]
     _score(j, record, require=require)
     return record
 
@@ -386,50 +404,72 @@ def lock_flags(body) -> list[str]:
     return [k for k in marks._keys(body) if k.rsplit(".", 1)[-1] == "recordOnSend"]
 
 
-def _lock_switch(j, record: dict) -> None:
-    """Spec 094 FR-2 (keel-web 132 FR-2's three states): the lock screen as `leg_lock` walked it -- whether the switch
-    (`data-testid=record-at-lock`) was drawn, its label and its state -- and the body the press sent. The journey never
-    turns the switch off (a journey that wants staging's skip is none of the six), so a drawn switch is on and the
-    lock body carries no `recordOnSend` flag; with no switch drawn (a server serving `recordOnSend: false`, the local
-    stack's) the body carries none either. A leg handed no lock screen (a project locked off the page) records
-    nothing here."""
+def _lock_body(j, record: dict) -> None:
+    """Spec 154 FR-1 (keel-cloud 247 FR-1, keel-web 187 FR-7): the lock as `leg_lock` walked it -- the body posted is
+    `{expectedRevision}` alone (no `interviewer`, no `recordOnSend`; 094's switch is gone with the face), the screen drew
+    no carousel and no switch. A leg handed no lock screen (a project locked off the page) records nothing here. The
+    lock screen's text is kept as IM2's L1 (no price word on it at all now)."""
     l1 = (getattr(j, "screens", None) or {}).get("L1")
     if not l1:
         return
     switch = l1.get("switch") or {"drawn": 0}
     sent = l1.get("sent")
-    record["lock"] = {"switch": switch, "sent": sent, "flags": lock_flags(sent),
-                      "price words": marks.price_words_on("L1", switch.get("label"))}
-    drawn = int(switch.get("drawn") or 0)
-    with j.recorder.step("interviewer (spec 094 FR-2, keel-web 132 FR-2): the lock screen's switch, *Record {face} at "
-                         "lock · 400 credits* -- drawn only where the server serves recordOnSend true (staging), left "
-                         "on and never turned off -- and the lock body carries no recordOnSend flag",
-                         party="founder", kind="assert") as h:
-        h.record_assert({"switch": "none, or one switch on", "flags": [], "price words": []}, record["lock"])
-        assert drawn <= 1, switch
-        if drawn:
-            assert switch.get("on") is True and switch.get("role") == "switch", switch
-        assert not record["lock"]["flags"], sent
+    record["lock"] = {"switch": switch, "sent": sent, "flags": lock_flags(sent), "carousel": l1.get("carousel"),
+                      "keys": sorted(sent) if isinstance(sent, dict) else None,
+                      "price words": marks.price_words_on("L1", l1.get("text"))}
+    record.setdefault("screens", {})["L1"] = l1.get("text") or ""
+    with j.recorder.step("interviewer (spec 154 FR-1, keel-cloud 247 FR-1, keel-web 187 FR-7): the lock picks no face "
+                         "-- the body is {expectedRevision} alone, no switch and no carousel drawn, no price word on the "
+                         "screen", party="founder", kind="assert") as h:
+        h.record_assert({"keys": ["expectedRevision"], "switch": {"drawn": 0}, "carousel": False, "flags": [],
+                         "price words": []}, record["lock"])
+        assert record["lock"]["keys"] == ["expectedRevision"], sent
+        assert int(switch.get("drawn") or 0) == 0 and not l1.get("carousel"), l1
+        assert not record["lock"]["flags"] and not record["lock"]["price words"], record["lock"]
+
+
+def _lock_switch(j, record: dict) -> None:
+    """Spec 094's name for the lock step, kept for its callers: spec 154's `_lock_body`."""
+    _lock_body(j, record)
 
 
 def _own_ai(j, wire: _Wire, record: dict) -> None:
-    with j.recorder.step("interviewer (094 FR-F): on their own AI the founder's project has no recording -- the lock's "
-                         "receipt carried no interviewer, GET interviewer and an AI-interviewer link are refused "
-                         "INTERVIEWER_NEEDS_CREDITS, and nothing is made", party="founder", kind="assert") as h:
+    with j.recorder.step("interviewer (keel-cloud 247 FR-5, 250 FR-5): on their own AI the founder READS the kinds' list "
+                         "like any other (every kind NOT_SET_UP, no face), the faces say recordingOpen false, a set-up on "
+                         "a kind's card and an AI-interviewer link are refused INTERVIEWER_NEEDS_CREDITS, and nothing is "
+                         "made", party="founder", kind="assert") as h:
         me = wire.me()
-        status, body = wire("GET", "/interviewer", ok=(422,))
+        status, kinds = wire("GET", "/interviewer")
+        _, faces = wire("GET", "/interviewer/faces")
         roles = _role_ids(j)
+        role = roles[vs.LINK_PRIMARY]
         before = len((wire("GET", "/invitations")[1]).get("invitations") or [])
+        set_up, set_up_body = wire("POST", fake.record_route(role), {"face": fake.PRESELECTED}, ok=(422,))
         single, single_body = wire("POST", "/invitations", {
-            "expectedRevision": j.revision(), "roleId": roles[vs.LINK_PRIMARY], "personName": AI_PERSON,
+            "expectedRevision": j.revision(), "roleId": role, "personName": AI_PERSON,
             "about": "the AI interviewer on an account on its own AI", "format": "AI_INTERVIEWER"}, ok=(422,))
         after = len((wire("GET", "/invitations")[1]).get("invitations") or [])
-        record["own_ai"] = {"aiPath": me.get("aiPath"), "receipt": j.receipt, "status": status, "body": body,
+        views = kinds if isinstance(kinds, list) else [kinds]
+        record["own_ai"] = {"aiPath": me.get("aiPath"), "receipt": j.receipt, "status": status,
+                            "kinds": [{k: v.get(k) for k in ("roleId", "kind", "status", "face")} for v in views],
+                            "faces": {k: faces.get(k) for k in ("recordPrice", "recordingPaid", "recordingOpen")},
+                            "set_up": {"status": set_up, "body": set_up_body},
                             "link": {"status": single, "body": single_body}, "register": [before, after]}
-        h.record_assert({"aiPath": "OWN", "receipt.interviewer": None, "status": 422, "code": fake.NEEDS_CREDITS,
-                         "link": fake.NEEDS_CREDITS, "made": 0}, record["own_ai"])
+        record["wire_views"].append(kinds)
+        record["wire_views"].append(faces)
+        h.record_assert({"aiPath": "OWN", "receipt.interviewer": None, "status": 200,
+                         "kinds": f"{len(roles)} x NOT_SET_UP, face None", "recordingOpen": False,
+                         "recordingPaid": False, "recordPrice": fake.RECORD_PRICE,
+                         "set_up": fake.NEEDS_CREDITS, "link": fake.NEEDS_CREDITS, "made": 0}, record["own_ai"])
         assert me.get("aiPath") == "OWN" and "interviewer" not in (j.receipt or {}), record["own_ai"]
-        assert body.get("code") == fake.NEEDS_CREDITS == single_body.get("code") and before == after, record["own_ai"]
+        assert status == 200 and isinstance(kinds, list) and len(kinds) == len(roles), kinds
+        assert all(v.get("status") == fake.NOT_SET_UP and v.get("face") is None for v in kinds), kinds
+        assert {v.get("roleId") for v in kinds} == set(roles.values()), (kinds, roles)
+        assert faces.get("recordingOpen") is False and faces.get("recordingPaid") is False, faces
+        assert faces.get("recordPrice") == fake.RECORD_PRICE and "changePrice" not in faces, faces
+        assert "recordOnSend" not in faces and "preselected" not in faces, faces
+        assert set_up_body.get("code") == fake.NEEDS_CREDITS == single_body.get("code") and before == after, \
+            record["own_ai"]
     _drift_85(j, wire, record)
 
 
@@ -453,14 +493,18 @@ def _drift_85(j, wire: _Wire, record: dict) -> None:
 
 
 def _keels_door(j, wire: _Wire, founder_id: str, run: str) -> None:
-    with j.recorder.step("interviewer: STAND-IN (call 148) -- the founder on Keel's door with a fresh grant of 2,000 "
-                         "(spec 043's stand-in, keyed e2e-eval:044:); a lock on Keel's door never reaches READY on a "
-                         "stack with no Keel's-AI key", party="stack", kind="protocol") as h:
+    with j.recorder.step("interviewer: STAND-IN (call 148) -- the founder on Keel's door with a fresh grant of "
+                         f"{stack_ledger.GRANT_CREDITS:,} (spec 043's stand-in, keyed e2e-eval:044:; keel-cloud 250's "
+                         "grant); a lock on Keel's door never reaches READY on a stack with no Keel's-AI key",
+                         party="stack", kind="protocol") as h:
         added = stack_ledger.stand_in_keels_door(j.stack, founder_id, run, spec=SPEC)
         me = wire.me()
         h.record_wire({"stand-in": "ai_path KEEL + GRANT", "credits added": added},
-                      {"aiPath": me.get("aiPath"), "creditsAvailable": me.get("creditsAvailable")})
+                      {"aiPath": me.get("aiPath"), "creditsAvailable": me.get("creditsAvailable"),
+                       "prices": me.get("prices")})
         assert me.get("aiPath") == "KEEL" and me.get("creditsAvailable") == stack_ledger.GRANT_CREDITS, me
+        # spec 154 FR-1 (keel-cloud 250 FR-6): the balance line's two prices on the wire, never typed by the web
+        assert me.get("prices") == fake.PRICES, me.get("prices")
 
 
 def _restore(j, wire: _Wire, founder_id: str, run: str) -> None:
@@ -473,68 +517,107 @@ def _restore(j, wire: _Wire, founder_id: str, run: str) -> None:
         assert me.get("aiPath") == "OWN" and me.get("creditsAvailable") is None, me
 
 
-def _first_recording(j, wire: _Wire, record: dict) -> None:
-    with j.recorder.step("interviewer (contract 16): on Keel's door the project locked with no recording reads "
-                         f"NOT_RECORDED; the {fake.number(len(fake.FACES))} faces with their stills and hellos, "
-                         f"{fake.FACE_NAMES[fake.PRESELECTED]} preselected, the change price 400; a face not on the "
-                         f"list, and a retired one ({fake.RETIRED[0].title()}), is refused FACE_UNKNOWN and charges "
-                         "nothing", party="founder", kind="assert") as h:
-        _, view = wire("GET", "/interviewer")
+def _first_set_up(j, wire: _Wire, record: dict) -> None:
+    """Spec 154 FR-3 (keel-cloud 247 FR-3 / FR-5, keel-web 187 FR-5 / FR-6): on Keel's door every kind reads NOT_SET_UP;
+    the faces say 1,500 once, not paid, open; a face not on the list (and a retired one) is refused FACE_UNKNOWN on the
+    kind's route and charges nothing; then the founder sets the primary kind up from its card -- *Set up the AI
+    interviewer · 1,500 once* -> the face step -> *Record {Face} · 1,500 credits* -> 202, the kind RECORDING (or READY
+    already), one charge of 1,500, `recordingPaid` true after."""
+    roles = _role_ids(j)
+    role = roles[vs.LINK_PRIMARY]
+    labels = _labels(j)
+    with j.recorder.step("interviewer (keel-cloud 247 FR-5): on Keel's door the kinds' list reads NOT_SET_UP (no face, "
+                         f"progress 0 of 0); the {fake.number(len(fake.FACES))} faces with their stills and hellos, "
+                         f"recordPrice {fake.RECORD_PRICE:,}, recordingPaid false, recordingOpen true; a face not on "
+                         f"the list, and a retired one ({fake.RETIRED[0].title()}), is refused FACE_UNKNOWN on the "
+                         "kind's route and charges nothing", party="founder", kind="assert") as h:
+        _, kinds = wire("GET", "/interviewer")
         _, faces = wire("GET", "/interviewer/faces")
+        view = fake.view_of(kinds, role) or {}
         rows_before, balance_before = _rows(j, record), wire.credits()
-        unknown, unknown_body = wire("POST", "/interviewer/face", {"face": "BOB"}, ok=(422,))
-        # spec 058 FR-1: a code keel-cloud 110 retired is a face not on the list
-        retired, retired_body = wire("POST", "/interviewer/face", {"face": fake.RETIRED[0]}, ok=(422,))
-        record["faces"] = {"view": view, "faces": faces, "unknown": {"status": unknown, "body": unknown_body,
-                                                                     "ledger_rows_added": _rows(j, record) - rows_before,
-                                                                     "balance_after": wire.credits()},
+        unknown, unknown_body = wire("POST", fake.record_route(role), {"face": "BOB"}, ok=(422,))
+        retired, retired_body = wire("POST", fake.record_route(role), {"face": fake.RETIRED[0]}, ok=(422,))
+        record["faces"] = {"view": view, "kinds": kinds, "faces": faces,
+                           "unknown": {"status": unknown, "body": unknown_body,
+                                       "ledger_rows_added": _rows(j, record) - rows_before,
+                                       "balance_after": wire.credits()},
                            "retired": {"face": fake.RETIRED[0], "status": retired, "code": retired_body.get("code")}}
-        h.record_assert({"status": "NOT_RECORDED", "face": None, "faces": list(fake.FACES),
-                         "preselected": fake.PRESELECTED, "changePrice": fake.CHANGE_PRICE,
-                         "unknown": fake.FACE_UNKNOWN,
+        record["wire_views"].append(kinds)
+        record["wire_views"].append(faces)
+        h.record_assert({"status": fake.NOT_SET_UP, "face": None, "progress": {"done": 0, "total": 0},
+                         "faces": list(fake.FACES), "recordPrice": fake.RECORD_PRICE, "recordingPaid": False,
+                         "recordingOpen": True, "unknown": fake.FACE_UNKNOWN,
                          "retired": {"face": fake.RETIRED[0], "status": 422, "code": fake.FACE_UNKNOWN},
                          "helloUrl": [fake.hello_path(f) for f in fake.FACES]}, record["faces"])
-        assert view.get("status") == "NOT_RECORDED" and view.get("face") is None, view
+        assert view.get("status") == fake.NOT_SET_UP and view.get("face") is None, view
+        assert (view.get("progress") or {}) == {"done": 0, "total": 0}, view
         assert [f.get("code") for f in faces.get("faces") or []] == list(fake.FACES), faces
         assert [f.get("name") for f in faces.get("faces") or []] == [fake.FACE_NAMES[f] for f in fake.FACES], faces
         assert all(f.get("previewUrl") == fake.preview_path(f.get("code")) for f in faces.get("faces") or []), faces
         assert all(f.get("helloUrl") == fake.hello_path(f.get("code")) for f in faces.get("faces") or []), faces
-        assert faces.get("preselected") == fake.PRESELECTED and faces.get("changePrice") == fake.CHANGE_PRICE, faces
+        assert (faces.get("recordPrice"), faces.get("recordingPaid"), faces.get("recordingOpen")) == \
+            (fake.RECORD_PRICE, False, True), faces
         assert unknown_body.get("code") == fake.FACE_UNKNOWN == retired_body.get("code"), (unknown_body, retired_body)
         assert record["faces"]["unknown"]["ledger_rows_added"] == 0 and wire.credits() == balance_before
 
-    with j.recorder.step(f"interviewer: the founder picks {fake.FACE_NAMES[FIRST_FACE]} -- the first recording "
-                         "starts RECORDING at once (0 of N until the clips are composed), one charge, nothing shown",
-                         party="founder", kind="assert") as h:
+    name = fake.FACE_NAMES[FIRST_FACE]
+    with j.recorder.step(f"interviewer (keel-web 187 FR-5 / FR-6): the kind's card reads *Set up the AI interviewer · "
+                         f"{fake.RECORD_PRICE:,} once*; the face step names the kind's people and the cost once; the "
+                         f"founder picks {name} -- *Record {name} · {fake.RECORD_PRICE:,} credits* posts {{face}} to the "
+                         "kind's route, 202, RECORDING at once (0 of N until the clips are composed), one charge of "
+                         "1,500, recordingPaid true after", party="founder", kind="assert") as h:
         balance_before = wire.credits()
         persona = _persona(j)
         persona.sent(j.project_id)
-        before = persona.wait_state("NOT_RECORDED")
-        pressed = persona.record(FIRST_FACE, hear_s=_hear_wait(j))
+        before = persona.wait_card_state(labels[vs.LINK_PRIMARY], fake.NOT_SET_UP)
+        offset = cloud_log.offset(j.stack)
+        pressed = persona.set_up(labels[vs.LINK_PRIMARY], FIRST_FACE, hear_s=_hear_wait(j))
         status, view = pressed["status"], pressed["body"]
-        # spec 058 FR-2 (IM28): the tap that picked the face played her hello in the card
+        _, faces_after = wire("GET", "/interviewer/faces")
+        # spec 058 FR-2 (IM28): the tap that picked the face played her hello in the card (the face step's carousel)
         record["hear_face"] = {**(pressed.get("hear") or {}), "hello": _hello(record, FIRST_FACE),
                                "sent": pressed["sent"]}
         record["first"] = {"status": status, "view": view, "balance_before": balance_before,
-                           "balance_after": wire.credits(), "at": stack_ledger.now(j.stack), "line": before,
-                           "popup": pressed["popup"], "sent": pressed["sent"]}
+                           "balance_after": wire.credits(), "at": stack_ledger.now(j.stack), "card": before,
+                           "popup": pressed["popup"], "sent": pressed["sent"], "route": pressed["route"],
+                           "faces_after": {k: faces_after.get(k) for k in ("recordPrice", "recordingPaid")},
+                           "log": {"bought": cloud_log.lines(j.stack, "interviewer_bought", project_id=j.project_id,
+                                                             since_offset=offset),
+                                   "set_up": cloud_log.lines(j.stack, "interviewer_set_up", project_id=j.project_id,
+                                                             since_offset=offset)}}
         record["wire_views"].append(view)
-        h.record_assert({"status": 200, "face": FIRST_FACE, "recording": "RECORDING or READY",
-                         "balance": balance_before - fake.CREDITS,
-                         "line": {"state": "NOT_RECORDED", "text": ivs.PERSONA_NOT_RECORDED,
-                                  "action": ivs.pick_who_asks(fake.CREDITS)},
-                         "popup": {"title": ivs.RECORD_FACE_TITLE, "faces": list(fake.FACES),
-                                   "confirm": f"Record {fake.FACE_NAMES[FIRST_FACE]}"},
-                         "sent": {"face": FIRST_FACE}}, record["first"])
-        assert before.get("state") == "NOT_RECORDED" and ivs.PERSONA_NOT_RECORDED in before.get("text", ""), before
-        assert before.get("action") == ivs.pick_who_asks(fake.CREDITS), before
-        assert pressed["popup"]["title"] == ivs.RECORD_FACE_TITLE, pressed["popup"]
-        assert pressed["popup"]["faces"] == list(fake.FACES), pressed["popup"]
-        assert pressed["popup"]["confirm"] == f"Record {fake.FACE_NAMES[FIRST_FACE]}", pressed["popup"]
-        assert pressed["sent"] == {"face": FIRST_FACE} and status == 200, pressed
+        record["wire_views"].append(faces_after)
+        h.record_assert({"status": 202, "face": FIRST_FACE, "recording": "RECORDING or READY", "roleId": role,
+                         "balance": balance_before - fake.RECORD_PRICE,
+                         "card": {"state": fake.NOT_SET_UP, "primary": ivs.setup_interviewer(fake.RECORD_PRICE)},
+                         "popup": {"kicker": ivs.setup_interviewer_kicker(labels[vs.LINK_PRIMARY]),
+                                   "faces": list(fake.FACES), "paid": "false",
+                                   "confirm": ivs.record_face(name, fake.RECORD_PRICE)},
+                         "sent": {"face": FIRST_FACE}, "recordingPaid after": True,
+                         "log": "interviewer bought + interviewer set up (local)"}, record["first"])
+        assert before.get("state") == fake.NOT_SET_UP, before
+        assert (before.get("primary") or {}).get("id") == "set-up-interviewer", before
+        assert (before.get("primary") or {}).get("text") == ivs.setup_interviewer(fake.RECORD_PRICE), before
+        popup = pressed["popup"]
+        assert popup["kicker"] == ivs.setup_interviewer_kicker(labels[vs.LINK_PRIMARY]), popup
+        assert popup["faces"] == list(fake.FACES) and popup["paid"] == "false", popup
+        assert popup["confirm"] == ivs.record_face(name, fake.RECORD_PRICE), popup
+        assert f"{fake.RECORD_PRICE:,} credits, once for this project" in (popup.get("cost") or ""), popup
+        assert pressed["sent"] == {"face": FIRST_FACE} and status == 202, pressed
+        assert pressed["route"] == fake.record_route(role) and view.get("roleId") == role, pressed
         assert (view.get("face") or {}).get("code") == FIRST_FACE, view
         assert view.get("status") in ("RECORDING", "READY"), view
-        assert record["first"]["balance_after"] == balance_before - fake.CREDITS, record["first"]
+        assert record["first"]["balance_after"] == balance_before - fake.RECORD_PRICE, record["first"]
+        assert faces_after.get("recordingPaid") is True, faces_after
+        log = record["first"]["log"]
+        if log["bought"] is not None:
+            assert len(log["bought"]) == 1 and log["bought"][0].get("credits") == str(fake.RECORD_PRICE), log
+            assert len(log["set_up"]) == 1 and log["set_up"][0].get("role") == role, log
+
+
+def _first_recording(j, wire: _Wire, record: dict) -> None:
+    """Spec 044's name, kept for its readers: spec 154's `_first_set_up`."""
+    _first_set_up(j, wire, record)
 
 
 def _while_recording(j, wire: _Wire, record: dict) -> None:
@@ -588,75 +671,76 @@ def _while_recording(j, wire: _Wire, record: dict) -> None:
 
 
 def _screens_recording(j, wire: _Wire, record: dict) -> None:
-    """S1 (keel-web 069 FR-004 / FR-005 / FR-006): while the clips record, Sent's persona line names the face, says it
-    is recording with a bar and *k of N clips done*; each card's *Try it yourself* is greyed *recording*; the primary
-    reads *Send text-only links*; Send more greys the AI interviewer and Let them choose *recording*. No price."""
+    """S1 (spec 154 FR-3; keel-web 187 FR-5 / FR-3(c)): while the kind's clips record, its card says *{Face} is
+    recording* with the progress bar and *k of N clips done · Read and tap links can be made meanwhile* (or *{Face} is
+    recording, about five minutes* until the total is known), *Try it yourself · soon* greyed; New link's rows for that
+    kind: *Read and tap* live (*Ready now*), the two video rows greyed *Recording · a few minutes*. No price on the card."""
     persona = _persona(j)
-    with j.recorder.step(f"interviewer (S1): while RECORDING the persona line names {fake.FACE_NAMES[FIRST_FACE]}, "
-                         "recording, a bar and k of N clips; Try it yourself greyed *recording*; *Send text-only "
-                         "links*; Send more greys the AI interviewer and Let them choose *recording*", party="founder",
-                         kind="assert") as h:
-        line = persona.wait_state("RECORDING")
-        cards = persona.cards()
-        labels = _labels(j)
-        formats = persona.formats_now(labels[vs.LINK_PRIMARY])
-        record.setdefault("screens", {})["S1"] = line["text"]
-        record["screens_drawn"] = {"S1": {"line": line, "cards": cards, "formats": formats}}
-        name = fake.FACE_NAMES[FIRST_FACE]
-        # spec 118 FR-4c(f) (keel-web 156 FR-2, T007): while it records the two face rows are greyed with the status line
-        # *Still recording · ready in a few minutes*, Read and tap *Ready now*; no foot sentence, no bare tag
-        h.record_assert({"line": f"{ivs.persona_asks(name)} {ivs.PERSONA_RECORDING}", "try": ivs.TRY_IT_YOURSELF_RECORDING,
-                         "primary": ivs.SEND_TEXT_ONLY_LINKS, "greyed": ivs.FORMAT_STATUS_RECORDING,
-                         "ready": ivs.FORMAT_STATUS_READY}, record["screens_drawn"]["S1"])
-        if line.get("state") != "RECORDING":
+    labels = _labels(j)
+    name = fake.FACE_NAMES[FIRST_FACE]
+    with j.recorder.step(f"interviewer (S1, keel-web 187 FR-5): while RECORDING the kind's card says *{name} is "
+                         "recording* with the bar and the clips' count, *Try it yourself · soon* greyed; New link's video "
+                         "rows for that kind greyed *Recording · a few minutes*, Read and tap *Ready now*",
+                         party="founder", kind="assert") as h:
+        persona.sent(j.project_id)
+        card = persona.wait_card_state(labels[vs.LINK_PRIMARY], "RECORDING", "READY")
+        sent = iv.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
+        formats = sent.formats_for(j.project_id, labels[vs.LINK_PRIMARY])
+        record.setdefault("screens", {})["S1"] = f"{card['text']} {formats['text']}"
+        record["screens_drawn"] = {"S1": {"card": card, "formats": formats}}
+        h.record_assert({"card": {"state": "RECORDING", "asks": ivs.kind_recording(name),
+                                  "primary": {"id": "try-it-yourself", "text": ivs.TRY_IT_YOURSELF_SOON, "enabled": False},
+                                  "progress": "k of N clips done · meanwhile, or recording started"},
+                         "video rows": {"disabled": True, "status": iv.FORMAT_RECORDING_SOON},
+                         "text row": {"disabled": False, "status": iv.FORMAT_READY_NOW}},
+                        record["screens_drawn"]["S1"])
+        if card.get("state") != "RECORDING":
             return                                         # READY landed while the screen was read
-        assert ivs.persona_asks(name) in line["text"] and ivs.PERSONA_RECORDING in line["text"], line
-        assert line.get("bar") is not None, line
-        assert all(c["try"] and not c["try"]["enabled"] and c["try"]["text"] == ivs.TRY_IT_YOURSELF_RECORDING
-                   for c in cards), cards
-        assert all(c["primary"] == ivs.SEND_TEXT_ONLY_LINKS for c in cards), cards
-        rows = formats["rows"]
-        assert rows.get(iv.TEXT_ONLY, {}).get("disabled") is False, rows
-        assert rows.get(iv.TEXT_ONLY, {}).get("status") == ivs.FORMAT_STATUS_READY, rows
-        assert all(r["disabled"] for n, r in rows.items() if n != iv.TEXT_ONLY), rows
-        assert rows.get(iv.ai_format_name(name), {}).get("status") == ivs.FORMAT_STATUS_RECORDING, rows
-        assert rows.get(iv.CHOICE_NAME, {}).get("status") == ivs.format_status_when_ready(name), rows
+        assert card.get("asks") == ivs.kind_recording(name), card
+        assert (card.get("primary") or {}) == {"id": "try-it-yourself", "text": ivs.TRY_IT_YOURSELF_SOON,
+                                                "enabled": False}, card
+        words = (card.get("progress") or {}).get("words") or ""
+        assert words.endswith(ivs.RECORDING_MEANWHILE) and ("clips done" in words or "is recording" in words), card
+        rows = {k: v for k, v in formats["formats"].items() if k != "_on_card"}
+        text = next((v for v in rows.values() if v.get("format") == "TEXT"), {})
+        video = [v for v in rows.values() if v.get("format") != "TEXT"]
+        assert text.get("disabled") is False and text.get("status") == iv.FORMAT_READY_NOW, rows
+        assert video and all(v["disabled"] and v.get("status") == iv.FORMAT_RECORDING_SOON for v in video), rows
+        assert formats["formats"].get("_on_card") is None, formats
 
 
 def _screens_ready(j, wire: _Wire, record: dict) -> None:
-    """S2, S3, W1 and L1 once READY: the line *Recorded today at hh:mm.* with the one priced action, *Try it yourself*
-    lit and *Send links*; Send more offers *AI interviewer · {face}*; W1 replayed names the face in frame 2; L1 revisited
-    draws the carousel with the first face checked. None of them shows a price but the one action (IM2)."""
+    """S2, S3 and W1 once READY (spec 154 FR-3): the card *{Face} asks* with *Try it yourself* lit; New link's three
+    rows all live for that kind, *AI interviewer · {Face}* named, every status *Ready now*, no credits note (keel-web
+    190), no on-card line; W1's replay stays retired; L1 is revisited no more (the lock screen picks no face -- the
+    screen's text at lock is IM2's L1). None of them shows a price but another kind's own Set up button (IM2)."""
     persona = _persona(j)
+    labels = _labels(j)
     name = fake.FACE_NAMES[FIRST_FACE]
-    with j.recorder.step("interviewer (S2 / S3): READY in place -- *Recorded today at hh:mm.* and *Change who asks · "
-                         f"400 AI credits*; Try it yourself lit, *Send links*; Send more offers *AI interviewer · {name}* "
-                         "and says it is already recorded", party="founder", kind="assert") as h:
+    with j.recorder.step(f"interviewer (S2 / S3, keel-web 187 FR-5 / FR-3(c)): READY in place -- *{name} asks* and *Try "
+                         f"it yourself* lit on the card; New link offers *AI interviewer · {name}*, every row *Ready "
+                         "now*, no credits note, no on-card line", party="founder", kind="assert") as h:
         persona.sent(j.project_id)
-        line = persona.wait_state("READY")
-        cards = persona.cards()
-        formats = persona.formats_now(_labels(j)[vs.LINK_PRIMARY])
-        record["screens"]["S2"] = line["text"]
+        card = persona.wait_card_state(labels[vs.LINK_PRIMARY], "READY")
+        sent = iv.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
+        formats = sent.formats_for(j.project_id, labels[vs.LINK_PRIMARY])
+        record["screens"]["S2"] = card["text"]
         record["screens"]["S3"] = formats["text"]
-        record["screens_drawn"]["S2"] = {"line": line, "cards": cards}
+        record["screens_drawn"]["S2"] = {"card": card}
         record["screens_drawn"]["S3"] = formats
-        h.record_assert({"line": "Recorded today at", "action": ivs.change_who_asks(fake.CREDITS),
-                         "try": ivs.TRY_IT_YOURSELF, "primary": ivs.SEND_LINKS,
-                         "formats": [iv.ai_format_name(name), iv.TEXT_ONLY, iv.CHOICE_NAME],
-                         "status": ivs.FORMAT_STATUS_READY, "credits": ivs.FORMAT_CREDITS_NOTE, "row words": None},
+        rows = {k: v for k, v in formats["formats"].items() if k != "_on_card"}
+        h.record_assert({"card": {"state": "READY", "asks": ivs.kind_asks(name),
+                                  "primary": {"id": "try-it-yourself", "text": ivs.TRY_IT_YOURSELF, "enabled": True}},
+                         "formats": [iv.TEXT_ONLY, iv.ai_format_name(name), iv.CHOICE_NAME],
+                         "status": iv.FORMAT_READY_NOW, "credits": None, "on_card": None},
                         {"S2": record["screens_drawn"]["S2"], "S3": formats})
-        assert "Recorded today at" in line["text"] and line.get("action") == ivs.change_who_asks(fake.CREDITS), line
-        assert all(c["try"] and c["try"]["enabled"] and c["try"]["text"] == ivs.TRY_IT_YOURSELF for c in cards), cards
-        assert all(c["primary"] == ivs.SEND_LINKS for c in cards), cards
-        assert list(formats["rows"]) == [iv.ai_format_name(name), iv.TEXT_ONLY, iv.CHOICE_NAME], formats["rows"]
-        assert not any(r["disabled"] for r in formats["rows"].values()), formats["rows"]
-        # spec 092 FR-4a (keel-web 131 FR-3): the one credits note under the rows is 131's (`format-credits`, the first
-        # `.hint` -- s006 of 2026-10-30 read it where the state line was); the state line is still *already recorded*;
-        # no row carries a greyed word (*needs Keel's credits* is the own-AI word, and this founder is on Keel's door)
-        assert formats["credits"] == ivs.FORMAT_CREDITS_NOTE, formats
-        # spec 118 FR-4c(f) (keel-web 156 T007): *already recorded* is no longer drawn -- every row says *Ready now*
-        assert all(r.get("status") == ivs.FORMAT_STATUS_READY for r in formats["rows"].values()), formats["rows"]
-        assert all(r["word"] is None for r in formats["rows"].values()), formats["rows"]
+        assert card.get("asks") == ivs.kind_asks(name), card
+        assert (card.get("primary") or {}) == {"id": "try-it-yourself", "text": ivs.TRY_IT_YOURSELF, "enabled": True}, card
+        assert list(rows) == [iv.TEXT_ONLY, iv.ai_format_name(name), iv.CHOICE_NAME], list(rows)
+        assert not any(r["disabled"] for r in rows.values()), rows
+        assert all(r.get("status") == iv.FORMAT_READY_NOW and r["word"] is None for r in rows.values()), rows
+        assert formats["formats"].get("_on_card") is None, formats
+        assert "credits" not in formats["text"].lower() or ivs.SETUP_INTERVIEWER in formats["text"], formats["text"]
     with j.recorder.step("interviewer (W1, spec 059 FR-2): the replay reading retires -- keel-web 088 removed *How it "
                          "works* from Sent, and no control of that name is left on the page", party="founder",
                          kind="assert") as h:
@@ -664,73 +748,203 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
         record["screens_drawn"]["W1"] = drawn
         h.record_assert({"how_it_works": 0}, drawn)
         assert drawn["how_it_works"] == 0, drawn
-    with j.recorder.step("interviewer (L1, FR-002): the lock's last screen revisited on Keel's door -- *Who asks the "
-                         f"questions*, the {fake.number(len(fake.FACES))} faces, one checked -- and no price on it",
-                         party="founder", kind="assert") as h:
-        l1 = persona.l1_again(j.project_id)
-        record["screens"]["L1"] = l1["text"]
+    with j.recorder.step("interviewer (L1, spec 154 FR-1): the lock screen is revisited no more -- it picks no face "
+                         "(keel-cloud 247 FR-1, keel-web 187 FR-7); its text at lock stands as IM2's L1, with no price "
+                         "word on it", party="founder", kind="assert") as h:
+        l1 = {"text": record["screens"].get("L1") or "", "price words": marks.price_words_on("L1", record["screens"].get("L1"))}
         record["screens_drawn"]["L1"] = l1
-        h.record_assert({"faces": list(fake.FACES), "checked": 1, "price words": []},
-                        {**l1, "price words": marks.price_words_on("L1", l1["text"])})
-        assert l1["faces"] == list(fake.FACES) and len(l1["checked"]) == 1, l1
-        # spec 091 FR-3 (IM2 v15): L1's one served credits sentence (keel-web 130 / 132) is the screen's own words
-        assert not marks.price_words_on("L1", l1["text"]), l1["text"]
-    with j.recorder.step("interviewer (keel-web 070, DRIFT #87 closed): L1 revisited after the lock checks the face "
-                         f"that was recorded -- {fake.FACE_NAMES[FIRST_FACE]} -- not the preselected "
-                         f"{fake.FACE_NAMES[fake.PRESELECTED]}", party="founder", kind="assert") as h:
-        h.record_assert({"checked": [FIRST_FACE]}, {"checked on L1": l1["checked"]})
-        assert l1["checked"] == [FIRST_FACE], l1["checked"]
+        h.record_assert({"price words": []}, l1)
+        assert not l1["price words"], l1
     persona.sent(j.project_id)
 
 
-def _hear_the_band(j, record: dict) -> None:
-    """IM30 (keel-web 088 FR-2): on Sent, once the first recording is READY, the who-asks band's *Hear <name> · 5 s*
-    plays her hello in the band's circle to its end and the still returns (the wait 20 s locally, the 90 s navigation
-    timeout on the remote profile); on the guide journey Sent's order and counts are read again with the band drawn
-    (G15, G17)."""
+def _sent_after_set_up(j, record: dict) -> None:
+    """Spec 154 FR-3 (keel-web 187 FR-5): on Sent, once the first kind is READY, its card reads *{Face} asks* and *Try
+    it yourself* lit; the who-asks band and its Hear are gone (IM30 retired by name). On the guide journey Sent's order
+    and counts are read again (G15, G17)."""
     from evals import corpus_scenario                         # noqa: PLC0415 - corpus_scenario reads this leg's record
     persona = _persona(j)
-    with j.recorder.step(f"interviewer (IM30, keel-web 088 FR-2): the who-asks band's Hear "
-                         f"{fake.FACE_NAMES[FIRST_FACE]} · 5 s plays her hello in the band and the still returns",
+    label = _labels(j)[vs.LINK_PRIMARY]
+    name = fake.FACE_NAMES[FIRST_FACE]
+    with j.recorder.step(f"interviewer (keel-web 187 FR-5): the kind's card once READY -- *{name} asks* on its line, "
+                         "*Try it yourself* lit; no who-asks band on Sent (IM30 retired, spec 154)",
                          party="founder", kind="assert") as h:
         persona.sent(j.project_id)
-        persona.wait_state("READY")
-        heard = persona.hear_band(wait_s=_hear_wait(j))
-        view = j.get(j.project("/interviewer")) or {}
-        record["hear_band"] = {**heard, "face": FIRST_FACE, "hello": (view.get("face") or {}).get("helloUrl"),
-                               "retired": FIRST_FACE in fake.RETIRED}
-        h.record_assert({"words": f"{ivs.HEAR_PREFIX}{fake.FACE_NAMES[FIRST_FACE]} · 5 s", "ended": True,
-                         "hello": fake.served_hello(FIRST_FACE), "still back": True}, record["hear_band"])
-    corpus_scenario.sent_reading(j, "after the first recording")
+        card = persona.wait_card_state(label, "READY")
+        band = j.page.get_by_test_id("persona-line").count()
+        record["card_ready"] = {**card, "band": band, "retired": marks.RETIRED["IM30"]}
+        h.record_assert({"state": "READY", "asks": ivs.kind_asks(name),
+                         "primary": {"id": "try-it-yourself", "text": ivs.TRY_IT_YOURSELF, "enabled": True},
+                         "band": 0}, record["card_ready"])
+        assert card.get("state") == "READY" and card.get("asks") == ivs.kind_asks(name), card
+        assert (card.get("primary") or {}).get("id") == "try-it-yourself" and card["primary"]["enabled"], card
+        assert card["primary"]["text"] == ivs.TRY_IT_YOURSELF and band == 0, card
+    corpus_scenario.sent_reading(j, "after the first set-up")
 
 
-def _ready(j, wire: _Wire, record: dict, face: str, what: str) -> dict:
-    """The fake completes: the persona line's read reaches READY within spec 044's 30 s (judgement call 2)."""
+def _hear_the_band(j, record: dict) -> None:
+    """Spec 059's name, kept for its readers: spec 154's `_sent_after_set_up` (the band is gone)."""
+    _sent_after_set_up(j, record)
+
+
+def _ready(j, wire: _Wire, record: dict, face: str, what: str, *, link: str = vs.LINK_PRIMARY) -> dict:
+    """The fake completes: the kind's view reaches READY within spec 044's 30 s (judgement call 2); the `interviewer
+    ready:` line on the local profile."""
+    role = _role_ids(j)[link]
+    offset = cloud_log.offset(j.stack)
     with j.recorder.step(f"interviewer: {what} reaches READY within {fake.READY_WITHIN_S} s on the fake renderer "
                          f"({fake.FAKE_DELAY_S} s a clip, polled every {fake.POLL_S} s) -- every clip done, readyAt "
-                         f"stamped, {fake.FACE_NAMES[face]} asks", party="stack", kind="assert") as h:
+                         f"stamped, {fake.FACE_NAMES[face]} asks; the kind's view in the list (keel-cloud 247 FR-5)",
+                         party="stack", kind="assert") as h:
         started = time.monotonic()
         trail: list[str] = []
         view: dict = {}
         while time.monotonic() - started < fake.READY_WITHIN_S * j.patience:
-            view = j.get(j.project("/interviewer")) or {}
+            view = fake.view_of(j.get(j.project("/interviewer")) or [], role) or {}
             if not trail or trail[-1] != view.get("status"):
                 trail.append(view.get("status"))
             if view.get("status") in ("READY", "FAILED"):
                 break
             time.sleep(1)
         took = round(time.monotonic() - started, 1)
+        ready_log = cloud_log.lines(j.stack, "interviewer_ready", project_id=j.project_id, since_offset=0)
         record.setdefault("ready", []).append({"what": what, "face": face, "trail": trail, "view": view,
-                                               "seconds": took})
+                                               "seconds": took, "role": role,
+                                               "log": [x for x in ready_log or [] if x.get("role") == role]})
         record["wire_views"].append(view)
         progress = view.get("progress") or {}
-        h.record_assert({"status": "READY", "face": face, "done": "total", "within_s": fake.READY_WITHIN_S},
+        h.record_assert({"status": "READY", "face": face, "done": "total", "within_s": fake.READY_WITHIN_S,
+                         "roleId": role, "log": "interviewer ready: ... role=<this kind> (local)"},
                         {"trail": trail, "view": view, "seconds": took})
         assert view.get("status") == "READY", (trail, view)
         assert (view.get("face") or {}).get("code") == face and view.get("readyAt"), view
         assert progress.get("total") and progress.get("done") == progress.get("total"), view
-        assert view.get("failure") is None and view.get("changePrice") == fake.CHANGE_PRICE, view
+        assert view.get("failure") is None and "changePrice" not in view, view
+        if ready_log is not None:
+            assert any(x.get("role") == role for x in ready_log), ready_log
         return {"trail": trail, "view": view}
+
+
+def _two_gates(j, wire: _Wire, record: dict, founder_id: str, run: str) -> None:
+    """Spec 154 FR-1 (keel-cloud 250): the two gates on Keel's door, after the first kind's 1,500. (a) A second project
+    bought through the API is ONE SPEND `PROJECT` of 1,000 at price version 17 (reason `project:new`), the balance 0
+    after (the grant of 2,500 less 1,500 less 1,000) and the `project bought:` line; (b) a text link on this project is
+    served with the owner at 0 (no INACTIVE any more); (c) on a B2B study the other kind's New-link rows read *Set up
+    first* (paid: no price) with the on-card line, then that kind is set up for nothing (*Already paid*, *Record
+    {Face}*), the balance still 0, and reaches READY; (d) the balance stood in at 900, New project is refused **422**
+    INSUFFICIENT_CREDITS_FOR_NEW_PROJECT with `required` 1000, nothing made, the `credits refused:` line; the balance is
+    put back to 0 for the rest of the leg. Nothing at Begin is the closing sweep's."""
+    roles = _role_ids(j)
+    labels = _labels(j)
+    with j.recorder.step("interviewer (keel-cloud 250 FR-1): a second project is bought through the API -- one SPEND "
+                         "PROJECT of 1,000 at price version 17, reason project:new, written whole; the balance 0 after "
+                         "(2,500 - 1,500 - 1,000); the project bought: line", party="founder", kind="assert") as h:
+        before = wire.credits()
+        offset = cloud_log.offset(j.stack)
+        status, made = j.call("POST", "/v2/projects", _new_project_body(j), ok=(200, 201))
+        project_id = made.get("projectId") or made.get("id") or (made.get("project") or {}).get("projectId")
+        rows = stack_ledger.rows(j.stack, founder_id)
+        faults = charge.bought_once(rows, project_id) if project_id else ["no projectId on the body"]
+        record["second_project"] = {"status": status, "projectId": project_id, "balance_before": before,
+                                    "balance_after": wire.credits(), "faults": faults,
+                                    "rows": charge.project_rows(rows, project_id),
+                                    "log": cloud_log.lines(j.stack, "project_bought", project_id=project_id,
+                                                           since_offset=offset)}
+        h.record_assert({"status": 201, "row": {"kind": "SPEND", "action": charge.PROJECT,
+                                                 "credits": -charge.PROJECT_PRICE, "price_version": charge.PRICE_VERSION},
+                         "balance": f"{before} - {charge.PROJECT_PRICE} = 0", "faults": []}, record["second_project"])
+        assert status in (200, 201) and project_id, made
+        assert not faults, faults
+        assert record["second_project"]["balance_after"] == before - charge.PROJECT_PRICE == 0, record["second_project"]
+        if record["second_project"]["log"] is not None:
+            assert len(record["second_project"]["log"]) == 1, record["second_project"]["log"]
+    with j.recorder.step("interviewer (keel-cloud 250 FR-7): a text link on this project is served with the owner at 0 "
+                         "-- state OPEN, its parts; nothing reads INACTIVE for the balance any more",
+                         party="participant", kind="assert") as h:
+        made = _send_link(j, "TEXT", ZERO_PERSON)
+        response = _participant(j, "GET", made["token"], "/interview")
+        body = _json_of(response)
+        record["served_at_zero"] = {"balance": wire.credits(), "status": response.status_code,
+                                    "state": body.get("state"), "served": charge.served(response.status_code, body),
+                                    "inactive_retired": charge.INACTIVE_RETIRED}
+        h.record_assert({"balance": 0, "status": 200, "state": charge.OPEN, "served": True}, record["served_at_zero"])
+        assert wire.credits() == 0 and charge.served(response.status_code, body), record["served_at_zero"]
+        assert body.get("state") != charge.INACTIVE_STATE, body
+    if vs.LINK_B2B in roles and not record.get("short"):
+        other = labels[vs.LINK_B2B]
+        name = fake.FACE_NAMES[fake.PRESELECTED]
+        with j.recorder.step(f"interviewer (keel-web 187 FR-3(c), keel-cloud 247 FR-3): New link's two video rows for "
+                             f"{other} read *Set up first* (the project has paid: no price) with the on-card line; then "
+                             f"that kind is set up from its card for NOTHING -- *Already paid*, *Record {name}* -- 202, "
+                             "the balance still 0, no second charge", party="founder", kind="assert") as h:
+            sent = iv.Interviews(j.page, j.recorder, j.web_base, patience=j.patience, guide=j.guide)
+            rows_before = sent.formats_for(j.project_id, other)
+            formats = rows_before["formats"]
+            persona = _persona(j)
+            persona.sent(j.project_id)
+            balance_before = wire.credits()
+            ledger_before = _rows(j, record)
+            pressed = persona.set_up(other, fake.PRESELECTED)
+            record["second_kind"] = {"rows_before": {k: v for k, v in formats.items() if k != "_on_card"},
+                                     "on_card": formats.get("_on_card"), "status": pressed["status"],
+                                     "popup": pressed["popup"], "view": pressed["body"],
+                                     "balance_before": balance_before, "balance_after": wire.credits(),
+                                     "ledger_rows_added": _rows(j, record) - ledger_before}
+            video = [v for k, v in formats.items() if k != "_on_card" and v.get("format") != "TEXT"]
+            h.record_assert({"video rows": {"disabled": True, "status": iv.format_set_up_first(None)},
+                             "on_card": iv.format_set_up_on_card(other), "status": 202,
+                             "popup": {"paid": "true", "confirm": ivs.record_face(name, None)},
+                             "balance": balance_before, "ledger_rows_added": 0}, record["second_kind"])
+            assert video and all(v["disabled"] and v.get("status") == iv.format_set_up_first(None) for v in video), video
+            assert formats.get("_on_card") == iv.format_set_up_on_card(other), formats
+            assert pressed["status"] == 202 and pressed["popup"]["paid"] == "true", pressed
+            assert pressed["popup"]["confirm"] == ivs.record_face(name, None), pressed["popup"]
+            assert ivs.SETUP_ALREADY_PAID in (pressed["popup"].get("cost") or ""), pressed["popup"]
+            assert wire.credits() == balance_before == 0, wire.credits()
+            assert record["second_kind"]["ledger_rows_added"] == 0, record["second_kind"]
+        _ready(j, wire, record, fake.PRESELECTED, "the second kind's set-up (free)", link=vs.LINK_B2B)
+    with j.recorder.step(f"interviewer (keel-cloud 250 FR-1): STAND-IN -- the balance at {NINE_HUNDRED}; New project is "
+                         "refused 422 INSUFFICIENT_CREDITS_FOR_NEW_PROJECT with required 1000 and keel-cloud's sentence, "
+                         "nothing made, the credits refused: line; then the balance back to 0", party="stack",
+                         kind="assert") as h:
+        stack_ledger.stand_in_balance(j.stack, founder_id, run, to=NINE_HUNDRED, spec=SPEC, label="nine-hundred",
+                                      what="the balance at 900, under one project, to see the New project refusal")
+        projects_before = len((j.get("/v2/me/projects") or {}).get("projects") or [])
+        offset = cloud_log.offset(j.stack)
+        status, body = j.call("POST", "/v2/projects", _new_project_body(j), ok=(422,))
+        projects_after = len((j.get("/v2/me/projects") or {}).get("projects") or [])
+        record["refused_project"] = {"balance": wire.credits(), "status": status, "body": body,
+                                     "projects": [projects_before, projects_after],
+                                     "log": cloud_log.lines(j.stack, "credits_refused", since_offset=offset)}
+        h.record_assert({"status": 422, "code": fake.INSUFFICIENT_PROJECT, "required": charge.PROJECT_PRICE,
+                         "available": NINE_HUNDRED, "remedy": fake.PROJECT_REMEDY.format(available=NINE_HUNDRED),
+                         "made": 0}, record["refused_project"])
+        assert status == 422 and body.get("code") == fake.INSUFFICIENT_PROJECT, body
+        assert (body.get("required"), body.get("available")) == (charge.PROJECT_PRICE, NINE_HUNDRED), body
+        assert body.get("remedy") == fake.PROJECT_REMEDY.format(available=NINE_HUNDRED), body
+        assert projects_before == projects_after, record["refused_project"]
+        if record["refused_project"]["log"] is not None:
+            assert any(x.get("needed") == str(charge.PROJECT_PRICE) for x in record["refused_project"]["log"]), \
+                record["refused_project"]["log"]
+        stack_ledger.stand_in_balance(j.stack, founder_id, run, to=0, spec=SPEC, label="zero-back",
+                                      what="the balance back to 0 for the rest of the leg")
+        assert wire.credits() == 0
+
+
+def _new_project_body(j) -> dict:
+    """What `POST /v2/projects` takes (the corridor's New project: a name alone), named from the entry."""
+    return {"name": f"{j.entry.title} · spec 154's second project", "scope": getattr(j, "scope", None) or "ALL"}
+
+
+def _retired_doors(j, record: dict) -> None:
+    """Spec 154: the doors keel-cloud 247 / keel-web 187 took away, named once -- *Change who asks* (IM10) and its refusal
+    at a low balance (IM11), the inactive link (keel-cloud 250: no link is INACTIVE for the balance), L1's carousel."""
+    with j.recorder.step("interviewer (spec 154): the change of face, its refusal at a low balance and the inactive "
+                         "link are not walked -- the product has no door for them (keel-cloud 247 FR-1 / FR-6, 250 "
+                         "FR-7, keel-web 187)", party="stack", kind="note") as h:
+        record["retired"] = {"IM10": marks.RETIRED["IM10"], "IM11": marks.RETIRED["IM11"],
+                             "inactive": "keel-cloud 250: no link is INACTIVE for the balance; served at 0 instead"}
+        h.record_wire({"walked": "nothing"}, record["retired"])
 
 
 def _role_ids(j) -> dict[str, str]:
@@ -758,8 +972,17 @@ def _the_recording(j, wire: _Wire, record: dict) -> None:
                          "solution passage reads the idea's three lines; no founder's word, the thanks the default; the "
                          "pilot ask last; each clip the fake's one-second file at 0.1 s a word", party="stack",
                          kind="assert") as h:
-        stored = stack_ledger.recording(j.stack, j.project_id)
-        rec = stored.get("recording") or {}
+        # spec 154 FR-3 (keel-cloud 247, document 38): one recording per kind, keyed by role -- merged here as 094's one
+        # (the primary kind's face and status, every kind's clips, each with its role) for the marks that read it
+        stored = stack_ledger.recordings(j.stack, j.project_id)
+        roles_by_link = _role_ids(j)
+        per_kind = {link: stored["recordings"].get(role_id) for link, role_id in roles_by_link.items()}
+        primary_kind = per_kind.get(vs.LINK_PRIMARY) or {}
+        rec = {"face": primary_kind.get("face"), "status": primary_kind.get("status"),
+               "readyAt": primary_kind.get("readyAt"),
+               "clips": [c for link in (vs.LINK_PRIMARY, vs.LINK_B2B) for c in ((per_kind.get(link) or {}).get("clips") or [])],
+               "kinds": {link: {k: (v or {}).get(k) for k in ("face", "status", "readyAt", "chargedAt")}
+                         for link, v in per_kind.items()}}
         record["recording"] = rec
         record["schema_version"] = stored.get("schema_version")
         _, idea = wire("GET", "/idea")
@@ -768,8 +991,14 @@ def _the_recording(j, wire: _Wire, record: dict) -> None:
         record["word"] = stored.get("pitch") or ""
         roles = {}
         tries = {}
-        for link, role_id in _role_ids(j).items():
-            _, served = wire("GET", f"/interviewer/try/{role_id}")
+        for link, role_id in roles_by_link.items():
+            # spec 154 (keel-cloud 247 FR-4): `try/{roleId}` opens for a kind set up alone -- 409 NOT_READY otherwise
+            if not per_kind.get(link):
+                status, refused = wire("GET", fake.try_route(role_id), ok=(409,))
+                record.setdefault("try_refused", {})[link] = {"status": status, "code": refused.get("code")}
+                assert refused.get("code") == fake.NOT_READY, refused
+                continue
+            _, served = wire("GET", fake.try_route(role_id))
             tries[link] = served
             roles[link] = {"kind": served.get("kind"), "parts": _served_parts(served), "roleId": role_id,
                            # spec 124 FR-2 (keel-cloud 194 FR-1): where the link asks its condition aloud -- before the
@@ -790,7 +1019,7 @@ def _the_recording(j, wire: _Wire, record: dict) -> None:
                          "clips": [(c.get("role"), c.get("kind"), c.get("itemId")) for c in rec.get("clips") or []],
                          "off the fake": off, "schema_version": stored.get("schema_version")})
         assert rec.get("face") == FIRST_FACE and rec.get("status") == "READY", rec.get("status")
-        assert int(stored.get("schema_version") or 0) >= 22, stored.get("schema_version")   # 23 since keel-cloud 096
+        assert int(stored.get("schema_version") or 0) >= 38, stored.get("schema_version")   # 38 since keel-cloud 247
         assert not off, off
     record["tries_served"] = tries
     _framing_lines(j, record, tries)
@@ -3176,13 +3405,14 @@ def _read_what_is_left(j, wire: _Wire, record: dict) -> None:
 
 
 def _begin(j, wire: _Wire, record: dict, token: str, invitation_id: str, whose: str, *, twice: bool = False) -> None:
-    """Spec 088 FR-2 (keel-cloud 156, contract 45): the scripted person presses Begin on the wire, as keel-web 131's
-    intro does -- `POST /v2/i/{token}/interview/begin` 204 -- and the ledger holds ONE `INTERVIEW` row of -30 under
-    `interview:<invitationId>` (price 30, version 12, no job, no cost, this project), the balance 30 lower. `twice`:
-    a second Begin on the same link is 204 too and writes nothing -- no row, no move of the balance."""
-    with j.recorder.step(f"interviewer (spec 088 FR-2, keel-cloud 156): {whose} person presses Begin on the wire -- "
-                         "204, one INTERVIEW row of -30 under interview:<invitationId>"
-                         + ("; a second Begin writes none" if twice else ""), party="participant", kind="assert") as h:
+    """Spec 088 FR-2 (keel-cloud 156, contract 45) as keel-cloud 250 left it (spec 154 FR-1): the scripted person presses
+    Begin on the wire, as keel-web 131's intro does -- `POST /v2/i/{token}/interview/begin` 204 -- and the ledger holds
+    **no** INTERVIEW row under `interview:<invitationId>` (the row is 0 and never written at price version 17), the
+    balance unmoved. `twice`: a second Begin on the same link is 204 too and writes nothing either."""
+    with j.recorder.step(f"interviewer (spec 154 FR-1, keel-cloud 250): {whose} person presses Begin on the wire -- "
+                         "204, NO INTERVIEW row, the balance unmoved"
+                         + ("; a second Begin writes none either" if twice else ""), party="participant",
+                         kind="assert") as h:
         before = wire.credits()
         first = _participant(j, "POST", token, vs.BEGIN_PATH)
         rows = stack_ledger.rows(j.stack, record["founder_id"])
@@ -3197,42 +3427,34 @@ def _begin(j, wire: _Wire, record: dict, token: str, invitation_id: str, whose: 
                              "under_the_key": len(charge.rows_for(rows_again, invitation_id)),
                              "balance_after": wire.credits()}
         record.setdefault("begins", []).append(out)
-        h.record_assert({"status": charge.BEGIN_STATUS, "row": {"kind": charge.INTERVIEW,
-                                                               "credits": -charge.INTERVIEW_CREDITS,
-                                                               "idempotency_key": charge.key(invitation_id)},
-                         "balance": f"{before} - {charge.INTERVIEW_CREDITS}",
+        h.record_assert({"status": charge.BEGIN_STATUS, "rows": 0, "balance": before,
                          **({"second": {"status": charge.BEGIN_STATUS, "rows_added": 0}} if twice else {})}, out)
-        assert first.status_code == charge.BEGIN_STATUS, (first.status_code, first.text[:300])
-        assert not out["faults"], out
-        assert before is not None and after == before - charge.INTERVIEW_CREDITS, out
+        assert first.status_code == charge.BEGIN_STATUS, out
+        assert not out["rows"] and not out["faults"] and after == before, out
         if twice:
-            second = out["second"]
-            assert second["status"] == charge.BEGIN_STATUS, second
-            assert second["rows_added"] == 0 and second["under_the_key"] == 1, second
-            assert second["balance_after"] == after, second
+            assert out["second"]["status"] == charge.BEGIN_STATUS and out["second"]["rows_added"] == 0, out
 
 
 def _begun_on_screen(j, record: dict, invitation_id: str | None, whose: str) -> None:
-    """Spec 088 FR-2, the browser half: the stranger pressed Begin (or *Start the interview*) on the intro, which from
-    keel-web 131 posts `interview/begin` -- so the ledger holds ONE `INTERVIEW` row of -30 under the link's key. Until
-    131 merges the page posts nothing: the row is recorded and only "never two" is asserted, and the step says it is
-    skipped (`interview_charge.WEB_131_PENDING`)."""
+    """Spec 088 FR-2's browser half as keel-cloud 250 left it (spec 154 FR-1): the stranger pressed Begin on the intro,
+    which from keel-web 131 posts `interview/begin` -- and the ledger holds NO `INTERVIEW` row under the link's key
+    (price version 17 writes none). The 131 marker is kept: before it the page posts nothing, so nothing is owed."""
     built = charge.web_131_built()
     rows = stack_ledger.rows(j.stack, record["founder_id"])
     mine = charge.rows_for(rows, invitation_id or "")
     out = {"invitationId": invitation_id, "rows": mine, "web_131": built,
            "faults": charge.charged_once(rows, invitation_id or "", j.project_id) if built else []}
     record.setdefault("begins_on_screen", []).append(out)
-    title = (f"interviewer (spec 088 FR-2): {whose} Begin, pressed on the screen, wrote one INTERVIEW row of -30"
+    title = (f"interviewer (spec 154 FR-1, keel-cloud 250): {whose} Begin, pressed on the screen, wrote NO INTERVIEW row"
              if built else f"interviewer (spec 088 FR-2): SKIPPED -- {charge.WEB_131_PENDING}: {whose} Begin on the "
                            "screen posts no charge yet; the row is recorded, never two asserted")
     with j.recorder.step(title, party="stack", kind="assert" if built else "note") as h:
         if built:
-            h.record_assert({"rows under the key": 1}, out)
+            h.record_assert({"rows under the key": 0}, out)
         else:                                       # a note: what was seen, nothing owed of the page yet
             h.request, h.response = {"rows under the key": "0 or 1", "skipped": charge.WEB_131_PENDING}, out
         assert invitation_id, out
-        assert len(mine) <= 1, out
+        assert len(mine) == 0, out
         if built:
             assert not out["faults"], out
 

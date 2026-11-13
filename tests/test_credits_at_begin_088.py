@@ -164,7 +164,9 @@ def test_the_no_other_row_sweeps_let_a_begin_through_and_nothing_else():
     assert not charge.is_charge({"kind": "HOLD", "action": "INTERPRET", "credits": 0})
     assert charge.charges([_row(), {"kind": "GRANT", "credits": 5}], PROJECT) == [_row()]
     for leg in (interviewer_leg._leg,):                    # spec 150: the contacts leg's sweep went with it
-        assert "charge.is_charge(x, j.project_id)" in inspect.getsource(leg), leg.__name__
+        # spec 154 (keel-cloud 250): the sweep now names any Begin row as the fault (none is written at 17)
+        source = inspect.getsource(leg)
+        assert 'charge.charges(record["ledger"])' in source and "assert not begun" in source, leg.__name__
 
 
 def test_the_script_posts_begin_before_the_response():
@@ -254,18 +256,15 @@ def test_what_the_page_may_say():
     assert charge.page_faults("This link is no longer active. The founder has 0 credits.")
 
 
-def test_the_full_leg_walks_the_inactive_link_after_the_scripted_ones():
+def test_the_full_leg_names_the_retired_doors_after_the_scripted_links():
+    """Spec 154: keel-cloud 250 serves no INACTIVE link for the balance and keel-web 187 has no change of face, so the
+    full leg walks neither -- `_retired_doors` names them after the recorded link, before the retry's read."""
     leg = inspect.getsource(interviewer_leg._leg)
-    assert leg.index("_recorded_link(j, wire, record)") < leg.index("_inactive_link(j, wire, record, founder_id, run)")
-    assert leg.index("_inactive_link(") < leg.index("_change_face(j, wire, record)")
-    assert leg.index("if not short:\n            _choice_link") < leg.index("_inactive_link(")
-    walk = inspect.getsource(interviewer_leg._inactive_link)
-    labels = re.findall(r'label="([a-z-]+)"', walk)
-    assert labels == ["inactive-under", "inactive-at-one", "inactive-back"] and len(set(labels)) == 3
-    order = [walk.index(s) for s in ('"inactive-under"', "inactive_faults", "_inactive_on_screen(", '"inactive-at-one"',
-                                     "charge.served(", "_begin(", '"inactive-back"')]
-    assert order == sorted(order)
-    assert len(interviewer_leg.WAITING_PERSONS) == 2
+    assert "_inactive_link(" not in leg and "_change_face(" not in leg and "_low_balance(" not in leg
+    assert leg.index("_recorded_link(j, wire, record)") < leg.index("_retired_doors(j, record)") < leg.index("_retry(j, wire, record)")
+    assert leg.index("if not short:\n            _choice_link") < leg.index("_retired_doors(")
+    assert "_two_gates(j, wire, record, founder_id, run)" in leg and leg.index("_ready(") < leg.index("_two_gates(")
+    assert charge.INACTIVE_RETIRED and len(interviewer_leg.WAITING_PERSONS) == 2
 
 
 def test_a_stand_in_label_is_one_word_of_the_key():

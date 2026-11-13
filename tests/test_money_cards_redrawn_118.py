@@ -541,8 +541,9 @@ def test_the_decision_makers_screener_is_the_writers(registry):
 def test_the_interviewer_screens_say_156s_words():
     """keel-web 156 FR-1 / FR-2, read against its translate.ts."""
     text = (KEEL_WEB / "src" / "lib" / "translate.ts").read_text(encoding="utf-8")
-    for word in (ivs.INTERVIEWER_IS, ivs.BEFORE_SEND_LATER, ivs.READ_AND_TAP_LINE, ivs.FORMAT_STATUS_RECORDING,
-                 ivs.FORMAT_STATUS_READY, ivs.SEND_TEXT_ONLY_LINKS, iv.READ_AND_TAP):
+    # spec 154 (keel-web 187): the lock screen's interviewer line, its *send later* line and *Send read-and-tap links*
+    # are gone with the face step on the lock and Send more's wizard; *Ready now* and *Read and tap* stand
+    for word in (ivs.FORMAT_STATUS_READY, iv.READ_AND_TAP, ivs.FORMAT_RECORDING_SOON):
         assert word in text, word
     assert ivs.send_format_title("construction superintendents") == "How should construction superintendents answer?"
     assert ivs.before_interviewer_title("construction superintendents on commercial jobs") == \

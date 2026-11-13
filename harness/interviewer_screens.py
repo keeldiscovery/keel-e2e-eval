@@ -89,6 +89,49 @@ PERSONA_RECORDING = "Recording now, usually ready in about five minutes. You can
 PERSONA_NOT_RECORDED = "No interviewer recorded yet."
 TRY_IT_YOURSELF = "Try it yourself"
 TRY_IT_YOURSELF_RECORDING = "Try it yourself · recording"
+#: Spec 154 (keel-web 187 FR-5, `translate.ts`): the kind card's one button and its words -- *Set up the AI interviewer ·
+#: 1,500 once* (no price once the project has paid), *Try it yourself · soon* while that kind records, *Try it yourself*
+#: once READY, *Try again* on FAILED; the line's tail *Daphne asks* / *Daphne is recording*; the progress words.
+TRY_IT_YOURSELF_SOON = "Try it yourself · soon"
+TRY_AGAIN_RECORDING = "Try again"
+SETUP_INTERVIEWER = "Set up the AI interviewer"
+SETUP_NOT_NOW = "Not now"
+RECORDING_MEANWHILE = "Read and tap links can be made meanwhile."
+FORMAT_RECORDING_SOON = "Recording · a few minutes"
+SETUP_ALREADY_PAID = "Already paid for this project."
+
+
+def setup_interviewer(price: int | None) -> str:
+    return SETUP_INTERVIEWER if price is None else f"{SETUP_INTERVIEWER} · {price:,} once"
+
+
+def setup_interviewer_kicker(kind_label: str) -> str:
+    return f"{kind_label} · AI interviewer"
+
+
+def setup_interviewer_title(people: str | None) -> str:
+    return f"Who asks {(people or '').strip() or 'them'} the questions?"
+
+
+def record_face(face: str, price: int | None) -> str:
+    """187 `recordFace`: *Record Daphne · 1,500 credits*; *Record Daphne* once paid."""
+    return f"Record {face}" if price is None else f"Record {face} · {price:,} credits"
+
+
+def kind_asks(face: str) -> str:
+    return f"{face} asks"
+
+
+def kind_recording(face: str) -> str:
+    return f"{face} is recording"
+
+
+def recording_started(face: str) -> str:
+    return f"{face} is recording, about five minutes. {RECORDING_MEANWHILE}"
+
+
+def credits_refusal_for_recording(required: int, available: int) -> str:
+    return f"Setting up the AI interviewer is {required:,} credits. You have {available:,}."
 TRY_NOTHING_STORED = "Nothing was stored."
 #: Spec 118 FR-4c(f) (keel-web 156 FR-2): the text route is *Read and tap* wherever the format is named -- the role
 #: card's primary while the interviewer records (`SEND_TEXT_ONLY_LINKS`, it read *Send text-only links*).
@@ -699,24 +742,10 @@ class Persona:
         self.page.locator(".sent__kinds").wait_for(state="visible", timeout=60_000 * self.patience)
         _iv.pass_interviews_sheet(self.page, self.recorder, self.base, guide=self.guide)
 
-    def line(self) -> dict:
-        """The persona line as drawn: its state, words, bar and action."""
-        line = self.page.get_by_test_id("persona-line")
-        if not line.count():
-            return {"state": None, "text": ""}
-        bar = line.locator("[role=progressbar]")
-        action = line.get_by_test_id("change-who-asks")
-        return {"state": line.get_attribute("data-state"), "text": _words(line),
-                "bar": ({"now": bar.get_attribute("aria-valuenow"), "max": bar.get_attribute("aria-valuemax")}
-                        if bar.count() else None),
-                "action": _words(action) or None,
-                "try_again": line.get_by_test_id("persona-try-again").count() > 0}
-
-    def wait_state(self, state: str, *, timeout_s: float = 45) -> dict:
-        """The line in place reaching `state` (keel-web polls `GET interviewer` every 10 s while RECORDING)."""
-        self.page.locator(f'[data-testid=persona-line][data-state="{state}"]').wait_for(
-            state="visible", timeout=timeout_s * 1000 * self.patience)
-        return self.line()
+    # spec 154 (keel-web 187 FR-5): `line`, `wait_state`, `record` (the persona line and its popup), `formats_now` (Send
+    # more's rows), `hear_band` (the band's Hear) and `l1_again` (L1's carousel) are gone with their doors; the kind card
+    # is `card`, `wait_card_state`, `set_up`; New link's rows are `interviews_screens.Interviews.formats_for`.
+    KIND_TRY_AGAIN = "kind-try-again"
 
     def cards(self) -> list[dict]:
         """Each kind's card: its label, *Try it yourself* (enabled or not, its words) and the primary's words."""
@@ -728,117 +757,10 @@ class Persona:
                         "primary": _words(card.locator(".btn.primary").first)})
         return out
 
-    def record(self, face: str, *, expect_status: int | None = None, hear_s: float | None = None) -> dict:
-        """*Change who asks* / *Record the interviewer* -> the popup -> the face -> *Record {Face}*: what the popup drew,
-        the POST keel-web sent and what it received; on a refusal the popup's words (it stays open; Cancel closes).
-        `hear_s` (spec 058): the tap is keel-web 087's tap to hear, its clip waited for up to that long (`hear`)."""
-        with self._b.step(f"founder picks {face.title()} in the persona line's popup") as h:
-            self.page.get_by_test_id("change-who-asks").click()
-            popup = self.page.get_by_test_id("change-face-popup")
-            popup.wait_for(state="visible", timeout=10_000)
-            drawn = {"title": _words(popup.locator("h2").first), "lead": _words(popup.locator(".ccard__sub").first),
-                     "faces": [b.get_attribute("data-face") for b in popup.locator('button[role="radio"]').all()]}
-            heard = None
-            if hear_s is None:
-                popup.locator(f'[data-face="{face}"]').click()
-            else:
-                heard = hear_card(self.page, popup, face, wait_s=hear_s)
-                h.add_screenshot(self._b.screenshot(f"heard-{face.lower()}"))
-            confirm = popup.get_by_test_id("change-face-confirm")
-            drawn["confirm"] = _words(confirm)
-            with self.page.expect_response(lambda r: r.request.method == "POST"
-                                           and r.url.endswith("/interviewer/face"), timeout=30_000) as posted:
-                confirm.click()
-            out = {"popup": drawn, "sent": posted.value.request.post_data_json, "status": posted.value.status,
-                   "body": _json(posted.value)}
-            if heard is not None:
-                out["hear"] = heard
-            if posted.value.status >= 400:
-                popup.locator(".remedy, [role=alert], .banner").first.wait_for(state="visible", timeout=10_000)
-                out["refusal"] = _words(popup.locator(".remedy, [role=alert], .banner").first)
-                out["popup_text"] = _words(popup)
-                h.add_screenshot(self._b.screenshot("change-face-refused"))
-                popup.get_by_role("button", name="Cancel", exact=True).click()
-            else:
-                popup.wait_for(state="hidden", timeout=10_000)
-            h.add_screenshot(self._b.screenshot(f"persona-{face.lower()}"))
-            return out
-
-    def formats_now(self, kind_label: str) -> dict:
-        """S3: *Send more*'s format row on a kind's card, read and cancelled (nothing is made)."""
-        card = self.page.locator(".sent__kinds .role",
-                                 has=self.page.locator(".role__label", has_text=re.compile(
-                                     rf"^{re.escape(kind_label)}$"))).first
-        card.locator(".btn.primary").click()
-        dialog = self.page.get_by_role("dialog")
-        dialog.locator("[role=radiogroup] [role=radio]").first.wait_for(state="visible", timeout=10_000)
-        rows = {}
-        for radio in dialog.locator("[role=radiogroup] [role=radio]").all():
-            word = radio.locator(".fmt__na")
-            status = radio.locator(FORMAT_STATUS)
-            rows[_words(radio.locator(".fmt__name").first)] = {
-                "disabled": radio.is_disabled(), "checked": radio.get_attribute("aria-checked") == "true",
-                "word": _words(word) if word.count() else None,
-                # spec 118 FR-4c(f) (keel-web 156 T007): the status line under the option, and which option it is
-                "status": _words(status) if status.count() else None,
-                "format": status.first.get_attribute("data-format") if status.count() else None}
-        # spec 092 FR-4a: keel-web 131's credits note (`format-credits`) is the first `.hint` under the rows now; the
-        # format's state line (recorded / still recording) is read apart from it, and both are kept
-        credits = dialog.locator(FORMAT_CREDITS)
-        title = dialog.locator(SEND_FORMAT_TITLE)
-        out = {"rows": rows, "hint": _words(dialog.locator(f".hint:not({FORMAT_CREDITS})").first),
-               "title": _words(title) if title.count() else None,
-               "credits": _words(credits) if credits.count() else None,
-               "hints": [_words(h) for h in dialog.locator(".hint").all()], "text": _words(dialog)}
-        dialog.get_by_role("button", name="Cancel", exact=True).first.click()
-        dialog.wait_for(state="hidden", timeout=10_000)
-        return out
-
     def how_it_works(self) -> int:
         """Spec 059: the controls on Sent named *How it works* -- keel-web 088 removed the replay of W1 (none)."""
         return self.page.get_by_role("button", name=HOW_IT_WORKS, exact=True).count() + \
             self.page.get_by_role("link", name=HOW_IT_WORKS, exact=True).count()
-
-    def hear_band(self, *, wait_s: float) -> dict:
-        """keel-web 088 FR-2 (IM30): *Hear <name> · 5 s* on the who-asks band (`persona-hear`) -- its words, the clip
-        that played in the band's circle in place of the still, `data-hearing` while it played, and the band after the
-        end (the still back, no clip showing). `present` False (nothing pressed) where the band draws no button."""
-        band = self.page.get_by_test_id("persona-line")
-        band.wait_for(state="visible", timeout=10_000)
-        button = band.get_by_test_id(PERSONA_HEAR)
-        if not button.count():
-            return {"present": False, "state": band.get_attribute("data-state"), "text": _words(band)}
-        circle = band.locator(".pface-hello").first
-        before = {"words": _words(button), "label": button.get_attribute("aria-label"), **_showing(circle),
-                  "hearing": band.get_attribute("data-hearing")}
-        hearing: list = []
-
-        def tap() -> None:
-            button.click()
-            try:
-                self.page.locator('[data-testid=persona-line][data-hearing="true"]').wait_for(state="attached",
-                                                                                            timeout=2_000)
-                hearing.append(True)
-            except Exception:  # noqa: BLE001 - never marked: the mark's to read
-                hearing.append(False)
-        heard = _heard(self.page, "band", tap, wait_s=wait_s)
-        after = {**_still_back(circle, wait_s=5), "hearing": band.get_attribute("data-hearing")}
-        return {"present": True, "before": before, "hearing_while": bool(hearing and hearing[0]), **heard,
-                "after": after}
-
-    def l1_again(self, project_id: str) -> dict:
-        """L1 revisited on a locked project (the carousel, disabled; no button): its whole text, for the no-price rule."""
-        self.page.goto(f"{self.base}/p/{project_id}/define/ready/interviewer", wait_until="load")
-        main = self.page.locator(".corridor.before").first
-        main.wait_for(state="visible", timeout=30_000)
-        self.page.get_by_test_id("face-carousel").wait_for(state="visible", timeout=20_000)
-        carousel = self.page.get_by_test_id("face-carousel")
-        return {"text": _words(main), "faces": [b.get_attribute("data-face")
-                                                for b in carousel.locator('button[role="radio"]').all()],
-                "checked": [b.get_attribute("data-face") for b in
-                            carousel.locator('button[role="radio"][aria-checked="true"]').all()]}
-
-    # ------------------------------------------------- spec 154 FR-3 (keel-web 187 FR-5 / FR-6, keel-cloud 247): the kind card
 
     def card(self, kind_label: str) -> dict:
         """The kind card as drawn (`kind-card[data-role][data-interviewer]`): its label, role id, the interviewer state the

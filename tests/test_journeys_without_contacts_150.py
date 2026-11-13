@@ -78,6 +78,7 @@ def test_send_more_has_two_ways():
     assert '"ways": [iv_screens.WHO_OWN, iv_screens.WHO_GROUP]' in want
 
 
+@pytest.mark.skip(reason="retired by spec 154: keel-web 187 FR-3 / FR-4 replaced Send more's ways (SEND_WHO) with New link and New group link, one screen each")
 def test_the_ways_are_keel_webs_own():
     translate = _web_185()
     block = re.split(r"\n}", translate.split("export const SEND_WHO = {", 1)[1], maxsplit=1)[0]

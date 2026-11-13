@@ -1105,6 +1105,12 @@ BEFORE_LOCK = "Lock and write the questions"           # until keel-web 069
 #: was *Who asks the questions*), the button the face it records (*Lock and record {face}*; was *Lock and record the
 #: interviewer*), an account on its own AI *Lock and write the questions* (was *Lock and approve*) under its own line.
 L1_TITLE = "Who should ask them your questions?"
+#: Spec 154 FR-1 (keel-web 187 FR-7, keel-cloud 247 FR-1): the lock screen picks no face -- on both doors its title is
+#: *Lock your answers*, its one line says who asks is chosen on Sent kind by kind, no carousel, no switch, and the button
+#: *Lock and write the questions* (`BEFORE_LOCK_APPROVE`); the body `{expectedRevision}` alone.
+L1_TITLE_187 = "Lock your answers"
+BEFORE_INTERVIEWER_SUB_187 = ("Keel writes the questions people will be asked from your answers as they stand. Who asks them, "
+                              "and how, you choose on Sent, kind by kind.")
 BEFORE_LOCK_RECORD = re.compile(r"^Lock and record \S.*$")
 BEFORE_LOCK_APPROVE = "Lock and write the questions"
 BEFORE_INTERVIEWER_OWN = ("This account runs on its own AI, so people read the questions and tap their answers. The AI "

@@ -314,15 +314,19 @@ def test_send_mores_third_way_is_136s_words():
     """keel-web 136 FR-1 `SEND_WHO.GROUP`, the name box, the cap line, the hint -- read off the checkout the stack
     serves, so a reworded line fails here before it fails a journey."""
     words = _web_source("src/lib/translate.ts")
-    for text in (iv.WHO_GROUP, iv.WHO_GROUP_LINE, iv.SEND_GROUP_NAME_LABEL, iv.SEND_GROUP_NAME_EXAMPLE,
+    # spec 154 (keel-web 187 FR-4): the wizard's *Who gets a link?* radios (WHO_GROUP, WHO_GROUP_LINE) and *Make the
+    # link · {format}* are gone -- New group link is one screen; the name box, the cap line and the hint are 136's still
+    for text in (iv.SEND_GROUP_NAME_LABEL, iv.SEND_GROUP_NAME_EXAMPLE,
                  iv.SEND_GROUP_HINT, iv.KIND_FROM_GROUP, iv.GROUP_NOBODY_YET, iv.SENT_TABS_LABEL,
-                 iv.GROUP_COPY_LINK, iv.GROUP_CLOSE_WORD, iv.GROUP_REOPEN_WORD,
+                 iv.GROUP_COPY_LINK, iv.GROUP_CLOSE_WORD, iv.GROUP_REOPEN_WORD, iv.SEND_NEW_GROUP_LINK,
+                 iv.SEND_NEW_LINK, iv.SEND_PLAN_CALL, iv.SEND_GROUP_KIND_LABEL, iv.SEND_KIND_LABEL,
                  browser_mod.ARRIVAL_CONTINUE_GOOGLE, browser_mod.ARRIVAL_CONSENT_WORDS):
         assert text.replace("'", "\\'") in words or text in words, text
     lead, _, rest = iv.SEND_GROUP_CAP_LINE.partition(" After")
     assert f'SEND_GROUP_CAP_LEAD = "{lead}"' in words and f'" After{rest}"' in words
     assert f"GROUP_NAME_MAX = {iv.GROUP_NAME_MAX}" in words and f"GROUP_CAP = {iv.GROUP_CAP}" in words
-    assert "`Make the link · ${format}`" in words and "`The link for ${group} is ready`" in words
+    assert f'SEND_MAKE_GROUP = "{iv.send_make_group()}"' in words and "`The link for ${group} is ready`" in words
+    assert "`Calls with me · ${n}`" in words
     assert "`${answered} of ${cap} answered`" in words and "`Copy link · ${name}`" in words
     assert "`By name · ${n}`" in words and "`By group · ${n}`" in words
     assert "lead: `${answered} answered`" in words and "rest: ` · ${planned} planned" in words
@@ -361,7 +365,7 @@ def test_the_group_section_draws_no_link_and_keeps_its_url_on_the_root():
     assert "data-group={group.groupId}" in root and "data-url={group.url}" in root, root
     assert not hasattr(iv, "GROUP_LINK")
     harness = inspect.getsource(iv)
-    assert "group-link'" not in harness and "'group-link-made'" in harness
+    assert "'group-link'" not in harness and "'group-link-made'" in harness
     assert iv.GROUP_LINK_MADE == "[data-testid='group-link-made']"
 
 
@@ -414,9 +418,10 @@ def test_the_by_group_tab_is_read_as_136_draws_it(tmp_path, chromium):
         page.set_content(SENT_HTML)
         sent = iv.Interviews(page, Recorder(tmp_path), "http://localhost:5173")
         assert sent.study_line() == iv.sent_study_line(1, 0, 1)
+        # spec 154: `controls` beside each tab (187's `aria-controls`; None on 136's markup), the third tab where drawn
         assert sent.tabs() == {"label": iv.SENT_TABS_LABEL,
-                               "name": {"text": iv.sent_tab_by_name(0), "role": "tab", "selected": False},
-                               "group": {"text": iv.sent_tab_by_group(1), "role": "tab", "selected": True}}
+                               "name": {"text": iv.sent_tab_by_name(0), "role": "tab", "selected": False, "controls": None},
+                               "group": {"text": iv.sent_tab_by_group(1), "role": "tab", "selected": True, "controls": None}}
         [group] = sent.groups()
         assert group["id"] == "g-1" and group["closed"] == "false" and group["name_tag"] == "H3"
         assert group["name"] == "Restaurant managers' forum"
@@ -542,10 +547,13 @@ def test_send_group_presses_the_third_way_names_it_and_reads_the_link_once():
     """`Interviews.send_group`: the third radio by its test id, the name in `#send-group-name`, the button by its
     words' start (*Make the link · *), the `POST .../groups` awaited (and keel-web's one silent retry on a stale
     revision followed), the link read from `group-link-made`, Done."""
-    source = inspect.getsource(iv.Interviews.send_group)
-    for needle in ("send-who-GROUP", "SEND_GROUP_NAME", 're.compile(r"^Make the link · ")', 'endswith("/groups")',
-                   "GROUP_LINK_MADE", "SEND_DONE", '"concurrency"'):
+    # spec 154 (keel-web 187 FR-4): New group link is one screen -- the By group tab's button, the kind row, the name
+    # box, the format row, `send-make`; no third radio and no *Make the link · {format}*
+    source = inspect.getsource(iv.Interviews.send_group) + inspect.getsource(iv.Interviews.open_new_link)
+    for needle in ("NEW_GROUP_LINK_BUTTON", "SEND_GROUP_NAME", "send_format_id(fmt)", "SEND_MAKE", 'endswith("/groups")',
+                   "GROUP_LINK_MADE", "SEND_DONE", '"concurrency"', "send_kind_id(role_id)"):
         assert needle in source, needle
+    assert "send-who-GROUP" not in source
 
 
 # ================================================================================= FR-2: the journey's helpers

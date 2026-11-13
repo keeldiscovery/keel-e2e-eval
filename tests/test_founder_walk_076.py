@@ -179,7 +179,7 @@ def test_someone_i_know_is_the_name_alone():
     assert cs.name_alone_faults({**made, "about_boxes": 1}, "Kate Alder")
     assert cs.name_alone_faults({**made, "sent": {"people": [{"personName": "Kate Alder", "about": "x"}]}},
                                 "Kate Alder")
-    popup = _web("src/components/interviews/SendMorePopup.tsx")
+    popup = _web("src/components/interviews/NewLinkPopup.tsx")       # spec 154: keel-web 187's one screen
     assert "[{ personName: name.trim() }]" in popup and "send-about" not in popup
     from harness import interviews_screens as iv                       # noqa: PLC0415
     assert iv.SEND_ABOUT_LABEL not in popup
@@ -303,7 +303,7 @@ def test_the_interviewer_marks_moved_to_12():
     from evals import interviewer_marks as marks                       # noqa: PLC0415
     from evals import report_marks as rm                               # noqa: PLC0415
     from instructions import marks as instruction_marks                 # noqa: PLC0415
-    assert marks.INTERVIEWER_MARKS_VERSION == 17 and rm.REPORT_MARKS_VERSION == 3      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19
+    assert marks.INTERVIEWER_MARKS_VERSION == 18 and rm.REPORT_MARKS_VERSION == 3      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19; 154: v18
     assert instruction_marks.MARKS_VERSION == 24 and corpus_mod.REVISION == 23      # spec 080: r17, v21 stands; spec 086: r18; 089: r19; 093: v22; 091: v23; 112: v24; 118: r21; 119: r22; 132: r23
     ok, _ = marks.chip_ended_it({"chip": "I can't recall one particular delivery",
                                  "want_chip": "I can't recall one particular delivery",

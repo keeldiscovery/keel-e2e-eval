@@ -145,28 +145,47 @@ def test_the_seam_records_what_was_said_in_a_real_page():
     assert (got["starts"], got["stops"]) == (2, 2)
 
 
-@pytest.mark.parametrize("word", [ivs.PERSONA_RECORDING, ivs.PERSONA_NOT_RECORDED, ivs.TRY_IT_YOURSELF_RECORDING,
-                                  ivs.TRY_NOTHING_STORED, ivs.SEND_TEXT_ONLY_LINKS, ivs.SEND_FORMAT_RECORDED,
-                                  ivs.SEND_FORMAT_RECORDING, ivs.FORMAT_CREDITS_NOTE, ivs.RECORD_FACE_TITLE, ivs.CHANGE_FACE_TITLE,
-                                  iv.TEXT_ONLY, iv.FORMAT_RECORDING, iv.FORMAT_NOT_RECORDED, iv.FORMAT_NEEDS_CREDITS])
+# spec 154 (keel-web 187 FR-5): the persona line's words (PERSONA_RECORDING, PERSONA_NOT_RECORDED), *Try it yourself ·
+# recording*, *Send read-and-tap links* and Send more's two state lines are gone with the line and the wizard -- the kind
+# card's words are 187's (`kind_recording`, `TRY_IT_YOURSELF_SOON`, `setup_interviewer`); kept here as constants of record
+@pytest.mark.parametrize("word", [ivs.TRY_NOTHING_STORED, ivs.CHANGE_FACE_TITLE, ivs.TRY_IT_YOURSELF,
+                                  ivs.TRY_IT_YOURSELF_SOON, ivs.TRY_AGAIN_RECORDING, ivs.SETUP_INTERVIEWER,
+                                  ivs.SETUP_NOT_NOW, ivs.RECORDING_MEANWHILE, ivs.FORMAT_RECORDING_SOON,
+                                  ivs.SETUP_ALREADY_PAID, iv.TEXT_ONLY, iv.FORMAT_NEEDS_CREDITS, iv.FORMAT_SET_UP_FIRST,
+                                  iv.FORMAT_READY_NOW, iv.SEND_NEW_LINK, iv.SEND_NEW_GROUP_LINK, iv.SEND_PLAN_CALL])
 def test_the_words_are_keel_webs_own(word):
     assert f'"{word}"' in _web("src/lib/translate.ts"), word
 
 
 def test_the_templates_are_keel_webs_own():
     translate = _web("src/lib/translate.ts")
-    assert "`${face} asks your questions.`" in translate and ivs.persona_asks("Daphne") == "Daphne asks your questions."
-    assert "`Change who asks · ${creditsAmount(credits)} AI credits`" in translate
-    assert ivs.change_who_asks(400) == "Change who asks · 400 AI credits"
-    assert "`Record the interviewer · ${creditsAmount(credits)} AI credits`" in translate
-    # keel-web 109 (keel-cloud 133 FR-9): *1 question* for one
-    assert "`${face} asks your questions`" in translate
+    # spec 154 (keel-web 187 FR-5): the persona line's templates (*{face} asks your questions.*, *Change who asks · N AI
+    # credits*, *Record the interviewer · N AI credits*) are gone; the kind card's are `kindAsks`, `kindRecording`,
+    # `setupInterviewer`, `recordFace`, `personaProgress`
+    assert "`${face} asks`" in translate and ivs.kind_asks("Daphne") == "Daphne asks"
+    assert "`${face} is recording`" in translate and ivs.kind_recording("Daphne") == "Daphne is recording"
+    assert "`${SETUP_INTERVIEWER} · ${creditsAmount(price)} once`" in translate
+    assert ivs.setup_interviewer(1500) == "Set up the AI interviewer · 1,500 once" and ivs.setup_interviewer(None) == ivs.SETUP_INTERVIEWER
+    assert "`Record ${face} · ${creditsAmount(price)} credits`" in translate
+    assert ivs.record_face("Daphne", 1500) == "Record Daphne · 1,500 credits" and ivs.record_face("Daphne", None) == "Record Daphne"
+    assert "`${done} of ${total} clips done`" in translate and ivs.persona_progress(3, 19) == "3 of 19 clips done"
+    assert ivs.credits_refusal_for_recording(1500, 100) == "Setting up the AI interviewer is 1,500 credits. You have 100."
+    assert "`${FORMAT_SET_UP_FIRST} · ${creditsAmount(price)} once`" in translate and iv.format_set_up_first(1500) == "Set up first · 1,500 once"
+    assert "`${SETUP_INTERVIEWER} on the ${kindLabel} card first`" in translate
+    assert "`Make ${first}'s link`" in translate and iv.send_make_one("Renee") == "Make Renee's link"
+    assert "`${first}'s link is ready`" in translate and iv.send_link_ready("Renee") == "Renee's link is ready"
     assert '`${face} will ask you ${questions} question${questions === 1 ? "" : "s"}.`' in translate
     assert ivs.ai_intro_heading("Daphne", 1) == "Daphne will ask you 1 question."
     assert ivs.ai_intro_heading("Daphne", 9) == "Daphne will ask you 9 questions."
 
 
-@pytest.mark.parametrize("testid", ["persona-line", "change-who-asks", "change-face-popup", "change-face-confirm",
+# spec 154 (keel-web 187): the persona line and its popup (`persona-line`, `change-who-asks`, `change-face-popup`,
+# `change-face-confirm`) are gone; the kind card's are `kind-card`, `set-up-interviewer`, `set-up-interviewer-popup`,
+# `set-up-record`, `set-up-not-now`, `kind-asks`, `kind-progress`, `kind-try-again`
+@pytest.mark.parametrize("testid", ["kind-card", "set-up-interviewer", "set-up-interviewer-popup", "set-up-record",
+                                    "set-up-not-now", "set-up-cost", "set-up-title", "kind-asks", "kind-progress",
+                                    "kind-try-again", "kind-failure", "new-link", "new-group-link", "plan-call",
+                                    "new-link-popup", "send-make", "link-made", "format-set-up-on-card",
                                     "try-it-yourself", "ai-intro", "start-talking", "choice-talk", "choice-write",
                                     "ai-stage", "ai-where", "ai-end", "ship-mark", "ai-sheet", "ai-options",
                                     "ai-field", "ai-preview", "ai-heard", "ai-type",
@@ -178,7 +197,8 @@ def test_every_selector_the_page_objects_press_is_in_keel_web(testid):
     hits = [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")]
     assert hits, testid
     assert testid in Path(ivs.__file__).read_text(encoding="utf-8") + Path(
-        REPO_ROOT / "harness" / "vectors_screens.py").read_text(encoding="utf-8"), testid
+        REPO_ROOT / "harness" / "vectors_screens.py").read_text(encoding="utf-8") + Path(
+        REPO_ROOT / "harness" / "interviews_screens.py").read_text(encoding="utf-8"), testid
 
 
 # ------------------------------------------------------------------ spec 048: keel-web 072's answer path
@@ -385,6 +405,8 @@ def test_the_hear_words_and_the_four_hellos_are_keel_webs_own():
     assert not any((faces / fake.hello_path(f).lstrip("/")).is_file() for f in fake.RETIRED_110)
 
 
+@pytest.mark.skip(reason="retired by spec 154: keel-web 190 removed the 30-credit note and 187 Send more's wizard; New "
+                         "link's rows are read by Interviews.open_new_link (format-status, format-set-up-on-card)")
 def test_send_mores_credits_note_is_131s_and_read_apart_from_the_state_line():
     """Spec 092 FR-4a (keel-web 131 FR-3): `FORMAT_CREDITS_NOTE` under the rows (`format-credits`), drawn before the
     recorded / recording line; `formats_now` reads the note by its test id and the state line as the first other

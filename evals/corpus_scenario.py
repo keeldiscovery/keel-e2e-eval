@@ -3875,19 +3875,25 @@ def _keels_door_l1(j: Journey, drawn: dict) -> None:
     {face}* (keel-web 130 FR-2; *Lock and record the interviewer* before it); the lock records that face (fake renders
     on the local stack). Held: the three counters and the title (spec 090 FR-4: *Who should ask {people} your
     questions?*, keel-web 130's); the rest recorded."""
-    title = l1_title_owed(j)
-    with _step(j, "step 5 is two screens since keel-web 113 hid the word -- *Offer a pilot?* 1 of 2 and L1 "
-                  f"*{title}* 2 of 2 (who asks alone in the problem study), which on Keel's door is the faces' "
-                  "carousel and *Lock and record {face}* (keel-web 069, 130; spec 062)",
-               party="founder") as h:
+    # spec 154 FR-1 (keel-web 187 FR-7, keel-cloud 247 FR-1): the lock picks no face on either door -- *Lock your
+    # answers*, no carousel, *Lock and write the questions*, the body {expectedRevision} alone
+    with _step(j, "step 5 is two screens since keel-web 113 hid the word -- *Offer a pilot?* 1 of 2 and the lock "
+                  f"*{vs_screens.L1_TITLE_187}* 2 of 2 (alone in the problem study), which on Keel's door too picks no "
+                  "face: no carousel, *Lock and write the questions*, {expectedRevision} alone (keel-web 187 FR-7, "
+                  "keel-cloud 247 FR-1; spec 154)", party="founder") as h:
         l1 = drawn.get("l1") or {}
-        h.record_assert({"counters": before_counters(j.scope), "title": title,
-                         "button": vs_screens.BEFORE_LOCK_RECORD.pattern,
+        sent = l1.get("sent") if isinstance(l1.get("sent"), dict) else {}
+        h.record_assert({"counters": before_counters(j.scope), "title": vs_screens.L1_TITLE_187,
+                         "sub": vs_screens.BEFORE_INTERVIEWER_SUB_187, "carousel": False,
+                         "button": vs_screens.BEFORE_LOCK_APPROVE, "sent": ["expectedRevision"],
                          "pilot_title": vs_screens.PILOT_TITLE if before_counters(j.scope) else None},
                         {**l1, "counters": drawn["counters"], "receipt": j.receipt,
                          "pilot_title": (drawn.get("ready") or {}).get("pilot_title")})
         assert drawn["counters"] == before_counters(j.scope), drawn
-        assert l1.get("title") == title, l1
+        assert l1.get("title") == vs_screens.L1_TITLE_187 and l1.get("carousel") is False, l1
+        assert l1.get("sub") == vs_screens.BEFORE_INTERVIEWER_SUB_187, l1
+        assert l1.get("button") == vs_screens.BEFORE_LOCK_APPROVE, l1
+        assert sorted(sent) == ["expectedRevision"], sent
 
 
 def _plan_view(j: Journey) -> dict:
@@ -3949,21 +3955,25 @@ def _hold_no_word(j: Journey, drawn: dict) -> None:
 def _own_door_l1(j: Journey, drawn: dict) -> None:
     """Spec 090 FR-4 (keel-web 130 FR-2): on an account on its own AI, L1's title names the people, its line is 130's
     and the lock is *Lock and write the questions*."""
-    title = l1_title_owed(j)
-    with _step(j, "step 5 is two screens since keel-web 113 hid the word -- *Offer a pilot?* 1 of 2 and L1 "
-                  f"*{title}* 2 of 2 (who asks alone, no counter, in the problem study), which on an account on its own "
-                  "AI is one line and *Lock and write the questions*, no carousel; the lock's receipt carries no "
-                  "interviewer (contract 16)", party="founder") as h:
+    # spec 154 FR-1 (keel-web 187 FR-7): the same one screen on an account on its own AI -- the door no longer changes
+    # the lock's words (130's own-AI line is gone); the receipt carries no interviewer (contract 16, still)
+    with _step(j, "step 5 is two screens since keel-web 113 hid the word -- *Offer a pilot?* 1 of 2 and the lock "
+                  f"*{vs_screens.L1_TITLE_187}* 2 of 2 (alone, no counter, in the problem study): one line, no carousel, "
+                  "*Lock and write the questions*, {expectedRevision} alone; the receipt carries no interviewer "
+                  "(keel-web 187 FR-7; spec 154)", party="founder") as h:
         l1 = drawn.get("l1") or {}
+        sent = l1.get("sent") if isinstance(l1.get("sent"), dict) else {}
         counters = before_counters(j.scope)
-        h.record_assert({"counters": counters, "title": title,
-                         "sub": vs_screens.BEFORE_INTERVIEWER_OWN, "carousel": False,
-                         "button": vs_screens.BEFORE_LOCK_APPROVE, "receipt.interviewer": None},
+        h.record_assert({"counters": counters, "title": vs_screens.L1_TITLE_187,
+                         "sub": vs_screens.BEFORE_INTERVIEWER_SUB_187, "carousel": False,
+                         "button": vs_screens.BEFORE_LOCK_APPROVE, "sent": ["expectedRevision"],
+                         "receipt.interviewer": None},
                         {**l1, "counters": drawn["counters"], "receipt": j.receipt})
         assert drawn["counters"] == counters, drawn
-        assert l1.get("title") == title and l1.get("carousel") is False, l1
-        assert l1.get("sub") == vs_screens.BEFORE_INTERVIEWER_OWN, l1
+        assert l1.get("title") == vs_screens.L1_TITLE_187 and l1.get("carousel") is False, l1
+        assert l1.get("sub") == vs_screens.BEFORE_INTERVIEWER_SUB_187, l1
         assert l1.get("button") == vs_screens.BEFORE_LOCK_APPROVE, l1
+        assert sorted(sent) == ["expectedRevision"], sent
         assert "interviewer" not in j.receipt, j.receipt
 
 

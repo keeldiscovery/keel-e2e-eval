@@ -138,6 +138,29 @@ def recording(config: StackConfig, project_id: str) -> dict:
     return rows[0]
 
 
+def recordings(config: StackConfig, project_id: str) -> dict:
+    """Spec 154 FR-3 (keel-cloud 247, document 38): **every kind's recording**, keyed by the kind's role id --
+    `corridor.lock.recordings` (and `previousRecordings`), where 094's one `recording` stood -- each with its face,
+    status and clips (each clip its `role`); the founder's word beside, as `recording` reads it. `{"recordings": {role:
+    ...}, "previous": {...}, "pitch", "word", "schema_version"}`; the maps empty on a project no kind was set up on."""
+    _require_uuid(project_id)
+    rows = _json(config, "SELECT content->'corridor'->'lock'->'recordings' AS recordings, "
+                         "content->'corridor'->'lock'->'previousRecordings' AS previous, "
+                         "content->'corridor'->'word'->>'pitch' AS pitch, content->'corridor'->'word' AS word, "
+                         "schema_version "
+                         "FROM project_content WHERE project_id = :'project'", project=project_id)
+    if len(rows) != 1:
+        raise LedgerUnavailable(f"expected one project_content row for {project_id!r}, found {len(rows)}")
+    row = rows[0]
+    return {"recordings": row.get("recordings") or {}, "previous": row.get("previous") or {},
+            "pitch": row.get("pitch"), "word": row.get("word"), "schema_version": row.get("schema_version")}
+
+
+def recording_of(config: StackConfig, project_id: str, role_id: str) -> dict | None:
+    """One kind's stored recording (spec 154 FR-3), or None where that kind was never set up."""
+    return (recordings(config, project_id).get("recordings") or {}).get(role_id)
+
+
 def pilot_opt_in(config: StackConfig, project_id: str, invitation_id: str) -> bool | None:
     """Spec 050 FR-6: one invitation's stored `pilotOptIn` (document `InterviewDocument.pilotOptIn`), or None when it
     has no response -- read here because `GET standings` on Keel's keyless door starts the stale brief (049 D-03)."""

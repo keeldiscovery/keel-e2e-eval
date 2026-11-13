@@ -152,7 +152,9 @@ SEND_GROUP_CAP_LINE = ("Up to 20 people can answer on this link. After that it s
 SEND_GROUP_HINT = ("Post it where the people already are. Each person who opens it signs in with Google, then is "
                    "interviewed. Sent keeps this link under By group, to copy again or close.")
 SENT_STUDY_LINE = "[data-testid='sent-study-line']"
-SENT_TABS_LABEL = "Links by name or by group"
+#: keel-web 187 FR-1 (spec 154): the tab list names the three tabs (136's *Links by name or by group* is `SENT_TABS_LABEL_136`).
+SENT_TABS_LABEL = "Links by name, by group, or calls with me"
+SENT_TABS_LABEL_136 = "Links by name or by group"
 #: Spec 154 FR-2 (keel-web 187 FR-1, 189 FR-1): three tabs from the first day -- By name, By group, Calls with me -- each
 #: its panel `sent-panel-{key}` (`[role=tabpanel]` under `.sent__tabs`; the register lives inside it since 187, so G15's
 #: `:scope > [data-testid=links]` read is the panel's).

@@ -434,7 +434,7 @@ def _web_088() -> Path:
 
 
 @pytest.mark.parametrize("testid", ["links", "links-search", "links-download", "links-prev", "links-next",
-                                    "links-range", "role-count", "persona-hear"])
+                                    "links-range", "role-count"])   # spec 154: persona-hear gone with the band (keel-web 187)
 def test_every_088_selector_is_in_keel_web(testid):
     root = _web_088() / "src"
     assert [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")], testid

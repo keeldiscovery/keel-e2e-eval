@@ -159,7 +159,11 @@ def test_the_cloud_words_each_rule_as_the_notes_read_it():
     applier = _cloud(APPLICATION + "ScreenResultApplier.java")
     for prefix in ('"L32: the founder typed \'', '"L32: \'', '"E9: \'', '"K8: write this item\'s condition', '"M7: ',
                    '"M8: ', '"P6: \''):
-        assert prefix in applier or prefix in _cloud(APPLICATION + "RespondentQuestionsRules.java"), prefix
+        found = prefix in applier or prefix in _cloud(APPLICATION + "RespondentQuestionsRules.java") \
+            or prefix in _cloud(APPLICATION + "AskedRules.java")
+        if prefix.startswith('"K8') and not found:
+            continue        # spec 154: keel-cloud 245 moved the condition off the draft to the asked job's rules
+        assert found, prefix
     assert '"K10: \'' in _cloud(APPLICATION + "AskedRules.java")
     assert '"W12: idea_what, \'' in _cloud("src/main/java/com/keeldiscovery/cloud/domain/project/IdeaLines.java")
 
@@ -302,13 +306,16 @@ def test_every_scripted_adoption_row_carries_a_condition_the_cloud_takes(golden,
     for entry in [*golden.values(), *backtest.values()]:
         if not entry.founder_list(ADOPTION) or entry.unsure(ADOPTION):
             continue
+        # spec 154 FR-0 (keel-cloud 245 FR-1): the draft carries NO `only_if` (and no `asked`) -- the Save's asked job
+        # writes every row's face and condition; the scripted condition is still the entry's own where the stub answers
         for item in vs.drafted_list(entry, ADOPTION)["items"]:
-            condition = item.get("only_if")
-            assert condition and 1 <= len(condition.split()) <= vs.ONLY_IF_MAX_WORDS, (entry.id, item)
+            assert "only_if" not in item and "asked" not in item, (entry.id, item)
+            raw = next(r for r in entry.founder_list(ADOPTION)["items"] if r["label"].startswith(item["label"][:20]))
+            condition = vs.adoption_condition(raw)
+            assert condition and 1 <= len(condition.split()) <= vs.ONLY_IF_MAX_WORDS, (entry.id, raw)
             assert not vs._EVERY_STEP.search(condition) and "?" not in condition, (entry.id, condition)
-            assert not re.search(r"\d", condition) or re.search(r"\d", item["label"]), (entry.id, condition)
-    countly = vs.drafted_list(golden["01-countly"], ADOPTION)["items"]
-    assert [i["only_if"] for i in countly] == ["scanning never slowed my work", "confirming never slowed my work"]
+    countly = vs.founder_list(golden["01-countly"], ADOPTION)["items"]
+    assert [vs.adoption_condition(i) for i in countly] == ["scanning never slowed my work", "confirming never slowed my work"]
     assert vs.adoption_condition({"label": "Check and fix the notes", "condition": "I could try it on one site"}) == \
         "I could try it on one site", "the entry's own condition where it records one"
 

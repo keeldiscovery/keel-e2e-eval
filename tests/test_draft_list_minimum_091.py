@@ -158,6 +158,7 @@ def _lock(uses: str) -> str:
 
 
 @pytest.mark.parametrize("uses", ["400 credits", "Keel's credits"])
+@pytest.mark.skip(reason="retired by spec 154: keel-web 187 FR-7 / keel-cloud 247 FR-1 took the face and its credits sentence off the lock screen; IM2 v18 holds L1 to no price word at all")
 def test_the_lock_screens_credits_sentence_is_the_screens_own_words(uses):
     """FR-3: *uses 400 credits* (132) and *uses Keel's credits* (130, the faceless fallback) are L1's own sentence."""
     from evals import interviewer_marks as im                              # noqa: PLC0415
@@ -166,6 +167,7 @@ def test_the_lock_screens_credits_sentence_is_the_screens_own_words(uses):
     assert im.price_words_on("L1", "Keel records them once for this project, which uses Keel's credits.") == []
 
 
+@pytest.mark.skip(reason="retired by spec 154: keel-web 187 FR-7 / keel-cloud 247 FR-1 took the face and its credits sentence off the lock screen; IM2 v18 holds L1 to no price word at all")
 def test_the_credits_sentence_holds_the_served_price_and_no_currency():
     """FR-3: no number the founder typed (the sentence's number is the served `changePrice`), no currency, one line."""
     from evals import interviewer_marks as im                              # noqa: PLC0415
@@ -178,6 +180,7 @@ def test_the_credits_sentence_holds_the_served_price_and_no_currency():
     assert im.price_words_on("L1", _lock("400 credits") + " Your price is set.") == ["price"]
 
 
+@pytest.mark.skip(reason="retired by spec 154: keel-web 187 FR-7 / keel-cloud 247 FR-1 took the face and its credits sentence off the lock screen; IM2 v18 holds L1 to no price word at all")
 def test_the_sentence_is_read_on_l1_alone():
     """FR-3: S1 and S3 read as before -- the credits sentence on any other screen is a price word."""
     from evals import interviewer_marks as im                              # noqa: PLC0415
@@ -185,6 +188,7 @@ def test_the_sentence_is_read_on_l1_alone():
     assert im.price_words_on("S2", f"Recorded today at 16:02. {im.CHANGE_ACTION}") == []
 
 
+@pytest.mark.skip(reason="retired by spec 154: keel-web 187 FR-7 / keel-cloud 247 FR-1 took the face and its credits sentence off the lock screen; IM2 v18 holds L1 to no price word at all")
 def test_im2_passes_the_lock_screen_as_served_and_the_version_moved():
     """FR-3: IM2 on a record whose L1 is 132's screen is met, and names the sentence it read;
     `INTERVIEWER_MARKS_VERSION` 14 -> 15 with its note."""
@@ -200,6 +204,7 @@ def test_im2_passes_the_lock_screen_as_served_and_the_version_moved():
     assert "#: v15 (spec 091 FR-3" in inspect.getsource(im)
 
 
+@pytest.mark.skip(reason="retired by spec 154: keel-web 187 FR-7 / keel-cloud 247 FR-1 took the face and its credits sentence off the lock screen; IM2 v18 holds L1 to no price word at all")
 def test_the_journeys_l1_no_price_step_reads_the_same_helper():
     """FR-3: the leg's *L1 revisited ... no price on it* reads `price_words_on`, not the bare `PRICE_WORD`."""
     import inspect                                                          # noqa: PLC0415
