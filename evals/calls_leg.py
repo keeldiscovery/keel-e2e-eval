@@ -855,6 +855,40 @@ def people_counts(j) -> dict:
 
 # ------------------------------------------------------------------------------------------------------- the leg
 
+def first_person_line(belief: str) -> str:
+    """The first-person belief as keel-cloud's `first-person.md` asks for it -- *I believe it would* then the same claims
+    in the same words (FR-7 F4): the card's belief with its leading *It would* / *it would* said by the speaker."""
+    said = " ".join(str(belief or "").split()).rstrip(".")
+    lead = re.match(r"^(?:[Ii]t|[Tt]his|[Tt]hat)\s+would\s+", said)
+    rest = said[lead.end():] if lead else (said[:1].lower() + said[1:])
+    return f"I believe it would {rest}." if lead else f"I believe {rest}."
+
+
+def stand_in_first_person(j, record: dict) -> None:
+    """Spec 154 FR-4 / FR-5 (keel-cloud 248 FR-7, FR-10): the first Plan a call starts the FIRST_PERSON job, which runs
+    on Keel's AI alone; the local stack has Keel's AI off on either door, so keel-cloud logs *first-person owed: ...
+    not written reason=...* and the script holds `firstPersonPending` -- the card draws only its writing line (keel-web
+    188). The line is held logged, then written as the job would write it (`stack_ledger.stand_in_first_person`), so the
+    card can be walked. Nothing on the remote profile (the twin runs Keel's AI)."""
+    if j.stack is None or j.stack.is_remote:
+        return
+    from stack import ledger as stack_ledger                               # noqa: PLC0415
+    with _step(j, "keel-cloud 248 FR-10: the first Plan a call left the first-person line owed on this stack (Keel's AI "
+                  "is off here on either door) -- STAND-IN: the line written as the FIRST_PERSON job would, so the card "
+                  "draws (keel-web 188)", party="stack", kind="protocol") as h:
+        owed = cloud_log.wait_lines(j.stack, "first_person_owed", project_id=j.project_id) or []
+        idea = stack_ledger.idea_lines(j.stack, j.project_id)
+        line = first_person_line(idea.get("belief") or "")
+        stored = idea.get("beliefFirstPerson") or stack_ledger.stand_in_first_person(j.stack, j.project_id, line)
+        script = j.get(j.project(f"/calls/{record['calls'][0]['callId']}/script")) or {}
+        record["first_person"] = {"owed": [o.get("reason") for o in owed], "belief": idea.get("belief"),
+                                  "stored": stored, "pending_after": script.get("firstPersonPending")}
+        h.record_assert({"owed": "logged with its reason", "stored": line, "pending_after": False},
+                        record["first_person"])
+        assert owed and all(o.get("reason") for o in owed), record["first_person"]
+        assert stored and script.get("firstPersonPending") is False, record["first_person"]
+
+
 def leg_calls(j, browser, *, kind: str | None = None) -> dict:
     """Spec 154 FR-4 (248's half) + FR-5, after the interviewer leg on S-005: two calls planned (a nickname, then the
     person's own first name), the first signed in by the person (GOOGLE, *You wrote*), its card walked headless to the
@@ -894,6 +928,7 @@ def leg_calls(j, browser, *, kind: str | None = None) -> dict:
         from stack import ledger as stack_ledger                           # noqa: PLC0415
         founder_id = stack_ledger.founder_account(j.stack, j.founder_identity.sub)["id"] if j.stack is not None and not j.stack.is_remote else None
         since = stack_ledger.now(j.stack) if founder_id else None
+        stand_in_first_person(j, record)
         walk_the_card(j, browser, call, record=record)
         read_the_row(j, sent, call["callId"], want_status=record["card"]["wire_after"]["status"], want_name=person.name,
                      want_you_wrote=TYPED_NICKNAME, what="the first call, after the card")

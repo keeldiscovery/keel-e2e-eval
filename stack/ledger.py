@@ -291,6 +291,31 @@ def stand_in_no_follow_ups(config: StackConfig, project_id: str) -> int:
     return int(out or 0)
 
 
+def idea_lines(config: StackConfig, project_id: str) -> dict:
+    """The idea card's stored lines (`corridor.idea`: what, how, belief, and spec 248's `beliefFirstPerson` once
+    written)."""
+    _require_uuid(project_id)
+    found = _json(config, "SELECT content->'corridor'->'idea' AS idea FROM project_content WHERE project_id = :'project'",
+                  project=project_id)
+    return (found[0].get("idea") if found else None) or {}
+
+
+def stand_in_first_person(config: StackConfig, project_id: str, line: str) -> str | None:
+    """Stand-in 6 (spec 154 FR-4 / FR-5): the idea card's first-person belief (`corridor.idea.beliefFirstPerson`,
+    keel-cloud 248 FR-7b) written as the FIRST_PERSON job would write it. That job runs on Keel's AI alone (keel-cloud
+    248 judgement call 3: `FirstPersonLines` calls the Keel's-AI executor directly), and on the local stack Keel's AI is
+    off on either door (no `KEEL_ANTHROPIC_API_KEY`: *first-person owed: ... reason=own-ai* on its own AI,
+    *reason=keel_ai_off* on Keel's) -- so without it the call script keeps `firstPersonPending` and keel-web 188 never
+    draws the card. Nothing else in the document moves, the revision included. Returns the line as stored."""
+    _require_uuid(project_id)
+    out = _psql(config, "WITH u AS (UPDATE project_content SET content = jsonb_set(content, "
+                        "'{corridor,idea,beliefFirstPerson}', to_jsonb(:'line'::text)) WHERE project_id = :'project' "
+                        "AND content->'corridor'->'idea' IS NOT NULL RETURNING content) "
+                        "SELECT content->'corridor'->'idea'->>'beliefFirstPerson' FROM u;\n",
+                project=project_id, line=line)
+    return out or None
+
+
 def _require_uuid(value: str) -> None:
     if not _UUID.match(str(value or "")):
         raise LedgerUnavailable(f"not an account id: {value!r}")
