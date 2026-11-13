@@ -1197,9 +1197,10 @@ def _backfill(j, wire: _Wire, record: dict) -> None:
         served_before = {link: wire("GET", f"/interviewer/try/{rid}")[1] for link, rid in roles.items()}
         statuses, swapped, followed, waited = [], {}, {}, 0.0
         while waited <= 90 * j.patience:
-            stored = stack_ledger.recording(j.stack, j.project_id).get("recording") or {}
-            statuses.append(stored.get("status"))
-            clips = stored.get("clips") or []
+            # spec 154 (keel-cloud 247): every kind's recording, its clips together (each carries its role)
+            kinds = stack_ledger.recordings(j.stack, j.project_id).get("recordings") or {}
+            statuses += [(kind or {}).get("status") for kind in kinds.values()]
+            clips = [c for kind in kinds.values() for c in (kind or {}).get("clips") or []]
             swapped = {}
             for cid, c in today.items():
                 same = [x for x in clips if x.get("role") == c["role"] and x.get("kind") == c["kind"]]
@@ -3952,7 +3953,10 @@ def _retry(j, wire: _Wire, record: dict) -> None:
     fake's seams (`FakeInterviewerRenders.failOnce` / `failScripts`) are reachable from a test's own Spring context and
     from nothing the stack sets (DRIFT #86), so the retry is read off the recording where it happened and is otherwise
     unmeasured, never passed."""
-    stored = (stack_ledger.recording(j.stack, j.project_id).get("recording") or {})
+    # spec 154 (keel-cloud 247): every kind's recording, their clips together
+    kinds = stack_ledger.recordings(j.stack, j.project_id).get("recordings") or {}
+    stored = {"status": sorted({(k or {}).get("status") for k in kinds.values()}),
+              "clips": [c for k in kinds.values() for c in (k or {}).get("clips") or []]}
     retried = [c for c in stored.get("clips") or [] if int(c.get("attempts") or 0) >= 2]
     with j.recorder.step("interviewer (FR-E): a clip retried by the recorder on its own -- read off the stored "
                          "recording; the fake's fail-once seam is not reachable from the stack (DRIFT #86)",

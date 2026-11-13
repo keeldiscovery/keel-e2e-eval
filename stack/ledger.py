@@ -254,41 +254,52 @@ def restore_own_door(config: StackConfig, founder_id: str, run: str, *, spec: st
     return delta
 
 
+def _write_recordings(config: StackConfig, project_id: str, recordings: dict) -> None:
+    """The kinds' recordings map written back whole (`corridor.lock.recordings`, keel-cloud 247 document 38); nothing
+    else in the document moves, the revision included."""
+    _psql(config, "UPDATE project_content SET content = jsonb_set(content, '{corridor,lock,recordings}', "
+                  ":'recordings'::jsonb) WHERE project_id = :'project';\n",
+          project=project_id, recordings=json.dumps(recordings))
+
+
 def stand_in_old_words(config: StackConfig, project_id: str, scripts: dict[str, str]) -> int:
-    """Stand-in 4 (spec 050 FR-5): the stored recording's clips named in `scripts` (clip id -> words) say those words
+    """Stand-in 4 (spec 050 FR-5): the stored recordings' clips named in `scripts` (clip id -> words) say those words
     instead -- the opening, problem and idea passages as a recording made before keel-cloud 101 says them. Only each
     clip's `script` changes; its id, file, status and place stay, and the project's revision is not moved (nothing
-    the founder holds goes stale). Returns how many clips now say the old words."""
+    the founder holds goes stale). Spec 154 (keel-cloud 247): every kind's recording (`corridor.lock.recordings`), where
+    094's one `recording` stood. Returns how many clips now say the old words."""
     _require_uuid(project_id)
     for clip_id in scripts:
         _require_uuid(clip_id)
-    out = _psql(config, "WITH u AS (UPDATE project_content SET content = jsonb_set(content, "
-                        "'{corridor,lock,recording,clips}', (SELECT jsonb_agg(CASE WHEN (:'scripts'::jsonb) ? (c->>'id') "
-                        "THEN jsonb_set(c, '{script}', (:'scripts'::jsonb)->(c->>'id')) ELSE c END ORDER BY n) "
-                        "FROM jsonb_array_elements(content->'corridor'->'lock'->'recording'->'clips') "
-                        "WITH ORDINALITY AS a(c, n))) WHERE project_id = :'project' RETURNING content) "
-                        "SELECT count(*) FROM u, jsonb_array_elements(u.content->'corridor'->'lock'->'recording'->'clips')"
-                        " AS c WHERE (:'scripts'::jsonb) ? (c->>'id') AND c->>'script' = (:'scripts'::jsonb)->>(c->>'id');\n",
-                project=project_id, scripts=json.dumps(scripts))
-    return int(out or 0)
+    stored = recordings(config, project_id).get("recordings") or {}
+    count = 0
+    for kind in stored.values():
+        for clip in (kind or {}).get("clips") or []:
+            if clip.get("id") in scripts:
+                clip["script"] = scripts[clip["id"]]
+                count += 1
+    if count:
+        _write_recordings(config, project_id, stored)
+    return count
 
 
 def stand_in_no_follow_ups(config: StackConfig, project_id: str) -> int:
-    """Stand-in 5 (spec 051 FR-8, 050's stand-in widened): the stored recording as one made before keel-cloud 103 --
-    every FOLLOW_UP clip taken out of its set (the files stay on disk, unreferenced) -- so the first read can be seen
-    backfilling them at no charge. Nothing else in the document moves, the project's revision included. Returns how
-    many clips were taken out."""
+    """Stand-in 5 (spec 051 FR-8, 050's stand-in widened): the stored recordings as ones made before keel-cloud 103 --
+    every FOLLOW_UP clip taken out of each kind's set (the files stay on disk, unreferenced) -- so the first read can be
+    seen backfilling them at no charge. Nothing else in the document moves, the project's revision included. Spec 154:
+    every kind's recording. Returns how many clips were taken out."""
     _require_uuid(project_id)
-    out = _psql(config, "WITH before AS (SELECT count(*) AS n FROM project_content, "
-                        "jsonb_array_elements(content->'corridor'->'lock'->'recording'->'clips') AS c "
-                        "WHERE project_id = :'project' AND c->>'kind' = 'FOLLOW_UP'), "
-                        "u AS (UPDATE project_content SET content = jsonb_set(content, "
-                        "'{corridor,lock,recording,clips}', (SELECT COALESCE(jsonb_agg(c ORDER BY n), '[]'::jsonb) "
-                        "FROM jsonb_array_elements(content->'corridor'->'lock'->'recording'->'clips') "
-                        "WITH ORDINALITY AS a(c, n) WHERE c->>'kind' <> 'FOLLOW_UP')) "
-                        "WHERE project_id = :'project' RETURNING 1) "
-                        "SELECT (SELECT n FROM before) FROM u;\n", project=project_id)
-    return int(out or 0)
+    stored = recordings(config, project_id).get("recordings") or {}
+    count = 0
+    for kind in stored.values():
+        clips = (kind or {}).get("clips") or []
+        kept = [c for c in clips if c.get("kind") != "FOLLOW_UP"]
+        count += len(clips) - len(kept)
+        if kind is not None:
+            kind["clips"] = kept
+    if count:
+        _write_recordings(config, project_id, stored)
+    return count
 
 
 def idea_lines(config: StackConfig, project_id: str) -> dict:
