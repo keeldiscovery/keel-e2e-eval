@@ -465,3 +465,48 @@ composed one. Dry run after the change: 3 cases, nothing called, nothing spent.
 **Counts:** `make unit` at `633abae`, 13:00 -- 13:06 ET: **5,927 passed, 124 skipped, 0 failed** in 329 s. (The run before
 it, 12:54 -- 13:00 ET, had one Playwright click time out in `test_sign_in_on_the_issuer_095::test_the_registered_cell_
 signs_in_and_lands_on_keel_web` -- untouched by this pass; it passed alone twice and in the full rerun.)
+
+## Seventh pass (2026-11-13, 13:15 -- 13:55 ET) -- after the paid screen
+
+The coordinator ran `make instruction-screen HOST=claude K=08-fresco N=3 WHY=instruction:first-person.md` on eval
+master `b7fb23c` (this branch, merged): bundle `keel-e2e-eval/runs/20261113T180811Z-instructions`, 39 cases COMPLETED,
+$19.79, verdict FAILED. Read there, never rerun; nothing paid here, the main checkouts untouched (they carry the smoke
+cycle), no stack started -- unit tests only.
+
+**1. FIRST_PERSON reached keel-cloud's aggregate.** `state.shown_to_aggregate` carried the three FIRST_PERSON answers,
+so the end-of-run batch asked `screenContracts validate` about a screen with no `InferenceScreen` (*No enum constant
+InferenceScreen.FIRST_PERSON*) and the other 36 cases' refusal marks went unmeasured. Fixed: `run.NOT_CLOUD_SCREENS`
+(FIRST_PERSON) never joins the aggregate -- not in `_score`, not in the batch, not in `rescore.py`'s re-ask. A second
+defect on the way: the back-test early return in `_score` came before the FIRST_PERSON branch, so the three diffs
+carried no `faults`; the branch now comes first. **Rescoring this bundle:** the runner can (`python -m
+instructions.rescore <bundle> --no-judge`, no model call), but it writes its scorecard into the bundle (in the main
+checkout) and asks keel-cloud's `./gradlew screenContracts` in the keel-cloud checkout the stack names (the main one,
+carrying the cycle) -- so not run here; it is the coordinator's after the cycle.
+
+**2. The chaining was right; the record was missing.** From the bundle's envelopes: `SOLUTION_MECHANISM/run1`'s first
+draft was refused M8 (*'due dates', 'site walk', ... heard again in the belief*) and its **redraw** accepted -- *The
+people building it believe it would give you all of that as you go.* -- which is exactly what `FIRST_PERSON/run1` was
+handed (the accepted final, turn 2; the redraw sits in `envelope.json`'s `redraw`). `run2` and `run3` were refused M8 on
+**both** turns, so no accepted answer existed and their FIRST_PERSON cases kept the composed stand-in. Now
+`run.keep_mechanism` keeps `{case, turn, result}` (or `{turn: None, why: "... refused M8, M8"}`), and
+`prompts.first_person_from_mechanism` writes it to the case's meta; `diff.json` carries `belief_from` (`{case, turn}`
+or `{case, turn: null, why}`), `idea_belief` and `composed`. A unit test on the recorded shape (run1 refused then
+accepted on turn 2, run2 refused twice).
+
+**3. The cost line.** *rough estimate at $0.04 a case: $1.56* against $19.79. Now `run.measured_cost` reads the latest
+(up to five) paid bundles for the host under `runs/`: every recorded call's `total_cost_usd` (a first draft and its
+redraw each a call), per screen -- the price of a call and the calls a case took (the redraws). The dry run prints
+*estimate: N cases, about C calls with their redraws, at $X a call = about $T ... measured on K paid bundle(s)*; with
+no paid bundle, the old flat guess, named a guess. Against the paid run's own 39 cases: **about 68 calls at $0.302 a
+call = about $20.40** (spent: $19.79 over 69 calls).
+
+**The three FIRST_PERSON outputs, F1-F5** (recomputed with `context.first_person_faults`, as the fixed diff now does):
+all three clear -- run1 *I believe it would give you all of that as you go.* (50 characters); run2 and run3 *I believe it
+would the notes are right without a review and the crew texts back when a task is done.* (100 each, the composed
+stand-in said back, ungrammatical as handed). No refusal, each opens *I believe it would*, each under 200, no third
+person, no *we*.
+
+**Commits:** `09315f9` (NOT_CLOUD_SCREENS in run and rescore, the FIRST_PERSON branch before the back-test return,
+`keep_mechanism`, the measured estimate, their unit tests), `58a9a6f` (`first_person_from_mechanism` records the case
+and turn or why not). **Counts:** `make unit` 13:41 -- 13:47 ET: **5,928 passed, 124 skipped, 0 failed** (stackless;
+the instruction / rescore / mirror tests rerun after the last edit: 953 passed).
