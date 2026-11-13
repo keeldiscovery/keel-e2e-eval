@@ -1,6 +1,6 @@
 # Spec 154 -- The walk and the fakes follow Sent's three tabs and the calls
 
-keel-cloud 245/247/248/249 and keel-web 186/187/188/189. The eval's walk, its fake runtime and its remote journeys
+keel-cloud 245/247/250/248/249 and keel-web 186/187/190/188/189. The eval's walk, its fake runtime and its remote journeys
 must keep walking Keel's door through the re-engineered Sent page and file one call without a Meet, so the quality
 cycles and the staging journeys stay green. Nothing here is paid: every run is on the fakes; the one `instruction-screen`
 named below runs on host claude only on the founder's word.
@@ -12,8 +12,11 @@ named below runs on host claude only on the founder's word.
   the Choose line through `choose-asked`, `choose-asked-as-written`, `choose-asked-writing` (waiting past the 90 s
   ceiling plus one GET); the fake runtime's drafts carry no `asked`/`only_if`; the fake's ASKED stub answers every
   row; the new log line *asked after the read-back* is read where the walk reads logs.
-- **FR-1 The lock step picks no face.** The walk's Before step posts `expectedRevision` alone (247 FR-1, 187 FR-7); the
-  fake serves no `recordOnSend`; the credits assertion on a lock is 70.
+- **FR-1 The lock step picks no face, and the credits are two gates.** The walk's Before step posts `expectedRevision`
+  alone (247 FR-1, 187 FR-7); the fake serves no `recordOnSend`. Credits (cloud 250): 1,000 at New project, nothing at
+  the lock, nothing at Begin, 1,500 at the first interviewer set-up, nothing at the second; a fake founder with 900 is
+  refused at New project; the grant of 2,500 leaves 0 after one project with the interviewer; a link is served with
+  the owner at 0.
 - **FR-2 Sent as three tabs.** Selectors for `sent-tab-name`, `sent-tab-group`, `sent-tab-calls` and their panels; the
   walk makes a Read and tap link through **New link** (the kind row when the project has two kinds); the group journey
   through **New group link**; the walk asserts the search box appears from six rows in whichever tab it fills.
@@ -32,7 +35,7 @@ named below runs on host claude only on the founder's word.
   tracks, a device list of two microphones): the browser check passes, the mic dropdown remembers, Start -> six filings
   -> stretches -> End -> upload hits the fake's record route with three parts. No Document PiP in headless: the Float
   step is asserted absent or disabled, never failed.
-- **FR-6 Digests re-pinned.** The vendored contract digest (69) and the `dimensions.md` digest in the eval's own
+- **FR-6 Digests re-pinned.** The vendored contract digest (70) and the `dimensions.md` digest in the eval's own
   guards; `make check` stays green on a fresh clone.
 - **FR-7 The instruction screen, once, on the founder's word.** `make instruction-screen HOST=claude K=<entry>/CONTEXT
   N=3 WHY=instruction:context-interpret.md` after 248 lands, read for new refusal classes on the `belief_first_person`
@@ -41,7 +44,7 @@ named below runs on host claude only on the founder's word.
 
 ## Acceptance
 
-1. The walk on the fake runtime at cloud 247+248+249 / web 187+188+189 reaches the brief with one Read and tap link,
+1. The walk on the fake runtime at cloud 247+250+248+249 / web 187+190+188+189 reaches the brief with one Read and tap link,
    one group link, one AI link on a set-up kind and one call, and the three remote journeys are green on staging.
 2. The call journey's assertions in FR-4 all hold; the n line reads 1 unverified on the second call.
 3. The card walk in FR-5 uploads three parts; the fake's record route returns 202 and the row flips to ANSWERED on the
