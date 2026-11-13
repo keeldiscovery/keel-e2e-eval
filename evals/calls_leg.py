@@ -119,6 +119,31 @@ COPILOT_BROWSER_LINE = ("Keel's copilot runs in Chrome on a laptop. Open this pa
 #: The fake sources (FR-5): `getUserMedia` / `getDisplayMedia` answer a silent `AudioContext` stream (one audio track
 #: each -- the tab share also carries a video track the page drops), `enumerateDevices` two microphones by label, and
 #: `documentPictureInPicture` is an object whose `requestWindow` refuses (never called: the Float step is not pressed).
+#: Spec 154 FR-5: the card's upload read where it is built -- Chromium hands Playwright no body for a multipart request
+#: carrying blobs (`post_data_buffer` empty), so the page's own `fetch` is watched for a FormData body: each part's
+#: name, and for a file its name, type and size, kept on `window.__keelUploads`. The request itself still goes out
+#: unchanged (the wrapper only reads).
+UPLOAD_SEAM = r"""
+(() => {
+  const original = window.fetch;
+  window.__keelUploads = [];
+  window.fetch = function (input, init) {
+    try {
+      const body = init && init.body;
+      if (body instanceof FormData) {
+        const parts = [], files = [];
+        for (const [name, value] of body.entries()) {
+          parts.push(name);
+          if (value instanceof Blob) files.push({ part: name, name: value.name || null, type: value.type, size: value.size });
+        }
+        window.__keelUploads.push({ url: String((input && input.url) || input), parts, files });
+      }
+    } catch (e) { /* a read, never load-bearing */ }
+    return original.apply(this, arguments);
+  };
+})();
+"""
+
 FAKE_MEDIA = r"""
 (() => {
   const mics = [
@@ -522,6 +547,7 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
     page = j.context.new_page()
     try:
         page.add_init_script(FAKE_MEDIA)
+        page.add_init_script(UPLOAD_SEAM)
         page.on("request", keep)
         responses: list = []
         page.on("response", lambda r: responses.append({"url": r.url, "status": r.status})
@@ -568,6 +594,14 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
                 pass
             page.wait_for_timeout(500)
             ended = card.read()
+            built = [u for u in (page.evaluate("window.__keelUploads || []") or [])
+                     if str(u.get("url") or "").split("?")[0].endswith(f"/calls/{call_id}/record")]
+            for kept, seen in zip(uploads, built):
+                # the wire kept the request (its URL, its multipart type); the page's own FormData says its parts
+                if not kept["parts"]:
+                    kept.update(parts=seen.get("parts") or [],
+                                files=[f.get("name") for f in seen.get("files") or []],
+                                sizes=[f.get("size") for f in seen.get("files") or []], read="the page's FormData")
             statuses = wait_digested(j, call_id)
             h.add_screenshot(card.screenshot("card-ended"))
             h.record_wire({"copilotPath": call["copilotPath"]},
