@@ -81,7 +81,7 @@ import re
 import time
 import uuid
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 import requests
 
@@ -179,7 +179,7 @@ class _Wire:
         self.j = j
         self.record = record
 
-    def __call__(self, method: str, suffix: str, body: dict | None = None, *, ok=(200, 201, 204)) -> tuple[int, dict]:
+    def __call__(self, method: str, suffix: str, body: dict | None = None, *, ok=(200, 201, 204)) -> tuple[int, Any]:
         path = suffix if suffix.startswith("/v2/") else self.j.project(suffix)
         status, payload = self.j.call(method, path, body, ok=ok)
         self.record["responses"].append({"method": method, "path": path, "status": status, "body": payload})
@@ -187,7 +187,8 @@ class _Wire:
         # yourself's `Interview`, whose cost and price questions are the respondent's, not the recording's
         if re.search(r"/interviewer(/faces|/face|/retry)?$", path) and isinstance(payload, dict) and status < 300:
             self.record.setdefault("wire_views", []).append(payload)
-        return status, payload if isinstance(payload, dict) else {}
+        # keel-cloud 247 FR-5: `GET interviewer` is a list (InterviewerKinds), kept as served -- any other non-object {}
+        return status, payload if isinstance(payload, (dict, list)) else {}
 
     def me(self) -> dict:
         return self.j.get("/v2/me") or {}
@@ -627,7 +628,8 @@ def _while_recording(j, wire: _Wire, record: dict) -> None:
                          "409 INTERVIEWER_NOT_READY on the batch and the single link, Try it yourself too, a change of "
                          "face 409 INTERVIEWER_FAILED -- and a text link is made at once", party="founder",
                          kind="assert") as h:
-        _, view = wire("GET", "/interviewer")
+        _, kinds = wire("GET", "/interviewer")
+        view = fake.view_of(kinds, _role_ids(j)[vs.LINK_PRIMARY]) or {}   # keel-cloud 247 FR-5: the list, per kind
         if view.get("status") != "RECORDING":
             h.record_wire({"note": "the fake finished before the first read"}, view)
             record["while_recording"] = {"skipped": view.get("status")}
@@ -650,6 +652,7 @@ def _while_recording(j, wire: _Wire, record: dict) -> None:
             "expectedRevision": j.revision(), "respondentType": vs.LINK_PRIMARY, "format": "TEXT",
             "people": [{"personName": TEXT_PERSON}]})
         _, after = wire("GET", "/interviewer")
+        after = fake.view_of(after, _role_ids(j)[vs.LINK_PRIMARY]) or {}
         record["while_recording"] = {"view": view, "refusals": refusals,
                                      "try": {"status": tried, "code": tried_body.get("code")},
                                      "change": {"status": changed, "code": changed_body.get("code")},
