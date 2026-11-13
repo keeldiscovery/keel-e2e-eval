@@ -4093,6 +4093,11 @@ def asked_result(entry, key: str) -> dict:
     read as the stranger's question, never left out."""
     saved = founder_list(entry, key)
     items = [{"index": i, "asked": item.get("asked") or item["label"]} for i, item in enumerate(saved["items"])]
+    if key == ADOPTION_KEY:
+        # spec 154 FR-0 (keel-cloud 198 FR-9 K8, strict on the first turn): every Adoption friction row carries its
+        # condition -- the entry's own, else the step's (`adoption_condition`); before 245 the draft carried it as `only_if`
+        for out in items:
+            out["condition"] = adoption_condition(saved["items"][out["index"]])
     # spec 129 (keel-cloud 200 FR-1): each faced row's hidden short name beside its face, where the writer names it
     names = row_short_names(entry, key)
     for out in items:
@@ -4109,6 +4114,30 @@ def asked_result(entry, key: str) -> dict:
             if condition:
                 out["condition"] = str(condition).strip()
     return {"items": items}
+
+
+def importance_probe_asked_results(entry) -> list[dict]:
+    """Spec 154 FR-0: the two ASKED jobs the Importance probe's wire saves start (`corpus_scenario._importance_needs_three`,
+    keel-cloud 200's `needsShortName` on each PUT): the own item and two others saved over the Check's list hands the own
+    row alone (the corpus's own label is not the stored draft's -- keel-cloud 229 writes the own row from the clause as an
+    act -- and the two typed rows are kept from the list before); the whole list saved again hands the rows past the
+    third (not in the list before, not in the draft). Each row its short name, as `importance_asked_result` names them.
+    Empty where the entry has no typed Importance rows (no probe runs)."""
+    key = "problem.importance"
+    if entry.unsure(key):
+        return []
+    labels = [i["label"] for i in saved_list(entry, key)["items"]]
+    names = row_short_names(entry, key)
+
+    def name(label: str) -> str:
+        if names.get(label):
+            return names[label]
+        words = [w.strip(".,;:!?'\"") for w in label.lower().split()]
+        return " ".join(w for w in words if w)[:60] if len(words) <= 5 else " ".join(words[:4])
+    out = [{"items": [{"index": 0, "short_name": name(labels[0])}]}]
+    if len(labels) > 3:
+        out.append({"items": [{"index": i, "short_name": name(labels[i])} for i in range(3, len(labels))]})
+    return out
 
 
 def hourly_rate(entry) -> float | None:
@@ -4322,10 +4351,15 @@ def generate(entry) -> GeneratedScript:
     # the problem stage's Save -- the first ASKED job a walk runs, so its entry is first
     importance = importance_asked_result(entry) if "PROBLEM" in vectors and not entry.unsure("problem.importance") \
         else None
-    if importance:
-        asked = [_completed(importance)] + asked
+    if "PROBLEM" in vectors and not entry.unsure("problem.importance"):
+        # spec 154 FR-0: the Importance probe's wire saves each start an ASKED job (short names), after the problem
+        # stage's own (where the founder typed rows) and before the solution lists'
+        asked = ([_completed(importance)] if importance else []) \
+            + [_completed(x) for x in importance_probe_asked_results(entry)] + asked
     if asked:
         screens[ASKED_SCREEN] = asked
+        # a refused asked turn's repair (the asked ladder) carries `repair`: answered with the same entries again
+        screens[ASKED_SCREEN + REPAIR_SUFFIX] = list(asked)
     for part, link in respondent_jobs(entry):
         screens[RESPONDENT_SCREEN] = [_completed(respondent_result(entry, part, link))]
     interpret = interpret_entries(entry)
@@ -4448,7 +4482,7 @@ def context_keys_for(exported: dict) -> dict:
     # a second key set for the same screen, matched by name (`generate` files those entries under it)
     out[CALIBRATION_WITH_CLAUSE_SCREEN] = [*out[CALIBRATION_SCREEN], PROBLEM_CLAUSE_KEY]
     out[CALIBRATION_WITH_PARTS_SCREEN] = [*out[CALIBRATION_SCREEN], ANSWER_PARTS_KEY]
-    for screen in CALIBRATION_SCREENS:
+    for screen in (*CALIBRATION_SCREENS, ASKED_SCREEN):
         out[screen + REPAIR_SUFFIX] = [*out[screen], REPAIR_KEY]
     seen = {}
     for screen, keys in out.items():

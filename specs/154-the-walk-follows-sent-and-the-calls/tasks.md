@@ -120,7 +120,43 @@ digest -- marked `TODO(249)` below and in the code.
 
 ## Judgement calls
 
-(filled as they are made.)
+1. **The fakes were broken before this spec, three times over, and the walk says so now.** The scripted executor
+   matches a screen by its exact context key set, from keel-cloud's own `context-keys.json` export -- and since
+   keel-cloud 229 (Importance's draft is handed `problem_clause`), 228 (Current solution's draft is handed
+   `answer_parts`) and 226 (W-rung refuses a corpus rung once, so a redraft is handed `repair`) three key sets the
+   export does not name reach the runtime. No scripted journey had run since 2026-10-30 (the cycles walk the real
+   model), so nothing saw it. `vectors_script.context_keys_for` now writes the three as screens of their own
+   (`CALIBRATION_QUESTIONS+problem_clause`, `+answer_parts`, and each `+repair`) and `generate` files each job under
+   the set it will be matched through (`calibration_screen_of`, `study_holds_went_wrong`), the redraft answered
+   with the same corpus result (keel-cloud's wording rules note a second refusal and serve the row as drafted). Not in
+   the spec's text; FR-0's *the walk keeps walking* could not hold without it.
+2. **The marks are v18.** IM10 (the change of face), IM11 (its refusal at a low balance) and IM30 (the band's Hear)
+   are retired -- the product has no door for them (keel-cloud 247 FR-1 / FR-6, keel-web 187) -- never measured, the
+   reason on the card; IM2 holds L1 to no price word at all and Sent's cards / New link's rows to 187's own priced
+   words at the served `recordPrice`. The spec names no marks version; the change is the honest one.
+3. **The full leg (S-006) is restructured but not walked.** The short form (S-005) was walked on the fakes; the
+   B2B steps (`_screens_recording`, `_screens_ready`, the second kind's free set-up in `_two_gates`, `_choice_link`,
+   `_recorded_link`, `_retry`) are written on 247 / 250's shapes and read by the unit suite only. Time.
+4. **The card's upload is asserted off the wire, not by its answer.** keel-cloud 249's record route is not on
+   `e4497962`, so `POST calls/{id}/record` answers 404 and the card draws its failure line; the leg keeps the
+   request (three parts, the file names, the multipart type) and records the phase, asserting nothing of the answer
+   (`TODO(249)`).
+5. **Float in headless.** The browser check needs `documentPictureInPicture` to exist, so the fake defines one whose
+   `requestWindow` refuses; the Float button is asserted drawn and the card never floating, and it is never pressed --
+   the spec's *absent or disabled, never failed* read as *never floating, never failed*.
+6. **The card runs in the founder's own context**, a new page with the fake sources installed by `add_init_script`
+   -- never a cookie set by hand (`tests/test_stub_oidc.py` refuses any login bypass, and it caught the first draft).
+7. **The person signs in on the stub issuer by the harness's own registry identity** (`register_stranger`, as the
+   group link's strangers), typed once as a nickname (*You wrote*) and once as their own first name (`nameDiffers`
+   false). Two calls, so the second stays PLANNED and unverified for 249's n line.
+8. **Pins moved with the cloud, not only with the spec**: `ScreenResponseContracts.CONTRACT_VERSION` 26 (245),
+   `SCHEMA_VERSION` 39 (248), `AnsweredRows(..., ReviewDto asked)` (245), every job row priced 0 at 17 -- each old test
+   reads its version of record or a later one, named.
+9. **Retired by name, kept as the record**: `tests/test_im2_staging_switch_094.py` (the lock's switch), 090's two
+   tests on Send more's way and L1's 130 title, 091's five IM2 tests on L1's credits sentence, 150's `SEND_WHO`
+   ways, the Persona's `line` / `record` / `formats_now` / `hear_band` / `l1_again`.
+10. **Nothing paid, nothing on host claude.** The FIRST_PERSON kind is wired and tested by the unit suite's case
+    builder alone; no instruction screen ran.
 
 ## TODO(249)
 

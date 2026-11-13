@@ -165,6 +165,7 @@ def test_the_golden_walk_is_unchanged_under_all(countly):
                                                  "CALIBRATION_QUESTIONS", vs.CALIBRATION_WITH_CLAUSE_SCREEN,
                                                  vs.CALIBRATION_WITH_PARTS_SCREEN,
                                                  *(x + vs.REPAIR_SUFFIX for x in vs.CALIBRATION_SCREENS), "ASKED",
+                                                 "ASKED" + vs.REPAIR_SUFFIX,
                                                  "RESPONDENT_QUESTIONS", "INTERPRET", "THEMES"}
     assert all(vs.serves_part(countly, part, vs.LINK_PRIMARY) for part in (1, 2, 3))
     # re-pinned by spec 103: keel-cloud 168 says the window as its own sentence
@@ -194,9 +195,11 @@ def test_the_problem_study_s_expected_walk(countly):
     # spec 129 (keel-cloud 200 FR-1): the founder's typed Importance rows are owed their short names -- one ASKED job,
     # the problem's own, face-less (no faces: no solution list is drafted)
     assert set(script) == {"CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "CALIBRATION_QUESTIONS", "RESPONDENT_QUESTIONS",
-                           "INTERPRET", "THEMES", "ASKED", vs.CALIBRATION_WITH_CLAUSE_SCREEN,
+                           "INTERPRET", "THEMES", "ASKED", "ASKED" + vs.REPAIR_SUFFIX, vs.CALIBRATION_WITH_CLAUSE_SCREEN,
                            vs.CALIBRATION_WITH_PARTS_SCREEN, *(x + vs.REPAIR_SUFFIX for x in vs.CALIBRATION_SCREENS)}
-    assert [e["result"] for e in script["ASKED"]] == [vs.importance_asked_result(seed)]
+    # spec 154 FR-0: the problem stage's own ASKED job, then the Importance probe's two (keel-cloud 200's short names)
+    assert [e["result"] for e in script["ASKED"]] == [vs.importance_asked_result(seed),
+                                                      *vs.importance_probe_asked_results(seed)]
     # spec 154 FR-0: Importance's draft under its own key set (`problem_clause`), Current solution's under its
     # (`answer_parts`), the slice's own job as before
     assert [r["result"]["vector"] for r in script["CALIBRATION_QUESTIONS"]] == ["PROBLEM"]

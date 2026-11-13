@@ -94,7 +94,7 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     # under their own key sets
     want = {vs.CONTEXT_SCREEN, vs.PROBLEM_SCREEN, vs.MECHANISM_SCREEN, vs.CALIBRATION_SCREEN,
             vs.CALIBRATION_WITH_CLAUSE_SCREEN, vs.CALIBRATION_WITH_PARTS_SCREEN,
-            *(s + vs.REPAIR_SUFFIX for s in vs.CALIBRATION_SCREENS),
+            *(s + vs.REPAIR_SUFFIX for s in vs.CALIBRATION_SCREENS), vs.ASKED_SCREEN + vs.REPAIR_SUFFIX,
             vs.ASKED_SCREEN, vs.RESPONDENT_SCREEN, vs.INTERPRET_SCREEN, vs.THEMES_SCREEN}
     assert set(screens) == want, "no BRIEF since keel-cloud 104; THEMES chosen by dimension (keel-runtime 012)"
     assert screens[vs.THEMES_SCREEN][-1] == {"outcome": "COMPLETED", "result": {"themes": []}}, "the catch-all last"
@@ -135,8 +135,10 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     # spec 129 (keel-cloud 200 FR-1): where the founder types Importance rows of his own (01-countly) and the writer
     # names them, the problem stage's face-less ASKED job comes first
     importance = vs.importance_asked_result(entry)
-    assert asked == ([importance] if importance else []) + [vs.asked_result(entry, "solution.compatibility"),
-                                                             vs.asked_result(entry, "solution.adoption_friction")]
+    # spec 154 FR-0: then the Importance probe's wire saves' jobs (the own row; the rows past the third), then the two
+    # faced lists, every row phrased (keel-cloud 245)
+    assert asked == ([importance] if importance else []) + vs.importance_probe_asked_results(entry) + [
+        vs.asked_result(entry, "solution.compatibility"), vs.asked_result(entry, "solution.adoption_friction")]
 
 
 def test_the_lock_starts_one_job_on_either_persona_and_part_three_stays_the_decision_makers():
