@@ -498,14 +498,15 @@ def b_again(j, ctx: dict, record: dict) -> None:
     begun = _begun_rows(j, ctx["founder_id"], ctx["since"], ctx["invitations"]["b"] or "")
     with cs._step(j, "stranger B opens it again and signs in in the same browser: the same token, the intro, and *Answer "
                      "in writing* resumes on part 1's first question, past the gate (the kept draft); Begin again "
-                     "writes no second row", party="participant") as h:
-        h.record_assert({"token": ctx["tokens"]["b"], "stem": record["paused"]["stem"], "gate": 0, "rows": 1},
+                     "writes no row (keel-cloud 250)", party="participant") as h:
+        # keel-cloud 250 (spec 154 FR-1): no Begin writes a row -- the first nor this one
+        h.record_assert({"token": ctx["tokens"]["b"], "stem": record["paused"]["stem"], "gate": 0, "rows": 0},
                         {"token": landed["token"], "intro": intro, "begin": began.value.status, "stem": stem,
                          "gate": gate_drawn, "rows": begun})
         assert landed["token"] == ctx["tokens"]["b"], landed
         assert intro["state"] == "INTERVIEW" and intro["intro"] == FORMAT, intro
         assert began.value.status == charge.BEGIN_STATUS and stem == record["paused"]["stem"], (began.value.status, stem)
-        assert gate_drawn == 0 and len(begun) == 1, (gate_drawn, begun)
+        assert gate_drawn == 0 and len(begun) == 0, (gate_drawn, begun)
     page.close()
 
 
