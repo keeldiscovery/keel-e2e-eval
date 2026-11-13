@@ -72,10 +72,13 @@ def test_the_page_objects_have_no_contacts_or_dataset_screens():
 
 
 def test_send_more_has_two_ways():
+    """150's two ways, kept as constants for the record; spec 154 (keel-web 187 FR-4): S-017's group link is New group
+    link's one screen -- no ways, the kind row only on two kinds."""
     assert iv.SEND_WHO_IDS == ("send-who-OWN", "send-who-GROUP")
     assert (iv.WHO_OWN, iv.WHO_GROUP) == ("People I know by name", "A group, with one open link")
     want = inspect.getsource(open_link_leg.make_the_link)
-    assert '"ways": [iv_screens.WHO_OWN, iv_screens.WHO_GROUP]' in want
+    assert '"ways": [iv_screens.WHO_OWN, iv_screens.WHO_GROUP]' not in want
+    assert '"ways": "the kind row" if two_kinds else []' in want
 
 
 @pytest.mark.skip(reason="retired by spec 154: keel-web 187 FR-3 / FR-4 replaced Send more's ways (SEND_WHO) with New link and New group link, one screen each")
