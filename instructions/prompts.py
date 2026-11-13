@@ -307,23 +307,29 @@ def first_person_cases(entry, instructions_by_screen, executor_module, *, n_runs
 
 
 def first_person_from_mechanism(case, mechanism: dict | None, executor_module, *, host: str = "claude") -> bool:
-    """Spec 154 FR-7 (the coordinator, 2026-11-13): a `<entry>/FIRST_PERSON/runN` case takes the idea lines its run's
-    `<entry>/SOLUTION_MECHANISM/runN` answer wrote, where that answer is present -- `idea_belief`, `idea_what`,
-    `idea_how.primary` (keel-cloud stores the primary line as the card's how) -- the way the cloud hands the job the
-    stored card; else it keeps the composed stand-in. Re-renders the case's prompt; returns whether it took them."""
-    belief = (mechanism or {}).get("idea_belief")
+    """Spec 154 FR-7: a `<entry>/FIRST_PERSON/runN` case takes the idea lines of its run's `<entry>/SOLUTION_MECHANISM/runN`
+    ACCEPTED answer (`run.keep_mechanism`: `{case, turn, result}`) -- `idea_belief`, `idea_what`, `idea_how.primary`
+    (keel-cloud stores the primary line as the card's how) -- the way the cloud hands the job the stored card; where
+    that answer is missing or was refused on both turns it keeps the composed stand-in. Either way the case's meta
+    says where the belief came from (`from`: the case and the turn, or why not). Returns whether it took them."""
+    kept = mechanism or {}
+    result = kept.get("result") if "result" in kept or "turn" in kept else kept    # a bare result is read as one
+    source = case.case_id.replace("/FIRST_PERSON/", "/SOLUTION_MECHANISM/")
+    belief = (result or {}).get("idea_belief")
     if not isinstance(belief, str) or not belief.strip():
+        why = kept.get("why") or (f"{source} not in this run" if not kept else "no idea_belief in the accepted answer")
+        case.meta = {**(case.meta or {}), "from": {"case": source, "turn": None, "why": why}}
         return False
-    how = (mechanism or {}).get("idea_how")
+    how = result.get("idea_how")
     how = how.get("primary") if isinstance(how, dict) else how
     handed = dict(case.payload.get("context") or {})
     handed["idea_belief"] = belief.strip()
-    if isinstance(mechanism.get("idea_what"), str) and mechanism["idea_what"].strip():
-        handed["idea_what"] = mechanism["idea_what"].strip()
+    if isinstance(result.get("idea_what"), str) and result["idea_what"].strip():
+        handed["idea_what"] = result["idea_what"].strip()
     if isinstance(how, str) and how.strip():
         handed["idea_how"] = how.strip()
     case.payload = {**case.payload, "context": handed}
     case.meta = {**(case.meta or {}), "idea_belief": handed["idea_belief"], "composed": [],
-                 "from": case.case_id.replace("/FIRST_PERSON/", "/SOLUTION_MECHANISM/")}
+                 "from": {"case": kept.get("case") or source, "turn": kept.get("turn")}}
     case.prompt = render(executor_module, case.payload, job_id=_slug(case.case_id), host=host)
     return True
