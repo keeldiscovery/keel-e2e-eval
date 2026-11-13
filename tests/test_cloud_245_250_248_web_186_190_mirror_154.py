@@ -54,6 +54,12 @@ CARDS_SHA256_245 = "4dc14231eebf3decfca7b26f26781a0b816e308007a724fcfad2cba2968f
 CONTRACT_SHA256_70 = "8f218c427937722b58647cc9c825722b1677155ca971e087d0c7f479d425ab63"
 CONTRACT_70 = 70
 DOCUMENT_VERSION_40 = 40
+#: FR-6, the web's side: keel-web master `aa8b49c6` (spec 188's contract-70 pass, keel-web b0111338) vendors contract 70
+#: whole -- `specs/044-vector-corridor/contracts/openapi-v2.yaml`, this sha256 with its vendoring header, and byte for byte
+#: `CONTRACT_SHA256_70` below that header.
+WEB_MASTER_70 = "aa8b49c6"
+WEB_CONTRACT = "specs/044-vector-corridor/contracts/openapi-v2.yaml"
+WEB_CONTRACT_SHA256_70 = "a6de15c4a56003298585c897f684c74e06cf203802dec5166f91da66deebf153"
 
 
 def _cloud(rel: str) -> str:
@@ -176,6 +182,26 @@ def test_the_contract_is_70_and_the_kinds_and_calls_routes():
     assert fake.PROJECT_REMEDY.format(available=0) == "A project is 1,000 credits. You have 0."
 
 
+def test_keel_web_vendors_the_same_contract_70():
+    """FR-6 (keel-web `aa8b49c6`): the web's vendored copy is cloud's `canon/openapi-v2.yaml` at `dfdad66a` under its
+    vendoring header -- the file's own sha256 pinned, and the body below the header byte for byte cloud's. A web checkout
+    still on contract 69 or before skips by name (the walk reads the served contract, not the web's copy)."""
+    path = KEEL_WEB / WEB_CONTRACT
+    if not path.is_file():
+        pytest.skip(f"no keel-web checkout at {KEEL_WEB} ({WEB_CONTRACT})")
+    raw = path.read_bytes()
+    version = re.search(rb"x-keel-contract: (\d+)", raw)
+    if not version or int(version.group(1)) < CONTRACT_70:
+        pytest.skip(f"keel-web's vendored contract is {version and int(version.group(1))}, before 70 (master before {WEB_MASTER_70})")
+    lines = raw.splitlines(keepends=True)
+    head = 0
+    while head < len(lines) and lines[head].startswith(b"#"):
+        head += 1
+    assert b"dfdad66a" in b"".join(lines[:head]), "the vendoring header names keel-cloud-docs dfdad66a"
+    assert hashlib.sha256(b"".join(lines[head:])).hexdigest() == CONTRACT_SHA256_70
+    assert hashlib.sha256(raw).hexdigest() == WEB_CONTRACT_SHA256_70
+
+
 def test_the_project_row_and_the_leg_hold_the_gates():
     row = {"kind": "SPEND", "action": "PROJECT", "credits": -1000, "price_credits": 1000, "price_version": 17,
            "inference_job_id": None, "reason": "project:new", "idempotency_key": charge.project_key("p1"), "project_id": "p1"}
@@ -184,7 +210,7 @@ def test_the_project_row_and_the_leg_hold_the_gates():
     assert charge.moves_balance(row) and not charge.moves_balance({**row, "credits": 0})
     source = inspect.getsource(leg._two_gates)
     for needle in ("charge.bought_once(", "NINE_HUNDRED", "fake.INSUFFICIENT_PROJECT", "charge.served(", "ivs.SETUP_ALREADY_PAID",
-                   'cloud_log.lines(j.stack, "project_bought"', 'cloud_log.lines(j.stack, "credits_refused"'):
+                   'cloud_log.wait_lines(j.stack, "project_bought"', 'cloud_log.wait_lines(j.stack, "credits_refused"'):
         assert needle in source, needle
     assert leg.NINE_HUNDRED == 900 and leg._new_project_body.__doc__
     lock = inspect.getsource(leg._lock_body)

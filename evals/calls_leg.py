@@ -236,7 +236,7 @@ def plan_a_call(j, sent: iv.Interviews, kind: str, typed: str, *, expect_kind_ro
         response = planned.value
         row = _json(response)
         out = {"status": response.status, "sent": response.request.post_data_json, "row": row, "drawn": drawn,
-               "log": cloud_log.lines(j.stack, LOG_PLANNED, project_id=j.project_id, since_offset=offset)}
+               "log": cloud_log.wait_lines(j.stack, LOG_PLANNED, project_id=j.project_id, since_offset=offset)}
         if response.status < 400:
             popup.locator(PLAN_CALL_DONE).wait_for(state="visible", timeout=10_000)
             out["done"] = {"title": _words(popup.locator(PLAN_CALL_DONE)), "box": _words(popup.locator(PLAN_CALL_DONE_BOX))}
@@ -389,7 +389,7 @@ def sign_the_person_in(j, browser, call: dict, person, *, what: str) -> dict:
                       "google_left": page.locator(ARRIVAL_GOOGLE).count()}
             h.add_screenshot(b.screenshot("call-signed-in"))
             served_after = _json(requests.get(f"{j.cloud_base}/v2/i/{token}/interview", timeout=20))
-            log = cloud_log.lines(j.stack, LOG_SIGNED_IN, project_id=j.project_id, since_offset=offset)
+            log = cloud_log.wait_lines(j.stack, LOG_SIGNED_IN, project_id=j.project_id, since_offset=offset)
             h.record_wire({"token": "the call's", "person": person.id}, {"card": drawn, "signed": signed})
     finally:
         context.close()
@@ -581,9 +581,9 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
            "start": {"status": start_status, "row": on_call}, "filings": filings, "closing": closing, "ended": ended,
            "uploads": uploads, "upload_responses": responses, "statuses": statuses,
            "wire_after": {k: wire.get(k) for k in ("status", "startedAt", "endedAt")},
-           "log": {"ended": cloud_log.lines(j.stack, LOG_ENDED, project_id=j.project_id, since_offset=offset),
-                   "digested": cloud_log.lines(j.stack, LOG_DIGESTED, project_id=j.project_id, since_offset=offset),
-                   "counted": cloud_log.lines(j.stack, LOG_COUNTED, project_id=j.project_id, since_offset=offset)}}
+           "log": {"ended": cloud_log.wait_lines(j.stack, LOG_ENDED, project_id=j.project_id, since_offset=offset),
+                   "digested": cloud_log.wait_lines(j.stack, LOG_DIGESTED, project_id=j.project_id, since_offset=offset),
+                   "counted": cloud_log.wait_lines(j.stack, LOG_COUNTED, project_id=j.project_id, since_offset=offset)}}
     record["card"] = out
     with _step(j, "spec 154 FR-5 (keel-web 188): the browser check passes on the fakes (no browser line), the mic "
                   "dropdown lists two and keeps the one picked across a reload, Start posts start (ON_CALL) and reads "
@@ -741,8 +741,8 @@ def upload_fixture_record(j, call: dict, record: dict) -> dict:
         statuses = wait_digested(j, call_id)
         out = {"status": response.status, "row": {k: body.get(k) for k in ("status", "endedAt", "identity")},
                "statuses": statuses, "plan": built["plan"], "log": built["log"],
-               "lines": {"ended": cloud_log.lines(j.stack, LOG_ENDED, project_id=j.project_id, since_offset=offset),
-                         "digested": cloud_log.lines(j.stack, LOG_DIGESTED, project_id=j.project_id, since_offset=offset)}}
+               "lines": {"ended": cloud_log.wait_lines(j.stack, LOG_ENDED, project_id=j.project_id, since_offset=offset),
+                         "digested": cloud_log.wait_lines(j.stack, LOG_DIGESTED, project_id=j.project_id, since_offset=offset)}}
         record["fixture"] = out
         h.record_assert({"status": 200, "row": {"status": "ENDED"}, "statuses": ["ENDED", "ANSWERED"],
                          "parts": list(RECORD_PARTS)}, out)

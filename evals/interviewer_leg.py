@@ -582,9 +582,9 @@ def _first_set_up(j, wire: _Wire, record: dict) -> None:
                            "balance_after": wire.credits(), "at": stack_ledger.now(j.stack), "card": before,
                            "popup": pressed["popup"], "sent": pressed["sent"], "route": pressed["route"],
                            "faces_after": {k: faces_after.get(k) for k in ("recordPrice", "recordingPaid")},
-                           "log": {"bought": cloud_log.lines(j.stack, "interviewer_bought", project_id=j.project_id,
+                           "log": {"bought": cloud_log.wait_lines(j.stack, "interviewer_bought", project_id=j.project_id,
                                                              since_offset=offset),
-                                   "set_up": cloud_log.lines(j.stack, "interviewer_set_up", project_id=j.project_id,
+                                   "set_up": cloud_log.wait_lines(j.stack, "interviewer_set_up", project_id=j.project_id,
                                                              since_offset=offset)}}
         record["wire_views"].append(view)
         record["wire_views"].append(faces_after)
@@ -810,7 +810,7 @@ def _ready(j, wire: _Wire, record: dict, face: str, what: str, *, link: str = vs
                 break
             time.sleep(1)
         took = round(time.monotonic() - started, 1)
-        ready_log = cloud_log.lines(j.stack, "interviewer_ready", project_id=j.project_id, since_offset=0)
+        ready_log = cloud_log.wait_lines(j.stack, "interviewer_ready", project_id=j.project_id, since_offset=0)
         record.setdefault("ready", []).append({"what": what, "face": face, "trail": trail, "view": view,
                                                "seconds": took, "role": role,
                                                "log": [x for x in ready_log or [] if x.get("role") == role]})
@@ -851,7 +851,7 @@ def _two_gates(j, wire: _Wire, record: dict, founder_id: str, run: str) -> None:
         record["second_project"] = {"status": status, "projectId": project_id, "balance_before": before,
                                     "balance_after": wire.credits(), "faults": faults,
                                     "rows": charge.project_rows(rows, project_id),
-                                    "log": cloud_log.lines(j.stack, "project_bought", project_id=project_id,
+                                    "log": cloud_log.wait_lines(j.stack, "project_bought", project_id=project_id,
                                                            since_offset=offset)}
         h.record_assert({"status": 201, "row": {"kind": "SPEND", "action": charge.PROJECT,
                                                  "credits": -charge.PROJECT_PRICE, "price_version": charge.PRICE_VERSION},
@@ -918,7 +918,7 @@ def _two_gates(j, wire: _Wire, record: dict, founder_id: str, run: str) -> None:
         projects_after = len((j.get("/v2/me/projects") or {}).get("projects") or [])
         record["refused_project"] = {"balance": wire.credits(), "status": status, "body": body,
                                      "projects": [projects_before, projects_after],
-                                     "log": cloud_log.lines(j.stack, "credits_refused", since_offset=offset)}
+                                     "log": cloud_log.wait_lines(j.stack, "credits_refused", since_offset=offset)}
         h.record_assert({"status": 422, "code": fake.INSUFFICIENT_PROJECT, "required": charge.PROJECT_PRICE,
                          "available": NINE_HUNDRED, "remedy": fake.PROJECT_REMEDY.format(available=NINE_HUNDRED),
                          "made": 0}, record["refused_project"])

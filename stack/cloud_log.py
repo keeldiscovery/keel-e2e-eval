@@ -11,6 +11,7 @@ no log to read and every reader answers `None`, by name -- a note, never a stop.
 from __future__ import annotations
 
 import re
+import time
 from pathlib import Path
 
 from stack.config import REPO_ROOT, StackConfig
@@ -77,3 +78,16 @@ def offset(config: StackConfig | None) -> int:
     """The log's size now -- handed back to `lines(since_offset=...)` so a step reads only what it caused."""
     path = path_of(config)
     return path.stat().st_size if path is not None and path.is_file() else 0
+
+
+def wait_lines(config: StackConfig | None, name: str, *, project_id: str | None = None, since_offset: int = 0,
+               timeout_s: float = 10.0, poll_s: float = 0.25) -> list[dict] | None:
+    """`lines`, read again until one is there or `timeout_s` passes (spec 154): the cloud's stdout reaches the log through
+    the launcher in chunks, so a line written a moment before is not on disk yet -- S-005 read *credits refused:* empty
+    and the line landed in the same second. The last read is returned (an empty list where none came); None as `lines`."""
+    deadline = time.monotonic() + timeout_s
+    while True:
+        found = lines(config, name, project_id=project_id, since_offset=since_offset)
+        if found is None or found or time.monotonic() >= deadline:
+            return found
+        time.sleep(poll_s)
