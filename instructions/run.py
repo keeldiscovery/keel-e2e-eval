@@ -65,6 +65,71 @@ from . import validate as validate_mod
 # number before the first call is that nobody is surprised by the size of the bill.
 COST_PER_CASE_ESTIMATE_USD = 0.04
 
+
+def measured_cost(runs_dir: Path, host: str, *, last: int = 5) -> dict | None:
+    """Spec 154 (the coordinator, 2026-11-13: *$1.56 estimated against $19.79 spent*): the price a call costs, measured
+    on the latest paid instruction bundles under `runs_dir` for this host -- every recorded call (a first draft and its
+    redraw each a call) with its `total_cost_usd`, over the last `last` bundles that recorded any -- per screen (the
+    screens cost very differently) and overall, with how many calls a case took (the redraws). None where no bundle
+    recorded a cost (then the old flat guess is printed, named)."""
+    by_screen: dict[str, list] = {}           # screen -> [spent, calls, cases]
+    bundles = []
+    for bundle in sorted(runs_dir.glob("*-instructions"), reverse=True):
+        try:
+            if json.loads((bundle / "manifest.json").read_text(encoding="utf-8")).get("host") != host:
+                continue
+        except (OSError, ValueError):
+            continue
+        rows = {}
+        for envelope in bundle.glob("cases/**/envelope.json"):
+            try:
+                row = json.loads(envelope.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            costs = [float(d["total_cost_usd"]) for d in (row, row.get("redraw") or {})
+                     if isinstance(d.get("total_cost_usd"), (int, float))]
+            if costs:
+                rows.setdefault(row.get("screen") or "?", []).append(costs)
+        if not rows:
+            continue
+        bundles.append(bundle.name)
+        for screen, cases in rows.items():
+            slot = by_screen.setdefault(screen, [0.0, 0, 0])
+            slot[0] += sum(sum(c) for c in cases)
+            slot[1] += sum(len(c) for c in cases)
+            slot[2] += len(cases)
+        if len(bundles) >= last:
+            break
+    if not bundles:
+        return None
+    spent = sum(v[0] for v in by_screen.values())
+    calls = sum(v[1] for v in by_screen.values())
+    cases = sum(v[2] for v in by_screen.values())
+    return {"by_screen": {k: {"per_case": v[0] / v[2], "per_call": v[0] / v[1], "calls_per_case": v[1] / v[2]}
+                          for k, v in by_screen.items()},
+            "per_call": spent / calls, "per_case": spent / cases, "calls_per_case": calls / cases,
+            "spent": spent, "calls": calls, "cases": cases, "bundles": bundles}
+
+
+def estimate_line(model_cases: list, host: str, runs_dir: Path) -> str:
+    """The dry run's cost line: each case at its screen's measured cost (the calls a case of that screen took, the
+    redraws included, x the price of a call), the overall figure for a screen not yet measured; else the old flat
+    guess, said to be one."""
+    n_cases = len(model_cases)
+    measured = measured_cost(runs_dir, host)
+    if measured is None:
+        return (f"rough estimate at ${COST_PER_CASE_ESTIMATE_USD:.2f} a case (a guess: no paid bundle for {host} under "
+                f"{runs_dir}): ${n_cases * COST_PER_CASE_ESTIMATE_USD:.2f} of the founder's own money")
+    total = sum((measured["by_screen"].get(c.screen) or {}).get("per_case", measured["per_case"]) for c in model_cases)
+    calls = sum((measured["by_screen"].get(c.screen) or {}).get("calls_per_case", measured["calls_per_case"])
+                for c in model_cases)
+    per_call = total / calls if calls else measured["per_call"]
+    return (f"estimate: {n_cases} cases, about {calls:.0f} calls with their redraws, at ${per_call:.3f} a call = about "
+            f"${total:.2f} of the founder's own money -- each screen's price per call and redraw rate measured on "
+            f"{len(measured['bundles'])} paid bundle(s) for {host} (${measured['spent']:.2f} over {measured['calls']} "
+            f"calls; latest {measured['bundles'][0]})")
+
+
 #: The eight model screens (spec 029 FR-016; spec 040). `COMPARE` is not one: it is never sent.
 SCREENS = contract_mod.MODEL_SCREENS + (contract_mod.SCREEN_FIRST_PERSON,)
 
@@ -441,8 +506,7 @@ def _dry_run(config, corpus, executor_module, facts, args) -> int:
         print(f"  {entry_id:<20} calibration {row['calibration']} · asked {row['asked']} · respondent {links} · "
               f"validity {row['validity']} · no_leak sweep A {row['sweep_a']} + sweep B {row['sweep_b']}")
     print(_denominator_line(scorecard["denominators"]))
-    print(f"rough estimate at ${COST_PER_CASE_ESTIMATE_USD:.2f} a case: "
-          f"${len(model_cases) * COST_PER_CASE_ESTIMATE_USD:.2f} of the founder's own money")
+    print(estimate_line(model_cases, args.host, REPO_ROOT / "runs"))
     print(f"bundle: {run_dir}")
     print("nothing was called and nothing was spent")
     return 0
@@ -530,10 +594,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
                 executor_module, payload, job_id=prompts_mod._slug(case.case_id) + "-turn2",
                 host=args.host))
         if case.screen == contract_mod.SCREEN_SOLUTION_MECHANISM:
-            # only an answer the aggregate accepted is what keel-cloud would store on the card
-            accepted = answer.accepted
-            if accepted is not None and accepted.outcome == "COMPLETED" and isinstance(accepted.result, dict):
-                mechanisms[case.case_id] = accepted.result
+            mechanisms[case.case_id] = keep_mechanism(case, answer)
         entry = corpus.by_id(case.entry_id)
         for draft in (answer, answer.redraw):
             if draft is not None:
@@ -568,7 +629,7 @@ def _real_run(config, corpus, executor_module, validator_module, facts, args) ->
     if state.shown_to_aggregate:
         # The answers already judged during the run (call 41) are not asked twice.
         batch = validate_mod.build_batch([(c, r) for c, r in state.shown_to_aggregate
-                                          if c.case_id not in state.judged])
+                                          if c.case_id not in state.judged and c.screen not in NOT_CLOUD_SCREENS])
         unmet_by_screen = validate_mod.unmet_by_screen(config.keel_cloud, batch)
         unmet = list(unmet_by_screen.values())
         unmeasured_kinds = sorted(unmet_by_screen)
@@ -805,11 +866,31 @@ def _produced_key(case) -> str:
     return case.screen            # CONTEXT, FRAME and (spec 154) FIRST_PERSON: the screen's own name
 
 
+#: Spec 154 FR-7: the screens this eval asks that keel-cloud has no `InferenceScreen` for -- never handed to its
+#: `screenContracts validate` (the paid screen of 2026-11-13: *No enum constant InferenceScreen.FIRST_PERSON* left the
+#: other 36 cases' aggregate unmeasured) and judged here alone.
+NOT_CLOUD_SCREENS = frozenset({contract_mod.SCREEN_FIRST_PERSON})
+
+
+def keep_mechanism(case, answer) -> dict:
+    """Spec 154 FR-7: what a `SOLUTION_MECHANISM/runN` hands its run's `FIRST_PERSON/runN` -- the answer the aggregate
+    ACCEPTED (what keel-cloud stores on the card): `{case, turn, result}`, `turn` 1 for the first draft, 2 for the
+    redraw; where it accepted neither, `{case, turn: None, result: None, why}` with the rules that refused each draft,
+    so the FIRST_PERSON case keeps the composed stand-in and says why."""
+    accepted = answer.accepted
+    if accepted is not None and accepted.outcome == "COMPLETED" and isinstance(accepted.result, dict):
+        return {"case": case.case_id, "turn": 1 if accepted is answer else 2, "result": accepted.result}
+    rules = [r.get("rule") for r in answer.refusals if r.get("rule")]
+    why = (f"no accepted answer: the aggregate refused {', '.join(rules)}" if rules
+           else f"no accepted answer (outcome {answer.outcome}, the aggregate's verdict not asked)")
+    return {"case": case.case_id, "turn": None, "result": None, "why": why}
+
+
 def _score(case, entry, answer, failed, state, judge) -> dict:
     """One answered case: kept for the aggregate and the register, and scored where its kind has
     a scorer. Returns the case's `diff.json`, with a `line` the console prints beside it."""
     result = answer.result if (answer.schema_valid and answer.outcome == "COMPLETED") else None
-    if result is not None:
+    if result is not None and case.screen not in NOT_CLOUD_SCREENS:
         state.shown_to_aggregate.append((case, result))
         if case.run_index == 1:
             state.produced.setdefault(case.entry_id, {})[_produced_key(case)] = (case.case_id,
@@ -821,18 +902,21 @@ def _score(case, entry, answer, failed, state, judge) -> dict:
         # No case kind at v9 may legitimately ask: every screen is handed the corpus's own
         # inputs, so an ask is a failed case, counted, never softened (decision 14's reading).
         failed = failed or "NEEDS_INPUT on a screen this eval always supplies"
-    if screen_mod.is_extra(case):
-        # spec 105 FR-3 / spec 110 FR-4: a back-test entry's or a probe's case has no golden expectations -- rendered
-        # and validated, never scored (a probe's mark is `_score_probe`'s); its entry is not the golden corpus's
-        return diff
     if case.kind == "FIRST_PERSON":
         # spec 154 FR-7 (keel-cloud 248 FR-7b): one field, held to `IdeaLines.firstPersonFault`'s rule here (the cloud's
-        # validator takes no such screen); reported, never a mark -- the founder reads it for new refusal classes
+        # validator takes no such screen); reported, never a mark -- the founder reads it for new refusal classes. On a
+        # back-test entry too (the paid screen of 2026-11-13 ran on 08-fresco and its diff carried no faults); the
+        # belief it was handed and where it came from (`from`: the run's SOLUTION_MECHANISM case and turn, or why not)
         from . import context as context_mod                  # noqa: PLC0415
         line = (result or {}).get(contract_mod.FIRST_PERSON_FIELD) if isinstance(result, dict) else None
         faults = context_mod.first_person_faults(line, case.meta.get("idea_belief"))
-        diff.update(faults=faults, first_person=line)
+        diff.update(faults=faults, first_person=line, idea_belief=(case.meta or {}).get("idea_belief"),
+                    belief_from=(case.meta or {}).get("from"), composed=(case.meta or {}).get("composed"))
         diff["line"] = f"  {line!r}" + (f" · {len(faults)} fault(s): {'; '.join(faults)}" if faults else " · holds F1-F5")
+        return diff
+    if screen_mod.is_extra(case):
+        # spec 105 FR-3 / spec 110 FR-4: a back-test entry's or a probe's case has no golden expectations -- rendered
+        # and validated, never scored (a probe's mark is `_score_probe`'s); its entry is not the golden corpus's
         return diff
     if case.kind == "CALIBRATION":
         score = score_mod.score_calibration(case, entry, entry.registry, result, judge=judge,

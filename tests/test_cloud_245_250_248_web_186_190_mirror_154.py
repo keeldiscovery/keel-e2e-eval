@@ -408,31 +408,78 @@ def test_the_first_person_case_composes_its_belief_where_the_corpus_records_none
     assert "first_person_cases" in inspect.getsource(screen_entries.build_cases)
 
 
-def test_a_first_person_case_takes_its_runs_mechanism_answer():
-    """FR-7: `<entry>/FIRST_PERSON/runN` takes `idea_belief`, `idea_what` and `idea_how.primary` from the same run's
-    accepted `<entry>/SOLUTION_MECHANISM/runN` answer where present (the run loop keeps them); else the composed
-    stand-in stays."""
+def test_a_first_person_case_takes_its_runs_accepted_mechanism_answer():
+    """FR-7, on the shape the paid screen of 2026-11-13 recorded (08-fresco, `runs/20261113T180811Z-instructions`): run1's
+    SOLUTION_MECHANISM was refused M8 on its first draft and accepted on the redraw, so FIRST_PERSON/run1 takes the
+    redraw's belief (turn 2) -- never the refused first draft; run2's was refused M8 on both turns, so FIRST_PERSON/run2
+    keeps the composed stand-in and says why. The diff records the case and the turn."""
     from types import SimpleNamespace                                           # noqa: PLC0415
-
+    from instructions import runner as runner_mod                               # noqa: PLC0415
     if not Path(CONFIG.keel_runtime).is_dir():
         pytest.skip(f"no keel-runtime checkout at {CONFIG.keel_runtime}")
     executor_module, _ = prompts_mod.load_runtime(CONFIG.keel_runtime)
-    composed = {"idea_belief": "The people building it believe it would stops it.", "idea_what": "w", "idea_how": "h"}
-    case = SimpleNamespace(case_id="01-countly/FIRST_PERSON/run2", meta={"composed": ["idea_belief"]}, prompt="",
-                           payload={"instruction": "i", "context": dict(composed), "interaction_history": [],
-                                    "input": {"content": ""}, "response_contract": {}})
-    assert prompts_mod.first_person_from_mechanism(case, None, executor_module) is False
-    assert prompts_mod.first_person_from_mechanism(case, {"idea_belief": " "}, executor_module) is False
-    assert case.payload["context"] == composed
-    mechanism = {"idea_belief": "The people building it believe it would stop it.", "idea_what": "an alert",
-                 "idea_how": {"primary": "When it comes, you scan it.", "decider": None}}
-    assert prompts_mod.first_person_from_mechanism(case, mechanism, executor_module) is True
-    assert case.payload["context"] == {"idea_belief": "The people building it believe it would stop it.",
-                                       "idea_what": "an alert", "idea_how": "When it comes, you scan it."}
-    assert case.meta["from"] == "01-countly/SOLUTION_MECHANISM/run2" and case.meta["composed"] == []
-    assert "would stop it" in case.prompt
-    run = inspect.getsource(run_mod)
-    assert "prompts_mod.first_person_from_mechanism(" in run and "mechanisms[case.case_id] = accepted.result" in run
-    source = inspect.getsource(prompts_mod.first_person_from_mechanism)
-    assert 'how.get("primary")' in source and '"from": case.case_id.replace("/FIRST_PERSON/", "/SOLUTION_MECHANISM/")' \
-        in source
+    first = {"idea_belief": "The people building it believe it would give you notes with photos, assignees and due "
+                            "dates from your site walk.", "idea_what": "an AI scribe",
+             "idea_how": {"primary": "When you walk the site, you film it. Then it writes the notes.", "decider": None}}
+    second = {**first, "idea_belief": "The people building it believe it would give you all of that as you go."}
+    refused = {"accepted": False, "refusal": {"kind": "rule", "rule": "M8", "path": "result.idea_belief"}}
+    run1 = runner_mod.Answer(case_id="08-fresco/SOLUTION_MECHANISM/run1", outcome="COMPLETED", result=first,
+                             schema_valid=True, verdicts=[refused, {"accepted": True}],
+                             redraw=runner_mod.Answer(case_id="08-fresco/SOLUTION_MECHANISM/run1", outcome="COMPLETED",
+                                                      result=second, schema_valid=True))
+    run2 = runner_mod.Answer(case_id="08-fresco/SOLUTION_MECHANISM/run2", outcome="COMPLETED", result=first,
+                             schema_valid=True, verdicts=[refused, refused],
+                             redraw=runner_mod.Answer(case_id="08-fresco/SOLUTION_MECHANISM/run2", outcome="COMPLETED",
+                                                      result=first, schema_valid=True))
+    kept1 = run_mod.keep_mechanism(SimpleNamespace(case_id="08-fresco/SOLUTION_MECHANISM/run1"), run1)
+    kept2 = run_mod.keep_mechanism(SimpleNamespace(case_id="08-fresco/SOLUTION_MECHANISM/run2"), run2)
+    assert kept1 == {"case": "08-fresco/SOLUTION_MECHANISM/run1", "turn": 2, "result": second}
+    assert kept2["turn"] is None and kept2["result"] is None and "M8" in kept2["why"]
+
+    def case(n):
+        composed = {"idea_belief": "The people building it believe it would the notes are right.", "idea_what": "w",
+                    "idea_how": "h"}
+        return SimpleNamespace(case_id=f"08-fresco/FIRST_PERSON/run{n}", meta={"composed": ["idea_belief"],
+                                                                                "idea_belief": composed["idea_belief"]},
+                               prompt="", payload={"instruction": "i", "context": composed, "interaction_history": [],
+                                                   "input": {"content": ""}, "response_contract": {}})
+    one, two = case(1), case(2)
+    assert prompts_mod.first_person_from_mechanism(one, kept1, executor_module) is True
+    assert one.payload["context"]["idea_belief"] == second["idea_belief"] != first["idea_belief"]
+    assert one.payload["context"]["idea_how"] == "When you walk the site, you film it. Then it writes the notes."
+    assert one.meta["from"] == {"case": "08-fresco/SOLUTION_MECHANISM/run1", "turn": 2} and one.meta["composed"] == []
+    assert prompts_mod.first_person_from_mechanism(two, kept2, executor_module) is False
+    assert two.payload["context"]["idea_belief"].startswith("The people building it believe it would the notes")
+    assert two.meta["from"]["turn"] is None and "M8" in two.meta["from"]["why"]
+    # the diff carries it, on a back-test entry too, and FIRST_PERSON never reaches the cloud's aggregate
+    state = run_mod._RunState()
+    answer = runner_mod.Answer(case_id=one.case_id, outcome="COMPLETED", schema_valid=True,
+                               result={"idea_belief_first_person": "I believe it would give you all of that as you go."})
+    one.kind, one.screen, one.entry_id, one.run_index = "FIRST_PERSON", contract_mod.SCREEN_FIRST_PERSON, "08-fresco", 1
+    one.meta["source"] = "backtest"
+    diff = run_mod._score(one, None, answer, None, state, None)
+    assert diff["faults"] == [] and diff["belief_from"] == {"case": "08-fresco/SOLUTION_MECHANISM/run1", "turn": 2}
+    assert state.shown_to_aggregate == [] and contract_mod.SCREEN_FIRST_PERSON in run_mod.NOT_CLOUD_SCREENS
+
+
+def test_the_dry_runs_estimate_is_measured_per_screen(tmp_path):
+    """The dry run's cost line (the coordinator, 2026-11-13: *$1.56 estimated against $19.79 spent*): each case at its
+    screen's measured price per call and redraw rate, from the latest paid bundles' recorded `total_cost_usd`; the old
+    flat guess only where no bundle recorded a cost, and said to be one."""
+    from types import SimpleNamespace                                           # noqa: PLC0415
+    bundle = tmp_path / "20261113T180811Z-instructions"
+    (bundle / "cases" / "e" / "SM" / "run1").mkdir(parents=True)
+    (bundle / "cases" / "e" / "FP" / "run1").mkdir(parents=True)
+    (bundle / "manifest.json").write_text(json.dumps({"host": "claude"}))
+    (bundle / "cases" / "e" / "SM" / "run1" / "envelope.json").write_text(json.dumps(
+        {"screen": "SOLUTION_MECHANISM", "total_cost_usd": 0.3, "redraw": {"total_cost_usd": 0.2}}))
+    (bundle / "cases" / "e" / "FP" / "run1" / "envelope.json").write_text(json.dumps(
+        {"screen": "FIRST_PERSON", "total_cost_usd": 0.05, "redraw": None}))
+    measured = run_mod.measured_cost(tmp_path, "claude")
+    assert measured["calls"] == 3 and round(measured["spent"], 2) == 0.55
+    assert measured["by_screen"]["SOLUTION_MECHANISM"] == {"per_case": 0.5, "per_call": 0.25, "calls_per_case": 2.0}
+    cases = [SimpleNamespace(screen="SOLUTION_MECHANISM")] * 3 + [SimpleNamespace(screen="FIRST_PERSON")] * 3
+    line = run_mod.estimate_line(cases, "claude", tmp_path)
+    assert "about $1.65" in line and "about 9 calls" in line and "a call" in line
+    assert run_mod.measured_cost(tmp_path, "codex") is None
+    assert "a guess" in run_mod.estimate_line(cases, "codex", tmp_path)

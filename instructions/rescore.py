@@ -280,7 +280,10 @@ def main(argv=None) -> int:
         if answer.errored and "never fit its shape" not in str(answer.error):
             state.errored += 1
         run_mod._score(case, corpus.by_id(case.entry_id), answer, failed, state, judge)
-        # The aggregate is asked about what the run showed it: the raw answer, and the redraw.
+        # The aggregate is asked about what the run showed it: the raw answer, and the redraw -- never a screen keel-cloud
+        # has no InferenceScreen for (spec 154: FIRST_PERSON, `run.NOT_CLOUD_SCREENS`)
+        if case.screen in run_mod.NOT_CLOUD_SCREENS:
+            continue
         if _gradeable(raw):
             to_validate.append((case, raw.get("result")))
         redraw = envelope.get("redraw") if drafts else None
