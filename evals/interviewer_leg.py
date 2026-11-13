@@ -3156,6 +3156,19 @@ def _ai_person(j, interview: dict, token: str, *, want: int = 1):
         if against != fake.LOCK_RULE and against:
             person = vs.with_pick(person, last["dimension"], [against[0]])
             plan = vs.follow_up_plan(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
+    # spec 154: where the last item is already a planned rung (01-countly on keel-cloud dfdad66a: Commitment's smaller step,
+    # its #also, is the last item and the only rung owed), the latest other served rung is answered with its first answer
+    # against instead -- one tap, so the walk still meets two follow-ups on the spot
+    for item in reversed(items):
+        if len(plan) >= want:
+            break
+        dimension = item.get("dimension")
+        if dimension not in rungs or dimension in {a["dimension"] for a in plan}:
+            continue
+        against = (fake.rung(dimension) or (None, ()))[1]
+        if against and against != fake.LOCK_RULE:
+            person = vs.with_pick(person, dimension, [against[0]])
+            plan = vs.follow_up_plan(j.entry, person.picks, vs.LINK_PRIMARY, interview, token)
     assert len(plan) >= want, {"the AI link's person is asked fewer follow-ups than the walk meets": person.person,
                                "plan": plan, "want": want}
     mine = next((p for p in j.entry.people() if p.person == person.person), None)
