@@ -93,6 +93,7 @@ from instructions import contract as contract_mod
 from instructions import corpus as corpus_mod
 from instructions import spoken as spoken_mod
 from instructions.registry import ADOPTION_KEY
+from stack import cloud_log
 from stack import remote
 from stack import runtime as stack_runtime
 
@@ -2488,6 +2489,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
     # (cycle 17, 17-expanse PROBLEM) ran the probe and its wire saves held the lock page
     if vector == "PROBLEM" and not answers["problem.importance"].unsure and not getattr(j, "backtest", False):
         _importance_needs_three(j)
+    _asked_log_note(j, vector)
     stored = _wait_calibration(j, vector)
     with _step(j, f"{vector.lower()}: every list is stored as the founder saved it -- code's positional codes, "
                   "the stranger's faces, the picked index, the phrase", party="stack") as h:
@@ -2549,6 +2551,28 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                          "rows": review.get("rows")})
         assert review.get("complete") is True, review
         assert not mismatches, json.dumps(mismatches, indent=2)
+
+
+def _asked_log_note(j: Journey, vector: str) -> None:
+    """Spec 154 FR-0 (keel-cloud 245 FR-2): the new log line *asked after the read-back: project=… dimension=…
+    read_back=… asked=… rows=…* (or *… not started reason=…*) is read where the walk reads logs -- the stack's
+    `cloud.log` on the local profile (`stack/cloud_log.py`): one line per asked list of this project on the solution
+    stage, its `rows` the whole list (the first Save hands every row). A note, never a stop; nothing on the remote
+    profile (no log to read)."""
+    if vector != "SOLUTION" or getattr(j, "stack", None) is None:
+        return
+    lines = cloud_log.lines(j.stack, "asked_after_read_back", project_id=j.project_id)
+    if lines is None:
+        return
+    with _step(j, "spec 154 FR-0 (keel-cloud 245 FR-2): the *asked after the read-back* lines keel-cloud wrote for this "
+                  "project's asked lists -- every row handed to the asked job on the first Save", party="stack",
+               kind="note") as h:
+        by_dimension = {}
+        for line in lines:
+            by_dimension.setdefault(line.get("dimension"), []).append(
+                {k: line.get(k) for k in ("read_back", "asked", "rows", "reason") if line.get(k) is not None})
+        h.record_wire({"project": j.project_id}, {"lines": by_dimension, "count": len(lines)})
+        j.changed.setdefault("asked_after_read_back", by_dimension)
 
 
 def belief_after_the_hold(j: Journey, key: str) -> str | None:

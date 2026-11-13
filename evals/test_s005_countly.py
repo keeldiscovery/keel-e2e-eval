@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from evals import corpus_scenario, interviewer_leg
+from evals import calls_leg, corpus_scenario, interviewer_leg
 from harness import vectors_script as vs
 
 #: Spec 130: one of the remote six (`make remote`).
@@ -81,7 +81,12 @@ def _countly_extras(j) -> None:
     # NOT_B2B refusal on Contacts stood (the page is gone).
     corpus_scenario.leg_old_addresses(j)
     # Spec 044: the AI interviewer's short form on a consumer study -- the recording's charge, READY, one AI link.
+    # Spec 154 FR-3: the set-up from the kind's card, the two gates (keel-cloud 247 / 250).
     interviewer_leg.leg_interviewer_short(j)
+    # Spec 154 FR-4 / FR-5 (keel-cloud 248, keel-web 189 / 188): a call planned, the person signed in on the stub issuer,
+    # the card walked headless to its upload (the record route is keel-cloud 249's: TODO(249) in calls_leg).
+    if j.stack is not None and not j.stack.is_remote:
+        calls_leg.leg_calls(j, j.browser)
 
 
 def test_s005_countly(stack, founder_one, browser, run_dir):

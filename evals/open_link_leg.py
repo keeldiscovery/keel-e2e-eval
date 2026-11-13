@@ -108,12 +108,13 @@ def stranger_people(people: list) -> tuple:
 
 
 def ledger_faults(rows: list[dict], project_id: str, begun: dict[str, str]) -> list:
-    """FR-2's ledger: exactly one INTERVIEW row of -30 per person who began (`begun`: letter -> invitation id), under
-    `interview:<invitationId>`, and no other INTERVIEW row on the project."""
+    """FR-2's ledger as keel-cloud 250 left it (spec 154 FR-1): **no** INTERVIEW row for anyone who began (`begun`:
+    letter -> invitation id) -- Begin writes none at price version 17 -- and no other INTERVIEW row on the project.
+    (12 to 16: exactly one row of -30 per person under `interview:<invitationId>`.)"""
     charged = charge.charges(rows, project_id)
     faults = []
     keys = sorted(x.get("idempotency_key") for x in charged)
-    want = sorted(charge.key(i) for i in begun.values())
+    want = sorted(charge.key(i) for i in begun.values()) if charge.written_at_begin() else []
     if keys != want:
         faults.append({"INTERVIEW rows": keys, "owed": want})
     others = [x for x in rows if x.get("kind") == charge.INTERVIEW and x.get("project_id") == project_id
@@ -227,21 +228,31 @@ def restore(j, founder_id: str, run: str) -> None:
 
 
 def record_the_interviewer(j, record: dict) -> None:
-    with cs._step(j, f"the interviewer recorded on Keel's door (contract 16: POST interviewer/face on a project locked "
-                     f"with none; {fake.FACE_NAMES[FACE]}, the fake renderer) and READY -- Let them choose needs a "
-                     "served recording", party="founder", kind="assert") as h:
-        status, view = j.call("POST", j.project("/interviewer/face"), {"face": FACE})
+    with cs._step(j, f"the interviewer set up on Keel's door for the primary kind (keel-cloud 247 FR-3: POST "
+                     f"interviewer/kinds/{{roleId}}/record; {fake.FACE_NAMES[FACE]}, the fake renderer; 1,500 once) and "
+                     "READY -- Let them choose needs that kind's recording", party="founder", kind="assert") as h:
+        # spec 154 FR-3 (keel-cloud 247 FR-3): the kind's own route, 202, the list's view for that kind
+        role_id = _role_id(j)
+        status, view = j.call("POST", j.project(fake.record_route(role_id)), {"face": FACE}, ok=(202,))
         started, trail = time.monotonic(), []
         while time.monotonic() - started < READY_WITHIN_S:
-            view = j.get(j.project("/interviewer")) or {}
+            view = fake.view_of(j.get(j.project("/interviewer")) or [], role_id) or {}
             if not trail or trail[-1] != view.get("status"):
                 trail.append(view.get("status"))
             if view.get("status") in ("READY", "FAILED"):
                 break
             time.sleep(1)
-        record["recording"] = {"status": status, "trail": trail, "face": (view.get("face") or {}).get("code")}
-        h.record_assert({"status": "READY", "face": FACE}, record["recording"])
+        record["recording"] = {"status": status, "trail": trail, "face": (view.get("face") or {}).get("code"),
+                               "roleId": role_id}
+        h.record_assert({"status": 202, "ready": "READY", "face": FACE, "roleId": role_id}, record["recording"])
+        assert status == 202 and view.get("roleId") == role_id, (status, view)
         assert view.get("status") == "READY" and (view.get("face") or {}).get("code") == FACE, (trail, view)
+
+
+def _role_id(j) -> str:
+    """The primary kind's role id, off the register's kinds."""
+    register = j.get(j.project("/invitations")) or {}
+    return next(k.get("roleId") for k in register.get("kinds") or [] if k.get("respondentType") == vs.LINK_PRIMARY)
 
 
 def make_the_link(j, sent, record: dict) -> dict:
@@ -375,13 +386,13 @@ def stranger_a(j, ctx: dict, record: dict) -> None:
     _, rows, _ = _group_rows(j, ctx["group_id"])
     ctx["invitations"]["a"] = _invitation_of(rows, a)
     begun = _begun_rows(j, ctx["founder_id"], ctx["since"], ctx["invitations"]["a"] or "")
-    with cs._step(j, f"stranger A: *Answer in writing* is the Begin -- one INTERVIEW row of -30 under interview:<A's "
-                     f"invitation> -- and A answers as {person.person} (the corpus's answers), sent in writing",
+    with cs._step(j, f"stranger A: *Answer in writing* is the Begin -- NO INTERVIEW row (keel-cloud 250: Begin writes "
+                     f"none; spec 154) -- and A answers as {person.person} (the corpus's answers), sent in writing",
                   party="participant") as h:
-        h.record_assert({"rows": 1, "credits": -charge.INTERVIEW_CREDITS, "status": 201},
+        h.record_assert({"rows": 0, "status": 201},
                         {"rows": begun, "status": walked.get("status"), "body": walked.get("body"),
                          "expected": expected})
-        assert len(begun) == 1 and int(begun[0].get("credits")) == -charge.INTERVIEW_CREDITS, begun
+        assert len(begun) == 0, begun
         assert walked.get("status") in (200, 201), walked.get("status")
         assert (walked.get("body") or {}).get("format") == "TEXT", walked.get("body")
         assert walked.get("pilot_box"), "the thank-you drew no pilot box"
@@ -415,12 +426,13 @@ def stranger_b(j, ctx: dict, record: dict) -> None:
     _, rows, _ = _group_rows(j, ctx["group_id"])
     ctx["invitations"]["b"] = _invitation_of(rows, b)
     begun = _begun_rows(j, ctx["founder_id"], ctx["since"], ctx["invitations"]["b"] or "")
-    with cs._step(j, f"stranger B begins (*Answer in writing*: one INTERVIEW row), answers the gate as {person.person}, "
-                     "and stops on part 1's first question -- the page closed, nothing sent", party="participant") as h:
-        h.record_assert({"begin": charge.BEGIN_STATUS, "rows": 1, "stem": first.get("question")},
+    with cs._step(j, f"stranger B begins (*Answer in writing*: 204, no INTERVIEW row -- keel-cloud 250), answers the "
+                     f"gate as {person.person}, and stops on part 1's first question -- the page closed, nothing sent",
+                  party="participant") as h:
+        h.record_assert({"begin": charge.BEGIN_STATUS, "rows": 0, "stem": first.get("question")},
                         {"begin": began.value.status, "rows": begun, "stem": stem})
         assert began.value.status == charge.BEGIN_STATUS, began.value.status
-        assert len(begun) == 1 and int(begun[0].get("credits")) == -charge.INTERVIEW_CREDITS, begun
+        assert len(begun) == 0, begun
         assert stem == " ".join((first.get("question") or "").split()), stem
     record["paused"] = {"stem": stem, "item": first.get("dimension")}
     page.close()
@@ -580,10 +592,10 @@ def the_ledger(j, ctx: dict, record: dict) -> None:
     begun = {x: ctx["invitations"][x] for x in ("a", "b")}
     faults = ledger_faults(rows, j.project_id, begun)
     record["ledger"] = [(x.get("kind"), x.get("action"), x.get("credits"), x.get("idempotency_key")) for x in rows]
-    with cs._step(j, "the ledger since Keel's door: exactly two INTERVIEW rows of -30 on this project, A's and B's -- C "
-                     "signed in and never began, D never got in", party="stack", kind="assert") as h:
-        h.record_assert({"INTERVIEW": sorted(charge.key(i) for i in begun.values())},
-                        {"rows": record["ledger"], "faults": faults})
+    with cs._step(j, "the ledger since Keel's door: NO INTERVIEW row on this project (keel-cloud 250, spec 154: Begin "
+                     "writes none) -- A and B began, C signed in and never began, D never got in; the recording's one "
+                     "pair of 1,500 is the only charge", party="stack", kind="assert") as h:
+        h.record_assert({"INTERVIEW": []}, {"rows": record["ledger"], "faults": faults})
         assert all(begun.values()) and ctx["invitations"]["c"], ctx["invitations"]
         assert not faults, json.dumps(faults, indent=2, default=str)
 
