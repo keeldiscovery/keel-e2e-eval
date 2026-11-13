@@ -51,6 +51,49 @@ calls leg -- every fix below is a reading of what the product serves now, none m
   kept; the web's vendored copy pinned by version (70 at `aa8b49c6`: `a6de15c4...`, its body = cloud's 70; 71 once
   vendored: its body = cloud's 71).
 
+**Fourth pass (2026-11-13, 09:30 ET on, the coordinator's list after the third).** keel-web master **`47ebf528`**
+(187-191, the integration and gate passes; contract 71 vendored -- the web pin) on cloud **`34735d05`** (contract 71).
+In the coordinator's order:
+
+1. **IM16 (the way back).** The read-aloud step moved, not the reader: `_back_spots` reads the walk's own Back rule
+   ahead of the walk (a one-of answered with one option owing nothing, not the last item, another option owing nothing),
+   and where the read-aloud question is the only such spot (01-countly's AI reader: Relative advantage) the read-aloud
+   takes the next question its own rule names. IM16 is not loosened; the reader's picks are unchanged (`4ba9c88`).
+2. **The calls leg.** Moving it before the interviewer leg's restore would not have helped: the FIRST_PERSON job runs
+   on Keel's AI alone (keel-cloud 248 judgement call 3, `FirstPersonLines` calls the Keel's-AI executor directly) and
+   the local stack has Keel's AI off on *either* door (no `KEEL_ANTHROPIC_API_KEY`: *first-person owed ... reason=own-ai*
+   on its own AI, *reason=keel_ai_off* on Keel's), so `firstPersonPending` never clears on the fakes. The leg stays where
+   it was and **stands the line in** (stand-in 6, `stack/ledger.stand_in_first_person`, the project document's
+   `corridor.idea.beliefFirstPerson`, as spec 050's stand-in 4 writes a document): the owed line is held logged first,
+   the line written as `first-person.md` asks (*I believe it would ...*), the script read not pending; then the card
+   draws and is walked. The leg's owed fixes on the way: the upload's parts read off the page's own FormData (Chromium
+   hands Playwright no body for a multipart request with blobs), the fixture record files a ladder by its second
+   step and files the first six items the card can file, the digest read where keel-cloud serves it
+   (`InvitationDetail.interview`, by dimension) and held to what the stack's fake hears.
+   **What the stack's fakes can and cannot show:** the stack's transcriber hears its one word (`yes`,
+   KEEL_INTERVIEWER_FAKE_TRANSCRIPT) in every window -- keel-cloud 103's per-window words are a test-only seam -- so the
+   story, the follow-up and both notes are that word, and the pick check names no other option: **`heard` on item 1 is
+   not exercisable on the fakes** (keel-cloud 249's TheCallsRecordJourneyTest walks the worded fake naming option 3).
+3. **251 at the lock (the SPEND of 1,000 and the 422 at 900):** not reachable on the fakes -- an own-AI account's lock
+   is never charged (`buyProject` returns first on own AI), and a Keel's-AI account cannot reach a lock on the local
+   stack (its calibration jobs run on Keel's AI, off here: `stack/ledger.py`'s note since spec 043). **keel-cloud's
+   `TwoGatesJourneyTest` covers both** (251's tasks.md: the lock's SPEND in every column, reason `project:lock`; a
+   founder at 900 created and refused 422 at the lock, nothing locked, no job). The leg holds the walkable half
+   (creation free at 2,500 and at 900, an uncalibrated lock refused before any credit is read).
+4. `requirements.txt` gains **numpy, soundfile, scipy** -- spec 151's bench test needs `evals/noise/synth.py`'s three
+   (numpy alone was not enough); plain omissions.
+5. keel-web 191's lock screen held (`2c3b1d3`, `0e1...`): *Save your answers*, the problem box (waited for: it loads
+   after the frame), the plan's rows, the one sentence, *Save and write the questions* with its price on Keel's door
+   while unpaid and none on its own AI, no Back; IM2's no-price rule reads Keel's frame, not the founder's own answers
+   the screen shows back (*$20 to $60 a month*). `scope-more` is absent on New project: the walk's scope picker already
+   tolerates it (`harness/browser.py`); a SOLUTION_COMMERCIAL study can no longer be picked on the screen (no journey of
+   this gate picks one).
+6. Drift the walk met past the calls leg, read as served: the expected Adoption friction card carries the condition the
+   scripted ASKED stub wrote (*1 of them only if ...*); feedback marks **v3** (FM2: Keel's first draft is the one own row
+   in its words since keel-cloud 229); guide marks: G8 / G9 not applicable where keel-web 155 FR-9's chart-guide flag
+   hides the stage pill, G15 reads the links inside Sent's tab and owes no who-asks band (keel-web 187), G4's second
+   replay seeks the welcome to its media's own end; the AI sheet's lines read at most two seconds (a stall under load).
+
 ## What was built, per FR
 
 - [x] **FR-0 owed since 245 / 186.** `quality/readers/dimensions.md` copied byte for byte from `e4497962`'s
