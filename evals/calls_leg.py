@@ -20,10 +20,13 @@ Start posts `start` (ON_CALL on the wire, the row's status); the script is walke
 intro, the gate's Yes (the STORY stretch, stopped), six filings with one undo (Z on the newest, filed again), the
 follow-up stretch where a filing is in `against`, the reveal, the pilot; the two closing stretches (OWN_QUESTIONS,
 THEIR_QUESTIONS) opened and stopped; End -> the upload hits `POST calls/{id}/record` as one multipart with three parts
-named `founder`, `them` and `keys` (the request is kept off the wire by the harness). **TODO(249)**: the fake's record
-route answers 202 and the row flips to ANSWERED on the poll; the digest, the filed answers, the story RECORDED, one
-follow-up, two notes, `heard` on item 1, the 30 line, the n line's `unverified` 0 / 1 -- until keel-cloud 249 merges the
-route answers 404 and the card draws its failure line with Try again, which is recorded, never asserted either way.
+named `founder`, `them` and `keys` (the request is kept off the wire by the harness). **Since keel-cloud 249** (the second pass): the
+upload answers 200 with the row, the digest files it (ENDED, then ANSWERED on the poll) -- the card's own record on the
+first call (silent tracks, heard as the stack's one word); on the second call, never signed in, the fake record built
+off the script (`evals/call_record`) is uploaded on the wire and the digest is read whole: the detail (format CALL,
+identity NONE, six TAPPED answers with their seconds, `heard` on item 1 naming option 3, the story and the follow-up as
+the fake transcriber heard them, two notes with both voices), the timeline, Hear the call's tracks with Range, NO
+INTERVIEW ledger row (keel-cloud 250), and the n line's `unverified` 0 after the first call and 1 after the second.
 
 Nothing paid: the fake executor answers the FIRST_PERSON job on this stack (keel-cloud 248 FR-7b) and the fake
 transcriber the stretches (249). Every step records what it read; the leg asserts on the wire and the screen.
@@ -38,6 +41,8 @@ from typing import Any
 
 import requests
 
+from evals import call_record
+from harness import interview_charge as charge
 from harness import interviewer_fake as fake
 from harness import interviews_screens as iv
 from harness.browser import _BrowserStep, chooser_button_selector
@@ -94,8 +99,11 @@ CALL_SIGNED_IN_WORDS = "You're signed in. Back to the call."
 PERSON_NAME = "Renata Castillo-Vega"
 #: The founder's typed words: a nickname (not in Google's name -> *You wrote*) and the person's own first name.
 TYPED_NICKNAME = "Reni"
-#: keel-cloud 248's log lines (ids only).
+#: keel-cloud 248's and 249's log lines (ids only).
 LOG_PLANNED, LOG_SIGNED_IN, LOG_STARTED = "call_planned", "call_signed_in", "call_started"
+LOG_ENDED, LOG_DIGESTED, LOG_COUNTED = "call_ended", "call_digested", "call_counted"
+#: keel-cloud 249: the digest's thread polls every 10 s; a call is ANSWERED within this.
+DIGEST_WITHIN_S = 90
 
 # ------------------------------------------------------------------------------------------- keel-web 188: the card
 
@@ -293,7 +301,10 @@ def read_the_row(j, sent: iv.Interviews, call_id: str, *, want_status: str, want
         assert drawn["name"] == want_name == wire.get("personName"), (drawn, wire)
         assert (drawn["you_wrote"] or None) == want["you_wrote"], drawn
         assert wire.get("nameDiffers") is bool(want_you_wrote), wire
-        assert drawn["start"] == CALL_START_WORDS and drawn["see_answers"] is None, drawn
+        if want_status in ("ANSWERED", "SCREENED_OUT"):
+            assert drawn["see_answers"] and drawn["start"] is None, drawn
+        else:
+            assert drawn["start"] == CALL_START_WORDS and drawn["see_answers"] is None, drawn
     return {"drawn": drawn, "wire": wire}
 
 
@@ -547,8 +558,8 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
             h.add_screenshot(card.screenshot("card-filed"))
             # the closing stretches and End
             closing = _walk_closing(card, page)
-            # End -> the upload (TODO(249): 202 and the row to ANSWERED; until then the route answers 404 and the card
-            # draws its failure line with Try again)
+            # End -> the upload: keel-cloud 249 answers 200 with the row (ENDED), the digest files it (ANSWERED)
+            offset = cloud_log.offset(j.stack)
             card.press("end")
             try:
                 card.wait_phase("done", "failed", timeout_s=60)
@@ -556,6 +567,7 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
                 pass
             page.wait_for_timeout(500)
             ended = card.read()
+            statuses = wait_digested(j, call_id)
             h.add_screenshot(card.screenshot("card-ended"))
             h.record_wire({"copilotPath": call["copilotPath"]},
                           {"before": before, "after_mic": after_mic, "sources": sources, "remembered": remembered,
@@ -567,7 +579,11 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
     wire = j.get(j.project(f"/calls/{call_id}")) or {}
     out = {"before": before, "after_mic": after_mic, "sources": sources, "remembered": remembered, "reopened": reopened,
            "start": {"status": start_status, "row": on_call}, "filings": filings, "closing": closing, "ended": ended,
-           "uploads": uploads, "upload_responses": responses, "wire_after": {k: wire.get(k) for k in ("status", "startedAt", "endedAt")}}
+           "uploads": uploads, "upload_responses": responses, "statuses": statuses,
+           "wire_after": {k: wire.get(k) for k in ("status", "startedAt", "endedAt")},
+           "log": {"ended": cloud_log.lines(j.stack, LOG_ENDED, project_id=j.project_id, since_offset=offset),
+                   "digested": cloud_log.lines(j.stack, LOG_DIGESTED, project_id=j.project_id, since_offset=offset),
+                   "counted": cloud_log.lines(j.stack, LOG_COUNTED, project_id=j.project_id, since_offset=offset)}}
     record["card"] = out
     with _step(j, "spec 154 FR-5 (keel-web 188): the browser check passes on the fakes (no browser line), the mic "
                   "dropdown lists two and keeps the one picked across a reload, Start posts start (ON_CALL) and reads "
@@ -577,8 +593,9 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
         want = {"browser_line": None, "mics": ["mic-one", "mic-two"], "picked": "mic-two", "remembered": "mic-two",
                 "reopened_on": "mic-two", "start": {"status": 200, "status_after": "ON_CALL"},
                 "filings": {"filed": 6, "undo": 1}, "closing": {"stretches": ["OWN_QUESTIONS", "THEIR_QUESTIONS"]},
-                "upload": {"parts": list(RECORD_PARTS), "files": ["founder.wav", "them.wav", "keys.json"]},
-                "float": {"drawn": 1, "floating": 0}, "TODO(249)": "202 and the row to ANSWERED"}
+                "upload": {"parts": list(RECORD_PARTS), "files": ["founder.wav", "them.wav", "keys.json"], "status": 200},
+                "float": {"drawn": 1, "floating": 0}, "phase": "done", "statuses": ["ENDED", "ANSWERED"],
+                "log": "call ended, call digested, call counted (local)"}
         h.record_assert(want, out)
         assert before["browser_line"] is None and before["phase"] == "before", before
         assert sorted(after_mic["mics"]) == ["mic-one", "mic-two"], after_mic
@@ -594,7 +611,15 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
         # FR-5: no Document PiP in headless -- the Float step drawn (the check passes on the fake), never pressed, the
         # card never floating; asserted so, never failed
         assert ended["floating"] == 0 and before["float_drawn"] == 1, (before, ended)
-        assert wire.get("status") in ("ON_CALL", "ENDED", "ANSWERED", "SCREENED_OUT"), wire
+        # keel-cloud 249 (FR-1, FR-2): the upload answers 200 with the row, the card reads done, the row flips to
+        # ENDED and then ANSWERED on the poll (the digest's thread; the silent tracks are heard as the stack's one word)
+        assert responses and responses[-1]["status"] == 200, responses
+        assert ended["phase"] == "done" and ended["failure"] is None, ended
+        assert statuses["seen"][:1] in (["ENDED"], ["ANSWERED"]) and statuses["final"] == "ANSWERED", statuses
+        assert wire.get("status") == "ANSWERED" and wire.get("endedAt"), wire
+        for name in ("ended", "digested", "counted"):
+            if out["log"][name] is not None:
+                assert any(x.get("call") == call_id for x in out["log"][name]), (name, out["log"][name])
     return out
 
 
@@ -674,6 +699,159 @@ def _walk_closing(card: Card, page) -> dict:
     return {"stretches": stretches, "phase": card.phase()}
 
 
+# --------------------------------------------------------------------------------- keel-cloud 249: the record and the digest
+
+def wait_digested(j, call_id: str, *, timeout_s: float = DIGEST_WITHIN_S) -> dict:
+    """The row's statuses from the upload on, polled every second: ENDED, then ANSWERED (or SCREENED_OUT) once the
+    digest filed it."""
+    seen: list[str] = []
+    started = time.monotonic()
+    row: dict = {}
+    while time.monotonic() - started < timeout_s * j.patience:
+        row = j.get(j.project(f"/calls/{call_id}")) or {}
+        status = row.get("status")
+        if status and (not seen or seen[-1] != status):
+            seen.append(status)
+        if status in ("ANSWERED", "SCREENED_OUT"):
+            break
+        time.sleep(1)
+    return {"seen": seen, "final": row.get("status"), "row": row, "seconds": round(time.monotonic() - started, 1)}
+
+
+def upload_fixture_record(j, call: dict, record: dict) -> dict:
+    """Spec 154 FR-4 (keel-cloud 249 FR-1): the fake call record built off the call's script (`evals/call_record`) and
+    uploaded as the three parts `founder` / `them` / `keys` -- 200 with the row ENDED, the digest to ANSWERED."""
+    call_id = call["callId"]
+    script = j.get(j.project(f"/calls/{call_id}/script")) or {}
+    built = call_record.write_record(j.recorder.run_dir, script)
+    with _step(j, f"the fake call record for {call.get('personName')!r}: two 16 kHz mono WAVs (the founder's with a tone "
+                  "at every filing, the person's with the words the fake transcriber hears at each window) and the key "
+                  "log off the script -- six items filed, one undone and filed again, the STORY / FOLLOW_UP / "
+                  "OWN_QUESTIONS / THEIR_QUESTIONS stretches -- uploaded as founder / them / keys: 200, the row ENDED, "
+                  "then ANSWERED (keel-cloud 249 FR-1, FR-2)", party="founder") as h:
+        offset = cloud_log.offset(j.stack)
+        response = j.context.request.post(
+            f"{j.cloud_base}{j.project(f'/calls/{call_id}/record')}",
+            multipart={"founder": {"name": "founder.wav", "mimeType": "audio/wav", "buffer": built["founder"]},
+                       "them": {"name": "them.wav", "mimeType": "audio/wav", "buffer": built["them"]},
+                       "keys": {"name": "keys.json", "mimeType": "application/json",
+                                "buffer": json.dumps(built["log"]).encode("utf-8")}},
+            timeout=60_000)
+        body = _json(response)
+        statuses = wait_digested(j, call_id)
+        out = {"status": response.status, "row": {k: body.get(k) for k in ("status", "endedAt", "identity")},
+               "statuses": statuses, "plan": built["plan"], "log": built["log"],
+               "lines": {"ended": cloud_log.lines(j.stack, LOG_ENDED, project_id=j.project_id, since_offset=offset),
+                         "digested": cloud_log.lines(j.stack, LOG_DIGESTED, project_id=j.project_id, since_offset=offset)}}
+        record["fixture"] = out
+        h.record_assert({"status": 200, "row": {"status": "ENDED"}, "statuses": ["ENDED", "ANSWERED"],
+                         "parts": list(RECORD_PARTS)}, out)
+        assert response.status == 200 and body.get("status") == "ENDED" and body.get("endedAt"), (response.status, body)
+        assert statuses["final"] == "ANSWERED", statuses
+        assert statuses["seen"][:1] == ["ENDED"] or statuses["seen"] == ["ANSWERED"], statuses
+        if out["lines"]["digested"] is not None:
+            assert any(x.get("call") == call_id for x in out["lines"]["digested"]), out["lines"]
+    return out
+
+
+def the_digest(j, call: dict, record: dict, *, founder_id: str | None, since: str | None) -> None:
+    """Spec 154 FR-4 (keel-cloud 249 FR-2, FR-5): what the digest filed for the fixture call -- the detail (format CALL,
+    identity NONE, the six filed answers TAPPED with their seconds, `heard` on item 1 naming option 3, the story the
+    fake transcriber heard, one follow-up, two notes with both voices), the timeline (the filings, the four stretch
+    kinds, `heard`), Hear the call's two tracks with Range, and NO INTERVIEW ledger row (keel-cloud 250 overrides the
+    30)."""
+    call_id = call["callId"]
+    plan = record["fixture"]["plan"]
+    detail = j.get(j.project(f"/invitations/{call_id}")) or {}
+    timeline = j.get(j.project(f"/calls/{call_id}/timeline")) or {}
+    answers = detail.get("answers") or {}
+    items = answers.get("items") or []
+    by_item = {i.get("itemId"): i for i in items}
+    heard_item = plan["heard_item"]
+    notes = detail.get("notes") or []
+    follow_ups = answers.get("followUps") or []
+    with _step(j, "keel-cloud 249 FR-2 / FR-5: the detail of the fixture call -- format CALL, identity NONE, six answers "
+                  "TAPPED each with its second, item 1 *heard* as option 3's label, the story as the fake heard it, one "
+                  "follow-up with its words, two notes (own questions, their questions) with both voices") as h:
+        got = {"format": detail.get("format"), "callId": detail.get("callId"), "identity": detail.get("identity"),
+               "status": detail.get("status"), "answers": len(items),
+               "hows": sorted({i.get("how") for i in items}), "ats": sum(1 for i in items if isinstance(i.get("at"), (int, float))),
+               "heard": {k: v.get("heard") for k, v in by_item.items() if v.get("heard")},
+               "story": answers.get("story"), "anchoring": answers.get("anchoring"),
+               "followUps": [{k: f.get(k) for k in ("dimension", "text", "how")} for f in follow_ups],
+               "notes": [{k: n.get(k) for k in ("kind", "from", "to", "founder", "them")} for n in notes]}
+        record["detail"] = got
+        want = {"format": "CALL", "callId": call_id, "identity": "NONE", "status": "ANSWERED", "answers": 6,
+                "hows": ["TAPPED"], "heard": {heard_item: plan["heard_option_label"]}, "story": call_record.STORY,
+                "followUps": [{"text": call_record.FOLLOW_UP, "how": "RECORDED"}] if plan["follow_up_item"] else [],
+                "notes": [{"kind": "OWN_QUESTIONS", "founder": call_record.OWN_FOUNDER, "them": call_record.OWN_THEM},
+                          {"kind": "THEIR_QUESTIONS", "founder": call_record.THEIR_FOUNDER, "them": call_record.THEIR_THEM}]}
+        h.record_assert(want, got)
+        assert got["format"] == "CALL" and got["callId"] == call_id and got["identity"] == "NONE", got
+        assert got["status"] == "ANSWERED", got
+        assert len(items) >= 6 and got["hows"] == ["TAPPED"] and got["ats"] == len(items), got
+        assert got["heard"] == {heard_item: plan["heard_option_label"]}, got["heard"]
+        assert got["story"] == call_record.STORY, got["story"]
+        if plan["follow_up_item"]:
+            assert len(follow_ups) == 1 and follow_ups[0].get("text") == call_record.FOLLOW_UP, follow_ups
+        assert [n.get("kind") for n in notes] == ["OWN_QUESTIONS", "THEIR_QUESTIONS"], notes
+        assert (notes[0].get("founder"), notes[0].get("them")) == (call_record.OWN_FOUNDER, call_record.OWN_THEM), notes
+        assert (notes[1].get("founder"), notes[1].get("them")) == (call_record.THEIR_FOUNDER, call_record.THEIR_THEM), notes
+    with _step(j, "keel-cloud 249 FR-5: the timeline -- the filings kept after the undo in time order, the stretches as the "
+                  "key log had them (STORY, FOLLOW_UP, OWN_QUESTIONS, THEIR_QUESTIONS), the notes' windows, `heard` on "
+                  "item 1") as h:
+        kinds = [s.get("kind") for s in timeline.get("stretches") or []]
+        got = {"duration": timeline.get("duration"), "filings": len(timeline.get("filings") or []),
+               "ats_sorted": [f.get("at") for f in timeline.get("filings") or []] == sorted(f.get("at") for f in timeline.get("filings") or []),
+               "kinds": kinds, "notes": len(timeline.get("notes") or []),
+               "heard": [(x.get("itemId"), x.get("label")) for x in timeline.get("heard") or []]}
+        record["timeline"] = got
+        surviving = len(record["fixture"]["log"]["filings"]) - len(record["fixture"]["log"]["undos"])
+        h.record_assert({"filings": surviving, "ats_sorted": True,
+                         "kinds": ["STORY", "FOLLOW_UP", "OWN_QUESTIONS", "THEIR_QUESTIONS"] if plan["follow_up_item"] else ["STORY", "OWN_QUESTIONS", "THEIR_QUESTIONS"],
+                         "notes": 2, "heard": [(heard_item, plan["heard_option_label"])]}, got)
+        assert got["filings"] == surviving and got["ats_sorted"], got
+        assert kinds == (["STORY", "FOLLOW_UP", "OWN_QUESTIONS", "THEIR_QUESTIONS"] if plan["follow_up_item"]
+                         else ["STORY", "OWN_QUESTIONS", "THEIR_QUESTIONS"]), kinds
+        assert got["notes"] == 2 and got["heard"] == [(heard_item, plan["heard_option_label"])], got
+        assert isinstance(got["duration"], (int, float)) and got["duration"] >= call_record.TIMES["end"], got
+    with _step(j, "keel-cloud 249 FR-5: Hear the call -- each track answers 206 to a Range and 200 whole with "
+                  "Accept-Ranges; another track word is the bare 404", party="founder") as h:
+        base = f"{j.cloud_base}{j.project(f'/calls/{call_id}/audio')}"
+        part = j.context.request.get(f"{base}/them", headers={"Range": "bytes=0-99"}, timeout=20_000)
+        whole = j.context.request.get(f"{base}/founder", timeout=20_000)
+        other = j.context.request.get(f"{base}/meet", timeout=20_000)
+        got = {"part": {"status": part.status, "length": len(part.body()), "content_range": part.headers.get("content-range")},
+               "whole": {"status": whole.status, "accept_ranges": whole.headers.get("accept-ranges"),
+                         "length": len(whole.body()), "type": whole.headers.get("content-type")},
+               "other": other.status}
+        record["audio"] = got
+        h.record_assert({"part": {"status": 206, "length": 100}, "whole": {"status": 200, "accept_ranges": "bytes",
+                                                                           "length": len(record["fixture"]["log"]) and 44 + call_record.DURATION_S * call_record.BYTES_PER_SECOND},
+                         "other": 404}, got)
+        assert got["part"]["status"] == 206 and got["part"]["length"] == 100, got
+        assert got["whole"]["status"] == 200 and got["whole"]["accept_ranges"] == "bytes", got
+        assert got["whole"]["length"] == 44 + call_record.DURATION_S * call_record.BYTES_PER_SECOND, got
+        assert got["other"] == 404, got
+    if founder_id and since and j.stack is not None and not j.stack.is_remote:
+        from stack import ledger as stack_ledger                           # noqa: PLC0415
+        rows = stack_ledger.rows(j.stack, founder_id, since=since)
+        with _step(j, "keel-cloud 250 over 249: a filed call writes NO INTERVIEW row and nothing that moves the balance",
+                   party="stack") as h:
+            interview = [x for x in rows if x.get("action") == charge.INTERVIEW]
+            moved = [x for x in rows if charge.moves_balance(x) and x.get("kind") not in ("GRANT", "PURCHASE")
+                     and x.get("action") not in (charge.PROJECT, fake.RECORDING)]
+            record["ledger"] = {"interview": interview, "moved": moved, "rows": len(rows)}
+            h.record_assert({"INTERVIEW rows": 0, "moved by a call": 0}, record["ledger"])
+            assert not interview and not moved, record["ledger"]
+
+
+def people_counts(j) -> dict:
+    """`StandingsView.people` -- `answered` and spec 249's `unverified` (the CALL records whose person never signed in)."""
+    people = (j.get(j.project("/standings")) or {}).get("people") or {}
+    return {k: people.get(k) for k in ("invited", "answered", "unverified")}
+
+
 # ------------------------------------------------------------------------------------------------------- the leg
 
 def leg_calls(j, browser, *, kind: str | None = None) -> dict:
@@ -712,21 +890,34 @@ def leg_calls(j, browser, *, kind: str | None = None) -> dict:
         record["signed_in"] = signed
         read_the_row(j, sent, call["callId"], want_status="PLANNED", want_name=person.name,
                      want_you_wrote=TYPED_NICKNAME, what="the first call, signed in")
+        from stack import ledger as stack_ledger                           # noqa: PLC0415
+        founder_id = stack_ledger.founder_account(j.stack, j.founder_identity.sub)["id"] if j.stack is not None and not j.stack.is_remote else None
+        since = stack_ledger.now(j.stack) if founder_id else None
         walk_the_card(j, browser, call, record=record)
         read_the_row(j, sent, call["callId"], want_status=record["card"]["wire_after"]["status"], want_name=person.name,
                      want_you_wrote=TYPED_NICKNAME, what="the first call, after the card")
+        with _step(j, "keel-cloud 249 FR-4: the n line after the first call -- its person signed in, so `unverified` 0 and "
+                      "the call inside `answered`", party="stack") as h:
+            counts = people_counts(j)
+            record["people_after_first"] = counts
+            h.record_assert({"unverified": 0, "answered": ">= 1"}, counts)
+            assert counts.get("unverified") == 0 and (counts.get("answered") or 0) >= 1, counts
         second = plan_a_call(j, sent, kind, person.given_name, expect_kind_row=two_kinds)
         record["calls"].append(second["row"])
         read_the_row(j, sent, second["row"]["callId"], want_status="PLANNED", want_name=person.given_name,
                      want_you_wrote=None, what="the second call, planned and unverified")
-        sign_the_person_in(j, browser, second["row"], person, what="the second call")
-        with _step(j, "keel-cloud 248 FR-4: the person's own first name typed is contained in Google's name -- nameDiffers "
-                      "false, no *You wrote*") as h:
-            wire = j.get(j.project(f"/calls/{second['row']['callId']}")) or {}
-            h.record_assert({"nameDiffers": False, "personName": person.name}, wire)
-            assert wire.get("nameDiffers") is False and wire.get("personName") == person.name, wire
-        # TODO(249): the second call's n line reads 1 unverified where it is never signed in; the first's 0 -- the
-        # digest and the n line are keel-cloud 249's (contract 70)
+        # the second call is never signed in: the fake record is uploaded on the wire, as the card would, and digested
+        j.call("POST", j.project(f"/calls/{second['row']['callId']}/start"), None, ok=(200,))
+        upload_fixture_record(j, second["row"], record)
+        the_digest(j, second["row"], record, founder_id=founder_id, since=since)
+        read_the_row(j, sent, second["row"]["callId"], want_status="ANSWERED", want_name=person.given_name,
+                     want_you_wrote=None, what="the second call, filed and unverified")
+        with _step(j, "keel-cloud 249 FR-4: the n line after the second call -- its person never signed in, so "
+                      "`unverified` 1, the call inside `answered` (the default count)", party="stack") as h:
+            counts = people_counts(j)
+            record["people_after_second"] = counts
+            h.record_assert({"unverified": 1, "answered": ">= 2"}, counts)
+            assert counts.get("unverified") == 1 and (counts.get("answered") or 0) >= 2, counts
     with _step(j, "spec 154 FR-4: the Calls register after -- every call planned, newest first; the search box from six "
                   "rows is the table's own (keel-web 189 FR-1: drawn from six, as the links' is)", kind="assert") as h:
         wire = j.get(j.project("/calls")) or {}

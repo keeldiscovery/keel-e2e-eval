@@ -26,6 +26,9 @@ LINES = {
     "call_planned": "call planned: ",
     "call_signed_in": "call signed in: ",
     "call_started": "call started: ",
+    "call_ended": "call ended: ",
+    "call_digested": "call digested: ",
+    "call_counted": "call counted: ",
     "first_person_written": "first-person written: ",
     "first_person_owed": "first-person owed: ",
 }

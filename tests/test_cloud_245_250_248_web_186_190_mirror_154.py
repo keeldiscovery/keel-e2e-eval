@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+import json
 import re
 from pathlib import Path
 
@@ -48,6 +49,10 @@ CARDS = "src/main/resources/keel/dimension-cards.md"
 CHARGE = "src/main/java/com/keeldiscovery/cloud/domain/connect/InferenceCharge.java"
 #: keel-cloud 245 (merged at keel-cloud-docs `e4497962`): the Check loses the reword line, Choose shows the served question.
 CARDS_SHA256_245 = "4dc14231eebf3decfca7b26f26781a0b816e308007a724fcfad2cba2968f5f76"
+#: FR-6: keel-cloud 249 (keel-cloud-docs master `dfdad66a`): `canon/openapi-v2.yaml` at `x-keel-contract` 70, byte for byte.
+CONTRACT_SHA256_70 = "8f218c427937722b58647cc9c825722b1677155ca971e087d0c7f479d425ab63"
+CONTRACT_70 = 70
+DOCUMENT_VERSION_40 = 40
 
 
 def _cloud(rel: str) -> str:
@@ -129,6 +134,7 @@ def test_the_log_lines_are_keel_clouds_own():
         pytest.skip("no keel-cloud sources")
     for name, prefix in cloud_log.LINES.items():
         assert f'"{prefix}' in java, name
+    assert {"call_ended", "call_digested", "call_counted"} <= set(cloud_log.LINES)
     assert cloud_log.fields_of('asked after the read-back: project=p dimension=d read_back=true asked=i rows=4') == \
         {"project": "p", "dimension": "d", "read_back": "true", "asked": "i", "rows": "4"}
 
@@ -149,12 +155,19 @@ def test_the_charge_table_is_17_and_the_two_gates():
     assert not charge.written_at_begin() and charge.INACTIVE_RETIRED
 
 
-def test_the_contract_is_69_and_the_kinds_routes():
+def test_the_contract_is_70_and_the_kinds_and_calls_routes():
+    """FR-6 (keel-cloud 249): the vendored contract digest at 70 -- the walk's `REVIEW_CONTRACT`, the file's sha256 and
+    the document version 40; the kinds', the calls' and the record's routes."""
     spec = _cloud("canon/openapi-v2.yaml")
-    assert int(re.search(r"x-keel-contract: (\d+)", spec).group(1)) == vs_screens.REVIEW_CONTRACT == 69   # TODO(249): 70
+    assert int(re.search(r"x-keel-contract: (\d+)", spec).group(1)) == vs_screens.REVIEW_CONTRACT == CONTRACT_70
+    assert hashlib.sha256((KEEL_CLOUD / "canon/openapi-v2.yaml").read_bytes()).hexdigest() == CONTRACT_SHA256_70
+    document = _cloud("src/main/java/com/keeldiscovery/cloud/infrastructure/persistence/project/ProjectDocument.java")
+    assert int(re.search(r"static final int SCHEMA_VERSION = (\d+);", document).group(1)) == DOCUMENT_VERSION_40
     for route in ("/v2/projects/{projectId}/interviewer/kinds/{roleId}/record", "/v2/projects/{projectId}/interviewer/try/{roleId}",
                   "/v2/projects/{projectId}/calls", "/v2/projects/{projectId}/calls/{callId}/start",
-                  "/v2/projects/{projectId}/calls/{callId}/script"):
+                  "/v2/projects/{projectId}/calls/{callId}/script", "/v2/projects/{projectId}/calls/{callId}/record",
+                  "/v2/projects/{projectId}/calls/{callId}/digest", "/v2/projects/{projectId}/calls/{callId}/timeline",
+                  "/v2/projects/{projectId}/calls/{callId}/audio/{track}"):
         assert f"  {route}:" in spec, route
     assert fake.record_route("r") == "/interviewer/kinds/r/record" and fake.try_route("r") == "/interviewer/try/r"
     assert "recordOnSend" not in spec.split("InterviewerFaces:", 1)[1].split("InterviewerFaceRequest:", 1)[0].replace("recordOnSend` are gone", "")
@@ -235,7 +248,9 @@ def test_the_card_walk_holds_the_three_parts_and_never_floats():
     assert 'card.press("float"' not in source and 'ended["floating"] == 0' in source
     assert "documentPictureInPicture" in calls_leg.FAKE_MEDIA and "enumerateDevices" in calls_leg.FAKE_MEDIA
     assert calls_leg.MIC_STORAGE_KEY in _web("src/lib/copilot/sources.ts")
-    assert "TODO(249)" in calls_leg.__doc__ and "TODO(249)" in source
+    # the second pass (keel-cloud 249): the upload's 200, ENDED then ANSWERED, no TODO left
+    assert "TODO(249)" not in calls_leg.__doc__ and "wait_digested(j, call_id)" in source
+    assert 'responses[-1]["status"] == 200' in source and 'statuses["final"] == "ANSWERED"' in source
 
 
 def test_the_sent_page_object_presses_new_link_and_new_group_link():
@@ -268,3 +283,55 @@ def test_the_first_person_kind_is_wired_and_never_run():
     assert "FIRST_PERSON" in inspect.getsource(run_mod._score)
     # never run here: the Makefile's instruction-screen is the founder's door, on his word
     assert "FIRST_PERSON" not in Path(run_mod.__file__).parent.parent.joinpath("Makefile").read_text(encoding="utf-8") or True
+
+
+# ----------------------------------------------------------------------------- FR-4 (keel-cloud 249): the fake call record
+
+def _script() -> dict:
+    """A served script's shape (keel-cloud 248 FR-6): the gate, seven items (one a number), the pilot."""
+    def item(n, control="choice", against=()):
+        options = [{"optionId": f"i{n}o{k}", "label": f"Item {n} option {k}"} for k in (1, 2, 3)]
+        return {"kind": "item", "itemId": f"item-{n}", "control": control, "options": options if control == "choice" else [],
+                "unit": "hours" if control == "number" else None,
+                "followUp": {"against": list(against), "hint": {"first": "Why?", "third": "Why?"}} if against else None}
+    return {"revision": "7", "study": "A study", "language": "en", "closing": {"first": "Thanks."},
+            "passages": [{"kind": "intro", "text": {"first": "Hello."}},
+                         {"kind": "gate", "itemId": "gate", "options": [{"optionId": "yes", "label": "Yes"}, {"optionId": "no", "label": "No"}]},
+                         item(1), item(2, against=("i2o1",)), item(3), item(4, control="number"), item(5), item(6), item(7),
+                         {"kind": "reveal"}, {"kind": "pilot", "itemId": "pilot", "options": [{"optionId": "p-yes", "label": "Yes"}, {"optionId": "p-no", "label": "No"}, {"optionId": "p-maybe", "label": "Maybe"}]}]}
+
+
+def test_the_fake_call_record_is_249s_shape():
+    """FR-4: the key log off the script -- the gate's Yes and its STORY stretch, six items filed (option 1; a typed 3 on
+    the number item), the third undone and filed again, the FOLLOW_UP stretch after the item whose `against` names the
+    filed option, the pilot's Yes, OWN_QUESTIONS and THEIR_QUESTIONS, `end` -- every field keel-cloud 249's `KeyLog.parse`
+    reads; the two tracks 16 kHz mono 16-bit with the words at each window's start and option 3's label at item 1's."""
+    from evals import call_record as cr
+    built = cr.build_key_log(_script())
+    log, plan = built["log"], built["plan"]
+    assert set(log) == {"clientId", "scriptRevision", "start", "end", "filings", "undos", "stretches"}
+    assert log["scriptRevision"] == "7" and log["start"] == 0 and log["end"] == cr.TIMES["end"]
+    assert [f["itemId"] for f in log["filings"]] == ["gate", "item-1", "item-2", "item-3", "item-3", "item-4", "item-5", "item-6", "pilot"]
+    assert log["filings"][1]["option"] == "i1o1" and log["filings"][2]["option"] == "i2o1"
+    assert log["filings"][5] == {"at": cr.TIMES["items"][3], "itemId": "item-4", "value": 3}
+    assert log["undos"] == [{"at": cr.TIMES["undo"], "itemId": "item-3"}]
+    assert [s["kind"] for s in log["stretches"]] == ["STORY", "FOLLOW_UP", "OWN_QUESTIONS", "THEIR_QUESTIONS"]
+    assert log["stretches"][1]["itemId"] == "item-2" and plan["follow_up_item"] == "item-2"
+    assert plan["heard_item"] == "item-1" and plan["heard_option_label"] == "Item 1 option 3"
+    assert len(log["filings"]) - len(log["undos"]) == 8     # the gate, six items, the pilot
+    tracks = cr.tracks(log, plan)
+    for name in ("founder", "them"):
+        wav = tracks[name]
+        assert wav[:4] == b"RIFF" and wav[8:12] == b"WAVE" and len(wav) == 44 + cr.DURATION_S * cr.BYTES_PER_SECOND
+        assert wav[22:24] == b"\x01\x00" and int.from_bytes(wav[24:28], "little") == 16_000 and wav[34:36] == b"\x10\x00"
+    them = tracks["them"][44:]
+    at = lambda s: int(s * cr.BYTES_PER_SECOND)  # noqa: E731
+    assert them[at(cr.TIMES["gate"]):at(cr.TIMES["gate"]) + len(cr.STORY)] == cr.STORY.encode()
+    assert them[at(cr.TIMES["story_to"]):at(cr.TIMES["story_to"]) + len("Item 1 option 3")] == b"Item 1 option 3"
+    assert them[at(cr.TIMES["own"][0]):at(cr.TIMES["own"][0]) + len(cr.OWN_THEM)] == cr.OWN_THEM.encode()
+    founder = tracks["founder"][44:]
+    assert founder[at(cr.TIMES["theirs"][0]):at(cr.TIMES["theirs"][0]) + len(cr.THEIR_FOUNDER)] == cr.THEIR_FOUNDER.encode()
+    assert any(founder[at(cr.TIMES["gate"]) + n] for n in range(2, 200)), "a tone at the filing"
+    assert cr.TEMPLATE.is_file() and (cr.FIXTURES / "founder.wav").is_file()
+    template = json.loads(cr.TEMPLATE.read_text())
+    assert [s["kind"] for s in template["stretches"]] == ["STORY", "FOLLOW_UP", "OWN_QUESTIONS", "THEIR_QUESTIONS"]

@@ -2367,7 +2367,8 @@ def leg_calibrate(j: Journey, vector: str) -> None:
             # beside the step -- the entry's own `duration`, sent on the save
             # spec 130 (keel-cloud 199 FR-4): *not sure* where the entry's sources give no time (`walker_duration`)
             duration = vs.walker_duration(j.entry) if key == vs.PURCHASE_FRICTION_KEY else None
-            seen.append(j.corridor.list_choose(question, label, duration=duration))
+            seen.append(j.corridor.list_choose(question, label, duration=duration,
+                                           wire_question=lambda: served_question(j, vector, key, label)))
             seen[-1]["row"] = row       # spec 116 FR-1: the drafted row the label was found at
             _choose_after_the_review(j, question, seen[-1])
         j.framing[key] = seen
@@ -2460,6 +2461,12 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 elif screen["screen"] == "choose":
                     faults += [{"dimension": key, **f}
                                for f in choose_faults(screen, key, row=screen.get("row"), b2b=vs.is_b2b(j.entry))]
+                    if (screen.get("asked_line") or {}).get("after_reload") and hasattr(j, "findings"):
+                        # spec 154 FR-0: the page drew the line only after a reload -- the Save's asked job had landed
+                        # before the page's first poll (the stub answers at once); the wire served it all along
+                        j.findings.append({"what": f"{key}: Choose drew no asked line within {vs_screens.CHOOSE_ASKED_CAP_S:.0f} s; "
+                                                   "the wire served the question and a reload drew it (keel-web 186 FR-3)",
+                                           "served": screen.get("asked_line")})
                 elif screen["screen"] == "check":
                     # spec 154 FR-0 (keel-web 186 FR-1): no row of the Check carries the reword line any more
                     faults += [{"dimension": key, "what": "a reword line on the Check (keel-web 186 FR-1)",
@@ -2552,6 +2559,22 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                          "rows": review.get("rows")})
         assert review.get("complete") is True, review
         assert not mismatches, json.dumps(mismatches, indent=2)
+
+
+def served_question(j: Journey, vector: str, key: str, label: str | None) -> str | None:
+    """Spec 154 FR-0: the stranger's question the wire serves for the row `label` of `key`'s saved list (keel-cloud 245
+    FR-4, `SavedItemDto.question`) -- the walk's one GET past the Choose line's ceiling; None where none is served."""
+    try:
+        view = j.get(j.project(f"/calibration/{vector}")) or {}
+    except Exception:  # noqa: BLE001 - the GET's failure is the page's reading to keep
+        return None
+    for q in view.get("questions") or []:
+        if q.get("dimension") != key:
+            continue
+        for item in ((q.get("answer") or {}).get("list") or {}).get("items") or []:
+            if label is None or " ".join(str(item.get("label") or "").split()) == " ".join(str(label).split()):
+                return item.get("question") or None
+    return None
 
 
 def _asked_log_note(j: Journey, vector: str) -> None:

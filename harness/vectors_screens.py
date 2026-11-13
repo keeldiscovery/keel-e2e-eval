@@ -448,6 +448,8 @@ CHOOSE_ASKED_AS_WRITTEN = "Keel will ask this row as written."
 CHOOSE_ASKED_WRITING = "Keel is writing the stranger's question"
 CHOOSE_ASKED_POLL_S = 2.0
 CHOOSE_ASKED_CAP_S = 90.0
+#: The two lists whose Choose draws the line (keel-web `asksStrangersQuestion`).
+ASKED_LINE_KEYS = ("solution.compatibility", "solution.adoption_friction")
 #: keel-web 186 FR-1: the reword line (*Keel couldn't phrase this as a question; reword it*) is gone from the Check.
 REWORD_WORDS = "reword it"
 #: Spec 134 FR-2 (keel-web 168 FR-4, `ListQuestion.tsx`): the redraft's note about a row the founder typed and Keel left
@@ -633,7 +635,7 @@ def record_put_aside(record) -> list[dict]:
 #: Compatibility's Check saves the list with no `pickedIndex` (the pick pending until Choose). Spec 149 FR-1 (keel-cloud
 #: 243 FR-4): 64 -- `SavedList.items[i].inPlaceOf` / `.typedKeels`, `putAside[k].replacedBy` / `.keels`; the Save's
 #: `review` unchanged.
-REVIEW_CONTRACT = 69  # keel-cloud 248 (spec 154): 66 at 245, 67 at 247, 68 at 250, 69 at 248; TODO(249): 70
+REVIEW_CONTRACT = 70  # keel-cloud 249 (spec 154): 66 at 245, 67 at 247, 68 at 250, 69 at 248, 70 at 249
 #: Spec 144 FR-1 (keel-cloud 233 FR-1, keel-web 180 FR-1 / FR-2 / FR-4): the lists whose Check Save may hold for the
 #: review -- Importance, Current solution and Compatibility. Spec 147 FR-2 (keel-cloud 237 FR-1, keel-web 181 FR-2): and
 #: Relative advantage, the fourth -- its Save names its `review` and the Check holds like the three (`list-reviewing`,
@@ -3568,7 +3570,7 @@ class Corridor:
         return "ticked"
 
     def list_choose(self, question: dict, label: str | None, duration: dict | None = None, *,
-                    index: int | None = None) -> dict:
+                    index: int | None = None, wire_question: Callable[[], str | None] | None = None) -> dict:
         """*Choose* (FR-006): none pre-picked; the radio named `label` picked; the *Keel will test* box
         read with the pick; the primary (*Continue*, or the stage's exit). Returns what it read.
 
@@ -3651,6 +3653,22 @@ class Corridor:
                                   "unit": self.page.get_by_test_id(DURATION_UNIT_TESTID).first.input_value()}
             # spec 154 FR-0 (keel-web 186 FR-2): the asked line under the picked radio, once the writing line has left
             asked_line = self._choose_asked_line()
+            if asked_line.get("kind") is None and wire_question is not None and name in ASKED_LINE_KEYS:
+                # past the ceiling with no line drawn: ONE GET of the calibration (the leg's) -- where the wire serves
+                # the picked row's question, the page is reloaded (its own fresh read) and the line read once more; the
+                # page's not drawing it before the reload is the leg's finding, never a stop
+                served = wire_question()
+                asked_line["wire"] = served
+                if served:
+                    self.page.reload(wait_until="load")
+                    group = self.page.locator(".listcheck [role=radiogroup]").first
+                    group.wait_for(state="visible", timeout=20_000)
+                    radios = group.get_by_role("radio")
+                    if index is not None:
+                        radios.nth(index).click()
+                    else:
+                        group.get_by_role("radio", name=label, exact=True).click()
+                    asked_line = {**self._choose_asked_line(), "wire": served, "after_reload": True}
             seen = {"screen": "choose", "frame": self.frame(), "options": options, "label": label,
                     "asked_line": asked_line,
                     **({"index": index} if index is not None else {}),
@@ -3683,8 +3701,14 @@ class Corridor:
         the leg's one GET) or None (a list that is not asked: a keel-web before 186, or another dimension); `waited_s`
         how long the writing line was waited out (polled every `CHOOSE_ASKED_POLL_S`, capped `CHOOSE_ASKED_CAP_S`)."""
         writing = self.page.get_by_test_id(CHOOSE_ASKED_WRITING_TESTID)
+        asked = self.page.get_by_test_id(CHOOSE_ASKED_TESTID)
+        as_written = self.page.get_by_test_id(CHOOSE_ASKED_AS_WRITTEN_TESTID)
         started = time.monotonic()
-        while writing.count() and time.monotonic() - started < CHOOSE_ASKED_CAP_S * self.patience:
+        # the writing line waited out; a Choose that draws no line yet (the page re-reads the list once the Save's asked
+        # job lands) is given the same ceiling to draw one, polled every 2 s
+        while time.monotonic() - started < CHOOSE_ASKED_CAP_S * self.patience:
+            if asked.count() or as_written.count():
+                break
             self.page.wait_for_timeout(int(CHOOSE_ASKED_POLL_S * 1000))
         waited = round(time.monotonic() - started, 1)
         asked = self.page.get_by_test_id(CHOOSE_ASKED_TESTID)
