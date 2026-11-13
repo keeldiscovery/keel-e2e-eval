@@ -262,21 +262,24 @@ def make_the_link(j, sent, record: dict) -> dict:
     made = sent.send_group(j.project_id, primary.get("label"), GROUP_NAME, FORMAT)
     record["made"] = made
     # spec 150 (keel-web 185 FR-3): Send more's ways are OWN and GROUP -- the dataset way between them is gone
-    with cs._step(j, "keel-web 136 FR-1: Send more's group way -- the two ways in order (keel-web 185), the group "
-                     "named, the cap line fixed, *Make the link · Let them choose* posting POST groups "
-                     "{expectedRevision, roleId, name, format}; 201 {groupId, url}, the link shown once", party="founder") as h:
+    with cs._step(j, "keel-web 187 FR-4: New group link is one screen -- the kicker and title, the kind row only on two "
+                     "kinds, the group named, the cap line fixed, *Make the link* posting POST groups {expectedRevision, "
+                     "roleId, name, format}; 201 {groupId, url}, the link shown once", party="founder") as h:
         sent_body = made.get("sent") or {}
-        want = {"ways": [iv_screens.WHO_OWN, iv_screens.WHO_GROUP],
-                "ids": list(iv_screens.SEND_WHO_IDS),
+        # keel-web 187 FR-4 (spec 154): 136's ways (OWN / GROUP) are gone with the wizard; the one screen draws a kind
+        # row only where the project has two kinds -- `ways` is that row, empty on one kind
+        two_kinds = len(kinds) > 1
+        want = {"ways": "the kind row" if two_kinds else [],
+                "popup": {"kicker": iv_screens.SEND_NEW_GROUP_LINK_KICKER, "title": "New group link"},
                 "panel": {"label": iv_screens.SEND_GROUP_NAME_LABEL, "max_length": str(iv_screens.GROUP_NAME_MAX),
                           "placeholder": iv_screens.SEND_GROUP_NAME_EXAMPLE, "cap": iv_screens.SEND_GROUP_CAP_LINE},
-                "button": iv_screens.send_make_group(iv_screens.FORMAT_NAMES[FORMAT]), "status": 201,
+                "button": iv_screens.send_make_group(), "status": 201,
                 "sent": {"roleId": primary.get("roleId"), "name": GROUP_NAME, "format": FORMAT},
                 "ready": iv_screens.send_group_ready(GROUP_NAME)}
         h.record_assert(want, made)
         assert made.get("status") == 201, made
-        assert [w["name"] for w in made["ways"]] == want["ways"], made["ways"]
-        assert [w["id"] for w in made["ways"]] == want["ids"], made["ways"]
+        assert (len(made["ways"]) == 2) if two_kinds else (made["ways"] == []), made["ways"]
+        assert {k: (made.get("popup") or {}).get(k) for k in ("kicker", "title")} == want["popup"], made.get("popup")
         assert {k: made["panel"].get(k) for k in want["panel"]} == want["panel"], made["panel"]
         assert made["panel"]["cap_lead"] == iv_screens.SEND_GROUP_CAP_LINE.split(" After")[0], made["panel"]
         assert made["button"] == want["button"] and made["button_disabled_before"] is True, made
