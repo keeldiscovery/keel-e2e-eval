@@ -5084,12 +5084,19 @@ def from_served(question: str | None, pick: str | None) -> str | None:
     return f"You said {said} to this: {asked[:1].lower() + asked[1:]} What got in the way?"
 
 
-def served_idea_name(interview: dict) -> str | None:
+def served_idea_name(interview: dict, known: str | None = None) -> str | None:
     """The idea's name as the interview serves it (`Reveal.what`, *Imagine {name}.*: keel-cloud 090) -- the
-    corridor's `ideaName` the composer says."""
+    corridor's `ideaName` the composer says. Since keel-cloud 185 FR-2 the line is *Imagine {name}, {what it is}.*
+    (`IdeaLines.card`), so where the name is `known` (the founder's typed name) and the line opens on it, the name alone
+    is read -- the composer says `ideaName`, never the card (spec 154: S-005's Relative advantage follow-up)."""
     what = ((interview.get("reveal") or {}).get("what") or "").strip()
     m = re.match(r"^Imagine (.+?)\.?$", what)
-    return m.group(1).strip() if m else None
+    if not m:
+        return None
+    said = m.group(1).strip()
+    if known and str(known).strip() and said.startswith(str(known).strip() + ","):
+        return str(known).strip()
+    return said
 
 
 def follow_up_question(entry, picks: list, link: str, interview: dict, token: str, first=(), *,
@@ -5115,7 +5122,7 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
     label = lambda code: labels.get(option_id(token, rung, code))  # noqa: E731
     pick = next((p for p in picks if p.dimension == rung), None)
     codes = list(pick.codes) if pick else []
-    name = served_idea_name(interview) or _typed_idea_name(entry)
+    name = served_idea_name(interview, _typed_idea_name(entry)) or _typed_idea_name(entry)
     # keel-cloud 154 FR-1 (`FollowUpComposer.lockValues`): {job}, {solution_name}, {occasion} and the lock's words on
     # every rung, either stem; then the person's
     values: dict[str, str | None] = lock_values(entry, interview, rung,
@@ -5289,7 +5296,8 @@ def lock_values(entry, interview: dict | None, rung: str, founder_item: str | No
     interview = interview or {}
     values: dict[str, str | None] = {"{occasion}": interview.get("occasion"),
                                      "{job}": job_gerund(_ctx(entry).get("job")),
-                                     "{solution_name}": served_idea_name(interview) or _typed_idea_name(entry)}
+                                     "{solution_name}": served_idea_name(interview, _typed_idea_name(entry))
+                                     or _typed_idea_name(entry)}
     if rung == "problem.importance":
         own = founder_item
         if own is None:

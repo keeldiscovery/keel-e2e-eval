@@ -2088,9 +2088,14 @@ def cloud_130(j, standings: dict | None = None) -> dict:
     steps = ((lists.get("commercial.commitment") or {}).get("items") or [])
     step = (steps[0] or {}).get("label") if steps else None
     gates = set()
+    try:
+        # keel-cloud 185 FR-2: the reveal reads *Imagine {name}, {what it is}.* -- the name read by the typed one
+        known = vs._typed_idea_name(j.entry)
+    except (AttributeError, KeyError, TypeError):
+        known = None
     for person, interview in (getattr(j, "interviews", None) or {}).items():
         items = {i.get("dimension"): i for part in (interview or {}).get("parts") or [] for i in part.get("items") or []}
-        name = vs.served_idea_name(interview or {})
+        name = vs.served_idea_name(interview or {}, known)
         adoption = items.get("solution.adoption_friction")
         # spec 112 FR-1 (keel-cloud 171): the founder's row too -- the *it* swap and the lock's give-way read it
         want = vs.adoption_statement(tested.get("asked") or tested.get("label"), name, tested.get("label")) \
