@@ -3971,21 +3971,18 @@ def _keels_door_l1(j: Journey, drawn: dict) -> None:
     # spec 154 FR-1 (keel-web 187 FR-7, keel-cloud 247 FR-1): the lock picks no face on either door -- *Lock your
     # answers*, no carousel, *Lock and write the questions*, the body {expectedRevision} alone
     with _step(j, "step 5 is two screens since keel-web 113 hid the word -- *Offer a pilot?* 1 of 2 and the lock "
-                  f"*{vs_screens.L1_TITLE_187}* 2 of 2 (alone in the problem study), which on Keel's door too picks no "
-                  "face: no carousel, *Lock and write the questions*, {expectedRevision} alone (keel-web 187 FR-7, "
-                  "keel-cloud 247 FR-1; spec 154)", party="founder") as h:
+                  f"*{vs_screens.L1_TITLE_191}* 2 of 2 (alone in the problem study), which on Keel's door too picks no "
+                  "face: the problem as typed, the plan's rows, the one sentence, *Save and write the questions* with "
+                  "its price while unpaid, no Back, {expectedRevision} alone (keel-web 191 FR-1, keel-cloud 247 FR-1 / "
+                  "251; spec 154)", party="founder") as h:
         l1 = drawn.get("l1") or {}
         sent = l1.get("sent") if isinstance(l1.get("sent"), dict) else {}
-        h.record_assert({"counters": before_counters(j.scope), "title": vs_screens.L1_TITLE_187,
-                         "sub": vs_screens.BEFORE_INTERVIEWER_SUB_187, "carousel": False,
-                         "button": vs_screens.BEFORE_LOCK_APPROVE, "sent": ["expectedRevision"],
+        h.record_assert({"counters": before_counters(j.scope), **_lock_191_want(),
                          "pilot_title": vs_screens.PILOT_TITLE if before_counters(j.scope) else None},
                         {**l1, "counters": drawn["counters"], "receipt": j.receipt,
                          "pilot_title": (drawn.get("ready") or {}).get("pilot_title")})
         assert drawn["counters"] == before_counters(j.scope), drawn
-        assert l1.get("title") == vs_screens.L1_TITLE_187 and l1.get("carousel") is False, l1
-        assert l1.get("sub") == vs_screens.BEFORE_INTERVIEWER_SUB_187, l1
-        assert l1.get("button") == vs_screens.BEFORE_LOCK_APPROVE, l1
+        _lock_191_faults(l1, own_ai=False)
         assert sorted(sent) == ["expectedRevision"], sent
 
 
@@ -4045,27 +4042,45 @@ def _hold_no_word(j: Journey, drawn: dict) -> None:
         assert ready.get("word_drawn") == 0, ready
 
 
+def _lock_191_want(own_ai: bool = False) -> dict:
+    """keel-web 191 FR-1: the lock screen as the walk holds it."""
+    return {"title": vs_screens.L1_TITLE_191, "sub": "", "carousel": False, "problem": 1, "plan_rows": ">= 1",
+            "sentence": vs_screens.LOCK_SENTENCE_191, "button": vs_screens.BEFORE_LOCK_191 + ("" if own_ai else " · …"),
+            "price": "none" if own_ai else "shown", "back": 0, "sent": ["expectedRevision"]}
+
+
+def _lock_191_faults(l1: dict, *, own_ai: bool) -> None:
+    """keel-web 191 FR-1 (keel-cloud 251): *Save your answers*, no sub, no carousel, the problem box and the plan's rows,
+    the one sentence, the button's words with the price on Keel's door while the project is unpaid (*· 1,000 credits*
+    or *· your first project is free*) and none on its own AI, no Back on the lock screen."""
+    assert l1.get("title") == vs_screens.L1_TITLE_191 and l1.get("carousel") is False, l1
+    assert not l1.get("sub"), l1
+    assert l1.get("problem") == 1 and int(l1.get("plan_rows") or 0) >= 1, l1
+    assert l1.get("sentence") == vs_screens.LOCK_SENTENCE_191, l1
+    assert (l1.get("button") or "").startswith(vs_screens.BEFORE_LOCK_191), l1
+    assert l1.get("price") == ("none" if own_ai else "shown"), l1
+    if own_ai:
+        assert " ".join((l1.get("button") or "").split()) == vs_screens.BEFORE_LOCK_191 and not l1.get("price_words"), l1
+    assert l1.get("back") == 0, l1
+
+
 def _own_door_l1(j: Journey, drawn: dict) -> None:
     """Spec 090 FR-4 (keel-web 130 FR-2): on an account on its own AI, L1's title names the people, its line is 130's
     and the lock is *Lock and write the questions*."""
     # spec 154 FR-1 (keel-web 187 FR-7): the same one screen on an account on its own AI -- the door no longer changes
     # the lock's words (130's own-AI line is gone); the receipt carries no interviewer (contract 16, still)
     with _step(j, "step 5 is two screens since keel-web 113 hid the word -- *Offer a pilot?* 1 of 2 and the lock "
-                  f"*{vs_screens.L1_TITLE_187}* 2 of 2 (alone, no counter, in the problem study): one line, no carousel, "
-                  "*Lock and write the questions*, {expectedRevision} alone; the receipt carries no interviewer "
-                  "(keel-web 187 FR-7; spec 154)", party="founder") as h:
+                  f"*{vs_screens.L1_TITLE_191}* 2 of 2 (alone, no counter, in the problem study): the problem as typed, "
+                  "the plan's rows, the one sentence, *Save and write the questions* with no price on its own AI, no "
+                  "Back, {expectedRevision} alone; the receipt carries no interviewer (keel-web 191 FR-1; spec 154)",
+               party="founder") as h:
         l1 = drawn.get("l1") or {}
         sent = l1.get("sent") if isinstance(l1.get("sent"), dict) else {}
         counters = before_counters(j.scope)
-        h.record_assert({"counters": counters, "title": vs_screens.L1_TITLE_187,
-                         "sub": vs_screens.BEFORE_INTERVIEWER_SUB_187, "carousel": False,
-                         "button": vs_screens.BEFORE_LOCK_APPROVE, "sent": ["expectedRevision"],
-                         "receipt.interviewer": None},
+        h.record_assert({"counters": counters, **_lock_191_want(own_ai=True), "receipt.interviewer": None},
                         {**l1, "counters": drawn["counters"], "receipt": j.receipt})
         assert drawn["counters"] == counters, drawn
-        assert l1.get("title") == vs_screens.L1_TITLE_187 and l1.get("carousel") is False, l1
-        assert l1.get("sub") == vs_screens.BEFORE_INTERVIEWER_SUB_187, l1
-        assert l1.get("button") == vs_screens.BEFORE_LOCK_APPROVE, l1
+        _lock_191_faults(l1, own_ai=True)
         assert sorted(sent) == ["expectedRevision"], sent
         assert "interviewer" not in j.receipt, j.receipt
 

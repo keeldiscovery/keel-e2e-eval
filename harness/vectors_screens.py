@@ -1113,6 +1113,15 @@ L1_TITLE = "Who should ask them your questions?"
 L1_TITLE_187 = "Lock your answers"
 BEFORE_INTERVIEWER_SUB_187 = ("Keel writes the questions people will be asked from your answers as they stand. Who asks them, "
                               "and how, you choose on Sent, kind by kind.")
+#: Spec 154 (keel-web 191 FR-1, keel-cloud 251): the lock screen says what it saves -- *Save your answers*, no sub, the
+#: problem as typed (`lock-problem`, its one *Change*), the plan's rows read-only (`lock-plan-row`), one sentence
+#: (`lock-sentence`) above *Save and write the questions*, its price after it while the project is unpaid on Keel's AI
+#: (`data-price` *shown*: *· 1,000 credits* / *· your first project is free*), none on its own AI; no Back.
+L1_TITLE_191 = "Save your answers"
+LOCK_SENTENCE_191 = "Keel writes the questions people will be asked from these answers. You can't change them after this."
+BEFORE_LOCK_191 = "Save and write the questions"
+BEFORE_BACK_WORD = "Back"
+LOCK_PROBLEM_KICKER_191 = "The problem, as you wrote it"
 BEFORE_LOCK_RECORD = re.compile(r"^Lock and record \S.*$")
 BEFORE_LOCK_APPROVE = "Lock and write the questions"
 BEFORE_INTERVIEWER_OWN = ("This account runs on its own AI, so people read the questions and tap their answers. The AI "
@@ -4003,8 +4012,20 @@ class Corridor:
                       "text": " ".join((b.text_content() or "").split())}
                      for b in carousel.locator('button[role="radio"]').all()]
         button = self.page.get_by_test_id("lock-and-record")
+        price = self.page.get_by_test_id("lock-price")
+        foot = main.locator(".before__foot").first
         return {"title": _safe_text(lambda: main.locator("h1").first.inner_text()),
-                "sub": _safe_text(lambda: main.locator(".ccard__sub").first.inner_text()),
+                "sub": _safe_text(lambda: main.locator(".ccard__sub").first.inner_text()) if main.locator(".ccard__sub").count() else "",
+                # keel-web 191 FR-1: the lock screen's own parts
+                "problem": main.get_by_test_id("lock-problem").count(),
+                "problem_kicker": _first_text(main, "[data-testid=lock-problem]").split("\n")[0].strip()
+                if main.get_by_test_id("lock-problem").count() else None,
+                "plan_rows": main.get_by_test_id("lock-plan-row").count(),
+                "sentence": " ".join(_first_text(main, "[data-testid=lock-sentence]").split()) or None,
+                "price": button.get_attribute("data-price") if button.count() else None,
+                "price_words": " ".join((price.first.text_content() or "").split()) if price.count() else None,
+                "back": foot.get_by_role("link", name=BEFORE_BACK_WORD).count() if foot.count() else 0,
+                "refusal": " ".join(_first_text(main, "[data-testid=lock-refusal]").split()) or None,
                 "faces": faces, "carousel": carousel.count() > 0,
                 "button": _safe_text(lambda: button.inner_text()) if button.count() else None,
                 "switch": self.lock_switch(main),

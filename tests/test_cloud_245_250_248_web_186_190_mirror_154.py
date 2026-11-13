@@ -61,8 +61,10 @@ DOCUMENT_VERSION_40 = 40
 #: whole -- `specs/044-vector-corridor/contracts/openapi-v2.yaml`, this sha256 with its vendoring header, and byte for byte
 #: `CONTRACT_SHA256_70` below that header.
 WEB_MASTER_70 = "aa8b49c6"
-#: The keel-web master this pin was last read at (2026-11-13 09:30 ET): the vendored copy still 70, `a6de15c4...`.
-WEB_MASTER_READ = "851ca8c2"
+#: keel-web master `47ebf528` (2026-11-13 09:25 ET: 187-191, the integration and gate passes) vendors contract 71 whole --
+#: this sha256 with its header, and byte for byte `CONTRACT_SHA256_71` (cloud `34735d05`) below it.
+WEB_MASTER_71 = "47ebf528"
+WEB_CONTRACT_SHA256_71 = "51b2bdcb0e6281e9eb35dc263f4910ed84006efc6ed80265697c4c3ac71f11f5"
 WEB_CONTRACT = "specs/044-vector-corridor/contracts/openapi-v2.yaml"
 WEB_CONTRACT_SHA256_70 = "a6de15c4a56003298585c897f684c74e06cf203802dec5166f91da66deebf153"
 
@@ -210,6 +212,8 @@ def test_keel_web_vendors_the_same_contract_70():
     else:
         # keel-web at 71 (keel-cloud 251): cloud's `34735d05` copy under its header
         assert int(version.group(1)) == CONTRACT_71 and body == CONTRACT_SHA256_71, (version.group(1), body)
+        assert b"34735d05" in b"".join(lines[:head]), "the vendoring header names keel-cloud-docs 34735d05"
+        assert hashlib.sha256(raw).hexdigest() == WEB_CONTRACT_SHA256_71, f"keel-web's copy moved past {WEB_MASTER_71}"
 
 
 def test_the_project_row_and_the_leg_hold_the_gates():
@@ -231,7 +235,8 @@ def test_the_project_row_and_the_leg_hold_the_gates():
 
 # ------------------------------------------------------------------------------- FR-2 / FR-3 / FR-4 the selectors
 
-SENT_IDS = ("sent-tab-name", "sent-tab-group", "sent-tab-calls", "new-link", "new-group-link", "plan-call", "new-link-popup",
+SENT_IDS = ("lock-problem", "lock-plan-row", "lock-sentence", "lock-refusal", "lock-price", "lock-and-record",
+            "sent-tab-name", "sent-tab-group", "sent-tab-calls", "new-link", "new-group-link", "plan-call", "new-link-popup",
             "new-link-title", "send-kind", "send-make", "link-made", "group-link-made", "format-set-up-on-card", "format-status",
             "kind-card", "kind-asks", "kind-progress", "kind-try-again", "kind-failure", "set-up-interviewer",
             "set-up-interviewer-popup", "set-up-record", "set-up-not-now", "set-up-cost", "set-up-title", "try-it-yourself",
@@ -266,7 +271,8 @@ def test_the_words_are_keel_webs_own():
                  calls_leg.PLAN_CALL_LINE_WORDS, calls_leg.PLAN_CALL_PRESS_WORDS, calls_leg.START_CALL_KICKER,
                  *calls_leg.START_CALL_STEPS, calls_leg.CALL_START_WORDS, calls_leg.MARK_VERIFIED, calls_leg.MARK_UNVERIFIED,
                  *calls_leg.CALL_STATUS_WORDS.values(), calls_leg.CALL_SIGNED_IN_WORDS, calls_leg.COPILOT_BROWSER_LINE,
-                 vs_screens.L1_TITLE_187, vs_screens.BEFORE_INTERVIEWER_SUB_187, vs_screens.BEFORE_LOCK_APPROVE,
+                 vs_screens.L1_TITLE_191, vs_screens.LOCK_SENTENCE_191, vs_screens.BEFORE_LOCK_191,
+                 vs_screens.LOCK_PROBLEM_KICKER_191,
                  vs_screens.CHOOSE_ASKED_AS_WRITTEN, vs_screens.CHOOSE_ASKED_WRITING, ivs.SETUP_INTERVIEWER, ivs.TRY_IT_YOURSELF_SOON):
         assert word in translate, word
     assert "`Calls with me · ${n}`" in translate and iv.sent_tab_calls(2) == "Calls with me · 2"
