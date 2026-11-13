@@ -362,3 +362,51 @@ every journey run; the unit suite needs no stack.
    off on the local stack on either door; the leg holds the owed line logged first. On staging (Keel's AI on) the job
    runs for real -- the remote journeys there are the check of it.
 5. `stack.toml` is **uncommitted** (absolute paths to the main checkouts; the repo documents no override).
+
+## Fifth pass (2026-11-13, 12:11 -- 12:30 ET)
+
+The coordinator's two items, on cloud `34735d05` / keel-web `47ebf528`, nothing paid.
+
+**1. S-006's IM16: the reader's Relative advantage answered as a support** (`4ba9c88`'s rule kept; the Back rule not
+loosened). Checked first that nothing held above rests on that reader's *No difference*: the AI link is answered in
+the interviewer leg, after `leg_standings` (step 376) and `leg_report` (step 403, the report marks and the Insights
+verdicts) -- the first AI-link step is 421 -- and `with_pick` changes the AI link's answers alone, never the corpus
+person's text response. So no mark was rewritten. The rule (`_ai_person`, `_pick_back_spots`, `_answer_codes`):
+where the reader's answers leave the way back no question, the earliest question answered with an owed answer that
+offers two answers owing nothing is answered with the first of them (05-paidly: Relative advantage *No difference* ->
+*A lot better*), and the follow-up it gave up is taken on the earliest other one-of question (Current solution), as
+S-005's second follow-up is. On the run: Back walked on Relative advantage (*A lot better* sent, TAPPED), the
+follow-up on Current solution, the read-aloud on Current solution; **interviewer marks v18 26 of 26 met, IM16
+measured and met**. Commit `f0dc2da`.
+
+**S-006 is still not 484/484:** the run (`20261113T171435Z-s006-paidly`) walked **484 of 485 steps** and stopped at the
+last, spec 064's deferred golden readings -- **05-paidly's Existing sacrifice** reads on the wire *People disagree*
+(drift BOTH, 3 inside / 5 below, median $65) where the corpus says *Not holding up* (SHORT, 2 inside / 6 below, $58.33),
+so the COMMERCIAL verdict's deciding dimension and the card differ. **Not caused by this pass**: it is recorded at step
+376, before the AI link, and the 11:33 ET run (`20261113T163338Z`) recorded the same at its step 376 -- it was hidden
+behind IM16, which stopped that run first. Left as found (spec 064 defers it on purpose; no expectation rewritten):
+one person's cost reads a different way on the wire -- the cause not yet traced.
+
+**2. The FIRST_PERSON screen builds its cases** (`05e8bfd`). No corpus entry records `idea_belief` / `idea_how`, and
+the back-test path never built the kind, so `make instruction-screen DRY=1 K=08-fresco/FIRST_PERSON` matched no case.
+Now `context.build_first_person` composes the belief by `solution-mechanism.md`'s rule (*The people building it believe
+it would* + every `not_assumed` claim in the founder's words, joined *A, B and C*), the how as the mechanism's plain
+line (*When {trigger}, you {mechanism}. Then {output}.*), `idea_what` the entry's own else its short name; an entry with
+no claim builds no case; the job is handed its three keys alone (what was composed is the case's meta);
+`prompts.first_person_cases` builds the kind for golden and back-test entries alike. Dry runs, nothing called, nothing
+spent:
+- `make instruction-screen DRY=1 HOST=claude K=08-fresco/FIRST_PERSON N=3 WHY=instruction:first-person.md`: **3 cases**
+  (`08-fresco/FIRST_PERSON/run1..3`); the context handed: *The people building it believe it would the notes are right
+  without a review and the crew texts back when a task is done.* / *an AI scribe that writes up site walk videos as
+  notes* / *During the site walk, when they see work that needs recording, you takes a short video and talks over it,
+  and the app writes it up as a note. Then notes with photos, assignees and due dates, texted to the crew and sent to
+  Procore or ACC.* (the founder's words as recorded, read and never rewritten).
+- `make instruction-screen DRY=1 HOST=claude K=first-person N=3 WHY=instruction:first-person.md`: **21 cases**, the
+  seven golden entries x 3 (a kind word reads no back-test entry); 01-countly's: *The people building it believe it
+  would stops every mismatch and saves the manager two hours.*
+- Every one of the 35 entries (7 golden, 28 back-test) composes a belief; none builds no case. The claims are the
+  founder's words joined as recorded, so some read ungrammatically after *would* (*would the notes are right ...*,
+  *would stops every mismatch ...*) -- what the job is handed until a corpus revision records the cloud's own belief.
+
+**Counts:** `make unit` (12:23 -- 12:28 ET, at `05e8bfd`): **5,926 passed, 124 skipped, 0 failed** in 331 s; S-006 484 of 485 (above); S-005 and S-017 not rerun in this pass (their code paths are
+untouched but for `_ai_person`'s new branch, which S-005's reader does not take: its Back spot exists).
