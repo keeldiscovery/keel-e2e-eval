@@ -776,7 +776,8 @@ class Persona:
         progress = card.locator("[data-testid=kind-progress]")
         return {"label": _words(card.locator(".role__label").first), "role_id": card.get_attribute("data-role"),
                 "state": card.get_attribute("data-interviewer"),
-                "asks": _words(card.get_by_test_id("kind-asks")) or None,
+                # keel-web 187 (`SentPage`): the span carries its own separator, *· {Face} asks* -- read without it
+                "asks": re.sub(r"^·\s*", "", _words(card.get_by_test_id("kind-asks")) or "") or None,
                 "primary": {"id": primary.get_attribute("data-testid"), "text": _words(primary),
                             "enabled": primary.is_enabled()} if primary.count() else None,
                 "progress": {"now": bar.get_attribute("aria-valuenow"), "max": bar.get_attribute("aria-valuemax"),
