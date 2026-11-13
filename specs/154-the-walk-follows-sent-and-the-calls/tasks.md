@@ -410,3 +410,58 @@ spent:
 
 **Counts:** `make unit` (12:23 -- 12:28 ET, at `05e8bfd`): **5,926 passed, 124 skipped, 0 failed** in 331 s; S-006 484 of 485 (above); S-005 and S-017 not rerun in this pass (their code paths are
 untouched but for `_ai_person`'s new branch, which S-005's reader does not take: its Back spot exists).
+
+## Sixth pass (2026-11-13, 12:30 -- 13:07 ET)
+
+**1. The paidly Existing sacrifice reading, traced.** The one person who reads differently is **Yusuf Hazel** (a
+decision-maker). His answer, as the walk sends it and as the corpus records it, is the same: `{mode: HOURS, value: 10,
+period: quarter}` (`inputs.json`; `corpus-r23/05-paidly.yaml:608`). The wire reads it **$266.67 a month, inside** the
+founder's $100 -- $300; the corpus reads it **$66.67 a month, short** (its nominal `hourly_rate: {value: 20}`,
+`05-paidly.yaml:208`). 10 hours a quarter at $80 an hour is $800 a quarter, $266.67 a month: keel-cloud prices a B2B
+respondent's hours at the project's one hourly rate (`VectorEvidence.java:130-132`, *spec 074: a respondent's hours are
+money only on a B2B study*), and with no rate stored that is `VectorCorridor.hourlyRate(currency)` ->
+`HourlyRates.defaultFor("USD", "agency")` = **$80** (the GENERAL row, spec 073). The other seven read exactly as the
+corpus. So median $65 (not $58.33), 3 inside / 5 below (not 2 / 6), *People disagree* (not *Not holding up*), and the
+COMMERCIAL verdict's deciding dimension moves.
+
+- **Which build moved it: keel-cloud 180 (2026-10-31), not 247-251.** Until 180 the walk set the entry's rate on the
+  wire (`_hourly_rate`: PUT `hourlyRate: 20` over the default 80); 180 FR-9 removed the rate write (*the hourly rate
+  goes ... hours stay hours*; a PUT with only `hourlyRate` is 422 and one beside answers is ignored), and eval spec 118
+  stopped the walk setting it. The last S-006 bundle before that, `keel-e2e-eval/runs/20261030T134118Z-s006-paidly`
+  (eval `9cbbd45`, cloud `fcec4533`), read it green: Yusuf $66.67 *below*, median $58.33, 2 / 6, *Not holding up*,
+  420 steps 0 failed; its step 105 *the hourly rate is the entry's own* set 20 over the default 80. **No S-006 ran on eval
+  master `acd4c25` / cloud `dfdad66a`** (no bundle under either checkout's `runs/` between 2026-10-30 and today).
+- **Classification: (b), a cloud behaviour -- from 180, not from 247-251.** Not the walk (it sends the corpus's own
+  answer, the people in order, no typos on a golden walk), not the corpus (its rate is the only one the entry records).
+  Not patched around: the step stays red.
+- **The smallest reproduction (for keel-cloud):** a B2B study (persona with a decision-maker, role *agency*), market USD,
+  no hourly rate stored (none can be, since 180); the founder's Existing sacrifice estimate $100 -- $300 a month; a
+  decision-maker answers the cost total `{mode: HOURS, value: 10, period: quarter}`. **Out:** `StandingsView` people
+  row `readAs` *$266.67 a month · inside what you said*, `value` 266.67, placement AT, side FOR -- the hours priced at
+  `HourlyRates`' default $80 an hour, a rate the founder never saw, never set and (since 180) cannot set. **The rule it
+  breaks:** 180 FR-9 / the founder's 2026-10-31 word, *hours stay hours* (the belief line carries no dollars on hours,
+  and the rate the brief priced hours at was taken away) -- yet a respondent's hours still count as money, at a hidden
+  default, and decide the line. Either the hours should be read apart (as a B2C study's are: *N lose only time*) or the
+  rate should be one the founder can see and set; that is keel-cloud's call.
+
+**2. S-005, S-017 and S-006 rerun at one head**, `633abae` (each bundle's `versions.json`: eval `633abae` -- *dirty*
+only by the uncommitted `stack.toml` and this file's draft -- cloud `34735d05`, keel-web `47ebf528`), 12:34 -- 12:54 ET,
+`make down` / `make up` before each:
+- **S-005** `20261113T173412Z-s005-countly`: **409 steps, 0 failed** (report 5/5, interviewer 22 of 23 with every owed
+  one met, feedback 4/4, guide 17/17).
+- **S-017** `20261113T174234Z-s017-open-link`: **153 steps, 0 failed**.
+- **S-006** `20261113T174627Z-s006-paidly`: **484 of 485** -- interviewer marks 26 of 26 (IM16 met), report 5/5; red at
+  step 485 on the Existing sacrifice reading above, left red.
+
+**3. FIRST_PERSON reads its run's mechanism answer** (`633abae`). The runner already walks the cases in order, each
+entry's `SOLUTION_MECHANISM/runN` before its `FIRST_PERSON/runN`, so the run loop keeps each run's **accepted**
+SOLUTION_MECHANISM result and hands `FIRST_PERSON/runN` its `idea_belief`, `idea_what` and `idea_how.primary` (keel-cloud
+stores the primary line as the card's how) before the call; the prompt is re-rendered and the case's meta names
+`from`. Where no accepted answer is there -- a dry run, or a `-k` that selects FIRST_PERSON alone (`-k
+08-fresco/FIRST_PERSON`) -- the composed stand-in stays. So `make instruction-screen HOST=claude K=08-fresco N=3` (the
+whole entry, mechanism first) hands the job the model's own conjugated belief; `K=08-fresco/FIRST_PERSON` hands the
+composed one. Dry run after the change: 3 cases, nothing called, nothing spent.
+
+**Counts:** `make unit` at `633abae`, 13:00 -- 13:06 ET: **5,927 passed, 124 skipped, 0 failed** in 329 s. (The run before
+it, 12:54 -- 13:00 ET, had one Playwright click time out in `test_sign_in_on_the_issuer_095::test_the_registered_cell_
+signs_in_and_lands_on_keel_web` -- untouched by this pass; it passed alone twice and in the full rerun.)
