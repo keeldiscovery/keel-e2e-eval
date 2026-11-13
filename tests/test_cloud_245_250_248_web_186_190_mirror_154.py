@@ -61,6 +61,8 @@ DOCUMENT_VERSION_40 = 40
 #: whole -- `specs/044-vector-corridor/contracts/openapi-v2.yaml`, this sha256 with its vendoring header, and byte for byte
 #: `CONTRACT_SHA256_70` below that header.
 WEB_MASTER_70 = "aa8b49c6"
+#: The keel-web master this pin was last read at (2026-11-13 09:30 ET): the vendored copy still 70, `a6de15c4...`.
+WEB_MASTER_READ = "851ca8c2"
 WEB_CONTRACT = "specs/044-vector-corridor/contracts/openapi-v2.yaml"
 WEB_CONTRACT_SHA256_70 = "a6de15c4a56003298585c897f684c74e06cf203802dec5166f91da66deebf153"
 

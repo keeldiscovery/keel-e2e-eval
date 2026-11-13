@@ -9,10 +9,47 @@ runtime, the fake renderer, the fake transcriber), the stack pointed at the two 
 `stack.toml` (absolute paths; the repo has no override, and the worktree's `../` would resolve to other worktrees). Not
 merged; master untouched; every commit pushed as it landed.
 
-**Scope of this pass** (the coordinator's brief): FR-0, FR-1, FR-2, FR-3, FR-5, the part of FR-4 that keel-cloud 248
-allows (plan, sign in, PLANNED / ON_CALL, *You wrote*), FR-7 as *the `FIRST_PERSON` kind added to `instructions/run.py`,
-never run*. **Left as TODO until cloud 249 merges (contract 70)**: FR-4's upload / digest assertions and FR-6's contract-70
-digest -- marked `TODO(249)` below and in the code.
+**Two passes** (the coordinator's brief): the first on keel-cloud-docs `e4497962` (contract 69) -- FR-0, FR-1, FR-2,
+FR-3, FR-5, the part of FR-4 that keel-cloud 248 allows, FR-7 as *the `FIRST_PERSON` kind added, never run*; the second
+on **`dfdad66a`** (249 merged: contract **70**, document **40**) -- FR-4's upload / digest assertions and FR-6's digest at
+70. The stack ran against the two main checkouts throughout (the playground profile; the cloud restarted on `dfdad66a`
+for the second pass).
+
+**Third pass (2026-11-13, 06:50 -- 09:40 ET, a second builder after the first hit its usage limit).** Finished the
+uncommitted gate fixes, then walked S-005 on the fakes until it reached the calls leg. Mid-pass the coordinator moved
+the cloud to **keel-cloud-docs `34735d05`** (251 merged: **contract 71**, the 1,000 written at a project's FIRST LOCK,
+reason `project:lock`; creation writes no row and is never refused); the gate's last runs are on `34735d05`. keel-web
+master moved under the walk too (`697a7a2b` -> `aa8b49c6` contract 70 vendored -> `7fefa951` integration -> `965ad85a`,
+191's first commits); vite served the checkout live, so each run read keel-web master as it stood. **The S-005 scripted
+walk had not reached the commercial review since 2026-10-30** (the first pass's runs stopped at step 125 at best, so
+"S-005 walked on the fakes" above meant its first half): this pass found and fixed the drift between there and the
+calls leg -- every fix below is a reading of what the product serves now, none moves a product rule:
+
+- FR-0: the Choose's 90 s asked-line ceiling is spent only on the two asked lists (it was waited on every Choose, the
+  unit fixtures too); a Choose with no line and no question on the wire is a finding, not a fault (on `dfdad66a`
+  Adoption friction's asked job starts at the Choose's Save, confirmed in the database: its ASKED job is created at the
+  Continue); the stored lists are read once the asked jobs landed (`_wait_asked_faces`: no open step, every asked row
+  faced).
+- The corpus reader mirrors keel-cloud **188 FR-2** (`spec188Reads`, the step under 199's): the record's *the payer*
+  read as the deciders' own plural (*The problem already costs independent restaurant managers ...*).
+- The follow-ups: `{solution_name}` is the idea's name alone off **185 FR-2**'s reveal (*Imagine {name}, {what it is}.*);
+  Adoption friction's conditional yes is followed up in the registry's words (**184 FR-7** retired 174's said-back).
+- The report marks (v3, unchanged): a quote's side `NOT_COUNTED` (**180**, contract 50); each Insights box's served
+  `statusLine` / `countLine` are its own words (keel-web **155 FR-7**), not repeated Overview numbers.
+- The interviewer leg: `GET interviewer` kept as the list it is (the wire helper handed `{}`); the kind card's
+  *{Face} asks* and the call row's *You wrote {typed}* read without the separator keel-web draws inside the span; the
+  log lines read with a short wait (`cloud_log.wait_lines`: the cloud's stdout reaches `cloud.log` in chunks); IM3 reads
+  the price ladder's `#under` / `#over` clips as the item's own; the AI person's second follow-up is the earliest other
+  one-of rung where the last item is already the only rung owed.
+- **FR-1 on 251**: the leg's second project is created for nothing (201, no PROJECT row, no `project bought:` line,
+  balance unmoved), its uncalibrated lock answers its own refusal first and writes nothing; at 900 New project is 201
+  with no row and no `credits refused:` line; the closing sweep owes NO PROJECT row; `PROJECT_REASON` `project:lock`
+  (`project:new` kept as 250's). **Not walked on the fakes: the lock's own SPEND of 1,000 and its 422 at 900** -- the
+  journey's project locks on its own AI before Keel's door, and a second project would have to be calibrated whole to
+  reach a lock that reads the balance (domain refusals answer first, 251 judgement call 3). Said plainly; owed.
+- FR-6: `REVIEW_CONTRACT` **71**, `CONTRACT_SHA256_71` `f5a078b1...` (`canon/openapi-v2.yaml` at `34735d05`), 70's sha
+  kept; the web's vendored copy pinned by version (70 at `aa8b49c6`: `a6de15c4...`, its body = cloud's 70; 71 once
+  vendored: its body = cloud's 71).
 
 ## What was built, per FR
 
@@ -77,7 +114,7 @@ digest -- marked `TODO(249)` below and in the code.
   on 247 / 250's screens (L1 no price at all; S1 / S2 own one *Set up the AI interviewer · N once* at the served
   `recordPrice`; S3 owns *Set up first · N once*, no credits note), `ALLOWED_PRICE_KEYS` widened, `served_prices` reads
   `recordPrice`; `RETIRED` = IM10, IM11, IM30 (never measured, the reason on the card); `SHORT_FORM` without IM30.
-- [x] **FR-4 (the 248 half) + FR-5.** `evals/calls_leg.py` (new), on S-005 after the interviewer leg: the Calls tab
+- [x] **FR-4 + FR-5.** `evals/calls_leg.py` (new), on S-005 after the interviewer leg: the Calls tab
   empty (*Calls with me · 0*, the lead, Plan a call enabled, *No calls planned.*); `plan_a_call` (the one screen, the
   kind row on two kinds, 201 CallRow: PLANNED, NONE, `typedName`, `signInUrl`, `copilotPath`, the Done screen, the
   `call planned:` line); `read_the_row` (status word, name, *You wrote {typed}*, *Start the call*); `start_sheet`
@@ -90,13 +127,33 @@ digest -- marked `TODO(249)` below and in the code.
   the intro's →, the gate's Yes and the STORY stretch stopped, `opt-1` / a typed 3 on a number, the ladder's second
   step, the follow-up stretch stopped, the reveal's →, the pilot -- with one undo (Z) on the second filing;
   `_walk_closing` opens and stops OWN_QUESTIONS and THEIR_QUESTIONS; End -> the upload kept off the wire: one multipart,
-  parts `founder` / `them` / `keys`, files `founder.wav` / `them.wav` / `keys.json`; Float drawn, never pressed, the card
-  never floating). A second call typed as the person's own first name: `nameDiffers` false, no *You wrote*. The
-  register after: every call drawn, the search box from six rows.
-- [x] **FR-6.** `REVIEW_CONTRACT` 65 -> **69** (`TODO(249)`: 70); the price pins 15 -> 17; the screen-response contract
-  pins read 25 or 26 (245 moved it); `tests/test_cloud_245_250_248_web_186_190_mirror_154.py` (88): the digest, the
-  charge table and the grant, the contract and the routes, the project row and the leg's gates, every selector the
-  harness presses in keel-web's source, the words, the card's three parts, the FIRST_PERSON wiring.
+  parts `founder` / `them` / `keys`, files `founder.wav` / `them.wav` / `keys.json`, answered **200** with the row;
+  `wait_digested` reads the row ENDED then ANSWERED (the digest's thread), the card's phase `done`, the `call ended` /
+  `call digested` / `call counted` lines; Float drawn, never pressed, the card never floating). The n line after it:
+  `people.unverified` 0 (its person signed in). **The second pass (keel-cloud 249)**: a second call, typed as the
+  person's own first name and **never signed in**, started on the wire and uploaded the **fake call record**
+  (`evals/call_record.py`, `fixtures/calls/`): two 16 kHz mono 16-bit WAVs and the key log built off the served script
+  -- the gate's Yes with its STORY stretch, six items filed (option 1 each, a typed 3 on a number item), the third undone
+  and filed again, the FOLLOW_UP stretch after the item whose `against` names the filed option, the pilot's Yes, the
+  OWN_QUESTIONS and THEIR_QUESTIONS stretches, End; the founder's track silent with a tone at every filing, the
+  person's with the words the stack's fake transcriber hears (keel-cloud 136 FR-2: audio that is text) at each window
+  the digest cuts -- the story, the follow-up, each voice's note, and **option 3's label at item 1's pick-check window**,
+  so the fake classifier names option 3 where option 1 was filed. `upload_fixture_record` (200, ENDED, then ANSWERED);
+  `the_digest`: the detail (format CALL, `callId`, identity NONE, six answers TAPPED each with its `at`, `heard` on item
+  1 = option 3's label, the story as heard, one follow-up with its words, two notes OWN / THEIR with both voices), the
+  timeline (the filings kept after the undo in time order, the four stretch kinds, two notes, `heard`), Hear the call
+  (`audio/them` 206 to a Range of 100 bytes, `audio/founder` 200 whole with `Accept-Ranges` and the fixture's exact
+  length, another track word 404), NO INTERVIEW ledger row and nothing that moves the balance (keel-cloud 250 over the
+  spec's "30 line"), and `people.unverified` **1** with the call inside `answered`. The register after: every call
+  drawn, the search box from six rows.
+- [x] **FR-6.** `REVIEW_CONTRACT` 65 -> **70** (69 in the first pass); the vendored contract pinned by its sha256
+  (`CONTRACT_SHA256_70` = `8f218c42...`, `canon/openapi-v2.yaml` at `dfdad66a`), the document version 40; the price
+  pins 15 -> 17; the screen-response contract pins read 25 or 26 (245 moved it); `SCHEMA_VERSION` read as 37 or later;
+  `tests/test_cloud_245_250_248_web_186_190_mirror_154.py` (89): the digest, the charge table and the grant, the
+  contract, its sha, the routes (the kinds', the calls', the record's, the digest's, the timeline's, the audio's), the
+  project row and the leg's gates, every selector the harness presses in keel-web's source, the words, the card's three
+  parts, the fake call record's shape, the FIRST_PERSON wiring. The web digest waits for the coordinator's sha (keel-web
+  master `697a7a2b` re-vendors 70 once more).
 - [x] **FR-7 the `FIRST_PERSON` kind.** `instructions/contract.py` `SCREEN_FIRST_PERSON`, `FIRST_PERSON_FIELD`,
   `FIRST_PERSON_CONTRACT` (COMPLETED alone, one string field, 200 characters); `instruction.STEMS["FIRST_PERSON"]`
   `first-person`; `prompts.KINDS` + the case `<entry>/FIRST_PERSON/run<N>` built where the entry's mechanism carries
@@ -112,11 +169,54 @@ digest -- marked `TODO(249)` below and in the code.
 
 | Commit | What |
 |---|---|
-| (this) | tasks.md, the plan |
+| `ec4a189` | Spec 154: tasks.md, the plan |
+| `68e77e5` | Spec 154 FR-0 / FR-1 / FR-6 / FR-7: the cards at 4dc14231, price version 17 and the two gates in the fakes, no asked/only_if on the drafts, the Check without a reword line, Choose through choose-asked, Sent's three tabs and New link in the page object, the kind card and its face st... |
+| `457a001` | Spec 154 FR-1 / FR-3 / FR-4 / FR-5: the interviewer leg on 247 / 250 (the lock body alone, the card's face step, READY per kind, the two gates, Begin writes no row, the retired doors named), the calls leg (plan, the row, the Start sheet, the person's sign-in on the stub issuer, the... |
+| `cc9313e` | Spec 154: the calls leg on S-005, the asked-after-the-read-back log note, the open-link journey on the kind's route with no row at Begin, tasks.md drafted |
+| `3eb181f` | Spec 154 FR-0: the scripted executor's key sets for Importance's draft (problem_clause, keel-cloud 229), Current solution's (answer_parts, 228) and each redraft (repair); the card walked in the founder's own context; the unit suite's remaining pins moved |
+| `a9aa0ac` | Spec 154 FR-0: the ASKED stub answers the Importance probe's two jobs, every faced row's condition and the asked ladder's repair turn; tasks.md judgement calls |
+| `0b5e43f` | Spec 154 FR-0: the Adoption friction face cut to K2's frame where the corpus's does not fit; the Importance probe waits for its asked jobs between saves |
+| `9d2f81b` | Spec 154 second pass (keel-cloud 249, contract 70): the fake call record and its fixtures, the card's upload digested to ANSWERED, the fixture call's detail / timeline / audio / ledger / unverified assertions, the Choose line's one GET and reload, the digest pins at 70 |
+| `1336c74` | Spec 154 FR-0: the Choose line's ceiling spent only on the two asked lists; the line read into the step's record; a Choose with no line and no question on the wire filed as a finding, not a fault |
+| `5eb95eb` | Spec 154 FR-0: spec 130's ASKED-result test reads every Adoption friction row with its condition (the step's own where the entry records none) |
+| `050b9ca` | Spec 154 FR-6: the mirror test and S-005 name keel-cloud-docs dfdad66a and contract 70; the TODO(249) notes retired |
+| `002689b` | Spec 154 FR-0: the stored lists are read once the asked jobs the stage's Saves started have landed |
+| `0bf833f` | Spec 154: the corpus reader mirrors keel-cloud 188 FR-2 -- the record's *the payer* read as the deciders' own plural (spec188Reads, the step under 199's) |
+| `d0a98a3` | Spec 154 FR-2: the invite leg's greyed-format check skips New link's line under the rows (`_on_card`), as the interviewer leg does |
+| `496cdba` | Spec 154: the follow-up's {solution_name} is the idea's name alone off keel-cloud 185's reveal (*Imagine {name}, {what it is}.*), as FollowUpComposer says ideaName |
+| `6def1eb` | Spec 154: Adoption friction's conditional yes is followed up in the registry's own words (keel-cloud 184 FR-7 retired 174's said-back) |
+| `3d30936` | Spec 154: the report marks read keel-cloud 180's quote side NOT_COUNTED and keel-web 155 FR-7's box head (statusLine, countLine) as the box's own words |
+| `85860a1` | Spec 154 FR-3: the interviewer leg's wire helper keeps `GET interviewer`'s list (keel-cloud 247 FR-5) -- it handed the leg {} -- and the recording read takes the primary kind's view off it |
+| `39f096c` | Spec 154: the legs read keel-cloud's log lines with a short wait (cloud_log.wait_lines) -- the cloud's stdout reaches the log in chunks, and S-005 read *credits refused:* empty in the second it was written |
+| `2794d90` | Spec 154 FR-3: the kind card's *{Face} asks* is read without the separator keel-web 187 draws inside its span |
+| `cb3c853` | Spec 154 FR-3: the AI link's person meets two follow-ups where the last item is already the one rung owed -- the latest other served rung answered against, one tap |
+| `4169d6d` | Spec 154 FR-3: the AI person's second follow-up is the earliest other one-of rung (the later plain questions stay for the way back); IM3 reads the price ladder's second-step clips (`#under` / `#over`) as the item's own |
+| `914c22a` | Spec 154 FR-1 / FR-6 on keel-cloud 251 (contract 71): New project writes no row and is never refused; the leg's second project is created free, its uncalibrated lock answers its own refusal and writes nothing; 900 creates; the closing sweep owes no PROJECT row; the row's reason pro... |
+| `a7e0813` | Spec 154 FR-1: the 900 step proves the project made by the 201's id, not by a count of `/v2/me/projects` (which the leg reads empty) |
+| `f99b59d` | Spec 154 FR-4: the call row's *You wrote {typed}* is read without the separator keel-web 189 draws inside its span |
+| (this) | tasks.md: the third pass, the counts, what remains |
 
 ## Counts
 
-(filled at the end: `make unit`, the journeys on the fakes.)
+Third pass, 2026-11-13 ET, the stack (playground profile) on the two main checkouts through the uncommitted
+`stack.toml`; the unit suite needs no stack.
+
+- **`make unit`** (`.venv/bin/python -m pytest tests -q -rs`), 09:07 ET at `a7e0813` + the mirror test's web pin:
+  **1 failed, 5,918 passed, 124 skipped** in 361 s. The one failure is environmental and not this spec's:
+  `tests/test_copilot_bench.py::test_tts_retries_a_read_timeout` imports numpy, which `requirements.txt` does not carry
+  (spec 151's tasks.md says so). The skips: 12 retired by spec 154 by name, the rest the long-standing ones (the corpus
+  past revision 2, the live-only, a thin stub). The first run of the pass (06:51 ET) failed one more,
+  `test_cloud_198_mirror_130::test_the_scripted_asked_result_writes_condition_and_never_only_if` (the first pass's
+  every-row condition, its pin moved: `5eb95eb`), and ran slow (every Choose fixture waited the 90 s ceiling: `1336c74`).
+- **S-005 on the fakes** (`make eval K=s005 PROFILE=playground`), sixteen runs 07:19 -- 09:25 ET, `make down` / `make
+  up` before each; each fix above is the reading one run stopped on. The last full run on the committed code
+  (`20261113T135724Z-s005-countly`, cloud `34735d05`, web master as served at 08:57) walked **386 of its steps green and
+  stopped at step 387, the interviewer marks: 21 of 22 met, IM16 owed** (below). A probe run with IM16 tolerated
+  (an uncommitted edit, reverted; never committed) went on: the calls leg walked **Sent's Calls tab, Plan a call (201,
+  PLANNED), the row, the Start sheet, the person's CALL_ARRIVAL and sign-in on the stub issuer** green, and stopped where
+  the copilot card never drew (below). The two gates on 251 (`914c22a`, `a7e0813`) walked green in those runs.
+- **S-006 and S-017 not walked in this pass** (time); the three remote journeys on staging are the coordinator's.
+
 
 ## Judgement calls
 
@@ -158,8 +258,31 @@ digest -- marked `TODO(249)` below and in the code.
 10. **Nothing paid, nothing on host claude.** The FIRST_PERSON kind is wired and tested by the unit suite's case
     builder alone; no instruction screen ran.
 
-## TODO(249)
+## Left for the coordinator
 
-- FR-4: the fake call record (`fixtures/calls/`), the upload's 202, the row to ANSWERED, the filed answers, the story
-  RECORDED, one follow-up, two notes, `heard` on item 1, the 30 line, the n line's `unverified`.
-- FR-6: the contract digest at 70.
+Said plainly -- **S-005 is not green yet**; it stops at two places this pass did not finish:
+
+1. **IM16 (the way back) is owed on S-005's AI link.** The walk tries Back on a plain one-of question whose answer owes
+   no follow-up and that has another answer owing none. On `34735d05` the AI link's reader (01-countly) has none
+   left: Relative advantage (the only item with a safe other answer) carries the read-aloud step
+   (`_read_aloud_item`, spec 049 call 1), Compatibility's *Yes, most of the time* owes its #also and its other answers
+   all owe, Adoption friction's other answers all owe (its *Only if ...* is a #also), Buyer and payer is the lock's
+   rung. Fix owed: move the read-aloud step off the one item that can carry Back, or choose the AI link's reader by a
+   Back spot. Not a product fault.
+2. **FR-4 / FR-5 on the fakes: the copilot card never draws.** `GET calls/{id}/script` keeps `firstPersonPending`:
+   keel-cloud logs *first-person owed: ... not written reason=own-ai* (the eval founder is back on their own AI after
+   the interviewer leg's restore), and keel-web 188 holds the writing line and draws no card until the first-person line
+   lands. So the card walk (Start, the six filings, End, the three-part upload, ENDED -> ANSWERED) and the fixture call's
+   digest (the filed answers, the story, one follow-up, two notes, `heard` on item 1, no INTERVIEW row, `unverified` 0
+   then 1) were **not re-confirmed against `dfdad66a` / `34735d05` on the fakes in this pass** -- the assertions are in
+   `evals/calls_leg.py` and the unit suite holds their shapes against cloud 249's contract, but no run reached them.
+   Fix owed: walk the calls leg on Keel's door (the stand-in, as the interviewer leg does) or have the scripted runtime
+   answer the first-person job, then re-run.
+3. **251 at the lock, not walked**: the SPEND of 1,000 (`project:lock`) at the first lock, and the 422
+   `INSUFFICIENT_CREDITS_FOR_NEW_PROJECT` at 900 at the lock -- S-005's project locks on its own AI before Keel's door;
+   walking it needs the stand-in grant before the lock (or a second project calibrated whole).
+4. **The web digest**: the mirror test pins keel-web's vendored contract by version -- at keel-web master `851ca8c2`
+   (and `aa8b49c6` .. `965ad85a`) it is still **70** (`a6de15c4...`, its body = cloud's 70 byte for byte); once the
+   contract-71 vendoring lands, the test asserts its body = cloud's 71 (`f5a078b1...`). Pin the final web sha in
+   `WEB_MASTER_70` / a 71 constant when it arrives.
+5. `stack.toml` is **uncommitted** (absolute paths to the main checkouts; the repo documents no override).
