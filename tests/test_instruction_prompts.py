@@ -157,9 +157,13 @@ def test_the_real_corpus_builds_142_model_cases_and_the_denominators_per_n(tmp_p
     for entry in corpus.entries:
         cases += prompts_mod.build_cases(entry, exported, fx.instructions(), fx.FakeRuntime, n_runs=1)
     counts = run_mod._counts(cases)
+    # spec 154 FR-7: one FIRST_PERSON case per entry whose mechanism carries `idea_belief` (keel-cloud 248), beside the
+    # 142 model cases of record -- rendered and held to the field rule, never scored
+    first_person = counts.pop("FIRST_PERSON", 0)
     assert counts == {"CONTEXT": 7, "FRAME": 14, "CALIBRATION": 21, "ASKED": 14, "RESPONDENT": 21,
                       "READING": 65, "COMPARE": 7}
     assert sum(n for kind, n in counts.items() if kind != "COMPARE") == 142
+    assert first_person == sum(1 for e in corpus.entries if (e.solution_mechanism or {}).get("idea_belief"))
     rows = run_mod.denominators(cases)
     assert sum(r["calibration"] for r in rows.values()) == 80
     assert sum(sum(r["respondent"].values()) for r in rows.values()) == 81

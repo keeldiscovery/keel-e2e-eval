@@ -183,7 +183,10 @@ def test_the_choose_screen_reads_its_intro_title_bar_and_kept_line(browser, tmp_
     assert seen["note_before"] == seen["note"] == SCREENS[key]["note"]
     assert seen["test_before"]["belief"] == cs.KEEL_TEST_PENDING, "_keel_test unchanged: the note is not the belief"
     assert cs.said_faults(seen, key, b2b=True) == []
-    assert cs.choose_faults(seen, key, row=1) == []
+    # spec 154 FR-0 (keel-web 186): the asked line under the pick is 186's, not this 153 / 168 fixture's -- held as written
+    assert seen["asked_line"]["kind"] is None
+    assert cs.choose_faults({**seen, "asked_line": {"kind": "as_written", "text": vs_screens.CHOOSE_ASKED_AS_WRITTEN}},
+                            key, row=1) == []
 
 
 def test_the_choose_words_before_153_and_179_are_faults(browser, tmp_path):

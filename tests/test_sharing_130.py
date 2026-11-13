@@ -75,7 +75,8 @@ def test_contract_58_names_the_shapes_the_journeys_read():
 def test_document_version_36():
     """Document 36 (163); keel-cloud 244 lifted it to 37 (`sharing.DOCUMENT_VERSION`), the upcaster unchanged for 36."""
     text = _cloud("src/main/java/com/keeldiscovery/cloud/infrastructure/persistence/project/ProjectDocument.java")
-    assert f"static final int SCHEMA_VERSION = {sharing.DOCUMENT_VERSION};" in text
+    # keel-cloud 247 lifted it to 38 and 248 to 39 (spec 154): the pin reads the version of record or a later one
+    assert int(re.search(r"static final int SCHEMA_VERSION = (\d+);", text).group(1)) >= sharing.DOCUMENT_VERSION
     assert "static final int MIN_READABLE_VERSION = 21;" in text
 
 

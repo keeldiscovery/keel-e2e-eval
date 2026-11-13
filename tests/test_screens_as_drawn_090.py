@@ -248,6 +248,7 @@ def test_h9_no_advantages_are_read_off_a_47_wire():
 from harness import interviews_screens as iv                            # noqa: E402
 
 
+@pytest.mark.skip(reason="retired by spec 154: keel-web 187 replaced Send more's ways with New link (one screen) and took the face and 130's title off the lock screen (*Lock your answers*)")
 def test_send_mores_way_by_name_is_130s_words():
     """keel-web 130 FR-5 (`SEND_WHO`): *People I know by name*; the radio is matched on the name's start, the line after
     it. Spec 150 (keel-web 185 FR-3): the dataset way, *People I found with Keel*, is gone -- OWN and GROUP are left."""
@@ -307,6 +308,7 @@ def _l1_journey(tmp_path, countly, core):
     return j
 
 
+@pytest.mark.skip(reason="retired by spec 154: keel-web 187 replaced Send more's ways with New link (one screen) and took the face and 130's title off the lock screen (*Lock your answers*)")
 def test_the_l1_holds_take_130s_title(tmp_path, countly):
     j = _l1_journey(tmp_path, countly, "Payroll practitioners")
     # spec 118 FR-4c(f) re-pin (keel-web 156 FR-1, J-6; the matrix's s012 of 2026-11-01): the title names the served

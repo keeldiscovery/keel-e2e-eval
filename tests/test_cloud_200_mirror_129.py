@@ -164,7 +164,8 @@ def test_the_drafts_carry_the_short_names_and_the_typed_rows_are_named_by_the_as
     assert script.screens[vs.ASKED_SCREEN][0] == {"outcome": "COMPLETED", "result": asked}, \
         "the problem stage's Save runs the first ASKED job"
     adoption = vs.drafted_list(countly, "solution.adoption_friction")
-    assert all(i.get("short_name") and i.get("asked") for i in adoption["items"])
+    # spec 154 FR-0 (keel-cloud 245): the draft carries the short name and NO face -- the asked job writes the faces
+    assert all(i.get("short_name") and "asked" not in i for i in adoption["items"])
 
 
 def test_a_typed_row_the_writer_cannot_name_leaves_the_whole_list_unnamed(golden):

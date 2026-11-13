@@ -494,8 +494,6 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
     """Spec 154 FR-5: the card headless -- the fake sources, the browser check, the mic picked by name and remembered
     across a reload, Start (ON_CALL), six filings with one undo, the stretches, End, the upload's three parts."""
     call_id = call["callId"]
-    context = browser.new_context()
-    context.add_init_script(FAKE_MEDIA)
     uploads: list[dict] = []
 
     def keep(request) -> None:
@@ -507,10 +505,11 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
                             "parts": [n.decode("utf-8", "replace") for n in names],
                             "files": [f.decode("utf-8", "replace") for f in files],
                             "content_type": request.headers.get("content-type", "")})
+    # the founder's own context (their session as keel-cloud's login left it -- never a cookie set by hand), a new page
+    # with the fake sources installed before any script of the page runs
+    page = j.context.new_page()
     try:
-        # the founder's own session: the context carries the founder's cookie by way of the storage state
-        context.add_cookies(j.context.cookies())
-        page = context.new_page()
+        page.add_init_script(FAKE_MEDIA)
         page.on("request", keep)
         responses: list = []
         page.on("response", lambda r: responses.append({"url": r.url, "status": r.status})
@@ -564,7 +563,7 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
                            "filings": filings, "closing": closing, "ended": ended, "uploads": uploads,
                            "upload_responses": responses})
     finally:
-        context.close()
+        page.close()
     wire = j.get(j.project(f"/calls/{call_id}")) or {}
     out = {"before": before, "after_mic": after_mic, "sources": sources, "remembered": remembered, "reopened": reopened,
            "start": {"status": start_status, "row": on_call}, "filings": filings, "closing": closing, "ended": ended,

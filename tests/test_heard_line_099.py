@@ -262,7 +262,7 @@ def test_im17_owes_the_wave_and_the_writing_state():
 # ------------------------------------------------------------------------------------------ FR-3: the version
 
 def test_the_version_moved_with_its_note():
-    assert marks.INTERVIEWER_MARKS_VERSION == 17
+    assert marks.INTERVIEWER_MARKS_VERSION == 18
     source = inspect.getsource(marks)
     assert "#: v17 (spec 099 FR-1 / FR-2, keel-web 143" in source and "#: v16 (spec 094 FR-1" in source
     assert "make eval-live K=s012" in source                                           # the paid re-run is the founder's

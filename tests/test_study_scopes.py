@@ -160,9 +160,12 @@ def test_the_golden_walk_is_unchanged_under_all(countly):
     assert countly.scope == "ALL" and vs.scope_vectors(countly) == vs.VECTORS
     assert [v for v, _ in vs.calibration_jobs(countly)] == ["PROBLEM"] * 3 + ["SOLUTION"] * 4 + ["COMMERCIAL"] * 3
     assert vs.respondent_jobs(countly) == [(1, vs.LINK_PRIMARY)]
+    # spec 154 FR-0 (keel-cloud 229): Importance's draft is handed `problem_clause`, a second key set of its own
     assert set(vs.generate(countly).screens) == {"CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM",
-                                                 "CALIBRATION_QUESTIONS", "ASKED", "RESPONDENT_QUESTIONS",
-                                                 "INTERPRET", "THEMES"}
+                                                 "CALIBRATION_QUESTIONS", vs.CALIBRATION_WITH_CLAUSE_SCREEN,
+                                                 vs.CALIBRATION_WITH_PARTS_SCREEN,
+                                                 *(x + vs.REPAIR_SUFFIX for x in vs.CALIBRATION_SCREENS), "ASKED",
+                                                 "RESPONDENT_QUESTIONS", "INTERPRET", "THEMES"}
     assert all(vs.serves_part(countly, part, vs.LINK_PRIMARY) for part in (1, 2, 3))
     # re-pinned by spec 103: keel-cloud 168 says the window as its own sentence
     assert vs.read_back(countly).endswith(". We'll ask about the last 4 weeks.")
@@ -191,9 +194,14 @@ def test_the_problem_study_s_expected_walk(countly):
     # spec 129 (keel-cloud 200 FR-1): the founder's typed Importance rows are owed their short names -- one ASKED job,
     # the problem's own, face-less (no faces: no solution list is drafted)
     assert set(script) == {"CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "CALIBRATION_QUESTIONS", "RESPONDENT_QUESTIONS",
-                           "INTERPRET", "THEMES", "ASKED"}
+                           "INTERPRET", "THEMES", "ASKED", vs.CALIBRATION_WITH_CLAUSE_SCREEN,
+                           vs.CALIBRATION_WITH_PARTS_SCREEN, *(x + vs.REPAIR_SUFFIX for x in vs.CALIBRATION_SCREENS)}
     assert [e["result"] for e in script["ASKED"]] == [vs.importance_asked_result(seed)]
-    assert [r["result"]["vector"] for r in script["CALIBRATION_QUESTIONS"]] == ["PROBLEM"] * 3
+    # spec 154 FR-0: Importance's draft under its own key set (`problem_clause`), Current solution's under its
+    # (`answer_parts`), the slice's own job as before
+    assert [r["result"]["vector"] for r in script["CALIBRATION_QUESTIONS"]] == ["PROBLEM"]
+    assert [r["result"]["vector"] for r in script[vs.CALIBRATION_WITH_CLAUSE_SCREEN]] == ["PROBLEM"]
+    assert [r["result"]["vector"] for r in script[vs.CALIBRATION_WITH_PARTS_SCREEN]] == ["PROBLEM"]
     (questions,) = script["RESPONDENT_QUESTIONS"]
     assert [i["key"] for i in questions["result"]["items"]] == vs.plan_keys(countly, 1, vs.LINK_PRIMARY)
     assert vs.plan_keys(seed, 2, vs.LINK_PRIMARY) == vs.plan_keys(seed, 3, vs.LINK_PRIMARY) == []
@@ -232,8 +240,9 @@ def test_money_alone_s_expected_walk(countly):
     link alone, part 3 on it."""
     seed = sj.money_entry(countly)
     script = vs.generate(seed).screens
+    # spec 154: the money study's lists (Current solution is the problem's) -- the base set and its repair twin alone
     assert set(script) == {"CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM", "CALIBRATION_QUESTIONS",
-                           "THEMES"}
+                           "CALIBRATION_QUESTIONS" + vs.REPAIR_SUFFIX, "THEMES"}
     assert [r["result"]["vector"] for r in script["CALIBRATION_QUESTIONS"]] == ["COMMERCIAL"] * 4
     assert vs.chained_out_of_scope(seed) == ()
     assert vs.respondent_jobs(seed) == [] and not vs.serves_gate(seed) and not vs.primary_link(seed)

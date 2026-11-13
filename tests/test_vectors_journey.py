@@ -90,14 +90,26 @@ def test_a_list_items_code_is_its_place_as_keel_cloud_codes_it():
 def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     entry = _entry(entry_id)
     screens = vs.generate(entry).screens
+    # spec 154 FR-0 (keel-cloud 229 / 228): Importance's draft (`problem_clause`) and Current solution's (`answer_parts`)
+    # under their own key sets
     want = {vs.CONTEXT_SCREEN, vs.PROBLEM_SCREEN, vs.MECHANISM_SCREEN, vs.CALIBRATION_SCREEN,
+            vs.CALIBRATION_WITH_CLAUSE_SCREEN, vs.CALIBRATION_WITH_PARTS_SCREEN,
+            *(s + vs.REPAIR_SUFFIX for s in vs.CALIBRATION_SCREENS),
             vs.ASKED_SCREEN, vs.RESPONDENT_SCREEN, vs.INTERPRET_SCREEN, vs.THEMES_SCREEN}
     assert set(screens) == want, "no BRIEF since keel-cloud 104; THEMES chosen by dimension (keel-runtime 012)"
     assert screens[vs.THEMES_SCREEN][-1] == {"outcome": "COMPLETED", "result": {"themes": []}}, "the catch-all last"
     assert [e["result"] for e in screens[vs.RESPONDENT_SCREEN]] == [vs.respondent_result(entry, 1, vs.LINK_PRIMARY)], (
         "keel-cloud 091: one RESPONDENT_QUESTIONS job a lock -- part 1 on the primary link, the gate's clause")
-    calibration = [(e["result"]["vector"], [q["key"] for q in e["result"]["questions"]])
-                   for e in screens[vs.CALIBRATION_SCREEN]]
+    # spec 154 FR-0: three key sets (the clause's, the parts', the export's own), each list in the corridor's order
+    cursors = {s: 0 for s in vs.CALIBRATION_SCREENS}
+    calibration = []
+    for v, only in vs.calibration_jobs(entry):
+        screen = vs.calibration_screen_of(entry, only, with_clause=vs.study_holds_went_wrong(entry))
+        e = screens[screen][cursors[screen]]
+        cursors[screen] += 1
+        calibration.append((e["result"]["vector"], [q["key"] for q in e["result"]["questions"]]))
+    assert all(len(screens[s]) == n for s, n in cursors.items() if n), "nothing left over in any list"
+    assert all(screens[s + vs.REPAIR_SUFFIX] == screens[s] for s in vs.CALIBRATION_SCREENS if s in screens)
     assert calibration == [(v, [only] if only else vs.calibrated_keys(entry, v))
                            for v, only in vs.calibration_jobs(entry)], (
         "one key set for every calibration job: the slice on each seed, then one redraft per list the founder "
@@ -157,10 +169,8 @@ def test_the_drafted_lists_keep_keel_clouds_rules(entry_id):
                 assert low <= len(draft["items"]) <= high, (key, draft)
                 for item in draft["items"]:
                     assert 1 <= _count(item["label"]) <= words, (key, item)
-                    if key in vs.ASKED_FACES:
-                        assert 1 <= _count(item["asked"]) <= 20 and "?" not in item["asked"], (key, item)
-                    else:
-                        assert "asked" not in item, (key, item)
+                    # spec 154 FR-0 (keel-cloud 245): no draft carries a face; the stub's ASKED answer does, per index
+                    assert "asked" not in item and "only_if" not in item, (key, item)
                     assert "Nobody else" != item["label"], "code adds Buyer and payer's fixed first item"
                     texts += [item["label"], item.get("asked") or ""]
                 if key == "problem.current_solution_satisfaction":
@@ -373,10 +383,13 @@ def test_importance_is_drafted_as_the_own_item_then_what_the_answer_names(entry_
     entry = _entry(entry_id)
     if entry.unsure("problem.importance"):
         pytest.skip("Importance left out")
-    screens = vs.generate(entry).screens[vs.CALIBRATION_SCREEN]
-    jobs = vs.calibration_jobs(entry)
+    all_screens = vs.generate(entry).screens
+    screens = all_screens[vs.CALIBRATION_SCREEN]
+    jobs = [(v, only) for v, only in vs.calibration_jobs(entry)
+            if vs.calibration_screen_of(entry, only, with_clause=vs.study_holds_went_wrong(entry)) == vs.CALIBRATION_SCREEN]
     first = next(e for e, (v, only) in zip(screens, jobs) if v == "PROBLEM" and only is None)
-    redraft = next(e for e, (v, only) in zip(screens, jobs) if only == "problem.importance")
+    # spec 154 FR-0 (keel-cloud 229): Importance's draft under the clause's key set
+    redraft = all_screens[vs.CALIBRATION_WITH_CLAUSE_SCREEN][0]
     own, *others = [i["label"] for i in vs.founder_list(entry, "problem.importance")["items"]]
     named = vs.importance_named(entry)
     drafted = {q["key"]: q for q in first["result"]["questions"]}["problem.importance"]["list"]["items"]

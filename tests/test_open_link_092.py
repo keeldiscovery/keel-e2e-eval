@@ -611,10 +611,10 @@ def _charge_row(invitation, project="p-1", credits=-30):
 
 def test_the_ledger_owes_one_interview_row_a_person_who_began_and_no_other():
     begun = {"a": "inv-a", "b": "inv-b"}
-    rows = [{"kind": "GRANT", "credits": 2000}, _charge_row("inv-a"), _charge_row("inv-b")]
+    # spec 154 FR-1 (keel-cloud 250, price version 17): Begin writes no row -- none is the pass, any row the fault
+    rows = [{"kind": "GRANT", "credits": 2500}]
     assert leg.ledger_faults(rows, "p-1", begun) == []
-    assert leg.ledger_faults(rows + [_charge_row("inv-c")], "p-1", begun)          # C began after all
-    assert leg.ledger_faults(rows[:2], "p-1", begun)                              # B's Begin wrote nothing
+    assert leg.ledger_faults(rows + [_charge_row("inv-a")], "p-1", begun)         # a Begin wrote a row
     assert leg.ledger_faults(rows + [_charge_row("inv-x", project="p-2")], "p-1", begun) == []  # another project's
 
 

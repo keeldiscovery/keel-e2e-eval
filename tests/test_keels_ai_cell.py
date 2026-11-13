@@ -92,8 +92,8 @@ def test_the_absence_of_an_install_is_never_spelled_in_a_name():
 def test_the_grant_is_written_down_once():
     """Asserted twice on that door -- as the integer `/v2/me` answers and as the sentence keel-web
     renders from it -- so a run where only one moved says which (keel-cloud spec 044 FR-017)."""
-    assert agent_host.KEELS_AI_GRANT == 2000  # keel-cloud spec 098, 2026-10-16 (1,500 before)
-    assert f"{agent_host.KEELS_AI_GRANT:,} credits available" == "2,000 credits available"
+    assert agent_host.KEELS_AI_GRANT == 2500  # keel-cloud spec 250, 2026-11-13 (2,000 since 098; 1,500 before)
+    assert f"{agent_host.KEELS_AI_GRANT:,} credits available" == "2,500 credits available"
 
 
 # -------------------------------------------------------- leg one is skipped, and it is refused
@@ -439,7 +439,8 @@ def test_the_make_target_says_whose_money_it_spends():
     head = MAKEFILE.split("keels-ai: venv", 1)[0]
     assert "COMPANY'S MONEY" in head.upper()
     # spec 088 (keel-cloud 156): §6.3's five-participant row at price version 12 -- 1,250 -> 1,355
-    assert "$2.44" in head and f"{interview_charge.FIVE_PARTICIPANTS:,} credits" in head and "$13.55" in head
+    # spec 154 (keel-cloud 250): the project is bought once, 1,000 -- $10.00 at list
+    assert "$2.44" in head and f"{interview_charge.FIVE_PARTICIPANTS:,} credits" in head and "$10.00" in head
 
 
 # ------------------------------------------------- the other door, and the order the legs run in

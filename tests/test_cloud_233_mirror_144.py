@@ -79,7 +79,8 @@ def test_the_save_answer_names_its_review():
     """FR-4 (233 FR-1): `PUT calibration/{vector}` answers `AnsweredRows(revision, rows, review)`, `review` a
     `ReviewDto(interactionId)` absent where none started; the openapi says so on the answer."""
     dtos = _cloud(FOUNDER + "VectorDtos.java")
-    assert "record AnsweredRows(long revision, List<BeliefRowDto> rows, ReviewDto review)" in dtos
+    # keel-cloud 245 (spec 154) names the Save's asked job beside the review: `AskedDto asked`
+    assert re.search(r"record AnsweredRows\(long revision, List<BeliefRowDto> rows, ReviewDto review(, \w+ asked)?\)", dtos)
     assert "record ReviewDto(String interactionId)" in dtos
     spec = _cloud("canon/openapi-v2.yaml")
     review = spec.split("                  review:\n", 1)[1].split('"409"', 1)[0]

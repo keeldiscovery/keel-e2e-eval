@@ -90,6 +90,34 @@ THEMES_SCREEN = "THEMES"
 THEMES_KEYS = ("dimension", "name", "rungHeading", "answers")
 #: keel-cloud 088 (contract 12): the `asked` faces of a saved Compatibility / Adoption friction list.
 ASKED_SCREEN = "ASKED"
+#: Spec 154 FR-0 (keel-cloud 229, `ScreenContextBuilder`): Importance's Answer draft (and its redraft) is handed the
+#: study's clause -- `problem_clause` {went_wrong, hard_case?} -- beside the calibration keys wherever the problem card
+#: wrote a `went_wrong`; the scripted executor matches a screen by its exact key set, so that job is a second screen in
+#: the table (`CALIBRATION_QUESTIONS` + `problem_clause`) with its own entries in the script (`generate`). keel-cloud's
+#: own `context-keys.json` export names the base set alone.
+CALIBRATION_WITH_CLAUSE_SCREEN = "CALIBRATION_QUESTIONS+problem_clause"
+PROBLEM_CLAUSE_KEY = "problem_clause"
+#: Likewise keel-cloud 228 (FR-3): Current solution's Answer is sent as its two boxes (what they do, how well it goes),
+#: handed to its draft as `answer_parts` beside `answers` -- a third key set for the same screen.
+CALIBRATION_WITH_PARTS_SCREEN = "CALIBRATION_QUESTIONS+answer_parts"
+ANSWER_PARTS_KEY = "answer_parts"
+CURRENT_SOLUTION_KEY = "problem.current_solution_satisfaction"
+#: A refused draft's redraft is the same job handed `repair` (the refusal's words) beside its keys: a fourth, fifth and
+#: sixth key set -- answered with the same entries again, so a refusal the corpus did not foresee surfaces as
+#: keel-cloud's own *refused twice* with the rule's words, never as LLM_UNAVAILABLE.
+REPAIR_KEY = "repair"
+REPAIR_SUFFIX = "+repair"
+CALIBRATION_SCREENS = (CALIBRATION_SCREEN, CALIBRATION_WITH_CLAUSE_SCREEN, CALIBRATION_WITH_PARTS_SCREEN)
+
+
+def calibration_screen_of(entry, only: str | None, *, with_clause: bool) -> str:
+    """Spec 154 FR-0: which key set a calibration job is matched through -- Importance's draft with the clause,
+    Current solution's with the two boxes, every other the export's own."""
+    if with_clause and only == "problem.importance":
+        return CALIBRATION_WITH_CLAUSE_SCREEN
+    if only == CURRENT_SOLUTION_KEY:
+        return CALIBRATION_WITH_PARTS_SCREEN
+    return CALIBRATION_SCREEN
 CORRIDOR_SCREENS = (CONTEXT_SCREEN, PROBLEM_SCREEN, MECHANISM_SCREEN, CALIBRATION_SCREEN,
                     ASKED_SCREEN, INTERPRET_SCREEN, THEMES_SCREEN)
 
@@ -4251,6 +4279,16 @@ def _completed(result: dict) -> dict:
     return {"outcome": "COMPLETED", "result": result}
 
 
+def study_holds_went_wrong(entry) -> bool:
+    """Spec 154 FR-0 (keel-cloud 229): whether the study's clause holds a went_wrong, so Importance's draft is handed
+    `problem_clause` -- the Prevalence question's clause in a study with the problem's questions (the scripted writer
+    writes it), the problem card's in one without."""
+    vectors = scope_vectors(entry)
+    return bool(problem_clause(entry).get("went_wrong")) or (
+        "PROBLEM" in vectors and "problem.prevalence" in calibrated_keys(entry, "PROBLEM")
+        and bool(act_that_hurts(entry)[1]))
+
+
 def generate(entry) -> GeneratedScript:
     """The runtime script for one entry. `CALIBRATION_QUESTIONS` is one entry per job of
     `calibration_jobs`, in the corridor's own order, because every one of them shares one key set and the
@@ -4266,8 +4304,18 @@ def generate(entry) -> GeneratedScript:
     # faces only with the solution; part 1's one job only where the gate is served
     if "SOLUTION" in vectors or "COMMERCIAL" in vectors:
         screens[MECHANISM_SCREEN] = [_completed(mechanism_result(entry))]
-    screens[CALIBRATION_SCREEN] = [_completed(calibration_result(entry, vector, only))
-                                   for vector, only in calibration_jobs(entry)]
+    # spec 154 FR-0 (keel-cloud 229, `ScreenContextBuilder`): Importance's draft is handed `problem_clause` where the
+    # study's clause holds a went_wrong -- `VectorCorridor.studyClause()`: the Prevalence question's clause in a study
+    # with the problem's questions (the scripted writer writes `went_wrong` on it, `calibration_question`), the problem
+    # card's in one without (`problem_clause(entry)`) -- so its entries are filed under the second key set, in order
+    with_clause = study_holds_went_wrong(entry)
+    # and keel-cloud 228 (FR-3): Current solution's Answer is sent in two boxes, so its draft is handed `answer_parts`
+    for vector, only in calibration_jobs(entry):
+        screen = calibration_screen_of(entry, only, with_clause=with_clause)
+        result = _completed(calibration_result(entry, vector, only))
+        screens.setdefault(screen, []).append(result)
+        # the redraft of a refused draft answers with the same result (the corpus's), once more
+        screens.setdefault(screen + REPAIR_SUFFIX, []).append(result)
     asked = [_completed(asked_result(entry, key)) for key in ("solution.compatibility", "solution.adoption_friction")
              if not entry.unsure(key)] if "SOLUTION" in vectors else []
     # spec 129 (keel-cloud 200 FR-1): the founder's typed Importance rows are owed their short names by an ASKED job at
@@ -4396,6 +4444,12 @@ def context_keys_for(exported: dict) -> dict:
     if tuple(out[THEMES_SCREEN]) != THEMES_KEYS:
         raise VectorsScriptError(f"keel-cloud's THEMES keys {out[THEMES_SCREEN]} are not {list(THEMES_KEYS)} "
                                  "(keel-runtime 012 matches the screen by exactly these four)")
+    # spec 154 FR-0 (keel-cloud 229): Importance's draft carries `problem_clause` where the study holds a went_wrong --
+    # a second key set for the same screen, matched by name (`generate` files those entries under it)
+    out[CALIBRATION_WITH_CLAUSE_SCREEN] = [*out[CALIBRATION_SCREEN], PROBLEM_CLAUSE_KEY]
+    out[CALIBRATION_WITH_PARTS_SCREEN] = [*out[CALIBRATION_SCREEN], ANSWER_PARTS_KEY]
+    for screen in CALIBRATION_SCREENS:
+        out[screen + REPAIR_SUFFIX] = [*out[screen], REPAIR_KEY]
     seen = {}
     for screen, keys in out.items():
         clash = seen.get(frozenset(keys))

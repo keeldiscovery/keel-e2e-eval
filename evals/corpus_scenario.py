@@ -2108,9 +2108,10 @@ def choose_faults(choose: dict | None, key: str, *, row: int | None, b2b: bool =
             faults.append({"what": what, "drawn": drawn, "want": want})
 
     label, options = choose.get("label"), list(choose.get("options") or [])
-    if key in (COMPATIBILITY_KEY, ADOPTION_KEY):
+    if key in (COMPATIBILITY_KEY, ADOPTION_KEY) and "asked_line" in choose:
         # spec 154 FR-0 (keel-web 186 FR-2, keel-cloud 245 FR-3): under the picked row, the served question -- *Asked as
-        # "..."* -- or *Keel will ask this row as written.*; the writing line waited out (90 s) before the read
+        # "..."* -- or *Keel will ask this row as written.*; the writing line waited out (90 s) before the read (a Choose
+        # read without the key is a reading from before 186, held to the pick alone)
         line = choose.get("asked_line") or {}
         fault("the asked line under the pick (keel-web 186)", line.get("kind") in ("asked", "as_written"), True)
         if line.get("kind") == "asked":
