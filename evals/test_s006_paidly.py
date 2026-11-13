@@ -32,6 +32,7 @@ import pytest
 
 from functools import partial
 
+from instructions import spoken
 from evals import corpus_scenario, interviewer_leg, sample_export
 from harness import vectors_script as vs
 
@@ -143,7 +144,11 @@ def _paidly_extras(j, sample: sample_export.Pending | None = None) -> None:
                          party="participant", kind="assert") as h:
         idea = j.get(j.project("/idea")) or {}
         card = vs.idea_card(named, idea.get("whatItIs"))       # spec 118 FR-4c(d): keel-cloud 185's composed line
-        question = vs.benefit_question(vs.occasion(j.entry), named)
+        # keel-cloud 213 FR-6 / 214 / 237 (`ScaleFour.question`, mirrored in `spoken.advantage_stem`): the anchor, then
+        # *Would {Name}, {what it is}, have done that better for you, or not?*; 173's frame only where no anchor fits
+        question = spoken.advantage_stem(vs.occasion(j.entry), named, idea.get("whatItIs"),
+                                         (j.entry.context or {}).get("job")) \
+            or vs.benefit_question(vs.occasion(j.entry), named)
         reveals = {p.person: (j.interviews[p.person].get("reveal") or {}).get("what") for p in primary
                    if j.interviews[p.person].get("reveal")}
         openings = {p.person: (j.interviews[p.person].get("idea") or {}).get("what") for p in deciders}
