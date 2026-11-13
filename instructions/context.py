@@ -251,15 +251,62 @@ def build_solution_mechanism(entry, keys=None) -> dict:
 FIRST_PERSON_KEYS = ["idea_belief", "idea_what", "idea_how"]
 
 
+#: keel-cloud `solution-mechanism.md`'s rule for the card's belief line: *The people building it believe it would*, then
+#: every claim in `not_assumed` in the founder's words, joined plainly (*A, B and C*), the seed's first claim first.
+BELIEF_OPENING = "The people building it believe it would "
+
+
+def joined_plainly(claims: list[str]) -> str:
+    """*A*, *A and B*, *A, B and C* -- no comma before *and*."""
+    said = [" ".join(str(c).split()).rstrip(".") for c in claims if str(c or "").strip()]
+    if len(said) <= 1:
+        return said[0] if said else ""
+    return ", ".join(said[:-1]) + " and " + said[-1]
+
+
+def composed_belief(mechanism: dict) -> str | None:
+    """The card's belief line by `solution-mechanism.md`'s rule, from the entry's `not_assumed` (no corpus entry records
+    `idea_belief`); None where it records no claim."""
+    claims = [c for c in (mechanism.get("not_assumed") or []) if str(c or "").strip()]
+    return BELIEF_OPENING + joined_plainly(claims) + "." if claims else None
+
+
+def composed_how(mechanism: dict) -> str | None:
+    """The mechanism's primary line, read and never rewritten by the FIRST_PERSON job: *When {trigger}, you {mechanism}.
+    Then {output}.* -- plain, from the entry's trigger, mechanism and output; None where the mechanism is missing."""
+    mech = " ".join(str(mechanism.get("mechanism") or "").split()).rstrip(".")
+    if not mech:
+        return None
+    trigger = " ".join(str(mechanism.get("trigger") or "").split()).rstrip(".,")
+    if trigger.lower().startswith("when "):
+        trigger = trigger[len("when "):]
+        head = f"When {trigger}, you {mech}." if trigger else f"You {mech}."
+    else:
+        head = f"{trigger[:1].upper()}{trigger[1:]}, you {mech}." if trigger else f"You {mech}."
+    output = " ".join(str(mechanism.get("output") or "").split()).rstrip(".")
+    return head + (f" Then {output}." if output else "")
+
+
 def build_first_person(entry) -> dict:
-    """`FIRST_PERSON` (keel-cloud 248 FR-7b): the idea card's three lines as the corpus records them -- the golden
-    `SOLUTION_MECHANISM` answer's `idea_what` / `idea_how` / `idea_belief` where the entry carries them (keel-cloud 084's
-    three reveal lines), else the mechanism's `output` as the belief's stand-in is NOT used: an entry with no belief line
-    builds no case (the job is owed only where a belief stands)."""
+    """`FIRST_PERSON` (keel-cloud 248 FR-7b): the idea card's three lines as the FIRST_PERSON job is handed them
+    (`FirstPersonLines`: `idea_belief`, `idea_what`, `idea_how`). The corpus records the golden `SOLUTION_MECHANISM`
+    answer's `idea_belief` / `idea_how` nowhere, so (the coordinator, 2026-11-13) the belief is composed by
+    `solution-mechanism.md`'s own rule from `not_assumed` (`composed_belief`) and the how as the mechanism's plain
+    primary line (`composed_how`); `idea_what` the entry's own, else its short name. An entry with no `not_assumed`
+    claim builds no case (the job is owed only where a belief stands). `composed` names what was composed."""
     m = entry.solution_mechanism or {}
-    return {"idea_belief": (m.get("idea_belief") or "").strip() or None,
-            "idea_what": (m.get("idea_what") or "").strip() or None,
-            "idea_how": (m.get("idea_how") or "").strip() or None}
+    belief = (m.get("idea_belief") or "").strip() or None
+    how = (m.get("idea_how") or "").strip() or None
+    composed = []
+    if belief is None:
+        belief = composed_belief(m)
+        composed += ["idea_belief"] if belief else []
+    if how is None:
+        how = composed_how(m)
+        composed += ["idea_how"] if how else []
+    return {"idea_belief": belief,
+            "idea_what": (m.get("idea_what") or m.get("short_name") or "").strip() or None,
+            "idea_how": how, "composed": composed}
 
 
 def first_person_faults(line, belief: str | None = None) -> list[str]:

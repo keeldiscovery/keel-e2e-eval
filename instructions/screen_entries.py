@@ -735,6 +735,10 @@ def build_cases(entries: ScreenEntries, exported, instructions_by_screen, execut
                                            n_runs=n_runs, host=host)
         cases += backtest_calibration_cases(entry, exported, instructions_by_screen, executor_module,
                                             n_runs=n_runs, host=host)
+        # spec 154 FR-7: the FIRST_PERSON job on a back-test entry too (the screen the founder runs on 08-fresco)
+        from . import prompts as prompts_mod                               # noqa: PLC0415
+        cases += prompts_mod.first_person_cases(entry, instructions_by_screen, executor_module, n_runs=n_runs,
+                                                host=host, meta={"source": SOURCE_BACKTEST})
     for probe in entries.probes:
         if probe.respondent():
             cases += probe_respondent_cases(probe, exported, instructions_by_screen, executor_module,

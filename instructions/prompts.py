@@ -210,18 +210,8 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
             builder(entry, exported.keys_for(screen)),
             content=context_mod.seed_of(entry, screen))
 
-    # Spec 154 FR-7 (keel-cloud 248 FR-7b): the FIRST_PERSON job -- the stored belief in, the founder's own line out. The
-    # export carries no contract for it (it is no InferenceScreen), so the contract is `FIRST_PERSON_CONTRACT`, the
-    # keys the job's own, and the instruction the one `first-person.md`; built only where the entry has an idea belief.
-    first_person = context_mod.build_first_person(entry)
-    if first_person.get("idea_belief") and instructions_by_screen.get(c.SCREEN_FIRST_PERSON):
-        payload = payload_for(instructions_by_screen[c.SCREEN_FIRST_PERSON], first_person, c.FIRST_PERSON_CONTRACT)
-        for run_index in range(1, n_runs + 1):
-            case = Case(case_id=f"{entry.id}/FIRST_PERSON/run{run_index}", kind="FIRST_PERSON",
-                        entry_id=entry.id, screen=c.SCREEN_FIRST_PERSON, subject=c.SCREEN_FIRST_PERSON,
-                        run_index=run_index, payload=payload, meta={"idea_belief": first_person["idea_belief"]})
-            case.prompt = render(executor_module, payload, job_id=_slug(case.case_id), host=host)
-            cases.append(case)
+    # Spec 154 FR-7 (keel-cloud 248 FR-7b): the FIRST_PERSON job (`first_person_cases`)
+    cases.extend(first_person_cases(entry, instructions_by_screen, executor_module, n_runs=n_runs, host=host))
 
     # Calibration: one constant, three jobs, one a vector (A-3).
     keys = exported.keys_for(c.SCREEN_CALIBRATION)
@@ -289,3 +279,28 @@ def build_cases(entry, exported, instructions_by_screen, executor_module, *, n_r
                       screen=c.SCREEN_COMPARE, subject="COMPARE", run_index=0, payload={},
                       compare_input=compare_mod.build_input(entry, registry)))
     return cases
+
+
+def first_person_cases(entry, instructions_by_screen, executor_module, *, n_runs: int = 3, host: str = "claude",
+                       meta: dict | None = None) -> list:
+    """Spec 154 FR-7 (keel-cloud 248 FR-7b): the FIRST_PERSON job -- the card's belief in, the founder's own line out --
+    for a golden or a back-test entry alike. The export carries no contract for it (it is no InferenceScreen), so the
+    contract is `FIRST_PERSON_CONTRACT`, the keys the job's own three (`FirstPersonLines`: idea_belief, idea_what,
+    idea_how), the instruction `first-person.md`; built only where a belief stands (`context.build_first_person`
+    composes it from `not_assumed` where the entry records none)."""
+    from . import context as context_mod              # noqa: PLC0415 - as build_cases imports it
+    from . import contract as c                        # noqa: PLC0415
+    first_person = context_mod.build_first_person(entry)
+    if not first_person.get("idea_belief") or not instructions_by_screen.get(c.SCREEN_FIRST_PERSON):
+        return []
+    handed = {k: first_person[k] for k in ("idea_belief", "idea_what", "idea_how")}
+    payload = payload_for(instructions_by_screen[c.SCREEN_FIRST_PERSON], handed, c.FIRST_PERSON_CONTRACT)
+    out = []
+    for run_index in range(1, n_runs + 1):
+        case = Case(case_id=f"{entry.id}/FIRST_PERSON/run{run_index}", kind="FIRST_PERSON", entry_id=entry.id,
+                    screen=c.SCREEN_FIRST_PERSON, subject=c.SCREEN_FIRST_PERSON, run_index=run_index, payload=payload,
+                    meta={"idea_belief": first_person["idea_belief"], "composed": first_person["composed"],
+                          **(meta or {})})
+        case.prompt = render(executor_module, payload, job_id=_slug(case.case_id), host=host)
+        out.append(case)
+    return out

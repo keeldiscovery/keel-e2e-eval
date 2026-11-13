@@ -379,3 +379,30 @@ def test_the_fake_call_record_is_249s_shape():
     assert cr.TEMPLATE.is_file() and (cr.FIXTURES / "founder.wav").is_file()
     template = json.loads(cr.TEMPLATE.read_text())
     assert [s["kind"] for s in template["stretches"]] == ["STORY", "FOLLOW_UP", "OWN_QUESTIONS", "THEIR_QUESTIONS"]
+
+
+def test_the_first_person_case_composes_its_belief_where_the_corpus_records_none():
+    """FR-7 (the coordinator, 2026-11-13): no corpus entry records `idea_belief` / `idea_how`, so the FIRST_PERSON case
+    composes the belief by `solution-mechanism.md`'s rule (*The people building it believe it would* + `not_assumed`
+    joined *A, B and C*) and the how as the mechanism's plain line; an entry with no claim builds no case; the job is
+    handed its three keys alone."""
+    m = {"not_assumed": ["stops every mismatch", "saves time", "keeps staff"], "trigger": "when a delivery arrives",
+         "mechanism": "scan each delivery", "output": "a flag the same day", "short_name": "an alert"}
+    assert context_mod.joined_plainly(["a", "b", "c"]) == "a, b and c" and context_mod.joined_plainly(["a"]) == "a"
+    assert context_mod.composed_belief(m) == ("The people building it believe it would stops every mismatch, saves "
+                                              "time and keeps staff.")
+    assert context_mod.composed_how(m) == "When a delivery arrives, you scan each delivery. Then a flag the same day."
+    assert context_mod.composed_belief({"not_assumed": []}) is None
+
+    class Entry:
+        id = "x"
+        solution_mechanism = m
+    built = context_mod.build_first_person(Entry())
+    assert built["composed"] == ["idea_belief", "idea_how"] and built["idea_what"] == "an alert"
+    Entry.solution_mechanism = {"idea_belief": "The people building it believe it would help.", "not_assumed": ["x"]}
+    recorded = context_mod.build_first_person(Entry())
+    assert recorded["idea_belief"] == "The people building it believe it would help." and recorded["composed"] == []
+    source = inspect.getsource(prompts_mod.first_person_cases)
+    assert '("idea_belief", "idea_what", "idea_how")' in source
+    from instructions import screen_entries                                   # noqa: PLC0415
+    assert "first_person_cases" in inspect.getsource(screen_entries.build_cases)
