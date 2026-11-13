@@ -5197,12 +5197,11 @@ def follow_up_question(entry, picks: list, link: str, interview: dict, token: st
         # wording -- *below {the price shown}*, the band said back (the chain's up-front pick first), else *low*; never
         # the registry's *below what we asked* where no price was shown (the would-not-pay sentence still comes first)
         values[WHOLE_TEXT] = fake.price_said_back(item.get("question") or item.get("text"), values["{band}"], name)
-    if rung == "solution.adoption_friction" and codes:
-        # keel-cloud 155 FR-2 (amended), 174 FR-7 (spec 115 FR-3, `FollowUpComposer`): the conditional yes said back as
-        # the person's own condition where the option was served one (*Only if ...*), on the second stem it is asked on
-        said = label(codes[0]) if codes[0] in fake.ALSO[rung][0] else None
-        if said and said.startswith(fake.ONLY_IF):
-            values[WHOLE_TEXT] = fake.only_if_said_back(said[len(fake.ONLY_IF):])
+    # keel-cloud 155 FR-2 / 174 FR-7 said Adoption friction's conditional yes back (*You said only if {condition}. What
+    # would have to happen for that to be true?*, `fake.only_if_said_back`, kept for the record); keel-cloud 184 FR-7
+    # retired it -- the conditional yes is followed up in the registry's own words (*What would make {solution_name}
+    # clearly worth it to you?*) whatever its label says (spec 154: S-005 on keel-cloud dfdad66a, the condition served
+    # again under 245's asked rows)
     band = fake.duration_said(label(codes[0])) if rung == "commercial.purchase_friction" and codes \
         and str(codes[0]).startswith("days_") else None
     if band is not None:

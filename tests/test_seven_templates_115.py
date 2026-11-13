@@ -605,17 +605,19 @@ def _adoption(entry, label):
                                  interview, "tok", stem=(ADOPTION, True))
 
 
-def test_the_conditional_yes_is_said_back_as_the_persons_own_condition():
+def test_the_conditional_yes_is_followed_up_in_the_registrys_own_words():
+    """keel-cloud 174 FR-7 said the conditional yes back (`fake.only_if_said_back`, kept for the record); keel-cloud 184
+    FR-7 retired it (spec 154, S-005 on keel-cloud dfdad66a): *Only if ...* and the fixed yes are followed up alike."""
     lullaby = _golden("03-lullaby")
     owed = _adoption(lullaby, "Only if I could try it for a week first")
-    assert owed["text"] == owed["spoken"] == ("You said only if I could try it for a week first. What would have to "
-                                              "happen for that to be true?")
-    assert owed["also"] is True
-    # the registry's fixed label (no condition on the lock's item): the second stem as before
     fixed = _adoption(lullaby, "Yes, if it was clearly worth it")
-    assert fixed["text"] == fake.fill(ADOPTION, {"{solution_name}": vs.served_idea_name({}) or
-                                                 vs._typed_idea_name(lullaby)}, also=True)
-    assert "look like" not in owed["text"]
+    registry = fake.fill(ADOPTION, {"{solution_name}": vs.served_idea_name({}) or vs._typed_idea_name(lullaby)},
+                         also=True)
+    assert owed["text"] == owed["spoken"] == fixed["text"] == registry
+    assert owed["also"] is True
+    assert "You said only if" not in owed["text"] and "look like" not in owed["text"]
+    assert fake.only_if_said_back("I could try it for a week first") == (
+        "You said only if I could try it for a week first. What would have to happen for that to be true?")
 
 
 # ------------------------------------------------------------------------- FR-4: the gallery fixtures stay
