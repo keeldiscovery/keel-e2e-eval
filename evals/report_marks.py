@@ -482,7 +482,8 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
                 faults.append({key: "a quote not a named person's own follow-up", "quote": q,
                                "said": sorted(said.get(q.get("invitationId"), set())),
                                "name": names.get(q.get("invitationId"))})
-            if q in quotes and q.get("side") not in ("FOR", "AGAINST", "APART"):
+            # keel-cloud 180 FR-1 (contract 50): FOR, AGAINST or NOT_COUNTED -- 119's APART kept for a build before 180
+            if q in quotes and q.get("side") not in ("FOR", "AGAINST", "NOT_COUNTED", "APART"):
                 faults.append({key: "a quote's side", "quote": q})
         if strict and state != "GROUPED":
             faults.append({key: "not GROUPED on the scripted stack", "state": state, "note": insight.get("note")})
@@ -620,6 +621,10 @@ def report_no_repeat(r: dict) -> tuple[bool, Any]:
     numbers = [c.get("number") for c in (r["standings"].get("facts") or {}).get("cards") or [] if c.get("number")]
     # spec 070 FR-3: each box's pill is the card's own line drawn again (keel-web `lineWordOf`) -- the view's own words
     own = list(page.get("own_lines") or []) + [w for w in pill_words(r["standings"]) if w]
+    # keel-web 155 FR-7 (keel-cloud 180 FR-11): each box opens like its card -- the served `statusLine` (the count and the
+    # bar, *5 of 8 said ... · bar 6 of 8 · 1 short*) and `countLine` are the box's own words, as its pill is (spec 154:
+    # S-005 on keel-web 697a7a2b, the first scripted walk to reach the report since 2026-10-30)
+    own += [str(i.get(k)) for i in (r["standings"].get("insights") or []) for k in ("statusLine", "countLine") if i.get(k)]
     found = repeats(page.get("text"), page.get("quotes"), own, numbers)
     return not found, {"repeated": found}
 
