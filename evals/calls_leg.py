@@ -194,7 +194,8 @@ def _row_of(sent_page, call_id: str):
 def _read_row(row) -> dict:
     return {"call": row.get_attribute("data-call"), "status": row.get_attribute("data-status"),
             "name": _words(row.locator(CALL_NAME)), "role_line": _words(row.locator(CALL_ROLE_LINE)),
-            "you_wrote": _words(row.locator(YOU_WROTE)) or None,
+            # keel-web 189 draws the separator inside the span (*You wrote {typed} ·*): read without it
+            "you_wrote": re.sub(r"\s*·$", "", _words(row.locator(YOU_WROTE))) or None,
             "status_words": _words(row.locator(CALL_STATUS)),
             "start": _words(row.locator(CALL_START)) or None,
             "see_answers": _words(row.locator(CALL_SEE_ANSWERS)) or None}
