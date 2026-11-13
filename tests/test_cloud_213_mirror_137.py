@@ -187,7 +187,11 @@ def test_the_b2b_payer_is_the_deciders_word_never_the_buyers_organisation():
     assert not hasattr(corpus_mod, "B2B_PAYER")
     paidly = _golden("05-paidly")
     key = "commercial.existing_sacrifice"
-    assert corpus_mod.engine_belief(paidly, key) == paidly.founder_calibration[key]["belief_sentence"]
+    recorded = paidly.founder_calibration[key]["belief_sentence"]
+    # spec 154: the record's *the payer* is read by keel-cloud 188 FR-2 (`spec188Reads`) as the deciders' own plural --
+    # never *the buyer's organisation*
+    assert "the buyer's organisation" not in corpus_mod.engine_belief(paidly, key)
+    assert corpus_mod.engine_belief(paidly, key) == recorded.replace("costs the payer ", "costs agencies ")
 
 
 def test_current_solutions_belief_reads_the_act_bare():

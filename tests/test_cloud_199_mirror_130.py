@@ -105,9 +105,10 @@ def test_the_reader_is_the_clouds_spec199_reads():
      "Most parents of babies under six months would allow it to use the microphone at night."),
     ("05-paidly", "commercial.purchase_friction",
      "Most agencies would get through the agency owner's approval, or not need it."),
-    # spec 137 (keel-cloud 213 FR-2a): 199's *the buyer's organisation* reversed -- the record read as recorded
+    # spec 137 (keel-cloud 213 FR-2a): 199's *the buyer's organisation* reversed; spec 154: the record's *the payer* read
+    # by keel-cloud 188 FR-2 (`VectorCorpusFixture.spec188Reads`, the step under 199's) -- the deciders' own plural
     ("05-paidly", "commercial.existing_sacrifice",
-     "The problem already costs the payer about $100 to $300 a month."),
+     "The problem already costs agencies about $100 to $300 a month."),
     ("02-compliancelog", "commercial.buyer_payer_alignment", "The HR manager decides, and the HR director must agree "
                                                              "first."),
     ("03-lullaby", "commercial.buyer_payer_alignment", "The parent decides, and nobody else must agree first."),

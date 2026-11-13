@@ -2318,15 +2318,57 @@ def joined(parts: list) -> str:
     return parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
 
 
+_COSTS_THE_PAYER = "The problem already costs the payer "
+_PAYER_WORTH = "The payer would think it worth "
+
+
+def belief_deciders(template, who):
+    """keel-cloud `BeliefSentence.deciders` (spec 188 FR-2): a template's `{deciders}` filled as spec 180's money cards say
+    who pays -- lower-cased mid-sentence (an acronym kept), capitalised where it opens the sentence; with no words for
+    them *They* / *them* (and *Most {deciders}* reads *Most*), never *the payer*."""
+    if template is None or "{deciders}" not in template:
+        return template
+    words = str(who).strip() if who is not None and str(who).strip() else None
+    if words is None:
+        bare = template.replace("Most {deciders} ", "Most ")
+        bare = "They" + bare[len("{deciders}"):] if bare.startswith("{deciders}") else bare
+        return bare.replace("{deciders}", "them")
+    lowered = words if len(words) > 1 and words[1].isupper() else words[:1].lower() + words[1:]
+    filled = _upper_first(lowered) + template[len("{deciders}"):] if template.startswith("{deciders}") else template
+    return filled.replace("{deciders}", lowered)
+
+
+def spec188_reads(entry, key: str):
+    """keel-cloud `VectorCorpusFixture.spec188Reads` (spec 188 FR-2; spec 154 found it unmirrored -- no scripted journey
+    reached the commercial review between 2026-10-30 and 2026-11-13): the recorded sentence read by 174's rules
+    (`spec174_reads`), and the two money sentences that said *the payer* -- a cost or price stated before the chain --
+    in the decider's word, as the engine writes them: *The problem already costs the payer {value}.* -> *The problem
+    already costs {deciders} {value}.*; *The payer would think it worth {value}.* -> *{Deciders} would think it worth
+    {value}.* -- `{deciders}` 180's (`chain.deciders`: the decider's role in the plural on B2B, the people's plural where
+    the same person pays). Any other text as 174 reads it."""
+    recorded = spec174_reads(entry, key)
+    if recorded is None:
+        return None
+    context = getattr(entry, "context", None) or {}
+    decision = (getattr(entry, "persona", None) or {}).get("decision_maker")
+    b2b = isinstance(decision, dict)
+    who = chain_mod.deciders(decision.get("role") if b2b else context.get("actor"), context.get("actor_plural"), b2b)
+    if key == SACRIFICE_KEY and recorded.startswith(_COSTS_THE_PAYER):
+        return belief_deciders("The problem already costs {deciders} " + recorded[len(_COSTS_THE_PAYER):], who)
+    if key == PRICE_KEY and recorded.startswith(_PAYER_WORTH):
+        return belief_deciders("{deciders} would think it worth " + recorded[len(_PAYER_WORTH):], who)
+    return recorded
+
+
 def spec199_reads(entry, key: str):
     """keel-cloud `VectorCorpusFixture.spec199Reads` (spec 199 FR-1, FR-2, FR-4, FR-5, FR-8, FR-10; spec 130): the
-    recorded sentence read by 173's and 174's rules (`spec174_reads`), then by exactly 199's -- Commitment's two
+    recorded sentence read by 173's, 174's and 188's rules (`spec188_reads`), then by exactly 199's -- Commitment's two
     templates without *now*; Purchase friction with no time and no *quickly*; Existing sacrifice's who on B2B the payer
     the cost question names (*the buyer's organisation*); Buyer and payer's *... must agree first.* over every role on the
     founder's list; Relative advantage's *For most, with it, their last {occasion} would have given them {value}.* over
     every benefit; Compatibility's *Most {actor_plural} {value}.* where the condition reads as a verb phrase. Any other
     text as 174 reads it; the record is never rewritten (no corpus revision -- spec 141's pattern)."""
-    recorded = spec174_reads(entry, key)
+    recorded = spec188_reads(entry, key)
     if recorded is None:
         return None
     context = getattr(entry, "context", None) or {}
