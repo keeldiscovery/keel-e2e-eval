@@ -65,7 +65,7 @@ def _by_mark(record: dict) -> dict:
 
 def test_every_mark_is_met_on_a_good_record():
     card = marks.scorecard(good())
-    assert card["version"] == marks.FEEDBACK_MARKS_VERSION == 2                # spec 150: FM3 retired
+    assert card["version"] == marks.FEEDBACK_MARKS_VERSION == 3                # spec 150: FM3 retired; 154: FM2 on 229
     assert card["measured"] == card["met"] == len(marks.MARKS) == 5, card
     assert card["unmeasured"] == []
     assert marks.owed(good()) == ["FM1", "FM2", "FM4", "FM5", "FM6"]

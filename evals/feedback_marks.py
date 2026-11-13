@@ -16,7 +16,7 @@ The journey (`evals/corpus_scenario.py`) builds the record from what the wire an
   fields, the two seeds, the persona's roles and that dimension's Answer (judgement call 2: L6's allow-list also takes
   the confirmed mechanism card and the other saved lists; the eval holds the words the founder typed).
 - **FM2** Importance is the own item plus exactly the difficulties the founder's Answer named: Keel's first draft is
-  the own item alone, the redraft from the Answer adds those and none other, and the list saved is that redraft and
+  the own row alone (v3: in Keel's words since keel-cloud 229), the redraft from the Answer adds those and none other, and the list saved is that redraft and
   whatever the founder typed on the Check screen themselves.
 - **FM3** (retired, v2) Keel's base query carried no industry: no `categories` on any kind's base query. Its subject
   was the contacts leg's Contacts tabs, gone with spec 150 (keel-web 185, keel-cloud 244), so FM3 is no mark of v2.
@@ -38,7 +38,8 @@ from harness import vectors_script as vs
 
 #: Bumped whenever a mark is born, retired, or reads its record differently.
 #: v2 (spec 150, keel-web 185): FM3 retired with the contacts leg that read Keel's base query (FM1, FM2, FM4-FM6 hold).
-FEEDBACK_MARKS_VERSION = 2
+#: v3 (spec 154, keel-cloud 229): FM2's first draft is the one own row in Keel's words; the saved list opens on the own item.
+FEEDBACK_MARKS_VERSION = 3
 
 #: keel-cloud 097 `VectorCalibration.IMPORTANCE_MIN_ITEMS`: Save and the lock need the own item and two others.
 IMPORTANCE_MIN_ITEMS = 3
@@ -110,8 +111,12 @@ def importance_is_own_plus_named(r: dict) -> tuple[bool, Any]:
     typed = list(x.get("typed") or [])
     invented = [label for label in redraft[1:] if label not in named]
     missing = [label for label in named if label not in redraft[1:]]
-    ok = (bool(own) and first == [own] and redraft[:1] == [own] and not invented and not missing
-          and len(redraft) == 1 + len(named) and saved == redraft + typed and len(saved) >= IMPORTANCE_MIN_ITEMS)
+    # v3 (spec 154, keel-cloud 229): Keel's first draft is ONE row, the own row -- in Keel's words for the problem clause
+    # since 229 (*Recounting stock by hand after ...* where the founder's own item reads *Matching deliveries ...*) --
+    # kept first on the redraft; the list saved opens on the founder's own item, then the named, then what they typed
+    ok = (bool(own) and len(first) == 1 and redraft[:1] == first[:1] and not invented and not missing
+          and len(redraft) == 1 + len(named) and saved == [own] + redraft[1:] + typed
+          and len(saved) >= IMPORTANCE_MIN_ITEMS)
     return ok, {"own": own, "first draft": first, "named": named, "redraft": redraft, "typed on Check": typed,
                 "saved": saved, "invented": invented, "missing": missing}
 
