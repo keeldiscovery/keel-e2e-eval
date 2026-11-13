@@ -4211,7 +4211,8 @@ def leg_invite(j: Journey) -> None:
             assert made["formats"].get(iv_screens.TEXT_ONLY, {}).get("checked") is True, made["formats"]
             if not getattr(j, "keels_door", False):  # spec 062: on Keel's door the other two are offered, and not picked
                 assert all(f["disabled"] and f["word"] == iv_screens.FORMAT_NEEDS_CREDITS
-                           for name, f in made["formats"].items() if name != iv_screens.TEXT_ONLY), made["formats"]
+                           for name, f in made["formats"].items()
+                           if name not in (iv_screens.TEXT_ONLY, "_on_card")), made["formats"]   # 187's line under the rows
         j.links[person.person] = made["url"]
         j.tokens[person.person] = made["url"].rstrip("/").rsplit("/", 1)[-1]
     with _step(j, "every corpus person has a link of their own; the Sent register draws one row a person, newest "
