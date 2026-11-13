@@ -2512,7 +2512,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
     if vector == "PROBLEM" and not answers["problem.importance"].unsure and not getattr(j, "backtest", False):
         _importance_needs_three(j)
     _asked_log_note(j, vector)
-    stored = _wait_calibration(j, vector)
+    stored = _wait_asked_faces(j, vector, answers)
     with _step(j, f"{vector.lower()}: every list is stored as the founder saved it -- code's positional codes, "
                   "the stranger's faces, the picked index, the phrase", party="stack") as h:
         mismatches = []
@@ -3098,6 +3098,26 @@ def _importance_needs_three(j: Journey) -> None:
         assert importance_count(probe["own+2"]["belief"]) == importance_count_words("three"), probe
         want = corpus_mod.engine_belief(j.entry, key)
         assert not j.strict or probe["own+4"]["belief"] == want, (probe, want)
+
+
+def _wait_asked_faces(j: Journey, vector: str, answers: dict, *, timeout_s: float = 90) -> dict:
+    """Spec 154 FR-0 (keel-cloud 245 FR-2, at keel-cloud-docs `dfdad66a`): the calibration read once the asked jobs the
+    stage's Saves started have landed. Adoption friction's starts at the Choose's Save (its Check's Save starts none), so
+    the stage's last screen leaves it open behind the next address: the walk waits for no open step (`_wait_steps_landed`)
+    and then for every asked list's rows to carry their faces, 90 s times the patience. Past that the calibration as last
+    read is compared, and a face still missing is the stored-list fault, named by its dimension."""
+    if vector == "SOLUTION":
+        _wait_steps_landed(j, f"{vector.lower()}: the asked jobs the stage's Saves started", timeout_s=timeout_s)
+    deadline = time.monotonic() + timeout_s * j.patience
+    while True:
+        stored = _wait_calibration(j, vector)
+        owed = [q for q in stored.get("questions") or [] if q.get("dimension") in vs.ASKED_FACES
+                and q["dimension"] in answers and not answers[q["dimension"]].unsure]
+        bare = [q.get("dimension") for q in owed
+                if any(not i.get("asked") for i in ((q.get("answer") or {}).get("list") or {}).get("items") or [])]
+        if not bare or time.monotonic() >= deadline:
+            return stored
+        time.sleep(1.0)
 
 
 def _wait_steps_landed(j: Journey, what: str, *, timeout_s: float = 90) -> dict:
