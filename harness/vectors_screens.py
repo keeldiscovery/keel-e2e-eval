@@ -36,6 +36,7 @@ from contextlib import contextmanager
 from typing import Any, Callable
 
 from playwright.sync_api import Page
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 from harness import interviewer_screens as ivs
 from harness.browser import (INTERVIEW_DONE_TITLE, _SCREEN_TEXT_JS, _BrowserStep, _safe_all_texts, _safe_text,
@@ -734,6 +735,11 @@ def unreviewed(slug_or_key: str | None) -> str | None:
     if isinstance(slug_or_key, str) and slug_or_key.endswith(REVIEWED_SUFFIX):
         return slug_or_key[: -len(REVIEWED_SUFFIX)]
     return slug_or_key
+
+
+class GateStillDrawn(AssertionError):
+    """Spec 155 FR-2: keel-web's corridor gate (*Keel is finishing the previous step…*) still drawn under a primary past
+    the walk's step budget -- the walk stops here, naming the screen and the line (`gate_waits` keeps the row)."""
 
 
 class ReviewHoldStop(AssertionError):
@@ -2271,6 +2277,16 @@ SAVE_BUDGET_S = 60
 SAVE_POLL_MS = 2_000
 SLOW_SAVE_S = 10
 SAVE_SETTLE_S = 10
+#: Spec 155 FR-1 (keel-web 083 FR-1, `StepWaiting`): the line keel-web draws under a corridor primary while a step is
+#: open or the screen is behind the overview -- keel-web `CORRIDOR_WAITING`, copied exactly -- read by its text, as drawn.
+GATE_LINE = "Keel is finishing the previous step…"
+#: Spec 155 FR-1: how often the gate is looked at while it is drawn -- the page's own cadence (keel-web
+#: `OVERVIEW_QUESTIONS_POLL_MS`, the overview poll that lifts the gate).
+GATE_POLL_MS = 3_000
+#: Spec 155 FR-1: a primary disabled with no gate line under it is a screen waiting for input the walk did not give --
+#: today's 30 s (each press site's own where it had another), looked at every `PRIMARY_POLL_MS`, then today's failure.
+PRIMARY_ENABLED_MS = 30_000
+PRIMARY_POLL_MS = 250
 
 
 class Corridor:
@@ -2288,6 +2304,9 @@ class Corridor:
         self.conflicts = []
         #: Spec 140 FR-3: every primary press that took past `SLOW_SAVE_S` to move the page (screen, label, seconds).
         self.slow_saves = []
+        #: Spec 155 FR-2: every wait on keel-web's gate before a primary press that ran past `SLOW_SAVE_S` (screen,
+        #: label, seconds, budget_s) -- evidence beside `slow_saves`, never a stop.
+        self.gate_waits = []
         self.saves = []
         #: Spec 073 FR-1: each context Save's states as the step's root named them (`_CONTEXT_STATES_JS`).
         self.context_states = []
@@ -2346,6 +2365,76 @@ class Corridor:
     #: Every write a corridor screen's primary refused 409 CONCURRENCY and pressed again (runs/DRIFT.md #80).
     conflicts: list
 
+    def _gate_drawn(self) -> bool:
+        """Spec 155 FR-1: whether the screen draws keel-web's gate line (`GATE_LINE`) -- read by its text, as drawn."""
+        try:
+            return bool(self.page.evaluate("(line) => ((document.body && document.body.innerText) || '').includes(line)",
+                                           GATE_LINE))
+        except Exception:  # noqa: BLE001 - a page between two documents draws nothing yet; the next look decides
+            return False
+
+    @staticmethod
+    def _enabled(button) -> bool:
+        """The button drawn and not disabled, re-read through its locator each time (a screen re-keyed by the gate's
+        re-read draws a new element)."""
+        try:
+            return bool(button.count()) and not button.first.is_disabled(timeout=PRIMARY_POLL_MS)
+        except Exception:  # noqa: BLE001 - detached between the count and the read: not yet
+            return False
+
+    def _wait_for_the_gate(self, label: str | None = None, button=None, *, timeout_ms: float | None = None,
+                           enabled: bool = True) -> float:
+        """Spec 155 FR-1: the wait before every press of a corridor primary, as the founder waits.
+
+        While the screen draws keel-web's gate line (`GATE_LINE`, keel-web 083 FR-1) the walk waits, looking every
+        `GATE_POLL_MS` (the page's own cadence), up to the walk's step budget (`SAVE_BUDGET_S * patience`, 660 s on a
+        back-test); then (`enabled`) for the primary to be enabled. A primary disabled WITHOUT the line is not the gate:
+        it is a screen waiting for input the walk did not give, and keeps today's limit (`timeout_ms`, else
+        `PRIMARY_ENABLED_MS`) and today's failure, a Playwright timeout naming the press. `enabled=False` waits out the
+        line alone (before a pick a re-keyed screen would drop). FR-2: past `SLOW_SAVE_S` the seconds waited are noted
+        in the transcript and kept in `gate_waits`; past the budget `GateStillDrawn` names the screen and the line.
+        Returns the seconds waited on the line."""
+        button = button if button is not None else self._primary()
+        label = label if label is not None else _safe_text(lambda: button.first.inner_text()).strip()
+        plain_ms = PRIMARY_ENABLED_MS if timeout_ms is None else timeout_ms
+        budget_s = SAVE_BUDGET_S * self.patience
+        screen = self.page.url
+        gated_s = 0.0
+        plain_from = time.monotonic()
+        while True:
+            if self._gate_drawn():
+                seen = time.monotonic()
+                while self._gate_drawn():
+                    if gated_s + (time.monotonic() - seen) > budget_s:
+                        gated_s += time.monotonic() - seen
+                        self._gate_row(screen, label, gated_s, budget_s)
+                        raise GateStillDrawn(
+                            f"the founder's {label!r} on {self.page.url}: *{GATE_LINE}* still drawn after "
+                            f"{gated_s:.0f} s (keel-web 083's gate, waited up to the step budget {budget_s:.0f} s) "
+                            "-- the walk stops here")
+                    self.page.wait_for_timeout(GATE_POLL_MS)
+                gated_s += time.monotonic() - seen
+                plain_from = time.monotonic()
+                continue
+            if not enabled or self._enabled(button):
+                break
+            if (time.monotonic() - plain_from) * 1000 >= plain_ms:
+                raise PlaywrightTimeoutError(
+                    f"Timeout {plain_ms:.0f}ms exceeded: the founder's {label!r} stayed disabled with no *{GATE_LINE}* "
+                    f"under it -- the screen waits for input the walk did not give ({self.page.url})")
+            self.page.wait_for_timeout(PRIMARY_POLL_MS)
+        if gated_s > SLOW_SAVE_S:
+            self._gate_row(screen, label, gated_s, budget_s)
+        return gated_s
+
+    def _gate_row(self, screen: str, label: str | None, seconds: float, budget_s: float) -> None:
+        """Spec 155 FR-2: one gate wait kept (`gate_waits`) and noted in the transcript."""
+        self.__dict__.setdefault("gate_waits", []).append(
+            {"screen": screen, "label": label, "seconds": round(seconds, 1), "budget_s": round(budget_s)})
+        self._b.recorder.note(f"founder's {label} waited {seconds:.0f} s on *{GATE_LINE}* before the press (past "
+                              f"{SLOW_SAVE_S} s: keel-web's gate, waited up to {budget_s:.0f} s) -- {screen}",
+                              party="founder")
+
     def _press_primary(self, expected_label: str | None = None) -> str:
         """Presses the card's primary and waits for the next address; returns the label it carried.
 
@@ -2388,7 +2477,7 @@ class Corridor:
         self.page.on("requestfailed", on_done)
         self.page.on("response", on_response)
         try:
-            self.page.wait_for_function("(b) => !b.disabled", arg=primary.element_handle(), timeout=30_000)
+            self._wait_for_the_gate(label, primary)                   # spec 155 FR-1: as the founder waits
             started = time.monotonic()
             primary.click()
             pressed_again = False
@@ -2402,8 +2491,7 @@ class Corridor:
                     if refused and not pressed_again:
                         pressed_again = True
                         self.page.wait_for_timeout(4_000)
-                        self.page.wait_for_function("(b) => !b.disabled", arg=self._primary().element_handle(),
-                                                    timeout=30_000)
+                        self._wait_for_the_gate(label)                # spec 155 FR-1: before the second press too
                         self._primary().click()
                         self.conflicts.append({"screen": before, "refused": refused, "label": label})
                         continue
@@ -2501,6 +2589,7 @@ class Corridor:
         (the counter, its question, the chips and any pressed, the count and the unit: nothing pre-filled), shot, and
         the entry's window picked: the chip whose words are the window's (keel-web `RECALL_WINDOW_WORDS`), else the
         count typed and the unit chosen. What the pick left in the count and the unit is read back."""
+        self._wait_for_the_gate(None, self.page.get_by_test_id(CONTEXT_CONTINUE_TESTID))   # spec 155 FR-1
         self.page.get_by_test_id(CONTEXT_CONTINUE_TESTID).first.click()
         _wait_url(self.page, CONTEXT_WINDOW_PATH)
         screen = self.page.locator(CONTEXT_WINDOW_PAGE).first
@@ -2544,6 +2633,7 @@ class Corridor:
     def _save_context(self) -> dict:
         # spec 097 FR-2: on a gate's walk this is 2 of 2's *Save and continue* (`context-save`), the only one drawn
         try:
+            self._wait_for_the_gate(CONTEXT_SAVE, _button(self.page, CONTEXT_SAVE))   # spec 155 FR-1
             with self.page.expect_response(lambda r: r.request.method == "PUT"
                                            and r.url.split("?")[0].endswith("/context"), timeout=20_000) as got:
                 _button(self.page, CONTEXT_SAVE).click()
@@ -2613,6 +2703,7 @@ class Corridor:
                               "(keel-web 106 FR-7)") as h:
                 screen.first.locator("textarea").first.fill(content)
                 h.add_screenshot(self._b.screenshot("context-needs-input"))
+                self._wait_for_the_gate(None, self.page.get_by_test_id("context-needs-input-send"))  # spec 155 FR-1
                 self.page.get_by_test_id("context-needs-input-send").first.click()
             return {"via": "page", "question": question or None}
         reasked = self.page.get_by_test_id("context-reasked")
@@ -2669,6 +2760,7 @@ class Corridor:
                 # spec 097 FR-2 (keel-web 141 FR-2): Edit opens 1 of 2 filled; Continue: 2 of 2 holds the saved window
                 out["edited"]["screen"] = form.get_attribute("data-context-screen")
                 out["edited"]["continue"] = _tc(go_on)
+                self._wait_for_the_gate(out["edited"]["continue"], go_on)          # spec 155 FR-1
                 go_on.first.click()
                 _wait_url(self.page, CONTEXT_WINDOW_PATH)
                 self.page.locator(CONTEXT_WINDOW_PAGE).first.wait_for(state="visible", timeout=10_000)
@@ -2683,6 +2775,7 @@ class Corridor:
 
     def confirm_context(self) -> None:
         with self._b.step("founder confirms: Yes, that's it") as h:
+            self._wait_for_the_gate(CONTEXT_YES, _button(self.page, CONTEXT_YES))   # spec 155 FR-1
             _button(self.page, CONTEXT_YES).click()
             _wait_url(self.page, r"/define/problem/seed")
             h.add_screenshot(self._b.screenshot("context-confirmed"))
@@ -2706,6 +2799,7 @@ class Corridor:
             pass_teaching_sheet(self.page, self._b.recorder, self.base, "opener", vector)
             self._shot(f"{slug}-seed")
             box.fill(text)
+            self._wait_for_the_gate(SEED_SEND, _button(self.page, SEED_SEND))   # spec 155 FR-1
             _button(self.page, SEED_SEND).click()
             for attempt in range(resend + 1):
                 if not resend:
@@ -2720,6 +2814,7 @@ class Corridor:
                 if attempt == resend:
                     raise AssertionError(f"the {slug} seed drew no card after {resend} resends: {said}")
                 box.fill(text)
+                self._wait_for_the_gate(SEED_SEND, _button(self.page, SEED_SEND))   # spec 155 FR-1
                 _button(self.page, SEED_SEND).click()
             h.add_screenshot(self._b.screenshot(f"{slug}-card"))
             self._shot(f"{slug}-card")
@@ -2759,6 +2854,7 @@ class Corridor:
         nxt = (r"/define/problem/q/1" if calibrates("PROBLEM", scope) else r"/define/solution/seed") \
             if vector == "PROBLEM" else r"/define/solution/idea"
         with self._b.step(f"founder confirms the {slug} card: {name}") as h:
+            self._wait_for_the_gate(name, _button(self.page, name))   # spec 155 FR-1
             _button(self.page, name).click()
             _wait_url(self.page, nxt)
             h.add_screenshot(self._b.screenshot(f"{slug}-confirmed"))
@@ -3443,7 +3539,7 @@ class Corridor:
                 self.page.on(event, handler)
             hold = {"review": None, "held": False, "held_s": None, "outcome": None}
             try:
-                self.page.wait_for_function("(b) => !b.disabled", arg=primary.element_handle(), timeout=30_000)
+                self._wait_for_the_gate(label, primary)               # spec 155 FR-1
                 started = time.monotonic()
                 primary.click()
                 held_at = left_at = None
@@ -3480,6 +3576,7 @@ class Corridor:
                         # runs/DRIFT.md #80, as `_press_primary`: a 409 on the Save is pressed again once
                         pressed_again = True
                         self.page.wait_for_timeout(4_000)
+                        self._wait_for_the_gate(label)                # spec 155 FR-1: before the second press too
                         self._primary().click()
                         self.conflicts.append({"screen": before, "refused": list(refused), "label": label})
                     # the walk's step budget from the press -- or, once a hold was seen, from when it left
@@ -3785,20 +3882,40 @@ class Corridor:
             group.wait_for(state="visible", timeout=20_000)
             pass_teaching_sheet(self.page, self._b.recorder, self.base, "opener", "COMMERCIAL")
             self._shot("persona")
-            if decider["kind"] == "SAME_PERSON":
-                group.get_by_role("radio", name=PERSONA_SAME).click()
-            else:
-                group.get_by_role("radio", name=PERSONA_SOMEONE_ELSE, exact=True).click()
-                self.page.get_by_label(PERSONA_ROLE, exact=True).fill(decider["role"])
-                title = self.page.get_by_label(PERSONA_TITLE)  # the label carries a hint span (One to five words.), so no exact match
-                if title.count():
-                    # spec 064 FR-6 (keel-web 099): one to five words; the entry's own, else the role word
-                    title.fill(decider.get("title") or decider["role"])
+            radio = PERSONA_SAME if decider["kind"] == "SAME_PERSON" else PERSONA_SOMEONE_ELSE
+
+            def answer() -> None:
+                group = self.page.get_by_role("radiogroup", name=PERSONA_QUESTION)
+                if decider["kind"] == "SAME_PERSON":
+                    group.get_by_role("radio", name=PERSONA_SAME).click()
+                else:
+                    group.get_by_role("radio", name=PERSONA_SOMEONE_ELSE, exact=True).click()
+                    self.page.get_by_label(PERSONA_ROLE, exact=True).fill(decider["role"])
+                    title = self.page.get_by_label(PERSONA_TITLE)  # the label carries a hint span (One to five words.), so no exact match
+                    if title.count():
+                        # spec 064 FR-6 (keel-web 099): one to five words; the entry's own, else the role word
+                        title.fill(decider.get("title") or decider["role"])
+
+            # spec 155 FR-1: keel-web keys this screen on the persona's revision, so the gate's re-read draws it afresh
+            # and drops a pick made under the line -- the gate is waited out before the pick, and once more before
+            # Continue; a pick the re-read dropped is made again, as the founder would
+            self._wait_for_the_gate(CONTINUE, _button(self.page, CONTINUE), enabled=False)
+            answer()
+            self._wait_for_the_gate(CONTINUE, _button(self.page, CONTINUE), enabled=False)
+            radios = self.page.get_by_role("radiogroup", name=PERSONA_QUESTION)
+            picked = radios.get_by_role("radio", name=radio, exact=True) if isinstance(radio, str) else \
+                radios.get_by_role("radio", name=radio)
+            if picked.count() and picked.first.get_attribute("aria-checked") != "true":
+                self._b.recorder.note("founder picks who decides again: the screen was drawn afresh under keel-web's "
+                                      "gate and the pick was gone", party="founder")
+                answer()
+            self._wait_for_the_gate(CONTINUE, _button(self.page, CONTINUE))
             _button(self.page, CONTINUE).click()
             self.page.get_by_text(KICKER_CONTEXT).first.wait_for(state="visible", timeout=20_000)
             text = _text(self.page)
             h.add_screenshot(self._b.screenshot("persona-set"))
             self._shot("persona-who-answers")
+            self._wait_for_the_gate(CONTINUE, _button(self.page, CONTINUE))   # spec 155 FR-1
             _button(self.page, CONTINUE).click()
             _wait_url(self.page, r"/define/commercial/q/1")
             return {"text": text}
@@ -3854,7 +3971,10 @@ class Corridor:
             ready["word_drawn"] = self.page.get_by_text("A word from you", exact=False).count()
             button = self.page.get_by_test_id("lock-and-record")
             try:
-                self.page.wait_for_function("(b) => !b.disabled", arg=button.element_handle(), timeout=15_000)
+                # spec 155 FR-1: keel-web's gate waited out first; a lock disabled with no gate line keeps its 15 s
+                self._wait_for_the_gate(None, button, timeout_ms=15_000)
+            except GateStillDrawn:
+                raise
             except Exception:  # noqa: BLE001 - spec 072 FR-1: a lock the page never offers (runs/DRIFT.md #95, closed)
                 # the leg fails on it, the plan as served named; nothing is clicked and nothing locks on the wire
                 h.add_screenshot(self._b.screenshot("lock-disabled"))
@@ -3940,7 +4060,7 @@ class Corridor:
             self.page.wait_for_timeout(PILOT_SETTLE_MS)
             after = self._pilot_state()
             button = self.page.get_by_test_id(BEFORE_CONTINUE_TESTID).first
-            self.page.wait_for_function("(b) => !b.disabled", arg=button.element_handle(), timeout=10_000)
+            self._wait_for_the_gate(None, button, timeout_ms=10_000)          # spec 155 FR-1
             pressed = _tc(button)
             button.click()
             _wait_url(self.page, r"/define/ready/interviewer")
@@ -3990,7 +4110,7 @@ class Corridor:
             self.page.goto(f"{self.base}/p/{project_id}/define/ready/interviewer", wait_until="load")
             button = self.page.get_by_test_id("lock-and-record")
             button.wait_for(state="visible", timeout=20_000)
-            self.page.wait_for_function("(b) => !b.disabled", arg=button.element_handle(), timeout=30_000)
+            self._wait_for_the_gate(None, button)                          # spec 155 FR-1
             with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.endswith("/lock"),
                                            timeout=30_000) as locked:
                 button.click()
