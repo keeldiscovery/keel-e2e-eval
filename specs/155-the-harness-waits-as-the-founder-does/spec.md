@@ -33,6 +33,15 @@ directly, so the gap never showed. Nothing here is paid.
   scaled through `patience` so the suite stays fast. `make unit` green. The proof on a live walk -- 13-aircaps at
   scope ALL on the prod build -- is one paid run on the founder's word after the merge, not part of the gate.
 
+- **FR-5 The lock screen's photograph is taken after it has loaded** (amendment, the founder, 2026-11-17 18:45 ET: *"take the
+  screenshot of the summary page ... before the questions are generated; I did not test it myself"*). In `Corridor`'s
+  ready step the `_shot("ready-interviewer")` (both branches, the pilot's and the problem study's) is taken AFTER
+  `l1()` has waited for `lock-problem` and `lock-plan-row` (keel-web 191 FR-1), so `screens/founder-NN-ready-interviewer.png`
+  shows the problem as typed, its Change, the plan's rows and the sentence -- not the empty frame the 11/13 runs kept
+  (`runs/20261113T205629Z-backtest-13-aircaps/screens/founder-20-ready-interviewer.png`, while `backtest.json` read the
+  problem text back). Where the rows never load, the shot is still taken, after the waits, and the step's assertion
+  names what is missing as today.
+
 ## Not in this spec
 
 The product's gate (keel-web 083). The respondent pages. Any change to what the cycles walk.

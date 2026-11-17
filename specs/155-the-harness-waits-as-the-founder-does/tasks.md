@@ -6,7 +6,7 @@ main checkout's `.venv`). Not merged; master untouched; every commit pushed as i
 
 - [ ] T1 (FR-1) `_wait_for_the_gate`; every corridor primary press through it; the list of the presses found.
 - [ ] T2 (FR-2) `gate_waits`, the transcript note, the backtest.md line and the bundle rows.
-- [ ] T3 (FR-3, FR-4) the unit tests; `make unit` green; AGENTS.md's one paragraph.
+- [ ] T3 (FR-3, FR-4, FR-5) the lock screen's shot after `l1()`'s waits; the unit tests; `make unit` green; AGENTS.md's one paragraph.
 
 ## Gate
 
