@@ -29,7 +29,7 @@ main checkout's `.venv`). Not merged; master untouched; every commit pushed as i
   Continue after a review's band, `edit_idea_lines`). Not routed: radios, chips, the cost-mode / period / measure picks,
   *Add* / remove, *Edit* / *Change*, the face carousel and the pilot cards -- inputs, not the screen's primary; and every
   respondent page (FR-3, out of the spec).
-- [ ] T2 (FR-2) `gate_waits`, the transcript note, the backtest.md line and the bundle rows.
+- [x] T2 (FR-2) `gate_waits`, the transcript note, the backtest.md line and the bundle rows. `Corridor.gate_waits` (`{screen, label, seconds, budget_s}`, past `SLOW_SAVE_S`) and the transcript note (`_gate_row`, T1); `backtest.json` carries `gate_waits` always (`[]` where none -- its presence marks a 155 bundle); `backtest.md` says `- Gate waits: N, the longest S s on `<path>`` (`- Gate waits: 0` where none) under the Stack line, and nothing on a bundle before 155. A gate still drawn past the budget raises `GateStillDrawn` naming the screen and the line, its row kept first.
 - [ ] T3 (FR-3, FR-4, FR-5) the lock screen's shot after `l1()`'s waits; the unit tests; `make unit` green; AGENTS.md's one paragraph.
 
 ## Gate
