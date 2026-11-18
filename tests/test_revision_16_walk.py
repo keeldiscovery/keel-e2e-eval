@@ -40,7 +40,17 @@ class _SavePage:
         yield SimpleNamespace(value=self.response)
 
     def get_by_role(self, role, name=None, exact=True):
-        return SimpleNamespace(click=lambda: self.clicked.append(name))
+        # spec 155 FR-1: the Save is looked at before the press (drawn, enabled) as well as clicked
+        button = SimpleNamespace(click=lambda: self.clicked.append(name), count=lambda: 1,
+                                 is_disabled=lambda timeout=0: False, inner_text=lambda: name)
+        button.first = button
+        return button
+
+    #: spec 155 FR-1: the gate's line is read off the page's text -- never drawn here
+    url = "http://localhost:5173/p/p1/define/context/window"
+
+    def evaluate(self, *a):
+        return False
 
     def on(self, *a):
         pass
@@ -48,7 +58,7 @@ class _SavePage:
 
 def _corridor(page) -> vsc.Corridor:
     corridor = vsc.Corridor.__new__(vsc.Corridor)
-    corridor.page, corridor.saves = page, []
+    corridor.page, corridor.saves, corridor.patience = page, [], 1.0
     return corridor
 
 

@@ -2287,6 +2287,9 @@ GATE_POLL_MS = 3_000
 #: today's 30 s (each press site's own where it had another), looked at every `PRIMARY_POLL_MS`, then today's failure.
 PRIMARY_ENABLED_MS = 30_000
 PRIMARY_POLL_MS = 250
+#: keel-web 191 FR-1: how long `l1()` waits for each of the lock screen's late parts (the problem box, the plan's rows),
+#: which load after the frame on their own reads; spec 155 FR-5 shoots the screen after these waits.
+LOCK_PARTS_WAIT_MS = 15_000
 
 
 class Corridor:
@@ -2652,6 +2655,8 @@ class Corridor:
                     # spec 067 FR-5: the CONTEXT_INTERPRET interaction this Save started (`InteractionView`)
                     "interaction_id": (body or {}).get("interaction_id") if response.status < 400
                     and isinstance(body, dict) else None}
+        except GateStillDrawn:
+            raise                                       # spec 155 FR-2: the gate past the budget stops the walk by name
         except Exception as missing:  # noqa: BLE001 - recorded: no Save reached the wire
             return {"method": "PUT", "path": None, "status": None, "error": repr(missing)}
 
@@ -3949,8 +3954,9 @@ class Corridor:
             l1: dict = {}
             if not pilot:
                 # spec 071 / keel-web 113 FR-2: the problem study asks no pilot question and draws no counter (no *1 of 1*)
-                self._shot("ready-interviewer")
                 l1 = self.l1(face)
+                # spec 155 FR-5: shot after l1's waits for the problem box and the plan's rows (keel-web 191 FR-1)
+                self._shot("ready-interviewer")
                 counters = [(c.text_content() or "").strip() for c in counter.all()]
             else:
                 counter.wait_for(state="visible", timeout=20_000)
@@ -3966,8 +3972,9 @@ class Corridor:
                 ready["pilot"].update(self._pilot_pick(pilot_yes))
                 self.page.locator("[data-testid=before-counter]", has_text="2 of 2").wait_for(timeout=10_000)
                 counters = [first, (counter.text_content() or "").strip()]
-                self._shot("ready-interviewer")
                 l1 = self.l1(face)
+                # spec 155 FR-5: shot after l1's waits for the problem box and the plan's rows (keel-web 191 FR-1)
+                self._shot("ready-interviewer")
             ready["word_drawn"] = self.page.get_by_text("A word from you", exact=False).count()
             button = self.page.get_by_test_id("lock-and-record")
             try:
@@ -4146,7 +4153,7 @@ class Corridor:
             # keel-web 191: the problem box and the plan's rows load after the frame (their own reads) -- waited for
             for testid in ("lock-problem", "lock-plan-row"):
                 try:
-                    main.get_by_test_id(testid).first.wait_for(state="visible", timeout=15_000)
+                    main.get_by_test_id(testid).first.wait_for(state="visible", timeout=LOCK_PARTS_WAIT_MS)
                 except Exception:  # noqa: BLE001 - not drawn: the step's assertion names it
                     pass
         foot = main.locator(".before__foot").first
