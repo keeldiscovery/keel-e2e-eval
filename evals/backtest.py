@@ -2543,6 +2543,23 @@ def gate_stop(j) -> dict | None:
     return None
 
 
+def gate_waits(j) -> list:
+    """Spec 155 FR-2: every wait on keel-web's corridor gate past `SLOW_SAVE_S` before a primary press (`Corridor.
+    gate_waits`: `{screen, label, seconds, budget_s}`), [] where the walk waited on none."""
+    return [dict(row) for row in getattr(getattr(j, "corridor", None), "gate_waits", None) or [] if isinstance(row, dict)]
+
+
+def gate_waits_said(rows: list) -> str:
+    """Spec 155 FR-2: the bundle's gate waits in one line -- *Gate waits: N, the longest S s on <screen>* (the screen's
+    path), *Gate waits: 0* where none."""
+    rows = [r for r in rows or [] if isinstance(r, dict)]
+    if not rows:
+        return "Gate waits: 0"
+    longest = max(rows, key=lambda r: float(r.get("seconds") or 0))
+    screen = re.sub(r"^[a-z]+://[^/]+", "", str(longest.get("screen") or "")) or "?"
+    return f"Gate waits: {len(rows)}, the longest {longest.get('seconds')} s on `{screen}`"
+
+
 def review_hold_said(hold: dict) -> str:
     """Spec 144 FR-1: one reviewed Check's Save in words -- held or not, for how long, and what followed."""
     said = (f"held on *Keel is reading your answers* {hold.get('held_s')} s" if hold.get("held")
@@ -2580,6 +2597,9 @@ def transcript(j, bt: Backtest) -> dict:
         # spec 144 FR-1: each reviewed list's Check Save as the walk waited it out (`{review, held, held_s, outcome,
         # picked_sent}`); FR-2: a Choose pick the review moved (`{planned, why, picked, row}`) -- absent where none
         **({"review_holds": dict(j.review_holds)} if getattr(j, "review_holds", None) else {}),
+        # spec 155 FR-2: every wait on keel-web's corridor gate past SLOW_SAVE_S before a primary press (empty where it
+        # waited on none: its presence marks a bundle of 155's walk)
+        "gate_waits": _safe(lambda: gate_waits(j), []) or [],
         # spec 147 FR-4: the lists this walk waits on after the Check's Save (the four since keel-cloud 237), so the
         # record counts Relative advantage beside the three
         "reviewed_lists": reviewed_lists(),
@@ -2662,6 +2682,8 @@ def markdown(r: dict) -> str:
              + ("" if (r.get("scope") or DEFAULT_SCOPE) == DEFAULT_SCOPE else f", scope **{r.get('scope')}**")
              # spec 143 FR-1: the review switch, where the bundle records it
              + (f", review **{r['review_switch']}** (spec 209)" if isinstance(r.get("review_switch"), str) else ""),
+             # spec 155 FR-2: the waits on keel-web's corridor gate, under the Stack line (a bundle before 155: none)
+             *([f"- {gate_waits_said(r.get('gate_waits'))}"] if isinstance(r.get("gate_waits"), list) else []),
              f"- Decision: **{decision.get('label')}** ({decision.get('howSure')}; {decision.get('reason')})",
              f"- Verdicts: {_q(b.get('verdicts'))}",
              f"- Pilot: {_q(b.get('pilot', {}) and {k: (b.get('pilot') or {}).get(k) for k in ('optedIn', 'finished', 'percent')})}"

@@ -1238,6 +1238,26 @@ read from text blocks by type (`answer_text`) and the cost at Haiku 5.5's first 
 keel-cloud-docs `cbc3ef8f` 4,868 / 0 / 53; this branch against `cbc3ef8f`, before 190, fails the price version alone);
 the next quality cycle on the five catalog entries is the switch's run of record (cycle 6: 85.4%).
 
+**The harness waits as the founder does** (spec `155-the-harness-waits-as-the-founder-does`, 2026-11-17; the founder,
+after a back-test at scope ALL stopped on *who decides to pay* while the solution's calibration and review were still
+running: *"the harness should wait just like our founder does"*). **FR-1**: every press of a corridor primary goes
+through `Corridor._wait_for_the_gate` -- while the screen draws keel-web 083's gate line (`GATE_LINE`, keel-web's
+`CORRIDOR_WAITING`, *Keel is finishing the previous step…*, read by its text) the walk waits, looking every
+`GATE_POLL_MS` (3 s, the overview poll that lifts it), up to the step budget (`SAVE_BUDGET_S * patience`, 660 s on a
+back-test); a primary disabled **without** the line is a screen waiting for input and keeps today's limit
+(`PRIMARY_ENABLED_MS` 30 s; the lock's 15 s and the pilot's 10 s kept) and today's Playwright timeout, naming the press.
+Sixteen sites (tasks.md lists them): `_press_primary`'s press and its DRIFT #80 second press, `_save_holding`'s two, who
+decides (the line waited out before the pick as well -- keel-web re-keys that screen on the persona's revision, so the
+gate's re-read drops a pick made under it -- and a dropped pick made again), the lock, the pilot's Continue, the relock,
+and the context, seed and card forward buttons. **FR-2**: a wait past `SLOW_SAVE_S` is a `Corridor.gate_waits` row
+(`{screen, label, seconds, budget_s}`) and a transcript note; `backtest.json` carries `gate_waits` (`[]` where none) and
+`backtest.md` says *Gate waits: N, the longest S s on `<path>`* under the Stack line; past the budget `GateStillDrawn`
+(an `AssertionError`) names the screen and the line. **FR-3**: `_wait_steps_landed` keeps guarding the wire's writes;
+the respondent pages are not corridor screens. **FR-5**: the lock screen's `ready-interviewer` shot is taken after
+`l1()` has waited for `lock-problem` and `lock-plan-row` (`LOCK_PARTS_WAIT_MS`), in both branches. **FR-4**:
+`tests/test_harness_waits_155.py`, real chromium on static pages, the limits scaled down. No mark, rubric or contract
+moved; the proof on a live walk is one paid back-test on the founder's word after the merge.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
