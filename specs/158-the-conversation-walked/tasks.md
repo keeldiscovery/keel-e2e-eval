@@ -6,7 +6,8 @@ Base: master `0d7d07ba`. Worktree `/Users/athulrajeev/Documents/projects/wt/keel
 - [ ] T1 FR-1 `story_screens.py` on the beats: `said_turns`, `reading_of`, `limits_read`, the long beat-3 answer, the
   silence hook, the correction, the no-button rule.
 - [ ] T2 FR-2 the collector: orb states, folded transcript, the cost line, silence confirms.
-- [ ] T3 FR-4, FR-5 the three views' legs re-run, the report, DRIFT; `make e2e-157 PROFILE=eval` green on the local
+- [ ] T3 FR-5 the solution and money fronts, the spoken window.
+- [ ] T4 FR-4, FR-6 the three views' legs re-run, the report, DRIFT; `make e2e-157 PROFILE=eval` green on the local
   stack; this file's sections filled.
 
 ## Gate / Commits / Judgement calls

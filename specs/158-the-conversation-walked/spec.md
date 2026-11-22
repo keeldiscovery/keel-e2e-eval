@@ -20,7 +20,14 @@ three views with nothing bought. Marks as the current gallery's; no new score.
 - **FR-3 Nothing bought, as 157.** FakeSpeech, the stack's fake avatar, the fake transcriber; the log scan unchanged.
 - **FR-4 The three views** (157 FR-2) are unchanged except the story cards' clips, which now come from the beats'
   slots; the legs stay.
-- **FR-5 Report + DRIFT.** `evals/three_views_report.py` names the beats; DRIFT entries for anything the walk finds
+- **FR-5 The solution and the money fronts.** The solution leg: the which-problem page, the film, the replay of the
+  problem's boxes closed by silence, the two idea beats (the name and a colour said in words; one answer mapped to
+  ticks and crosses), the idea boxes, the build, the story with the icon and the colour (the review condition: the
+  name clearly visible, never faded, cropped or shrunk), Compatibility with Relative advantage pre-filled. The money
+  leg: the two pick pages (a solution, and once with only a name), the replay with the idea box, then today's persona
+  step reached. The problem leg adds the spoken window after the story (the proposal said, a number said back, the
+  window stored).
+- **FR-6 Report + DRIFT.** `evals/three_views_report.py` names the beats; DRIFT entries for anything the walk finds
   against 263/245 as written, with the screen, the wire and the words.
 
 ## Out of scope
