@@ -174,12 +174,13 @@ def text_view(run, leg, study: str, project_id: str) -> None:
     leg.check(run, "every card the stranger answers draws the voice bar (*Keel AI reads this card aloud*, Mute)",
               bool(voiced) and not unvoiced, screen="every question card", view="text",
               detail={"cards": len(voiced), "without the bar": unvoiced}, stop=False)
-    # the cards that draw answer rows (a box -- an amount, hours -- has none to letter)
+    # the cards that draw option rows; a scale (count cells, the four-point scale, Hours / Amount) keeps its cells
+    # and is not lettered (keel-web 244 FR-4 narrowed 241 FR-7 to the option rows; DRIFT #105 closed by that call)
     unlettered = [(s["screen"], s.get("question"), s["letters"]) for s in voiced if s.get("rows")
-                  and (s["bubbles"] < 1 or not s["letters"] or s["letters"][0] != "A")]
-    leg.check(run, "the answers are the copilot strip's lettered bubbles (A, B, ...) on every card",
+                  and not s.get("scale") and (s["bubbles"] < 1 or not s["letters"] or s["letters"][0] != "A")]
+    leg.check(run, "the answers are the copilot strip's lettered bubbles (A, B, ...) on every option-row card",
               not unlettered, screen="every question card", view="text",
-              detail={"unlettered": unlettered, "drift": "runs/DRIFT.md #105" if unlettered else None}, stop=False)
+              detail={"unlettered": unlettered}, stop=False)
     leg.check(run, "the answers are sent (201) and the thank-you drawn",
               (walk.get("response") or {}).get("status") == 201, screen="the last card -> the thank-you", view="text",
               detail={"response": walk.get("response"), "done": walk.get("done")})

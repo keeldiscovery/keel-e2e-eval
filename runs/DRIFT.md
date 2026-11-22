@@ -5772,6 +5772,8 @@ are the copilot strip's bubbles (lettered pills, dashed escape) on every card.* 
 while every other card of the link does. **What the harness does** (spec 157): *the answers are the copilot strip's
 lettered bubbles on every card* fails by name with the cards listed (a box with no rows is not held), and the walk goes on. **For keel-web:** say whether
 a scale is lettered on a story link (and draw it so), or narrow FR-7's *every card* to the option rows.
+**Closed 2026-11-21:** keel-web spec 244 FR-4 narrows 241 FR-7 to the option rows; a scale keeps its cells. The harness's
+check reads `scale` on the card and letters only the option rows (eval master after 2e752f3).
 
 ## 106. Observation (keel-cloud): the decision-maker's link serves no `ideaStory`
 

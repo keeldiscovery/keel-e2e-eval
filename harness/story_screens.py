@@ -840,6 +840,9 @@ class StoryLinkText:
                "bubbles": bubbles.count(),
                "letters": _texts(main.locator(".cpl-bubble__let")),
                "rows": _texts(main.locator(".cpl-bubble__w")) or _texts(main.locator("[role=radio]")),
+               # keel-web 244 FR-4: a scale keeps its cells -- count cells, the four-point scale, Hours / Amount -- and
+               # is not lettered; only the option rows (ChoiceRows, PickOneThenOne) are the copilot strip's bubbles
+               "scale": main.locator(".iv-seg, .iv-scale4, .iv-cost").count(),
                "chips": _texts(main.locator(".iv-chips button")),
                "data_story": self.page.locator(".iv-page[data-story]").count()}
         if extra:
