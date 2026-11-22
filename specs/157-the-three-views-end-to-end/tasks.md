@@ -84,8 +84,8 @@ run up; keel-web served `vite --mode test` from its checkout). Times ET, 2026-11
 
 | Check | Result |
 |---|---|
-| `make unit` before (base `3579ec3`, keel-cloud-docs `78237f87`, keel-web `8a6b05c9`, 20:47-20:53) | **5,911 passed / 31 failed / 125 skipped** |
-| `make unit` after (`spec-157`, keel-cloud-docs `78237f87`, keel-web `9147af63`, 23:22-23:28) | **5,950 passed / 31 failed / 125 skipped** (+31 in `tests/test_three_views_157.py`; the same 31 reds, none in a file this spec touches: the mirrors of specs 144 / 148 / 149 / 154, the price version 17 vs keel-cloud's 20, `test_backtest_host`, `test_follow_ups_075`, `test_instruction_compare`, `test_report_marks` -- judgement call 11) |
+| `make unit` before (base `3579ec3`, keel-cloud-docs `78237f87`, keel-web `8a6b05c9`, 20:52-20:58) | **5,911 passed / 31 failed / 125 skipped** |
+| `make unit` after (`spec-157`, keel-cloud-docs `78237f87`, keel-web `9147af63`, 23:11-23:17) | **5,950 passed / 31 failed / 125 skipped** (+31 in `tests/test_three_views_157.py`; the same 31 reds, none in a file this spec touches: the mirrors of specs 144 / 148 / 149 / 154, the price version 17 vs keel-cloud's 20, `test_backtest_host`, `test_follow_ups_075`, `test_instruction_compare`, `test_report_marks` -- judgement call 11) |
 | `make e2e-157`, the run of record (keel-cloud-docs `78237f87` + keel-web `f133beac`, 23:29-23:41, `runs/157/78237f87-f133beac/20261122T042947Z`) | **7 of 13 legs green**; the six others fail only on runs/DRIFT.md #103-#106 (below) |
 | log scan of that run | no HeyGen, no OpenAI, no Anthropic host contacted; no paid adapter named; Keel AI's clips FakeSpeech at 0 µUSD |
 
