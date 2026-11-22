@@ -675,7 +675,7 @@ class Conversation:
                 spoken_by = time.monotonic() + 10
                 while time.monotonic() < spoken_by:
                     seq = orb_sequence(self.orb_log()[mark:])
-                    wrote = next((i for i, st in enumerate(seq) if st == "writing"), None)
+                    wrote = max((i for i, st in enumerate(seq) if st == "writing"), default=None)
                     if wrote is not None and "speaking" in seq[wrote + 1:]:
                         break
                     self.page.wait_for_timeout(100)
@@ -1267,11 +1267,14 @@ _MEASURE_STORY = r"""(args) => {
   const main = root.closest('main') || document.body;
   // leaves only (an <svg> one leaf): a container holding the footer reaches the page's bottom with it
   let low = 0; let lowest = null;
-  for (const e of main.querySelectorAll('*')) {
+  const all = [...main.querySelectorAll('*')];
+  const fixed = all.filter((e) => getComputedStyle(e).position === 'fixed');
+  for (const e of all) {
     const tag = e.tagName.toLowerCase();
     if (e.closest('footer') || (tag !== 'svg' && e.closest('svg')) || (tag !== 'svg' && e.children.length)) continue;
+    if (fixed.some((f) => f.contains(e))) continue;
     const r = e.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0 && r.bottom > low && getComputedStyle(e).position !== 'fixed' && seen(e) > 0.05) {
+    if (r.width > 0 && r.height > 0 && r.bottom > low && seen(e) > 0.05) {
       low = r.bottom;
       lowest = [tag, (e.getAttribute('class') || '').slice(0, 40), e.getAttribute('data-testid'), (e.textContent || '').trim().slice(0, 40)].filter(Boolean).join(' ');
     }

@@ -361,3 +361,27 @@ def test_a_container_holding_the_footer_is_not_content_below_the_fold(browser):
         context.close()
     assert read["fit"]["content_below"] is None
     assert tall["fit"]["content_below"] and "Continue" in tall["fit"]["lowest"]
+
+
+def test_the_tab_bars_icons_are_the_fixed_bar_not_content(browser):
+    """`.ptabs` is fixed; its icons are not, but they ride with it."""
+    body = _player().replace('<div class="ptabs" style="position:fixed;bottom:0;left:0;right:0;height:56px;background:#ddd"></div>',
+                             '<div class="ptabs" style="position:fixed;bottom:0;left:0;right:0;height:56px"><svg width="24" '
+                             'height="24"></svg><span>Overview</span></div>')
+    context, page = _page(browser, body, viewport=ss.PHONE)
+    try:
+        read = _read(page)
+    finally:
+        context.close()
+    assert read["fit"]["content_below"] is None
+
+
+def test_a_beats_last_speaking_is_after_its_own_writing():
+    """A beat's log can open on the beat before's `writing`: the line awaited follows the answer's own (the last)."""
+    i2 = "/p/x/define/idea/2"
+    log = [{"state": "writing", "path": "/p/x/define/idea/1"}, {"state": "speaking", "path": i2},
+           {"state": "listening", "path": i2}, {"state": "hearing", "path": i2}, {"state": "writing", "path": i2},
+           {"state": "listening", "path": "/p/x/define/idea/check"}, {"state": "speaking", "path": "/p/x/define/idea/check"}]
+    page = _FakePage([i2] * 5 + ["/p/x/define/idea/check"] * 20, log)
+    out = _walk(page).after_answer(2, 0, timeout_s=5, flow="idea")
+    assert out["straight_on"] is True and out["orb"][-1] == "speaking"
