@@ -5787,3 +5787,47 @@ solution project whose idea's build is `ready`) serves `story`, `problemCheck` a
 `GET idea/spoken`, does grow a second time. **What the harness does** (spec 157): the wire check, the text view's order
 and the avatar's second hand-over fail by name and the walk goes on. **For keel-cloud:** serve the parent's `ideaStory` on
 the money link up the chain, as the `story` is.
+
+## 107. Observation (keel-cloud, the fakes): a story whose last beat is scripted reaches the boxes with no cost, so the boxes draw no cost box
+
+Found by spec `158-the-conversation-walked` (FR-1 (a), *the long telling*) on keel-cloud-docs `8927987c` (263 + 263b) +
+keel-web `1397c55e`. keel-cloud 263b FR-3: *the reading that completes the beats (beat 4 where the when is known, else beat
+5) runs with draft_cost where no cost was said ... the service stores it as cost with costDrafted true, so GET story serves
+it on the boxes.* A story told with an unscripted beat 3 (the long telling, read by `FakeStoryReadings`' echo: no cost
+heard) and the script's own beat-5 words reaches `define/story/check` with `cost: null`, `costDrafted: false`: the boxes'
+board carries no cost box and Keel's narration says no cost. The scripted beat-5 entry is returned before the echo's
+`draft_cost` branch (`FakeStoryReadings.turn`: a script match returns its result as written, and the script's beat-5
+result has no `cost_line`), so on the fakes the cost is drafted only by the build after the confirm (*All of it slows them
+down*, `costDrafted: true`, the seventh line -- which the walk holds). **What the harness does**: the boxes check asks for
+the cost box only where a cost is known before the confirm, and the seventh-line check holds the cost whichever drafted it
+(both pass). **For keel-cloud:** answer `draft_cost` on a scripted beat too (add `cost_line` where the context asks and
+the result has none), so a walk on the fakes sees 263b's boxes.
+
+## 108. Observation (keel-web): after the stage opener's Skip the begin screen stands -- Keel does not say *Ready?* until the orb is tapped
+
+Found by spec 158 (FR-1 (b), (c): every opener met -- the problem created from the which-problem pages, the solution's
+replay, the money study's orb moment) on keel-web `1397c55e`. keel-web 245 FR-3: *When it closes (its end, or Skip, the
+sheet's one control, which is also the gesture sound needs) the orb comes forward and says "Ready? ..."*; FR-7: the begin
+screen is the first screen *whenever nothing has been tapped yet*. The walk presses the opener's Skip (`guide-opener`, the
+sheet inside the route: `useStageOpener`'s, not the shell's) and the screen then stands at `data-voice="begin"` (*Tap me to
+begin.*) with the orb still -- probed for four seconds after the Skip, unchanged -- so the founder taps twice: Skip, then
+the orb. A likely cause: Skip posts `guide-seen`, the overview comes back with the stage in `openersSeen`, and the sheet is
+unmounted by the seen rule (`due` false) rather than closed through `onClose`, so `flow.start` never runs. Also seen: on a
+problem project started from the market step (FR-1 (a), both projects) no opener was drawn at all -- the begin screen
+first. **What the harness does**: `story_screens.wake` passes the sheet, then taps the begin screen's orb where it stands
+(recorded per opening as `sheets` and `begin`), so the legs go on. **For keel-web:** start the conversation on the Skip
+itself (or on the sheet's unmount once it was shown), as FR-3 says.
+
+## 109. Observation (keel-cloud, the fakes; the words): a correction after beat 4's readback replaces the condition instead of narrowing it, and its readback reads "only those who in Europe"
+
+Found by spec 158 (FR-1 (a), *the long telling*: *only the ones in Europe* said after beat 4's readback) on
+keel-cloud-docs `8927987c`. keel-cloud 263 FR-5: *"only the ones in Europe" narrows `only_those_who`* and the readback
+says what moved. On the fakes (`FakeStoryReadings.turn`, beat 4, `correction: true`, no script entry) the condition
+becomes `in Europe` -- *work at a company with more than 50 employees* is gone, not narrowed -- the sentence becomes
+*Payroll practitioners who in Europe check the payroll ...*, and the readback is *Got it: only those who in Europe.* A
+story locked after such a correction would ask its strangers *Do you in Europe?* (the screener is the founder's condition,
+`condition_question`). The real reader is instructed by `story-turn.md`'s correction mode; the echo is what every walk on
+the fakes meets. **What the harness does**: the correction check holds that the correction is sent as one, that the stored
+condition and the readback carry *Europe*, and goes on (green); the corrected project is never locked. **For keel-cloud:**
+give the fake script an entry for this correction (the narrowed condition and a readback in words), or make the echo keep
+the stored condition and add the new words.
