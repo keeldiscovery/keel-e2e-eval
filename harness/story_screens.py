@@ -638,6 +638,49 @@ class Conversation:
             self.page.wait_for_timeout(100)
         return {"spoke": spoke, "orb": orb_sequence(self.orb_log()[mark:]), "timeout": True}
 
+    def after_answer(self, n: int, mark: int, *, timeout_s: float = 60, flow: str = "story") -> dict:
+        """What follows a beat's answer, whichever comes first. keel-web 245 FR-4 as amended (2026-11-22): the problem's
+        beats 1, 2 and 4 go straight on once the reading lands -- the page leaves the beat, and the walk waits for the
+        next question's words (or the boxes); beat 3 says only *Anything else?* and waits for the quiet; the idea's beats
+        (`flow="idea"`, keel-web 248) go straight on too -- beat 1 unless its spelling check speaks, beat 2 once its ticks
+        and crosses stood. The build before polish round 2 reads every beat back and waits for the quiet on the beat's
+        own screen. Returns `straight_on` (the page moved), else the quiet as `await_quiet` reads it, on the beat's
+        screen alone."""
+        deadline = time.monotonic() + timeout_s * self.patience
+        here = re.compile(rf"/define/{flow}/{n}/?$")
+        moved = re.compile(rf"/define/{flow}/(\d|check)/?$")
+        path_end = f"/define/{flow}/{n}"
+        seq: list[str] = []
+        while time.monotonic() < deadline:
+            url = self.page.url
+            if not here.search(url) and moved.search(url):
+                nxt = url.rstrip("/").split("/")[-1]
+                want = STORY_QUESTIONS.get(int(nxt)) if (flow == "story" and nxt.isdigit()) else None
+                out = {"straight_on": True, "next": nxt, "asked": want}
+                try:
+                    if want:
+                        self.page.wait_for_function(
+                            "(w) => { const el = document.querySelector('[data-testid=story-q]'); "
+                            "return !!el && el.textContent.replace(/\\s+/g, ' ').trim() === w; }", arg=want,
+                            timeout=30_000 * self.patience)
+                    elif nxt.isdigit():
+                        self.page.locator(f"{IDEA_TURN}[data-turn='{nxt}']").first.wait_for(state="visible",
+                                                                                         timeout=30_000)
+                    else:
+                        self.page.get_by_test_id(f"{flow}-boxes-screen").first.wait_for(state="visible",
+                                                                                         timeout=30_000)
+                except Exception:  # noqa: BLE001 - recorded: the next screen's words never stood
+                    out["unseen"] = True
+                out["orb"] = orb_sequence(self.orb_log()[mark:])
+                return out
+            seq = self.orb_since(mark, path_end)
+            heard = next((i for i, st in enumerate(seq) if st in ("hearing", "writing")), None)
+            spoke = heard is not None and "speaking" in seq[heard + 1:]
+            if spoke and seq[-1] != "speaking" and self.voice.listening():
+                return {"straight_on": False, "spoke": True, "orb": seq}
+            self.page.wait_for_timeout(100)
+        return {"straight_on": False, "spoke": False, "orb": seq, "timeout": True}
+
     def wake(self) -> dict:
         return wake(self.page)
 
@@ -753,41 +796,6 @@ class StoryWalk(Conversation):
         self.wait_path(r"/define/story/check$")
         return seen
 
-    def after_answer(self, n: int, mark: int, *, timeout_s: float = 60) -> dict:
-        """What follows a beat's answer, whichever comes first. keel-web 245 FR-4 as amended (2026-11-22): beats 1, 2
-        and 4 go straight on once the reading lands -- the page leaves the beat, and the walk waits for the next
-        question's words (or the boxes); beat 3 says only *Anything else?* and waits for the quiet. The build before
-        polish round 2 reads every beat back and waits for the quiet on the beat's own screen. Returns `straight_on`
-        (the page moved), else the quiet as `await_quiet` reads it, on the beat's screen alone."""
-        deadline = time.monotonic() + timeout_s * self.patience
-        here = re.compile(rf"/define/story/{n}/?$")
-        path_end = f"/define/story/{n}"
-        seq: list[str] = []
-        while time.monotonic() < deadline:
-            url = self.page.url
-            if not here.search(url) and re.search(r"/define/story/(\d|check)/?$", url):
-                nxt = url.rstrip("/").split("/")[-1]
-                want = STORY_QUESTIONS.get(int(nxt)) if nxt.isdigit() else None
-                out = {"straight_on": True, "next": nxt, "asked": want}
-                try:
-                    if want:
-                        self.page.wait_for_function(
-                            "(w) => { const el = document.querySelector('[data-testid=story-q]'); "
-                            "return !!el && el.textContent.replace(/\\s+/g, ' ').trim() === w; }", arg=want,
-                            timeout=30_000 * self.patience)
-                    else:
-                        self.page.get_by_test_id("story-boxes-screen").first.wait_for(state="visible", timeout=30_000)
-                except Exception:  # noqa: BLE001 - recorded: the next screen's words never stood
-                    out["unseen"] = True
-                out["orb"] = orb_sequence(self.orb_log()[mark:])
-                return out
-            seq = self.orb_since(mark, path_end)
-            heard = next((i for i, st in enumerate(seq) if st in ("hearing", "writing")), None)
-            spoke = heard is not None and "speaking" in seq[heard + 1:]
-            if spoke and seq[-1] != "speaking" and self.voice.listening():
-                return {"straight_on": False, "spoke": True, "orb": seq}
-            self.page.wait_for_timeout(100)
-        return {"straight_on": False, "spoke": False, "orb": seq, "timeout": True}
 
     # ------------------------------------------------------------------------------------------- after the beats
     def boxes(self, correction: str | None = None) -> dict:
@@ -1045,20 +1053,30 @@ class IdeaWalk(Conversation):
             seen["put"] = {"status": put["status"], "sent": put["sent"], "body": put["body"]}
             if (put.get("status") or 500) >= 400:
                 raise AssertionError(f"idea beat {n} refused {put.get('status')}: {put.get('body')}")
-            seen["quiet"] = self.await_quiet(mark)
             if n == 2:
+                # keel-web 248: the ticks and crosses land one by one and stand ~3 s before the boxes, nothing said --
+                # read them on the beat's screen before it moves (the build before round 2 lands them with its readback)
                 want = len(((put["body"] or {}).get("idea") or {}).get("limitAnswers") or [])
                 try:
                     self.page.wait_for_function("(n) => document.querySelectorAll('[data-testid=idea-card-limit]')"
                                                 ".length >= n", arg=want, timeout=10_000)
                 except Exception:  # noqa: BLE001 - recorded
                     pass
-            seen["readback"] = self.snapshot()
-            h.add_screenshot(self._b.screenshot(f"idea-beat-{n}"))
-            self.silence()
+                seen["readback"] = self.snapshot()
+                h.add_screenshot(self._b.screenshot(f"idea-beat-{n}"))
+            seen["quiet"] = self.after_answer(n, mark, flow="idea")
+            seen["straight_on"] = bool(seen["quiet"].get("straight_on"))
+            if not seen["straight_on"]:
+                if n == 1 or not (seen.get("readback") or {}).get("marks"):
+                    seen["readback"] = self.snapshot()
+                    h.add_screenshot(self._b.screenshot(f"idea-beat-{n}"))
+                self.silence()
+            elif n == 1:
+                seen["readback"] = {"straight_on": True, "buttons": []}
             self.wait_path(r"/define/idea/(2|check)$" if n == 1 else r"/define/idea/check$")
+            seen["next"] = self.page.url.rstrip("/").split("/")[-1]
             seen["orb"] = orb_sequence(self.orb_log()[mark:])
-            h.record_wire({"beat": n, "said": words}, {k: seen[k] for k in ("put", "orb")})
+            h.record_wire({"beat": n, "said": words}, {k: seen[k] for k in ("put", "orb", "straight_on")})
             return seen
 
     def beats(self, said: list[tuple[int, str]], *, name_words: str | None = None) -> dict:

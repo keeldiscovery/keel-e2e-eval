@@ -220,6 +220,10 @@ class _FakePage:
     def get_by_test_id(self, _testid):
         return _Loc(self)
 
+    def locator(self, selector):
+        self.waited.append(selector)
+        return _Loc(self)
+
 
 def _walk(page):
     walk = object.__new__(ss.StoryWalk)
@@ -279,3 +283,14 @@ def test_said_turns_takes_the_scripts_first_story():
     script = {"turns": [{"turn": n, "heard": str(n)} for n in (1, 2, 3, 4, 5)]
               + [{"turn": 1, "heard": "Angel investors"}] + [{"turn": 2, "heard": f"way {i}"} for i in range(4)]}
     assert ss.said_turns(script) == [(1, "1"), (2, "2"), (3, "3"), (4, "4"), (5, "5")]
+
+
+def test_an_idea_beat_straight_on_waits_for_the_next_idea_beat():
+    """keel-web 248: the idea's beat 1 goes straight on (its spelling check agreeing) -- the walk waits for beat 2's
+    screen, never a readback."""
+    i1 = "/p/x/define/idea/1"
+    log = [{"state": "hearing", "path": i1}, {"state": "writing", "path": i1}]
+    page = _FakePage([i1, "/p/x/define/idea/2"], log)
+    out = _walk(page).after_answer(1, 0, timeout_s=5, flow="idea")
+    assert out["straight_on"] is True and out["next"] == "2" and out["asked"] is None
+    assert page.waited == [f"{ss.IDEA_TURN}[data-turn='2']"]
