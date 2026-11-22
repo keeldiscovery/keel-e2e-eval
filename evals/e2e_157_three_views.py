@@ -58,7 +58,7 @@ def test_e2e_157_three_views(stack, browser):
                     "profile": getattr(stack, "profile", "?"), "started": stamp,
                     "seconds": round(time.monotonic() - started), "bundle": str(bundle.relative_to(REPO_ROOT))}
             legs = list(run.legs.values())
-            written = report.write_report(folder / "report.md", legs, meta, scan, run.beats, run.fits)
+            written = report.write_report(folder / "report.md", legs, meta, scan, run.beats, run.fits, run.turns)
             (bundle / "report.md").write_text(written.read_text(encoding="utf-8"), encoding="utf-8")
             print(f"\nreport: {written}\nbundle: {bundle}")
     assert scan.get("clean") is not False, report.scan_line(scan)

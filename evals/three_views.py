@@ -157,6 +157,9 @@ class Run:
         #: Spec 158b: every drawn story measured -- where, on what, and `story_screens.measure_story`'s read (the
         #: report's *The drawn story*).
         self.fits: list[dict] = []
+        #: Spec 158c: every conversation's turn as keel-web 249 makes it plain -- the hand-overs and the chime, the
+        #: guide sheets met (the report's *The turn*).
+        self.turns: list[dict] = []
 
     # ------------------------------------------------------------------------------------- the wire
     def call(self, method: str, path: str, body: dict | None = None) -> tuple[int, Any]:
@@ -370,6 +373,7 @@ def hand_over_checks(run: Run, leg: Leg, label: str, read: dict, screen: str, *,
     only where the microphone is open."""
     v = read["chime"]
     beats = [x for x in v["lines"] if re.search(beat_path, str(x.get("path") or ""))]
+    run.turns.append({"label": label, "chime": v, "sheets": ss.sheet_verdict(read.get("sheets") or [])})
     leg.check(run, f"{label}: the hand-over -- the chime counted once per hand-over ({v['hand_overs']} hand-overs, "
                    f"{v['chimes']} chimes), *Your turn.* in the frame the orb first listens (*{ss.TURN_LISTENING}* on "
                    "every beat), the orb listening only with the microphone open",
@@ -384,6 +388,10 @@ def one_film(run: Run, leg: Leg, label: str, project_id: str, sheets: list[dict]
     `guide.openersSeen` holds the stage and `guide.welcomeSeen` is true."""
     v = ss.sheet_verdict(sheets)
     guide = (run.get(f"/v2/projects/{project_id}/overview") or {}).get("guide") or {}
+    for t in run.turns[::-1]:
+        if t["label"] == label:
+            t["guide"] = {k: guide.get(k) for k in ("welcomeSeen", "openersSeen")}
+            break
     leg.check(run, f"{label}: one film -- the stage opener alone on the conversation (one sheet at a time, no welcome "
                    f"sheet), and after it both seen (openersSeen has {stage}, welcomeSeen true)",
               v["one_film"] and stage in (guide.get("openersSeen") or []) and guide.get("welcomeSeen") is True,
@@ -405,7 +413,9 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
     woke = opening["woke"]
     leg.check(run, f"{label}: the opening -- the stage's opener passed by its Skip or the begin screen's orb tapped "
                    "(*Tap me to begin.*), then *Ready?* and the quiet open beat 1; no button but the orb",
-              opening["landed"].rstrip("/").endswith("/define/story/1") and (woke["begin"] or "opener" in woke["sheets"])
+              opening["landed"].rstrip("/").endswith("/define/story/1")
+              and (woke["begin"] or "opener" in woke["sheets"]
+                   or bool(ss.sheet_verdict(walk.sheets_of(project_id))["opener_on"]))
               and (opening["start"].get("question") == ss.STORY_READY) and not opening["start"].get("buttons")
               and not ((woke.get("begin_screen") or {}).get("buttons")),
               screen="define/story/start", detail=opening)
@@ -550,6 +560,10 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
                           "why it may not": "keel-cloud's FakeStoryReadings answers a story/correct it has no "
                                             "`corrections` entry for with *Nothing changed.*",
                           "drift": "runs/DRIFT.md #110"}, stop=False)
+        if not (ss.CORRECTION_4_WORD in stored and ss.CORRECTION_4_WORD in (body.get("readback") or "")):
+            leg.notes.append(f"{label}: the correction on the boxes did not narrow the condition on the fakes (DRIFT #110) "
+                             "-- this check stays `stop=False` until keel-cloud 264's `corrections` entry lands (spec "
+                             "158c FR-9)")
     elif correction and not b4.get("correction"):
         leg.check(run, f"{label}: *{correction}* said somewhere -- after beat 4's readback or on the boxes", False,
                   screen="define/story/4 -> check", detail={"beat 4": {k: b4.get(k) for k in ("straight_on", "next")},
@@ -581,6 +595,7 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
               screen="define/story/check (boxes)", detail={"lit": boxes.get("lit")}, stop=False)
     built = walk.building_then_story()
     if built["state"] == "story":
+        turn_screen(run, leg, label, built.get("story") or {}, "define/story/check (story)")
         # spec 158b: the drawn story read while it plays on the founder's screen (desktop)
         measure_fit(run, leg, run.page, label, FOUNDER_PLAYER, where="define/story/check (story)",
                     view="founder · desktop", phone=False, state=FOUNDER_STATE)
@@ -622,7 +637,7 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
                    "-- and never among Keel's lines (`story-words` Keel's alone; keel-web 249 FR-4)",
               heard["all_shown"] and heard["words_keels_only"], screen="define/story/1..5 (story-heard, story-words)",
               detail=heard, stop=False)
-    one_film(run, leg, label, project_id, read["sheets"], "PROBLEM", woke)
+    one_film(run, leg, label, project_id, walk.sheets_of(project_id), "PROBLEM", woke)
     walk.stop_listening()
     return {"walk": walk, "landed": yes["landed"], "story": story, "beats": beats}
 
@@ -749,7 +764,9 @@ def fr1_a(run: Run, leg: Leg) -> None:
     for key, label, long3 in FR1A_TOLD:
         name = f"158 problem {'long' if long3 else 'script'} {run.stamp}"
         run.new_project(name, "PROBLEM")
-        pid = MarketStep(run.page, run.recorder, run.web).start()
+        # spec 158c FR-8: the guide sheet is held, not pressed past by the market step -- on a new problem project it is
+        # the stage opener on the story route (keel-web 249 FR-6), which the walk itself passes and reads
+        pid = MarketStep(run.page, run.recorder, run.web).start(welcome="hold")
         run.projects[key] = pid
         run.names[key] = name
         run.page.wait_for_timeout(1500)
@@ -902,6 +919,15 @@ def fr1_b(run: Run, leg: Leg) -> None:
     leg.check(run, "the story's quiet is the return trip: the which-problem page with the problem just agreed picked",
               f"problem={problem}" in told["landed"], screen="define/story/check -> /?start=solution",
               detail=told["landed"])
+    # the list is read again on the return trip (the problem just agreed joins it, picked): waited for, so a read
+    # while the list re-renders is not taken for the page (spec 158c's second run read the old rows mid-refresh)
+    try:
+        run.page.wait_for_function(
+            "(p) => { const rows = [...document.querySelectorAll('[data-testid=solution-candidate]')]; "
+            "return rows.length > 0 && rows[0].getAttribute('data-project') === p && rows[0].hasAttribute('data-picked'); }",
+            arg=problem, timeout=20_000)
+    except Exception:  # noqa: BLE001 - recorded, judged below
+        pass
     back = start.read()
     first = (back["rows"] or [{}])[0]
     leg.check(run, "back on the page: the agreed problem first, picked, *Continue with this problem*",
@@ -1230,6 +1256,7 @@ def money_card(run: Run, leg: Leg, label: str, replay: dict, product: str) -> No
     turn_screen(run, leg, label, replay["screen"], "define/money/start", card=True)
     read = replay.get("turn") or {}
     v = (read.get("chime") or {})
+    run.turns.append({"label": label, "chime": v, "sheets": ss.sheet_verdict(read.get("sheets") or [])})
     sheets = ss.sheet_verdict(read.get("sheets") or [])
     leg.check(run, f"{label}: the one hand-over chimed once ({v.get('hand_overs')} hand-over(s), {v.get('chimes')} "
                    "chime(s)), *Your turn.* beside the listening orb; no welcome sheet, one sheet at a time",

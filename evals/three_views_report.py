@@ -4,6 +4,8 @@ Spec 158 FR-6: *The beats* -- every conversation the founder's legs told, beat b
 much was said, what Keel read back, the red crosses (or the ticks and crosses), the orb's states and where it went.
 Spec 158b: *The drawn story* -- every story measured while it played (the founder's on a desktop and a phone, the
 stranger's story card on a phone): the three verdicts, the numbers, and every text found on a drawn element.
+Spec 158c: *The turn* -- every conversation's hand-overs as keel-web 249 makes them plain: the chime counted once per
+hand-over, the state line in the frame the orb first listens, the microphone open, and the guide sheets met (one film).
 
 Pure functions over the legs and a log's text, so `tests/test_three_views_157.py` holds them with no stack.
 """
@@ -139,8 +141,38 @@ def drawn_story_markdown(fits: list[dict] | None) -> list[str]:
     return out
 
 
+def turn_markdown(turns: list[dict] | None) -> list[str]:
+    """Spec 158c: one row a conversation -- the hand-overs, the chimes, one each, the state lines at the hand-over, the
+    microphone open; the sheets met on the conversation's routes, the most at once, the guide seen after."""
+    if not turns:
+        return []
+    out = ["## The turn (spec 158c, keel-web 249)", "",
+           "| Conversation | Hand-overs | Chimes | One each | *Your turn.* at the hand-over | Mic open | Opener on | "
+           "Welcome on | Sheets at once | Guide seen after |", "|---|---|---|---|---|---|---|---|---|---|"]
+    for t in turns:
+        v = t.get("chime") or {}
+        sh = t.get("sheets") or {}
+        lines = sorted({str(x.get("line")) for x in v.get("lines") or []})
+        guide = t.get("guide")
+        seen = (f"welcome {_yes(guide.get('welcomeSeen'))}, openers {', '.join(guide.get('openersSeen') or []) or '-'}"
+                if guide else "-")
+        out.append(f"| {_cell(t.get('label'), 50)} | {v.get('hand_overs', '-')} | {v.get('chimes', '-')} | "
+                   f"{_yes(v.get('one_each'))} | {_yes(v.get('your_turn'))} ({_cell('; '.join(lines), 90)}) | "
+                   f"{_yes(v.get('mic_open'))} | {len(sh.get('opener_on') or [])} | {len(sh.get('welcome_on') or [])} | "
+                   f"{sh.get('most_at_once', '-')} | {seen} |")
+    out.append("")
+    for t in turns:
+        v = t.get("chime") or {}
+        if v.get("stray") or v.get("listening_without_mic") or (v.get("got") != v.get("want")):
+            out += [f"### {t.get('label')}", "",
+                    f"- chimes at the hand-overs {v.get('got')}, wanted {v.get('want')}",
+                    f"- counted off a hand-over: `{json.dumps(v.get('stray'))[:400]}`",
+                    f"- listening with the microphone shut: `{json.dumps(v.get('listening_without_mic'))[:400]}`", ""]
+    return out
+
+
 def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = None,
-                    fits: list[dict] | None = None) -> str:
+                    fits: list[dict] | None = None, turns: list[dict] | None = None) -> str:
     """The report: the head (shas, profile, the run's bundle), the table of legs, each leg's checks, then the beats."""
     out = [f"# Spec 157 / 158 -- the three views on the conversation, end to end (one run)", "",
            f"- keel-cloud `{meta.get('cloud')}` · keel-web `{meta.get('web')}` · keel-e2e-eval `{meta.get('eval')}`",
@@ -164,11 +196,12 @@ def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = Non
         out.append("")
     out += beats_markdown(beats)
     out += drawn_story_markdown(fits)
+    out += turn_markdown(turns)
     return "\n".join(out).rstrip() + "\n"
 
 
 def write_report(path: Path, legs, meta: dict, scan: dict, beats: list[dict] | None = None,
-                 fits: list[dict] | None = None) -> Path:
+                 fits: list[dict] | None = None, turns: list[dict] | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(report_markdown(legs, meta, scan, beats, fits), encoding="utf-8")
+    path.write_text(report_markdown(legs, meta, scan, beats, fits, turns), encoding="utf-8")
     return path

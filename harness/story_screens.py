@@ -793,6 +793,11 @@ class Conversation:
         return {"chime": chime_verdict(self.since()), "heard": heard,
                 "sheets": self.since("__sheetLog", standing=True)}
 
+    def sheets_of(self, project_id: str) -> list[dict]:
+        """Spec 158c FR-8: the guide sheets this page met on one project's screens (the whole page's log, not only
+        since `begin()`: the opener mounts as the project's first screen draws)."""
+        return [r for r in self._log("__sheetLog") if f"/p/{project_id}/" in str(r.get("path") or "")]
+
     def snapshot(self) -> dict:
         try:
             return self.page.evaluate(_SNAPSHOT)
@@ -928,8 +933,11 @@ class StoryWalk(Conversation):
         with self._b.step("the opening: the stage's opener or the begin screen, then Ready? and the quiet") as h:
             self.listen()
             self.begin()
-            if goto:
-                self.page.goto(f"{self.base}/p/{project_id}/define/story/start", wait_until="load")
+            start = f"/p/{project_id}/define/story/start"
+            # spec 158c: a page already on the story's start (a new project opens there) is not reloaded -- a reload
+            # would lose what the page met there first (the stage opener, FR-8)
+            if goto and not self.page.url.split("?")[0].rstrip("/").endswith(start):
+                self.page.goto(f"{self.base}{start}", wait_until="load")
             self.page.locator(STORY_START).first.wait_for(state="visible", timeout=60_000)
             woke = self.wake()
             seen = {"woke": woke, "start": self.snapshot()}
@@ -1047,7 +1055,11 @@ class StoryWalk(Conversation):
                                            .endswith("/story/confirm"), timeout=150_000) as got:
                 self.silence()
             seen["confirm"] = {"status": got.value.status, "body": _json(got.value)}
-            seen["lit"] = [row.get("lit") for row in self.orb_log()[mark:] if row.get("lit")]
+            # the card's narration lights its rows from the moment the boxes' screen draws -- which can be before this
+            # step starts (a beat that goes straight on lands on the boxes while the walk still reads the beat), so the
+            # rows lit are read off every row the page logged on the boxes' path since the conversation began
+            seen["lit"] = [row.get("lit") for row in self.since()
+                           if row.get("lit") and str(row.get("path") or "").rstrip("/").endswith("/define/story/check")]
             h.record_wire({"POST": "story/confirm (the quiet)"}, {"status": got.value.status, "lit": seen["lit"]})
             return seen
 
@@ -1138,6 +1150,14 @@ class SolutionStart:
         try:
             root.get_by_test_id("solution-candidate").first.wait_for(state="visible", timeout=10_000)
         except Exception:  # noqa: BLE001 - none listed: recorded
+            pass
+        # each row's first frame is its project's story, fetched after the list (a row draws a blank plate until its
+        # story comes): waited for a little, so a slow fetch is not read as no frame (spec 158c's first run)
+        try:
+            self.page.wait_for_function(
+                "() => [...document.querySelectorAll('[data-testid=solution-candidate]')].every((r) => "
+                "r.querySelector('[data-testid=solution-candidate-frame]'))", timeout=10_000)
+        except Exception:  # noqa: BLE001 - a row with no frame: recorded, judged by the leg
             pass
         rows = []
         for row in root.get_by_test_id("solution-candidate").all():

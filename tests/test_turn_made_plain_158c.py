@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 from playwright.sync_api import sync_playwright
 
+from evals import three_views_report as report
 from harness import story_screens as ss
 
 
@@ -190,3 +191,18 @@ def test_the_sheet_log_counts_the_sheets_standing(browser):
     finally:
         context.close()
     assert [r["up"] for r in sheets] == [[], ["guide-opener"], []]
+
+
+def test_the_report_names_the_turn():
+    turns = [{"label": "the script's words", "chime": ss.chime_verdict(
+        [_row("speaking", chime=0, t=1), _row("listening", ss.TURN_LISTENING, 1, True, t=2)]),
+        "sheets": ss.sheet_verdict([{"up": ["guide-opener"], "path": "/p/x/define/story/start"}]),
+        "guide": {"welcomeSeen": True, "openersSeen": ["PROBLEM"]}},
+        {"label": "a miss", "chime": ss.chime_verdict([_row("speaking", chime=0, t=1),
+                                                       _row("listening", ss.TURN_LISTENING, 3, True, t=2)]),
+         "sheets": {}}]
+    md = "\n".join(report.turn_markdown(turns))
+    assert "## The turn (spec 158c, keel-web 249)" in md
+    assert "| the script's words | 1 | 1 | yes | yes (Your turn. I am listening.) | yes | 1 | 0 | 1 | welcome yes, openers PROBLEM |" in md
+    assert "### a miss" in md and "wanted [1]" in md
+    assert "The turn" in report.report_markdown([], {}, {"measured": False}, None, None, turns)
