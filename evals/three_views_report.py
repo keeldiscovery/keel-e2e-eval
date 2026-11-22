@@ -114,9 +114,15 @@ def drawn_story_markdown(fits: list[dict] | None) -> list[str]:
     for f in fits:
         m = f.get("measured") or {}
         overlaps = m.get("overlaps") or []
-        unfit = m.get("unfit") or []
+        unfit = (m.get("unfit") or []) if f.get("phone") else []
         long = {t: line for t, line in (m.get("lines") or {}).items() if (line.get("rows") or 0) > 3}
-        if not (overlaps or unfit or long):
+        if f.get("phone") and m.get("page_scrolls"):
+            out_vp = ((m.get("numbers") or {}).get("viewport") or {}).get("h")
+            footer = f"- the page is {m['page_scrolls']} px tall on a {out_vp} px screen: the site's footer under the story " \
+                     "(the story itself fits)"
+        else:
+            footer = None
+        if not (overlaps or unfit or long or footer):
             continue
         out += [f"### {f.get('label')} -- {f.get('view')}", ""]
         for o in overlaps:
@@ -127,6 +133,8 @@ def drawn_story_markdown(fits: list[dict] | None) -> list[str]:
                        f"{json.dumps(u.get('frame'))}, line {json.dumps(u.get('line'))}, document {json.dumps(u.get('doc'))}")
         for text, line in long.items():
             out.append(f"- {line.get('rows')} rows: *{_cell(text, 120)}*")
+        if footer:
+            out.append(footer)
         out.append("")
     return out
 

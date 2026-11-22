@@ -1262,6 +1262,14 @@ _MEASURE_STORY = r"""(args) => {
     if (/(auto|scroll)/.test(s.overflowY) && n.scrollHeight > n.clientHeight + 1) { scroller = { cls: (n.className || n.tagName).toString().slice(0, 40), scroll: n.scrollHeight, client: n.clientHeight }; break; }
   }
   const doc = document.scrollingElement || document.documentElement;
+  // the screen's own content (its <main>, fixed bands aside) below the fold -- the site's footer under it is not the
+  // story's: the page may scroll to it without the story failing to fit
+  const main = root.closest('main') || document.body;
+  let low = 0;
+  for (const e of main.querySelectorAll('*')) {
+    const r = e.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0 && getComputedStyle(e).position !== 'fixed' && seen(e) > 0.05) low = Math.max(low, r.bottom);
+  }
   return {
     viewport: { w: window.innerWidth, h: window.innerHeight }, band: { top: Math.round(top), bottom: Math.round(bottom) },
     frame, person_ratio: person.length && frame ? +(Math.max(...person.map((p) => p.box.h)) / frame.h).toFixed(3) : null,
@@ -1270,7 +1278,8 @@ _MEASURE_STORY = r"""(args) => {
     drawn_by: tagged.length ? 'data-draw' : 'top-level g', drawn: live.length, texts: texts.length,
     line: line ? { text: line.text, rows, line_height: lh, font, box: line.box } : null, state,
     fit: { frame: inside(frame), line: inside(line && line.box), state: inside(state),
-           page_scrolls: doc.scrollHeight > window.innerHeight + 1, doc: { scroll: doc.scrollHeight, view: window.innerHeight }, scroller },
+           page_scrolls: doc.scrollHeight > window.innerHeight + 1, doc: { scroll: doc.scrollHeight, view: window.innerHeight },
+           content_below: low > bottom + 1 ? Math.round(low) : null, scroller },
     overlaps, player: root.getAttribute('data-state'),
   };
 }"""
@@ -1312,8 +1321,10 @@ def measure_story(page, root: str, *, state: str | None = None, play: bool = Fal
                                                   "font": line["font"], "box": line["box"]}
             fit = read["fit"]
             bad = [k for k in ("frame", "line", "state") if fit.get(k) is False and (k != "state" or read.get("state"))]
+            if fit.get("content_below"):
+                bad.append(f"the screen runs below the fold (to y={fit['content_below']})")
             if fit.get("page_scrolls"):
-                bad.append("the page scrolls")
+                out["page_scrolls"] = max(out.get("page_scrolls") or 0, (fit.get("doc") or {}).get("scroll") or 0)
             if fit.get("scroller"):
                 bad.append(f"its column scrolls ({fit['scroller'].get('cls')})")
             if bad:
@@ -1330,7 +1341,8 @@ def measure_story(page, root: str, *, state: str | None = None, play: bool = Fal
                 break
         page.wait_for_timeout(250)
     out["played"] = started
-    out["unfit"] = out["unfit"][:6]
+    out["unfit_reads"] = len(out["unfit"])
+    out["unfit"] = list({json.dumps(u, sort_keys=True): u for u in out["unfit"]}.values())[:6]
     return out
 
 
@@ -1363,7 +1375,8 @@ def fit_verdicts(measured: dict, *, phone: bool) -> dict:
     if phone:
         out["fits"] = (read and not measured.get("unfit"),
                        {"viewport": numbers.get("viewport"), "band": numbers.get("band"), "frame": numbers.get("frame"),
-                        "unfit": (measured.get("unfit") or [])[:3]})
+                        "unfit": (measured.get("unfit") or [])[:3], "unfit reads": measured.get("unfit_reads"),
+                        "page height (the footer below the story)": measured.get("page_scrolls")})
     return out
 
 

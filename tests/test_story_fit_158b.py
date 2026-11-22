@@ -316,3 +316,20 @@ def test_a_stroke_not_yet_inked_and_a_wiped_board_are_not_met(browser):
     assert "p1" not in {o["drawn"] for o in before["overlaps"]}
     assert ("over", "p1") in {(o["text_id"], o["drawn"]) for o in drawn["overlaps"]}
     assert not wiped["overlaps"]
+
+
+def test_a_footer_under_the_story_is_not_the_story_failing_to_fit(browser):
+    """The site's footer below the screen's <main> makes the page scroll; the story fits all the same. Content of the
+    screen itself below the fold does not."""
+    body = "<main>" + _player() + "</main><footer style='height:120px;margin-top:400px'>Keel · Privacy</footer>"
+    context, page = _page(browser, body, viewport=ss.PHONE)
+    try:
+        footer = _read(page)
+        page.evaluate("() => { const d = document.createElement('div'); d.style.height = '600px'; "
+                      "document.querySelector('main').appendChild(d); }")
+        tall = _read(page)
+    finally:
+        context.close()
+    assert footer["fit"]["page_scrolls"] is True and footer["fit"]["content_below"] is None
+    assert footer["fit"]["frame"] and footer["fit"]["line"]
+    assert tall["fit"]["content_below"] and tall["fit"]["content_below"] > 844
