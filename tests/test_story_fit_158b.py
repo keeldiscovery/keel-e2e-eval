@@ -2,7 +2,7 @@
 (a text over a drawn element found, a clear one not, `[data-draw]` preferred to the SVG's groups, a caption plate not a
 drawing, the spoken line's rows, the band between the header and the tab bar, the page scrolling), the loop that reads
 until the player ends, the verdicts and the report's *The drawn story*; and the walk's two builds of keel-web 245 FR-4
-(a readback and the quiet on the beat's screen, or straight on to the next question), and the orb read off the glow.
+(a readback and the quiet on the beat's screen, or straight on to the next question), and the orb read alone (158c).
 """
 
 from __future__ import annotations
@@ -260,22 +260,25 @@ def test_a_next_question_spoken_elsewhere_is_not_the_beats_readback():
     assert out["straight_on"] is True
 
 
-# ------------------------------------------------------------------------------------------------ the glow
+# ------------------------------------------------------------------------------------------------ the orb (249)
 
-def test_the_orb_is_read_off_the_glow_where_no_orb_is_drawn(browser):
-    context, page = _page(browser, '<div class="vstage"><div data-testid="story-glow" data-state="speaking"></div>'
+def test_the_orb_is_the_small_orb_and_the_glow_is_never_read(browser):
+    """Spec 158c FR-7 (keel-web 249 FR-1): the glow band is retired -- the walk reads the orb alone; a stray glow is
+    neither an orb state nor exempt from the no-button rule."""
+    context, page = _page(browser, '<div class="vstage"><button data-testid="story-orb" data-state="speaking"></button>'
+                                   '<div data-testid="story-glow" data-state="hearing"></div>'
                                    '<button data-testid="story-glow">x</button></div>')
     try:
         page.evaluate(ss.ORB_WATCH)
-        page.evaluate("() => document.querySelector('div[data-testid=story-glow]').setAttribute('data-state', 'listening')")
+        page.evaluate("() => document.querySelector('[data-testid=story-orb]').setAttribute('data-state', 'listening')")
         page.wait_for_timeout(100)
         log = page.evaluate("() => window.__orbLog")
         snap = page.evaluate(ss._SNAPSHOT)
     finally:
         context.close()
     assert [row["state"] for row in log] == ["speaking", "listening"]
-    assert snap["orb"] == "listening" and snap["buttons"] == []
-    assert "story-glow" in ss.ORB and ss.ORB_TAP == "[data-testid=story-orb]"
+    assert snap["orb"] == "listening" and snap["buttons"] == ["story-glow"]
+    assert ss.ORB == ss.ORB_TAP == "[data-testid=story-orb]"
 
 
 def test_said_turns_takes_the_scripts_first_story():

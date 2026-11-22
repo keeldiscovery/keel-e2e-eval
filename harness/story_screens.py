@@ -297,17 +297,28 @@ BOXES_ASK = "Is that right?"
 STORY_ASK = "Is that how it goes for them?"
 IDEA_BOXES_ASK = "Is that your idea?"
 BACK_TO_SOLUTION = "That is the problem. Taking you back to your solution."
+#: keel-web 249 FR-2 (`translate.ts` STORY.orb.state): the state line's first line at the hand-over -- on a beat, and on
+#: the readback screens (the boxes, the replays, the story) -- and while Keel speaks.
+TURN_LISTENING = "Your turn. I am listening."
+TURN_READBACK = "Your turn. Is that right?"
+TURN_ASKING = "Keel is asking"
+TURN_READING = "Keel is reading it to you"
+#: keel-web 249 FR-5 (`lib/story/board.ts` BOX_KEYS): the card's rows' `data-box` keys, as the card names them (the job's
+#: row is `task`, *Must get done*; the idea's product row rides on `today`, *The product*).
+CARD_ROWS = ("person", "task", "when", "today", "limits", "cost")
 #: keel-web 245 FR-6: the cost box carries no label (`costTag: null`) -- 241's tag must not be on the board.
 COST_TAG = "What it costs"
-#: keel-web 245 FR-8: the conversation's screens and the orb, the one button on them. Since keel-web 245 FR-6 as the
-#: founder picked it (2026-11-22, polish round 2) the boxes, the replays and the story draw no orb: Keel is a glow band
-#: along the bottom edge (`story-glow`) carrying the orb's `data-state` values. `ORB` finds either (counts, states);
-#: `ORB_TAP` is the orb itself, the one thing tapped (the begin screen keeps it).
-ORB = "[data-testid=story-orb], [data-testid=story-glow]"
-ORB_TAP = "[data-testid=story-orb]"
-#: The orb's or the glow's `data-state`, read in the page (the orb where both are drawn).
-_ORB_JS = "(document.querySelector('[data-testid=story-orb]') || document.querySelector('[data-testid=story-glow]'))"
-_NOT_ORB_JS = "!['story-orb', 'story-glow'].includes(b.getAttribute('data-testid'))"
+#: keel-web 245 FR-8: the conversation's screens and the orb, the one button on them. keel-web 249 FR-1 (spec 158c FR-7):
+#: the small orb (44 px; 30 px on a phone) is back on every voice screen -- the beats, the boxes, the replays, the story
+#: -- with its state line beside it (`story-state`), and the glow band (`story-glow`, 245 polish round 2) is retired.
+#: `ORB` is the orb alone; `ORB_TAP` the same element, the one thing tapped.
+ORB = "[data-testid=story-orb]"
+ORB_TAP = ORB
+#: keel-web 249 FR-1: the glow band, retired -- the walk holds that it is never drawn.
+GLOW = "[data-testid=story-glow]"
+#: The orb's `data-state`, read in the page.
+_ORB_JS = "document.querySelector('[data-testid=story-orb]')"
+_NOT_ORB_JS = "b.getAttribute('data-testid') !== 'story-orb'"
 STAGE = ".vstage"
 
 
@@ -389,7 +400,11 @@ def wake(page, *, settle_s: float = 1.5, timeout_s: float = 60) -> dict:
             return out
         if voice == "begin":
             if out["begin_screen"] is None:
-                out["begin_screen"] = {"title": _tc(page.locator("[data-testid=story-begin] [data-testid=story-q]")),
+                # keel-web 249 FR-1 (its judgement call 9): *Tap me to begin.* is the begin screen's state line beside
+                # the still orb (no `story-q` there any more)
+                out["begin_screen"] = {"title": _tc(page.locator("[data-testid=story-begin] .vstage__state-line"))
+                                       or _tc(page.locator("[data-testid=story-begin] [data-testid=story-q]")),
+                                       "state": _tc(page.locator("[data-testid=story-begin] [data-testid=story-state]")),
                                        "buttons": stage_buttons(page)}
             standing = standing or time.monotonic()
             if time.monotonic() - standing >= settle_s:
@@ -403,8 +418,7 @@ def wake(page, *, settle_s: float = 1.5, timeout_s: float = 60) -> dict:
 
 
 def stage_buttons(page) -> list[str]:
-    """Spec 158 FR-1: every `button` on the conversation's screen (`.vstage`) other than the orb (or the glow) -- none
-    is owed."""
+    """Spec 158 FR-1: every `button` on the conversation's screen (`.vstage`) other than the orb -- none is owed."""
     try:
         return page.evaluate(
             """() => [...document.querySelectorAll('.vstage button')]

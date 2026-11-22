@@ -209,22 +209,26 @@ def test_the_registry_export_holds_the_story_wording():
                      "problem_check_introduced": "what your {actor} goes through"}
 
 
-#: The keel-web 245 test ids the walk taps or reads (spec 158: the orb is the one button on the conversation).
+#: The keel-web 245 test ids the walk taps or reads (spec 158: the orb is the one button on the conversation). keel-web
+#: 249 (spec 158c FR-7): the glow is gone, the card (`UnderstoodCard`) draws `story-boxes`, the founder's words are in
+#: *What I hear* (`story-heard`), beat 3's crosses and the idea's ticks are cards of their own.
 WEB_SELECTORS = {
     "src/components/story/StoryStart.tsx": ("story-start",),
-    "src/components/story/StoryTurn.tsx": ("story-turn", "story-limits", "story-card-limit", "story-folded"),
+    "src/components/story/StoryTurn.tsx": ("story-turn", "story-limits", "story-card-limit", "story-folded",
+                                           "story-understood"),
     "src/components/voice/VoiceStage.tsx": ("story-kicker", "story-begin", "story-deaf", "story-q", "story-state",
-                                            "story-words"),
+                                            "story-words", "story-heard"),
     "src/components/voice/KeelOrb.tsx": ("story-orb",),
     "src/components/story/StoryCheck.tsx": ("story-check", "story-boxes-screen", "story-check-said", "story-building",
                                             "story-readback"),   # story-named, story-today: gone in 245 round 2
-    "src/lib/story/BoxBoard.tsx": ("story-boxes",),
+    "src/components/voice/UnderstoodCard.tsx": ("story-boxes",),
     "src/components/voice/StageOpener.tsx": ("guide-opener",),
+    "src/components/guide/WelcomeSheet.tsx": ("guide-welcome",),
     "src/components/guide/GuideStage.tsx": ("guide-skip",),
     "src/components/idea/SolutionStart.tsx": ("solution-start", "solution-candidate", "solution-pick",
                                               "solution-create-problem", "solution-candidate-frame"),
     "src/components/idea/IdeaStart.tsx": ("idea-still",),
-    "src/components/idea/IdeaTurn.tsx": ("idea-turn", "idea-card-limit"),
+    "src/components/idea/IdeaTurn.tsx": ("idea-turn", "idea-card-limit", "idea-understood"),
     "src/components/idea/LogoDrop.tsx": ("idea-drop",),
     "src/components/idea/IdeaBoxes.tsx": ("idea-check", "idea-boxes-screen", "idea-boxes-said", "idea-readback-story",
                                           "idea-story-player"),
@@ -238,6 +242,31 @@ WEB_SELECTORS = {
     "src/routes/founder/calls/CopilotCard.tsx": ("show-story", "story-again", "show-idea-story", "copilot-grown",
                                                  "copilot-shrink", "copilot-still"),
 }
+
+
+def test_the_glow_and_the_rough_board_are_gone_and_the_walk_reads_neither():
+    """Spec 158c FR-7: no `story-glow` (keel-web 249 FR-1: `KeelGlow` left `KeelOrb.tsx`) and no rough board (FR-5:
+    `BoxBoard.tsx` removed); the walk's orb is the orb alone."""
+    _need(WEB / "src" / "components" / "voice" / "UnderstoodCard.tsx")
+    assert "story-glow" not in (WEB / "src" / "components" / "voice" / "KeelOrb.tsx").read_text(encoding="utf-8")
+    assert not (WEB / "src" / "lib" / "story" / "BoxBoard.tsx").exists()
+    assert ss.ORB == "[data-testid=story-orb]" and "story-glow" not in ss.ORB_WATCH and "story-glow" not in ss._SNAPSHOT
+
+
+def test_the_chime_counter_is_keel_webs_test_hook():
+    """Spec 158c FR-7: `window.__keelChime` counts the hand-overs in the test build (keel-web 249 FR-3)."""
+    source = _need(WEB / "src" / "lib" / "story" / "voice.ts").read_text(encoding="utf-8")
+    assert "window.__keelChime = (window.__keelChime ?? 0) + 1" in source
+    translate = (WEB / "src" / "lib" / "translate.ts").read_text(encoding="utf-8")
+    for words in (ss.TURN_LISTENING, ss.TURN_READBACK):
+        assert f'"{words}"' in translate, words
+
+
+def test_the_card_rows_are_keel_webs():
+    """Spec 158c FR-7: the walk reads the card's rows by `data-box`, keyed as keel-web's `BOX_KEYS` names them."""
+    board = _need(WEB / "src" / "lib" / "story" / "board.ts").read_text(encoding="utf-8")
+    keys = "[" + ", ".join(f'"{k}"' for k in ss.CARD_ROWS) + "]"
+    assert f"BOX_KEYS = {keys} as const" in board, keys
 
 
 @pytest.mark.parametrize("path", sorted(WEB_SELECTORS))
