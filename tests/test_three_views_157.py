@@ -217,7 +217,7 @@ WEB_SELECTORS = {
                                             "story-words"),
     "src/components/voice/KeelOrb.tsx": ("story-orb",),
     "src/components/story/StoryCheck.tsx": ("story-check", "story-boxes-screen", "story-check-said", "story-building",
-                                            "story-readback", "story-named", "story-today"),
+                                            "story-readback"),   # story-named, story-today: gone in 245 round 2
     "src/lib/story/BoxBoard.tsx": ("story-boxes",),
     "src/components/voice/StageOpener.tsx": ("guide-opener",),
     "src/components/guide/GuideStage.tsx": ("guide-skip",),

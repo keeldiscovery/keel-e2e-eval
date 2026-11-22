@@ -404,7 +404,7 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
               detail={"heard": [t[:120] if t else t for t in transcribed]})
     orbs = {n: b.get("orb") for n, b in beats.items()}
     leg.check(run, f"{label}: the orb through every beat -- speaking (the question), listening, hearing, writing, "
-                   "speaking (the readback)", all(ss.holds_in_order(o or [], ss.BEAT_ORB) for o in orbs.values()),
+                   "speaking (the readback, or -- no readback since keel-web 245 FR-4 as amended -- Keel's next line)", all(ss.holds_in_order(o or [], ss.BEAT_ORB) for o in orbs.values()),
               screen="define/story/1..5 (story-orb data-state)", detail=orbs, stop=False)
     # beat 3: every limitation, broken out, named back, closed by the quiet
     b3 = beats.get(3) or {}

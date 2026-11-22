@@ -294,3 +294,25 @@ def test_an_idea_beat_straight_on_waits_for_the_next_idea_beat():
     out = _walk(page).after_answer(1, 0, timeout_s=5, flow="idea")
     assert out["straight_on"] is True and out["next"] == "2" and out["asked"] is None
     assert page.waited == [f"{ss.IDEA_TURN}[data-turn='2']"]
+
+
+def test_a_stroke_not_yet_inked_and_a_wiped_board_are_not_met(browser):
+    """keel-web draws a stroke by `.on` (dash offset 1 -> 0) and wipes the board between scenes (`.sty-wipe.on`): a label
+    standing where a figure is not yet drawn, or over a wiped board, is not on the drawing."""
+    inked = _player(tagged=True).replace(
+        '<g data-id="p1" data-draw="pictogram"><rect x="20" y="20" width="60" height="60"/></g>',
+        '<g data-id="p1" data-draw="pictogram"><path class="ink" d="M20 20 L80 80"/></g>')
+    context, page = _page(browser, inked)
+    try:
+        before = _read(page)
+        page.evaluate("() => document.querySelector('[data-id=p1] .ink').classList.add('on')")
+        drawn = _read(page)
+        page.evaluate("""() => { const b = document.querySelector('[data-testid=story-board]');
+          const w = document.createElement('div'); w.className = 'sty-wipe on';
+          w.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%'; b.appendChild(w); }""")
+        wiped = _read(page)
+    finally:
+        context.close()
+    assert "p1" not in {o["drawn"] for o in before["overlaps"]}
+    assert ("over", "p1") in {(o["text_id"], o["drawn"]) for o in drawn["overlaps"]}
+    assert not wiped["overlaps"]

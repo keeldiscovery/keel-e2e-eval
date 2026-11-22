@@ -454,7 +454,6 @@ _SNAPSHOT = r"""() => {
     folded: t(q('[data-testid=story-folded]')),
     said: t(q('[data-testid=story-check-said]')) || t(q('[data-testid=idea-boxes-said]')) || t(q('[data-testid=idea-story-said]')),
     board: t(q('[data-testid=story-boxes]')),
-    today: t(q('[data-testid=story-today]')),
     drop: q('[data-testid=idea-drop]') ? true : false,
     buttons: stage ? [...stage.querySelectorAll('button')].filter((b) => """ + _NOT_ORB_JS + r""")
       .map((b) => b.getAttribute('data-testid') || t(b)) : [],
@@ -671,6 +670,15 @@ class Conversation:
                                                                                          timeout=30_000)
                 except Exception:  # noqa: BLE001 - recorded: the next screen's words never stood
                     out["unseen"] = True
+                # Keel's next line (the next question, or the boxes' narration on the glow) is the beat's last
+                # `speaking`: waited for a little, so the beat's orb reads whole
+                spoken_by = time.monotonic() + 10
+                while time.monotonic() < spoken_by:
+                    seq = orb_sequence(self.orb_log()[mark:])
+                    wrote = next((i for i, st in enumerate(seq) if st == "writing"), None)
+                    if wrote is not None and "speaking" in seq[wrote + 1:]:
+                        break
+                    self.page.wait_for_timeout(100)
                 out["orb"] = orb_sequence(self.orb_log()[mark:])
                 return out
             seq = self.orb_since(mark, path_end)
@@ -850,7 +858,6 @@ class StoryWalk(Conversation):
             state = self.page.locator(STORY_CHECK).first.get_attribute("data-state") \
                 if self.page.locator(STORY_CHECK).count() else None
             seen = {"building": building, "state": state, "story": self.snapshot(),
-                    "named": _tc(self.page.get_by_test_id("story-named")) or None,
                     "player": self.page.locator("[data-testid=story-readback] [data-testid=story-player], "
                                                 "[data-testid=story-readback] .sty-player").count()}
             h.add_screenshot(self._b.screenshot("story-readback"))
@@ -1202,9 +1209,22 @@ _MEASURE_STORY = r"""(args) => {
   const words = (el) => (el.textContent || '').replace(/\s+/g, ' ').trim();
   const tagged = svg ? [...svg.querySelectorAll('[data-draw]')] : [];
   const drawnEls = tagged.length ? tagged : (svg ? [...svg.children].filter((c) => c.tagName.toLowerCase() === 'g') : []);
+  // keel-web's strokes are drawn by `.on` (stroke-dashoffset 1 -> 0): a figure is on the board only where a stroke of
+  // it is inked, and its box is those strokes' (a group with no `.ink` at all is taken whole)
+  const inkedBox = (e) => {
+    const inks = e.classList.contains('ink') ? [e] : [...e.querySelectorAll('.ink')];
+    if (!inks.length) return R(e);
+    const on = inks.filter((i) => i.classList.contains('on')).map(R).filter((b) => b.w > 0 || b.h > 0);
+    if (!on.length) return null;
+    const x = Math.min(...on.map((b) => b.x)); const y = Math.min(...on.map((b) => b.y));
+    return { x, y, w: Math.max(...on.map((b) => b.x + b.w)) - x, h: Math.max(...on.map((b) => b.y + b.h)) - y };
+  };
   const drawn = drawnEls.map((e) => ({ id: e.getAttribute('data-id') || e.getAttribute('class') || 'g', kind: e.getAttribute('data-draw') || 'g',
-      box: R(e), seen: seen(e) }))
-    .filter((d) => !args.notDrawn.includes(d.kind) && d.box.w > 0 && d.box.h > 0);
+      box: inkedBox(e), seen: seen(e) }))
+    .filter((d) => !args.notDrawn.includes(d.kind) && d.box && d.box.w > 0 && d.box.h > 0);
+  // the wipes (`.sty-wipe.on`, the board's own colour over the drawing between scenes) cover what is under them
+  const wipes = board ? [...board.querySelectorAll('.sty-wipe.on')].map(R).filter((b) => b.w > 0 && b.h > 0) : [];
+  const under = (x, y) => wipes.some((w) => x >= w.x - 1 && x <= w.x + w.w + 1 && y >= w.y - 1 && y <= w.y + w.h + 1);
   const labels = board ? [...board.querySelectorAll('.lb')].map((el) => {
       const spans = [...el.querySelectorAll('span')];
       const o = spans.length ? Math.max(...spans.map(seen)) : seen(el);
@@ -1220,8 +1240,13 @@ _MEASURE_STORY = r"""(args) => {
   const texts = labels.concat(line && line.text ? [line] : []).filter((t) => t.seen > 0.05);
   const live = drawn.filter((d) => d.seen > 0.05);
   const hit = (a, b) => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 1 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 1;
+  const covered = (a, b) => {
+    const x0 = Math.max(a.x, b.x); const x1 = Math.min(a.x + a.w, b.x + b.w);
+    const y0 = Math.max(a.y, b.y); const y1 = Math.min(a.y + a.h, b.y + b.h);
+    return [[x0, y0], [x1, y0], [x0, y1], [x1, y1], [(x0 + x1) / 2, (y0 + y1) / 2]].every(([x, y]) => under(x, y));
+  };
   const overlaps = [];
-  for (const t of texts) for (const d of live) if (hit(t.box, d.box)) overlaps.push({ text: t.text.slice(0, 80), text_id: t.id, text_box: t.box, drawn: d.id, kind: d.kind, drawn_box: d.box });
+  for (const t of texts) for (const d of live) if (hit(t.box, d.box) && !covered(t.box, d.box)) overlaps.push({ text: t.text.slice(0, 80), text_id: t.id, text_box: t.box, drawn: d.id, kind: d.kind, drawn_box: d.box });
   const frame = board ? R(board) : null;
   const person = drawn.filter((d) => d.kind === 'person' || /^(walkin|m-|man|person|walker)/.test(d.id));
   const pictos = drawn.filter((d) => d.kind === 'pictogram' || /^p\d+$/.test(d.id));
