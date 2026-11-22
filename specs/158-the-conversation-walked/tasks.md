@@ -104,3 +104,96 @@ the working tree). Nothing paid; nothing merged or deployed.
 - The idea beats' *Next* column in *The beats* reads `-` (the idea walk does not record where a beat went); cosmetic.
 - `PROFILE=remote` not run (the coordinator's).
 
+# Spec 158b -- the drawn story's fit (and the conversation on keel-web 245 polish round 2)
+
+Base: master `ec4cf4e` (spec 158). Worktree `/Users/athulrajeev/Documents/projects/wt/keel-e2e-eval-158b`, branch
+`158b-story-fit`. Asked by the coordinator after the founder's *fits on a phone* (2026-11-22); widened mid-build to walk
+keel-web 245's FR-4 as amended (no per-beat readback) and FR-6 (the orb steps back to the glow, `story-glow`).
+
+- [x] T1 `harness/story_screens.py`: `_MEASURE_STORY` / `measure_story` / `fit_verdicts` / `phone_page`; `ORB` reads
+  `story-orb` or `story-glow`; `after_answer` (either build of FR-4, the problem's beats and the idea's); the deferred
+  correction said on the boxes (`story/correct`); `StoryLinkText.to_story`; `said_turns` takes the script's first story.
+- [x] T2 `evals/three_views.py`: `measure_fit` on the founder's story (desktop, in `tell_the_story`) and again on a phone
+  after each FR-1 (a) project reaches Prevalence (`phone_story`); the correction checked where the build takes it.
+- [x] T3 `evals/three_views_strangers.py`: one more TEXT link a study, opened at 390 x 844, Begin, the screener, *Play*
+  on the story card, measured (`phone_story_card`).
+- [x] T4 the report's *The drawn story* (`three_views_report.drawn_story_markdown`); unit tests
+  (`tests/test_story_fit_158b.py`, 18, a headless Chromium on drawn pages and fakes of the walk's page); DRIFT #110, #111;
+  `make e2e-157 PROFILE=eval` on the local stack; this section.
+
+## Gate
+
+Built 2026-11-22 from 13:10 ET (after the disk was cleared) by a builder (Claude Opus 5.5). keel-web moved under the build:
+`af0a2f59` -> `18e23482` (245 polish round 2 and 248: no per-beat readback, the glow, the phone-first story) -> `68e31f84`
+(249: a spec only); keel-cloud-docs `5e4944af` -> `424a1413` (263c) -> `d4067816` (264) -> `af49e837` (263d, merged at
+16:53 ET, after the stack's keel-cloud was started at `d4067816` for the run of record: `bootRun` does not reload, so
+that run's keel-cloud served `d4067816`; the folder names the checkout at the run's start). Nothing paid; nothing merged
+or deployed.
+
+| Check | Result |
+|---|---|
+| `make unit` (`b9c7946`, keel-cloud-docs `d4067816`, keel-web `68e31f84`, 16:40-16:47 ET) | **5,987 passed / 32 failed / 126 skipped**; the 32 are the same 32 that fail on master `ec4cf4e` against today's siblings (the mirror tests 144/148/149/154, credits 088, follow-ups 075, the instruction and report-marks tests) -- none is 158b's |
+| `make e2e-157 PROFILE=eval`, runs 1-6 (13:33-16:13 ET, `runs/157/424a1413-*`) | the build's own: 0 of 13 (`said_turns` on 263c's script), 3, 9, 12, 12, 11 of 13 -- each fixed by the commits below |
+| `make e2e-157 PROFILE=eval`, **the run of record** (`b9c7946`, keel-cloud `d4067816` served / `af49e837` checked out, keel-web `68e31f84`, 16:53-17:14 ET, `runs/157/af49e837-68e31f84/20261122T215317Z`) | **12 of 13 legs green**, 239 checks held; FR-1a failed on one `stop=False` check, *the correction on the boxes narrows the condition* (DRIFT #110). Every problem conversation's beats 1, 2, 4, 5 went straight on (round 2); beat 3 said *Anything else?* and closed by the quiet |
+| *The drawn story* | 9 stories (4 founder desktop, 2 founder phone, 3 stranger cards on a phone): **no text on the drawing 9 of 9, fits on a phone 5 of 5, the spoken line at most three rows 9 of 9**; the frame 358 x 448 everywhere, the person 0.41 of the frame, pictograms 15-16 x 29-30, the line 18 px / 24.48 px, two rows (three for the long telling); every phone page scrolls by the site's footer (875-930 px on 844, DRIFT #111) |
+| its log scan | no HeyGen, no OpenAI, no Anthropic host contacted; no paid adapter named; 78 Keel AI clips, FakeSpeech at 0 µUSD |
+
+## Commits
+
+On branch `158b-story-fit`, each pushed as made:
+
+- `8511b12` spec 158b T1: the drawn story measured -- the in-page read, the loop to the player's end, the verdicts; the orb read off keel-web 245's glow; the walk takes either build of FR-4
+- `e140e1d` spec 158b T2-T3: the legs measure the drawn story; the report's *The drawn story*
+- `e6d834b` spec 158b T1: the story's quiet stops where the page already went on (the measure reads to the player's end first)
+- `694cd14` spec 158b: said_turns takes the fake script's first story (keel-cloud 263c 1fb1fa71 adds tellings after it)
+- `9b02af6` spec 158b: the idea's beats take either build too (keel-web 248, 18e23482: beat 1 straight on, beat 2's ticks and crosses read before the boxes); after_answer moves to Conversation
+- `bb38750` spec 158b: the drawn story's read counts a figure only where its strokes are inked and not wiped (the first run's overlaps were un-inked groups and the wiped board); a straight-on beat waits for Keel's next line on the orb; story-named / story-today gone in keel-web 245 round 2
+- `31bab05` spec 158b: fits on a phone judges the screen's own content (its main, fixed bands aside); the site footer under the story is reported as the page's height, not a miss; repeated reads folded
+- `6d8d09f` spec 158b: the fit read skips any footer (keel-web's founder shell has no main; its footer sits in the scrolling column); runs/DRIFT.md #110 (the boxes correction on the fakes) and #111 (the footer under the story on a phone)
+- `cd64373` spec 158b: the fit read counts leaf content only (a column holding the footer reaches the page's bottom with it) and names the lowest element
+- `b9c7946` spec 158b: a straight-on beat waits for the line after its own writing (the last); the fit read leaves out what rides in a fixed bar (the tab bar's icons)
+- this file (the next commit)
+
+## Judgement calls
+
+1. **Three checks, each `stop=False`**: *no text on the drawing* (desktop and phone), *fits on a phone* (phone only),
+   *the spoken line is at most three rows* (both). A miss fails the leg by name and the leg goes on.
+2. **What is drawn.** keel-web 245 round 2 tags the drawing (`data-draw`: pictogram, person, furniture, floor,
+   caption); the read prefers the tags and falls back to the SVG's top-level groups. A `caption` is a text's own plate,
+   not a drawing. A figure is on the board only where a stroke of it is inked (`.ink.on`, the dash drawn), and its box
+   is those strokes'; a place a wipe covers (`.sty-wipe.on`) is not met. The first run's reading -- every group's whole
+   box, inked or not -- found *scattered* over `p4` and the end card over three people; sampled live, *scattered*
+   fades (`.lb.gone`) before `p4` is inked and the end card stands on a wiped board: false, and the read was fixed.
+3. **What fits.** The frame, the spoken line and the player's state (the founder's state line; the stranger's *Play*)
+   inside the band between the header (`.pbar`) and the tab bar (`.ptabs`), no scrolling column, and no content of the
+   screen's own below the fold -- leaves only, any `<footer>` and fixed bands aside. The site's footer under the story
+   makes every phone page scroll (875-930 px on 844); that is reported beside the verdict and written as DRIFT #111,
+   not counted as the story failing to fit.
+4. **The desktop** is read for overlaps and rows only; its viewport (1280 x 720) is not the founder's ask.
+5. **Either build of FR-4.** After an answer the walk waits for whichever comes first: the page leaving the beat (round
+   2: the next question's words, or the boxes) or the readback and its quiet on the beat's own screen (before round 2).
+   A straight-on beat waits for Keel's next line on the orb (the next question, or the boxes' narration on the glow) so
+   the beat's orb reads whole. The idea's beats likewise (keel-web 248, `18e23482`): beat 1 straight on unless its
+   spelling check speaks; beat 2's ticks and crosses are read on the beat's screen before it moves.
+6. **The correction moves to the boxes** where beat 4 goes straight on: said after *Is that right?*, sent as
+   `story/correct`. Two checks: sent whole and answered (holds); the condition narrowed and read back (fails on the
+   fakes -- DRIFT #110). The beat-3 and beat-4 readback checks read the wire's `readback`, which FR-4 keeps.
+7. **`said_turns`** takes the fake script's first story: keel-cloud 263c (`1fb1fa71`) adds tellings after it.
+8. **`story-named` and `story-today`** left `StoryCheck` in round 2: dropped from the walk's reads and the selector
+   test.
+9. **The Gradle test.** `pgrep -f gradlew` also matches the stack's own keel-cloud (`gradle-wrapper.jar bootRun`, its
+   `-Dorg.gradle.appname=gradlew`) while the stack is up; this build waited an hour on it before seeing so. A build is a
+   wrapper process whose arguments are not `bootRun`, read with `ps -ww` (without a terminal `ps` cuts the command line
+   before `gradle-wrapper.jar`, which once made a running gate look finished; the run it let start was stopped).
+
+## DRIFT written
+- **#110** (keel-cloud, the fakes): a correction said on the boxes reads back *Nothing changed.*, so on the fakes no
+  condition narrows since FR-4 moved corrections to the boxes.
+- **#111** (keel-web): on a phone the story screens scroll by the site's footer (the story itself fits).
+- Not written: the caption-over-the-clock overlap the coordinator expected -- not met on keel-web `18e23482` (round 2,
+  `945cfbb5`: the caption on its own band, no text on the drawing) in any of the nine stories measured.
+
+## Open
+- `PROFILE=remote` not run (the coordinator's).
+- *The drawn story*'s *Pictograms* column reads `-` where the fullest read fell on a scene with none; cosmetic.
+- Round 2's walk is proven on keel-web `18e23482`/`68e31f84` only; the before-round-2 path (`after_answer`'s readback branch) ran in spec 158's runs, not since.
