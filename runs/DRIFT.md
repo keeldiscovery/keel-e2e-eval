@@ -5831,3 +5831,28 @@ the fakes meets. **What the harness does**: the correction check holds that the 
 condition and the readback carry *Europe*, and goes on (green); the corrected project is never locked. **For keel-cloud:**
 give the fake script an entry for this correction (the narrowed condition and a readback in words), or make the echo keep
 the stored condition and add the new words.
+
+## 110. Observation (keel-cloud, the fakes): a correction said on the boxes (`story/correct`) reads back *Nothing changed.* -- since keel-web 245 FR-4 moved corrections to the boxes, the fakes cannot narrow a condition any more
+
+Found by spec 158b (FR-1 (a), *the long telling*: *only the ones in Europe*) on keel-cloud-docs `424a1413` + keel-web
+`18e23482`. keel-web 245 FR-4 as amended (2026-11-22): no per-beat readback; *a correction is made on the boxes, not per
+beat* (FR-6: after *Is that right?* any words are `story/correct`). The walk now says the correction there; it is sent
+whole and answered 200, but `FakeStoryReadings.correct` finds no `corrections` entry for the words and answers the story
+unchanged with *Nothing changed.* (`changed: []`), so the condition stays *work at a company with more than 50 employees*.
+Before round 2 the same words went to beat 4 as `correction: true` and the fake's turn echo narrowed them (DRIFT #109).
+**What the harness does**: one check holds that the correction is said on the boxes and sent as `story/correct` (green);
+a second, `stop=False`, holds that the condition narrows and the readback says so (failed by name, the leg goes on).
+**For keel-cloud:** give `fake-readings.json`'s `corrections` an entry for *only the ones in Europe* (the narrowed
+`only_those_who`, `changed: [onlyThoseWho]`, a readback in words), or let the fake's correction echo a condition the
+way its beat-4 echo did.
+
+## 111. Observation (keel-web): on a phone the story screens are a little taller than the screen -- the site footer under the story
+
+Found by spec 158b (*The drawn story*: 390 x 844) on keel-web `18e23482`. The story itself fits on every screen
+measured -- the frame (358 x 448), the spoken line (at most three rows, 18 px / 24.48 px) and the state or *Play* inside
+the band between the header and the tab bar -- but the page scrolls: the founder's story (`define/story/check`) is
+890 px tall (the *Signed in as ... Log out* footer under the fixed tab bar), the stranger's story card 875 px (the
+problem and solution links: *Keel · Privacy · Terms*) and 902 px on the decision-maker's link. The founder's no-scroll
+rule (mockups of 2026-10-14) is about the screen; nothing the story needs sits below the fold. **What the harness does**:
+*fits on a phone* judges the screen's own content (its `main`, fixed bands aside) and reports the page's height beside
+it. **For keel-web:** keep the footer off the conversation's and the story card's phone screens, or accept the spill.

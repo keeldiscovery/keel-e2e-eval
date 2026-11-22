@@ -333,3 +333,14 @@ def test_a_footer_under_the_story_is_not_the_story_failing_to_fit(browser):
     assert footer["fit"]["page_scrolls"] is True and footer["fit"]["content_below"] is None
     assert footer["fit"]["frame"] and footer["fit"]["line"]
     assert tall["fit"]["content_below"] and tall["fit"]["content_below"] > 844
+
+
+def test_a_footer_inside_the_scrolling_column_is_still_the_footer(browser):
+    """keel-web's founder shell has no <main>: its footer (`.ffoot`) sits in the scrolling column, under the tab bar."""
+    body = _player() + "<footer class='ffoot' style='height:120px;margin-top:400px'>Signed in as ... Log out</footer>"
+    context, page = _page(browser, body, viewport=ss.PHONE)
+    try:
+        read = _read(page)
+    finally:
+        context.close()
+    assert read["fit"]["page_scrolls"] is True and read["fit"]["content_below"] is None

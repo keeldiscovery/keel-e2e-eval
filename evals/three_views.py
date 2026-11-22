@@ -489,7 +489,8 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
                   screen="define/story/check (boxes, the correction)", view="wire",
                   detail={"stored": stored, "readback": body.get("readback"), "changed": body.get("changed"),
                           "why it may not": "keel-cloud's FakeStoryReadings answers a story/correct it has no "
-                                            "`corrections` entry for with *Nothing changed.*"}, stop=False)
+                                            "`corrections` entry for with *Nothing changed.*",
+                          "drift": "runs/DRIFT.md #110"}, stop=False)
     elif correction and not b4.get("correction"):
         leg.check(run, f"{label}: *{correction}* said somewhere -- after beat 4's readback or on the boxes", False,
                   screen="define/story/4 -> check", detail={"beat 4": {k: b4.get(k) for k in ("straight_on", "next")},

@@ -1262,13 +1262,13 @@ _MEASURE_STORY = r"""(args) => {
     if (/(auto|scroll)/.test(s.overflowY) && n.scrollHeight > n.clientHeight + 1) { scroller = { cls: (n.className || n.tagName).toString().slice(0, 40), scroll: n.scrollHeight, client: n.clientHeight }; break; }
   }
   const doc = document.scrollingElement || document.documentElement;
-  // the screen's own content (its <main>, fixed bands aside) below the fold -- the site's footer under it is not the
-  // story's: the page may scroll to it without the story failing to fit
+  // the screen's own content (its <main>, or the page where it has none; fixed bands and any <footer> aside) below the
+  // fold -- the site's footer under it is not the story's: the page may scroll to it without the story failing to fit
   const main = root.closest('main') || document.body;
   let low = 0;
   for (const e of main.querySelectorAll('*')) {
     const r = e.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0 && getComputedStyle(e).position !== 'fixed' && seen(e) > 0.05) low = Math.max(low, r.bottom);
+    if (r.width > 0 && r.height > 0 && !e.closest('footer') && getComputedStyle(e).position !== 'fixed' && seen(e) > 0.05) low = Math.max(low, r.bottom);
   }
   return {
     viewport: { w: window.innerWidth, h: window.innerHeight }, band: { top: Math.round(top), bottom: Math.round(bottom) },
