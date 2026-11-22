@@ -293,8 +293,15 @@ IDEA_BOXES_ASK = "Is that your idea?"
 BACK_TO_SOLUTION = "That is the problem. Taking you back to your solution."
 #: keel-web 245 FR-6: the cost box carries no label (`costTag: null`) -- 241's tag must not be on the board.
 COST_TAG = "What it costs"
-#: keel-web 245 FR-8: the conversation's screens and the orb, the one button on them.
-ORB = "[data-testid=story-orb]"
+#: keel-web 245 FR-8: the conversation's screens and the orb, the one button on them. Since keel-web 245 FR-6 as the
+#: founder picked it (2026-11-22, polish round 2) the boxes, the replays and the story draw no orb: Keel is a glow band
+#: along the bottom edge (`story-glow`) carrying the orb's `data-state` values. `ORB` finds either (counts, states);
+#: `ORB_TAP` is the orb itself, the one thing tapped (the begin screen keeps it).
+ORB = "[data-testid=story-orb], [data-testid=story-glow]"
+ORB_TAP = "[data-testid=story-orb]"
+#: The orb's or the glow's `data-state`, read in the page (the orb where both are drawn).
+_ORB_JS = "(document.querySelector('[data-testid=story-orb]') || document.querySelector('[data-testid=story-glow]'))"
+_NOT_ORB_JS = "!['story-orb', 'story-glow'].includes(b.getAttribute('data-testid'))"
 STAGE = ".vstage"
 
 
@@ -380,7 +387,7 @@ def wake(page, *, settle_s: float = 1.5, timeout_s: float = 60) -> dict:
                                        "buttons": stage_buttons(page)}
             standing = standing or time.monotonic()
             if time.monotonic() - standing >= settle_s:
-                page.locator(ORB).first.click()
+                page.locator(ORB_TAP).first.click()
                 out["begin"] = True
                 standing = None
                 page.wait_for_timeout(300)
@@ -390,11 +397,12 @@ def wake(page, *, settle_s: float = 1.5, timeout_s: float = 60) -> dict:
 
 
 def stage_buttons(page) -> list[str]:
-    """Spec 158 FR-1: every `button` on the conversation's screen (`.vstage`) other than the orb -- none is owed."""
+    """Spec 158 FR-1: every `button` on the conversation's screen (`.vstage`) other than the orb (or the glow) -- none
+    is owed."""
     try:
         return page.evaluate(
             """() => [...document.querySelectorAll('.vstage button')]
-                   .filter((b) => b.getAttribute('data-testid') !== 'story-orb')
+                   .filter((b) => """ + _NOT_ORB_JS + """)
                    .map((b) => b.getAttribute('data-testid') || (b.textContent || '').trim() || b.outerHTML.slice(0, 80))""")
     except Exception:  # noqa: BLE001 - a navigation in flight
         return []
@@ -406,7 +414,7 @@ ORB_WATCH = r"""(() => {
   const log = (window.__orbLog = window.__orbLog || []);
   let last = '';
   const read = () => {
-    const orb = document.querySelector('[data-testid=story-orb]');
+    const orb = """ + _ORB_JS + r""";
     const stage = document.querySelector('.vstage');
     const board = document.querySelector('[data-testid=story-boxes]');
     const row = { state: orb ? orb.getAttribute('data-state') : null, voice: stage ? stage.getAttribute('data-voice') : null,
@@ -430,7 +438,7 @@ _SNAPSHOT = r"""() => {
     screen: stage ? stage.getAttribute('data-testid') : null,
     turn: (q('[data-testid=story-turn]') || q('[data-testid=idea-turn]') || { getAttribute: () => null }).getAttribute('data-turn'),
     voice: stage ? stage.getAttribute('data-voice') : null,
-    orb: q('[data-testid=story-orb]') ? q('[data-testid=story-orb]').getAttribute('data-state') : null,
+    orb: """ + _ORB_JS + r""" ? """ + _ORB_JS + r""".getAttribute('data-state') : null,
     kicker: t(q('[data-testid=story-kicker]')),
     question: t(q('[data-testid=story-q]')),
     state: t(q('[data-testid=story-state]')),
@@ -442,7 +450,7 @@ _SNAPSHOT = r"""() => {
     board: t(q('[data-testid=story-boxes]')),
     today: t(q('[data-testid=story-today]')),
     drop: q('[data-testid=idea-drop]') ? true : false,
-    buttons: stage ? [...stage.querySelectorAll('button')].filter((b) => b.getAttribute('data-testid') !== 'story-orb')
+    buttons: stage ? [...stage.querySelectorAll('button')].filter((b) => """ + _NOT_ORB_JS + r""")
       .map((b) => b.getAttribute('data-testid') || t(b)) : [],
   };
 }"""
@@ -599,6 +607,13 @@ class Conversation:
             self.page.wait_for_timeout(200)
         raise AssertionError(f"no quiet wait stood on {self.page.url} within {timeout_s} s (245 FR-8 `__keelSilence`)")
 
+    def orb_since(self, mark: int, path_end: str | None = None) -> list[str]:
+        """The orb's states since `mark`, on the screens whose path ends `path_end` where given."""
+        rows = self.orb_log()[mark:]
+        if path_end is not None:
+            rows = [r for r in rows if str(r.get("path") or "").rstrip("/").endswith(path_end)]
+        return orb_sequence(rows)
+
     def await_quiet(self, mark: int, *, after: tuple[str, ...] = ("hearing", "writing"), timeout_s: float = 60) -> dict:
         """Keel has said its line back and listens again: from the orb's log since `mark`, a `speaking` after the
         founder was heard (`after`), the orb no longer speaking, and the recorder running -- the quiet wait stands
@@ -625,6 +640,8 @@ class StoryWalk(Conversation):
     def __init__(self, page, recorder, base_url: str, *, patience: float = 1.0):
         super().__init__(page, recorder, base_url, patience=patience)
         self.beats_seen: list[dict] = []
+        #: keel-web 245 FR-4 (2026-11-22): a correction a beat could not take (no readback to answer) -- said on the boxes.
+        self.deferred_correction: str | None = None
 
     def turn_writes(self, n: int) -> list[dict]:
         return self.writes_to(rf"/story/turns/{n}$")
@@ -667,7 +684,21 @@ class StoryWalk(Conversation):
             seen["put"] = {"status": put["status"], "sent": put["sent"], "body": put["body"]}
             if (put.get("status") or 500) >= 400:
                 raise AssertionError(f"beat {n} refused {put.get('status')}: {put.get('body')}")
-            seen["quiet"] = self.await_quiet(mark)
+            seen["quiet"] = self.after_answer(n, mark)
+            seen["straight_on"] = bool(seen["quiet"].get("straight_on"))
+            if seen["straight_on"]:
+                # keel-web 245 FR-4 (2026-11-22): no readback -- the page went on by itself; nothing to let pass. A
+                # correction owed here is said on the boxes instead (FR-6: *Is that right?*, `story/correct`).
+                seen["readback"] = {"straight_on": True, "buttons": []}
+                if correction:
+                    seen["correction_deferred"] = correction
+                seen["next"] = self.page.url.rstrip("/").split("/")[-1]
+                seen["orb"] = orb_sequence(self.orb_log()[mark:])
+                h.add_screenshot(self._b.screenshot(f"story-beat-{n}-next"))
+                h.record_wire({"beat": n, "said": words[:300] + ("..." if len(words) > 300 else "")},
+                              {k: seen[k] for k in ("put", "next", "orb", "straight_on") if k in seen})
+                self.beats_seen.append(seen)
+                return seen
             if n == 3:
                 want = len(((put["body"] or {}).get("story") or {}).get("limits") or [])
                 try:
@@ -708,13 +739,52 @@ class StoryWalk(Conversation):
                 continue
             seen.append(self.beat(n, long3 if (n == 3 and long3) else words,
                                   correction=correction if n == 4 else None))
+            if seen[-1].get("correction_deferred"):
+                self.deferred_correction = seen[-1]["correction_deferred"]
         self.wait_path(r"/define/story/check$")
         return seen
 
+    def after_answer(self, n: int, mark: int, *, timeout_s: float = 60) -> dict:
+        """What follows a beat's answer, whichever comes first. keel-web 245 FR-4 as amended (2026-11-22): beats 1, 2
+        and 4 go straight on once the reading lands -- the page leaves the beat, and the walk waits for the next
+        question's words (or the boxes); beat 3 says only *Anything else?* and waits for the quiet. The build before
+        polish round 2 reads every beat back and waits for the quiet on the beat's own screen. Returns `straight_on`
+        (the page moved), else the quiet as `await_quiet` reads it, on the beat's screen alone."""
+        deadline = time.monotonic() + timeout_s * self.patience
+        here = re.compile(rf"/define/story/{n}/?$")
+        path_end = f"/define/story/{n}"
+        seq: list[str] = []
+        while time.monotonic() < deadline:
+            url = self.page.url
+            if not here.search(url) and re.search(r"/define/story/(\d|check)/?$", url):
+                nxt = url.rstrip("/").split("/")[-1]
+                want = STORY_QUESTIONS.get(int(nxt)) if nxt.isdigit() else None
+                out = {"straight_on": True, "next": nxt, "asked": want}
+                try:
+                    if want:
+                        self.page.wait_for_function(
+                            "(w) => { const el = document.querySelector('[data-testid=story-q]'); "
+                            "return !!el && el.textContent.replace(/\\s+/g, ' ').trim() === w; }", arg=want,
+                            timeout=30_000 * self.patience)
+                    else:
+                        self.page.get_by_test_id("story-boxes-screen").first.wait_for(state="visible", timeout=30_000)
+                except Exception:  # noqa: BLE001 - recorded: the next screen's words never stood
+                    out["unseen"] = True
+                out["orb"] = orb_sequence(self.orb_log()[mark:])
+                return out
+            seq = self.orb_since(mark, path_end)
+            heard = next((i for i, st in enumerate(seq) if st in ("hearing", "writing")), None)
+            spoke = heard is not None and "speaking" in seq[heard + 1:]
+            if spoke and seq[-1] != "speaking" and self.voice.listening():
+                return {"straight_on": False, "spoke": True, "orb": seq}
+            self.page.wait_for_timeout(100)
+        return {"straight_on": False, "spoke": False, "orb": seq, "timeout": True}
+
     # ------------------------------------------------------------------------------------------- after the beats
-    def boxes(self) -> dict:
+    def boxes(self, correction: str | None = None) -> dict:
         """The boxes (`define/story/check`, no yes yet): the board centre stage, Keel narrating it box by box, *Is that
-        right?*, then the quiet confirms (`story/confirm`)."""
+        right?*, then -- where a correction is owed (`correction`, or one a beat deferred) -- the words said and
+        `story/correct` answered, then the quiet confirms (`story/confirm`)."""
         with self._b.step("the boxes: the board narrated, Is that right?, the quiet confirms") as h:
             mark = len(self.orb_log())
             self.page.get_by_test_id("story-boxes-screen").first.wait_for(state="visible", timeout=60_000)
@@ -726,6 +796,16 @@ class StoryWalk(Conversation):
                 pass
             seen = {"screen": self.snapshot()}
             h.add_screenshot(self._b.screenshot("story-boxes"))
+            correction = correction if correction is not None else self.deferred_correction
+            if correction:
+                # keel-web 245 FR-6: any words after *Is that right?* are a correction (`story/correct`: the changed
+                # box lit, the readback said), then *Is that right?* again
+                mark2 = len(self.orb_log())
+                fixed = self.put_after(r"/story/correct$", lambda: self.voice.say(correction))
+                seen["correction"] = {"status": fixed["status"], "sent": fixed["sent"], "body": fixed["body"],
+                                      "quiet": self.await_quiet(mark2), "where": "the boxes"}
+                seen["corrected"] = self.snapshot()
+                h.add_screenshot(self._b.screenshot("story-boxes-corrected"))
             with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0]
                                            .endswith("/story/confirm"), timeout=150_000) as got:
                 self.silence()
@@ -1067,6 +1147,174 @@ class MoneyReplay(Conversation):
             return seen
 
 
+# ------------------------------------------------------------------------------------ the drawn story's fit (spec 158b)
+
+#: Spec 158b: the founder's phone (2026-11-22: "fits on a phone"): 390 x 844, as keel-web's `-phone` frames.
+PHONE = {"width": 390, "height": 844}
+#: Spec 158b (B): the spoken line under the frame is at most this many rows.
+LINE_ROWS_MAX = 3
+#: keel-web polish round 2's kinds on the drawing's groups (`data-draw`); `caption` is a text's own plate, not a drawing
+#: a text may not sit on.
+DRAW_KINDS_NOT_DRAWN = ("caption",)
+
+#: One read of a story player (spec 158b): (A) every text box inside the frame (the room's caption, the labels) and the
+#: spoken line under it against every drawn element's box -- keel-web's `[data-draw]` groups where they are, else the
+#: SVG's top-level `<g>` children -- only what is visible now; (B) the frame, the line and the player's state inside the
+#: viewport between the header (`.pbar`) and the tab bar (`.ptabs`), the page and the player's scrolling column not
+#: scrolling, and the line's rows (its text's client rects, one row a distinct top). The numbers: the frame's size, the
+#: person's height over the frame's, each pictogram's size, the line's font and line height.
+_MEASURE_STORY = r"""(args) => {
+  const root = document.querySelector(args.root);
+  if (!root) return null;
+  const board = root.querySelector('[data-testid=story-board], [data-testid=idea-story-board], .sty-board');
+  const svg = board ? board.querySelector('svg') : null;
+  const R = (el) => { const r = el.getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }; };
+  const seen = (el) => { let o = 1; for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+      const s = getComputedStyle(n); if (s.display === 'none' || s.visibility === 'hidden') return 0; o *= parseFloat(s.opacity || '1'); }
+    return o; };
+  const words = (el) => (el.textContent || '').replace(/\s+/g, ' ').trim();
+  const tagged = svg ? [...svg.querySelectorAll('[data-draw]')] : [];
+  const drawnEls = tagged.length ? tagged : (svg ? [...svg.children].filter((c) => c.tagName.toLowerCase() === 'g') : []);
+  const drawn = drawnEls.map((e) => ({ id: e.getAttribute('data-id') || e.getAttribute('class') || 'g', kind: e.getAttribute('data-draw') || 'g',
+      box: R(e), seen: seen(e) }))
+    .filter((d) => !args.notDrawn.includes(d.kind) && d.box.w > 0 && d.box.h > 0);
+  const labels = board ? [...board.querySelectorAll('.lb')].map((el) => {
+      const spans = [...el.querySelectorAll('span')];
+      const o = spans.length ? Math.max(...spans.map(seen)) : seen(el);
+      return { text: words(el), id: el.getAttribute('data-id') || '', box: R(el), seen: o }; }).filter((t) => t.text) : [];
+  const lineEl = root.querySelector('[data-testid=story-line]');
+  const line = lineEl ? { text: words(lineEl), id: 'the spoken line', box: R(lineEl), seen: seen(lineEl) } : null;
+  let rows = 0; let lh = null; let font = null;
+  if (lineEl && line.text) {
+    const range = document.createRange(); range.selectNodeContents(lineEl);
+    const tops = []; for (const r of range.getClientRects()) { if (r.width > 0 && !tops.some((t) => Math.abs(t - r.top) < 3)) tops.push(r.top); }
+    rows = tops.length; const s = getComputedStyle(lineEl); lh = s.lineHeight; font = s.fontSize;
+  }
+  const texts = labels.concat(line && line.text ? [line] : []).filter((t) => t.seen > 0.05);
+  const live = drawn.filter((d) => d.seen > 0.05);
+  const hit = (a, b) => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 1 && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > 1;
+  const overlaps = [];
+  for (const t of texts) for (const d of live) if (hit(t.box, d.box)) overlaps.push({ text: t.text.slice(0, 80), text_id: t.id, text_box: t.box, drawn: d.id, kind: d.kind, drawn_box: d.box });
+  const frame = board ? R(board) : null;
+  const person = drawn.filter((d) => d.kind === 'person' || /^(walkin|m-|man|person|walker)/.test(d.id));
+  const pictos = drawn.filter((d) => d.kind === 'pictogram' || /^p\d+$/.test(d.id));
+  const vis = (sel) => { const el = document.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 ? r : null; };
+  const head = vis('.pbar'); const tabs = vis('.ptabs');
+  const top = head ? head.bottom : 0; const bottom = tabs ? tabs.top : window.innerHeight;
+  const inside = (b) => !!b && b.y >= top - 1 && b.y + b.h <= bottom + 1 && b.x >= -1 && b.x + b.w <= window.innerWidth + 1;
+  const stateEl = args.state ? document.querySelector(args.state) : null;
+  const state = stateEl ? R(stateEl) : null;
+  let scroller = null;
+  for (let n = root.parentElement; n && n !== document.body; n = n.parentElement) {
+    const s = getComputedStyle(n);
+    if (/(auto|scroll)/.test(s.overflowY) && n.scrollHeight > n.clientHeight + 1) { scroller = { cls: (n.className || n.tagName).toString().slice(0, 40), scroll: n.scrollHeight, client: n.clientHeight }; break; }
+  }
+  const doc = document.scrollingElement || document.documentElement;
+  return {
+    viewport: { w: window.innerWidth, h: window.innerHeight }, band: { top: Math.round(top), bottom: Math.round(bottom) },
+    frame, person_ratio: person.length && frame ? +(Math.max(...person.map((p) => p.box.h)) / frame.h).toFixed(3) : null,
+    person: person.map((p) => ({ id: p.id, w: p.box.w, h: p.box.h })),
+    pictograms: pictos.map((p) => ({ id: p.id, w: p.box.w, h: p.box.h, seen: +p.seen.toFixed(2) })),
+    drawn_by: tagged.length ? 'data-draw' : 'top-level g', drawn: live.length, texts: texts.length,
+    line: line ? { text: line.text, rows, line_height: lh, font, box: line.box } : null, state,
+    fit: { frame: inside(frame), line: inside(line && line.box), state: inside(state),
+           page_scrolls: doc.scrollHeight > window.innerHeight + 1, doc: { scroll: doc.scrollHeight, view: window.innerHeight }, scroller },
+    overlaps, player: root.getAttribute('data-state'),
+  };
+}"""
+
+
+def measure_story(page, root: str, *, state: str | None = None, play: bool = False, timeout_s: float = 90) -> dict:
+    """Spec 158b: the drawn story read while it plays (`play`: its *Play* pressed first, the stranger's card), every
+    250 ms until the player ends (or `timeout_s`): every overlap of a text on a drawn element met at any moment (one
+    row a pair), every spoken line with its rows (the most), the fit at its worst, and the numbers of the fullest read."""
+    if play:
+        button = page.locator(f"{root} [data-testid=story-play]").first
+        try:
+            button.wait_for(state="visible", timeout=15_000)
+            button.click()
+        except Exception:  # noqa: BLE001 - recorded: nothing played
+            pass
+    out: dict = {"samples": 0, "overlaps": [], "lines": {}, "unfit": [], "numbers": None}
+    pairs: set = set()
+    best = -1
+    deadline = time.monotonic() + timeout_s
+    started = False
+    while time.monotonic() < deadline:
+        try:
+            read = page.evaluate(_MEASURE_STORY, {"root": root, "state": state, "notDrawn": list(DRAW_KINDS_NOT_DRAWN)})
+        except Exception:  # noqa: BLE001 - re-rendered under the read
+            read = None
+        if read:
+            out["samples"] += 1
+            for o in read["overlaps"]:
+                key = (o["text"], o["drawn"])
+                if key not in pairs:
+                    pairs.add(key)
+                    out["overlaps"].append(o)
+            line = read.get("line") or {}
+            if line.get("text"):
+                was = out["lines"].get(line["text"])
+                if not was or line["rows"] > was["rows"]:
+                    out["lines"][line["text"]] = {"rows": line["rows"], "line_height": line["line_height"],
+                                                  "font": line["font"], "box": line["box"]}
+            fit = read["fit"]
+            bad = [k for k in ("frame", "line", "state") if fit.get(k) is False and (k != "state" or read.get("state"))]
+            if fit.get("page_scrolls"):
+                bad.append("the page scrolls")
+            if fit.get("scroller"):
+                bad.append(f"its column scrolls ({fit['scroller'].get('cls')})")
+            if bad:
+                out["unfit"].append({"what": bad, "band": read["band"], "frame": read["frame"],
+                                     "line": (read.get("line") or {}).get("box"), "state": read.get("state"),
+                                     "doc": fit.get("doc"), "scroller": fit.get("scroller")})
+            if read["drawn"] + read["texts"] > best:
+                best = read["drawn"] + read["texts"]
+                out["numbers"] = {k: read[k] for k in ("viewport", "band", "frame", "person_ratio", "person",
+                                                       "pictograms", "drawn_by", "drawn", "texts", "state")}
+            if read.get("player") == "playing":
+                started = True
+            if started and read.get("player") in ("ended", "idle") or (not started and out["samples"] > 160):
+                break
+        page.wait_for_timeout(250)
+    out["played"] = started
+    out["unfit"] = out["unfit"][:6]
+    return out
+
+
+def phone_page(context, browser, *, inits: tuple[str, ...] = ()):
+    """A 390 x 844 context signed in as `context` is (its cookies and storage), with the founder's init scripts."""
+    phone = browser.new_context(viewport=PHONE, storage_state=context.storage_state())
+    for script in inits:
+        phone.add_init_script(script)
+    return phone, phone.new_page()
+
+
+def fit_verdicts(measured: dict, *, phone: bool) -> dict:
+    """Spec 158b's verdicts over one `measure_story`: `drawn` -- no text on a drawn element at any moment; `rows` -- every
+    spoken line at most `LINE_ROWS_MAX` rows; and, on a phone, `fits` -- the frame, the line and the player's state
+    inside the band at every read, nothing scrolling. Each `(ok, detail)`; a player never read holds none of them."""
+    numbers = measured.get("numbers") or {}
+    read = bool(measured.get("samples")) and bool(numbers.get("drawn"))
+    lines = measured.get("lines") or {}
+    rows = {text: (line or {}).get("rows") or 0 for text, line in lines.items()}
+    long = {text[:80]: n for text, n in rows.items() if n > LINE_ROWS_MAX}
+    out = {
+        "drawn": (read and not measured.get("overlaps"),
+                  {"read": read, "samples": measured.get("samples"), "drawn by": numbers.get("drawn_by"),
+                   "overlaps": [{k: o.get(k) for k in ("text", "drawn", "kind", "text_box", "drawn_box")}
+                                for o in (measured.get("overlaps") or [])][:12]}),
+        "rows": (read and bool(rows) and not long,
+                 {"lines": len(rows), "most rows": max(rows.values()) if rows else None, "over": long,
+                  "font": next(iter(lines.values()), {}).get("font") if lines else None}),
+    }
+    if phone:
+        out["fits"] = (read and not measured.get("unfit"),
+                       {"viewport": numbers.get("viewport"), "band": numbers.get("band"), "frame": numbers.get("frame"),
+                        "unfit": (measured.get("unfit") or [])[:3]})
+    return out
+
+
 # ------------------------------------------------------------------------------------ the stranger's text view (241 FR-7)
 
 IV_BEGIN, IV_CONTINUE, IV_NEXT, IV_SEND = "Begin", "Continue", "Next", "Send my answers"
@@ -1171,6 +1419,26 @@ class StoryLinkText:
     def open(self, url: str) -> None:
         self.page.goto(url, wait_until="load")
         self.page.get_by_role("button", name=IV_BEGIN, exact=True).first.wait_for(state="visible", timeout=30_000)
+
+    def to_story(self, url: str, interview: dict, *, max_screens: int = 6) -> dict:
+        """Spec 158b: Begin, the screener answered where it is shown, and on to the story card -- nothing pressed on it.
+        `reached` where the story card stands."""
+        page = self.page
+        gate = interview.get("gate") or {}
+        self.open(url)
+        self._press(IV_BEGIN)
+        page.wait_for_timeout(600)
+        for _ in range(max_screens):
+            kind = self._kind(gate.get("question"))
+            if kind == "story":
+                self._card("story")
+                return {"reached": True, "screens": [r["screen"] for r in self.screens]}
+            if kind == "condition":
+                self._card("condition")
+                self._pick(page.get_by_test_id("condition-screen").first, 0)
+                self._press(IV_CONTINUE)
+            page.wait_for_timeout(500)
+        return {"reached": False, "screens": [r["screen"] for r in self.screens], "url": page.url}
 
     def walk(self, url: str, interview: dict, *, no_on: str | None = None, story: str = "",
              max_screens: int = 60) -> dict:
