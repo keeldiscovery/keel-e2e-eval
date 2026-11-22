@@ -463,8 +463,10 @@ ORB_WATCH = r"""(() => {
     const sk = JSON.stringify(up) + location.pathname;
     if (sk !== lastSheets) { lastSheets = sk; sheets.push({ up, path: location.pathname, t: Date.now() }); }
     const heardEl = document.querySelector('[data-testid=story-heard]');
+    const quoted = (li) => /[\u201C"]/.test(getComputedStyle(li, '::before').content || '')
+      && /[\u201D"]/.test(getComputedStyle(li, '::after').content || '');
     const said = heardEl ? [...heardEl.querySelectorAll('li')].map((li) => ({ who: li.getAttribute('data-who'),
-      text: (li.textContent || '').replace(/\s+/g, ' ').trim() })) : [];
+      text: (li.textContent || '').replace(/\s+/g, ' ').trim(), quoted: quoted(li) })) : [];
     const keel = [...document.querySelectorAll('[data-testid=story-words] li')].map((li) => ({
       who: li.getAttribute('data-who'), text: (li.textContent || '').replace(/\s+/g, ' ').trim() }));
     const hk = JSON.stringify([said, keel]);
@@ -628,8 +630,10 @@ def heard_verdict(heard: list[dict], said: dict[int, str], path_of) -> dict:
         shown[n] = any(norm(words) in t for t in texts)
     founder_in_words = [li for r in heard for li in (r.get("keel") or []) if li.get("who") != "keel"
                         or any(norm(w) and norm(w) == norm(li.get("text")) for w in said.values())]
+    unquoted = [li.get("text")[:60] for r in heard for li in (r.get("said") or [])
+                if li.get("who") == "you" and li.get("quoted") is False]
     return {"shown": shown, "all_shown": all(shown.values()), "founder_in_words": founder_in_words[:4],
-            "words_keels_only": not founder_in_words}
+            "words_keels_only": not founder_in_words, "unquoted": unquoted[:4], "quoted": not unquoted}
 
 
 def writing_then_speaking(seq: list[str]) -> bool:

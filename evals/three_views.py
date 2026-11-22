@@ -633,9 +633,9 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
     read = walk.turn_read()
     hand_over_checks(run, leg, label, read, "define/story/*", beat_path=r"/define/story/\d$")
     heard = ss.heard_verdict(read["heard"], said, lambda n: f"/define/story/{n}")
-    leg.check(run, f"{label}: each beat's words shown as heard -- in *What I hear* (`story-heard`) on the beat's screen "
-                   "-- and never among Keel's lines (`story-words` Keel's alone; keel-web 249 FR-4)",
-              heard["all_shown"] and heard["words_keels_only"], screen="define/story/1..5 (story-heard, story-words)",
+    leg.check(run, f"{label}: each beat's words shown as heard -- in *What I hear* (`story-heard`) on the beat's screen, "
+                   "in quotation marks -- and never among Keel's lines (`story-words` Keel's alone; keel-web 249 FR-4)",
+              heard["all_shown"] and heard["words_keels_only"] and heard["quoted"], screen="define/story/1..5 (story-heard, story-words)",
               detail=heard, stop=False)
     one_film(run, leg, label, project_id, walk.sheets_of(project_id), "PROBLEM", woke)
     walk.stop_listening()
@@ -888,7 +888,8 @@ def idea_leg(run: Run, leg: Leg, solution: str, label: str, *, back_to_money: bo
               detail={"sheets": sheets, "woke": replay.get("woke")}, stop=False)
     heard = ss.heard_verdict(read["heard"], dict([(1, words1), (2, dict(said)[2])]), lambda n: f"/define/idea/{n}")
     leg.check(run, f"{label}: each idea beat's words shown as heard (*What I hear*, `story-heard`), never among Keel's "
-                   "lines (keel-web 249 FR-4)", heard["all_shown"] and heard["words_keels_only"],
+                   "lines, in quotation marks (keel-web 249 FR-4)", heard["all_shown"] and heard["words_keels_only"]
+              and heard["quoted"],
               screen="define/idea/1..2 (story-heard, story-words)", detail=heard, stop=False)
     return {"name": name, "landed": landed["landed"], "said": said}
 

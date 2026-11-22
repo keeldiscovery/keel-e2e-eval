@@ -106,6 +106,9 @@ def test_heard_is_the_founders_and_words_are_keels():
     v = ss.heard_verdict(leaked, {1: "Payroll practitioners", 2: "They check the payroll"},
                          lambda n: f"/define/story/{n}")
     assert not v["all_shown"] and not v["words_keels_only"]
+    bare = [{"path": "/p/x/define/story/1", "said": [{"who": "you", "text": "Payroll practitioners", "quoted": False}],
+             "keel": []}]
+    assert not ss.heard_verdict(bare, {1: "Payroll practitioners"}, lambda n: f"/define/story/{n}")["quoted"]
 
 
 # ------------------------------------------------------------------------------------------------ the page, drawn
@@ -147,7 +150,9 @@ def test_the_snapshot_and_the_log_read_249s_turn(browser):
     context = browser.new_context(viewport={"width": 1280, "height": 800})
     page = context.new_page()
     try:
-        page.set_content(f"<!doctype html><html><body>{TURN}</body></html>")
+        page.set_content("<!doctype html><html><head><style>.vheard__words li::before{content:'\\201C'}"
+                         ".vheard__words li::after{content:'\\201D'}</style></head>"
+                         f"<body>{TURN}</body></html>")
         page.evaluate("() => { window.__listening = () => window.__mic === true; }")
         page.evaluate(ss.ORB_WATCH)
         # the hand-over, as keel-web 249 makes it: the chime counted, then the orb listens and the line says so
@@ -175,6 +180,9 @@ def test_the_snapshot_and_the_log_read_249s_turn(browser):
     assert ss.card_name(snap["card"], "cost") == ss.CARD_COST_NAME and snap["card"]["lit"] == "cost"
     assert snap["card"]["svg"] == 0 and snap["chime"] == 1 and snap["buttons"] == []
     assert heard and heard[0]["keel"] == [{"who": "keel", "text": "Anything else?"}]
+    assert heard[-1]["said"][0]["quoted"] is True
+    assert ss.heard_verdict(heard, {3: "The hours come late, and nobody says when a rate changes"},
+                            lambda n: f"/{n}")["quoted"]
 
 
 def test_the_sheet_log_counts_the_sheets_standing(browser):

@@ -5818,6 +5818,11 @@ first. **What the harness does**: `story_screens.wake` passes the sheet, then ta
 (recorded per opening as `sheets` and `begin`), so the legs go on. **For keel-web:** start the conversation on the Skip
 itself (or on the sheet's unmount once it was shown), as FR-3 says.
 
+**Status (spec 158c, keel-web `824ede0a` / `f6f7a2c9`, 2026-11-22):** not met any more. keel-web 249 (`useStageOpener`'s
+close also runs where the sheet is unmounted by the seen rule) starts the conversation on the opener's Skip: every opening
+of spec 158c's runs passed the opener by its Skip alone (`sheets: [opener]`, `begin: false`) and Keel said *Ready?* with
+no second tap. The begin screen is still met where no opener plays (a project whose opener is already seen).
+
 ## 109. Observation (keel-cloud, the fakes; the words): a correction after beat 4's readback replaces the condition instead of narrowing it, and its readback reads "only those who in Europe"
 
 Found by spec 158 (FR-1 (a), *the long telling*: *only the ones in Europe* said after beat 4's readback) on
@@ -5846,6 +5851,11 @@ a second, `stop=False`, holds that the condition narrows and the readback says s
 `only_those_who`, `changed: [onlyThoseWho]`, a readback in words), or let the fake's correction echo a condition the
 way its beat-4 echo did.
 
+**Status (spec 158c, 2026-11-22):** still met on the served keel-cloud `af49e837` -- *Nothing changed.*, `changed: []`,
+the condition *work at a company with more than 50 employees*. keel-cloud 264 (branch `800fb399`, not on master when the
+run of record ran) adds the `corrections` entry; until it lands the check stays `stop=False` and FR-1 (a) is reported
+failed by this one check alone (spec 158c FR-9).
+
 ## 111. Observation (keel-web): on a phone the story screens are a little taller than the screen -- the site footer under the story
 
 Found by spec 158b (*The drawn story*: 390 x 844) on keel-web `18e23482`. The story itself fits on every screen
@@ -5856,3 +5866,8 @@ problem and solution links: *Keel · Privacy · Terms*) and 902 px on the decisi
 rule (mockups of 2026-10-14) is about the screen; nothing the story needs sits below the fold. **What the harness does**:
 *fits on a phone* judges the screen's own content (its `main`, fixed bands aside) and reports the page's height beside
 it. **For keel-web:** keep the footer off the conversation's and the story card's phone screens, or accept the spill.
+
+**Status (spec 158c, keel-web `f6f7a2c9`, 2026-11-22):** still open, and the founder's page is a little taller: with
+keel-web 249's orb row above the story the founder's story on a phone (`define/story/check`, reopened) is 941 px on
+844 (was 890 on `18e23482`); the stranger's story cards are unchanged (875 px; 902 px on the decision-maker's link). The
+story itself fits on all five phone reads.
