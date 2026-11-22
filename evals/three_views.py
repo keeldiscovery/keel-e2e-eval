@@ -592,32 +592,108 @@ def fr1_a(run: Run, leg: Leg) -> None:
 
 # ------------------------------------------------------------------------------------------------ FR-1 (b)
 
+def idea_leg(run: Run, leg: Leg, solution: str, label: str, *, back_to_money: bool = False,
+             before_yes: Callable[[], None] | None = None) -> dict:
+    """keel-web 245 FR-11 on a solution project: the problem replayed and closed by the quiet (never corrected), the
+    two beats (the name with a colour said; how it solves the limitations), the idea's boxes by the quiet, the build,
+    the day with the idea (the name and the colour on it, clearly), then the quiet goes on."""
+    idea = ss.IdeaWalk(run.page, run.recorder, run.web)
+    replay = idea.replay(solution)
+    board = replay["screen"].get("board") or ""
+    problem = run.get(f"/v2/projects/{solution}/story") or {}
+    leg.check(run, f"{label}: the problem replayed -- its board (no cost box), the turn line, no button; the quiet "
+                   "stamps still the problem (story/confirm 200), nothing corrected",
+              replay["confirm"]["status"] == 200 and replay["screen"].get("said") == ss.SOLUTION_TURN
+              and not replay["screen"].get("buttons") and not idea.writes_to(r"/story/correct$")
+              and (not problem.get("cost") or _bare(problem.get("cost")) not in _bare(board)),
+              screen="define/idea/start (the replay)",
+              detail={"said": replay["screen"].get("said"), "board": board, "cost": problem.get("cost"),
+                      "woke": replay.get("woke"), "buttons": replay["screen"].get("buttons"),
+                      "confirm": replay["confirm"]["status"]})
+    said = ss.said_idea(run.readings)
+    name = str(ss.idea_reading_of(run.readings, 1).get("name") or said[0][1])
+    words1 = ss.said_name(name)
+    beats = idea.beats(said, name_words=words1)
+    run.beats.append({"label": f"{label} (idea)", "project": solution, "beats": list(beats.values()), "idea": True})
+    b1, b2 = beats[1], beats[2]
+    brand = (((b1.get("put") or {}).get("body") or {}).get("idea") or {}).get("brand") or {}
+    leg.check(run, f"{label}: idea beat 1 -- *{words1}*: the name read and the colour said written as its hex "
+                   f"({ss.SAID_COLOUR[1]}); the drop zone the one control, no button",
+              (b1["put"]["status"] or 500) < 400 and brand.get("name") == name
+              and str(brand.get("colour") or "").lower() == ss.SAID_COLOUR[1] and b1["asked"].get("drop") is True
+              and not b1["asked"].get("buttons") and not b1["readback"].get("buttons"),
+              screen="define/idea/1", detail={"brand": brand, "asked": b1["asked"].get("question"),
+                                              "buttons": b1["asked"].get("buttons")})
+    read2 = ((b2.get("put") or {}).get("body") or {})
+    answers = ((read2.get("idea") or {}).get("limitAnswers") or [])
+    marks = b2["readback"].get("marks") or []
+    leg.check(run, f"{label}: idea beat 2 -- one answer mapped to ticks and crosses, one a limitation, the readback "
+                   "counting them; no button",
+              (b2["put"]["status"] or 500) < 400 and len(marks) == len(answers) == len(ss.limits_read(run.readings))
+              and [m.get("mark") for m in marks] == ["tick" if a.get("solved") else "cross" for a in answers]
+              and bool(read2.get("readback")) and not b2["readback"].get("buttons"),
+              screen="define/idea/2", detail={"marks": marks, "answers": answers, "readback": read2.get("readback")})
+    orbs = {n: b.get("orb") for n, b in beats.items()}
+    leg.check(run, f"{label}: the orb through each idea beat -- speaking, listening, hearing, writing, speaking",
+              all(ss.holds_in_order(o or [], ss.BEAT_ORB) for o in orbs.values()), screen="define/idea/1..2",
+              detail=orbs, stop=False)
+    boxes = idea.boxes()
+    leg.check(run, f"{label}: the idea's boxes -- *Is that your idea?*, no button, the quiet confirms (idea/confirm 200)",
+              boxes["confirm"]["status"] == 200 and boxes["screen"].get("said") == ss.IDEA_BOXES_ASK
+              and not boxes["screen"].get("buttons"), screen="define/idea/check (boxes)",
+              detail={"said": boxes["screen"].get("said"), "board": boxes.get("board"),
+                      "confirm": boxes["confirm"]["status"]})
+    built = idea.building_then_story(name)
+    spoken = run.get(f"/v2/projects/{solution}/idea/spoken") or {}
+    leg.check(run, f"{label}: the idea's build reaches ready; the day with the idea drawn", built["state"] == "story"
+              and ((spoken.get("build") or {}).get("state") == "ready"), screen="define/idea/check (story)",
+              detail={"screen": built["state"], "build": (spoken.get("build") or {}).get("state")})
+    probe = built.get("brand") or {}
+    label_ = probe.get("label") or {}
+    colour = ss.rgb_of(ss.SAID_COLOUR[1])
+    leg.check(run, f"{label}: the story carries the icon in the colour and the name clearly -- never faded, cropped or "
+                   "shrunk (the review condition)",
+              bool(label_) and (label_.get("opacity") or 0) >= 0.99 and label_.get("inside") is True
+              and label_.get("clipped") is False and (label_.get("fontPx") or 0) >= 12 and label_.get("color") == colour
+              and colour in (probe.get("badges") or []), screen="define/idea/check (story)",
+              detail={"probe": probe, "want colour": colour})
+    if before_yes:
+        before_yes()
+    landed = idea.story_yes(lands=re.compile(r"start=money") if back_to_money else ss.COMPATIBILITY_PATH)
+    return {"name": name, "landed": landed["landed"], "said": said}
+
+
 def fr1_b(run: Run, leg: Leg) -> None:
-    name = f"157 solution {run.stamp}"
+    name = f"158 solution {run.stamp}"
     run.new_project(name, "SOLUTION")
     start = ss.SolutionStart(run.page, run.recorder, run.web)
     start.press_start()
     opened = start.read()
-    leg.check(run, "the market's Start on a solution scope opens the solution start and creates nothing",
-              opened["create"] == "Create a problem project" and (opened["pending"] or {}).get("scope") == "SOLUTION",
-              screen="solution start", detail=opened)
+    defined = [k for k in ("a-script", "a-long") if run.projects.get(k)]
+    leg.check(run, "the which-problem page: a page (no orb, nothing spoken), the defined problem projects listed with "
+                   "their first frame, *A new problem*; nothing created",
+              opened["orb"] == 0 and opened["create"].endswith(ss.NEW_PROBLEM)
+              and (opened["pending"] or {}).get("scope") == "SOLUTION"
+              and {r["project"] for r in opened["rows"]} >= {run.projects[k] for k in defined}
+              and all(r["frame"] for r in opened["rows"]),
+              screen="which problem (define a solution)", detail=opened)
     problem = start.create_problem()
     run.projects["b-problem"] = problem
     run.names["b-problem"] = ss.problem_name_of(name)
     created = start.created_problem
-    leg.check(run, "*Create a problem project* is one POST: scope PROBLEM, the problem's name, then its story opens",
+    leg.check(run, "*A new problem* is one POST: scope PROBLEM, the problem's name, then its conversation opens",
               created["status"] == 201 and (created["sent"] or {}).get("scope") == "PROBLEM"
               and (created["sent"] or {}).get("name") == ss.problem_name_of(name),
-              screen="solution start", detail=created)
-    told = tell_the_story(run, leg, problem, "typed", back_to_solution=True)
-    leg.check(run, "the story's yes is the return trip: the solution start with the problem just agreed picked",
+              screen="which problem", detail=created)
+    told = tell_the_story(run, leg, problem, "the solution's problem", back_to="solution", goto=False)
+    leg.check(run, "the story's quiet is the return trip: the which-problem page with the problem just agreed picked",
               f"problem={problem}" in told["landed"], screen="define/story/check -> /?start=solution",
               detail=told["landed"])
     back = start.read()
     first = (back["rows"] or [{}])[0]
-    leg.check(run, "back on the start: the agreed problem first, picked, *Continue with this problem*",
+    leg.check(run, "back on the page: the agreed problem first, picked, *Continue with this problem*",
               first.get("project") == problem and first.get("picked") is True
-              and first.get("press") == "Continue with this problem", screen="solution start (picked)", detail=back)
+              and first.get("press") == "Continue with this problem", screen="which problem (picked)", detail=back)
     run.load_runtime("SOLUTION")
     made = start.pick(problem)
     solution = str((made["body"] or {}).get("projectId"))
@@ -626,44 +702,19 @@ def fr1_b(run: Run, leg: Leg) -> None:
     leg.check(run, "the pick is the one create request: scope SOLUTION and parentProjectId the problem project; lineage "
                    "names it", made["status"] == 201 and (made["sent"] or {}).get("parentProjectId") == problem
               and ((made["body"] or {}).get("lineage") or {}).get("problemProjectId") == problem,
-              screen="solution start", detail=made)
-    idea = ss.IdeaWalk(run.page, run.recorder, run.web)
-    still = idea.still(solution)
-    leg.check(run, "Still the problem: the picked problem read back, its yes is story/confirm 200",
-              still["confirm"]["status"] == 200, screen="define/idea/start", detail=still)
-    said = ss.said_idea(run.readings)
-    turns = idea.turns(said, "spoken")
-    brand = turns["brand"]
-    leg.check(run, "turn 1: the name read, the brand's colour picked (PUT idea/brand 200 with the colour)",
-              brand["status"] == 200 and (brand["sent"] or {}).get("colour") == ss.BRAND_SWATCHES[1],
-              screen="define/idea/1", detail=brand)
-    want_line = ss.idea_reading_of(run.readings, 2).get("readback")
-    leg.check(run, "turn 2: *Imagine {name}, a ...* read back", want_line in (turns.get("readback") or ""),
-              screen="define/idea/2", detail={"drawn": turns.get("readback"), "want": want_line})
-    last = ss.idea_reading_of(run.readings, 3, said[-1][1])
-    leg.check(run, "turn 3: every limit answered; the new way drafted under them",
-              turns["new_way"] == list(last.get("new_way") or []) and all((a["status"] or 0) < 400
-                                                                          for a in turns["limits"]),
-              screen="define/idea/3", detail={"new_way": turns["new_way"], "limits": turns["limits"]})
-    boxes = idea.boxes()
-    leg.check(run, "the idea's boxes: Yes, that is my idea -- idea/confirm 200", boxes["confirm"]["status"] == 200,
-              screen="define/idea/check (boxes)", detail=boxes["confirm"]["status"])
-    built = idea.building_then_story()
-    spoken = run.get(f"/v2/projects/{solution}/idea/spoken") or {}
-    leg.check(run, "the idea's build reaches ready; the day with the idea drawn", built["state"] == "story"
-              and ((spoken.get("build") or {}).get("state") == "ready"), screen="define/idea/check (story)",
-              detail={"screen": built, "build": (spoken.get("build") or {}).get("state")})
-    landed = idea.story_yes()
-    leg.check(run, "the idea's story's yes lands on Compatibility", bool(ss.COMPATIBILITY_PATH.search(landed)),
-              screen="define/solution/q/1", detail=landed)
+              screen="which problem", detail=made)
+    done = idea_leg(run, leg, solution, "the solution")
+    leg.check(run, "the idea's story's quiet lands on Compatibility", bool(ss.COMPATIBILITY_PATH.search(done["landed"])),
+              screen="define/solution/q/1", detail=done["landed"])
     calibration = wait_calibration(run, solution, "SOLUTION")
     ra = next((q for q in calibration.get("questions") or [] if q.get("dimension") == "solution.relative_advantage"),
               {})
-    benefits = list(last.get("benefits") or [])
+    benefits = list(ss.idea_reading_of(run.readings, 2).get("benefits") or [])
     said_what = json.dumps(ra.get("answerWhat") or ra.get("answer") or "")
-    leg.check(run, "Relative advantage arrives pre-filled with the two benefits (keel-cloud 260 judgement call 12)",
-              all(b in said_what for b in benefits), screen="define/solution (Relative advantage)", view="wire",
-              detail={"answerWhat": ra.get("answerWhat"), "benefits": benefits, "state": calibration.get("state")})
+    leg.check(run, "Relative advantage arrives pre-filled with the idea's benefits (keel-cloud 260 judgement call 12)",
+              bool(benefits) and all(b in said_what for b in benefits), screen="define/solution (Relative advantage)",
+              view="wire", detail={"answerWhat": ra.get("answerWhat"), "benefits": benefits,
+                                   "state": calibration.get("state")})
 
 
 def wait_calibration(run: Run, project_id: str, vector: str, *, timeout_s: float = 60) -> dict:
@@ -834,60 +885,71 @@ def web_has_243(run: Run) -> bool:
                for p in (root / "src").rglob("*.tsx") if p.name.startswith("Money"))
 
 
+def money_start(run: Run) -> dict:
+    """The market's Start on the money scope: keel-web 245 FR-12's which-problem page (a page, no orb)."""
+    page = run.page
+    with run.recorder.step("the market's Start on the money scope opens the which-problem page", party="founder"):
+        page.get_by_role("button", name=re.compile(r"^start$", re.I)).first.click()
+        root = page.locator("[data-testid=money-start][data-screen=problem]").first
+        root.wait_for(state="visible", timeout=30_000)
+        try:
+            root.get_by_test_id("money-problem").first.wait_for(state="visible", timeout=10_000)
+        except Exception:  # noqa: BLE001 - none listed: recorded
+            pass
+    return {"rows": [r.get_attribute("data-project") for r in root.get_by_test_id("money-problem").all()],
+            "orb": page.locator(ss.ORB).count(), "title": _safe(lambda: root.locator("h2").first.inner_text())}
+
+
 def fr1_c(run: Run, leg: Leg) -> None:
-    """keel-web 243 FR-1 (keel-cloud 261 FR-1 / FR-2): a money start with nothing -- screen 1 *Create a problem project*,
-    its story, back with it picked; screen 2 *Create a solution project* on it, its idea, back; *Use {name}*: the money
-    project created on the solution, the persona screen with the chain's actor and the idea's name filled; Existing
-    sacrifice's prompt the story's cost line; the money calibrated, locked once (one PROJECT charge), the decision-maker's
-    link sent."""
+    """keel-web 245 FR-12 (243's money start, on the pages): a money study from nothing -- the which-problem page's *A
+    new problem*, its conversation, back with it picked; the which-solution page's *A new solution*, its conversation,
+    back; *Use {name}*: the money project created on the solution, the one orb moment (the problem replayed with the
+    idea's box lit, the quiet), today's persona step pre-filled; Existing sacrifice's prompt the story's cost line; the
+    money calibrated, locked once (one PROJECT charge), the decision-maker's link sent. Then a money study with only a
+    name (keel-cloud 263 FR-10): the which-solution page's *Use this name*, its orb moment, the persona step -- walked
+    that far only (no lock fixture for it in keel-cloud yet)."""
     if not web_has_243(run):
         leg.status = "written, not run"
         leg.why = ("keel-web 243 (the money start) is not in the keel-web checkout the stack serves "
                    f"({MONEY_START_SOURCE} absent): written to specs/243's spec.md, not run")
         return
     page = run.page
-    name = f"157 money {run.stamp}"
+    name = f"158 money {run.stamp}"
     run.new_project(name, "COMMERCIAL")
-    with run.recorder.step("FR-1c: the market's Start on the money scope opens the money start", party="founder"):
-        page.get_by_role("button", name=re.compile(r"^start$", re.I)).first.click()
-        page.locator("[data-testid=money-start][data-screen=problem]").first.wait_for(state="visible", timeout=30_000)
+    opened = money_start(run)
+    leg.check(run, "the which-problem page: a page (no orb), the defined problem projects listed", opened["orb"] == 0
+              and len(opened["rows"]) >= 2, screen="which problem (will they pay)", detail=opened)
     with page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0].endswith("/v2/projects"),
                               timeout=30_000) as got:
         page.get_by_test_id("money-create-problem").first.click()
     problem = str((got.value.json() or {}).get("projectId"))
     run.projects["c-problem"] = problem
-    leg.check(run, "screen 1's *Create a problem project*: one POST, scope PROBLEM, then its story",
+    leg.check(run, "*A new problem*: one POST, scope PROBLEM, then its conversation",
               got.value.status == 201 and (got.value.request.post_data_json or {}).get("scope") == "PROBLEM",
-              screen="money start · the problem", detail=got.value.request.post_data_json)
+              screen="which problem (will they pay)", detail=got.value.request.post_data_json)
     page.locator(ss.STORY_START).first.wait_for(state="visible", timeout=30_000)
-    told = tell_the_story(run, leg, problem, "typed", back_to_money=True)
-    leg.check(run, "the story's yes goes back to the money start", "start=money" in told["landed"],
+    told = tell_the_story(run, leg, problem, "the money's problem", back_to="money", goto=False)
+    leg.check(run, "the story's quiet goes back to the money start", "start=money" in told["landed"],
               screen="define/story/check -> /?start=money", detail=told["landed"])
     second = page.locator("[data-testid=money-start][data-screen=solution]").first
     second.wait_for(state="visible", timeout=30_000)
-    leg.check(run, "back with the problem picked: the start opens on its solution screen (none prices it yet: the "
-                   "create alone)", page.get_by_test_id("money-use-solution").count() == 0
-              and page.get_by_test_id("money-create-solution").count() == 1, screen="money start · the solution",
-              detail=_safe(lambda: second.inner_text()))
+    leg.check(run, "back with the problem picked: the which-solution page (none prices it yet: *A new solution* and "
+                   "*or just the name*), no orb", page.get_by_test_id("money-use-solution").count() == 0
+              and page.get_by_test_id("money-create-solution").count() == 1
+              and page.get_by_test_id("money-offer-name").count() == 1 and page.locator(ss.ORB).count() == 0,
+              screen="which solution", detail=_safe(lambda: second.inner_text()))
     run.load_runtime("SOLUTION")
     with page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0].endswith("/v2/projects"),
                               timeout=30_000) as got:
         page.get_by_test_id("money-create-solution").first.click()
     solution = str((got.value.json() or {}).get("projectId"))
     run.projects["c-solution"] = solution
-    leg.check(run, "screen 2's *Create a solution project*: scope SOLUTION on the problem (parentProjectId)",
+    leg.check(run, "*A new solution*: scope SOLUTION on the problem (parentProjectId)",
               got.value.status == 201 and (got.value.request.post_data_json or {}).get("parentProjectId") == problem,
-              screen="money start · the solution", detail=got.value.request.post_data_json)
-    idea = ss.IdeaWalk(page, run.recorder, run.web)
-    idea.still(solution)
-    idea.turns(ss.said_idea(run.readings), "typed")
-    idea.boxes()
-    built = idea.building_then_story()
-    leg.check(run, "the idea's story's one button reads *Yes, exactly my idea · back to will they pay*",
-              built.get("yes") == ss.IDEA_YES_MONEY, screen="define/idea/check (story)", detail=built.get("yes"),
-              stop=False)
-    run.load_runtime("COMMERCIAL")
-    idea.story_yes(lands=re.compile(r"start=money"))
+              screen="which solution", detail=got.value.request.post_data_json)
+    # the runtime moves to the money before the idea's quiet goes back (157's order: the money project is made next)
+    done = idea_leg(run, leg, solution, "the money's solution", back_to_money=True,
+                    before_yes=lambda: run.load_runtime("COMMERCIAL"))
     use = page.locator(f"[data-testid=money-solution][data-project='{solution}'] [data-testid=money-use-solution]").first
     use.wait_for(state="visible", timeout=30_000)
     with page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0].endswith("/v2/projects"),
@@ -899,9 +961,17 @@ def fr1_c(run: Run, leg: Leg) -> None:
     leg.check(run, "*Use {name}* creates the money project on the solution (scope COMMERCIAL, parentProjectId); lineage "
                    "names both", got.value.status == 201 and (got.value.request.post_data_json or {}).get("parentProjectId")
               == solution and (body.get("lineage") or {}).get("solutionProjectId") == solution
-              and (body.get("lineage") or {}).get("problemProjectId") == problem, screen="money start · the solution",
+              and (body.get("lineage") or {}).get("problemProjectId") == problem, screen="which solution",
               detail={"sent": got.value.request.post_data_json, "lineage": body.get("lineage")})
-    page.wait_for_url(re.compile(r"/define/persona"), timeout=60_000)
+    replay = ss.MoneyReplay(page, run.recorder, run.web).walk()
+    said = replay["screen"].get("said") or ""
+    leg.check(run, f"the one orb moment: the problem replayed with the idea's box lit, *This is the problem, and this is "
+                   f"{done['name']}. Now, will they pay for it?*, the quiet -- then today's persona step; nothing corrected",
+              said == f"This is the problem, and this is {done['name']}. Now, will they pay for it?"
+              and replay["landed"].endswith("/define/persona") and not replay["corrected"]
+              and not replay["screen"].get("buttons"), screen="define/money/start",
+              detail={"said": said, "board": replay["screen"].get("board"), "landed": replay["landed"],
+                      "woke": replay.get("woke")})
     ss.pass_the_welcome(page)
     context = run.get(f"/v2/projects/{money}/context") or {}
     idea_view = run.get(f"/v2/projects/{money}/idea") or {}
@@ -930,6 +1000,45 @@ def fr1_c(run: Run, leg: Leg) -> None:
     page.goto(f"{run.web}/p/{money}/define/ready/interviewer", wait_until="load")
     lock_once(run, leg, j, money)
     send_link(run, leg, "c", money, "TEXT", decider=True)
+    money_by_name(run, leg, problem, done["name"])
+
+
+def money_by_name(run: Run, leg: Leg, problem: str, product: str) -> None:
+    """Keel-cloud 263 FR-10 / keel-web 245 FR-12: a money study with only the product's name -- the which-problem page's
+    pick, the which-solution page's *or just the name* (`offerName`, a PROBLEM parent), the orb moment with the name
+    alone, the persona step. Walked to the persona step only: keel-cloud has no lock fixture for a name-only money
+    study yet (263 judgement call 16), so nothing is calibrated or locked on it."""
+    page = run.page
+    name = f"158 money by name {run.stamp}"
+    run.new_project(name, "COMMERCIAL")
+    opened = money_start(run)
+    row = page.locator(f"[data-testid=money-problem][data-project='{problem}'] [data-testid=money-pick-problem]").first
+    row.wait_for(state="visible", timeout=30_000)
+    row.click()
+    page.locator("[data-testid=money-start][data-screen=solution]").first.wait_for(state="visible", timeout=30_000)
+    page.get_by_test_id("money-offer-name").first.fill(product)
+    with page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0].endswith("/v2/projects"),
+                              timeout=30_000) as got:
+        page.get_by_test_id("money-use-name").first.click()
+    body = got.value.json() or {}
+    sent = got.value.request.post_data_json or {}
+    run.projects["c-money-name"] = str(body.get("projectId"))
+    leg.check(run, f"*or just the name* -- *{product}*, *Use this name*: the money project on the problem itself "
+                   "(offerName, a PROBLEM parent; lineage names the problem)",
+              got.value.status == 201 and sent.get("offerName") == product and sent.get("parentProjectId") == problem
+              and (body.get("lineage") or {}).get("problemProjectId") == problem,
+              screen="which solution (or just the name)", detail={"page": opened, "sent": sent,
+                                                                   "status": got.value.status,
+                                                                   "lineage": body.get("lineage")})
+    replay = ss.MoneyReplay(page, run.recorder, run.web).walk()
+    said = replay["screen"].get("said") or ""
+    leg.check(run, f"the orb moment with the name alone (*... and this is {product}. Now, will they pay for it?*), the "
+                   "quiet, then the persona step", said.endswith(f"this is {product}. Now, will they pay for it?")
+              and replay["landed"].endswith("/define/persona") and not replay["corrected"],
+              screen="define/money/start (a name only)", detail={"said": said, "landed": replay["landed"],
+                                                                  "board": replay["screen"].get("board")})
+    leg.notes.append("the money study with only a name was walked to the persona step and no further: keel-cloud has no "
+                     "lock fixture for it yet (263 judgement call 16; spec 158's brief)")
 
 
 def lock_once(run: Run, leg: Leg, j: cs.Journey, project_id: str) -> None:
