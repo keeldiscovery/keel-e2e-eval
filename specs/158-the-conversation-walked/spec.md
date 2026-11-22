@@ -15,8 +15,8 @@ three views with nothing bought. Marks as the current gallery's; no new score.
   condition and the readback says so. No button is clicked anywhere on the beats: the harness fails a leg that finds
   one (`button` elements other than the orb inside the story screens).
 - **FR-2 The orb and the screens.** The screen collector records the orb's `data-state` through a beat (speaking ->
-  listening -> hearing -> writing -> speaking), the folded transcript line after beat 3, the drafted labels on the
-  boxes, and that the boxes confirm by silence and the story closes by silence to the window screen (244 FR-1).
+  listening -> hearing -> writing -> speaking), the folded transcript line after beat 3, the cost line present on the boxes (`costDrafted` on the wire,
+  no label on screen), and that the boxes confirm by silence and the story closes by silence to the window screen (244 FR-1).
 - **FR-3 Nothing bought, as 157.** FakeSpeech, the stack's fake avatar, the fake transcriber; the log scan unchanged.
 - **FR-4 The three views** (157 FR-2) are unchanged except the story cards' clips, which now come from the beats'
   slots; the legs stay.
