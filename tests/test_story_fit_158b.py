@@ -344,3 +344,20 @@ def test_a_footer_inside_the_scrolling_column_is_still_the_footer(browser):
     finally:
         context.close()
     assert read["fit"]["page_scrolls"] is True and read["fit"]["content_below"] is None
+
+
+def test_a_container_holding_the_footer_is_not_content_below_the_fold(browser):
+    """keel-web's founder shell: one column (`.pscroll`) holds the story and the footer; the column reaches the page's
+    bottom with the footer, its content does not."""
+    body = ("<div class='pscroll' style='padding-bottom:56px'>" + _player()
+            + "<footer class='ffoot' style='height:120px;margin-top:400px'>Signed in as ... Log out</footer></div>")
+    context, page = _page(browser, body, viewport=ss.PHONE)
+    try:
+        read = _read(page)
+        page.evaluate("() => { const d = document.createElement('p'); d.textContent = 'Continue'; d.style.marginTop = '700px'; "
+                      "document.querySelector('.pscroll').insertBefore(d, document.querySelector('footer')); }")
+        tall = _read(page)
+    finally:
+        context.close()
+    assert read["fit"]["content_below"] is None
+    assert tall["fit"]["content_below"] and "Continue" in tall["fit"]["lowest"]

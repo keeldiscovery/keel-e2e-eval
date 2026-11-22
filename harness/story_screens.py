@@ -1265,10 +1265,16 @@ _MEASURE_STORY = r"""(args) => {
   // the screen's own content (its <main>, or the page where it has none; fixed bands and any <footer> aside) below the
   // fold -- the site's footer under it is not the story's: the page may scroll to it without the story failing to fit
   const main = root.closest('main') || document.body;
-  let low = 0;
+  // leaves only (an <svg> one leaf): a container holding the footer reaches the page's bottom with it
+  let low = 0; let lowest = null;
   for (const e of main.querySelectorAll('*')) {
+    const tag = e.tagName.toLowerCase();
+    if (e.closest('footer') || (tag !== 'svg' && e.closest('svg')) || (tag !== 'svg' && e.children.length)) continue;
     const r = e.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0 && !e.closest('footer') && getComputedStyle(e).position !== 'fixed' && seen(e) > 0.05) low = Math.max(low, r.bottom);
+    if (r.width > 0 && r.height > 0 && r.bottom > low && getComputedStyle(e).position !== 'fixed' && seen(e) > 0.05) {
+      low = r.bottom;
+      lowest = [tag, (e.getAttribute('class') || '').slice(0, 40), e.getAttribute('data-testid'), (e.textContent || '').trim().slice(0, 40)].filter(Boolean).join(' ');
+    }
   }
   return {
     viewport: { w: window.innerWidth, h: window.innerHeight }, band: { top: Math.round(top), bottom: Math.round(bottom) },
@@ -1279,7 +1285,7 @@ _MEASURE_STORY = r"""(args) => {
     line: line ? { text: line.text, rows, line_height: lh, font, box: line.box } : null, state,
     fit: { frame: inside(frame), line: inside(line && line.box), state: inside(state),
            page_scrolls: doc.scrollHeight > window.innerHeight + 1, doc: { scroll: doc.scrollHeight, view: window.innerHeight },
-           content_below: low > bottom + 1 ? Math.round(low) : null, scroller },
+           content_below: low > bottom + 1 ? Math.round(low) : null, lowest: low > bottom + 1 ? lowest : null, scroller },
     overlaps, player: root.getAttribute('data-state'),
   };
 }"""
@@ -1322,7 +1328,7 @@ def measure_story(page, root: str, *, state: str | None = None, play: bool = Fal
             fit = read["fit"]
             bad = [k for k in ("frame", "line", "state") if fit.get(k) is False and (k != "state" or read.get("state"))]
             if fit.get("content_below"):
-                bad.append(f"the screen runs below the fold (to y={fit['content_below']})")
+                bad.append(f"the screen runs below the fold (to y={fit['content_below']}: {fit.get('lowest')})")
             if fit.get("page_scrolls"):
                 out["page_scrolls"] = max(out.get("page_scrolls") or 0, (fit.get("doc") or {}).get("scroll") or 0)
             if fit.get("scroller"):
