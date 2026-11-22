@@ -1,0 +1,249 @@
+"""Spec 157: the three views' machinery with no stack -- the cloud's own story fixtures read and turned into the walk's
+words and the runtime's script, the served cards a link owes a clip, the report and its log scan -- and the mirror of
+the subjects: keel-cloud 259 / 260 / 261 (contract 81, the registry's story wording) and the keel-web 241 / 242
+selectors the walk presses, read from the sibling checkouts the stack runs."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+from evals import three_views as tv
+from evals import three_views_report as report
+from harness import story_screens as ss
+from stack.config import load_config
+
+CONFIG = load_config(validate=False)
+CLOUD = Path(CONFIG.keel_cloud)
+WEB = Path(CONFIG.keel_web)
+
+#: keel-cloud 261 T3: sha256 of `canon/openapi-v2.yaml` at contract 81 (d838958b, unchanged at master 78237f87).
+CONTRACT_81 = "f1c1733a9bfe9645f485b0ed0bb383246260ed569994ae83d08948be806685cf"
+
+
+def _need(path: Path) -> Path:
+    if not path.exists():
+        pytest.skip(f"{path} is not in the sibling checkout (before keel-cloud 259 / keel-web 241)")
+    return path
+
+
+# ------------------------------------------------------------------------------------------- the cloud's fixtures
+
+def readings() -> dict:
+    _need(CLOUD / ss.FAKE_READINGS)
+    return ss.fake_readings(CLOUD)
+
+
+def test_the_turns_are_the_scripts_heard_words_in_order():
+    told = ss.said_turns(readings())
+    assert [n for n, _ in told if n != 6] == [1, 2, 3, 4, 5, 7]
+    assert sum(1 for n, _ in told if n == 6) >= 2                       # 259 judgement call 8: one PUT a limit
+    assert all(words and words == words.strip() for _, words in told)
+
+
+def test_the_idea_turns_answer_every_limit_of_the_story():
+    script = readings()
+    idea = ss.said_idea(script)
+    assert [n for n, _ in idea][:2] == [1, 2]
+    assert sum(1 for n, _ in idea if n == 3) == len(ss.limits_read(script))
+    last = ss.idea_reading_of(script, 3, idea[-1][1])
+    assert last.get("new_way") and last.get("benefits")
+
+
+def test_the_prevalence_fixture_carries_the_four_fields():
+    _need(CLOUD / ss.EXAMPLE_PREVALENCE)
+    prevalence = ss.example_prevalence(CLOUD)
+    assert set(prevalence) == {"routine", "went_wrong", "no_sayer", "event"} and all(prevalence.values())
+
+
+def test_the_context_result_is_the_scripts_slots():
+    script = readings()
+    result = ss.context_interpret_result(script, "DAILY")
+    who, when = ss.reading_of(script, 1), ss.reading_of(script, 3)
+    assert result["actor"] == who["actor"] and result["actor_plural"] == who["actor_plural"]
+    assert result["occasion"] == {"noun": when["occasion"], "stem": when["occasion_stem"], "rhythm": "DAILY"}
+    assert result["segment"] == {"core": who["segment_core"],
+                                 "condition": ss.reading_of(script, 4)["only_those_who"]}
+    assert result["window"] == {"proposed": None}
+
+
+@pytest.mark.parametrize("window,rhythm", [({"count": 7, "unit": "NIGHTS"}, "DAILY"), ({"count": 4, "unit": "WEEKS"},
+                                           "WEEKLY"), ({"count": 2, "unit": "MONTHS"}, "MONTHLY"),
+                                          ({"count": 3, "unit": "MONTHS"}, "QUARTERLY")])
+def test_the_rhythm_is_keel_clouds(window, rhythm):
+    assert ss.rhythm_of(window) == rhythm
+
+
+def test_the_screener_is_the_founders_condition_asked_yes_or_no():
+    assert ss.condition_question("work at a company with more than 50 employees") == \
+        "Do you work at a company with more than 50 employees?"
+    assert ss.condition_question("") is None and ss.condition_question(None) is None
+
+
+def _base() -> dict:
+    return {"_entry_id": "base", "CONTEXT_INTERPRET": [ss.completed({"actor": "x"})],
+            "CALIBRATION_QUESTIONS": [ss.completed({"vector": "PROBLEM", "questions": [
+                {"key": "problem.prevalence", "routine": "r", "went_wrong": "w", "no_sayer": "n", "event": "e"},
+                {"key": "problem.frequency"}]})],
+            "CALIBRATION_QUESTIONS+repair": [ss.completed({"vector": "SOLUTION", "questions": [
+                {"key": "solution.compatibility"}]})],
+            "RESPONDENT_QUESTIONS": [ss.completed({"part": 1, "link": "PRIMARY", "items": [
+                {"key": "problem.prevalence", "event": "old"}], "condition": {"question": "Old?", "inside": "YES"}})]}
+
+
+def test_the_runtime_script_moves_exactly_three_answers():
+    script = readings()
+    prevalence = {"routine": "R", "went_wrong": "W", "no_sayer": "N", "event": "E"}
+    base = _base()
+    out = ss.story_runtime_script(base, script, prevalence, {"count": 7, "unit": "NIGHTS"})
+    assert base["CALIBRATION_QUESTIONS"][0]["result"]["questions"][0]["event"] == "e"      # the base is not touched
+    assert out["CONTEXT_INTERPRET"][0]["result"]["actor"] == ss.reading_of(script, 1)["actor"]
+    q = out["CALIBRATION_QUESTIONS"][0]["result"]["questions"][0]
+    assert {k: q[k] for k in prevalence} == prevalence
+    assert out["CALIBRATION_QUESTIONS+repair"] == base["CALIBRATION_QUESTIONS+repair"]   # a solution answer, untouched
+    part1 = out["RESPONDENT_QUESTIONS"][0]["result"]
+    assert part1["items"][0]["event"] == "E"
+    assert part1["condition"] == {"question": ss.condition_question(ss.reading_of(script, 4)["only_those_who"]),
+                                  "inside": "YES"}
+    assert "_story" in out
+
+
+def test_served_cards_name_every_card_a_stranger_answers():
+    interview = {"gate": {"itemId": "g", "clipId": "c1", "condition": {"question": "Q?", "clipId": "c0"}},
+                 "parts": [{"items": [{"itemId": "i1", "dimension": "problem.frequency", "clipId": "c2"},
+                                      {"itemId": "i2", "dimension": "problem.importance"}]}]}
+    cards = ss.served_cards(interview)
+    assert [c["kind"] for c in cards] == ["screener", "gate", "item", "item"]
+    assert [c["itemId"] for c in cards if not c["clipId"]] == ["i2"]
+    money = {"condition": {"question": "Q?", "clipId": "c0"}, "problemCheck": {"question": "Does your x have this "
+                                                                                           "problem?", "clipId": "k"}}
+    assert [c["kind"] for c in ss.served_cards(money)] == ["screener", "check"]
+
+
+def test_the_problem_projects_name_is_keel_webs():
+    assert ss.problem_name_of(" A study ") == "A study: the problem"
+
+
+# ------------------------------------------------------------------------------------------- the report
+
+def _legs():
+    green = tv.Leg("FR-1a", "the problem", status="green", checks=[tv.Check("held", True, "s", "founder")])
+    failed = tv.Leg("FR-2 problem · text", "the link", status="failed", why="the gate (screen: gate; view: text)",
+                    checks=[tv.Check("the gate", False, "the gate card", "text", {"got": 1})])
+    unbuilt = tv.Leg("FR-1c", "money", status="written, not run", why="keel-web 243 not in the checkout")
+    return [green, failed, unbuilt]
+
+
+def test_the_report_names_every_check_and_a_failures_screen_and_view():
+    md = report.report_markdown(_legs(), {"cloud": "c", "web": "w", "eval": "e", "profile": "eval", "started": "t",
+                                          "seconds": 1, "bundle": "b"}, report.log_scan(""))
+    assert "| FR-1a | the problem | **green** |" in md
+    assert "[FAILED] the gate (screen: the gate card; view: text)" in md
+    assert "**written, not run** -- keel-web 243 not in the checkout" in md
+    assert "**1 of 3 legs green.**" in md
+    assert "no HeyGen, no OpenAI, no Anthropic host contacted" in md
+
+
+def test_the_log_scan_sees_a_vendor_and_a_paid_clip():
+    clean = report.log_scan("speech clip made: charge=SPEECH project=p clip=c cost_micro_usd=0\n")
+    assert clean["clean"] is True and clean["speech_clips"] == 1
+    for line in ("POST https://api.openai.com/v1/audio/speech", "OpenAiSpeech: ...", "api.heygen.com",
+                 "speech clip made: charge=SPEECH project=p clip=c cost_micro_usd=1800"):
+        assert report.log_scan(line)["clean"] is False, line
+    assert report.log_scan(None)["measured"] is False
+    assert "not measured" in report.scan_line(report.log_scan(None))
+
+
+def test_the_legs_are_fr1_a_to_d_and_fr2s_nine():
+    assert [leg for leg, _ in tv.FOUNDER_LEGS] == ["FR-1a", "FR-1b", "FR-1c", "FR-1d"]
+    assert len(tv.STRANGER_LEGS) == 9
+    assert {leg.split(" · ")[1] for leg, _ in tv.STRANGER_LEGS} == {"text", "avatar", "copilot"}
+
+
+# ------------------------------------------------------------------------------------------- the subjects' mirror
+
+def test_contract_81_is_the_one_the_walk_reads():
+    text = _need(CLOUD / "canon" / "openapi-v2.yaml").read_bytes()
+    if b"/story/turns/{n}" not in text:
+        pytest.skip("keel-cloud before 259")
+    for route in ("/v2/projects/{projectId}/story", "/v2/projects/{projectId}/story/turns/{n}",
+                  "/v2/projects/{projectId}/story/confirm", "/v2/projects/{projectId}/story/transcribe",
+                  "/v2/projects/{projectId}/idea/turns/{n}", "/v2/projects/{projectId}/idea/brand",
+                  "/v2/projects/{projectId}/idea/confirm", "/v2/projects/{projectId}/idea/spoken",
+                  "/v2/projects/{projectId}/questionnaire/retry"):
+        assert f"  {route}:".encode() in text, route
+    for field in (b"problemCheck", b"introducedAs", b"ideaStory", b"readInstead", b"clipId", b"parentProjectId"):
+        assert field in text, field
+    digest = hashlib.sha256(text).hexdigest()
+    if digest != CONTRACT_81:
+        pytest.skip(f"keel-cloud's contract moved past 81 ({digest[:12]}): re-cut this pin")
+    assert digest == CONTRACT_81
+
+
+def test_the_registry_export_holds_the_story_wording():
+    """keel-cloud 259 / 261: the derived registry the stack exports carries the three new respondent keys."""
+    text = _need(CLOUD / "src" / "main" / "resources" / "keel" / "dimension-registry.json").read_text(encoding="utf-8")
+    if "story_gate" not in text:
+        pytest.skip("keel-cloud before 259")
+    found = {}
+
+    def walk(node):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if key in ("story_gate", "problem_check", "problem_check_introduced"):
+                    found[key] = value
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+    walk(json.loads(text))
+    assert found == {"story_gate": "In your {window_last}, did this happen to you?",
+                     "problem_check": "Does your {actor} have this problem?",
+                     "problem_check_introduced": "what your {actor} goes through"}
+
+
+#: The keel-web 241 / 242 test ids the walk presses or reads.
+WEB_SELECTORS = {
+    "src/components/story/StoryStart.tsx": ("story-start", "story-start-go", "story-start-type", "story-six"),
+    "src/components/story/StoryTurn.tsx": ("story-turn", "story-send", "story-yes-person", "story-that-is-it",
+                                           "story-that-is-all", "story-steps", "story-conversation"),
+    "src/components/story/PersonCard.tsx": ("story-person-card", "story-card-limit", "story-card-sentence"),
+    "src/components/story/StoryCheck.tsx": ("story-check", "story-boxes-screen", "story-boxes-yes", "story-yes",
+                                            "story-named"),
+    "src/components/idea/SolutionStart.tsx": ("solution-start", "solution-candidate", "solution-pick",
+                                              "solution-create-problem"),
+    "src/components/idea/StillTheProblem.tsx": ("idea-still", "idea-still-yes"),
+    "src/components/idea/IdeaTurn.tsx": ("idea-turn", "idea-readback", "idea-yes-line", "idea-new-way"),
+    "src/components/idea/BrandOptions.tsx": ("idea-brand", "idea-swatch"),
+    "src/components/idea/IdeaBoxes.tsx": ("idea-check", "idea-boxes-screen", "idea-boxes-yes", "idea-story-yes"),
+    "src/components/interview/StoryScreen.tsx": ("story-screen", "idea-story-screen"),
+    "src/components/interview/CardVoice.tsx": ("card-voice", "card-voice-mute"),
+    "src/routes/landing/ProjectTabs.tsx": ("project-row-defined",),
+    "src/routes/founder/calls/CopilotCard.tsx": ("show-story", "story-again", "show-idea-story", "copilot-grown",
+                                                 "copilot-shrink", "copilot-still"),
+}
+
+
+@pytest.mark.parametrize("path", sorted(WEB_SELECTORS))
+def test_every_selector_the_walk_presses_is_in_keel_web(path):
+    source = _need(WEB / path).read_text(encoding="utf-8")
+    missing = [t for t in WEB_SELECTORS[path] if f'"{t}"' not in source and f"'{t}'" not in source]
+    assert not missing, (path, missing)
+
+
+def test_the_story_lines_are_keel_webs():
+    source = _need(WEB / "src" / "lib" / "storyLines.ts").read_text(encoding="utf-8")
+    for n, question in ss.STORY_QUESTIONS.items():
+        assert f'"{question}"' in source, (n, question)
+    translate = (WEB / "src" / "lib" / "translate.ts").read_text(encoding="utf-8")
+    for words in (ss.STORY_KICKER, ss.VOICE_READS, "Yes, that is exactly the problem",
+                  "Yes, exactly the problem · back to my solution", "Defined, not sent"):
+        assert words in translate, words
+    swatches = (WEB / "src" / "lib" / "ideaLines.ts").read_text(encoding="utf-8")
+    assert all(f'"{hex_}"' in swatches for hex_ in ss.BRAND_SWATCHES)
+    solution = (WEB / "src" / "lib" / "solutionStart.ts").read_text(encoding="utf-8")
+    assert f'"{ss.PENDING_START_KEY}"' in solution

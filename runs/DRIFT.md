@@ -5725,3 +5725,22 @@ the stage card never applies. **What the harness does**: each mirror follows its
 `tests/test_mirror_follows_117.py` pins that they now differ (it pinned them equal). **For keel-web:** the Choose bar in
 182's words (*Holds if no more than 1 in 3 say it would take longer than you expect.*, and with no time *... a long
 time.*), and the intro without *would this step be needed*.
+
+## 103. Observation (keel-web with keel-cloud): after the story's yes the window screen is never drawn, and the confirmed card's *Continue to the problem* opens the problem's seed chat the story already answered
+
+Found by spec `157-the-three-views-end-to-end` (FR-1 (a), (d)) on keel-cloud-docs `78237f87` + keel-web `8a6b05c9`, the
+local eval stack (`runs/157/78237f87-8a6b05c9/`, the shots `*-story-yes-landed` and `*-after-the-context-*`). keel-web
+241 FR-1 / FR-4: *on yes: the window screen* (context 2 of 2), then `define/problem/q/1`; keel-web's `ContextStep`
+draws it when `afterStory && view.state === "CONFIRMED" && servesGate(scope) && !view.fields?.recallWindow`. keel-cloud
+259 FR-3 leaves the window "unset" -- as `PUT context` with none leaves it, which is `RecallWindow.DEFAULT` (7 nights),
+and `GET context` always serves `fields.recallWindow` (contract 39: the window is always present on a GET;
+`TheProblemSpokenJourneyTest` asserts `window == RecallWindow.DEFAULT`). So `windowOwed` is false on every story project:
+the story's yes (`/define/context/window`) is redirected to `/define/context` and the confirmed card is drawn (*We'll ask
+about the last 7 nights.*), and its *Continue to the problem* goes to `define/problem/seed` (the `windowOwed` branch is the
+only one that goes to `q/1`) -- the seed chat, on a project whose statement the story's confirm already wrote. Prevalence
+is reached only by its address. The founder never picks a window on the spoken path. **What the harness does** (spec 157):
+FR-1 (a) and (d) fail the two checks by name (*the story's yes opens the window screen*, *the context's forward press
+goes on to Prevalence*) and walk on to Prevalence by its address, so the rest of each leg is still measured. **For
+keel-web / keel-cloud:** one of -- the cloud serves no window until the founder picks one on a story project (a
+`windowSet` flag or a null `recallWindow`), or keel-web reads "owed" from the story (confirmed, no window picked since)
+rather than from the field's absence; and the confirmed card's forward press on a story project goes to `q/1`.
