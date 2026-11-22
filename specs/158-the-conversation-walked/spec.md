@@ -32,3 +32,27 @@ three views with nothing bought. Marks as the current gallery's; no new score.
 
 ## Out of scope
 Scoring; the copilot bench; paid readings.
+
+## 158c -- the walk reads the turn made plain (keel-web 249, master `824ede0a`; 2026-11-22)
+
+- **FR-7 The turn screen as 249 draws it.** The orb (`story-orb`, `data-state`) is present on every voice screen
+  again, 44px, with the state line beside it; there is no `story-glow` (the walk and `test_three_views_157.py`'s
+  `WEB_SELECTORS` drop it, and point `story-boxes` at `src/components/voice/UnderstoodCard.tsx`). The founder's words
+  are no longer in `story-words` (Keel's lines only): they are in the grey *What I hear* panel, `story-heard`, in
+  quotation marks; the snapshot's `heard` field carries them, `words` Keel's. Between beats the orb goes `writing` ->
+  `speaking` (no `listening` in between: `listening` now means the microphone is open); `BEAT_ORB` becomes
+  `speaking -> listening -> hearing -> writing -> speaking` with `listening` only where the microphone opened. The
+  hand-over is checked: `window.__keelChime` (a counter in the test build) rises by exactly one per hand-over, and
+  `data-state="listening"` is first seen in the same snapshot as the state line *Your turn. I am listening.*
+  (`story-state`). The readback is the card: `story-boxes` rows carry `data-box` and `data-lit`; the walk reads the
+  rows by `data-box` (`person`, `job`, `when`, `today`, `limits`, `cost` -- as the card names them), not by the
+  board's text; beat 3's crosses are the `story-understood` card and the idea beat's ticks `idea-understood`.
+- **FR-8 One film.** On a new project's story route exactly one sheet (`guide-opener`) is mounted and after its
+  close both OPENER and WELCOME are seen on the cloud (`GET overview` `guide.openersSeen` has PROBLEM,
+  `guide.welcomeSeen` true); the eval founder's walk no longer meets a welcome sheet on the conversation routes.
+- **FR-9 DRIFT.** DRIFT #110's `corrections` entry (cloud fake) lands with keel-cloud 264; until then FR-1a's
+  correction leg stays `stop=False` and is reported as such. DRIFT #111 (the phone page scrolls by the footer) stays
+  open for the web. Anything the walk finds on 249 is a new DRIFT entry.
+- **Run of record** on keel-cloud master `af49e837` (or the 264 branch once merged) + keel-web `824ede0a`, fakes
+  only, nothing paid; report under `runs/157/<cloud>-<web>/`, the 13 legs named; the report's drawn-story section
+  (158b) kept.

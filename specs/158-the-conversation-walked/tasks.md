@@ -197,3 +197,9 @@ On branch `158b-story-fit`, each pushed as made:
 - `PROFILE=remote` not run (the coordinator's).
 - *The drawn story*'s *Pictograms* column reads `-` where the fullest read fell on a scene with none; cosmetic.
 - Round 2's walk is proven on keel-web `18e23482`/`68e31f84` only; the before-round-2 path (`after_answer`'s readback branch) ran in spec 158's runs, not since.
+
+## 158c
+- [ ] T1 Selectors: `story-glow` dropped, `story-boxes` -> `UnderstoodCard.tsx`, `story-heard` under `VoiceStage.tsx`, `story-understood`/`idea-understood`; `test_three_views_157.py` green.
+- [ ] T2 Snapshot: `heard` field; `words` Keel's lines only; rows by `data-box`; `BEAT_ORB` per FR-7; the chime counter and the hand-over check.
+- [ ] T3 One film (FR-8) asserted on the founder's leg.
+- [ ] T4 Run of record (FR-9), report, DRIFT; unit tests; tasks.md with the judgement calls and the commits.
