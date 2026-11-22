@@ -154,6 +154,9 @@ class Run:
         self.findings: list = []
         #: Spec 158 FR-6: every conversation told, beat by beat (the report's *The beats*).
         self.beats: list[dict] = []
+        #: Spec 158b: every drawn story measured -- where, on what, and `story_screens.measure_story`'s read (the
+        #: report's *The drawn story*).
+        self.fits: list[dict] = []
 
     # ------------------------------------------------------------------------------------- the wire
     def call(self, method: str, path: str, body: dict | None = None) -> tuple[int, Any]:
@@ -396,7 +399,8 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
     transcribed = [((w.get("body") or {}).get("text")) for w in walk.writes if w["path"].endswith("/story/transcribe")]
     leg.check(run, f"{label}: every answer written down through story/transcribe, heard as said (the fake: the words "
                    "in, the same words out)", all(said[n] in transcribed for n in beats)
-              and (not correction or correction in transcribed), screen="define/story/1..5",
+              and (not correction or correction in transcribed
+                   or any(b.get("correction_deferred") for b in beats.values())), screen="define/story/1..5",
               detail={"heard": [t[:120] if t else t for t in transcribed]})
     orbs = {n: b.get("orb") for n, b in beats.items()}
     leg.check(run, f"{label}: the orb through every beat -- speaking (the question), listening, hearing, writing, "
@@ -445,7 +449,7 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
     leg.check(run, f"{label}: beat 4's readback is the sentence, then *Right?*",
               bool(sentence) and read4.get("readback") == f"{sentence.strip()} Right?", screen="define/story/4",
               detail={"readback": read4.get("readback"), "sentence": sentence})
-    if correction:
+    if correction and b4.get("correction"):
         fixed = b4.get("correction") or {}
         body = fixed.get("body") or {}
         condition = ((body.get("story") or {}).get("person") or {}).get("onlyThoseWho") or ""
@@ -458,6 +462,10 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
                   screen="define/story/4 (after the readback)", detail={"sent": fixed.get("sent"),
                                                                        "readback": body.get("readback"),
                                                                        "condition": condition, "stored": stored})
+    straight = sorted(n for n, b in beats.items() if b.get("straight_on"))
+    leg.notes.append(f"{label}: " + (f"beats {straight} went straight on (keel-web 245 FR-4 as amended 2026-11-22: no "
+                                     "per-beat readback)" if straight else
+                                     "every beat read back and waited for the quiet (the build before polish round 2)"))
     owed = ss.moment_beat(run.readings) == 5
     leg.check(run, f"{label}: beat 5 (*When does that come up?*) asked {'because beat 2 named no moment' if owed else 'never: beat 2 named the moment'}",
               (5 in beats) == owed, screen="define/story/5", detail={"beats": sorted(beats), "owed": owed})
@@ -465,6 +473,27 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
     before = run.get(f"/v2/projects/{project_id}/story") or {}
     boxes = walk.boxes()
     board = boxes["screen"].get("board") or ""
+    if correction and boxes.get("correction"):
+        # keel-web 245 FR-4 / FR-6 as amended (2026-11-22): no readback after beat 4 -- the correction is said on the
+        # boxes after *Is that right?* and sent as `story/correct`
+        fixed = boxes["correction"]
+        body = fixed.get("body") or {}
+        stored = ((run.get(f"/v2/projects/{project_id}/story") or {}).get("person") or {}).get("onlyThoseWho") or ""
+        leg.check(run, f"{label}: *{correction}* said on the boxes after *Is that right?* is sent as story/correct "
+                       "(the words whole, 200)", (fixed.get("sent") or {}).get("text") == correction
+                  and (fixed.get("status") or 500) < 400, screen="define/story/check (boxes, the correction)",
+                  detail={"sent": fixed.get("sent"), "status": fixed.get("status"), "changed": body.get("changed"),
+                          "readback": body.get("readback")})
+        leg.check(run, f"{label}: the correction on the boxes narrows the condition and the readback says so",
+                  ss.CORRECTION_4_WORD in stored and ss.CORRECTION_4_WORD in (body.get("readback") or ""),
+                  screen="define/story/check (boxes, the correction)", view="wire",
+                  detail={"stored": stored, "readback": body.get("readback"), "changed": body.get("changed"),
+                          "why it may not": "keel-cloud's FakeStoryReadings answers a story/correct it has no "
+                                            "`corrections` entry for with *Nothing changed.*"}, stop=False)
+    elif correction and not b4.get("correction"):
+        leg.check(run, f"{label}: *{correction}* said somewhere -- after beat 4's readback or on the boxes", False,
+                  screen="define/story/4 -> check", detail={"beat 4": {k: b4.get(k) for k in ("straight_on", "next")},
+                                                            "boxes": boxes.get("correction")}, stop=False)
     cost_before = before.get("cost")
     leg.check(run, f"{label}: the boxes centre stage -- the person, the limitations, no cost label, the cost box where a "
                    "cost is known; *Is that right?*; no button; the quiet confirms (story/confirm 200, defined)",
@@ -477,6 +506,10 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
                       "costDrafted": before.get("costDrafted"), "lit": boxes.get("lit"),
                       "buttons": boxes["screen"].get("buttons"), "confirm": boxes["confirm"]["status"]})
     built = walk.building_then_story()
+    if built["state"] == "story":
+        # spec 158b: the drawn story read while it plays on the founder's screen (desktop)
+        measure_fit(run, leg, run.page, label, FOUNDER_PLAYER, where="define/story/check (story)",
+                    view="founder · desktop", phone=False, state=FOUNDER_STATE)
     story = run.get(f"/v2/projects/{project_id}/story") or {}
     build = story.get("build") or {}
     drawn = build.get("story") or {}
@@ -563,6 +596,64 @@ def window_then_prevalence(run: Run, leg: Leg, project_id: str, label: str) -> d
     return {"calibration": calibration}
 
 
+# ------------------------------------------------------------------------------------------------ the drawn story (158b)
+
+#: The founder's story player (keel-web 245 FR-6: `StoryCheck`'s story state) and its state line.
+FOUNDER_PLAYER = "[data-testid=story-readback] .sty-player"
+FOUNDER_STATE = "[data-testid=story-readback] [data-testid=story-state]"
+#: The stranger's story card (keel-web 241 FR-7) and its *Play*.
+STRANGER_PLAYER = "[data-testid=story-screen] [data-testid=story-player]"
+STRANGER_STATE = "[data-testid=story-screen] [data-testid=story-play]"
+
+
+def measure_fit(run: Run, leg: Leg, page, label: str, root: str, *, where: str, view: str, phone: bool,
+                state: str | None = None, play: bool = False) -> dict:
+    """Spec 158b: one drawn story read while it plays (`story_screens.measure_story`), kept on `run.fits`, and judged:
+    no text on the drawing, the spoken line at most three rows, and on a phone the story fits. Never stops the leg."""
+    measured = ss.measure_story(page, root, state=state, play=play)
+    verdicts = ss.fit_verdicts(measured, phone=phone)
+    party = "founder" if view.startswith("founder") else "participant"
+    try:
+        ss._BrowserStep(run.recorder, page, party).screenshot(
+            f"drawn-story-{re.sub(r'[^a-z0-9]+', '-', (label + ' ' + view).lower()).strip('-')}")
+    except Exception:  # noqa: BLE001 - a screenshot
+        pass
+    run.fits.append({"label": label, "where": where, "view": view, "phone": phone, "measured": measured,
+                     "verdicts": {k: v[0] for k, v in verdicts.items()}})
+    ok, detail = verdicts["drawn"]
+    leg.check(run, f"{label}: no text on the drawing -- no label, caption or spoken line over a drawn figure, room or "
+                   "pictogram while the story plays", ok, screen=where, view=view, detail=detail, stop=False)
+    if phone:
+        ok, detail = verdicts["fits"]
+        leg.check(run, f"{label}: fits on a phone ({ss.PHONE['width']} x {ss.PHONE['height']}) -- the frame, the line "
+                       "and the player's state inside the screen, nothing scrolling", ok, screen=where, view=view,
+                  detail=detail, stop=False)
+    ok, detail = verdicts["rows"]
+    leg.check(run, f"{label}: the spoken line is at most {ss.LINE_ROWS_MAX} rows", ok, screen=where, view=view,
+              detail=detail, stop=False)
+    return measured
+
+
+def phone_story(run: Run, leg: Leg, project_id: str, label: str) -> None:
+    """Spec 158b: the founder's story again on a phone (390 x 844, her own cookies): `define/story/check` opened, the
+    begin screen's orb tapped where it stands, and the story read while it plays."""
+    phone, page = ss.phone_page(run.context, run.browser, inits=(ivs.SPEECH_SEAM, ss.ORB_WATCH))
+    try:
+        page.goto(f"{run.web}/p/{project_id}/define/story/check", wait_until="load")
+        try:
+            ss.wake(page, timeout_s=20)
+        except AssertionError:
+            pass                          # no begin screen and no voice: the story may stand without one
+        try:
+            page.locator(FOUNDER_PLAYER).first.wait_for(state="visible", timeout=30_000)
+        except Exception:  # noqa: BLE001 - recorded by the read: never drawn
+            pass
+        measure_fit(run, leg, page, f"{label} (phone)", FOUNDER_PLAYER, where="define/story/check (story, reopened)",
+                    view="founder · phone", phone=True, state=FOUNDER_STATE)
+    finally:
+        phone.close()
+
+
 # ------------------------------------------------------------------------------------------------ FR-1 (a)
 
 #: FR-1 (a)'s two problem projects: the script's own words, and the long telling with the correction (spec 158 FR-1).
@@ -584,6 +675,7 @@ def fr1_a(run: Run, leg: Leg) -> None:
                   screen="/p/{id}", detail=run.page.url, stop=False)
         tell_the_story(run, leg, pid, label, long3=long3, correction=ss.CORRECTION_4 if long3 else None)
         window_then_prevalence(run, leg, pid, label)
+        phone_story(run, leg, pid, label)
     review = run.get(f"/v2/projects/{run.projects['a-script']}/review/PROBLEM") or {}
     want = ss.reading_of(run.readings, max(n for n, _ in ss.said_turns(run.readings))).get("statement")
     leg.check(run, "the statement is the last beat's reading's (keel-cloud 263 judgement call 4: drafted on beats 3-5)",

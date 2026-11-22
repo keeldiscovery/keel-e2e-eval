@@ -2,6 +2,8 @@
 a failure naming its screen and its view, and the stack's log scan (no HeyGen, no OpenAI, no Anthropic host contacted).
 Spec 158 FR-6: *The beats* -- every conversation the founder's legs told, beat by beat: the question Keel asked, how
 much was said, what Keel read back, the red crosses (or the ticks and crosses), the orb's states and where it went.
+Spec 158b: *The drawn story* -- every story measured while it played (the founder's on a desktop and a phone, the
+stranger's story card on a phone): the three verdicts, the numbers, and every text found on a drawn element.
 
 Pure functions over the legs and a log's text, so `tests/test_three_views_157.py` holds them with no stack.
 """
@@ -79,7 +81,58 @@ def beats_markdown(told: list[dict] | None) -> list[str]:
     return out
 
 
-def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = None) -> str:
+def _yes(ok) -> str:
+    return "-" if ok is None else ("yes" if ok else "**no**")
+
+
+def _box(b) -> str:
+    return f"{b.get('w')}x{b.get('h')}" if isinstance(b, dict) and b.get("w") is not None else "-"
+
+
+def drawn_story_markdown(fits: list[dict] | None) -> list[str]:
+    """Spec 158b: one row a story measured -- where and on what, the three verdicts, the frame, the person's height
+    over the frame's, the pictograms, the longest spoken line in rows; then every overlap, and every moment it did not
+    fit, by name."""
+    if not fits:
+        return []
+    out = ["## The drawn story (spec 158b)", "",
+           "| Story | Where | View | No text on the drawing | Fits on a phone | Line at most 3 rows | Frame | Person / frame "
+           "| Pictograms | Line (rows, font / line height) | Reads |", "|---|---|---|---|---|---|---|---|---|---|---|"]
+    for f in fits:
+        m = f.get("measured") or {}
+        v = f.get("verdicts") or {}
+        n = m.get("numbers") or {}
+        lines = m.get("lines") or {}
+        most = max(lines.values(), key=lambda line: line.get("rows") or 0) if lines else {}
+        pictos = ", ".join(_box(p) for p in (n.get("pictograms") or [])[:6]) or "-"
+        line = f"{most.get('rows')} rows, {most.get('font')} / {most.get('line_height')}" if most else "-"
+        out.append(f"| {_cell(f.get('label'), 60)} | {_cell(f.get('where'), 50)} | {f.get('view')} | "
+                   f"{_yes(v.get('drawn'))} | {_yes(v.get('fits')) if f.get('phone') else '-'} | {_yes(v.get('rows'))} | "
+                   f"{_box(n.get('frame'))} | {n.get('person_ratio') if n.get('person_ratio') is not None else '-'} | "
+                   f"{pictos} | {line} | {m.get('samples', 0)}{'' if m.get('played') else ' (never seen playing)'} |")
+    out.append("")
+    for f in fits:
+        m = f.get("measured") or {}
+        overlaps = m.get("overlaps") or []
+        unfit = m.get("unfit") or []
+        long = {t: line for t, line in (m.get("lines") or {}).items() if (line.get("rows") or 0) > 3}
+        if not (overlaps or unfit or long):
+            continue
+        out += [f"### {f.get('label')} -- {f.get('view')}", ""]
+        for o in overlaps:
+            out.append(f"- text on the drawing: *{_cell(o.get('text'), 80)}* over `{o.get('drawn')}` ({o.get('kind')}); "
+                       f"text {json.dumps(o.get('text_box'))}, drawn {json.dumps(o.get('drawn_box'))}")
+        for u in unfit:
+            out.append(f"- does not fit: {', '.join(u.get('what') or [])}; band {json.dumps(u.get('band'))}, frame "
+                       f"{json.dumps(u.get('frame'))}, line {json.dumps(u.get('line'))}, document {json.dumps(u.get('doc'))}")
+        for text, line in long.items():
+            out.append(f"- {line.get('rows')} rows: *{_cell(text, 120)}*")
+        out.append("")
+    return out
+
+
+def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = None,
+                    fits: list[dict] | None = None) -> str:
     """The report: the head (shas, profile, the run's bundle), the table of legs, each leg's checks, then the beats."""
     out = [f"# Spec 157 / 158 -- the three views on the conversation, end to end (one run)", "",
            f"- keel-cloud `{meta.get('cloud')}` · keel-web `{meta.get('web')}` · keel-e2e-eval `{meta.get('eval')}`",
@@ -102,10 +155,12 @@ def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = Non
             out.append(line)
         out.append("")
     out += beats_markdown(beats)
+    out += drawn_story_markdown(fits)
     return "\n".join(out).rstrip() + "\n"
 
 
-def write_report(path: Path, legs, meta: dict, scan: dict, beats: list[dict] | None = None) -> Path:
+def write_report(path: Path, legs, meta: dict, scan: dict, beats: list[dict] | None = None,
+                 fits: list[dict] | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(report_markdown(legs, meta, scan, beats), encoding="utf-8")
+    path.write_text(report_markdown(legs, meta, scan, beats, fits), encoding="utf-8")
     return path

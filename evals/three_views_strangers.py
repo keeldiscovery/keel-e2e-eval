@@ -206,6 +206,26 @@ def text_view(run, leg, study: str, project_id: str) -> None:
               and sent.get("recency") is False and not (sent.get("answers") or []),
               screen=f"the {what} card -> the exit", view="text",
               detail={"drawn": after, "responses": responses, "done": walked.get("done")})
+    phone_story_card(run, leg, study, project_id, names[7])
+
+
+def phone_story_card(run, leg, study: str, project_id: str, person: str) -> None:
+    """Spec 158b: one more TEXT link, opened on a phone (390 x 844): Begin, the screener answered where it is shown,
+    *Play* on the story card, and the drawn story read while it plays -- no text on the drawing, it fits, the spoken
+    line at most three rows."""
+    made = tv.send_link(run, leg, f"{study}-text-phone", project_id, "TEXT", person=person, decider=study == "money")
+    interview = interview_of(run, made["url"])
+    phone = run.browser.new_context(viewport=ss.PHONE)
+    try:
+        page = phone.new_page()
+        reached = ss.StoryLinkText(page, run.recorder).to_story(made["url"], interview)
+        leg.check(run, "on a phone: Begin, the screener, then the story card", reached["reached"],
+                  screen="the link's cards (phone)", view="text · phone", detail=reached, stop=False)
+        if reached["reached"]:
+            tv.measure_fit(run, leg, page, f"the {study} link's story card", tv.STRANGER_PLAYER,
+                           where="the story card", view="text · phone", phone=True, state=tv.STRANGER_STATE, play=True)
+    finally:
+        phone.close()
 
 
 # ------------------------------------------------------------------------------------------------ the loop
