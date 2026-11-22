@@ -272,3 +272,10 @@ def test_the_orb_is_read_off_the_glow_where_no_orb_is_drawn(browser):
     assert [row["state"] for row in log] == ["speaking", "listening"]
     assert snap["orb"] == "listening" and snap["buttons"] == []
     assert "story-glow" in ss.ORB and ss.ORB_TAP == "[data-testid=story-orb]"
+
+
+def test_said_turns_takes_the_scripts_first_story():
+    """keel-cloud 263c (`1fb1fa71`) adds tellings after the first story (another who, beat 2 said several ways)."""
+    script = {"turns": [{"turn": n, "heard": str(n)} for n in (1, 2, 3, 4, 5)]
+              + [{"turn": 1, "heard": "Angel investors"}] + [{"turn": 2, "heard": f"way {i}"} for i in range(4)]}
+    assert ss.said_turns(script) == [(1, "1"), (2, "2"), (3, "3"), (4, "4"), (5, "5")]

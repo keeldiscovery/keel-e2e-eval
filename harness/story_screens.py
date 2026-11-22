@@ -68,8 +68,14 @@ def _answers(script: dict, key: str) -> list[dict]:
 def said_turns(script: dict) -> list[tuple[int, str]]:
     """keel-cloud 263's beats as the founder says them, in order -- one answer a beat: 1 who, 2 what and when, 3 every
     limitation in one answer, 4 all of them or some, and 5 the when where beat 2 named no moment -- the script's
-    `heard` words (a correction's entry is not a beat)."""
-    out = [(int(t["turn"]), str(t["heard"])) for t in _answers(script, "turns")]
+    `heard` words (a correction's entry is not a beat). The script's first story only: keel-cloud 263c (`1fb1fa71`)
+    adds more tellings after it (another who, beat 2 said several ways), where the beats start again at 1."""
+    out: list[tuple[int, str]] = []
+    for t in _answers(script, "turns"):
+        n = int(t["turn"])
+        if out and n <= out[-1][0]:
+            break
+        out.append((n, str(t["heard"])))
     beats = [n for n, _ in out]
     if beats[:4] != [1, 2, 3, 4] or beats[4:] not in ([], [5]):
         raise ValueError(f"the fake readings' beats are not 1-4 (and 5 where owed): {beats}")
