@@ -282,6 +282,8 @@ def avatar_walk(run, page, url: str, interview: dict, *, no_on: str | None = Non
     p.mic_test()
     p.start()
     last_q = None
+    said_at = 0.0
+    again: dict = {}
     seconds: set = set()
     for _ in range(120):
         if page.get_by_test_id("ai-done").count():
@@ -315,6 +317,14 @@ def avatar_walk(run, page, url: str, interview: dict, *, no_on: str | None = Non
                 # Importance's second ask (*And one more?*): one pick is a whole answer
                 seconds.add(q)
                 second.first.click()
+            elif rows and rows[-1].get("said") and not str(rows[-1]["said"]).startswith(("tap:", "skip")) \
+                    and time.monotonic() - said_at > 10 and again.get(q, 0) < 2:
+                # spec 158: the same window still listening ten seconds after the answer -- the words fell between the
+                # recorder's windows (seen once on the money link's check, 2026-11-22): said again, as a person would
+                again[q] = again.get(q, 0) + 1
+                rows[-1]["said_again"] = again[q]
+                said_at = time.monotonic()
+                p.say(rows[-1]["said"])
             page.wait_for_timeout(500)
             continue
         where = ss._tc(page.get_by_test_id("ai-where"))
@@ -353,6 +363,7 @@ def avatar_walk(run, page, url: str, interview: dict, *, no_on: str | None = Non
         else:
             row["said"] = "about three"
             p.say(row["said"])
+        said_at = time.monotonic()
         page.wait_for_timeout(1200)
     done = page.get_by_test_id("ai-done")
     try:

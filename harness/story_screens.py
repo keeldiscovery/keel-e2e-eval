@@ -658,7 +658,10 @@ class StoryWalk(Conversation):
         then the quiet. Beat 3's quiet closes the list (`done: true`). Returns what the screen drew and the wire."""
         with self._b.step(f"beat {n}: {STORY_QUESTIONS.get(n)}") as h:
             self._wait_beat(n)
-            mark = len(self.orb_log())
+            # the beat's log starts where its screen came (Keel is already asking by the time the walk reads it)
+            log = self.orb_log()
+            path = f"/define/story/{n}"
+            mark = next((i for i, row in enumerate(log) if str(row.get("path") or "").endswith(path)), len(log))
             seen: dict = {"turn": n, "asked": self.snapshot()}
             put = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(words))
             seen["put"] = {"status": put["status"], "sent": put["sent"], "body": put["body"]}
@@ -945,7 +948,9 @@ class IdeaWalk(Conversation):
     def beat(self, n: int, words: str) -> dict:
         with self._b.step(f"idea beat {n}: {'the name and the look' if n == 1 else 'how it solves the limitations'}") as h:
             self.page.locator(f"{IDEA_TURN}[data-turn='{n}']").first.wait_for(state="visible", timeout=60_000)
-            mark = len(self.orb_log())
+            log = self.orb_log()
+            mark = next((i for i, row in enumerate(log) if str(row.get("path") or "").endswith(f"/define/idea/{n}")),
+                        len(log))
             seen: dict = {"turn": n, "asked": self.snapshot()}
             put = self.put_after(rf"/idea/turns/{n}$", lambda: self.voice.say(words))
             seen["put"] = {"status": put["status"], "sent": put["sent"], "body": put["body"]}

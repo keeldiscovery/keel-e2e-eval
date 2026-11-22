@@ -1280,6 +1280,19 @@ are then written on the own door, `questionnaire/retry`) and the avatar's record
 resuming on Prevalence), #104 (a link's first read without every card's clip), #105 (the scale cards unlettered on a story
 link) and #106 (no `ideaStory` on the decision-maker's link): each a failed check by name, walked past (`stop=False`).
 
+**The conversation, walked** (spec `158-the-conversation-walked`, 2026-11-22; keel-cloud 263 (+263b) at keel-cloud-docs
+master, contract 83; keel-web 245 at `1397c55e`). `make e2e-157` keeps its name and its nine stranger's legs; the founder's
+legs walk keel-web 245's conversation: **nothing is pressed but the orb**. `harness/story_screens.wake` passes the stage's
+opener (the guide sheet's Skip is the first tap) or taps the orb on the begin screen; `FounderVoice.say` speaks through the
+seam with no *Tap to talk*; `Conversation.silence` polls the test build's `window.__keelSilence()` (it answers the quiet
+wait after every readback at once -- never poll it while an answer is being formed: it answers whatever quiet wait stands);
+`ORB_WATCH` (an init script beside `SPEECH_SEAM`) logs the orb's `data-state`, the screen's `data-voice` and the board's
+`data-lit` change by change, and `await_quiet` reads it to know Keel has said its line back and listens again. The words are
+still keel-cloud's `fake-readings.json` (now the beats: 1-4, and 5 where beat 2 named no moment); beat 3's long telling is
+`long_beat_3` (the script's three limitations, two more in its own words, its cost, over 1,500 characters; four sentences
+first because the fake reader reads an unscripted beat 3 a sentence a row). The stored words are read off the database
+(`stack/ledger.story_turns`: no route serves them). The report's last section is *The beats*.
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;

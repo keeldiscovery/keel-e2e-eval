@@ -490,8 +490,9 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
               screen="define/story/check (building, story)",
               detail={"screen": built.get("state"), "build": {k: build.get(k) for k in ("state", "checked")},
                       "room": drawn.get("roomId"), "scenes": len(drawn.get("scenes") or [])})
+    # the story's lines: six scenes, then the cost line (the seventh), then the ask line (keel-cloud 259 FR-5's draft)
     scenes = drawn.get("scenes") or []
-    seventh = (scenes[6] or {}).get("line") if len(scenes) > 6 else None
+    seventh = drawn.get("costLine") or ((scenes[6] or {}).get("line") if len(scenes) > 6 else None)
     cost = story.get("cost")
     heard = bool(cost_before) and not before.get("costDrafted")
     leg.check(run, f"{label}: the story's seventh line carries the cost -- {'heard' if heard else 'drafted from the limitations'}"

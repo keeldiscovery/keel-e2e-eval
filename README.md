@@ -2020,6 +2020,14 @@ line is the log scan -- *no HeyGen, no OpenAI, no Anthropic host contacted* -- r
 window. `PROFILE=remote` runs it on the staging twin (the coordinator's, never a builder's): the stand-ins are refused
 there by name, so the drained grant, the charge and the avatar's recording are skipped and say so.
 
+**Spec 158: the conversation.** Since keel-web 245 / keel-cloud 263 the founder's legs speak to Keel AI and press nothing
+but the orb: the opener or the begin screen, the beats said once each, the quiet after every readback let pass with the test
+build's `window.__keelSilence()`, the boxes and the story closed by the quiet, 244's window page, Prevalence. FR-1 (a) tells
+two problem projects (the script's own words; a long beat 3 of over 1,500 characters with a correction after beat 4), (b)
+and (c) walk the which-problem / which-solution pages, the replays, the two idea beats and the money study's orb moment, and
+(c) ends with a money study that has only a name, walked to the persona step. The report adds *The beats*: every
+conversation, beat by beat -- the question, how much was said, the readback, the crosses, the orb's states.
+
 ## Stackless unit tests
 
 ```bash

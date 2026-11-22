@@ -1,4 +1,5 @@
-"""Spec 157 FR-3: `make e2e-157` -- the lot, once, on the current profile (`evals/three_views.py`).
+"""Spec 157 FR-3: `make e2e-157` -- the lot, once, on the current profile (`evals/three_views.py`); since spec 158 the
+founder's legs walk the conversation (keel-web 245 on keel-cloud 263) and the report names the beats.
 
 Not a `test_*.py`: `make eval` never collects it (the scenario set is unchanged); the make target names this file.
 Every leg runs whatever the one before it did (a leg whose project is missing is skipped by name), and the report is
@@ -57,7 +58,7 @@ def test_e2e_157_three_views(stack, browser):
                     "profile": getattr(stack, "profile", "?"), "started": stamp,
                     "seconds": round(time.monotonic() - started), "bundle": str(bundle.relative_to(REPO_ROOT))}
             legs = list(run.legs.values())
-            written = report.write_report(folder / "report.md", legs, meta, scan)
+            written = report.write_report(folder / "report.md", legs, meta, scan, run.beats)
             (bundle / "report.md").write_text(written.read_text(encoding="utf-8"), encoding="utf-8")
             print(f"\nreport: {written}\nbundle: {bundle}")
     assert scan.get("clean") is not False, report.scan_line(scan)

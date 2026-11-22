@@ -1,5 +1,7 @@
 """Spec 157 FR-3: the one run's report -- `runs/157/<cloud sha>-<web sha>/report.md`, every leg with every named check,
 a failure naming its screen and its view, and the stack's log scan (no HeyGen, no OpenAI, no Anthropic host contacted).
+Spec 158 FR-6: *The beats* -- every conversation the founder's legs told, beat by beat: the question Keel asked, how
+much was said, what Keel read back, the red crosses (or the ticks and crosses), the orb's states and where it went.
 
 Pure functions over the legs and a log's text, so `tests/test_three_views_157.py` holds them with no stack.
 """
@@ -45,9 +47,41 @@ def leg_line(leg) -> str:
     return f"| {leg.id} | {leg.title} | **{leg.status}**{why} | {leg.seconds:g} s |"
 
 
-def report_markdown(legs, meta: dict, scan: dict) -> str:
-    """The report: the head (shas, profile, the run's bundle), the table of legs, then each leg's checks."""
-    out = [f"# Spec 157 -- the three views, end to end (one run)", "",
+def _cell(text, n: int = 160) -> str:
+    words = " ".join(str(text if text is not None else "").split()).replace("|", "/")
+    return words if len(words) <= n else words[: n - 3] + "..."
+
+
+def beats_markdown(told: list[dict] | None) -> list[str]:
+    """Spec 158 FR-6: one table a conversation -- beat, question, said (characters), readback, crosses (or ticks and
+    crosses), the orb's states, where the beat went."""
+    if not told:
+        return []
+    out = ["## The beats (spec 158)", ""]
+    for one in told:
+        out += [f"### {one.get('label')} -- `{str(one.get('project') or '')[:8]}`", "",
+                "| Beat | Question | Said | Readback | Crosses | Orb | Next |", "|---|---|---|---|---|---|---|"]
+        for b in one.get("beats") or []:
+            put = b.get("put") or {}
+            said = (put.get("sent") or {}).get("text") or ""
+            body = put.get("body") or {}
+            readback = body.get("readback")
+            marks = (b.get("readback") or {}).get("marks") or []
+            crosses = ("; ".join(f"{'✓' if m.get('mark') == 'tick' else '×'} {m.get('text')}" for m in marks) if marks
+                       else "; ".join((b.get("readback") or {}).get("limits") or []))
+            if b.get("correction"):
+                readback = f"{readback} -- then *{((b['correction'].get('sent') or {}).get('text'))}*: " \
+                           f"{(b['correction'].get('body') or {}).get('readback')}"
+            out.append(f"| {b.get('turn')} | {_cell((b.get('asked') or {}).get('question'), 70)} | "
+                       f"{len(said)} chars | {_cell(readback, 200)} | {_cell(crosses, 200)} | "
+                       f"{' > '.join(b.get('orb') or [])} | {b.get('next') or '-'} |")
+        out.append("")
+    return out
+
+
+def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = None) -> str:
+    """The report: the head (shas, profile, the run's bundle), the table of legs, each leg's checks, then the beats."""
+    out = [f"# Spec 157 / 158 -- the three views on the conversation, end to end (one run)", "",
            f"- keel-cloud `{meta.get('cloud')}` · keel-web `{meta.get('web')}` · keel-e2e-eval `{meta.get('eval')}`",
            f"- profile `{meta.get('profile')}` · started {meta.get('started')} · {meta.get('seconds', 0):g} s",
            f"- bundle `{meta.get('bundle')}`", f"- {scan_line(scan)}", "",
@@ -67,10 +101,11 @@ def report_markdown(legs, meta: dict, scan: dict) -> str:
                 line += f"\n  - got: `{json.dumps(c.detail, default=str)[:900]}`"
             out.append(line)
         out.append("")
+    out += beats_markdown(beats)
     return "\n".join(out).rstrip() + "\n"
 
 
-def write_report(path: Path, legs, meta: dict, scan: dict) -> Path:
+def write_report(path: Path, legs, meta: dict, scan: dict, beats: list[dict] | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(report_markdown(legs, meta, scan), encoding="utf-8")
+    path.write_text(report_markdown(legs, meta, scan, beats), encoding="utf-8")
     return path
