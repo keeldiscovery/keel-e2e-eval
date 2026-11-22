@@ -593,11 +593,14 @@ class Conversation:
         return self.page.url
 
     # ------------------------------------------------------------------------------------------- the quiet
-    def silence(self, *, timeout_s: float = 120) -> None:
+    def silence(self, *, timeout_s: float = 120, landed: re.Pattern | None = None) -> None:
         """The founder says nothing: `window.__keelSilence()` (keel-web 245 FR-8) answers the quiet wait at once, polled
-        until one stands. A guide sheet that comes up meanwhile is pressed past (the opener decides late)."""
+        until one stands. A guide sheet that comes up meanwhile is pressed past (the opener decides late). `landed`:
+        the page's own four seconds already went on there (a slow read before the quiet, spec 158b's measure) -- done."""
         deadline = time.monotonic() + timeout_s * self.patience
         while time.monotonic() < deadline:
+            if landed is not None and landed.search(self.page.url):
+                return
             _skip_sheet(self.page)
             try:
                 if self.page.evaluate("() => !!(window.__keelSilence && window.__keelSilence() === true)"):
@@ -844,7 +847,7 @@ class StoryWalk(Conversation):
         """The story played through, *Is that how it goes for them?*, then the quiet goes on (244's window, or the
         return trip)."""
         with self._b.step("the story's question, then the quiet goes on") as h:
-            self.silence(timeout_s=180)
+            self.silence(timeout_s=180, landed=re.compile(lands) if isinstance(lands, str) else lands)
             said = self.snapshot()
             landed = self.wait_path(lands, timeout_s=60)
             h.record_wire({"quiet": "after the story"}, {"url": landed, "said": said.get("said")})
