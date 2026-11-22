@@ -436,12 +436,15 @@ def stage_buttons(page) -> list[str]:
 #: Spec 158c FR-7 (keel-web 249): each row also carries the state line's first line (`line`), the hand-over chime's
 #: count (`chime`, `window.__keelChime`, the test build's) and whether the recorder runs (`mic`, the seam's
 #: `__listening()`), read in the same callback -- so a row is one frame: the orb, the words beside it, the chime.
-#: FR-7: *What I hear* (`story-heard`) and Keel's lines (`story-words`) are logged on
+#: FR-8: every guide sheet mounted (`guide-opener`, `guide-welcome`) is logged on `window.__sheetLog` with how many
+#: stood at once and where. FR-7: *What I hear* (`story-heard`) and Keel's lines (`story-words`) are logged on
 #: `window.__heardLog` change by change (a beat moves on by itself: a read after it would miss them).
 ORB_WATCH = r"""(() => {
   const log = (window.__orbLog = window.__orbLog || []);
+  const sheets = (window.__sheetLog = window.__sheetLog || []);
   const heard = (window.__heardLog = window.__heardLog || []);
   let last = '';
+  let lastSheets = '';
   let lastHeard = '';
   const read = () => {
     const orb = """ + _ORB_JS + r""";
@@ -455,6 +458,10 @@ ORB_WATCH = r"""(() => {
                   mic: !!(window.__listening && window.__listening()) };
     const key = JSON.stringify(row);
     if (key !== last) { last = key; row.t = Date.now(); log.push(row); }
+    const up = [...document.querySelectorAll('[data-testid=guide-opener], [data-testid=guide-welcome]')]
+      .map((el) => el.getAttribute('data-testid'));
+    const sk = JSON.stringify(up) + location.pathname;
+    if (sk !== lastSheets) { lastSheets = sk; sheets.push({ up, path: location.pathname, t: Date.now() }); }
     const heardEl = document.querySelector('[data-testid=story-heard]');
     const said = heardEl ? [...heardEl.querySelectorAll('li')].map((li) => ({ who: li.getAttribute('data-who'),
       text: (li.textContent || '').replace(/\s+/g, ' ').trim() })) : [];
@@ -591,6 +598,21 @@ def chime_verdict(log: list[dict]) -> dict:
             "one_each": got == want and end - start == len(overs) and not stray, "stray": stray[:6],
             "your_turn": said_turn, "lines": lines, "listening_without_mic": deaf_listens[:6],
             "mic_open": not deaf_listens}
+
+
+#: keel-web 249 FR-6: the conversation's routes, where the shell opens no welcome (the stage opener is the one film).
+CONVERSATION_ROUTES = re.compile(r"/define/(story|idea)/|/define/money/start")
+
+
+def sheet_verdict(sheets: list[dict]) -> dict:
+    """Spec 158c FR-8 (keel-web 249 FR-6): from `__sheetLog`, at most one guide sheet mounted at any moment, the stage
+    opener met on the conversation (`guide-opener`) and no welcome sheet (`guide-welcome`) on its routes."""
+    most = max((len(r.get("up") or []) for r in sheets), default=0)
+    on_routes = [r for r in sheets if CONVERSATION_ROUTES.search(str(r.get("path") or ""))]
+    openers = sorted({r.get("path") for r in on_routes if "guide-opener" in (r.get("up") or [])})
+    welcomes = sorted({r.get("path") for r in on_routes if "guide-welcome" in (r.get("up") or [])})
+    return {"most_at_once": most, "one_at_a_time": most <= 1, "opener_on": openers, "welcome_on": welcomes,
+            "one_film": bool(openers) and not welcomes and most <= 1}
 
 
 def heard_verdict(heard: list[dict], said: dict[int, str], path_of) -> dict:
@@ -765,10 +787,11 @@ class Conversation:
         return (before[-1:] if standing else []) + after
 
     def turn_read(self) -> dict:
-        """Spec 158c FR-7: this conversation's hand-overs and chimes (`chime_verdict`), *What I hear* and Keel's lines as
-        they stood -- read from `begin()`."""
+        """Spec 158c FR-7/FR-8: this conversation's hand-overs and chimes (`chime_verdict`), *What I hear* and Keel's
+        lines as they stood, and the guide sheets mounted -- read from `begin()`."""
         heard = self.since("__heardLog")
-        return {"chime": chime_verdict(self.since()), "heard": heard}
+        return {"chime": chime_verdict(self.since()), "heard": heard,
+                "sheets": self.since("__sheetLog", standing=True)}
 
     def snapshot(self) -> dict:
         try:

@@ -1,7 +1,8 @@
 """Spec 158c: the walk reads keel-web 249's turn made plain with no stack -- the orb log's rows (the state line, the
 chime count, the microphone) and the hand-overs read off them, the chime's one-per-hand-over verdict, `writing ->
-speaking` between beats, the card's rows by `data-box`, *What I hear* kept apart from Keel's lines. The in-page reads
-run in a headless Chromium on a page drawn here as keel-web 249 draws its screens.
+speaking` between beats, the card's rows by `data-box`, *What I hear* kept apart from Keel's lines, and one film (the
+guide sheets logged, never two at once, no welcome on the conversation's routes). The in-page reads run in a headless
+Chromium on a page drawn here as keel-web 249 draws its screens.
 """
 
 from __future__ import annotations
@@ -74,6 +75,21 @@ def test_between_beats_the_orb_goes_from_writing_to_speaking():
     assert not ss.writing_then_speaking(["speaking", "listening", "hearing", "writing", "listening", "speaking"])
     assert ss.writing_then_speaking(["speaking", "listening", "hearing", "writing"])
     assert ss.holds_in_order(["speaking", "listening", "hearing", "writing", "speaking"], ss.BEAT_ORB)
+
+
+# ------------------------------------------------------------------------------------------------ one film
+
+def test_one_film_is_the_opener_alone_never_two_sheets_never_the_welcome_on_the_conversation():
+    good = [{"up": ["guide-opener"], "path": "/p/x/define/story/start"}, {"up": [], "path": "/p/x/define/story/start"}]
+    v = ss.sheet_verdict(good)
+    assert v["one_film"] and v["opener_on"] == ["/p/x/define/story/start"] and not v["welcome_on"]
+    two = good + [{"up": ["guide-opener", "guide-welcome"], "path": "/p/x/define/story/start"}]
+    v = ss.sheet_verdict(two)
+    assert not v["one_film"] and v["most_at_once"] == 2 and v["welcome_on"]
+    # the welcome on a stage that is not the conversation's is the shell's own rule
+    elsewhere = good + [{"up": ["guide-welcome"], "path": "/p/x/define/persona"}]
+    assert ss.sheet_verdict(elsewhere)["one_film"]
+    assert not ss.sheet_verdict([{"up": [], "path": "/p/x/define/story/start"}])["one_film"]
 
 
 # ------------------------------------------------------------------------------------------------ heard vs understood
@@ -158,3 +174,19 @@ def test_the_snapshot_and_the_log_read_249s_turn(browser):
     assert ss.card_name(snap["card"], "cost") == ss.CARD_COST_NAME and snap["card"]["lit"] == "cost"
     assert snap["card"]["svg"] == 0 and snap["chime"] == 1 and snap["buttons"] == []
     assert heard and heard[0]["keel"] == [{"who": "keel", "text": "Anything else?"}]
+
+
+def test_the_sheet_log_counts_the_sheets_standing(browser):
+    context = browser.new_context()
+    page = context.new_page()
+    try:
+        page.set_content("<!doctype html><html><body><div id=r></div></body></html>")
+        page.evaluate(ss.ORB_WATCH)
+        page.evaluate("() => { document.getElementById('r').innerHTML = '<div data-testid=guide-opener></div>'; }")
+        page.wait_for_timeout(50)
+        page.evaluate("() => { document.getElementById('r').innerHTML = ''; }")
+        page.wait_for_timeout(50)
+        sheets = page.evaluate("() => window.__sheetLog")
+    finally:
+        context.close()
+    assert [r["up"] for r in sheets] == [[], ["guide-opener"], []]

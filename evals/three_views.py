@@ -378,6 +378,20 @@ def hand_over_checks(run: Run, leg: Leg, label: str, read: dict, screen: str, *,
               screen=f"{screen} (story-orb data-state, story-state, window.__keelChime)", detail=v, stop=False)
 
 
+def one_film(run: Run, leg: Leg, label: str, project_id: str, sheets: list[dict], stage: str, woke: dict) -> None:
+    """Spec 158c FR-8 (keel-web 249 FR-6): on a new project's conversation one sheet at most stands at once, the stage
+    opener is the one film (no welcome sheet on the conversation's routes), and after its close the cloud has both seen:
+    `guide.openersSeen` holds the stage and `guide.welcomeSeen` is true."""
+    v = ss.sheet_verdict(sheets)
+    guide = (run.get(f"/v2/projects/{project_id}/overview") or {}).get("guide") or {}
+    leg.check(run, f"{label}: one film -- the stage opener alone on the conversation (one sheet at a time, no welcome "
+                   f"sheet), and after it both seen (openersSeen has {stage}, welcomeSeen true)",
+              v["one_film"] and stage in (guide.get("openersSeen") or []) and guide.get("welcomeSeen") is True,
+              screen="the conversation's opening (guide-opener, guide-welcome)", view="founder + wire",
+              detail={"sheets": v, "guide": {k: guide.get(k) for k in ("welcomeSeen", "openersSeen")},
+                      "woke": woke.get("sheets") if isinstance(woke, dict) else woke}, stop=False)
+
+
 def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bool = False,
                    correction: str | None = None, back_to: str | None = None, goto: bool = True) -> dict:
     """keel-web 245 on one problem project, nothing pressed: the opening (the stage's opener passed, or the begin
@@ -608,6 +622,7 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
                    "-- and never among Keel's lines (`story-words` Keel's alone; keel-web 249 FR-4)",
               heard["all_shown"] and heard["words_keels_only"], screen="define/story/1..5 (story-heard, story-words)",
               detail=heard, stop=False)
+    one_film(run, leg, label, project_id, read["sheets"], "PROBLEM", woke)
     walk.stop_listening()
     return {"walk": walk, "landed": yes["landed"], "story": story, "beats": beats}
 
@@ -850,6 +865,10 @@ def idea_leg(run: Run, leg: Leg, solution: str, label: str, *, back_to_money: bo
     landed = idea.story_yes(lands=re.compile(r"start=money") if back_to_money else ss.COMPATIBILITY_PATH)
     read = idea.turn_read()
     hand_over_checks(run, leg, label, read, "define/idea/*", beat_path=r"/define/idea/\d$")
+    sheets = ss.sheet_verdict(read["sheets"])
+    leg.check(run, f"{label}: no welcome sheet on the solution's conversation, one sheet at a time (keel-web 249 FR-6)",
+              not sheets["welcome_on"] and sheets["one_at_a_time"], screen="define/idea/* (guide-opener, guide-welcome)",
+              detail={"sheets": sheets, "woke": replay.get("woke")}, stop=False)
     heard = ss.heard_verdict(read["heard"], dict([(1, words1), (2, dict(said)[2])]), lambda n: f"/define/idea/{n}")
     leg.check(run, f"{label}: each idea beat's words shown as heard (*What I hear*, `story-heard`), never among Keel's "
                    "lines (keel-web 249 FR-4)", heard["all_shown"] and heard["words_keels_only"],
@@ -1201,7 +1220,7 @@ def fr1_c(run: Run, leg: Leg) -> None:
 def money_card(run: Run, leg: Leg, label: str, replay: dict, product: str) -> None:
     """Spec 158c FR-7 (keel-web 249 FR-5): the money front's replay is the card -- *What Keel understood*, the person,
     *The product* with the name (`today`), no cost row, nothing drawn -- under the small orb, no glow; its one
-    hand-over chimed once."""
+    hand-over chimed once; no welcome sheet on `define/money/start` (FR-8)."""
     card = replay["screen"].get("card") or {}
     rows = ss.card_rows(card)
     leg.check(run, f"{label}: the card (by `data-box`: the person, *The product* naming *{product}*, no cost row)",
@@ -1211,10 +1230,12 @@ def money_card(run: Run, leg: Leg, label: str, replay: dict, product: str) -> No
     turn_screen(run, leg, label, replay["screen"], "define/money/start", card=True)
     read = replay.get("turn") or {}
     v = (read.get("chime") or {})
+    sheets = ss.sheet_verdict(read.get("sheets") or [])
     leg.check(run, f"{label}: the one hand-over chimed once ({v.get('hand_overs')} hand-over(s), {v.get('chimes')} "
-                   "chime(s)), *Your turn.* beside the listening orb",
-              bool(v.get("hand_overs")) and v.get("one_each") and v.get("your_turn") and v.get("mic_open"),
-              screen="define/money/start", detail={"chime": v}, stop=False)
+                   "chime(s)), *Your turn.* beside the listening orb; no welcome sheet, one sheet at a time",
+              bool(v.get("hand_overs")) and v.get("one_each") and v.get("your_turn") and v.get("mic_open")
+              and not sheets["welcome_on"] and sheets["one_at_a_time"], screen="define/money/start",
+              detail={"chime": v, "sheets": sheets}, stop=False)
 
 
 def money_by_name(run: Run, leg: Leg, problem: str, product: str) -> None:
