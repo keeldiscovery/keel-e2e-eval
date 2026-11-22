@@ -1999,6 +1999,27 @@ The old S-002…S-011 (an eleven-scenario set against a since-retired agent-prot
 unrelated to the current S-002 or to S-010/S-011 above) are gone — recorded in git history and in
 `runs/DRIFT.md`'s 2026-09-03 retirement note, not lost.
 
+## The three views, end to end (`make e2e-157`, spec 157)
+
+One run, after the batch (keel-cloud 259 / 260 / 261, keel-web 241 / 242 / 243): `make up` then `make e2e-157` walks the
+spoken problem, the solution and the money chain through the founder's screens and each locked project's link through
+the stranger's three views, and writes `runs/157/<cloud sha>-<web sha>/report.md` (every leg, every named check, a
+failure's screen and view, the log scan) with the bundle beside it (`<stamp>/`: the transcript, the shots, the runtime's
+scripts). **Nothing is bought**: the founder is a fresh stub identity on her own AI (the code story's door), every job is
+the scripted runtime's -- the 01-countly study of the project's scope with the story's own context, Prevalence and
+screener (`harness/story_screens.story_runtime_script`) -- every story reading, build, clip and transcript keel-cloud's
+fakes (the words said are its own `fake-readings.json`, read off the checkout), the avatar the fake renderer, the copilot
+the fake sources; Keel's door is stood in (`stack/ledger.py`, keys `e2e-eval:157:`) only around a lock and the avatar's
+recording, so the PROJECT charge the report holds is the product's. The legs: FR-1 (a) the problem typed and spoken to
+Prevalence and the 259 acceptance pair on the wire; (b) the solution start with no problem project to Compatibility with
+Relative advantage pre-filled; (c) the money start with nothing to one lock charge and the decision-maker's link; (d) the
+problem project of (b) from the list, refused on a drained grant, locked once, a link sent; FR-2 the text, avatar and
+copilot views of the problem, solution and money links, a No on the gate, the anchor and the third-person check ending
+each. `make e2e-157` is not a scenario (`evals/e2e_157_three_views.py` is collected by no `make eval`); the report's last
+line is the log scan -- *no HeyGen, no OpenAI, no Anthropic host contacted* -- read from keel-cloud's log of the run's
+window. `PROFILE=remote` runs it on the staging twin (the coordinator's, never a builder's): the stand-ins are refused
+there by name, so the drained grant, the charge and the avatar's recording are skipped and say so.
+
 ## Stackless unit tests
 
 ```bash

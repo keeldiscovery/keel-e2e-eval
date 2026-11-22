@@ -5,7 +5,7 @@ PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
         matrix-check keels-ai sample backtest gallery noise-check copilot-bench copilot-prototype read-screens read-table \
-        quality-walk quality-advise quality-accept quality-due remote
+        quality-walk quality-advise quality-accept quality-due remote e2e-157
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -41,6 +41,14 @@ eval: venv
 # first. Not paid (the scripted runtime, the owner's own AI), but it writes to staging: the coordinator's to run.
 remote: venv
 	KEEL_EVAL_PROFILE=remote $(PY) -m pytest evals -q -m "remote and not live" $(if $(K),-k "$(K)",)
+
+# make e2e-157 (spec 157 FR-3): the three views end to end -- the spoken problem, the solution and the money chain
+# (keel-cloud 259-261, keel-web 241-243), the founder's legs and the stranger's nine, ONCE, on the current profile, nothing
+# bought (the scripted runtime, keel-cloud's fakes; Keel's door stood in only around a lock, locally). Writes
+# runs/157/<cloud sha>-<web sha>/report.md and the bundle beside it. `make up` first (or it boots one).
+# PROFILE=remote runs it on the staging twin: the coordinator's to run, never a builder's.
+e2e-157: venv
+	KEEL_EVAL_PROFILE=$(if $(PROFILE),$(PROFILE),eval) $(PY) -m pytest evals/e2e_157_three_views.py -q -s -p no:cacheprovider
 
 # make sample (spec 060; keel-cloud `canon/designs/landing-page-design.md` §18.11) runs S-006 on the local stack with
 # the export on: the finished 05-paidly project at its twenty answers -- overview, plan, standings, roles, people,

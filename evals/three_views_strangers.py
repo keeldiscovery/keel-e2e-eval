@@ -114,6 +114,12 @@ def wire_checks(run, leg, study: str, interview: dict, view: str, url: str | Non
         leg.check(run, f"the {'anchor' if study == 'solution' else 'gate'} asks *{want}*, the founder's clause under "
                        "readInstead", gate.get("question") == want, screen="the gate card", view=f"{view} (wire)",
                   detail={"question": gate.get("question"), "readInstead": story.get("readInstead")})
+    if study == "money":
+        leg.check(run, "the decision-maker's link serves the idea's story (keel-cloud 261 FR-3: the idea card with the "
+                       "brand, then the `ideaStory`)", bool((interview.get("ideaStory") or {}).get("scenes")),
+                  screen="GET /v2/i/{token}/interview", view=f"{view} (wire)",
+                  detail={"ideaStory": bool(interview.get("ideaStory")), "idea brand": (interview.get("idea") or {})
+                          .get("brand"), "drift": "runs/DRIFT.md #106"}, stop=False)
     if study == "solution":
         leg.check(run, "the solution link serves the idea's story and the brand on the reveal",
                   bool((interview.get("ideaStory") or {}).get("scenes")) and bool((interview.get("reveal") or {})
@@ -144,31 +150,36 @@ def text_view(run, leg, study: str, project_id: str) -> None:
     kinds = [s["screen"] for s in walk["screens"]]
     first_gate = "check" if study == "money" else "gate"
     order = [k for k in kinds if k in ("condition", "story", first_gate, "reveal", "ideaStory")]
-    want = ["condition", "story", "gate"] if study != "money" else ["condition", "story", "check"]
-    if study == "solution":
-        want += ["reveal", "ideaStory"]
+    screener = (interview.get("gate") or {}).get("condition") or interview.get("condition")
+    want = (["condition"] if screener else []) + ["story", "check" if study == "money" else "gate"]
+    if study in ("solution", "money"):
+        want += ["reveal", "ideaStory"]          # 242 FR-4 / 243 FR-2: the idea card, then the idea's story
     leg.check(run, f"the text view's order: {' -> '.join(want)}, then the questions",
-              order[:len(want)] == want, screen="the link's cards", view="text", detail={"drawn": kinds})
+              order[:len(want)] == want, screen="the link's cards", view="text", detail={"drawn": kinds},
+              stop=False)
     story = next((s for s in walk["screens"] if s["screen"] == "story"), {})
     leg.check(run, "the story card: the player, *Read it instead*, the kicker *Before the questions*",
               story.get("player", 0) >= 1 and story.get("read_instead", 0) >= 1
               and story.get("kicker") == ss.STORY_KICKER, screen="the story card", view="text", detail=story)
     gate = next((s for s in walk["screens"] if s["screen"] == "gate"), {})
     chips = gate.get("story_chips") or []
-    leg.check(run, "the story question under the gate's Yes carries both chips (*I can't recall one particular ...*, "
-                   "*I'd rather not say*)", len(chips) == 2 and any("can't recall" in c for c in chips)
-              and any("rather not say" in c for c in chips), screen="the gate card (the story question)", view="text",
-              detail=gate)
+    if study != "money":                       # the decision-maker's link has no gate and no story question
+        leg.check(run, "the story question under the gate's Yes carries both chips (*I can't recall one particular "
+                       "...*, *I'd rather not say*)", len(chips) == 2 and any("can't recall" in c for c in chips)
+                  and any("rather not say" in c for c in chips), screen="the gate card (the story question)",
+                  view="text", detail=gate)
     voiced = [s for s in walk["screens"] if s["screen"] in ("condition", "gate", "check", "item")]
     unvoiced = [(s["screen"], s.get("dimension"), s.get("question")) for s in voiced
                 if not s["voice"] or s.get("voice_words") not in (ss.VOICE_READS, "Keel AI is muted")]
     leg.check(run, "every card the stranger answers draws the voice bar (*Keel AI reads this card aloud*, Mute)",
               bool(voiced) and not unvoiced, screen="every question card", view="text",
               detail={"cards": len(voiced), "without the bar": unvoiced}, stop=False)
-    unlettered = [(s["screen"], s.get("question"), s["letters"]) for s in voiced
-                  if s["bubbles"] < 1 or not s["letters"] or s["letters"][0] != "A"]
+    # the cards that draw answer rows (a box -- an amount, hours -- has none to letter)
+    unlettered = [(s["screen"], s.get("question"), s["letters"]) for s in voiced if s.get("rows")
+                  and (s["bubbles"] < 1 or not s["letters"] or s["letters"][0] != "A")]
     leg.check(run, "the answers are the copilot strip's lettered bubbles (A, B, ...) on every card",
-              not unlettered, screen="every question card", view="text", detail={"unlettered": unlettered}, stop=False)
+              not unlettered, screen="every question card", view="text",
+              detail={"unlettered": unlettered, "drift": "runs/DRIFT.md #105" if unlettered else None}, stop=False)
     leg.check(run, "the answers are sent (201) and the thank-you drawn",
               (walk.get("response") or {}).get("status") == 201, screen="the last card -> the thank-you", view="text",
               detail={"response": walk.get("response"), "done": walk.get("done")})
@@ -334,6 +345,10 @@ def avatar_walk(run, page, url: str, interview: dict, *, no_on: str | None = Non
         elif row["options"]:
             row["said"] = row["options"][0]
             p.say(row["said"])
+        elif sheet.get("chips"):
+            # a box with no rows (an amount, a count): its escape, tapped
+            row["said"] = f"tap: {sheet['chips'][0]}"
+            p.tap_chip()
         else:
             row["said"] = "about three"
             p.say(row["said"])
@@ -376,11 +391,13 @@ def avatar_view(run, leg, study: str, project_id: str) -> None:
             stranger.close()
         rows = walked["rows"]
         hands = [r for r in rows if r["screen"] == "handover"]
-        want_kinds = ["problem", "idea"] if study == "solution" else ["problem"]
-        leg.check(run, f"she hands over {'twice' if study == 'solution' else 'once'}: the story full frame in Keel AI's "
+        # 242 FR-4 / 243 FR-2: twice where the link holds the idea (the problem's story, then the idea's)
+        want_kinds = ["problem", "idea"] if study in ("solution", "money") else ["problem"]
+        leg.check(run, f"she hands over {'twice' if len(want_kinds) == 2 else 'once'}: the story full frame in Keel AI's "
                        "voice (*Let me show you ...*), nothing recorded", [h["kind"] for h in hands] == want_kinds
                   and all(h["hand"].startswith(HAND_OVER["idea" if h["kind"] == "idea" else "problem"]) and h["player"]
-                          for h in hands), screen="the hand-over card", view="avatar", detail=hands)
+                          for h in hands), screen="the hand-over card", view="avatar",
+                  detail={"hand-overs": hands, "drift": "runs/DRIFT.md #106" if study == "money" else None}, stop=False)
         leg.check(run, "Daphne returns after each hand-over: the story gone, her face on the stage, the next question",
                   bool(hands) and all((h.get("returned") or {}).get("story_gone") and (h.get("returned") or {}).get("face")
                                       for h in hands), screen="the stage after the hand-over", view="avatar",
@@ -389,10 +406,10 @@ def avatar_view(run, leg, study: str, project_id: str) -> None:
         typed = [r["question"] for r in questions if r["type_instead"]]
         leg.check(run, "no *Type instead* on any card of a story link", bool(questions) and not typed,
                   screen="every question sheet", view="avatar", detail={"with Type instead": typed})
-        items = [r for r in questions if r.get("step") == "item"]
+        items = [r for r in questions if r.get("step") == "item" and not str(r.get("where") or "").startswith("Question 1 ")]
         backless = [r["question"] for r in items if not r["back"]]
-        leg.check(run, "*Back to question n* on every question card (the items; the screener, the gate and its story "
-                       "are the link's opening)", bool(items) and not backless,
+        leg.check(run, "*Back to question n* on every question card after the first (the screener, the gate, its story "
+                       "and the check are the link's opening)", bool(items) and not backless,
                   screen="every question sheet", view="avatar", detail={"without Back": backless,
                                                                          "rows": [(r["question"][:60], r["back"])
                                                                                   for r in questions]})
@@ -591,7 +608,11 @@ def copilot_view(run, leg, study: str, project_id: str) -> None:
     walked = results["yes"]
     grows = walked["grows"]
     presses = [g["press"] for g in grows]
-    want = ["show-story", "story-again"] + (["show-idea-story"] if study == "solution" else [])
+    # keel-web 241 FR-9 / 242 FR-4 / 243 judgement call 12: the screener's *Show the story* then the gate's *Story
+    # again*; the decision-maker's call has no screener, its check strip carries the story's press (`story-again`); the
+    # idea's story after the idea where the study holds one
+    want = (["story-again"] if study == "money" else ["show-story", "story-again"]) + \
+        (["show-idea-story"] if study in ("solution", "money") else [])
     leg.check(run, f"the story moments in order: {', '.join(want)}", presses == want, screen="the strips",
               view="copilot", detail={"grows": presses, "strips": [(s.get("head"), s.get("read", "")[:50])
                                                                   for s in walked["strips"]]})
@@ -601,11 +622,15 @@ def copilot_view(run, leg, study: str, project_id: str) -> None:
     leg.check(run, "the grown window is under half the viewport, the card still drawn, the player playing",
               bool(grows) and not small and all(g["card_shown"] and g["player"] for g in grows),
               screen="the grown window", view="copilot", detail=grows)
-    back = [g for g in grows if g["press"] == "show-story"]
-    leg.check(run, "it shrinks back with the gate up (*Story again* on the gate's strip)",
+    back = grows[:1]
+    leg.check(run, "it shrinks back with the gate (or the check) up (*Story again* on its strip)",
               bool(back) and all(g["after"]["story_again"] for g in back), screen="the gate's strip",
               view="copilot", detail=[g["after"] for g in grows])
-    stills = [s for s in walked["strips"] if s.get("phase") == "reading" and s.get("question") and not s.get("still")]
+    # 241 judgement call 13: the stills are the problem's (a solution or money question has none): every strip of the
+    # problem's -- the screener, the gate or check, and on a problem link each question
+    problem_strips = [s for s in walked["strips"] if s.get("phase") == "reading" and (
+        s.get("story_again") or s.get("show_story") or (study == "problem" and s.get("question")))]
+    stills = [s for s in problem_strips if not s.get("still")]
     leg.check(run, "every question strip carries the step's still beside the question", not stills,
               screen="the strips", view="copilot", detail={"without a still": [(s["head"], s["read"][:60])
                                                                               for s in stills]}, stop=False)

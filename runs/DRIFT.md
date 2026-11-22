@@ -5762,3 +5762,26 @@ does** (spec 157): the first read's missing clips are a failed check by name (*o
 are read again until present (the leg's stopping check). **For keel-cloud:** speak every card when the lock's questions
 land by the retry as by the first job (the completion listener on a retried questionnaire), or make the served read wait
 for its clips.
+
+## 105. Observation (keel-web): on a story link the scale cards draw no lettered bubbles
+
+Found by spec `157-the-three-views-end-to-end` (FR-2, the text view) on keel-web `9147af63`. keel-web 241 FR-7: *Answers
+are the copilot strip's bubbles (lettered pills, dashed escape) on every card.* On the problem link Frequency's count cells
+(`SegmentedScale`), on the solution link Relative advantage's four (`ScaleFour`) and on the money link Existing sacrifice's
+*Hours / Amount* (`CostTotal`) are drawn as before -- none of these controls takes the `bubbles` prop `ChoiceRows` and `PickOneThenOne` take, so those two cards carry no `.cpl-bubbles` and no letters
+while every other card of the link does. **What the harness does** (spec 157): *the answers are the copilot strip's
+lettered bubbles on every card* fails by name with the cards listed (a box with no rows is not held), and the walk goes on. **For keel-web:** say whether
+a scale is lettered on a story link (and draw it so), or narrow FR-7's *every card* to the option rows.
+
+## 106. Observation (keel-cloud): the decision-maker's link serves no `ideaStory`
+
+Found by spec `157-the-three-views-end-to-end` (FR-2, the money link) on keel-cloud-docs `78237f87` + keel-web `9147af63`.
+keel-cloud 261 FR-3: on the decision-maker's link, after the third-person check, *the idea card with the brand, the
+`ideaStory`, and the six money questions*; keel-web 243 FR-2 draws *the idea card with the icon and the idea's story*, the
+avatar *handing over twice*, the copilot's window *growing twice*. The money project's COMMERCIAL_LINK interview (made on a
+solution project whose idea's build is `ready`) serves `story`, `problemCheck` and `idea` but no `ideaStory` (`GET
+/v2/i/{token}/interview`), so the text view goes from the idea card to the questions and the avatar hands over once
+(260 judgement call 16 serves the idea's story for *the solution scopes* only). The copilot, which reads the founder's
+`GET idea/spoken`, does grow a second time. **What the harness does** (spec 157): the wire check, the text view's order
+and the avatar's second hand-over fail by name and the walk goes on. **For keel-cloud:** serve the parent's `ideaStory` on
+the money link up the chain, as the `story` is.

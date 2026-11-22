@@ -1258,6 +1258,28 @@ the respondent pages are not corridor screens. **FR-5**: the lock screen's `read
 `tests/test_harness_waits_155.py`, real chromium on static pages, the limits scaled down. No mark, rubric or contract
 moved; the proof on a live walk is one paid back-test on the founder's word after the merge.
 
+**The three views, end to end** (spec `157-the-three-views-end-to-end`, 2026-11-21; keel-cloud 259 / 260 / 261 at
+keel-cloud-docs `78237f87`, contract 81; keel-web 241 / 242 / 243). `make e2e-157` -- the lot, once, on the current
+profile: `evals/e2e_157_three_views.py` (no `test_` prefix: `make eval` never collects it, the scenario set is unchanged)
+over `evals/three_views.py` (FR-1, the founder's legs), `evals/three_views_strangers.py` (FR-2, the nine stranger's legs)
+and `evals/three_views_report.py` (FR-3, `runs/157/<cloud sha>-<web sha>/report.md` and the log scan). The page objects
+are `harness/story_screens.py`: 241's opening, seven turns (typed by *I would rather type the answers*, spoken through
+the AI page's own seam -- `interviewer_screens.SPEECH_SEAM` drives the founder's hands-free mic too, and keel-cloud's
+FakeTranscriber hears the recording's bytes as said), boxes, building screen and story; 242's solution start, still the
+problem, three turns with the brand, boxes and the day with the idea; 243's money start; the stranger's text page on a
+story link (`StoryLinkText`, every card read for its voice bar, still and lettered bubbles). **No trade word is written
+here**: the founder says keel-cloud's own `fake-readings.json` (and the runtime's Prevalence is its
+`example-prevalence.json`), read off the checkout the stack runs. **The runtime answers a story-defined project** from the
+01-countly study of its scope (`vectors_script.generate`) with three answers made the story's
+(`story_screens.story_runtime_script`: CONTEXT_INTERPRET, the PROBLEM calibration's Prevalence fields, part 1's screener),
+reloaded per scope (`Run.load_runtime`, the chain's answer skipped where the project already took it), and the existing
+legs calibrate it (`corpus_scenario.leg_calibrate`, `strict=False`). The founder is a fresh stub identity on her own AI;
+Keel's door is a stand-in (`e2e-eval:157:`) only around a lock (the product writes the one PROJECT row; the lock's questions
+are then written on the own door, `questionnaire/retry`) and the avatar's recording. What the run found is runs/DRIFT.md
+#103 (the window screen never drawn after the story's yes, the forward press opening the seed chat, the defined project
+resuming on Prevalence), #104 (a link's first read without every card's clip), #105 (the scale cards unlettered on a story
+link) and #106 (no `ideaStory` on the decision-maker's link): each a failed check by name, walked past (`stop=False`).
+
 Rules of this repo: it owns no product code and never fixes the product — cross-repo defects go
 to `runs/DRIFT.md` with evidence and get fixed in the owning repo. The **seventeen** scenarios are
 deterministic (keel-runtime's `--executor scripted`, never an LLM, except S-004 and S-012 above;
