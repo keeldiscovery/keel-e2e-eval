@@ -38,20 +38,23 @@ def readings() -> dict:
     return ss.fake_readings(CLOUD)
 
 
-def test_the_turns_are_the_scripts_heard_words_in_order():
-    told = ss.said_turns(readings())
-    assert [n for n, _ in told if n != 6] == [1, 2, 3, 4, 5, 7]
-    assert sum(1 for n, _ in told if n == 6) >= 2                       # 259 judgement call 8: one PUT a limit
+def test_the_beats_are_the_scripts_heard_words_in_order():
+    """Spec 158 (keel-cloud 263 FR-1): one answer a beat, 1-4, and 5 where beat 2 named no moment."""
+    script = readings()
+    told = ss.said_turns(script)
+    assert [n for n, _ in told][:4] == [1, 2, 3, 4]
+    assert ([n for n, _ in told][4:] == [5]) == (ss.moment_beat(script) == 5)
     assert all(words and words == words.strip() for _, words in told)
 
 
-def test_the_idea_turns_answer_every_limit_of_the_story():
+def test_the_idea_beats_answer_every_limit_of_the_story():
+    """Spec 158 (keel-cloud 263 FR-9): two idea beats; beat 2's one answer maps every limitation of the story."""
     script = readings()
     idea = ss.said_idea(script)
-    assert [n for n, _ in idea][:2] == [1, 2]
-    assert sum(1 for n, _ in idea if n == 3) == len(ss.limits_read(script))
-    last = ss.idea_reading_of(script, 3, idea[-1][1])
-    assert last.get("new_way") and last.get("benefits")
+    assert [n for n, _ in idea] == [1, 2]
+    second = ss.idea_reading_of(script, 2, idea[-1][1])
+    assert len(second.get("limit_answers") or []) == len(ss.limits_read(script))
+    assert second.get("new_way") and second.get("benefits")
 
 
 def test_the_prevalence_fixture_carries_the_four_fields():
@@ -63,7 +66,7 @@ def test_the_prevalence_fixture_carries_the_four_fields():
 def test_the_context_result_is_the_scripts_slots():
     script = readings()
     result = ss.context_interpret_result(script, "DAILY")
-    who, when = ss.reading_of(script, 1), ss.reading_of(script, 3)
+    who, when = ss.reading_of(script, 1), ss.reading_of(script, ss.moment_beat(script))
     assert result["actor"] == who["actor"] and result["actor_plural"] == who["actor_plural"]
     assert result["occasion"] == {"noun": when["occasion"], "stem": when["occasion_stem"], "rhythm": "DAILY"}
     assert result["segment"] == {"core": who["segment_core"],
@@ -206,20 +209,29 @@ def test_the_registry_export_holds_the_story_wording():
                      "problem_check_introduced": "what your {actor} goes through"}
 
 
-#: The keel-web 241 / 242 test ids the walk presses or reads.
+#: The keel-web 245 test ids the walk taps or reads (spec 158: the orb is the one button on the conversation).
 WEB_SELECTORS = {
-    "src/components/story/StoryStart.tsx": ("story-start", "story-start-go", "story-start-type", "story-six"),
-    "src/components/story/StoryTurn.tsx": ("story-turn", "story-send", "story-yes-person", "story-that-is-it",
-                                           "story-that-is-all", "story-steps", "story-conversation"),
-    "src/components/story/PersonCard.tsx": ("story-person-card", "story-card-limit", "story-card-sentence"),
-    "src/components/story/StoryCheck.tsx": ("story-check", "story-boxes-screen", "story-boxes-yes", "story-yes",
-                                            "story-named"),
+    "src/components/story/StoryStart.tsx": ("story-start",),
+    "src/components/story/StoryTurn.tsx": ("story-turn", "story-limits", "story-card-limit", "story-folded"),
+    "src/components/voice/VoiceStage.tsx": ("story-kicker", "story-begin", "story-deaf", "story-q", "story-state",
+                                            "story-words"),
+    "src/components/voice/KeelOrb.tsx": ("story-orb",),
+    "src/components/story/StoryCheck.tsx": ("story-check", "story-boxes-screen", "story-check-said", "story-building",
+                                            "story-readback", "story-named", "story-today"),
+    "src/lib/story/BoxBoard.tsx": ("story-boxes",),
+    "src/components/voice/StageOpener.tsx": ("guide-opener",),
+    "src/components/guide/GuideStage.tsx": ("guide-skip",),
     "src/components/idea/SolutionStart.tsx": ("solution-start", "solution-candidate", "solution-pick",
-                                              "solution-create-problem"),
-    "src/components/idea/StillTheProblem.tsx": ("idea-still", "idea-still-yes"),
-    "src/components/idea/IdeaTurn.tsx": ("idea-turn", "idea-readback", "idea-yes-line", "idea-new-way"),
-    "src/components/idea/BrandOptions.tsx": ("idea-brand", "idea-swatch"),
-    "src/components/idea/IdeaBoxes.tsx": ("idea-check", "idea-boxes-screen", "idea-boxes-yes", "idea-story-yes"),
+                                              "solution-create-problem", "solution-candidate-frame"),
+    "src/components/idea/IdeaStart.tsx": ("idea-still",),
+    "src/components/idea/IdeaTurn.tsx": ("idea-turn", "idea-card-limit"),
+    "src/components/idea/LogoDrop.tsx": ("idea-drop",),
+    "src/components/idea/IdeaBoxes.tsx": ("idea-check", "idea-boxes-screen", "idea-boxes-said", "idea-readback-story",
+                                          "idea-story-player"),
+    "src/components/money/MoneyStart.tsx": ("money-start", "money-problem", "money-pick-problem", "money-create-problem",
+                                            "money-solution", "money-use-solution", "money-create-solution",
+                                            "money-offer-name", "money-use-name"),
+    "src/routes/founder/corridor/MoneyReplayRoute.tsx": ("money-replay",),
     "src/components/interview/StoryScreen.tsx": ("story-screen", "idea-story-screen"),
     "src/components/interview/CardVoice.tsx": ("card-voice", "card-voice-mute"),
     "src/routes/landing/ProjectTabs.tsx": ("project-row-defined",),
@@ -236,14 +248,15 @@ def test_every_selector_the_walk_presses_is_in_keel_web(path):
 
 
 def test_the_story_lines_are_keel_webs():
+    """keel-web 245's lines the walk waits on: the beats' questions, the openings, the questions back, the return."""
     source = _need(WEB / "src" / "lib" / "storyLines.ts").read_text(encoding="utf-8")
     for n, question in ss.STORY_QUESTIONS.items():
         assert f'"{question}"' in source, (n, question)
+    for line in (ss.STORY_READY, ss.SOLUTION_READY, ss.SOLUTION_TURN):
+        assert f'"{line}"' in source, line
     translate = (WEB / "src" / "lib" / "translate.ts").read_text(encoding="utf-8")
-    for words in (ss.STORY_KICKER, ss.VOICE_READS, "Yes, that is exactly the problem",
-                  "Yes, exactly the problem · back to my solution", "Defined, not sent"):
-        assert words in translate, words
-    swatches = (WEB / "src" / "lib" / "ideaLines.ts").read_text(encoding="utf-8")
-    assert all(f'"{hex_}"' in swatches for hex_ in ss.BRAND_SWATCHES)
+    for words in (ss.STORY_KICKER, ss.VOICE_READS, ss.BEGIN_TITLE, ss.BOXES_ASK, ss.STORY_ASK, ss.IDEA_BOXES_ASK,
+                  ss.BACK_TO_SOLUTION, ss.NEW_PROBLEM, "Defined, not sent"):
+        assert f'"{words}"' in translate, words
     solution = (WEB / "src" / "lib" / "solutionStart.ts").read_text(encoding="utf-8")
     assert f'"{ss.PENDING_START_KEY}"' in solution

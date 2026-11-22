@@ -1,23 +1,27 @@
-"""Spec 157: keel-web 241 / 242 / 243's spoken founder screens and the stranger's three views on a story link, as page
-objects -- machinery, not judgement (`evals/three_views.py` judges).
+"""Spec 157 / 158: the founder's spoken screens and the stranger's three views on a story link, as page objects --
+machinery, not judgement (`evals/three_views.py` judges).
 
-**The words the founder says are the cloud's own fixture.** keel-cloud 259 / 260 answer every story reading from one
-fixed script wherever the fakes are routed (`src/main/resources/keel/story/fake-readings.json`, `FakeStoryReadings`:
-an entry matched by its turn and the words as heard, anything else echoed); the walk reads that file off the stack's
-own keel-cloud checkout and says (or types) its `heard` words, so the scripted readings answer, the build reaches
-`ready` on the script's own draft, and nothing here names a trade (`said_turns`, `said_idea`). The Prevalence fields
-the runtime's calibration answer carries are the cloud's own test fixture for the same story
-(`src/test/resources/story/example-prevalence.json`, keel-cloud 259 judgement call 20).
+**Spec 158: the conversation** (keel-web 245 on keel-cloud 263, contract 83). The founder's screens are the orb and the
+words: four beats, one long answer each (1 who; 2 what and when; 3 every limitation, in one breath; 4 all of them or
+some), and beat 5 (the when) only where beat 2 named no moment. **Nothing is pressed**: no *Tap to talk*, *Type
+instead*, *Send*, *That is all*, *Yes* / *Not quite*. The walk gets past the stage's opener (the guide's film, its Skip
+the first tap) or taps the orb on the begin screen (*Tap me to begin.*), speaks through the test build's seam
+(`window.__keelSpeech`: `__say(words)` is the founder speaking, `__listening()` the recorder running; a real pause of
+2.5 s sends the answer, written down by `POST story/transcribe` -- keel-cloud's `FakeTranscriber` hears the words as
+said), and lets the quiet after every readback pass with `window.__keelSilence()` (it answers the conversation's quiet
+wait at once and says whether one stood). The orb's `data-state` is logged through every screen by `ORB_WATCH` (an
+init script beside the seam), so a leg can hold *speaking -> listening -> hearing -> writing -> speaking*.
 
-**The founder's two paths** (keel-web 241 FR-2): *I would rather type the answers* (`story-start-type`: one box a
-turn, `story-send`) and the spoken screen, driven through the test build's one seam (`window.__keelSpeech`, the same
-`interviewer_screens.SPEECH_SEAM` the AI page uses): `__say(words)` pulses the recorder's level and puts the words in
-the recording, the page's hands-free mic ends the answer on its own pause (`PAUSE_MS`, 1.5 s), writes it down through
-`POST story/transcribe` -- keel-cloud's `FakeTranscriber` hears the recording's bytes as the words said (typed text in,
-the same text out) -- and sends the turn. Nothing is pressed on the spoken path but what the founder would press with
-their voice off: *No, that is it* on turn 5, the boxes' and the story's yes.
+**The words the founder says are the cloud's own fixture.** keel-cloud 263 answers every story reading from one fixed
+script wherever the fakes are routed (`src/main/resources/keel/story/fake-readings.json`, `FakeStoryReadings`: an
+entry matched by its beat, the words as heard and whether it is a correction; anything else echoed back by code); the
+walk reads that file off the stack's own keel-cloud checkout and says its `heard` words (`said_turns`, `said_idea`), so
+the scripted readings answer and the build reaches `ready` on the script's own draft. Beat 3's long answer
+(`long_beat_3`) is the script's own limitations, two more in its own vocabulary and its own cost, told at length: no
+trade, company or title is named here beyond the script's. The Prevalence fields the runtime's calibration answer carries
+are the cloud's own test fixture (`src/test/resources/story/example-prevalence.json`, keel-cloud 259 judgement call 20).
 
-Every write a press makes is read off the response keel-web received, so the leg holds the wire the page was handed.
+Every write the page makes is read off the response keel-web received, so the leg holds the wire the page was handed.
 """
 
 from __future__ import annotations
@@ -33,7 +37,7 @@ from harness.browser import _BrowserStep
 
 # ------------------------------------------------------------------------------------ the cloud's own fixtures
 
-#: keel-cloud 259 / 260: the fake readings' script (main resources: what the stack's fakes answer from).
+#: keel-cloud 259 / 260 / 263: the fake readings' script (main resources: what the stack's fakes answer from).
 FAKE_READINGS = "src/main/resources/keel/story/fake-readings.json"
 #: keel-cloud 259 judgement call 20: the example's own Prevalence fields (test resources: the acceptance pair's chain).
 EXAMPLE_PREVALENCE = "src/test/resources/story/example-prevalence.json"
@@ -56,33 +60,50 @@ def story_library(keel_cloud: Path) -> dict:
     return json.loads((Path(keel_cloud) / STORY_LIBRARY).read_text(encoding="utf-8"))
 
 
+def _answers(script: dict, key: str) -> list[dict]:
+    """A script's entries that answer a beat (a correction's entry answers a readback, not the beat)."""
+    return [t for t in script.get(key) or [] if not t.get("correction")]
+
+
 def said_turns(script: dict) -> list[tuple[int, str]]:
-    """The seven turns as the founder says them, in order: one utterance a turn, turn 6 one a limit (keel-cloud 259
-    judgement call 8: one PUT a limitation) -- the script's `heard` words."""
-    out = [(int(t["turn"]), str(t["heard"])) for t in script.get("turns") or []]
-    if [n for n, _ in out if n != 6] != [1, 2, 3, 4, 5, 7]:
-        raise ValueError(f"the fake readings' turns are not 1-7 with turn 6 repeated: {[n for n, _ in out]}")
+    """keel-cloud 263's beats as the founder says them, in order -- one answer a beat: 1 who, 2 what and when, 3 every
+    limitation in one answer, 4 all of them or some, and 5 the when where beat 2 named no moment -- the script's
+    `heard` words (a correction's entry is not a beat)."""
+    out = [(int(t["turn"]), str(t["heard"])) for t in _answers(script, "turns")]
+    beats = [n for n, _ in out]
+    if beats[:4] != [1, 2, 3, 4] or beats[4:] not in ([], [5]):
+        raise ValueError(f"the fake readings' beats are not 1-4 (and 5 where owed): {beats}")
     return out
 
 
 def said_idea(script: dict) -> list[tuple[int, str]]:
-    """keel-cloud 260's three idea turns as said: the name, what would be built, then one answer a limit."""
-    return [(int(t["turn"]), str(t["heard"])) for t in script.get("ideaTurns") or []]
+    """keel-cloud 263 FR-9's two idea beats as said: the name (and the look), then how it solves the limitations."""
+    out = [(int(t["turn"]), str(t["heard"])) for t in _answers(script, "ideaTurns")]
+    if [n for n, _ in out] != [1, 2]:
+        raise ValueError(f"the fake readings' idea beats are not 1 and 2: {[n for n, _ in out]}")
+    return out
 
 
-def reading_of(script: dict, turn: int, heard: str | None = None) -> dict:
-    """The scripted result for `turn` (the first, or the one heard as `heard`)."""
+def reading_of(script: dict, turn: int, heard: str | None = None, *, correction: bool = False) -> dict:
+    """The scripted result for beat `turn` (the first, or the one heard as `heard`; a correction's where asked)."""
     for t in script.get("turns") or []:
-        if int(t["turn"]) == turn and (heard is None or t["heard"] == heard):
+        if int(t["turn"]) == turn and bool(t.get("correction")) == correction \
+                and (heard is None or t["heard"] == heard):
             return dict(t["result"])
-    raise KeyError(f"no fake reading for turn {turn}")
+    raise KeyError(f"no fake reading for beat {turn}{' (a correction)' if correction else ''}")
 
 
-def idea_reading_of(script: dict, turn: int, heard: str | None = None) -> dict:
+def idea_reading_of(script: dict, turn: int, heard: str | None = None, *, correction: bool = False) -> dict:
     for t in script.get("ideaTurns") or []:
-        if int(t["turn"]) == turn and (heard is None or t["heard"] == heard):
+        if int(t["turn"]) == turn and bool(t.get("correction")) == correction \
+                and (heard is None or t["heard"] == heard):
             return dict(t["result"])
-    raise KeyError(f"no fake idea reading for turn {turn}")
+    raise KeyError(f"no fake idea reading for beat {turn}")
+
+
+def moment_beat(script: dict) -> int:
+    """The beat whose reading names the moment: 2 where its one answer carried the when, else 5 (263 FR-1)."""
+    return 2 if reading_of(script, 2).get("circumstance") else 5
 
 
 def scripted_room(script: dict) -> str | None:
@@ -91,13 +112,86 @@ def scripted_room(script: dict) -> str | None:
     return ((drafts[0] or {}).get("result") or {}).get("room_id") if drafts else None
 
 
+def scripted_who(script: dict) -> str | None:
+    """The boxes' *who* the script's draft is matched on (a story told with another who is drawn by code's draft)."""
+    drafts = script.get("drafts") or []
+    return (drafts[0] or {}).get("who") if drafts else None
+
+
 def limits_read(script: dict) -> list[str]:
-    """The limits the script reads turn 6's words as (each as written)."""
-    return [str(t["result"]["limit"]) for t in script.get("turns") or [] if int(t["turn"]) == 6]
+    """The limitations the script reads beat 3's one answer as (each as written, in order)."""
+    return [str(x) for x in reading_of(script, 3).get("limits") or []]
+
+
+def heard_cost(script: dict) -> str | None:
+    """The cost the script hears said in passing on beat 3 (263 FR-2b's `heard.cost`), or None."""
+    return ((reading_of(script, 3).get("heard") or {}).get("cost")) or None
+
+
+#: Spec 158 FR-1: beat 3's long answer is at least this long (keel-cloud 263 FR-2a: no 240 cut).
+LONG_ANSWER_MIN = 1500
+#: keel-cloud 263 FR-2a: the most a beat's words may be (20,000 characters); keel-cloud's FakeTranscriber hears up to
+#: 4 KB of a recording as its words, so the long answer stays under that.
+LONG_ANSWER_MAX = 4000
+#: The two limitations the long answer adds to the script's three, in the script's own vocabulary (the managers, the
+#: report): no trade, company or title named.
+MORE_LIMITS = ("Managers take days to answer their questions", "The report comes out late in the day")
+#: The rest of the telling, one clause at a time, said after the fifth limitation in one long sentence (commas only, so
+#: an unscripted reading of beat 3 -- each sentence a row -- keeps the four rows the answer opens with).
+_TELLING = (
+    "so everything they do has to fit into the last hours before the run is signed off",
+    "and they sit with the report open on one side and last period's on the other",
+    "going down it line by line and marking anything that looks different",
+    "then they write to the managers about every line they cannot explain",
+    "and they wait, and while they wait the rest of the checks pile up behind it",
+    "and some weeks the answers come back after the money has already gone out",
+    "and the hours still do not match what the managers said",
+    "and nobody has told them that a rate moved in the middle of the period",
+    "and then {cost}, which is the part that really costs them",
+    "because then they have to put it right by hand the next period",
+    "and explain it to the person who was paid wrong",
+    "and to the managers who did not answer in time",
+    "and it starts again the next time the run is ready to be signed off",
+    "and they never feel sure that this time they caught all of it",
+)
+
+
+def _lower(text: str) -> str:
+    return text[:1].lower() + text[1:] if text else text
+
+
+def long_beat_3(script: dict) -> tuple[str, list[str]]:
+    """Beat 3 told the long way (spec 158 FR-1): five limitations in one breath -- the script's three, then two more --
+    and a cost said in passing, over at least 1,500 characters. The first four limitations are a sentence each (the
+    cloud's fake reader, `FakeStoryReadings`, reads an unscripted beat 3 a sentence a row and keeps four), the fifth,
+    the cost and the rest of the telling one long last sentence. Returns the words and the four rows a reading keeps."""
+    limits = (limits_read(script) + list(MORE_LIMITS))[:5]
+    rows = limits[:4]
+    cost = _lower(heard_cost(script) or "someone gets paid wrong")
+    head = " ".join(f"{row}." for row in rows)
+    tail = [f"And {_lower(limits[4])}"]
+    for clause in _TELLING:
+        tail.append(clause.format(cost=cost))
+    words = f"{head} {', '.join(tail)}."
+    while len(words) < LONG_ANSWER_MIN:            # never: the telling is longer; kept so the rule is the code's
+        words = words[:-1] + ", " + ", ".join(c.format(cost=cost) for c in _TELLING) + "."
+    if len(words) > LONG_ANSWER_MAX:
+        raise ValueError(f"the long answer is {len(words)} characters, over the transcriber's {LONG_ANSWER_MAX}")
+    return words, rows
+
+
+#: Spec 158 FR-1: the correction said after beat 4's readback (the spec's own words), through the fake mic.
+CORRECTION_4 = "only the ones in Europe"
+#: Spec 158 FR-1: the word the correction narrows the condition with -- the readback and the stored condition say it.
+CORRECTION_4_WORD = "Europe"
+#: Spec 158 FR-1 / FR-5: beat 1 said another way for the long telling (the script's own people, said longer), so the
+#: draft is code's (keel-cloud 263 FR-3: the cost line drafted from the limitations, `costDrafted`) rather than the
+#: script's -- both roads to the seventh line walked in one run.
+LONG_WHO_SUFFIX = " in small teams"
 
 
 def condition_question(only_those_who: str | None) -> str | None:
-    """The screener the runtime's RESPONDENT_QUESTIONS answer writes for a story whose turn 4 named a condition: *Do
+    """The screener the runtime's RESPONDENT_QUESTIONS answer writes for a story whose beat 4 named a condition: *Do
     you {only those who}?* -- the founder's own words, one yes-or-no question (none where it happens to all of them)."""
     words = " ".join(str(only_those_who or "").split()).rstrip(".?")
     if not words:
@@ -106,10 +200,11 @@ def condition_question(only_those_who: str | None) -> str | None:
 
 
 def context_interpret_result(script: dict, rhythm: str) -> dict:
-    """keel-cloud 259's acceptance pair's `contextResultOfTheScript`, restated: what CONTEXT_INTERPRET answers for the
-    story's own words -- the script's slots in the job's result shape (the window Save on 2 of 2 reads the context
-    again, keel-web 241 FR-1). `rhythm` is the window's (keel-cloud `Rhythm.of`)."""
-    who, when, everyone = reading_of(script, 1), reading_of(script, 3), reading_of(script, 4)
+    """keel-cloud 259's acceptance pair's `contextResultOfTheScript`, restated on 263's beats: what CONTEXT_INTERPRET
+    answers for the story's own words -- the script's slots in the job's result shape (the window Save reads the
+    context again, keel-web 241 FR-1). The when is the beat that named it (2, else 5). `rhythm` is the window's
+    (keel-cloud `Rhythm.of`)."""
+    who, when, everyone = reading_of(script, 1), reading_of(script, moment_beat(script)), reading_of(script, 4)
     return {"spelling": [],
             "occasion": {"noun": when.get("occasion"), "stem": when.get("occasion_stem"), "rhythm": rhythm},
             "actor": who.get("actor"), "actor_plural": who.get("actor_plural"),
@@ -174,22 +269,33 @@ def story_runtime_script(base: dict, readings: dict, prevalence: dict, window: d
     return out
 
 
-# ------------------------------------------------------------------------------------ the founder's screens (241)
+
+# ------------------------------------------------------------------------------------ the founder's screens (245)
 
 STORY_START = "[data-testid=story-start]"
 STORY_TURN = "[data-testid=story-turn]"
 STORY_CHECK = "[data-testid=story-check]"
 WINDOW_PATH = re.compile(r"/define/context/window")
-#: keel-web 241 `lib/storyLines.ts` -- the seven questions (a turn screen's `h1.story-q`).
-STORY_QUESTIONS = {1: "Who has this problem?", 2: "What are they trying to get done?", 3: "When does it happen?",
-                   4: "Does it happen to all of them, or just to some?", 5: "How do they do it today?",
-                   6: "What gets in the way?", 7: "And what does that cost them?"}
-#: keel-web 241 FR-4 / `translate.ts` STORY: the story readback's two buttons.
-STORY_YES = "Yes, that is exactly the problem"
-STORY_YES_BACK = "Yes, exactly the problem · back to my solution"
-#: keel-web 243 `translate.ts` MONEY: the two yeses from a money start.
-STORY_YES_MONEY = "Yes, exactly the problem · back to will they pay"
-IDEA_YES_MONEY = "Yes, exactly my idea · back to will they pay"
+#: keel-web 245 `lib/storyLines.ts` -- the beats' questions (keel-cloud 263 FR-1, verbatim) and the opening line.
+STORY_QUESTIONS = {1: "Who has this problem?",
+                   2: "What are they trying to get done, and when does that happen?",
+                   3: "While doing that, what limitations do they run into today? Tell me all of them.",
+                   4: "Does it happen to all of them, or just to some?",
+                   5: "When does that come up?"}
+STORY_READY = "Ready? I am ready when you are. Let us start with the problem."
+SOLUTION_READY = "Ready? Let us first go through the problem."
+SOLUTION_TURN = "This is the problem. Now let us talk about the solution. How will your product solve it?"
+#: keel-web 245 `translate.ts` STORY: the begin screen, the boxes' and the stories' questions, the return line.
+BEGIN_TITLE = "Tap me to begin."
+BOXES_ASK = "Is that right?"
+STORY_ASK = "Is that how it goes for them?"
+IDEA_BOXES_ASK = "Is that your idea?"
+BACK_TO_SOLUTION = "That is the problem. Taking you back to your solution."
+#: keel-web 245 FR-6: the cost box carries no label (`costTag: null`) -- 241's tag must not be on the board.
+COST_TAG = "What it costs"
+#: keel-web 245 FR-8: the conversation's screens and the orb, the one button on them.
+ORB = "[data-testid=story-orb]"
+STAGE = ".vstage"
 
 
 def _tc(locator) -> str:
@@ -210,31 +316,166 @@ def _texts(locator) -> list[str]:
         return []
 
 
-#: keel-web 080's guide welcome over a new project's first screen: its Skip (the walk passes it by, spec 054 FR-6).
+#: keel-web 080's guide welcome and keel-web 245 FR-3's stage opener share the guide sheet and its Skip.
 GUIDE_SKIP = "[data-testid='guide-skip']"
+GUIDE_OPENER = "[data-testid='guide-opener']"
+
+
+def _skip_sheet(page) -> str | None:
+    """Presses a guide sheet's Skip where one is up: the stage opener (245 FR-3: its Skip is the founder's first tap) or
+    080's welcome. Which one it was, or None."""
+    skip = page.locator(GUIDE_SKIP)
+    try:
+        if not (skip.count() and skip.first.is_visible()):
+            return None
+    except Exception:  # noqa: BLE001 - a navigation in flight
+        return None
+    which = "opener" if page.locator(GUIDE_OPENER).count() else "welcome"
+    skip.first.click()
+    try:
+        page.locator(".gw-scrim").first.wait_for(state="detached", timeout=10_000)
+    except Exception:  # noqa: BLE001 - a scrim slow to go: Escape is Skip too (keel-web 080 FR-2.6)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1000)
+    return which
 
 
 def pass_the_welcome(page, *, wait_ms: int = 4000) -> bool:
-    """keel-web 080's welcome opens over a new project's first screen (here the story's opening, on a project made from
-    a start): pressed past with Skip where it draws within `wait_ms`. True where it was there."""
+    """keel-web 080's welcome over a new project's first screen (a persona step reached from a start): pressed past
+    with Skip where it draws within `wait_ms`. True where it was there."""
     deadline = time.monotonic() + wait_ms / 1000
     while time.monotonic() < deadline:
-        skip = page.locator(GUIDE_SKIP)
-        if skip.count() and skip.first.is_visible():
-            skip.first.click()
-            try:
-                page.locator(".gw-scrim").first.wait_for(state="detached", timeout=10_000)
-            except Exception:  # noqa: BLE001 - a scrim slow to go: Escape is Skip too (keel-web 080 FR-2.6)
-                page.keyboard.press("Escape")
-                page.wait_for_timeout(1000)
+        if _skip_sheet(page):
             return True
         page.wait_for_timeout(200)
     return False
 
 
+def wake(page, *, settle_s: float = 1.5, timeout_s: float = 60) -> dict:
+    """Gets the founder past what stands before Keel's first line (keel-web 245 FR-3, FR-7): the guide's sheets (the
+    stage's opener -- its Skip is the first tap -- and 080's welcome) pressed past, or, where nothing plays, the begin
+    screen's orb tapped once it has stood `settle_s` with no sheet coming. Returns what was passed; raises where the
+    microphone is refused (`data-voice=deaf`)."""
+    out: dict = {"sheets": [], "begin": False, "begin_screen": None}
+    deadline = time.monotonic() + timeout_s
+    standing = None
+    while time.monotonic() < deadline:
+        which = _skip_sheet(page)
+        if which:
+            out["sheets"].append(which)
+            standing = None
+            continue
+        stage = page.locator(STAGE).first
+        try:
+            voice = stage.get_attribute("data-voice", timeout=1_000) if stage.count() else None
+        except Exception:  # noqa: BLE001 - re-rendered under the read
+            voice = None
+        if voice == "deaf":
+            raise AssertionError(f"the microphone was refused on {page.url} (245 FR-7: *I cannot hear you.*)")
+        if voice == "on":
+            return out
+        if voice == "begin":
+            if out["begin_screen"] is None:
+                out["begin_screen"] = {"title": _tc(page.locator("[data-testid=story-begin] [data-testid=story-q]")),
+                                       "buttons": stage_buttons(page)}
+            standing = standing or time.monotonic()
+            if time.monotonic() - standing >= settle_s:
+                page.locator(ORB).first.click()
+                out["begin"] = True
+                standing = None
+                page.wait_for_timeout(300)
+                continue
+        page.wait_for_timeout(200)
+    raise AssertionError(f"the conversation never woke on {page.url}: {out}")
+
+
+def stage_buttons(page) -> list[str]:
+    """Spec 158 FR-1: every `button` on the conversation's screen (`.vstage`) other than the orb -- none is owed."""
+    try:
+        return page.evaluate(
+            """() => [...document.querySelectorAll('.vstage button')]
+                   .filter((b) => b.getAttribute('data-testid') !== 'story-orb')
+                   .map((b) => b.getAttribute('data-testid') || (b.textContent || '').trim() || b.outerHTML.slice(0, 80))""")
+    except Exception:  # noqa: BLE001 - a navigation in flight
+        return []
+
+
+#: Spec 158 FR-2: the orb's `data-state` (and the screen's `data-voice`, the board's `data-lit`) logged through every
+#: screen, change by change, on `window.__orbLog` -- an init script on the founder's context beside the speech seam.
+ORB_WATCH = r"""(() => {
+  const log = (window.__orbLog = window.__orbLog || []);
+  let last = '';
+  const read = () => {
+    const orb = document.querySelector('[data-testid=story-orb]');
+    const stage = document.querySelector('.vstage');
+    const board = document.querySelector('[data-testid=story-boxes]');
+    const row = { state: orb ? orb.getAttribute('data-state') : null, voice: stage ? stage.getAttribute('data-voice') : null,
+                  lit: board ? board.getAttribute('data-lit') : null, path: location.pathname };
+    const key = JSON.stringify(row);
+    if (key !== last) { last = key; row.t = Date.now(); log.push(row); }
+  };
+  new MutationObserver(read).observe(document, { subtree: true, childList: true, attributes: true,
+                                                 attributeFilter: ['data-state', 'data-lit', 'data-voice'] });
+  read();
+})();"""
+
+#: What one screen of the conversation draws, read in one go (the conversation moves on its own; a slow read misses).
+_SNAPSHOT = r"""() => {
+  const q = (s) => document.querySelector(s);
+  const t = (el) => (el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : null);
+  const all = (s) => [...document.querySelectorAll(s)];
+  const stage = q('.vstage');
+  return {
+    path: location.pathname,
+    screen: stage ? stage.getAttribute('data-testid') : null,
+    turn: (q('[data-testid=story-turn]') || q('[data-testid=idea-turn]') || { getAttribute: () => null }).getAttribute('data-turn'),
+    voice: stage ? stage.getAttribute('data-voice') : null,
+    orb: q('[data-testid=story-orb]') ? q('[data-testid=story-orb]').getAttribute('data-state') : null,
+    kicker: t(q('[data-testid=story-kicker]')),
+    question: t(q('[data-testid=story-q]')),
+    state: t(q('[data-testid=story-state]')),
+    words: all('[data-testid=story-words] li').map((li) => ({ who: li.getAttribute('data-who'), text: t(li) })),
+    limits: all('[data-testid=story-card-limit]').map((li) => t(li).replace(/^×\s*/, '')),
+    marks: all('[data-testid=idea-card-limit]').map((li) => ({ mark: li.getAttribute('data-mark'), text: t(li).replace(/^[✓×]\s*/, '') })),
+    folded: t(q('[data-testid=story-folded]')),
+    said: t(q('[data-testid=story-check-said]')) || t(q('[data-testid=idea-boxes-said]')) || t(q('[data-testid=idea-story-said]')),
+    board: t(q('[data-testid=story-boxes]')),
+    today: t(q('[data-testid=story-today]')),
+    drop: q('[data-testid=idea-drop]') ? true : false,
+    buttons: stage ? [...stage.querySelectorAll('button')].filter((b) => b.getAttribute('data-testid') !== 'story-orb')
+      .map((b) => b.getAttribute('data-testid') || t(b)) : [],
+  };
+}"""
+
+
+def orb_sequence(log: list[dict], path: str | None = None) -> list[str]:
+    """The orb's states in the order they came (repeats folded), on one path where given."""
+    out: list[str] = []
+    for row in log:
+        if path is not None and row.get("path") != path:
+            continue
+        state = row.get("state")
+        if state and (not out or out[-1] != state):
+            out.append(state)
+    return out
+
+
+def holds_in_order(seen: list[str], want: list[str]) -> bool:
+    """`want` appears in `seen` in order (not necessarily side by side)."""
+    i = 0
+    for state in seen:
+        if i < len(want) and state == want[i]:
+            i += 1
+    return i == len(want)
+
+
+#: Spec 158 FR-2: a beat's orb, from Keel's question to Keel's readback.
+BEAT_ORB = ["speaking", "listening", "hearing", "writing", "speaking"]
+
+
 class FounderVoice:
     """The founder's microphone through the seam (`interviewer_screens.SPEECH_SEAM`, installed on the context): wait for
-    the page's recorder to run, then say the words; the page does the rest."""
+    the page's recorder to run, then say the words; the page does the rest. No tap: keel-web 245 draws no *Tap to talk*."""
 
     def __init__(self, page):
         self.page = page
@@ -245,20 +486,15 @@ class FounderVoice:
         except Exception:  # noqa: BLE001 - a navigation in flight
             return False
 
-    def wait_listening(self, timeout_s: float = 30) -> None:
+    def wait_listening(self, timeout_s: float = 60) -> None:
         deadline = time.monotonic() + timeout_s
         while not self.listening():
             if time.monotonic() > deadline:
                 raise AssertionError(f"the founder's microphone never opened on {self.page.url} (the hands-free mic, "
-                                     "keel-web 241 FR-2)")
-            self.page.wait_for_timeout(150)
+                                     "keel-web 245 FR-5)")
+            self.page.wait_for_timeout(100)
 
-    def say(self, words: str, *, timeout_s: float = 30) -> None:
-        # a screen reached without the Start tap (after a navigation: keel-web 241 judgement call 6, 242 call 7) offers
-        # *Tap to talk*: the founder taps it, as they would, before speaking
-        talk = self.page.get_by_test_id("story-talk")
-        if not self.listening() and talk.count() and talk.first.is_visible():
-            talk.first.click()
+    def say(self, words: str, *, timeout_s: float = 60) -> None:
         self.wait_listening(timeout_s)
         self.page.evaluate("(w) => window.__say(w, true)", words)
 
@@ -269,9 +505,9 @@ class FounderVoice:
             return []
 
 
-class StoryWalk:
-    """keel-web 241's founder flow on one project: the opening, the seven turns (typed or spoken), the boxes, the
-    building screen and the story; every PUT the page sent and the answer it received kept (`writes`)."""
+class Conversation:
+    """What every screen of keel-web 245's conversation shares: the founder's voice, the quiet let pass, the orb's log,
+    one read of the screen, and every write the page made with the answer it received (`writes`)."""
 
     def __init__(self, page, recorder, base_url: str, *, patience: float = 1.0):
         self.page = page
@@ -280,13 +516,12 @@ class StoryWalk:
         self._b = _BrowserStep(recorder, page, "founder")
         self.voice = FounderVoice(page)
         self.writes: list[dict] = []
-        self.turns_seen: list[dict] = []
         self._listening = False
 
     # ------------------------------------------------------------------------------------------- the wire
     def _keep(self, response) -> None:
         url = response.url.split("?")[0]
-        if "/story" not in url and "/idea" not in url:
+        if "/story" not in url and "/idea" not in url and not url.endswith("/v2/projects"):
             return
         method = response.request.method
         if method not in ("PUT", "POST"):
@@ -313,204 +548,225 @@ class StoryWalk:
             self.page.remove_listener("response", self._keep)
             self._listening = False
 
-    def turn_writes(self, n: int) -> list[dict]:
-        return [w for w in self.writes if re.search(rf"/story/turns/{n}$", w["path"])]
+    def writes_to(self, pattern: str) -> list[dict]:
+        return [w for w in self.writes if re.search(pattern, w["path"])]
+
+    def put_after(self, pattern: str, act, *, timeout_s: float = 90) -> dict:
+        """Does `act` and waits for the next write whose path matches `pattern`; returns it."""
+        before = len(self.writes_to(pattern))
+        act()
+        deadline = time.monotonic() + timeout_s * self.patience
+        while len(self.writes_to(pattern)) <= before:
+            if time.monotonic() > deadline:
+                raise AssertionError(f"no write to {pattern} within {timeout_s} s ({self.page.url})")
+            self.page.wait_for_timeout(100)
+        return self.writes_to(pattern)[-1]
 
     # ------------------------------------------------------------------------------------------- reads
-    def screen(self) -> dict:
-        """What the turn screen draws now: its turn and mode, the question, the bubbles, the person card's rows."""
-        root = self.page.locator(STORY_TURN).first
-        card = self.page.get_by_test_id("story-person-card")
-        rows = {}
-        for row in card.locator(".story-card__row").all():
-            key = row.get_attribute("data-row") or ""
-            rows[key] = {"label": _tc(row.locator("dt")), "value": _tc(row.locator("dd")),
-                         "current": row.get_attribute("data-current") is not None}
-        return {"turn": root.get_attribute("data-turn") if root.count() else None,
-                "mode": root.get_attribute("data-mode") if root.count() else None,
-                "question": _tc(self.page.locator("h1.story-q").first),
-                "bubbles": [{"who": b.get_attribute("data-who"), "text": _tc(b.locator("p").first),
-                             "note": _tc(b.locator(".story-bubble__note"))}
-                            for b in self.page.get_by_test_id("story-conversation").locator("li").all()],
-                "card": rows,
-                "limits": [t.lstrip("×").strip() for t in _texts(card.get_by_test_id("story-card-limit"))],
-                "sentence": _tc(card.get_by_test_id("story-card-sentence")) or None,
-                "look": _tc(card.get_by_test_id("story-card-look")) or None,
-                "dashes_on": self.page.locator("[data-testid=story-dashes] .story-dash[data-on]").count(),
-                "url": self.page.url}
+    def orb_log(self) -> list[dict]:
+        try:
+            return list(self.page.evaluate("() => window.__orbLog || []"))
+        except Exception:  # noqa: BLE001 - a navigation in flight
+            return []
 
-    def _wait_turn(self, n: int, timeout_s: float = 30) -> None:
+    def snapshot(self) -> dict:
+        try:
+            return self.page.evaluate(_SNAPSHOT)
+        except Exception as e:  # noqa: BLE001 - a navigation in flight
+            return {"unread": str(e)[:200], "path": self.page.url}
+
+    def wait_path(self, pattern: str | re.Pattern, *, timeout_s: float = 60) -> str:
+        rx = re.compile(pattern) if isinstance(pattern, str) else pattern
+        deadline = time.monotonic() + timeout_s * self.patience
+        while not rx.search(self.page.url):
+            if time.monotonic() > deadline:
+                raise AssertionError(f"the conversation never reached {rx.pattern}: {self.page.url}")
+            self.page.wait_for_timeout(150)
+        return self.page.url
+
+    # ------------------------------------------------------------------------------------------- the quiet
+    def silence(self, *, timeout_s: float = 120) -> None:
+        """The founder says nothing: `window.__keelSilence()` (keel-web 245 FR-8) answers the quiet wait at once, polled
+        until one stands. A guide sheet that comes up meanwhile is pressed past (the opener decides late)."""
+        deadline = time.monotonic() + timeout_s * self.patience
+        while time.monotonic() < deadline:
+            _skip_sheet(self.page)
+            try:
+                if self.page.evaluate("() => !!(window.__keelSilence && window.__keelSilence() === true)"):
+                    return
+            except Exception:  # noqa: BLE001 - a navigation in flight
+                pass
+            self.page.wait_for_timeout(200)
+        raise AssertionError(f"no quiet wait stood on {self.page.url} within {timeout_s} s (245 FR-8 `__keelSilence`)")
+
+    def await_quiet(self, mark: int, *, after: tuple[str, ...] = ("hearing", "writing"), timeout_s: float = 60) -> dict:
+        """Keel has said its line back and listens again: from the orb's log since `mark`, a `speaking` after the
+        founder was heard (`after`), the orb no longer speaking, and the recorder running -- the quiet wait stands
+        (never answered here). A line never heard as speaking (its clip unplayed) is waited out to `timeout_s`."""
+        deadline = time.monotonic() + timeout_s * self.patience
+        spoke = False
+        while time.monotonic() < deadline:
+            seq = orb_sequence(self.orb_log()[mark:])
+            heard = next((i for i, s in enumerate(seq) if s in after), None) if after else -1
+            spoke = heard is not None and "speaking" in seq[heard + 1:]
+            if spoke and seq and seq[-1] != "speaking" and self.voice.listening():
+                return {"spoke": True, "orb": seq}
+            self.page.wait_for_timeout(100)
+        return {"spoke": spoke, "orb": orb_sequence(self.orb_log()[mark:]), "timeout": True}
+
+    def wake(self) -> dict:
+        return wake(self.page)
+
+
+class StoryWalk(Conversation):
+    """keel-web 245's problem conversation on one project: the opening (the opener or the begin screen, *Ready?*), the
+    beats, the boxes by silence, the building screen, the story by silence."""
+
+    def __init__(self, page, recorder, base_url: str, *, patience: float = 1.0):
+        super().__init__(page, recorder, base_url, patience=patience)
+        self.beats_seen: list[dict] = []
+
+    def turn_writes(self, n: int) -> list[dict]:
+        return self.writes_to(rf"/story/turns/{n}$")
+
+    def _wait_beat(self, n: int, timeout_s: float = 60) -> None:
         self.page.locator(f"{STORY_TURN}[data-turn='{n}']").first.wait_for(state="visible",
                                                                           timeout=timeout_s * 1000 * self.patience)
 
-    def _wait_idle(self, timeout_s: float = 30) -> None:
-        """No turn in flight (the typed box enabled again, or the page moved on)."""
-        deadline = time.monotonic() + timeout_s * self.patience
-        while time.monotonic() < deadline:
-            busy = self.page.locator(f"{STORY_TURN} textarea[disabled]").count()
-            if not busy:
-                return
-            self.page.wait_for_timeout(150)
-
     # ------------------------------------------------------------------------------------------- the opening
-    def open_start(self, project_id: str) -> dict:
-        with self._b.step("founder opens the story's opening (define/story/start)") as h:
-            self.page.goto(f"{self.base}/p/{project_id}/define/story/start", wait_until="load")
-            self.page.locator(STORY_START).first.wait_for(state="visible", timeout=30_000)
-            welcomed = pass_the_welcome(self.page)
-            seen = {"welcome passed": welcomed, "six": _texts(self.page.get_by_test_id("story-six").locator("li")),
-                    "opening": _tc(self.page.get_by_test_id("story-opening")),
-                    "start": _tc(self.page.get_by_test_id("story-start-go")),
-                    "type": _tc(self.page.get_by_test_id("story-start-type"))}
+    def open_start(self, project_id: str, *, goto: bool = True) -> dict:
+        """`define/story/start`: what stands before Keel speaks passed (the opener or the begin screen), then *Ready?* and
+        the quiet that starts beat 1."""
+        with self._b.step("the opening: the stage's opener or the begin screen, then Ready? and the quiet") as h:
+            self.listen()
+            if goto:
+                self.page.goto(f"{self.base}/p/{project_id}/define/story/start", wait_until="load")
+            self.page.locator(STORY_START).first.wait_for(state="visible", timeout=60_000)
+            woke = self.wake()
+            seen = {"woke": woke, "start": self.snapshot()}
+            h.add_screenshot(self._b.screenshot("story-ready"))
+            self.silence()
+            self.wait_path(r"/define/story/\d$")
+            seen["landed"] = self.page.url
             h.record_wire({"GET": "define/story/start"}, seen)
-            h.add_screenshot(self._b.screenshot("story-start"))
             return seen
 
-    def begin(self, mode: str) -> None:
-        """`spoken`: Start (the tap that opens the mic and the sound); `typed`: *I would rather type the answers*."""
-        with self._b.step(f"founder begins the story -- {'Start' if mode == 'spoken' else 'I would rather type the answers'}"):
-            self.listen()
-            self.page.get_by_test_id("story-start-go" if mode == "spoken" else "story-start-type").first.click()
-            self._wait_turn(1, 60)
+    # ------------------------------------------------------------------------------------------- one beat
+    def beat(self, n: int, words: str, *, correction: str | None = None) -> dict:
+        """One beat as the founder answers it: Keel's question, the words said once, Keel's readback, then the quiet --
+        or, after the readback, `correction` said (sent as the beat again with `correction: true`) and its readback,
+        then the quiet. Beat 3's quiet closes the list (`done: true`). Returns what the screen drew and the wire."""
+        with self._b.step(f"beat {n}: {STORY_QUESTIONS.get(n)}") as h:
+            self._wait_beat(n)
+            mark = len(self.orb_log())
+            seen: dict = {"turn": n, "asked": self.snapshot()}
+            put = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(words))
+            seen["put"] = {"status": put["status"], "sent": put["sent"], "body": put["body"]}
+            if (put.get("status") or 500) >= 400:
+                raise AssertionError(f"beat {n} refused {put.get('status')}: {put.get('body')}")
+            seen["quiet"] = self.await_quiet(mark)
+            if n == 3:
+                want = len(((put["body"] or {}).get("story") or {}).get("limits") or [])
+                try:
+                    self.page.wait_for_function("(n) => document.querySelectorAll('[data-testid=story-card-limit]')"
+                                                ".length >= n", arg=want, timeout=10_000)
+                except Exception:  # noqa: BLE001 - recorded, judged by the leg
+                    pass
+            seen["readback"] = self.snapshot()
+            h.add_screenshot(self._b.screenshot(f"story-beat-{n}"))
+            if correction:
+                mark2 = len(self.orb_log())
+                fixed = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(correction))
+                seen["correction"] = {"status": fixed["status"], "sent": fixed["sent"], "body": fixed["body"],
+                                      "quiet": self.await_quiet(mark2)}
+                seen["corrected"] = self.snapshot()
+                h.add_screenshot(self._b.screenshot(f"story-beat-{n}-corrected"))
+            if n == 3:
+                closed = self.put_after(r"/story/turns/3$", self.silence)
+                seen["closed"] = {"status": closed["status"], "sent": closed["sent"],
+                                  "next": (closed["body"] or {}).get("next")}
+            else:
+                self.silence()
+            self.wait_path(rf"/define/story/(?!{n}$)(\d|check)$")
+            seen["next"] = self.page.url.rstrip("/").split("/")[-1]
+            seen["orb"] = orb_sequence(self.orb_log()[mark:])
+            h.record_wire({"beat": n, "said": words[:300] + ("..." if len(words) > 300 else "")},
+                          {k: seen[k] for k in ("put", "next", "orb") if k in seen})
+            self.beats_seen.append(seen)
+            return seen
 
-    # ------------------------------------------------------------------------------------------- one utterance
-    def _put_after(self, n: int, act, *, timeout_s: float = 60) -> dict:
-        before = len(self.turn_writes(n))
-        act()
-        deadline = time.monotonic() + timeout_s * self.patience
-        while len(self.turn_writes(n)) <= before:
-            if time.monotonic() > deadline:
-                raise AssertionError(f"turn {n}: no PUT story/turns/{n} within {timeout_s} s of the founder's words "
-                                     f"({self.page.url})")
-            self.page.wait_for_timeout(150)
-        return self.turn_writes(n)[-1]
-
-    def utter(self, n: int, words: str, mode: str) -> dict:
-        """One answer on turn `n`: typed into the box and sent, or said into the seam. Returns the PUT the page sent."""
-        if mode == "typed":
-            box = self.page.locator(f"#story-typed-{n}")
-            box.wait_for(state="visible", timeout=30_000)
-            self.page.wait_for_function("(el) => !el.disabled", arg=box.element_handle(), timeout=30_000)
-
-            def act():
-                box.fill(words)
-                self.page.get_by_test_id("story-send").first.click()
-            return self._put_after(n, act)
-        return self._put_after(n, lambda: self.voice.say(words))
-
-    def tell(self, turns: list[tuple[int, str]], mode: str) -> list[dict]:
-        """Turns 1-7 on their screens, as a founder answers them: each turn's words; on turn 4 the readback's yes (spoken
-        *yes*, typed the button); on turn 5 *No, that is it*; on turn 6 each limit then *That is all* (spoken *that is
-        all*, typed the button); turn 7 the cost, then the boxes."""
+    def tell(self, beats: list[tuple[int, str]], *, long3: str | None = None,
+             correction: str | None = None) -> list[dict]:
+        """Beats 1-4 in order (beat 3 the long answer where given, `correction` after beat 4's readback), then beat 5
+        only where the page asks it (keel-cloud 263: owed only while the when is unknown), then the boxes."""
         seen = []
-        by_turn: dict[int, list[str]] = {}
-        for n, words in turns:
-            by_turn.setdefault(n, []).append(words)
-        for n in range(1, 8):
-            with self._b.step(f"turn {n}: {STORY_QUESTIONS[n]} -- {mode}") as h:
-                self._wait_turn(n, 60)
-                for words in by_turn.get(n, []):
-                    put = self.utter(n, words, mode)
-                    h.record_wire(put.get("sent"), {"status": put.get("status"),
-                                                    "next": (put.get("body") or {}).get("next"),
-                                                    "readback": (put.get("body") or {}).get("readback")})
-                    if (put.get("status") or 500) >= 400:
-                        raise AssertionError(f"turn {n} refused {put.get('status')}: {put.get('body')}")
-                if n == 4:
-                    self.page.get_by_test_id("story-person-check").first.wait_for(state="visible", timeout=30_000)
-                    shown = self.screen()
-                    if mode == "spoken":
-                        self.voice.say("yes")
-                    else:
-                        self.page.get_by_test_id("story-yes-person").first.click()
-                elif n == 5:
-                    self.page.get_by_test_id("story-steps").first.wait_for(state="visible", timeout=30_000)
-                    shown = self.screen()
-                    shown["steps"] = _texts(self.page.get_by_test_id("story-steps").locator("li"))
-                    yes = self.page.get_by_test_id("story-that-is-it").first
-                    self.page.wait_for_function("(el) => !el.disabled", arg=yes.element_handle(), timeout=30_000)
-                    yes.click()
-                elif n == 6:
-                    self.page.wait_for_function(
-                        "(n) => document.querySelectorAll('[data-testid=story-card-limit]').length >= n",
-                        arg=len(by_turn.get(6, [])), timeout=30_000)
-                    shown = self.screen()
-
-                    def close():
-                        if mode == "spoken":
-                            self.voice.say("that is all")
-                        else:
-                            self.page.get_by_test_id("story-that-is-all").first.click()
-                    closed = self._put_after(6, close)
-                    shown["closed"] = {"sent": closed.get("sent"), "next": (closed.get("body") or {}).get("next")}
-                elif n == 7:
-                    self.page.locator(STORY_CHECK).first.wait_for(state="visible", timeout=60_000)
-                    shown = {"after": self.page.url}
-                else:
-                    self._wait_turn(n + 1, 60)
-                    shown = {"after": self.page.url}
-                h.add_screenshot(self._b.screenshot(f"story-turn-{n}-{mode}"))
-                seen.append({"turn": n, "screen": shown})
-        self.turns_seen = seen
+        for n, words in beats:
+            if n == 5 and not re.search(r"/define/story/5$", self.page.url):
+                continue
+            seen.append(self.beat(n, long3 if (n == 3 and long3) else words,
+                                  correction=correction if n == 4 else None))
+        self.wait_path(r"/define/story/check$")
         return seen
 
-    # ------------------------------------------------------------------------------------------- the readbacks
+    # ------------------------------------------------------------------------------------------- after the beats
     def boxes(self) -> dict:
-        """The boxes readback (`define/story/check`, state boxes): the board's box words once drawn, then its yes."""
-        with self._b.step("the boxes: This is the problem I understood -- the board drawn, then Yes, that is the problem") as h:
-            screen = self.page.get_by_test_id("story-boxes-screen").first
-            screen.wait_for(state="visible", timeout=30_000)
-            self.page.wait_for_timeout(500)
-            seen = {"title": _tc(screen.locator("h1").first), "text": _tc(screen),
-                    "state": self.page.locator(STORY_CHECK).first.get_attribute("data-state"),
-                    "back": self.page.get_by_test_id("story-back").count()}
+        """The boxes (`define/story/check`, no yes yet): the board centre stage, Keel narrating it box by box, *Is that
+        right?*, then the quiet confirms (`story/confirm`)."""
+        with self._b.step("the boxes: the board narrated, Is that right?, the quiet confirms") as h:
+            mark = len(self.orb_log())
+            self.page.get_by_test_id("story-boxes-screen").first.wait_for(state="visible", timeout=60_000)
+            try:
+                self.page.wait_for_function(
+                    "(w) => { const el = document.querySelector('[data-testid=story-check-said]'); "
+                    "return !!el && el.textContent.trim() === w; }", arg=BOXES_ASK, timeout=90_000)
+            except Exception:  # noqa: BLE001 - recorded, judged by the leg
+                pass
+            seen = {"screen": self.snapshot()}
             h.add_screenshot(self._b.screenshot("story-boxes"))
-            yes = self.page.get_by_test_id("story-boxes-yes").first
-            self.page.wait_for_function("(el) => !el.disabled", arg=yes.element_handle(), timeout=30_000)
             with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0]
-                                           .endswith("/story/confirm"), timeout=30_000) as got:
-                yes.click()
+                                           .endswith("/story/confirm"), timeout=150_000) as got:
+                self.silence()
             seen["confirm"] = {"status": got.value.status, "body": _json(got.value)}
-            h.record_wire({"POST": "story/confirm"}, {"status": got.value.status})
+            seen["lit"] = [row.get("lit") for row in self.orb_log()[mark:] if row.get("lit")]
+            h.record_wire({"POST": "story/confirm (the quiet)"}, {"status": got.value.status, "lit": seen["lit"]})
             return seen
 
-    def building_then_story(self, *, timeout_s: float = 60) -> dict:
-        """The building screen while the build builds (its steps ticking), then the story readback once ready."""
-        with self._b.step("the building screen, then the story in the phone frame") as h:
+    def building_then_story(self, *, timeout_s: float = 120) -> dict:
+        """The building screen while the build builds, then the story played through once."""
+        with self._b.step("the building screen, then the story played") as h:
             building = None
             deadline = time.monotonic() + timeout_s * self.patience
             while time.monotonic() < deadline:
-                state = self.page.locator(STORY_CHECK).first.get_attribute("data-state")
+                state = self.page.locator(STORY_CHECK).first.get_attribute("data-state") \
+                    if self.page.locator(STORY_CHECK).count() else None
                 if state == "building" and building is None:
-                    building = {"steps": [{"step": li.get_attribute("data-step"), "state": li.get_attribute("data-state"),
-                                           "words": _tc(li)}
-                                          for li in self.page.locator(".story-build-steps li").all()]}
+                    building = self.snapshot()
+                    building["steps"] = [{"step": li.get_attribute("data-step"), "state": li.get_attribute("data-state")}
+                                         for li in self.page.locator(".story-build-steps li").all()]
                     h.add_screenshot(self._b.screenshot("story-building"))
                 if state in ("story", "failed"):
                     break
                 self.page.wait_for_timeout(250)
-            state = self.page.locator(STORY_CHECK).first.get_attribute("data-state")
-            readback = self.page.get_by_test_id("story-readback")
-            seen = {"building": building, "state": state,
+            state = self.page.locator(STORY_CHECK).first.get_attribute("data-state") \
+                if self.page.locator(STORY_CHECK).count() else None
+            seen = {"building": building, "state": state, "story": self.snapshot(),
                     "named": _tc(self.page.get_by_test_id("story-named")) or None,
-                    "yes": _tc(self.page.get_by_test_id("story-yes")) or None,
-                    "player": readback.locator(".sty-player, [data-testid=story-player]").count() if readback.count() else 0}
+                    "player": self.page.locator("[data-testid=story-readback] [data-testid=story-player], "
+                                                "[data-testid=story-readback] .sty-player").count()}
             h.add_screenshot(self._b.screenshot("story-readback"))
             h.record_assert({"state": "story"}, seen)
             return seen
 
-    def story_yes(self, *, lands: re.Pattern | str = WINDOW_PATH) -> str:
-        with self._b.step("the story's yes") as h:
-            self.page.get_by_test_id("story-yes").first.click()
-            pattern = re.compile(lands) if isinstance(lands, str) else lands
-            deadline = time.monotonic() + 30 * self.patience
-            while not pattern.search(self.page.url):
-                if time.monotonic() > deadline:
-                    raise AssertionError(f"the story's yes did not land on {pattern.pattern}: {self.page.url}")
-                self.page.wait_for_timeout(200)
-            h.record_wire({"press": "story-yes"}, {"url": self.page.url})
-            h.add_screenshot(self._b.screenshot("story-yes-landed"))
-            return self.page.url
+    def story_yes(self, *, lands: re.Pattern | str = WINDOW_PATH) -> dict:
+        """The story played through, *Is that how it goes for them?*, then the quiet goes on (244's window, or the
+        return trip)."""
+        with self._b.step("the story's question, then the quiet goes on") as h:
+            self.silence(timeout_s=180)
+            said = self.snapshot()
+            landed = self.wait_path(lands, timeout_s=60)
+            h.record_wire({"quiet": "after the story"}, {"url": landed, "said": said.get("said")})
+            h.add_screenshot(self._b.screenshot("story-landed"))
+            return {"landed": landed, "said": said.get("said")}
 
 
 def _json(response) -> dict | None:
@@ -521,16 +777,19 @@ def _json(response) -> dict | None:
         return None
 
 
-# ------------------------------------------------------------------------------------ the solution start (242)
+# ------------------------------------------------------------------------------------ the solution start (242 / 245)
 
 SOLUTION_START = "[data-testid=solution-start]"
 IDEA_TURN = "[data-testid=idea-turn]"
 IDEA_CHECK = "[data-testid=idea-check]"
-#: keel-web 242 `lib/ideaLines.ts` BRAND_SWATCHES: the five colours of the brand's first option.
-BRAND_SWATCHES = ("#2255aa", "#1f7a5a", "#b8432f", "#7a4fb0", "#c98a1b")
 #: keel-web 242 `lib/solutionStart.ts`: the wait kept in the browser while a problem project is created.
 PENDING_START_KEY = "keel.solutionStart"
+#: keel-web 245 `translate.ts` STORY.solution.newProblem: the which-problem page's create (drawn *+ A new problem*).
+NEW_PROBLEM = "A new problem"
 COMPATIBILITY_PATH = re.compile(r"/define/solution/q/1(?:$|[?#])")
+#: Spec 158 FR-5: the colour the founder says with the name (keel-cloud 263 FR-9: a colour said in words, written as a
+#: hex by the reader -- the fake's own table, `FakeStoryReadings.COLOURS`).
+SAID_COLOUR = ("blue", "#2f6db5")
 
 
 def problem_name_of(name: str) -> str:
@@ -538,10 +797,16 @@ def problem_name_of(name: str) -> str:
     return f"{name.strip()}: the problem"
 
 
+def said_name(name: str, colour: str = SAID_COLOUR[0]) -> str:
+    """Idea beat 1 as the founder says it: the name, then a colour in words (*Runcheck, in blue*)."""
+    return f"{name}, in {colour}"
+
+
 class SolutionStart:
-    """keel-web 242's solution start (`SolutionPick`), walked on the landing before the solution project exists: Keel
-    AI's line, the candidates (`solution-candidate`, `data-project`, `data-picked`), *Create a problem project* and
-    *Pick* / *Continue with this problem*."""
+    """keel-web 245's which-problem page (`SolutionPick`, FR-11: a page -- no orb, nothing spoken; skipped with exactly
+    one defined problem project, a problem project created at once with none), walked before the solution project
+    exists: the candidates (`solution-candidate`, `data-project`, `data-picked`), *A new problem* and *Pick* /
+    *Continue with this problem*."""
 
     def __init__(self, page, recorder, base_url: str):
         self.page = page
@@ -551,6 +816,10 @@ class SolutionStart:
     def read(self) -> dict:
         root = self.page.locator(SOLUTION_START).first
         root.wait_for(state="visible", timeout=30_000)
+        try:
+            root.get_by_test_id("solution-candidate").first.wait_for(state="visible", timeout=10_000)
+        except Exception:  # noqa: BLE001 - none listed: recorded
+            pass
         rows = []
         for row in root.get_by_test_id("solution-candidate").all():
             rows.append({"project": row.get_attribute("data-project"), "picked": row.get_attribute("data-picked") is not None,
@@ -559,7 +828,7 @@ class SolutionStart:
         return {"say": _tc(root.get_by_test_id("solution-start-say")), "title": _tc(root.locator("h2").first),
                 "rows": rows, "none": _tc(root.get_by_test_id("solution-start-none")) or None,
                 "create": _tc(root.get_by_test_id("solution-create-problem")),
-                "pending": self.pending()}
+                "orb": self.page.locator(ORB).count(), "pending": self.pending()}
 
     def pending(self) -> dict | None:
         try:
@@ -573,27 +842,26 @@ class SolutionStart:
             return {"unreadable": raw}
 
     def press_start(self) -> None:
-        """The market step's *Start* on a solution scope: it opens the start, creating nothing."""
+        """The market step's *Start* on a solution scope: it opens the which-problem page, creating nothing."""
         self.page.get_by_role("button", name=re.compile(r"^start$", re.I)).first.click()
         self.page.locator(SOLUTION_START).first.wait_for(state="visible", timeout=30_000)
 
     def create_problem(self) -> str:
-        """*Create a problem project*: one POST (scope PROBLEM, the problem's name), then its story's opening."""
-        with self._b.step("solution start: Create a problem project") as h:
+        """*A new problem*: one POST (scope PROBLEM, the problem's name), then its conversation's opening."""
+        with self._b.step("which problem: A new problem") as h:
             with self.page.expect_response(lambda r: r.request.method == "POST"
                                            and r.url.split("?")[0].endswith("/v2/projects"), timeout=30_000) as got:
                 self.page.get_by_test_id("solution-create-problem").first.click()
             body = _json(got.value) or {}
             sent = got.value.request.post_data_json
             self.page.locator(STORY_START).first.wait_for(state="visible", timeout=30_000)
-            h.record_wire(sent, {"status": got.value.status, "projectId": body.get("projectId"),
-                                 "definition": body.get("definition"), "url": self.page.url})
+            h.record_wire(sent, {"status": got.value.status, "projectId": body.get("projectId"), "url": self.page.url})
             self.created_problem = {"sent": sent, "status": got.value.status, "body": body}
             return str(body.get("projectId"))
 
     def pick(self, problem_id: str | None = None) -> dict:
         """*Pick* (or *Continue with this problem* on the picked row): the one create request with `parentProjectId`."""
-        with self._b.step("solution start: the problem picked -- the solution project created on it") as h:
+        with self._b.step("which problem: the problem picked -- the solution project created on it") as h:
             root = self.page.locator(SOLUTION_START).first
             row = (root.locator(f"[data-testid=solution-candidate][data-project='{problem_id}']").first if problem_id
                    else root.get_by_test_id("solution-candidate").first)
@@ -607,177 +875,191 @@ class SolutionStart:
             return {"sent": sent, "status": got.value.status, "body": body}
 
 
-class IdeaWalk:
-    """keel-web 242's idea flow on a solution project: *Still the problem*, the three turns (the brand on turn 1), the
-    boxes, the building screen and the day with the idea. Typed (the box) or spoken (the seam), as `StoryWalk`."""
+#: The brand name's label in the idea's story, read while it plays (spec 158 FR-5, the review condition: the name
+#: clearly visible, never faded, cropped or shrunk; the icon in the brand's colour).
+_BRAND_IN_STORY = r"""(name) => {
+  const root = document.querySelector('[data-testid=idea-story-player]');
+  if (!root) return null;
+  const norm = (s) => (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const box = root.getBoundingClientRect();
+  const label = [...root.querySelectorAll('.lb')].find((el) => norm(el.textContent) === norm(name));
+  const opacity = (el) => { let o = 1; for (let n = el; n && n !== document.body; n = n.parentElement) {
+      const s = getComputedStyle(n); o *= parseFloat(s.opacity || '1'); if (s.visibility === 'hidden' || s.display === 'none') o = 0; }
+    return o; };
+  const out = { player: { w: box.width, h: box.height }, label: null,
+                badges: [...root.querySelectorAll('.sty-badge')].map((b) => getComputedStyle(b).backgroundColor) };
+  if (label) {
+    const r = label.getBoundingClientRect();
+    const words = [...label.querySelectorAll('span')];
+    const s = getComputedStyle(label);
+    out.label = { text: (label.textContent || '').trim(), color: s.color, fontPx: parseFloat(s.fontSize),
+      opacity: Math.min(opacity(label), ...words.map(opacity)),
+      inside: r.left >= box.left - 1 && r.right <= box.right + 1 && r.top >= box.top - 1 && r.bottom <= box.bottom + 1,
+      clipped: label.scrollWidth > label.clientWidth + 1 || label.scrollHeight > label.clientHeight + 1,
+      w: r.width, h: r.height };
+  }
+  return out;
+}"""
 
-    def __init__(self, page, recorder, base_url: str, *, patience: float = 1.0):
-        self.page = page
-        self.base = base_url.rstrip("/")
-        self.patience = patience
-        self._b = _BrowserStep(recorder, page, "founder")
-        self.voice = FounderVoice(page)
-        self.story = StoryWalk(page, recorder, base_url, patience=patience)      # its wire log and waits
 
-    @property
-    def writes(self) -> list[dict]:
-        return self.story.writes
+def rgb_of(hex_colour: str) -> str:
+    """`#2f6db5` -> `rgb(47, 109, 181)` (a computed style's form)."""
+    h = hex_colour.lstrip("#")
+    return f"rgb({int(h[0:2], 16)}, {int(h[2:4], 16)}, {int(h[4:6], 16)})"
+
+
+class IdeaWalk(Conversation):
+    """keel-web 245's solution conversation on a solution project (FR-11): the film and the problem's boxes replayed
+    (closed by the quiet, never corrected), the two beats (the name with a colour said; how it solves the limitations,
+    one answer, its ticks and crosses), the idea's boxes by the quiet, the building screen, the day with the idea (the
+    name and the colour on it) by the quiet."""
 
     def idea_writes(self, n: int) -> list[dict]:
-        return [w for w in self.writes if re.search(rf"/idea/turns/{n}$", w["path"])]
+        return self.writes_to(rf"/idea/turns/{n}$")
 
-    def _put_after(self, n: int, act, *, timeout_s: float = 60) -> dict:
-        before = len(self.idea_writes(n))
-        act()
-        deadline = time.monotonic() + timeout_s * self.patience
-        while len(self.idea_writes(n)) <= before:
-            if time.monotonic() > deadline:
-                raise AssertionError(f"idea turn {n}: no PUT idea/turns/{n} within {timeout_s} s ({self.page.url})")
-            self.page.wait_for_timeout(150)
-        return self.idea_writes(n)[-1]
-
-    def still(self, project_id: str) -> dict:
-        """`define/idea/start`: the picked problem read back -- the boxes, the story, *From {problem}* -- and its yes."""
-        with self._b.step("still the problem: the picked problem read back, then Yes, still the problem") as h:
-            self.story.listen()
-            root = self.page.get_by_test_id("idea-still").first
-            root.wait_for(state="visible", timeout=30_000)
-            pass_the_welcome(self.page)
-            seen = {"from": _tc(self.page.get_by_test_id("idea-still-from")) or None,
-                    "ask": _tc(self.page.get_by_test_id("idea-still-ask")) or None, "url": self.page.url}
-            h.add_screenshot(self._b.screenshot("idea-still"))
+    def replay(self, project_id: str) -> dict:
+        """`define/idea/start`: the opener or the begin screen, *Ready? Let us first go through the problem.*, the
+        problem's board narrated (no cost box), the turn line, then the quiet stamps "still the problem"."""
+        with self._b.step("the problem replayed: the board narrated, then the quiet -- still the problem") as h:
+            self.listen()
+            self.page.get_by_test_id("idea-still").first.wait_for(state="visible", timeout=60_000)
+            woke = self.wake()
+            mark = len(self.orb_log())
+            try:
+                self.page.wait_for_function(
+                    "(w) => { const el = document.querySelector('[data-testid=story-check-said]'); "
+                    "return !!el && el.textContent.trim() === w; }", arg=SOLUTION_TURN, timeout=90_000)
+            except Exception:  # noqa: BLE001 - recorded
+                pass
+            seen = {"woke": woke, "screen": self.snapshot()}
+            h.add_screenshot(self._b.screenshot("idea-replay"))
             with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0]
-                                           .endswith("/story/confirm"), timeout=30_000) as got:
-                self.page.get_by_test_id("idea-still-yes").first.click()
+                                           .endswith("/story/confirm"), timeout=150_000) as got:
+                self.silence()
             seen["confirm"] = {"status": got.value.status, "body": _json(got.value)}
-            self.page.locator(f"{IDEA_TURN}[data-turn='1']").first.wait_for(state="visible", timeout=30_000)
-            h.record_wire({"POST": "story/confirm"}, {"status": got.value.status, "url": self.page.url})
+            seen["lit"] = [row.get("lit") for row in self.orb_log()[mark:] if row.get("lit")]
+            self.page.locator(f"{IDEA_TURN}[data-turn='1']").first.wait_for(state="visible", timeout=60_000)
+            h.record_wire({"POST": "story/confirm (the quiet)"}, {"status": got.value.status, "url": self.page.url})
             return seen
 
-    def _utter(self, n: int, words: str, mode: str) -> dict:
-        if mode == "typed":
-            box = self.page.locator(f"#idea-typed-{n}")
-            box.wait_for(state="visible", timeout=30_000)
-            self.page.wait_for_function("(el) => !el.disabled", arg=box.element_handle(), timeout=30_000)
+    def beat(self, n: int, words: str) -> dict:
+        with self._b.step(f"idea beat {n}: {'the name and the look' if n == 1 else 'how it solves the limitations'}") as h:
+            self.page.locator(f"{IDEA_TURN}[data-turn='{n}']").first.wait_for(state="visible", timeout=60_000)
+            mark = len(self.orb_log())
+            seen: dict = {"turn": n, "asked": self.snapshot()}
+            put = self.put_after(rf"/idea/turns/{n}$", lambda: self.voice.say(words))
+            seen["put"] = {"status": put["status"], "sent": put["sent"], "body": put["body"]}
+            if (put.get("status") or 500) >= 400:
+                raise AssertionError(f"idea beat {n} refused {put.get('status')}: {put.get('body')}")
+            seen["quiet"] = self.await_quiet(mark)
+            if n == 2:
+                want = len(((put["body"] or {}).get("idea") or {}).get("limitAnswers") or [])
+                try:
+                    self.page.wait_for_function("(n) => document.querySelectorAll('[data-testid=idea-card-limit]')"
+                                                ".length >= n", arg=want, timeout=10_000)
+                except Exception:  # noqa: BLE001 - recorded
+                    pass
+            seen["readback"] = self.snapshot()
+            h.add_screenshot(self._b.screenshot(f"idea-beat-{n}"))
+            self.silence()
+            self.wait_path(r"/define/idea/(2|check)$" if n == 1 else r"/define/idea/check$")
+            seen["orb"] = orb_sequence(self.orb_log()[mark:])
+            h.record_wire({"beat": n, "said": words}, {k: seen[k] for k in ("put", "orb")})
+            return seen
 
-            def act():
-                box.fill(words)
-                self.page.get_by_test_id("story-send").first.click()
-            return self._put_after(n, act)
-        return self._put_after(n, lambda: self.voice.say(words))
-
-    def _mode_now(self) -> str | None:
-        return self.page.locator(IDEA_TURN).first.get_attribute("data-mode")
-
-    def type_instead(self) -> None:
-        if self._mode_now() == "spoken" and self.page.get_by_test_id("story-type-instead").count():
-            self.page.get_by_test_id("story-type-instead").first.click()
-
-    def turns(self, said: list[tuple[int, str]], mode: str, *, swatch: str = BRAND_SWATCHES[1]) -> dict:
-        """The three turns: the name, then the brand's colour (`swatch`); what would be built, then *Yes, that is it*;
-        each limit's answer, then Next to the boxes."""
-        seen: dict = {}
-        by_turn: dict[int, list[str]] = {}
-        for n, words in said:
-            by_turn.setdefault(n, []).append(words)
-        with self._b.step(f"idea turn 1: the name, then the brand's colour ({swatch}) -- {mode}") as h:
-            if mode == "typed":
-                self.type_instead()
-            put = self._utter(1, by_turn[1][0], mode)
-            h.record_wire(put.get("sent"), {"status": put.get("status"), "next": (put.get("body") or {}).get("next")})
-            brand = self.page.get_by_test_id("idea-brand").first
-            brand.wait_for(state="visible", timeout=30_000)
-            with self.page.expect_response(lambda r: r.request.method == "PUT" and r.url.split("?")[0]
-                                           .endswith("/idea/brand"), timeout=30_000) as got:
-                self.page.locator(f"[data-testid=idea-swatch][aria-label*='{swatch}' i], "
-                                  "[data-testid=idea-swatch]").nth(BRAND_SWATCHES.index(swatch)).click()
-            seen["brand"] = {"status": got.value.status, "sent": got.value.request.post_data_json,
-                             "body": _json(got.value)}
-            h.add_screenshot(self._b.screenshot("idea-turn-1-brand"))
-            nxt = self.page.get_by_test_id("story-next").first
-            self.page.wait_for_function("(el) => !el.disabled", arg=nxt.element_handle(), timeout=30_000)
-            nxt.click()
-            self.page.locator(f"{IDEA_TURN}[data-turn='2']").first.wait_for(state="visible", timeout=30_000)
-        with self._b.step(f"idea turn 2: what would be built, the line read back, Yes, that is it -- {mode}") as h:
-            if mode == "typed":
-                self.type_instead()
-            put = self._utter(2, by_turn[2][0], mode)
-            self.page.get_by_test_id("idea-readback").first.wait_for(state="visible", timeout=30_000)
-            seen["readback"] = _tc(self.page.get_by_test_id("idea-readback"))
-            h.record_wire(put.get("sent"), {"status": put.get("status"), "readback": seen["readback"]})
-            h.add_screenshot(self._b.screenshot("idea-turn-2"))
-            if mode == "spoken":
-                self.voice.say("yes")
-            else:
-                self.page.get_by_test_id("idea-yes-line").first.click()
-            self.page.locator(f"{IDEA_TURN}[data-turn='3']").first.wait_for(state="visible", timeout=30_000)
-        with self._b.step(f"idea turn 3: each limit answered, a tick or a cross on the card -- {mode}") as h:
-            if mode == "typed":
-                self.type_instead()
-            answers = []
-            for words in by_turn.get(3, []):
-                put = self._utter(3, words, mode)
-                answers.append({"sent": put.get("sent"), "status": put.get("status"),
-                                "next": (put.get("body") or {}).get("next")})
-            self.page.get_by_test_id("idea-new-way").first.wait_for(state="visible", timeout=30_000)
-            seen["limits"] = answers
-            seen["new_way"] = _texts(self.page.get_by_test_id("idea-new-way").locator("li"))
-            seen["card"] = _tc(self.page.get_by_test_id("idea-card"))
-            seen["card_limits"] = [{"text": _tc(li), "state": li.get_attribute("data-state") or li.get_attribute("class")}
-                                   for li in self.page.get_by_test_id("idea-card-limit").all()]
-            h.record_wire({"turn 3": len(answers)}, seen)
-            h.add_screenshot(self._b.screenshot("idea-turn-3"))
-            nxt = self.page.get_by_test_id("story-next").first
-            self.page.wait_for_function("(el) => !el.disabled", arg=nxt.element_handle(), timeout=30_000)
-            nxt.click()
-            self.page.locator(IDEA_CHECK).first.wait_for(state="visible", timeout=30_000)
-        return seen
+    def beats(self, said: list[tuple[int, str]], *, name_words: str | None = None) -> dict:
+        """The two beats: the name (said with a colour where `name_words`), then the script's beat-2 words."""
+        by = dict(said)
+        return {1: self.beat(1, name_words or by[1]), 2: self.beat(2, by[2])}
 
     def boxes(self) -> dict:
-        with self._b.step("the idea's boxes, then Yes, that is my idea") as h:
-            screen = self.page.get_by_test_id("idea-boxes-screen").first
-            screen.wait_for(state="visible", timeout=30_000)
-            self.page.wait_for_timeout(500)
-            seen = {"text": _tc(screen)}
+        with self._b.step("the idea's boxes narrated, Is that your idea?, the quiet confirms") as h:
+            self.page.get_by_test_id("idea-boxes-screen").first.wait_for(state="visible", timeout=60_000)
+            try:
+                self.page.wait_for_function(
+                    "(w) => { const el = document.querySelector('[data-testid=idea-boxes-said]'); "
+                    "return !!el && el.textContent.trim() === w; }", arg=IDEA_BOXES_ASK, timeout=90_000)
+            except Exception:  # noqa: BLE001 - recorded
+                pass
+            seen = {"screen": self.snapshot(),
+                    "board": _tc(self.page.locator("[data-testid=idea-boxes-screen] [data-testid=story-boxes]"))}
             h.add_screenshot(self._b.screenshot("idea-boxes"))
-            yes = self.page.get_by_test_id("idea-boxes-yes").first
-            self.page.wait_for_function("(el) => !el.disabled", arg=yes.element_handle(), timeout=30_000)
             with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0]
-                                           .endswith("/idea/confirm"), timeout=30_000) as got:
-                yes.click()
+                                           .endswith("/idea/confirm"), timeout=150_000) as got:
+                self.silence()
             seen["confirm"] = {"status": got.value.status, "body": _json(got.value)}
-            h.record_wire({"POST": "idea/confirm"}, {"status": got.value.status})
+            h.record_wire({"POST": "idea/confirm (the quiet)"}, {"status": got.value.status})
             return seen
 
-    def building_then_story(self, *, timeout_s: float = 60) -> dict:
+    def building_then_story(self, name: str, *, timeout_s: float = 120) -> dict:
+        """The idea's building screen, then the day with the idea played, the brand's name read while it plays."""
         with self._b.step("the idea's building screen, then the day with the idea") as h:
             building = None
+            best: dict | None = None
             deadline = time.monotonic() + timeout_s * self.patience
+            state = None
             while time.monotonic() < deadline:
-                state = self.page.locator(IDEA_CHECK).first.get_attribute("data-state")
+                state = self.page.locator(IDEA_CHECK).first.get_attribute("data-state") \
+                    if self.page.locator(IDEA_CHECK).count() else None
                 if state == "building" and building is None:
-                    building = {"rows": _texts(self.page.get_by_test_id("idea-building").locator("li"))}
+                    building = self.snapshot()
                     h.add_screenshot(self._b.screenshot("idea-building"))
                 if state in ("story", "failed"):
                     break
                 self.page.wait_for_timeout(250)
-            state = self.page.locator(IDEA_CHECK).first.get_attribute("data-state")
-            seen = {"building": building, "state": state,
-                    "yes": _tc(self.page.get_by_test_id("idea-story-yes")) or None}
+            # the story plays once: the name read through it, the clearest sample kept
+            until = time.monotonic() + 30 * self.patience
+            while state == "story" and time.monotonic() < until:
+                try:
+                    probe = self.page.evaluate(_BRAND_IN_STORY, name)
+                except Exception:  # noqa: BLE001 - re-rendered under the read
+                    probe = None
+                label = (probe or {}).get("label")
+                if label and (best is None or (label.get("opacity") or 0) > ((best.get("label") or {}).get("opacity")
+                                                                             or 0)):
+                    best = probe
+                if label and (label.get("opacity") or 0) >= 0.99:
+                    break
+                self.page.wait_for_timeout(200)
+            seen = {"building": building, "state": state, "story": self.snapshot(), "brand": best}
             h.add_screenshot(self._b.screenshot("idea-story"))
             h.record_assert({"state": "story"}, seen)
             return seen
 
-    def story_yes(self, lands: re.Pattern = COMPATIBILITY_PATH) -> str:
-        with self._b.step("the idea's story's yes") as h:
-            self.page.get_by_test_id("idea-story-yes").first.click()
-            deadline = time.monotonic() + 30 * self.patience
-            while not lands.search(self.page.url):
-                if time.monotonic() > deadline:
-                    raise AssertionError(f"the idea's story's yes did not land on {lands.pattern}: {self.page.url}")
-                self.page.wait_for_timeout(200)
+    def story_yes(self, lands: re.Pattern = COMPATIBILITY_PATH) -> dict:
+        with self._b.step("the idea's story's question, then the quiet goes on") as h:
+            self.silence(timeout_s=180)
+            said = self.snapshot()
+            landed = self.wait_path(lands, timeout_s=60)
             h.add_screenshot(self._b.screenshot("idea-landed"))
-            return self.page.url
+            return {"landed": landed, "said": said.get("said")}
+
+
+# ------------------------------------------------------------------------------------ the money front (245 FR-12)
+
+class MoneyReplay(Conversation):
+    """`define/money/start`: the opener or the begin screen, the problem's board with the idea's box lit on top (or the
+    name alone), *This is the problem, and this is {name}. Now, will they pay for it?*, then the quiet opens today's
+    persona step."""
+
+    def walk(self, *, lands: re.Pattern | str = r"/define/persona$") -> dict:
+        with self._b.step("the money study's one orb moment: the problem and the idea shown back, the quiet") as h:
+            self.listen()
+            self.page.get_by_test_id("money-replay").first.wait_for(state="visible", timeout=60_000)
+            woke = self.wake()
+            try:
+                self.page.wait_for_function(
+                    "() => { const el = document.querySelector('[data-testid=story-check-said]'); "
+                    "return !!el && /will they pay for it\\?$/i.test(el.textContent.trim()); }", timeout=90_000)
+            except Exception:  # noqa: BLE001 - recorded
+                pass
+            seen = {"woke": woke, "screen": self.snapshot()}
+            h.add_screenshot(self._b.screenshot("money-replay"))
+            self.silence()
+            seen["landed"] = self.wait_path(lands, timeout_s=60)
+            seen["corrected"] = self.writes_to(r"/story/correct$")
+            h.record_wire({"quiet": "money replay"}, {"landed": seen["landed"], "said": seen["screen"].get("said")})
+            return seen
 
 
 # ------------------------------------------------------------------------------------ the stranger's text view (241 FR-7)

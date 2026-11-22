@@ -311,6 +311,18 @@ def idea_lines(config: StackConfig, project_id: str) -> dict:
     return (found[0].get("idea") if found else None) or {}
 
 
+def story_turns(config: StackConfig, project_id: str) -> dict[int, str]:
+    """Spec 158 FR-1: the founder's words as the story kept them, beat by beat (`project_story.story -> turns`, keel-cloud
+    263 FR-2a: up to 20,000 characters a beat, nothing cut). No route serves them -- `GET story` carries the slots read
+    from the words and a beat's unanswered `draft`, not the answered words -- so the one read of the stored turns is
+    here. A plain `SELECT` of one path of one row; `{}` where the project has no story."""
+    _require_uuid(project_id)
+    found = _json(config, "SELECT story->'turns' AS turns FROM project_story WHERE project_id = :'project'",
+                  project=project_id)
+    turns = (found[0].get("turns") if found else None) or {}
+    return {int(n): str((turn or {}).get("text") or "") for n, turn in turns.items()}
+
+
 def stand_in_first_person(config: StackConfig, project_id: str, line: str) -> str | None:
     """Stand-in 6 (spec 154 FR-4 / FR-5): the idea card's first-person belief (`corridor.idea.beliefFirstPerson`,
     keel-cloud 248 FR-7b) written as the FIRST_PERSON job would write it. That job runs on Keel's AI alone (keel-cloud
