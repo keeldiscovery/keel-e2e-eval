@@ -5738,9 +5738,27 @@ and `GET context` always serves `fields.recallWindow` (contract 39: the window i
 the story's yes (`/define/context/window`) is redirected to `/define/context` and the confirmed card is drawn (*We'll ask
 about the last 7 nights.*), and its *Continue to the problem* goes to `define/problem/seed` (the `windowOwed` branch is the
 only one that goes to `q/1`) -- the seed chat, on a project whose statement the story's confirm already wrote. Prevalence
-is reached only by its address. The founder never picks a window on the spoken path. **What the harness does** (spec 157):
-FR-1 (a) and (d) fail the two checks by name (*the story's yes opens the window screen*, *the context's forward press
-goes on to Prevalence*) and walk on to Prevalence by its address, so the rest of each leg is still measured. **For
+is reached only by its address. Opened later from the list (*Defined, not sent*, 241 FR-5: *resumes at the window
+screen*), the defined project opens on Prevalence (`define/problem/q/1`). The founder never picks a window on the spoken
+path. **What the harness does** (spec 157):
+FR-1 (a) fails the two checks by name (*the story's yes opens the window screen*, *the context's forward press goes on to
+Prevalence*) and (d) its *it resumes at the window screen*, and they walk on to Prevalence by its address, so the rest of each leg is still measured. **For
 keel-web / keel-cloud:** one of -- the cloud serves no window until the founder picks one on a story project (a
 `windowSet` flag or a null `recallWindow`), or keel-web reads "owed" from the story (confirmed, no window picked since)
 rather than from the field's absence; and the confirmed card's forward press on a story project goes to `q/1`.
+
+## 104. Observation (keel-cloud): a problem link's first read can serve no clipId on the screener and the items
+
+Found by spec `157-the-three-views-end-to-end` (FR-2, the problem link) on keel-cloud-docs `78237f87`, the local eval
+stack (`runs/157/78237f87-9147af63/`, keel-cloud's log `card speech: project=… cards=… spoken=…`). keel-cloud 259 FR-9:
+*at the lock, a job `CARD_SPEECH` makes one clip per served card … every served item carries `clipId`*. On the problem
+project of FR-1 (d) -- locked on Keel's door (the stand-in grant), its lock's RESPONDENT_QUESTIONS job then written on the
+founder's own door through `POST questionnaire/retry` -- CardSpeech logged `cards=1 spoken=1` at the lock and again when
+the questions landed, so the first `GET /v2/i/{token}/interview` served `clipId` on the gate alone (null on the screener
+and the three items); the read itself spoke the other six (`cards=7 spoken=7`, judgement call 14's *when a link is served
+a card with no clip yet*) and the next read carried them all. So the first stranger to open a link meets cards with no
+voice bar. The solution project, locked the same way, logged `cards=7` when its questions landed. **What the harness
+does** (spec 157): the first read's missing clips are a failed check by name (*on the link's first read*), and the clips
+are read again until present (the leg's stopping check). **For keel-cloud:** speak every card when the lock's questions
+land by the retry as by the first job (the completion listener on a retried questionnaire), or make the served read wait
+for its clips.

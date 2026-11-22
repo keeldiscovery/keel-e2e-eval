@@ -667,6 +667,22 @@ def retry_questions(run: Run, leg: Leg, project_id: str) -> None:
               screen="define/ready -> Sent", view="wire", detail={"state": state})
 
 
+def open_sent(run: Run, project_id: str) -> None:
+    """Sent, with the account's first *Interviews · How it works* page got through (*Got it*, the PATCH of /v2/me) where
+    it is drawn -- keel-web's page of that name since the find-people batch, which `Interviews.walkthrough`'s W1 reads
+    by its older classes -- and keel-web 088's first-open sheet passed by."""
+    page = run.page
+    page.goto(f"{run.web}/p/{project_id}/interviews/sent", wait_until="load")
+    page.locator(".sent__kinds, button:has-text('Got it')").first.wait_for(state="visible", timeout=60_000)
+    got_it = page.get_by_role("button", name="Got it", exact=True)
+    if not page.locator(".sent__kinds").count() and got_it.count():
+        with run.recorder.step("Sent: the account's first *Interviews · How it works* -- Got it", party="founder"):
+            got_it.first.click()
+            page.wait_for_url(re.compile(r"/interviews/sent"), timeout=20_000)
+    page.locator(".sent__kinds").first.wait_for(state="visible", timeout=60_000)
+    iv_screens.pass_interviews_sheet(page, run.recorder, run.web)
+
+
 def send_link(run: Run, leg: Leg, key: str, project_id: str, fmt: str, *, person: str | None = None,
               decider: bool = False) -> dict:
     """One link on Sent's *Send more*, the person named (a corpus person of the base entry)."""
@@ -675,7 +691,7 @@ def send_link(run: Run, leg: Leg, key: str, project_id: str, fmt: str, *, person
     kind = next((k for k in kinds if (k.get("respondentType") == vs.LINK_B2B) == decider), kinds[0] if kinds else {})
     who = person or next(p.person for p in vs.person_inputs(run.base_entry("PROBLEM")))
     sent = iv_screens.Interviews(run.page, run.recorder, run.web)
-    sent.land(project_id)                      # Sent, its first-open walkthrough passed (spec 059)
+    open_sent(run, project_id)
     made = sent.send_someone(project_id, kind.get("label"), who, fmt)
     leg.check(run, f"a {fmt} link sent to {who}", made.get("status") == 201 and bool(made.get("url")),
               screen="Sent · Send more", detail={k: made.get(k) for k in ("status", "url", "formats")})
@@ -726,12 +742,12 @@ def fr1_c(run: Run, leg: Leg) -> None:
     told = tell_the_story(run, leg, problem, "typed", back_to_money=True)
     leg.check(run, "the story's yes goes back to the money start", "start=money" in told["landed"],
               screen="define/story/check -> /?start=money", detail=told["landed"])
-    picked = page.locator(f"[data-testid=money-problem][data-project='{problem}']").first
-    picked.wait_for(state="visible", timeout=30_000)
-    leg.check(run, "back on screen 1: the problem just agreed, picked", picked.get_attribute("data-picked") is not None,
-              screen="money start · the problem", detail=_safe(lambda: picked.inner_text()))
-    picked.get_by_test_id("money-pick-problem").click()
-    page.locator("[data-testid=money-start][data-screen=solution]").first.wait_for(state="visible", timeout=30_000)
+    second = page.locator("[data-testid=money-start][data-screen=solution]").first
+    second.wait_for(state="visible", timeout=30_000)
+    leg.check(run, "back with the problem picked: the start opens on its solution screen (none prices it yet: the "
+                   "create alone)", page.get_by_test_id("money-use-solution").count() == 0
+              and page.get_by_test_id("money-create-solution").count() == 1, screen="money start · the solution",
+              detail=_safe(lambda: second.inner_text()))
     run.load_runtime("SOLUTION")
     with page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0].endswith("/v2/projects"),
                               timeout=30_000) as got:
@@ -775,6 +791,10 @@ def fr1_c(run: Run, leg: Leg) -> None:
               screen="define/persona", detail={"context": context.get("fields"), "actor (script)": actor,
                                                "idea": {k: idea_view.get(k) for k in ("what", "shortName", "line")}})
     j = run.journey("c", "COMMERCIAL", money)
+    # the idea's name every money question uses is the chain's (keel-cloud 261 FR-2: Price names the idea)
+    j.idea_name = str(idea_view.get("shortName") or idea_view.get("what") or "")
+    j.idea_what_it_is = idea_view.get("whatItIs")
+    j.idea_line = idea_view.get("line") or None
     cs.leg_persona(j)
     calibration = wait_calibration(run, money, "COMMERCIAL")
     cost = next((q for q in calibration.get("questions") or [] if q.get("dimension") == "commercial.existing_sacrifice"),

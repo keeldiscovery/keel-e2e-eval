@@ -222,7 +222,11 @@ def pass_the_welcome(page, *, wait_ms: int = 4000) -> bool:
         skip = page.locator(GUIDE_SKIP)
         if skip.count() and skip.first.is_visible():
             skip.first.click()
-            page.locator(".gw-scrim").first.wait_for(state="detached", timeout=10_000)
+            try:
+                page.locator(".gw-scrim").first.wait_for(state="detached", timeout=10_000)
+            except Exception:  # noqa: BLE001 - a scrim slow to go: Escape is Skip too (keel-web 080 FR-2.6)
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(1000)
             return True
         page.wait_for_timeout(200)
     return False
@@ -830,7 +834,7 @@ class StoryLinkText:
         row = {"screen": kind,
                "question": _tc(main.locator("h1.iv-q").first) or _tc(main.locator("h1").first),
                "kicker": _tc(main.locator(".iv-kicker").first) or None,
-               "voice": voice.count(), "voice_words": _tc(voice.first) if voice.count() else None,
+               "voice": voice.count(), "voice_words": _tc(voice.first.locator(".iv-voice__words")) if voice.count() else None,
                "mute": main.get_by_test_id("card-voice-mute").count(),
                "still": main.locator(".iv-still").count(),
                "bubbles": bubbles.count(),
@@ -947,6 +951,11 @@ class StoryLinkText:
                         page.locator("main").get_by_role("radio").first.click()
                     elif page.locator("main .iv-chips button").count():
                         page.locator("main .iv-chips button").first.click()
+                    page.wait_for_timeout(300)
+                    second = page.locator("main .iv-chips").get_by_role("button", name="Nothing else", exact=True)
+                    if second.count() and second.first.is_visible():
+                        # Importance's second ask (*And one more?*, keel-cloud 158): one pick is a whole answer
+                        second.first.click()
                     before = stem
                     send = page.get_by_role("button", name=IV_SEND, exact=True)
                     if send.count():
