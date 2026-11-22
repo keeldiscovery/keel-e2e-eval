@@ -306,6 +306,9 @@ TURN_READING = "Keel is reading it to you"
 #: keel-web 249 FR-5 (`lib/story/board.ts` BOX_KEYS): the card's rows' `data-box` keys, as the card names them (the job's
 #: row is `task`, *Must get done*; the idea's product row rides on `today`, *The product*).
 CARD_ROWS = ("person", "task", "when", "today", "limits", "cost")
+#: keel-web 249 FR-5 (`translate.ts` STORY.card): the card's label, and the cost row's name (no "drafted" tag).
+CARD_LABEL = "What Keel understood"
+CARD_COST_NAME = "So"
 #: keel-web 245 FR-6: the cost box carries no label (`costTag: null`) -- 241's tag must not be on the board.
 COST_TAG = "What it costs"
 #: keel-web 245 FR-8: the conversation's screens and the orb, the one button on them. keel-web 249 FR-1 (spec 158c FR-7):
@@ -428,51 +431,190 @@ def stage_buttons(page) -> list[str]:
         return []
 
 
-#: Spec 158 FR-2: the orb's `data-state` (and the screen's `data-voice`, the board's `data-lit`) logged through every
+#: Spec 158 FR-2: the orb's `data-state` (and the screen's `data-voice`, the card's `data-lit`) logged through every
 #: screen, change by change, on `window.__orbLog` -- an init script on the founder's context beside the speech seam.
+#: Spec 158c FR-7 (keel-web 249): each row also carries the state line's first line (`line`), the hand-over chime's
+#: count (`chime`, `window.__keelChime`, the test build's) and whether the recorder runs (`mic`, the seam's
+#: `__listening()`), read in the same callback -- so a row is one frame: the orb, the words beside it, the chime.
+#: FR-7: *What I hear* (`story-heard`) and Keel's lines (`story-words`) are logged on
+#: `window.__heardLog` change by change (a beat moves on by itself: a read after it would miss them).
 ORB_WATCH = r"""(() => {
   const log = (window.__orbLog = window.__orbLog || []);
+  const heard = (window.__heardLog = window.__heardLog || []);
   let last = '';
+  let lastHeard = '';
   const read = () => {
     const orb = """ + _ORB_JS + r""";
     const stage = document.querySelector('.vstage');
     const board = document.querySelector('[data-testid=story-boxes]');
+    const lineEl = document.querySelector('[data-testid=story-state] .vstage__state-line');
     const row = { state: orb ? orb.getAttribute('data-state') : null, voice: stage ? stage.getAttribute('data-voice') : null,
-                  lit: board ? board.getAttribute('data-lit') : null, path: location.pathname };
+                  lit: board ? board.getAttribute('data-lit') : null, path: location.pathname,
+                  line: lineEl ? (lineEl.textContent || '').replace(/\s+/g, ' ').trim() : null,
+                  chime: window.__keelChime || 0,
+                  mic: !!(window.__listening && window.__listening()) };
     const key = JSON.stringify(row);
     if (key !== last) { last = key; row.t = Date.now(); log.push(row); }
+    const heardEl = document.querySelector('[data-testid=story-heard]');
+    const said = heardEl ? [...heardEl.querySelectorAll('li')].map((li) => ({ who: li.getAttribute('data-who'),
+      text: (li.textContent || '').replace(/\s+/g, ' ').trim() })) : [];
+    const keel = [...document.querySelectorAll('[data-testid=story-words] li')].map((li) => ({
+      who: li.getAttribute('data-who'), text: (li.textContent || '').replace(/\s+/g, ' ').trim() }));
+    const hk = JSON.stringify([said, keel]);
+    if (hk !== lastHeard) { lastHeard = hk; heard.push({ said, keel, path: location.pathname,
+                                                         fading: !!(heardEl && heardEl.hasAttribute('data-fading')),
+                                                         t: Date.now() }); }
   };
-  new MutationObserver(read).observe(document, { subtree: true, childList: true, attributes: true,
+  new MutationObserver(read).observe(document, { subtree: true, childList: true, characterData: true, attributes: true,
                                                  attributeFilter: ['data-state', 'data-lit', 'data-voice'] });
   read();
 })();"""
 
 #: What one screen of the conversation draws, read in one go (the conversation moves on its own; a slow read misses).
+#: keel-web 249 (spec 158c FR-7): `words` are Keel's lines alone (`story-words`); the founder's are `heard` (*What I
+#: hear*, `story-heard`, the quotation marks CSS); `card` the rows of *What Keel understood* by `data-box` (`story-boxes`
+#: on the boxes and the replays; beat 3's `story-understood`; the idea's `idea-understood`); `chime` the hand-over count.
 _SNAPSHOT = r"""() => {
   const q = (s) => document.querySelector(s);
   const t = (el) => (el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : null);
   const all = (s) => [...document.querySelectorAll(s)];
   const stage = q('.vstage');
+  const card = (sel) => {
+    const el = q(sel);
+    if (!el) return null;
+    return { lit: el.getAttribute('data-lit'), label: t(el.querySelector('.ucard__label')),
+             rows: [...el.querySelectorAll('[data-box]')].map((r) => ({
+               box: r.getAttribute('data-box'), name: t(r.querySelector('.ucard__name')),
+               lit: r.hasAttribute('data-lit'), wait: r.hasAttribute('data-wait'),
+               items: [...r.querySelectorAll('[data-id]')].map((i) => ({ id: i.getAttribute('data-id'),
+                                                                         mark: i.getAttribute('data-mark'), text: t(i) })),
+               text: t(r.querySelector('.ucard__words')) })),
+             svg: el.querySelectorAll('svg').length };
+  };
+  const lineEl = q('[data-testid=story-state] .vstage__state-line');
+  const subEl = q('[data-testid=story-state] .vstage__state-sub');
   return {
     path: location.pathname,
     screen: stage ? stage.getAttribute('data-testid') : null,
     turn: (q('[data-testid=story-turn]') || q('[data-testid=idea-turn]') || { getAttribute: () => null }).getAttribute('data-turn'),
     voice: stage ? stage.getAttribute('data-voice') : null,
     orb: """ + _ORB_JS + r""" ? """ + _ORB_JS + r""".getAttribute('data-state') : null,
+    orbs: all('[data-testid=story-orb]').length,
+    orbSize: """ + _ORB_JS + r""" ? """ + _ORB_JS + r""".offsetWidth : null,
+    glow: all('[data-testid=story-glow]').length,
     kicker: t(q('[data-testid=story-kicker]')),
     question: t(q('[data-testid=story-q]')),
     state: t(q('[data-testid=story-state]')),
+    line: t(lineEl),
+    sub: t(subEl),
     words: all('[data-testid=story-words] li').map((li) => ({ who: li.getAttribute('data-who'), text: t(li) })),
+    heard: all('[data-testid=story-heard] li').map((li) => ({ who: li.getAttribute('data-who'), text: t(li) })),
+    heardLabel: t(q('[data-testid=story-heard] .vheard__label')),
     limits: all('[data-testid=story-card-limit]').map((li) => t(li).replace(/^×\s*/, '')),
     marks: all('[data-testid=idea-card-limit]').map((li) => ({ mark: li.getAttribute('data-mark'), text: t(li).replace(/^[✓×]\s*/, '') })),
+    understood: card('[data-testid=story-understood]') || card('[data-testid=idea-understood]'),
+    card: card('[data-testid=story-boxes]'),
     folded: t(q('[data-testid=story-folded]')),
     said: t(q('[data-testid=story-check-said]')) || t(q('[data-testid=idea-boxes-said]')) || t(q('[data-testid=idea-story-said]')),
     board: t(q('[data-testid=story-boxes]')),
     drop: q('[data-testid=idea-drop]') ? true : false,
+    chime: window.__keelChime || 0,
     buttons: stage ? [...stage.querySelectorAll('button')].filter((b) => """ + _NOT_ORB_JS + r""")
       .map((b) => b.getAttribute('data-testid') || t(b)) : [],
   };
 }"""
+
+
+def card_rows(card: dict | None) -> dict[str, str]:
+    """Spec 158c FR-7: a card's rows by `data-box` -> the row's words (keel-web 249's `UnderstoodCard`); {} where none."""
+    return {r.get("box"): " ".join(str(r.get("text") or "").split()) for r in ((card or {}).get("rows") or [])
+            if r.get("box")}
+
+
+def card_name(card: dict | None, box: str) -> str | None:
+    """A row's name on the card's left (*The person*, *So*)."""
+    row = next((r for r in ((card or {}).get("rows") or []) if r.get("box") == box), None)
+    return (row or {}).get("name")
+
+
+def card_items(card: dict | None, box: str) -> list[dict]:
+    """The lines of one row (`data-id`, `data-mark`, the words) -- a list row's crosses and ticks."""
+    row = next((r for r in ((card or {}).get("rows") or []) if r.get("box") == box), None)
+    return list((row or {}).get("items") or [])
+
+
+def hand_overs(log: list[dict]) -> list[dict]:
+    """Spec 158c FR-7 (keel-web 249 FR-3): the hand-overs in an orb log -- each row where the orb turns `listening`
+    from Keel's turn (`speaking`: the clip ended, the microphone opens). A thinking pause's `writing -> listening` and a
+    cough's re-listen are not hand-overs (249's judgement call 5); nor is a row that only re-reads a standing listen."""
+    out: list[dict] = []
+    prev = None
+    for row in log:
+        state = row.get("state")
+        if state is None:
+            continue
+        if state == "listening" and prev == "speaking":
+            out.append(row)
+        prev = state
+    return out
+
+
+def chime_verdict(log: list[dict]) -> dict:
+    """Spec 158c FR-7: `window.__keelChime` rises by exactly one per hand-over -- each hand-over's row carries one more
+    chime than the last (the first one more than the log's start), no chime is heard between them, and the state line
+    reads *Your turn.* in the very row the orb first listens. `listening` only where the microphone opened (`mic`).
+    The log is one page's (a reload starts both the counter and the log again)."""
+    rows = [r for r in log if r.get("state") is not None]
+    overs = hand_overs(log)
+    start = (rows[0].get("chime") or 0) if rows else 0
+    want = list(range(start + 1, start + 1 + len(overs)))
+    got = [o.get("chime") or 0 for o in overs]
+    end = (rows[-1].get("chime") or 0) if rows else 0
+    # a chime counted somewhere other than a hand-over: the counter rose on a row that is not one -- unless the
+    # hand-over's own frame follows within a second carrying that same count (the chime is counted in the microphone's
+    # callback, a moment before React draws the listening orb; another change may be logged in between)
+    stray = []
+    before = start
+    for i, r in enumerate(rows):
+        c = r.get("chime") or 0
+        if c != before and not any(r is o for o in overs):
+            nxt = next((o for o in rows[i + 1:] if any(o is h for h in overs)), None)
+            if not (nxt is not None and (nxt.get("chime") or 0) == c
+                    and (nxt.get("t") or 0) - (r.get("t") or 0) <= 1000):
+                stray.append({k: r.get(k) for k in ("state", "line", "path", "chime")})
+        before = c
+    lines = [{"path": o.get("path"), "line": o.get("line")} for o in overs]
+    said_turn = all(str(o.get("line") or "").startswith("Your turn.") for o in overs)
+    deaf_listens = [{k: r.get(k) for k in ("state", "path", "line")} for r in rows
+                    if r.get("state") == "listening" and not r.get("mic")]
+    return {"hand_overs": len(overs), "chimes": end - start, "got": got, "want": want,
+            "one_each": got == want and end - start == len(overs) and not stray, "stray": stray[:6],
+            "your_turn": said_turn, "lines": lines, "listening_without_mic": deaf_listens[:6],
+            "mic_open": not deaf_listens}
+
+
+def heard_verdict(heard: list[dict], said: dict[int, str], path_of) -> dict:
+    """Spec 158c FR-7 (keel-web 249 FR-4): each beat's words shown as heard -- in *What I hear* (`story-heard`, the
+    founder's `li[data-who=you]`) on that beat's screen -- and never among Keel's lines (`story-words`, which hold
+    `data-who=keel` only). `path_of(n)` is beat n's path ending."""
+    norm = lambda x: " ".join(str(x or "").split())  # noqa: E731
+    shown: dict[int, bool] = {}
+    for n, words in said.items():
+        rows = [r for r in heard if str(r.get("path") or "").rstrip("/").endswith(path_of(n))]
+        texts = [norm(" ".join(li.get("text") or "" for li in (r.get("said") or []) if li.get("who") == "you"))
+                 for r in rows]
+        shown[n] = any(norm(words) in t for t in texts)
+    founder_in_words = [li for r in heard for li in (r.get("keel") or []) if li.get("who") != "keel"
+                        or any(norm(w) and norm(w) == norm(li.get("text")) for w in said.values())]
+    return {"shown": shown, "all_shown": all(shown.values()), "founder_in_words": founder_in_words[:4],
+            "words_keels_only": not founder_in_words}
+
+
+def writing_then_speaking(seq: list[str]) -> bool:
+    """Spec 158c FR-7 (keel-web 249's judgement call 2): after Keel has written the founder's words down, Keel speaks
+    next -- `writing -> speaking`, never `writing -> listening -> speaking` (`listening` now means the microphone is
+    open). Holds where every `writing` in `seq` is followed by `speaking` or ends it."""
+    return all(seq[i + 1] == "speaking" for i, s in enumerate(seq[:-1]) if s == "writing")
 
 
 def orb_sequence(log: list[dict], path: str | None = None) -> list[str]:
@@ -496,7 +638,9 @@ def holds_in_order(seen: list[str], want: list[str]) -> bool:
     return i == len(want)
 
 
-#: Spec 158 FR-2: a beat's orb, from Keel's question to Keel's readback.
+#: Spec 158 FR-2: a beat's orb, from Keel's question to Keel's next line. Spec 158c FR-7 (keel-web 249): the same five,
+#: with `listening` only where the microphone opened -- between beats the orb goes `writing -> speaking`
+#: (`writing_then_speaking`), never through `listening`.
 BEAT_ORB = ["speaking", "listening", "hearing", "writing", "speaking"]
 
 
@@ -595,6 +739,36 @@ class Conversation:
             return list(self.page.evaluate("() => window.__orbLog || []"))
         except Exception:  # noqa: BLE001 - a navigation in flight
             return []
+
+    def _log(self, name: str) -> list[dict]:
+        try:
+            return list(self.page.evaluate(f"() => window.{name} || []"))
+        except Exception:  # noqa: BLE001 - a navigation in flight
+            return []
+
+    def begin(self) -> float:
+        """Spec 158c: the moment this conversation starts, on the page's clock -- its logs are read from here (a row's
+        `t`), so a reload in between (which starts the logs again) never shifts what is read."""
+        try:
+            self.since_t = float(self.page.evaluate("() => Date.now()"))
+        except Exception:  # noqa: BLE001
+            self.since_t = time.time() * 1000
+        return self.since_t
+
+    def since(self, name: str = "__orbLog", *, standing: bool = False) -> list[dict]:
+        """The log's rows since `begin()`; `standing`: with the row that stood at that moment first (a sheet mounted
+        just before the conversation began)."""
+        t0 = getattr(self, "since_t", 0.0) or 0.0
+        rows = self._log(name)
+        after = [r for r in rows if (r.get("t") or 0) >= t0]
+        before = [r for r in rows if (r.get("t") or 0) < t0]
+        return (before[-1:] if standing else []) + after
+
+    def turn_read(self) -> dict:
+        """Spec 158c FR-7: this conversation's hand-overs and chimes (`chime_verdict`), *What I hear* and Keel's lines as
+        they stood -- read from `begin()`."""
+        heard = self.since("__heardLog")
+        return {"chime": chime_verdict(self.since()), "heard": heard}
 
     def snapshot(self) -> dict:
         try:
@@ -730,6 +904,7 @@ class StoryWalk(Conversation):
         the quiet that starts beat 1."""
         with self._b.step("the opening: the stage's opener or the begin screen, then Ready? and the quiet") as h:
             self.listen()
+            self.begin()
             if goto:
                 self.page.goto(f"{self.base}/p/{project_id}/define/story/start", wait_until="load")
             self.page.locator(STORY_START).first.wait_for(state="visible", timeout=60_000)
@@ -1041,8 +1216,9 @@ class IdeaWalk(Conversation):
     def replay(self, project_id: str) -> dict:
         """`define/idea/start`: the opener or the begin screen, *Ready? Let us first go through the problem.*, the
         problem's board narrated (no cost box), the turn line, then the quiet stamps "still the problem"."""
-        with self._b.step("the problem replayed: the board narrated, then the quiet -- still the problem") as h:
+        with self._b.step("the problem replayed: the card read, then the quiet -- still the problem") as h:
             self.listen()
+            self.begin()
             self.page.get_by_test_id("idea-still").first.wait_for(state="visible", timeout=60_000)
             woke = self.wake()
             mark = len(self.orb_log())
@@ -1178,6 +1354,7 @@ class MoneyReplay(Conversation):
     def walk(self, *, lands: re.Pattern | str = r"/define/persona$") -> dict:
         with self._b.step("the money study's one orb moment: the problem and the idea shown back, the quiet") as h:
             self.listen()
+            self.begin()
             self.page.get_by_test_id("money-replay").first.wait_for(state="visible", timeout=60_000)
             woke = self.wake()
             try:
@@ -1191,6 +1368,7 @@ class MoneyReplay(Conversation):
             self.silence()
             seen["landed"] = self.wait_path(lands, timeout_s=60)
             seen["corrected"] = self.writes_to(r"/story/correct$")
+            seen["turn"] = self.turn_read()
             h.record_wire({"quiet": "money replay"}, {"landed": seen["landed"], "said": seen["screen"].get("said")})
             return seen
 

@@ -353,6 +353,31 @@ def _named(rows: list[str], said: str | None) -> list[str]:
     return [r for r in rows if _bare(r) not in words]
 
 
+def turn_screen(run: Run, leg: Leg, label: str, snap: dict, screen: str, *, card: bool = False) -> None:
+    """Spec 158c FR-7 (keel-web 249 FR-1): the small orb on the screen (one, at most 44 px), its state line beside it, no
+    glow; where `card`, the card is clean (no drawing in it: no rough board)."""
+    leg.check(run, f"{label}: {screen} -- the small orb (one, at most 44 px) with its state line, no glow"
+                   + (", the card with no drawing in it" if card else ""),
+              snap.get("orbs") == 1 and (snap.get("orbSize") or 99) <= 44 and bool(snap.get("line"))
+              and not snap.get("glow") and (not card or ((snap.get("card") or {}).get("svg") == 0)),
+              screen=screen, detail={k: snap.get(k) for k in ("orbs", "orbSize", "glow", "line", "sub", "orb")}
+              | {"card svg": (snap.get("card") or {}).get("svg")}, stop=False)
+
+
+def hand_over_checks(run: Run, leg: Leg, label: str, read: dict, screen: str, *, beat_path: str) -> None:
+    """Spec 158c FR-7 (keel-web 249 FR-3): `window.__keelChime` rises by exactly one per hand-over, the state line says
+    *Your turn.* in the very frame the orb first listens (*Your turn. I am listening.* on a beat), and the orb listens
+    only where the microphone is open."""
+    v = read["chime"]
+    beats = [x for x in v["lines"] if re.search(beat_path, str(x.get("path") or ""))]
+    leg.check(run, f"{label}: the hand-over -- the chime counted once per hand-over ({v['hand_overs']} hand-overs, "
+                   f"{v['chimes']} chimes), *Your turn.* in the frame the orb first listens (*{ss.TURN_LISTENING}* on "
+                   "every beat), the orb listening only with the microphone open",
+              v["hand_overs"] > 0 and v["one_each"] and v["your_turn"] and v["mic_open"]
+              and all(x.get("line") == ss.TURN_LISTENING for x in beats) and bool(beats),
+              screen=f"{screen} (story-orb data-state, story-state, window.__keelChime)", detail=v, stop=False)
+
+
 def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bool = False,
                    correction: str | None = None, back_to: str | None = None, goto: bool = True) -> dict:
     """keel-web 245 on one problem project, nothing pressed: the opening (the stage's opener passed, or the begin
@@ -387,6 +412,11 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
                              + ((b.get("corrected") or {}).get("buttons") or []))) for n, b in beats.items()}
     leg.check(run, f"{label}: no button on any beat but the orb (no Tap to talk, Type instead, Send, That is all, Yes)",
               not any(pressed.values()), screen="define/story/1..5", detail=pressed)
+    small = {n: {k: b["asked"].get(k) for k in ("orbs", "orbSize", "glow", "line")} for n, b in beats.items()}
+    leg.check(run, f"{label}: the small orb on every beat (one, at most 44 px), its state line beside it, no glow "
+                   "(keel-web 249 FR-1)",
+              all(v["orbs"] == 1 and (v["orbSize"] or 99) <= 44 and v["line"] and not v["glow"] for v in small.values()),
+              screen="define/story/1..5 (story-orb, story-state)", detail=small, stop=False)
     answers = [w for w in walk.writes if re.search(r"/story/turns/\d$", w["path"]) and (w["sent"] or {}).get("text")
                and not (w["sent"] or {}).get("correction")]
     leg.check(run, f"{label}: every beat sent once as said (the words whole), every answer 200",
@@ -404,7 +434,9 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
               detail={"heard": [t[:120] if t else t for t in transcribed]})
     orbs = {n: b.get("orb") for n, b in beats.items()}
     leg.check(run, f"{label}: the orb through every beat -- speaking (the question), listening, hearing, writing, "
-                   "speaking (the readback, or -- no readback since keel-web 245 FR-4 as amended -- Keel's next line)", all(ss.holds_in_order(o or [], ss.BEAT_ORB) for o in orbs.values()),
+                   "speaking (Keel's next line: no per-beat readback since keel-web 245 FR-4 as amended), and from "
+                   "writing straight to speaking (keel-web 249: `listening` only where the microphone opened)",
+              all(ss.holds_in_order(o or [], ss.BEAT_ORB) and ss.writing_then_speaking(o or []) for o in orbs.values()),
               screen="define/story/1..5 (story-orb data-state)", detail=orbs, stop=False)
     # beat 3: every limitation, broken out, named back, closed by the quiet
     b3 = beats.get(3) or {}
@@ -419,11 +451,24 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
                                                "readback": read3.get("readback"), "closed": b3.get("closed")})
     folded = (b3.get("readback") or {}).get("folded") or ""
     words_said = len(said[3].split())
-    leg.check(run, f"{label}: the transcript folds to one line when the crosses arrive (*You spoke for m:ss · n words*)",
+    rb3 = b3.get("readback") or {}
+    leg.check(run, f"{label}: the transcript folds to one line when the crosses arrive (*You spoke for m:ss · n words*); "
+                   "*What I hear* gives way to it (keel-web 249 FR-4: no `story-heard` words left, `story-words` Keel's)",
               folded.startswith("You spoke for ") and f"· {words_said} word" in folded
-              and not [w for w in (b3.get("readback") or {}).get("words") or [] if w.get("who") == "you"],
-              screen="define/story/3 (story-folded)", detail={"folded": folded, "words said": words_said},
+              and not [w for w in rb3.get("heard") or [] if w.get("who") == "you"]
+              and all(w.get("who") == "keel" for w in rb3.get("words") or []),
+              screen="define/story/3 (story-folded)", detail={"folded": folded, "words said": words_said,
+                                                              "heard": rb3.get("heard"), "words": rb3.get("words")},
               stop=False)
+    understood = rb3.get("understood") or {}
+    marks3 = ss.card_items(understood, "limits")
+    leg.check(run, f"{label}: beat 3's crosses are a card of what Keel understood (`story-understood`: *What Keel "
+                   "understood*, the row `limits`, every line a cross) -- never plain text on the turn screen "
+                   "(keel-web 249 FR-4, FR-5)",
+              understood.get("label") == ss.CARD_LABEL and [r.get("box") for r in understood.get("rows") or []]
+              == ["limits"] and len(marks3) == len(rows) and all(m.get("mark") == "cross" for m in marks3)
+              and [_bare(m.get("text")) for m in marks3] == [_bare(r) for r in rows],
+              screen="define/story/3 (story-understood)", detail={"card": understood, "want": rows}, stop=False)
     if long3:
         sent3 = next((w for w in answers if w["path"].endswith("/story/turns/3")), {})
         text3 = (sent3.get("sent") or {}).get("text") or ""
@@ -496,16 +541,30 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
                   screen="define/story/4 -> check", detail={"beat 4": {k: b4.get(k) for k in ("straight_on", "next")},
                                                             "boxes": boxes.get("correction")}, stop=False)
     cost_before = before.get("cost")
-    leg.check(run, f"{label}: the boxes centre stage -- the person, the limitations, no cost label, the cost box where a "
-                   "cost is known; *Is that right?*; no button; the quiet confirms (story/confirm 200, defined)",
+    card = boxes["screen"].get("card") or {}
+    by_box = ss.card_rows(card)
+    crosses_on_card = [_bare(m.get("text")) for m in ss.card_items(card, "limits") if m.get("mark") == "cross"]
+    person = (before.get("person") or {}).get("who")
+    leg.check(run, f"{label}: the boxes are the card (keel-web 249 FR-5) -- *What Keel understood*, read by `data-box`: "
+                   "the person, the limitations as crosses, the cost as the last row (*So*, no cost label) where a cost "
+                   "is known; *Is that right?*; no button; the quiet confirms (story/confirm 200, defined)",
               boxes["confirm"]["status"] == 200 and (boxes["confirm"]["body"] or {}).get("status") == "defined"
               and boxes["screen"].get("said") == ss.BOXES_ASK and not boxes["screen"].get("buttons")
-              and ss.COST_TAG not in board and all(_bare(r) in _bare(board) for r in rows)
-              and (not cost_before or _bare(cost_before) in _bare(board)),
+              and card.get("label") == ss.CARD_LABEL and ss.COST_TAG not in board
+              and set(by_box) <= set(ss.CARD_ROWS) and "person" in by_box
+              and (not person or _bare(person) in _bare(by_box.get("person")))
+              and crosses_on_card == [_bare(r) for r in rows]
+              and (not cost_before or (list(by_box)[-1:] == ["cost"] and _bare(cost_before) in _bare(by_box["cost"])
+                                       and ss.card_name(card, "cost") == ss.CARD_COST_NAME)),
               screen="define/story/check (boxes)",
-              detail={"board": board, "said": boxes["screen"].get("said"), "cost": cost_before,
+              detail={"rows": by_box, "names": {r.get("box"): r.get("name") for r in card.get("rows") or []},
+                      "said": boxes["screen"].get("said"), "cost": cost_before,
                       "costDrafted": before.get("costDrafted"), "lit": boxes.get("lit"),
                       "buttons": boxes["screen"].get("buttons"), "confirm": boxes["confirm"]["status"]})
+    turn_screen(run, leg, label, boxes["screen"], "define/story/check (boxes)", card=True)
+    leg.check(run, f"{label}: Keel narrates the card row by row -- the rows lit are the card's own (`data-lit`)",
+              bool(boxes.get("lit")) and all(set(str(x).split(",")) <= set(ss.CARD_ROWS) for x in boxes.get("lit") or []),
+              screen="define/story/check (boxes)", detail={"lit": boxes.get("lit")}, stop=False)
     built = walk.building_then_story()
     if built["state"] == "story":
         # spec 158b: the drawn story read while it plays on the founder's screen (desktop)
@@ -542,6 +601,13 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
         leg.check(run, f"{label}: the quiet after the story goes back to the solution, Keel saying so",
                   yes.get("said") in (ss.BACK_TO_SOLUTION, ss.STORY_ASK), screen="define/story/check (story)",
                   detail=yes, stop=False)
+    read = walk.turn_read()
+    hand_over_checks(run, leg, label, read, "define/story/*", beat_path=r"/define/story/\d$")
+    heard = ss.heard_verdict(read["heard"], said, lambda n: f"/define/story/{n}")
+    leg.check(run, f"{label}: each beat's words shown as heard -- in *What I hear* (`story-heard`) on the beat's screen "
+                   "-- and never among Keel's lines (`story-words` Keel's alone; keel-web 249 FR-4)",
+              heard["all_shown"] and heard["words_keels_only"], screen="define/story/1..5 (story-heard, story-words)",
+              detail=heard, stop=False)
     walk.stop_listening()
     return {"walk": walk, "landed": yes["landed"], "story": story, "beats": beats}
 
@@ -695,15 +761,21 @@ def idea_leg(run: Run, leg: Leg, solution: str, label: str, *, back_to_money: bo
     replay = idea.replay(solution)
     board = replay["screen"].get("board") or ""
     problem = run.get(f"/v2/projects/{solution}/story") or {}
-    leg.check(run, f"{label}: the problem replayed -- its board (no cost box), the turn line, no button; the quiet "
-                   "stamps still the problem (story/confirm 200), nothing corrected",
+    rcard = replay["screen"].get("card") or {}
+    rrows = ss.card_rows(rcard)
+    leg.check(run, f"{label}: the problem replayed -- its card (*What Keel understood*, read by `data-box`: the person, "
+                   "the limitations, no cost row), the turn line, no button; the quiet stamps still the problem "
+                   "(story/confirm 200), nothing corrected",
               replay["confirm"]["status"] == 200 and replay["screen"].get("said") == ss.SOLUTION_TURN
               and not replay["screen"].get("buttons") and not idea.writes_to(r"/story/correct$")
+              and rcard.get("label") == ss.CARD_LABEL and "person" in rrows and "cost" not in rrows
+              and set(rrows) <= set(ss.CARD_ROWS)
               and (not problem.get("cost") or _bare(problem.get("cost")) not in _bare(board)),
               screen="define/idea/start (the replay)",
-              detail={"said": replay["screen"].get("said"), "board": board, "cost": problem.get("cost"),
+              detail={"said": replay["screen"].get("said"), "rows": rrows, "cost": problem.get("cost"),
                       "woke": replay.get("woke"), "buttons": replay["screen"].get("buttons"),
                       "confirm": replay["confirm"]["status"]})
+    turn_screen(run, leg, label, replay["screen"], "define/idea/start (the replay)", card=True)
     said = ss.said_idea(run.readings)
     name = str(ss.idea_reading_of(run.readings, 1).get("name") or said[0][1])
     words1 = ss.said_name(name)
@@ -727,16 +799,38 @@ def idea_leg(run: Run, leg: Leg, solution: str, label: str, *, back_to_money: bo
               and [m.get("mark") for m in marks] == ["tick" if a.get("solved") else "cross" for a in answers]
               and bool(read2.get("readback")) and not b2["readback"].get("buttons"),
               screen="define/idea/2", detail={"marks": marks, "answers": answers, "readback": read2.get("readback")})
+    iu = b2["readback"].get("understood") or {}
+    imarks = ss.card_items(iu, "limits")
+    leg.check(run, f"{label}: idea beat 2's ticks and crosses are a card (`idea-understood`: *What Keel understood*, the "
+                   "row `limits`, each line `data-mark` tick or cross as the reading maps it; keel-web 249 FR-4)",
+              iu.get("label") == ss.CARD_LABEL and [r.get("box") for r in iu.get("rows") or []] == ["limits"]
+              and [m.get("mark") for m in imarks] == ["tick" if a.get("solved") else "cross" for a in answers],
+              screen="define/idea/2 (idea-understood)", detail={"card": iu, "answers": answers}, stop=False)
     orbs = {n: b.get("orb") for n, b in beats.items()}
-    leg.check(run, f"{label}: the orb through each idea beat -- speaking, listening, hearing, writing, speaking",
-              all(ss.holds_in_order(o or [], ss.BEAT_ORB) for o in orbs.values()), screen="define/idea/1..2",
-              detail=orbs, stop=False)
+    leg.check(run, f"{label}: the orb through each idea beat -- speaking, listening, hearing, writing, speaking, and from "
+                   "writing straight to speaking (keel-web 249)",
+              all(ss.holds_in_order(o or [], ss.BEAT_ORB) and ss.writing_then_speaking(o or []) for o in orbs.values()),
+              screen="define/idea/1..2", detail=orbs, stop=False)
+    small = {n: {k: (b.get("asked") or {}).get(k) for k in ("orbs", "orbSize", "glow", "line")} for n, b in beats.items()}
+    leg.check(run, f"{label}: the small orb on each idea beat (one, at most 44 px), its state line beside it, no glow",
+              all(v["orbs"] == 1 and (v["orbSize"] or 99) <= 44 and v["line"] and not v["glow"] for v in small.values()),
+              screen="define/idea/1..2 (story-orb, story-state)", detail=small, stop=False)
     boxes = idea.boxes()
-    leg.check(run, f"{label}: the idea's boxes -- *Is that your idea?*, no button, the quiet confirms (idea/confirm 200)",
+    icard = boxes["screen"].get("card") or {}
+    irows = ss.card_rows(icard)
+    iticks = [m.get("mark") for m in ss.card_items(icard, "limits")]
+    leg.check(run, f"{label}: the idea's boxes are the card -- by `data-box`: the person, *The product* with the name "
+                   f"(`today`), *How it helps* as ticks and crosses (`limits`); *Is that your idea?*, no button, the quiet "
+                   "confirms (idea/confirm 200)",
               boxes["confirm"]["status"] == 200 and boxes["screen"].get("said") == ss.IDEA_BOXES_ASK
-              and not boxes["screen"].get("buttons"), screen="define/idea/check (boxes)",
-              detail={"said": boxes["screen"].get("said"), "board": boxes.get("board"),
+              and not boxes["screen"].get("buttons") and icard.get("label") == ss.CARD_LABEL
+              and "person" in irows and _bare(name) in _bare(irows.get("today"))
+              and iticks == ["tick" if a.get("solved") else "cross" for a in answers],
+              screen="define/idea/check (boxes)",
+              detail={"said": boxes["screen"].get("said"), "rows": irows, "marks": iticks,
+                      "names": {r.get("box"): r.get("name") for r in icard.get("rows") or []},
                       "confirm": boxes["confirm"]["status"]})
+    turn_screen(run, leg, label, boxes["screen"], "define/idea/check (boxes)", card=True)
     built = idea.building_then_story(name)
     spoken = run.get(f"/v2/projects/{solution}/idea/spoken") or {}
     leg.check(run, f"{label}: the idea's build reaches ready; the day with the idea drawn", built["state"] == "story"
@@ -754,6 +848,12 @@ def idea_leg(run: Run, leg: Leg, solution: str, label: str, *, back_to_money: bo
     if before_yes:
         before_yes()
     landed = idea.story_yes(lands=re.compile(r"start=money") if back_to_money else ss.COMPATIBILITY_PATH)
+    read = idea.turn_read()
+    hand_over_checks(run, leg, label, read, "define/idea/*", beat_path=r"/define/idea/\d$")
+    heard = ss.heard_verdict(read["heard"], dict([(1, words1), (2, dict(said)[2])]), lambda n: f"/define/idea/{n}")
+    leg.check(run, f"{label}: each idea beat's words shown as heard (*What I hear*, `story-heard`), never among Keel's "
+                   "lines (keel-web 249 FR-4)", heard["all_shown"] and heard["words_keels_only"],
+              screen="define/idea/1..2 (story-heard, story-words)", detail=heard, stop=False)
     return {"name": name, "landed": landed["landed"], "said": said}
 
 
@@ -1064,8 +1164,9 @@ def fr1_c(run: Run, leg: Leg) -> None:
               said == f"This is the problem, and this is {done['name']}. Now, will they pay for it?"
               and replay["landed"].endswith("/define/persona") and not replay["corrected"]
               and not replay["screen"].get("buttons"), screen="define/money/start",
-              detail={"said": said, "board": replay["screen"].get("board"), "landed": replay["landed"],
+              detail={"said": said, "rows": ss.card_rows(replay["screen"].get("card")), "landed": replay["landed"],
                       "woke": replay.get("woke")})
+    money_card(run, leg, "the money's replay", replay, done["name"])
     ss.pass_the_welcome(page)
     context = run.get(f"/v2/projects/{money}/context") or {}
     idea_view = run.get(f"/v2/projects/{money}/idea") or {}
@@ -1095,6 +1196,25 @@ def fr1_c(run: Run, leg: Leg) -> None:
     lock_once(run, leg, j, money)
     send_link(run, leg, "c", money, "TEXT", decider=True)
     money_by_name(run, leg, problem, done["name"])
+
+
+def money_card(run: Run, leg: Leg, label: str, replay: dict, product: str) -> None:
+    """Spec 158c FR-7 (keel-web 249 FR-5): the money front's replay is the card -- *What Keel understood*, the person,
+    *The product* with the name (`today`), no cost row, nothing drawn -- under the small orb, no glow; its one
+    hand-over chimed once."""
+    card = replay["screen"].get("card") or {}
+    rows = ss.card_rows(card)
+    leg.check(run, f"{label}: the card (by `data-box`: the person, *The product* naming *{product}*, no cost row)",
+              card.get("label") == ss.CARD_LABEL and "person" in rows and _bare(product) in _bare(rows.get("today"))
+              and "cost" not in rows, screen="define/money/start (story-boxes)",
+              detail={"rows": rows, "lit": card.get("lit")}, stop=False)
+    turn_screen(run, leg, label, replay["screen"], "define/money/start", card=True)
+    read = replay.get("turn") or {}
+    v = (read.get("chime") or {})
+    leg.check(run, f"{label}: the one hand-over chimed once ({v.get('hand_overs')} hand-over(s), {v.get('chimes')} "
+                   "chime(s)), *Your turn.* beside the listening orb",
+              bool(v.get("hand_overs")) and v.get("one_each") and v.get("your_turn") and v.get("mic_open"),
+              screen="define/money/start", detail={"chime": v}, stop=False)
 
 
 def money_by_name(run: Run, leg: Leg, problem: str, product: str) -> None:
@@ -1130,7 +1250,8 @@ def money_by_name(run: Run, leg: Leg, problem: str, product: str) -> None:
                    "quiet, then the persona step", said.endswith(f"this is {product}. Now, will they pay for it?")
               and replay["landed"].endswith("/define/persona") and not replay["corrected"],
               screen="define/money/start (a name only)", detail={"said": said, "landed": replay["landed"],
-                                                                  "board": replay["screen"].get("board")})
+                                                                  "rows": ss.card_rows(replay["screen"].get("card"))})
+    money_card(run, leg, "the money by name's replay", replay, product)
     leg.notes.append("the money study with only a name was walked to the persona step and no further: keel-cloud has no "
                      "lock fixture for it yet (263 judgement call 16; spec 158's brief)")
 

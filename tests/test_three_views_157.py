@@ -250,7 +250,8 @@ def test_the_glow_and_the_rough_board_are_gone_and_the_walk_reads_neither():
     _need(WEB / "src" / "components" / "voice" / "UnderstoodCard.tsx")
     assert "story-glow" not in (WEB / "src" / "components" / "voice" / "KeelOrb.tsx").read_text(encoding="utf-8")
     assert not (WEB / "src" / "lib" / "story" / "BoxBoard.tsx").exists()
-    assert ss.ORB == "[data-testid=story-orb]" and "story-glow" not in ss.ORB_WATCH and "story-glow" not in ss._SNAPSHOT
+    # the orb is read off the orb alone; the snapshot only counts a glow (`glow`) to hold that none is drawn
+    assert ss.ORB == "[data-testid=story-orb]" and "story-glow" not in ss.ORB_WATCH and "story-glow" not in ss._ORB_JS
 
 
 def test_the_chime_counter_is_keel_webs_test_hook():
