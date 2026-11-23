@@ -316,7 +316,11 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
     said_at = 0.0
     again: dict = {}
     seconds: set = set()
-    ways = speak_or_tap if speak_or_tap is not None and not refused else []
+    # The ways owed (spec 159 FR-3). On a refused link only the tap can be taken (run of record on keel-web 255: the
+    # chip said now ends its link at the story, so the problem's tap moves onto the refused link's first one-pick item).
+    ways = speak_or_tap if speak_or_tap is not None else []
+    if refused:
+        ways = ways if "tap" in ways else []
 
     def answer_row(index: int, how: str, row: dict) -> None:
         """One option row by `how` -- said by its words, said by its letter, or tapped."""
@@ -437,7 +441,12 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
         elif options:
             item = item_of(items, q)
             row["control"] = item.get("control")
-            if refused:
+            if refused and "tap" in ways and item.get("control") in ONE_PICK:
+                ways.remove("tap")
+                row["fr3"] = "tap"
+                answer_row(0, "tap", row)
+                row["read"] = _lit_after(p, q)
+            elif refused:
                 row["said"] = f"tap: {options[0]}"
                 page.get_by_test_id("ai-sheet").locator("[data-testid=ai-options] .opt").nth(0).click()
             elif len(options) >= 2 and way_for(ways, item.get("control")):
@@ -657,12 +666,13 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
                   view=view, detail={"said": chip_row.get("said"), "sent": {k: body.get(k) for k in
                                                                             ("recency", "anchorChip", "story", "gate")},
                                      "answers": len(body.get("answers") or []), "done": said["done"]}, stop=False)
-    speak_or_tap_checks(run, leg, walked["rows"] + (said["rows"] if study != "money" else []), view=view)
-    # 3. the microphone refused: the lot by taps, no typed box
+    # 3. the microphone refused: the lot by taps, no typed box (and the tap still owed, on its first one-pick item)
     tap_link = tv.send_link(run, leg, f"{study}-orb-taps", project_id, "TEXT", person=person_at(names, 9),
                             decider=decider)
     tap_wire, _ = read_served(run, tap_link["url"])
-    tapped = walk_link(run, tap_link["url"], tap_wire, shot=f"orb-{study}-taps", refused=True)
+    tapped = walk_link(run, tap_link["url"], tap_wire, shot=f"orb-{study}-taps", refused=True, speak_or_tap=ways)
+    speak_or_tap_checks(run, leg, walked["rows"] + (said["rows"] if study != "money" else []) + tapped["rows"],
+                        view=view)
     run.orbs.append({"study": study, "link": "the microphone refused", **summary(tapped)})
     leg.check(run, "the microphone refused: *Test your mic* reads the fallback, Start goes on",
               bool((tapped.get("mic") or {}).get("fallback")), screen="the AI intro", view=f"{view} · refused",

@@ -185,7 +185,7 @@ READ_AND_TAP_LINE = ("They read each question and tap their answer. Where there 
                      "or type.")
 #: Spec 159 FR-4 (keel-web 253 FR-4, `SEND_FORMATS.TEXT.line` / `SEND_FORMATS_069.TEXT`): *Keel's voice*'s line.
 KEELS_VOICE_LINE = ("Keel asks each question aloud in its own voice, and every question is also written on the screen. "
-                    "They answer by talking, typing or tapping. Nothing to set up.")
+                    "They answer by talking or tapping. Nothing to set up.")   # keel-web 254: nothing typed
 
 
 def before_interviewer_title(people: str | None) -> str:
