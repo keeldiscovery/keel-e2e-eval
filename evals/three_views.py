@@ -73,7 +73,9 @@ FOUNDER_LEGS = (("FR-1a", "the problem by voice, twice (the script's words; the 
                           "the link; then a money study with only a name, to the persona step"),
                 ("FR-1d", "the defined problem project from the list: resumed, calibrated, refused on a drained grant, "
                           "locked once, a link sent"))
-VIEWS = ("text", "avatar", "copilot")
+#: Spec 159 (keel-cloud 267, keel-web 253 / 254): the text view is the orb view -- a TEXT link is the AI player with
+#: the orb in the face's place.
+VIEWS = ("orb", "avatar", "copilot")
 STUDIES = (("problem", "the problem link (gate No ends)"), ("solution", "the solution link (anchor No ends)"),
            ("money", "the decision-maker's link (third-person check No ends)"))
 STRANGER_LEGS = tuple((f"FR-2 {study} · {view}", f"{words}: the {view} view") for study, words in STUDIES
@@ -160,6 +162,11 @@ class Run:
         #: Spec 158c: every conversation's turn as keel-web 249 makes it plain -- the hand-overs and the chime, the
         #: guide sheets met (the report's *The turn*).
         self.turns: list[dict] = []
+        #: Spec 159: every orb (and face) link walked -- the stage's sequence, the orb's runs, how each question was
+        #: answered, what was never to be drawn, the response (the report's *The orb*).
+        self.orbs: list[dict] = []
+        #: Spec 159 FR-2: each study's orb link as served (the same-words check reads it beside the avatar's).
+        self.orb_wires: dict[str, dict] = {}
 
     # ------------------------------------------------------------------------------------- the wire
     def call(self, method: str, path: str, body: dict | None = None) -> tuple[int, Any]:
