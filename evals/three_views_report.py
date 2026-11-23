@@ -7,6 +7,11 @@ stranger's story card on a phone): the three verdicts, the numbers, and every te
 Spec 158c: *The turn* -- every conversation's hand-overs as keel-web 249 makes them plain: the chime counted once per
 hand-over, the state line in the frame the orb first listens, the microphone open, and the guide sheets met (one film).
 
+Spec 159: *The orb* -- every link the stranger's legs walked on the one player (keel-web 253 on keel-cloud 267): the
+orb's links (by voice, the story's chip said, the microphone refused) and the face's: what the stage did in order (the
+film first, then the opening), the orb's states through each answer, how each question was answered and what the sheet
+held, what an orb link must never draw (a typed box, the voice bar, *Read and tap*), and the response.
+
 Pure functions over the legs and a log's text, so `tests/test_three_views_157.py` holds them with no stack.
 """
 
@@ -171,10 +176,42 @@ def turn_markdown(turns: list[dict] | None) -> list[str]:
     return out
 
 
+def orb_markdown(orbs: list[dict] | None) -> list[str]:
+    """Spec 159: one block a link walked on the one player -- the stage in order, the orb's runs, the answers (how each
+    was given and what the sheet held), what was never to be drawn, the response."""
+    if not orbs:
+        return []
+    out = ["## The orb (spec 159, keel-web 253 on keel-cloud 267)", "",
+           "| Study | Link | Stage, in order | Orb through the answers | Typed boxes | Voice bar / Read and tap | Response |",
+           "|---|---|---|---|---|---|---|"]
+    for o in orbs:
+        never = o.get("never") or {}
+        r = o.get("response") or {}
+        out.append(f"| {o.get('study')} | {_cell(o.get('link'), 40)} | {_cell(' > '.join(o.get('stage') or []), 120)} | "
+                   f"{_cell('; '.join((o.get('orb') or [])[:4]), 140)} | {len(never.get('typed') or [])} | "
+                   f"{'**drawn**' if never.get('voice_bar') else 'none'} / {'**drawn**' if never.get('read_and_tap') else 'none'} | "
+                   f"{r.get('status', '-')} {r.get('format') or ''} {r.get('anchorChip') or ''} "
+                   f"({r.get('answers', 0)} answers) |")
+    out.append("")
+    for o in orbs:
+        out += [f"### {o.get('study')} · {o.get('link')}", ""]
+        for film in o.get("films") or []:
+            kind, first, hand = (list(film) + [None, None, None])[:3]
+            out.append(f"- film `{kind}`{' (first)' if first else ''}: hand-over line {_cell(hand, 80) or '-'}")
+        for q, said, lit in o.get("answers") or []:
+            out.append(f"- *{_cell(q, 70)}* -- {_cell(said, 70)}" + (f" -> held `{_cell(lit, 70)}`" if lit else ""))
+        for t in (o.get("never") or {}).get("typed") or []:
+            out.append(f"- typed box `{t.get('typed')}` on *{_cell(t.get('question'), 70)}* ({t.get('phase')})")
+        out.append("")
+    return out
+
+
 def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = None,
-                    fits: list[dict] | None = None, turns: list[dict] | None = None) -> str:
+                    fits: list[dict] | None = None, turns: list[dict] | None = None,
+                    orbs: list[dict] | None = None) -> str:
     """The report: the head (shas, profile, the run's bundle), the table of legs, each leg's checks, then the beats."""
-    out = [f"# Spec 157 / 158 -- the three views on the conversation, end to end (one run)", "",
+    out = [f"# Spec 157 / 158 / 159 -- the three views (the orb, the face, the copilot) on the conversation, end to end "
+           "(one run)", "",
            f"- keel-cloud `{meta.get('cloud')}` · keel-web `{meta.get('web')}` · keel-e2e-eval `{meta.get('eval')}`",
            f"- profile `{meta.get('profile')}` · started {meta.get('started')} · {meta.get('seconds', 0):g} s",
            f"- bundle `{meta.get('bundle')}`", f"- {scan_line(scan)}", "",
@@ -197,11 +234,13 @@ def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = Non
     out += beats_markdown(beats)
     out += drawn_story_markdown(fits)
     out += turn_markdown(turns)
+    out += orb_markdown(orbs)
     return "\n".join(out).rstrip() + "\n"
 
 
 def write_report(path: Path, legs, meta: dict, scan: dict, beats: list[dict] | None = None,
-                 fits: list[dict] | None = None, turns: list[dict] | None = None) -> Path:
+                 fits: list[dict] | None = None, turns: list[dict] | None = None,
+                 orbs: list[dict] | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(report_markdown(legs, meta, scan, beats, fits, turns), encoding="utf-8")
+    path.write_text(report_markdown(legs, meta, scan, beats, fits, turns, orbs), encoding="utf-8")
     return path
