@@ -261,6 +261,16 @@ def _option_index(options: list[str], word: str, fallback: int) -> int:
     return fallback
 
 
+def way_for(ways: list[str], control: str | None) -> str | None:
+    """Spec 159 FR-3: which of the ways still owed answers an item of `control` -- the letter only on a one-pick item
+    (the hold goes on by itself), the words or the tap on any item with rows but the price ladder (its second step)."""
+    if "letter" in ways and control in ONE_PICK:
+        return "letter"
+    if control == "price_ladder" or control is None:
+        return None
+    return next((w for w in ("words", "tap") if w in ways), None)
+
+
 def _lit_after(p, before_q: str, *, timeout_s: float = 12) -> dict:
     """What the sheet lit after an answer: polled until a row is ticked, the question changed or the time ran out."""
     deadline = time.monotonic() + timeout_s
@@ -277,12 +287,13 @@ def _lit_after(p, before_q: str, *, timeout_s: float = 12) -> dict:
 
 
 def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None, story: str = "said",
-              speak_or_tap: bool = False, refused: bool = False, film_ms: int = 1500) -> dict:
+              speak_or_tap: list | None = None, refused: bool = False, film_ms: int = 1500) -> dict:
     """The AI player on a link -- the orb or the face -- walked through the seam: the intro (its mic test, or the
     microphone refused), Start, then the film and the idea's story let play a moment and gone on from, and each window
     answered -- the screener *yes*, the gate *yes* (or the No), the story (`story`: `said` -- a story told, `chip-voice`
     -- *I can't recall one particular ...* said, `chip-tap` -- that chip tapped), each item its first option said (or,
-    `speak_or_tap`, the first three one-pick items by letter, words and tap), a follow-up skipped, the pilot *yes*.
+    `speak_or_tap`, the ways still owed -- the letter on a one-pick item, the words, the tap -- each taken off the list
+    as an item takes it, so a second link walks what the first had no item for), a follow-up skipped, the pilot *yes*.
     `refused`: every answer by tap (the story by its chip). Every response the page posted is kept."""
     from harness import interviewer_screens as ivs    # noqa: PLC0415
     p = ivs.Player(page, run.recorder)
@@ -302,7 +313,7 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
     said_at = 0.0
     again: dict = {}
     seconds: set = set()
-    ways = list(SPEAK_OR_TAP) if speak_or_tap and not refused else []
+    ways = speak_or_tap if speak_or_tap is not None and not refused else []
 
     def answer_row(index: int, how: str, row: dict) -> None:
         """One option row by `how` -- said by its words, said by its letter, or tapped."""
@@ -350,7 +361,9 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                 p.say("yes")
             page.wait_for_timeout(1500)
             continue
-        if phase != "listening" or (not refused and not p.recorder()["live"]):
+        # a refused microphone listens to nothing: the sheet stands open (`listening` with no recorder; before keel-web
+        # 254 the story's typed box, `typing`) and waits on a tap
+        if not (phase == "listening" or (refused and phase == "typing")) or (not refused and not p.recorder()["live"]):
             page.wait_for_timeout(300)
             continue
         sheet = p.sheet()
@@ -362,7 +375,8 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                 # Importance's second ask (*And one more?*): one pick is a whole answer
                 seconds.add(q)
                 nothing.first.click()
-            elif refused and save.count() and save.first.is_visible() and save.first.is_enabled():
+            elif (refused or str((rows[-1] if rows else {}).get("said") or "").startswith("tap:")) and save.count() \
+                    and save.first.is_visible() and save.first.is_enabled():
                 save.first.click()                               # a tapped multi-pick finishes on Save and next
             elif not refused and rows and rows[-1].get("said") and not str(rows[-1]["said"]).startswith(("tap:", "skip")) \
                     and time.monotonic() - said_at > 10 and again.get(q, 0) < 2:
@@ -423,8 +437,11 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
             if refused:
                 row["said"] = f"tap: {options[0]}"
                 page.get_by_test_id("ai-sheet").locator("[data-testid=ai-options] .opt").nth(0).click()
-            elif ways and item.get("control") in ONE_PICK and len(options) >= 2:
-                how = ways.pop(0)
+            elif len(options) >= 2 and way_for(ways, item.get("control")):
+                # the letter on the first one-pick item; the words and the tap on the next items with rows, whatever
+                # their control (a tapped multi-pick finishes on Save and next)
+                how = way_for(ways, item.get("control"))
+                ways.remove(how)
                 row["fr3"] = how
                 answer_row(1 if how == "letter" else 0, how, row)
                 row["read"] = _lit_after(p, q)
@@ -552,15 +569,17 @@ def orb_states_check(run, leg, walked: dict, *, view: str) -> None:
               detail={"answers read whole": len(whole), "runs": [" > ".join(r) for r in runs[:10]]})
 
 
-def speak_or_tap_checks(run, leg, walked: dict, *, view: str) -> None:
-    """159 FR-3: one item by its letter (*B* holds the second row), one by its words, one by tap (the first row)."""
-    tried = {r["fr3"]: r for r in walked["rows"] if r.get("fr3")}
+def speak_or_tap_checks(run, leg, rows: list[dict], *, view: str) -> None:
+    """159 FR-3: one item by its letter (*B* holds the second row), one by its words, one by tap (the first row) --
+    over the voice links' rows."""
+    tried = {r["fr3"]: r for r in rows if r.get("fr3")}
     for how, words in (("letter", f"*{LETTER}* said holds the second row (keel-cloud 266 through the fake transcriber)"),
                        ("words", "the first row's words said hold the first row"),
                        ("tap", "a tap on the first row holds it")):
         r = tried.get(how) or {}
         lit = (r.get("read") or {}).get("lit") or []
-        leg.check(run, f"speak or tap: {words}", bool(r) and lit == [r.get("want_lit")], screen="a one-pick item",
+        leg.check(run, f"speak or tap: {words}", bool(r) and bool(lit) and lit[0] == r.get("want_lit"),
+                  screen="an item with rows",
                   view=view, detail={"question": r.get("question"), "said": r.get("said"), "want": r.get("want_lit"),
                                      "read": r.get("read"), "control": r.get("control")}, stop=False)
 
@@ -600,12 +619,12 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
               got.get("status") == 200 and "audio" in str(got.get("type") or ""), screen="GET /v2/clips/{id}",
               view=f"{view} (wire)", detail=got)
     # 1. by voice: a story told; one item by its letter, one by its words, one by tap
-    walked = walk_link(run, made["url"], interview, shot=f"orb-{study}-done", speak_or_tap=True)
+    ways = list(SPEAK_OR_TAP)          # owed across the voice links (a problem link has two items with rows)
+    walked = walk_link(run, made["url"], interview, shot=f"orb-{study}-done", speak_or_tap=ways)
     run.orbs.append({"study": study, "link": "voice", **summary(walked)})
     orb_screen_checks(run, leg, walked, view=view, label="by voice")
     film_first_checks(run, leg, walked, view=view, study=study)
     orb_states_check(run, leg, walked, view=view)
-    speak_or_tap_checks(run, leg, walked, view=view)
     no_typed_box_check(run, leg, walked, view=view, label="by voice")
     sent = first_response(walked)
     leg.check(run, "the answers are sent (201), named TEXT (the format the link was served), and the thank-you drawn",
@@ -624,7 +643,8 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
         chip_link = tv.send_link(run, leg, f"{study}-orb-chip", project_id, "TEXT", person=person_at(names, 8),
                                  decider=decider)
         chip_wire, _ = read_served(run, chip_link["url"])
-        said = walk_link(run, chip_link["url"], chip_wire, shot=f"orb-{study}-chip-voice", story="chip-voice")
+        said = walk_link(run, chip_link["url"], chip_wire, shot=f"orb-{study}-chip-voice", story="chip-voice",
+                         speak_or_tap=ways)
         run.orbs.append({"study": study, "link": "the chip said", **summary(said)})
         body = first_response(said).get("sent") or {}
         told = ((body.get("gate") or {}) if isinstance(body.get("gate"), dict) else body)
@@ -635,6 +655,7 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
                   view=view, detail={"said": chip_row.get("said"), "sent": {k: body.get(k) for k in
                                                                             ("recency", "anchorChip", "story", "gate")},
                                      "answers": len(body.get("answers") or []), "done": said["done"]}, stop=False)
+    speak_or_tap_checks(run, leg, walked["rows"] + (said["rows"] if study != "money" else []), view=view)
     # 3. the microphone refused: the lot by taps, no typed box
     tap_link = tv.send_link(run, leg, f"{study}-orb-taps", project_id, "TEXT", person=person_at(names, 9),
                             decider=decider)

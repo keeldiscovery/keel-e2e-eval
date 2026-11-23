@@ -5763,6 +5763,8 @@ are read again until present (the leg's stopping check). **For keel-cloud:** spe
 land by the retry as by the first job (the completion listener on a retried questionnaire), or make the served read wait
 for its clips.
 
+
+**Status (spec 159, 2026-11-23):** moot on keel-cloud 267 (contract 84): the cards' `clipId` is gone (FR-4, `CardSpeech` deleted); the orb's passages are spoken when the lock's questions are final and, for one still missing, on the read itself (267 judgement calls 5-6). On `8bd57d6f` every orb link's first read served `interviewer` whole (the harness reads again until it is; it never had to).
 ## 105. Observation (keel-web): on a story link the scale cards draw no lettered bubbles
 
 Found by spec `157-the-three-views-end-to-end` (FR-2, the text view) on keel-web `9147af63`. keel-web 241 FR-7: *Answers
@@ -5775,6 +5777,8 @@ a scale is lettered on a story link (and draw it so), or narrow FR-7's *every ca
 **Closed 2026-11-21:** keel-web spec 244 FR-4 narrows 241 FR-7 to the option rows; a scale keeps its cells. The harness's
 check reads `scale` on the card and letters only the option rows (eval master after 2e752f3).
 
+
+**Status (spec 159):** moot -- the text player's cards are not reached from a served interviewer (keel-web 253 FR-2; 254 deletes them); the AI sheet letters its option rows.
 ## 106. Observation (keel-cloud): the decision-maker's link serves no `ideaStory`
 
 Found by spec `157-the-three-views-end-to-end` (FR-2, the money link) on keel-cloud-docs `78237f87` + keel-web `9147af63`.
@@ -5788,6 +5792,8 @@ solution project whose idea's build is `ready`) serves `story`, `problemCheck` a
 and the avatar's second hand-over fail by name and the walk goes on. **For keel-cloud:** serve the parent's `ideaStory` on
 the money link up the chain, as the `story` is.
 
+
+**Status (spec 159, 2026-11-23): resolved** on keel-cloud-docs `8bd57d6f` + keel-web `41d18480`: the decision-maker's link serves `ideaStory`, and on the orb and the face the film plays first and the idea's story after its hand-over line (*Let me show you how ...*); the copilot grows twice (`runs/157/8bd57d6f-41d18480/`).
 ## 107. Observation (keel-cloud, the fakes): a story whose last beat is scripted reaches the boxes with no cost, so the boxes draw no cost box
 
 Found by spec `158-the-conversation-walked` (FR-1 (a), *the long telling*) on keel-cloud-docs `8927987c` (263 + 263b) +
@@ -5871,3 +5877,19 @@ it. **For keel-web:** keep the footer off the conversation's and the story card'
 keel-web 249's orb row above the story the founder's story on a phone (`define/story/check`, reopened) is 941 px on
 844 (was 890 on `18e23482`); the stranger's story cards are unchanged (875 px; 902 px on the decision-maker's link). The
 story itself fits on all five phone reads.
+
+## 112. Observation (keel-web): on the one player the story's *I can't recall one particular ...* said aloud is taken as the story's words, not as the chip
+
+Found by spec `159-the-orb-walked` (FR-3) on keel-web `41d18480` (253) with keel-cloud-docs `8bd57d6f`, the local eval
+stack (`runs/157/8bd57d6f-41d18480/`). Spec 159 FR-3 walks the story question *by its chip by voice on one link and by
+tap on another*. Tapped, *I can't recall one particular pay run* ends the interview as spec 127 FR-3 / 145 FR-5 say
+(`{recency: true, anchorChip: CANT_RECALL, answers: []}`). Said aloud through the fake transcriber, the same words are
+written down and kept as the story itself: the response carries `story: "I can't recall one particular pay run"`,
+`anchorChip` absent, and the interview goes on to the items (`AiFlow`'s free window matches a spoken chip only for
+`RATHER_NOT_SAY`, spec 152 FR-1, `chipSaid`; the `CANT_RECALL` chip is a tap alone). So a person who says the chip's
+words aloud is counted as having told a story -- whose words are the refusal of one -- and is asked part 1's questions.
+On the orb this is the common path (keel-web 254: speak or tap). **What the harness does** (spec 159): *the story's chip
+said aloud is taken as the chip* is a failed check by name (`stop=False`), the walk goes on. **For keel-web:** match the
+`CANT_RECALL` chip said aloud as `RATHER_NOT_SAY` is matched (`chipSaid` over both chips), or say in 254 that only *I'd
+rather not say* is a spoken chip.
+
