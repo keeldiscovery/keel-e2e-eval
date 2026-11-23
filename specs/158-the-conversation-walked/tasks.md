@@ -202,4 +202,49 @@ On branch `158b-story-fit`, each pushed as made:
 - [x] T1 Selectors: `story-glow` dropped, `story-boxes` -> `UnderstoodCard.tsx`, `story-heard` under `VoiceStage.tsx`, `story-understood`/`idea-understood`; `test_three_views_157.py` green.
 - [x] T2 Snapshot: `heard` field; `words` Keel's lines only; rows by `data-box`; `BEAT_ORB` per FR-7; the chime counter and the hand-over check.
 - [x] T3 One film (FR-8) asserted on the founder's leg.
-- [ ] T4 Run of record (FR-9), report, DRIFT; unit tests; tasks.md with the judgement calls and the commits.
+- [x] T4 Run of record (FR-9), report, DRIFT; unit tests; tasks.md with the judgement calls and the commits.
+
+## 158c Gate / Commits / Judgement calls
+
+Built 2026-11-22 from 17:20 ET by a builder (Claude Opus 5.5) off `origin/master` `9a4517a`, worktree
+`/Users/athulrajeev/Documents/projects/wt/keel-e2e-eval-158c`, branch `158c-turn-made-plain`. Nothing paid, merged or deployed.
+
+| Check | Result |
+|---|---|
+| `make unit` (`b4dc8ce`, siblings keel-cloud-docs `8515f85f`, keel-web `f6f7a2c9`, 18:31-18:40 ET) | 5,990 passed / 43 failed / 126 skipped. The 43 are master's: the 32 known (mirrors 144/148/149/154, credits 088, follow-ups 075, instruction, report-marks, backtest host) plus 9 that fail identically on master `9a4517a` against today's siblings (mirror 132 x3, founder walk 076, guide sent marks, instruction brief facts, one more thing 075, open link 092, sharing 130). New/changed tests green: `test_turn_made_plain_158c.py` (10), `test_three_views_157.py`, `test_conversation_158.py`, `test_story_fit_158b.py` (83 passed, 1 skipped) |
+| run 0 (old harness, 17:23 ET, `runs/157/af49e837-824ede0a/20261122T222344Z`) | 12/13; FR-1a red on DRIFT #110 only |
+| run 1 (`312ad8d`, 17:43 ET) | 4/13: one film read off the wrong page (the market step had pressed the opener's Skip), the card's lit rows read too late, the which-problem frames read before they loaded |
+| run 2 (`312ad8d`+fixes, 17:55 ET, `runs/157/8515f85f-f6f7a2c9/20261122T225546Z`) | 4/13: the return trip's list read mid-refresh |
+| **run 3** (`b4dc8ce`, 18:09-18:30 ET, `runs/157/8515f85f-f6f7a2c9/20261122T230926Z`) | **12/13 green, 291 checks held**; FR-1a red on the one `stop=False` check of DRIFT #110 alone; *The turn*: every conversation one chime per hand-over, *Your turn.* in the listening frame, mic open, one film where an opener played |
+| run 4 (`3e5c64d`, 18:41-19:02 ET, `runs/157/8515f85f-f6f7a2c9/20261122T234152Z`) | 3/13 under load (a keel-cloud 264 `clean check` gate running beside it, load average ~15): the long telling's boxes confirmed by the page's own 4 s quiet before the walk reached them; FR-1b's *A new problem* never reached `story-start` in 30 s. Not a product finding; to be re-run on a quiet machine |
+
+Served shas: keel-cloud's `bootRun` started at 17:22 ET on `af49e837` and does not reload, so every run served cloud `af49e837` although the folder names the checkout at the run's start (`8515f85f`, spec 265, committed 17:48 ET). keel-web moved `824ede0a` -> `f6f7a2c9` (the window route) at 17:45 ET; vite serves the working tree, so runs 2-4 walked `f6f7a2c9`.
+
+## 158c Commits
+- `71bc718` T1 (FR-7) selectors on 249
+- `bd2c698` T2 (FR-7) snapshot, heard/words, card rows, the orb log's line/chime/mic, hand-over and writing->speaking checks
+- `312ad8d` T3 (FR-8) one film
+- `b4dc8ce` T4 (FR-6/7/8) *The turn* in the report; the first runs' fixes
+- `3e5c64d` T4 (FR-7/9) quotation marks on *What I hear*; DRIFT #108/#110/#111 status
+- this file
+
+## 158c Judgement calls
+1. **The card's row keys are keel-web's `BOX_KEYS`** (`person`, `task`, `when`, `today`, `limits`, `cost`): FR-7 says `job` "as the card names them"; the card names it `task`. The idea's product row rides on `today`.
+2. **A hand-over is `speaking -> listening`** in the orb log (249's judgement call 5: a thinking pause's `writing -> listening` is not one). The chime counted a moment before React draws the listening orb is tolerated within 1 s.
+3. **`listening` only where the microphone opened** is read two ways: every listening row has the seam's recorder running (`mic`), and each beat's orb goes `writing -> speaking`.
+4. **The replays' hand-over line is *Your turn. I am listening.*** (the idea replay and the money replay ask no *Is that right?*); the check holds *Your turn.* off the beats and *Your turn. I am listening.* on them. Not written as DRIFT.
+5. **One film** is checked on every new problem conversation (FR-1 a, b, c): the market step now holds the guide sheet (`welcome="hold"`) and the walk does not reload a page already on the story's start, so the opener is met and logged by the walk; sheets read per project from the page's whole log.
+6. **New checks are `stop=False`**: a miss fails the leg by name and the leg goes on.
+7. **DRIFT #110's check stays `stop=False`** until keel-cloud 264 (branch `800fb399`) lands; FR-1 (a) is reported failed by it alone (FR-9).
+8. **No stack restart for 265** while a keel-cloud 264 gate ran (never two Gradle builds at once).
+
+## 158c DRIFT written
+- No new entry: nothing the walk met on 249 contradicts 263/245/249 as written.
+- #108 status: not met on 249 (the opener's Skip starts the conversation).
+- #110 status: still met on `af49e837`.
+- #111 status: still open; founder's phone page 941 px on 844.
+
+## 158c Open
+- The run of record must be re-run on a quiet machine on `3e5c64d`+ (run 3 on `b4dc8ce` is the last clean one, 12/13).
+- Restart the stack once 264/265 are both on master so the served cloud matches the folder name.
+- `PROFILE=remote` not run (the coordinator's).
