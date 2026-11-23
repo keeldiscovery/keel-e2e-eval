@@ -11,6 +11,7 @@ import pytest
 
 from harness import interviewer_screens as ivs
 from harness import interviews_screens as iv
+from harness import story_screens as ss
 from stack.config import REPO_ROOT, load_config
 
 
@@ -181,19 +182,26 @@ def test_the_templates_are_keel_webs_own():
 
 # spec 154 (keel-web 187): the persona line and its popup (`persona-line`, `change-who-asks`, `change-face-popup`,
 # `change-face-confirm`) are gone; the kind card's are `kind-card`, `set-up-interviewer`, `set-up-interviewer-popup`,
-# `set-up-record`, `set-up-not-now`, `kind-asks`, `kind-progress`, `kind-try-again`
+# `set-up-record`, `set-up-not-now`, `kind-asks`, `kind-progress`, `kind-try-again`. Spec 159 (keel-web 253): the
+# Let-them-choose screen (`choice-talk`, `choice-write`) is gone; the orb's intro (`intro-orb`), its stage (`ai-orb`),
+# the film's dim orb (`ai-story-orb`) and the kind card's *Try it yourself* on Keel's voice (`try-keel-voice`) are
+# pressed or read; *Type instead* (`ai-type`, `ai-typed`) until keel-web 254 retires typing.
 @pytest.mark.parametrize("testid", ["kind-card", "set-up-interviewer", "set-up-interviewer-popup", "set-up-record",
                                     "set-up-not-now", "set-up-cost", "set-up-title", "kind-asks", "kind-progress",
                                     "kind-try-again", "kind-failure", "new-link", "new-group-link", "plan-call",
                                     "new-link-popup", "send-make", "link-made", "format-set-up-on-card",
-                                    "try-it-yourself", "ai-intro", "start-talking", "choice-talk", "choice-write",
-                                    "ai-stage", "ai-where", "ai-end", "ship-mark", "ai-sheet", "ai-options",
-                                    "ai-field", "ai-preview", "ai-heard", "ai-type",
+                                    "try-it-yourself", "try-keel-voice", "ai-intro", "intro-orb", "start-talking",
+                                    "ai-stage", "ai-orb", "ai-story-orb", "ai-where", "ai-end", "ship-mark", "ai-sheet",
+                                    "ai-options", "ai-field", "ai-preview", "ai-heard", "ai-type",
                                     "ai-typed", "ai-done", "face-carousel", "lock-and-record"])
 def test_every_selector_the_page_objects_press_is_in_keel_web(testid):
     root = load_config(validate=False).keel_web / "src"
     if not (root / "components/interview/ai").is_dir():
         pytest.skip("keel-web predates spec 069")
+    if testid in ("ai-type", "ai-typed") and ss.web_retired_typing(root.parent):
+        pytest.skip("keel-web 254: nothing typed on a link (*Type instead* retired)")
+    if testid in ("intro-orb", "ai-orb", "ai-story-orb", "try-keel-voice") and not ss.web_has_orb(root.parent):
+        pytest.skip("keel-web before 253 (the orb interviews)")
     hits = [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")]
     assert hits, testid
     assert testid in Path(ivs.__file__).read_text(encoding="utf-8") + Path(

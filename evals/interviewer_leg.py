@@ -747,12 +747,12 @@ def _screens_ready(j, wire: _Wire, record: dict) -> None:
         rows = {k: v for k, v in formats["formats"].items() if k != "_on_card"}
         h.record_assert({"card": {"state": "READY", "asks": ivs.kind_asks(name),
                                   "primary": {"id": "try-it-yourself", "text": ivs.TRY_IT_YOURSELF, "enabled": True}},
-                         "formats": [iv.TEXT_ONLY, iv.ai_format_name(name), iv.CHOICE_NAME],
+                         "formats": [iv.TEXT_ONLY, iv.ai_format_name(name)],   # spec 159: no CHOICE row
                          "status": iv.FORMAT_READY_NOW, "credits": None, "on_card": None},
                         {"S2": record["screens_drawn"]["S2"], "S3": formats})
         assert card.get("asks") == ivs.kind_asks(name), card
         assert (card.get("primary") or {}) == {"id": "try-it-yourself", "text": ivs.TRY_IT_YOURSELF, "enabled": True}, card
-        assert list(rows) == [iv.TEXT_ONLY, iv.ai_format_name(name), iv.CHOICE_NAME], list(rows)
+        assert list(rows) == [iv.TEXT_ONLY, iv.ai_format_name(name)], list(rows)   # keel-web 253: two rows
         assert not any(r["disabled"] for r in rows.values()), rows
         assert all(r.get("status") == iv.FORMAT_READY_NOW and r["word"] is None for r in rows.values()), rows
         assert formats["formats"].get("_on_card") is None, formats

@@ -261,3 +261,39 @@ def moves_balance(row: dict) -> bool:
     """Whether a ledger row moves `creditsAvailable` at all: at 17 only PROJECT and INTERVIEWER_RECORDING (and the
     stand-ins / grants / refunds) carry credits; every job row is 0."""
     return int(row.get("credits") or 0) != 0
+
+
+# ------------------------------------------------------------- spec 159 FR-4: the orb's clips buy nothing (keel-cloud 267)
+
+#: keel-cloud `InferenceCharge.VERSION` on the masters spec 159 walks: **20** (spec 260's IDEA_TURN; 19 was spec 259's
+#: seven measured rows, SPEECH and CARD_SPEECH among them). keel-cloud 267 left it at 20: the orb's and the face's Nova
+#: clips are `CARD_SPEECH` measured rows -- no row added or repriced. `PRICE_VERSION` above stays the mirror the older
+#: suites pin (17); re-cutting them to 20 is not spec 159's (158's tasks.md, the pre-existing mirror reds).
+PRICE_VERSION_267 = 20
+#: keel-cloud 259 FR-11 / 267 FR-1: the row a new Keel AI clip writes for an interviewer's passage -- priced 0, carrying
+#: its measured cost, and only on a project of an account on Keel's AI (an account on its own AI writes none, X8).
+CARD_SPEECH = "CARD_SPEECH"
+CARD_SPEECH_CREDITS = 0
+#: The two rows that move a balance since keel-cloud 250 (every job row is 0).
+BOUGHT = (PROJECT, "INTERVIEWER_RECORDING")
+
+
+def card_speech_rows(ledger: list[dict]) -> list[dict]:
+    """Every `CARD_SPEECH` row (the orb's passages, or the face's audio spoken before its render)."""
+    return [x for x in ledger if x.get("action") == CARD_SPEECH]
+
+
+def orb_charge_faults(ledger: list[dict]) -> list[str]:
+    """Spec 159 FR-4: what in `ledger` (non-stand-in rows) would be a charge for the orb's clips -- a `CARD_SPEECH` row
+    that is not a measured SPEND of 0 credits priced 0, or any row that moves the balance down other than the two
+    bought (PROJECT, INTERVIEWER_RECORDING). [] where the orb bought nothing."""
+    faults = []
+    for row in card_speech_rows(ledger):
+        credits, price = int(row.get("credits") or 0), int(row.get("price_credits") or 0)
+        if credits != CARD_SPEECH_CREDITS or price != CARD_SPEECH_CREDITS:
+            faults.append(f"CARD_SPEECH row {row.get('idempotency_key')}: credits {credits}, price {price}, not 0")
+    for row in ledger:
+        if int(row.get("credits") or 0) < 0 and row.get("action") not in BOUGHT:
+            faults.append(f"a charge that is not bought: {row.get('action')} {row.get('credits')} "
+                          f"({row.get('idempotency_key')})")
+    return faults
