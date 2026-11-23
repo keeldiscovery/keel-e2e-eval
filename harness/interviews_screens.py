@@ -97,16 +97,24 @@ SEND_THE_QUESTIONS = "Send the questions"
 #: {name}*); the constant keeps its name for the legs that hold an answered row offers none.
 MAKE_A_NEW_LINK = "New link"
 RELINK_DONE = "Done"
-#: The Continue words (`FORMAT_LABEL`). Spec 118 FR-4c(f) (keel-web 156 FR-2): *Continue · Read and tap* (it read
-#: *Continue · Text*).
-FORMAT_NAMES = {"TEXT": "Read and tap", "AI_INTERVIEWER": "AI interviewer", "CHOICE": "Let them choose"}
+#: Spec 159 FR-4 (keel-web 253 FR-4, `TEXT_FORMAT_NAME`; keel-cloud 267 FR-2): the TEXT format is the orb now, named
+#: *Keel's voice* on every place it is drawn -- New link's row (preselected), the Sent table's Format column, the Continue
+#: words (`FORMAT_LABEL`). It read *Read and tap* from keel-web 156 to 252 (*Text only* / *Text* before 156).
+KEELS_VOICE = "Keel's voice"
+#: The Continue words (`FORMAT_LABEL`) and New link's rows, in their order: Keel's voice, then the AI interviewer. Spec
+#: 159 FR-4 (keel-web 253): the Let-them-choose row is gone from the popup (a stored CHOICE link still reads *Let them
+#: choose* on Sent: `STORED_FORMAT_NAMES`). Spec 118 FR-4c(f) (keel-web 156 FR-2): it read *Continue · Read and tap*.
+FORMAT_NAMES = {"TEXT": KEELS_VOICE, "AI_INTERVIEWER": "AI interviewer"}
+#: What Sent's Format column names each stored format (a CHOICE link made before keel-web 253 keeps its name).
+STORED_FORMAT_NAMES = {**FORMAT_NAMES, "CHOICE": "Let them choose"}
 # ---- keel-web 069 (`translate.ts` at d23895f): Send more's rows and their greyed words
-#: Spec 118 FR-4c(f) (keel-web 156 FR-2, `READ_AND_TAP`): the text route's name on every place it is drawn -- Send
-#: more's row, the Sent table's Format column, the link's choice screen (`choice-write`) -- it read *Text only* (*Text*
-#: in the column, *Answer in writing* on the choice screen).
+#: The TEXT format's name before keel-web 253 (spec 118 FR-4c(f), keel-web 156 FR-2, `READ_AND_TAP`), kept for the
+#: record and for a keel-web checkout before 253.
 READ_AND_TAP = "Read and tap"
-TEXT_ONLY = READ_AND_TAP
-#: The names a keel-web before 156 drew, read where one is still served.
+#: The TEXT format's name as keel-web draws it now (spec 159): *Keel's voice*.
+TEXT_ONLY = KEELS_VOICE
+#: The names a keel-web before 253 drew, read where one is still served.
+TEXT_ONLY_BEFORE_253 = (READ_AND_TAP, "Text only", "Text")
 TEXT_ONLY_BEFORE_156 = ("Text only", "Text")
 CHOICE_NAME = "Let them choose"
 #: keel-web 069's bare *recording* tag -- gone with keel-web 156 FR-2 (T007): a row while the face records draws the
@@ -620,14 +628,15 @@ class Interviews:
         self._shot("send-format")
         formats = self._formats(dialog)
         # keel-web 069 checks the AI interviewer first once it is recorded: the asked format is always pressed
+        # spec 159 FR-4 (keel-web 253): TEXT is *Keel's voice*; *Read and tap* / *Text only* / *Text* on an older web
         pattern = {"AI_INTERVIEWER": re.compile(r"^AI interviewer"), "CHOICE": re.compile(rf"^{CHOICE_NAME}"),
-                   "TEXT": re.compile(rf"^({READ_AND_TAP}|Text only|Text)$")}[fmt]
+                   "TEXT": re.compile(rf"^({re.escape(KEELS_VOICE)}|{READ_AND_TAP}|Text only|Text)$")}[fmt]
         radio = dialog.locator("[role=radiogroup] [role=radio]", has=self.page.locator(".fmt__name", has_text=pattern))
         if radio.count() and radio.first.get_attribute("aria-checked") != "true":
             # spec 074 (keel-web 119 FR-2): the AI interviewer's row carries *Hear it* inside it, whose press opens the
             # popup and does not choose the row -- so the row is picked by its name, never its middle
             radio.first.locator(".fmt__name").first.click()
-        dialog.get_by_role("button", name=f"Continue · {FORMAT_NAMES[fmt]}", exact=True).click()
+        dialog.get_by_role("button", name=f"Continue · {STORED_FORMAT_NAMES[fmt]}", exact=True).click()
         dialog.get_by_role("radiogroup", name="Who").wait_for(state="visible", timeout=10_000)
         return formats
 
@@ -702,7 +711,7 @@ class Interviews:
 
     def send_someone(self, project_id: str, kind_label: str, person: str, fmt: str = "TEXT") -> dict:
         """Spec 154 FR-2 (keel-web 187 FR-3): **New link**, one screen -- the kind row when the project has two kinds, *Their
-        name*, the format (*Read and tap* preselected; the AI interviewer and Let them choose live only on a kind READY),
+        name*, the format (*Keel's voice* preselected since keel-web 253; the AI interviewer live only on a kind READY),
         *Make {first}'s link* -> `POST invitations/batch`; the link shown on the same popup (`link-made`), Done. Returns
         the link drawn, the batch keel-web received, what it sent (`sent`) and the formats as served (`formats`, keyed by
         row name as before; `formats["_on_card"]` the one line under the rows). Spec 076 FR-3 (keel-web 127 FR-1): the

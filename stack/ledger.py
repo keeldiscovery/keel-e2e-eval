@@ -323,6 +323,17 @@ def story_turns(config: StackConfig, project_id: str) -> dict[int, str]:
     return {int(n): str((turn or {}).get("text") or "") for n, turn in turns.items()}
 
 
+def speech_clip(config: StackConfig, clip_id: str) -> dict | None:
+    """Spec 159 FR-2: one of Keel AI's clips as keel-cloud 259 stored it (`speech_clip`: its id, its key -- the sha256 of
+    the voice and the words as spoken, `KeelVoice.key` -- the voice, its type, its length in bytes and its measured
+    cost). The words are on no row and no route; the key is how two clips are known to say the same words. A plain
+    `SELECT` of one row; None where the id is not Keel AI's."""
+    _require_uuid(clip_id)
+    found = _json(config, "SELECT id, cache_key, voice, content_type, octet_length(bytes) AS size, cost_micro_usd "
+                          "FROM speech_clip WHERE id = :'clip'::uuid", clip=clip_id)
+    return found[0] if found else None
+
+
 def stand_in_first_person(config: StackConfig, project_id: str, line: str) -> str | None:
     """Stand-in 6 (spec 154 FR-4 / FR-5): the idea card's first-person belief (`corridor.idea.beliefFirstPerson`,
     keel-cloud 248 FR-7b) written as the FIRST_PERSON job would write it. That job runs on Keel's AI alone (keel-cloud

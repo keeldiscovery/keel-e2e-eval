@@ -135,8 +135,8 @@ def test_the_problem_projects_name_is_keel_webs():
 
 def _legs():
     green = tv.Leg("FR-1a", "the problem", status="green", checks=[tv.Check("held", True, "s", "founder")])
-    failed = tv.Leg("FR-2 problem · text", "the link", status="failed", why="the gate (screen: gate; view: text)",
-                    checks=[tv.Check("the gate", False, "the gate card", "text", {"got": 1})])
+    failed = tv.Leg("FR-2 problem · orb", "the link", status="failed", why="the gate (screen: gate; view: orb)",
+                    checks=[tv.Check("the gate", False, "the gate card", "orb", {"got": 1})])
     unbuilt = tv.Leg("FR-1c", "money", status="written, not run", why="keel-web 243 not in the checkout")
     return [green, failed, unbuilt]
 
@@ -145,7 +145,7 @@ def test_the_report_names_every_check_and_a_failures_screen_and_view():
     md = report.report_markdown(_legs(), {"cloud": "c", "web": "w", "eval": "e", "profile": "eval", "started": "t",
                                           "seconds": 1, "bundle": "b"}, report.log_scan(""))
     assert "| FR-1a | the problem | **green** |" in md
-    assert "[FAILED] the gate (screen: the gate card; view: text)" in md
+    assert "[FAILED] the gate (screen: the gate card; view: orb)" in md
     assert "**written, not run** -- keel-web 243 not in the checkout" in md
     assert "**1 of 3 legs green.**" in md
     assert "no HeyGen, no OpenAI, no Anthropic host contacted" in md
@@ -164,7 +164,8 @@ def test_the_log_scan_sees_a_vendor_and_a_paid_clip():
 def test_the_legs_are_fr1_a_to_d_and_fr2s_nine():
     assert [leg for leg, _ in tv.FOUNDER_LEGS] == ["FR-1a", "FR-1b", "FR-1c", "FR-1d"]
     assert len(tv.STRANGER_LEGS) == 9
-    assert {leg.split(" · ")[1] for leg, _ in tv.STRANGER_LEGS} == {"text", "avatar", "copilot"}
+    # spec 159 (keel-web 253): the text view is the orb view
+    assert {leg.split(" · ")[1] for leg, _ in tv.STRANGER_LEGS} == {"orb", "avatar", "copilot"}
 
 
 # ------------------------------------------------------------------------------------------- the subjects' mirror
@@ -236,8 +237,15 @@ WEB_SELECTORS = {
                                             "money-solution", "money-use-solution", "money-create-solution",
                                             "money-offer-name", "money-use-name"),
     "src/routes/founder/corridor/MoneyReplayRoute.tsx": ("money-replay",),
-    "src/components/interview/StoryScreen.tsx": ("story-screen", "idea-story-screen"),
-    "src/components/interview/CardVoice.tsx": ("card-voice", "card-voice-mute"),
+    # spec 159 (keel-web 253 / 254): the stranger's views are the one AI player -- the orb or the face, the film on its
+    # stage; the text player's story card (`StoryScreen`) and its voice bar (`CardVoice`) are no longer walked
+    "src/components/interview/ai/AiInterviewPlayer.tsx": ("ai-player", "ai-stage", "ai-orb", "ai-orb-state", "ai-story",
+                                                          "ai-story-orb", "ai-story-go-on", "ai-face", "ai-done"),
+    "src/components/interview/ai/AiIntro.tsx": ("ai-intro", "intro-orb", "start-talking", "ai-mic-test",
+                                                "ai-mic-heard", "ai-mic-fallback"),
+    "src/components/interview/ai/Sheet.tsx": ("ai-sheet", "ai-options", "ai-back", "ai-skip", "ai-yes", "ai-save",
+                                              "ai-field"),
+    "src/components/interviews/SentPage.tsx": ("try-it-yourself", "try-keel-voice"),
     "src/routes/landing/ProjectTabs.tsx": ("project-row-defined",),
     "src/routes/founder/calls/CopilotCard.tsx": ("show-story", "story-again", "show-idea-story", "copilot-grown",
                                                  "copilot-shrink", "copilot-still"),

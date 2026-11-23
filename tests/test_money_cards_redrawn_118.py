@@ -543,7 +543,8 @@ def test_the_interviewer_screens_say_156s_words():
     text = (KEEL_WEB / "src" / "lib" / "translate.ts").read_text(encoding="utf-8")
     # spec 154 (keel-web 187): the lock screen's interviewer line, its *send later* line and *Send read-and-tap links*
     # are gone with the face step on the lock and Send more's wizard; *Ready now* and *Read and tap* stand
-    for word in (ivs.FORMAT_STATUS_READY, iv.READ_AND_TAP, ivs.FORMAT_RECORDING_SOON):
+    # spec 159 (keel-web 253 FR-4): the TEXT format is *Keel's voice* (*Read and tap* until 253)
+    for word in (ivs.FORMAT_STATUS_READY, iv.TEXT_ONLY, ivs.FORMAT_RECORDING_SOON):
         assert word in text, word
     assert ivs.send_format_title("construction superintendents") == "How should construction superintendents answer?"
     assert ivs.before_interviewer_title("construction superintendents on commercial jobs") == \
@@ -551,7 +552,8 @@ def test_the_interviewer_screens_say_156s_words():
     assert ivs.format_status_when_ready("Daphne") == "Ready when Daphne is"
     assert ivs.send_ai_claim("she") == "She catches every spoken answer in a quiet room, and more than 9 in 10 where it " \
                                        "is loud."
-    assert iv.FORMAT_NAMES["TEXT"] == "Read and tap" and iv.TEXT_ONLY == "Read and tap"
+    assert iv.FORMAT_NAMES["TEXT"] == "Keel's voice" and iv.TEXT_ONLY == "Keel's voice"
+    assert iv.READ_AND_TAP == "Read and tap"                                   # the retired name, kept for the record
     from harness import browser as browser_mod                         # noqa: PLC0415
     assert browser_mod.choice_write_label(7) == "Read and tap · about 7 minutes"
 

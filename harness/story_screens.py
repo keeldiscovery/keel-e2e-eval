@@ -1869,3 +1869,175 @@ class StoryLinkText:
             h.record_wire({"url": url, "no_on": no_on}, {"screens": self.screens, "done": done, "response": response})
             return {"screens": list(self.screens), "done": done, "response": response,
                     "exit": done == EXIT_TITLE}
+
+
+# ================================================================================ spec 159: the orb interviews
+# keel-cloud 267 (contract 84) serves `Interview.interviewer` on every TEXT and AI_INTERVIEWER link, `speaker` ORB or
+# AVATAR, the orb's clips Nova audio at `/v2/clips/{id}`, `clips.problem` null where the film is served, the cards'
+# `clipId` gone; keel-web 253 plays it (one player, the orb in the face's place, the film first) and 254 retires the
+# text player and typing.
+
+#: keel-web 253's player and the files 254 deletes -- read to say which keel-web the walk meets.
+ORB_PLAYER_SOURCE = "src/components/interview/ai/AiInterviewPlayer.tsx"
+TYPING_SOURCE = "src/lib/aiInterviewFlow.ts"
+CARD_VOICE_SOURCE = "src/components/interview/CardVoice.tsx"
+
+
+def web_has_orb(keel_web: Path) -> bool:
+    """keel-web 253 is in the checkout: the AI player renders the orb by `speaker`."""
+    source = Path(keel_web) / ORB_PLAYER_SOURCE
+    return source.exists() and 'data-speaker={orb ? "ORB" : "AVATAR"}' in source.read_text(encoding="utf-8")
+
+
+def web_retired_typing(keel_web: Path) -> bool:
+    """keel-web 254 is in the checkout: no *Type instead* in the flow and no card voice (FR-1, FR-2)."""
+    flow = Path(keel_web) / TYPING_SOURCE
+    return flow.exists() and "typeInstead" not in flow.read_text(encoding="utf-8") \
+        and not (Path(keel_web) / CARD_VOICE_SOURCE).exists()
+
+
+def speech_key(voice: str, text: str) -> str:
+    """keel-cloud `KeelVoice.key`: the sha256 hex of the voice, a newline and the words as spoken (whitespace runs as one
+    space, the ends stripped) -- the `speech_clip.cache_key` a clip of these words in this voice is stored under."""
+    import hashlib                                                            # noqa: PLC0415
+    words = re.sub(r"[ \t\n\x0b\f\r]+", " ", str(text or "").strip())
+    return hashlib.sha256(f"{voice}\n{words}".encode("utf-8")).hexdigest()
+
+
+def clip_refs(player: dict | None) -> list[tuple[str, dict]]:
+    """Every `ClipRef` an `InterviewerPlayer` serves, named where it sits: `clips.<kind>`, `clips.followUp.<rung>`,
+    `items.<itemId>.<clip|more|under|over>`."""
+    out: list[tuple[str, dict]] = []
+    clips = (player or {}).get("clips") or {}
+    for kind, ref in clips.items():
+        if kind == "followUp":
+            for rung, one in (ref or {}).items():
+                if one:
+                    out.append((f"clips.followUp.{rung}", one))
+        elif isinstance(ref, dict):
+            out.append((f"clips.{kind}", ref))
+    for item_id, entry in ((player or {}).get("items") or {}).items():
+        for part in ("clip", "more", "under", "over"):
+            ref = (entry or {}).get(part)
+            if isinstance(ref, dict):
+                out.append((f"items.{item_id}.{part}", ref))
+    return out
+
+
+def cards_carrying_a_clip(interview: dict) -> list[str]:
+    """Spec 159 FR-1 (keel-cloud 267 FR-4, contract 84): every served card that still carries a `clipId` key -- the gate,
+    its condition, the link's condition, the problem check, each item, each follow-up. [] on contract 84."""
+    out = []
+    gate = interview.get("gate") or {}
+    if "clipId" in gate:
+        out.append("gate")
+    if "clipId" in (gate.get("condition") or {}):
+        out.append("gate.condition")
+    if "clipId" in (interview.get("condition") or {}):
+        out.append("condition")
+    if "clipId" in (interview.get("problemCheck") or {}):
+        out.append("problemCheck")
+    for part in interview.get("parts") or []:
+        for item in part.get("items") or []:
+            if "clipId" in item:
+                out.append(f"item {item.get('dimension') or item.get('itemId')}")
+    for follow in interview.get("followUps") or []:
+        if isinstance(follow, dict) and "clipId" in follow:
+            out.append(f"followUp {follow.get('dimension') or follow.get('rung') or '?'}")
+    return out
+
+
+def served_items(interview: dict) -> list[dict]:
+    """The link's items in the served order (every part's)."""
+    return [i for part in interview.get("parts") or [] for i in part.get("items") or []]
+
+
+#: Spec 159 FR-1: the stranger's player watched change by change on `window.__ivLog` (158 FR-2's collector, on the AI
+#: player): the stage orb's `data-state` (`ai-orb`; `orb_sequence` / `holds_in_order` read it as 158 read the founder's),
+#: the stage's phase and speaker, the film or the idea's story on the stage (`ai-story`: its kind, `data-first`, the
+#: hand-over line), the question pill and the sheet's question, the intro's speaker, and on every row what must never be
+#: drawn on an orb link: a typed box (`textarea`, `input[type=text]`), the text player's voice bar (`card-voice`), the
+#: Let-them-choose buttons (`choice-talk`, `choice-write`), the words *Read and tap*; the recorder running (`mic`).
+ORB_INTERVIEW_WATCH = r"""(() => {
+  const log = (window.__ivLog = window.__ivLog || []);
+  let last = '';
+  const t = (el) => (el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : null);
+  const read = () => {
+    const q = (s) => document.querySelector(s);
+    const stage = q('[data-testid=ai-stage]');
+    const onStage = !!stage && !stage.hasAttribute('hidden');
+    const orb = q('[data-testid=ai-orb]');
+    const story = q('[data-testid=ai-story]');
+    const intro = q('[data-testid=ai-intro]');
+    const typed = [...document.querySelectorAll('textarea, input[type=text]')]
+      .map((el) => el.getAttribute('data-testid') || el.tagName.toLowerCase());
+    const row = {
+      state: onStage && orb ? orb.getAttribute('data-state') : null,
+      phase: stage ? stage.getAttribute('data-phase') : null, onStage,
+      speaker: stage ? stage.getAttribute('data-speaker') : null,
+      intro: intro ? intro.getAttribute('data-speaker') : null,
+      film: story ? story.getAttribute('data-kind') : null,
+      first: !!(story && story.hasAttribute('data-first')),
+      hand: story ? t(story.querySelector('.aiv-story__hand')) : null,
+      filmOrb: story ? !!story.querySelector('[data-testid=ai-story-orb] [data-testid=story-orb]') : false,
+      where: t(q('[data-testid=ai-where]')),
+      question: t(q('[data-testid=ai-sheet] .iv-q')),
+      typed,
+      voiceBar: document.querySelectorAll('[data-testid=card-voice]').length,
+      choice: document.querySelectorAll('[data-testid=choice-talk], [data-testid=choice-write]').length,
+      readTap: (document.body ? document.body.textContent || '' : '').includes('Read and tap'),
+      video: document.querySelectorAll('video').length,
+      mic: !!(window.__listening && window.__listening()),
+      path: location.pathname };
+    const key = JSON.stringify(row);
+    if (key !== last) { last = key; row.t = Date.now(); log.push(row); }
+  };
+  new MutationObserver(read).observe(document, { subtree: true, childList: true, characterData: true, attributes: true,
+                                                 attributeFilter: ['data-state', 'data-phase', 'data-speaker', 'hidden'] });
+  read();
+})();"""
+
+
+def iv_log(page) -> list[dict]:
+    """`ORB_INTERVIEW_WATCH`'s rows so far ([] where the page has gone)."""
+    try:
+        return list(page.evaluate("() => (window.__ivLog || []).slice()") or [])
+    except Exception:  # noqa: BLE001 - a page that has gone
+        return []
+
+
+def stage_sequence(log: list[dict]) -> list[str]:
+    """What the stage did, in order, repeats folded: `film:<kind>` while a film or the idea's story stands, else the
+    stage's phase (speaking, listening, held, ...) once on the stage -- so *the film first, then the opening* reads
+    `film:problem, speaking, ...`."""
+    out: list[str] = []
+    for row in log:
+        if not row.get("onStage"):
+            continue
+        what = f"film:{row['film']}" if row.get("film") else row.get("phase")
+        if what and (not out or out[-1] != what):
+            out.append(what)
+    return out
+
+
+def orb_answer_runs(log: list[dict]) -> list[list[str]]:
+    """The stage orb's states cut at each `speaking` -- one run a clip and the answer after it -- so an answer's
+    *speaking -> listening -> hearing -> writing* is one run (158 FR-2's states, on the stranger's orb)."""
+    runs: list[list[str]] = []
+    for state in orb_sequence([r for r in log if r.get("state")]):
+        if state == "speaking" or not runs:
+            runs.append([state])
+        else:
+            runs[-1].append(state)
+    return runs
+
+
+def never_drawn(log: list[dict]) -> dict:
+    """Spec 159 FR-1 / FR-3: what an orb link must never draw, met anywhere in the log -- typed boxes (with the
+    question they stood on), the voice bar, the choice buttons, *Read and tap*, a `<video>`."""
+    typed = [{"typed": r["typed"], "where": r.get("where"), "question": r.get("question"), "phase": r.get("phase")}
+             for r in log if r.get("typed")]
+    return {"typed": list({json.dumps(x, sort_keys=True): x for x in typed}.values())[:8],
+            "voice_bar": any(r.get("voiceBar") for r in log), "choice": any(r.get("choice") for r in log),
+            "read_and_tap": any(r.get("readTap") for r in log),
+            "video": any(r.get("video") for r in log if r.get("speaker") == "ORB")}

@@ -96,7 +96,10 @@ TRY_IT_YOURSELF_SOON = "Try it yourself · soon"
 TRY_AGAIN_RECORDING = "Try again"
 SETUP_INTERVIEWER = "Set up the AI interviewer"
 SETUP_NOT_NOW = "Not now"
-RECORDING_MEANWHILE = "Read and tap links can be made meanwhile."
+#: Spec 159 FR-4 (keel-web 253 FR-4, `RECORDING_MEANWHILE`): the TEXT format is *Keel's voice* -- it read *Read and tap
+#: links can be made meanwhile.* (`RECORDING_MEANWHILE_BEFORE_253`).
+RECORDING_MEANWHILE = "Keel's voice links can be made meanwhile."
+RECORDING_MEANWHILE_BEFORE_253 = "Read and tap links can be made meanwhile."
 FORMAT_RECORDING_SOON = "Recording · a few minutes"
 SETUP_ALREADY_PAID = "Already paid for this project."
 
@@ -177,9 +180,12 @@ INTERVIEWER_IS = ("Keel's AI interviewer asks each question aloud on video, and 
 #: keel-web 156 FR-1 (`BEFORE_SEND_LATER`, `send-later`): the one line under the faces on the lock step.
 BEFORE_SEND_LATER = ("When you send the links you can still offer a read-and-tap interview, where people speak or type "
                      "into any box, or let each person choose.")
-#: keel-web 156 FR-2 (`SEND_FORMATS_069.TEXT`): the read-and-tap row's line.
+#: keel-web 156 FR-2 (`SEND_FORMATS_069.TEXT`): the read-and-tap row's line, before keel-web 253.
 READ_AND_TAP_LINE = ("They read each question and tap their answer. Where there is a box to fill, they can speak into it "
                      "or type.")
+#: Spec 159 FR-4 (keel-web 253 FR-4, `SEND_FORMATS.TEXT.line` / `SEND_FORMATS_069.TEXT`): *Keel's voice*'s line.
+KEELS_VOICE_LINE = ("Keel asks each question aloud in its own voice, and every question is also written on the screen. "
+                    "They answer by talking, typing or tapping. Nothing to set up.")
 
 
 def before_interviewer_title(people: str | None) -> str:
@@ -219,6 +225,27 @@ HOW_IT_WORKS = "How it works"
 WALKTHROUGH_GOT_IT = "Got it"
 MARK = "Keel · AI interviewer"
 MARK_TRY = "Keel · AI interviewer · try run"
+# ---- spec 159 (keel-web 253 FR-1 / FR-2, keel-cloud 267 FR-2): one player, the orb in the face's place
+#: `Interview.interviewer.speaker` (contract 84) and the player's `data-speaker`.
+SPEAKER_ORB = "ORB"
+SPEAKER_AVATAR = "AVATAR"
+#: The orb's name and pronoun on the intro (`ORB_INTERVIEWER`): *Keel AI will ask you N questions.* / *It is an AI
+#: interviewer, not a person.* / *You will hear it ...*; the stage's name (`AI_STAGE_LABEL_ORB`).
+ORB_NAME = "Keel AI"
+ORB_NOT_A_PERSON = "It is an AI interviewer, not a person."
+ORB_STAGE_LABEL = "Keel AI, the AI interviewer"
+#: The orb on the intro (`intro-orb`, the still orb where the face's hello was), on the stage (`ai-orb`, with its state
+#: line `ai-orb-state`), and dim beside the film (`ai-story-orb`); each wraps keel-web's `story-orb` (`KeelOrb still`).
+INTRO_ORB = "intro-orb"
+STAGE_ORB = "ai-orb"
+STAGE_ORB_STATE = "ai-orb-state"
+FILM_ORB = "ai-story-orb"
+#: keel-web 253 FR-4: the kind card's *Try it yourself* on Keel's voice, beside its set-up, where no face is READY.
+TRY_KEEL_VOICE = "try-keel-voice"
+#: The intro's mic test refused (`ai-mic-fallback`, `AI_MIC_FALLBACK`): Start is enabled and the interview runs on taps.
+MIC_FALLBACK_ID = "ai-mic-fallback"
+#: Spec 159 FR-3: a box that takes typed words, anywhere on the link's page (keel-web 254: none).
+TYPED_BOXES = "textarea, input[type=text]"
 LAST_QUESTION = "Last question"
 #: keel-web 070's press after an answer, gone with keel-web 072 FR-5: never in the DOM again.
 THATS_MY_ANSWER = "That’s my answer"
@@ -550,6 +577,18 @@ _RECORDER = r"""
 #: waveform's bucket 2), the earcons off. Nothing else: the page's quiet, beat and caps are its own.
 SPEECH_SEAM = "(() => {" + _RECORDER + """
   window.__keelSpeech = { recorder, mic: mic(() => 0.12, false), earcons: false };
+})();
+"""
+
+
+def speech_seam(*, refused: bool = False) -> str:
+    """`SPEECH_SEAM`, or (spec 159 FR-3, `refused`) the same recorder with the microphone **refused** -- the harness's
+    refusal hook on the AI page: *Test your mic* reads the fallback, Start is enabled, and keel-web plays the interview
+    with `listen = none` (taps; keel-web 254: and nothing typed)."""
+    if not refused:
+        return SPEECH_SEAM
+    return "(() => {" + _RECORDER + """
+  window.__keelSpeech = { recorder, mic: mic(() => 0.12, true), earcons: false };
 })();
 """
 
@@ -911,6 +950,9 @@ class Player:
         heard = self.page.get_by_test_id("ai-mic-heard")
         return {"intro": intro.get_attribute("data-intro"), "heading": _words(intro.locator("h1").first),
                 "text": _words(intro),
+                # spec 159 (keel-web 253 FR-2): who asks -- the face's hello, or the still orb in its place
+                "speaker": intro.get_attribute("data-speaker"),
+                "orb": self.page.locator(f"[data-testid={INTRO_ORB}] [data-testid=story-orb]").count(),
                 "buttons": [t for t in ("start-talking", "choice-talk", "choice-write")
                             if self.page.get_by_test_id(t).count()],
                 "mic_test": self.page.get_by_test_id("ai-mic-test").count() > 0,
@@ -963,6 +1005,33 @@ class Player:
         line.wait_for(state="visible", timeout=deadline)
         self.page.locator("[data-testid=start-talking]:not([disabled])").wait_for(timeout=deadline)
         return {"before": before, "listening": listening, "said": said, "writing": writing, "after": self.intro()}
+
+    def refused_mic_test(self, *, timeout_s: float = 20) -> dict:
+        """Spec 159 FR-3: *Test your mic* with the microphone refused (`speech_seam(refused=True)`): the fallback line
+        (`ai-mic-fallback`) and *Start the interview* enabled -- what the intro drew before and after."""
+        before = self.intro()
+        self.page.get_by_test_id("ai-mic-test").click()
+        deadline = timeout_s * 1000 * self.patience
+        line = self.page.get_by_test_id(MIC_FALLBACK_ID)
+        line.wait_for(state="visible", timeout=deadline)
+        self.page.locator("[data-testid=start-talking]:not([disabled])").wait_for(timeout=deadline)
+        return {"before": before, "fallback": _words(line), "after": self.intro()}
+
+    def speaker(self) -> str | None:
+        """Spec 159: the stage's `data-speaker` (ORB or AVATAR), None off the stage."""
+        stage = self.page.get_by_test_id("ai-stage")
+        return stage.first.get_attribute("data-speaker") if stage.count() else None
+
+    def orb_state(self) -> str | None:
+        """Spec 159 FR-1: the stage orb's `data-state` (speaking, listening, hearing, writing, paused, dim)."""
+        orb = self.page.get_by_test_id(STAGE_ORB)
+        return orb.first.get_attribute("data-state") if orb.count() else None
+
+    def typed_boxes(self) -> list[dict]:
+        """Spec 159 FR-3: every box on the page that takes typed words (`TYPED_BOXES`) -- its test id and tag."""
+        return self.page.evaluate("""(sel) => [...document.querySelectorAll(sel)].map((el) => ({
+            id: el.getAttribute('data-testid'), tag: el.tagName.toLowerCase(), type: el.getAttribute('type') }))""",
+                                  TYPED_BOXES)
 
     def mic_block(self) -> dict:
         """Spec 099 (keel-web 143 FR-3): *Test your mic*'s block as drawn now, read in one evaluate -- its state

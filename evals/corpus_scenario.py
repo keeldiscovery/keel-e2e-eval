@@ -4249,7 +4249,8 @@ def leg_invite(j: Journey) -> None:
         assert len(set(j.tokens.values())) == len(j.people), j.tokens
         assert [r.get("personName") for r in wire] == [p.person for p in j.people][::-1], wire
         assert [r.get("Who") for r in drawn] == [r.get("personName") for r in wire], drawn
-        assert {r.get("Format") for r in drawn} == {iv_screens.READ_AND_TAP}, drawn   # keel-web 156: *Text* -> *Read and tap*
+        # keel-web 156: *Text* -> *Read and tap*; keel-web 253 (spec 159 FR-4): -> *Keel's voice*
+        assert {r.get("Format") for r in drawn} == {iv_screens.TEXT_ONLY}, drawn
         assert all((r.get("Status") or "").startswith(iv_screens.REGISTER_STATUS["SENT"]) for r in drawn), drawn
     if j.teach is not None:
         # spec 059: Sent's order and the role counts (G15, G17), the links table (G16), Sent's pill (G14)
