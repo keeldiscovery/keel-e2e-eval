@@ -580,14 +580,26 @@ def orb_states_check(run, leg, walked: dict, *, view: str) -> None:
               detail={"answers read whole": len(whole), "runs": [" > ".join(r) for r in runs[:10]]})
 
 
-def speak_or_tap_checks(run, leg, rows: list[dict], *, view: str) -> None:
+def speak_or_tap_checks(run, leg, rows: list[dict], *, view: str, study: str) -> None:
     """159 FR-3: one item by its letter (*B* holds the second row), one by its words, one by tap (the first row) --
-    over the voice links' rows."""
+    over the voice links' rows, across the three studies. A problem link hosts two items with rows at most (the chip
+    said and the refused link both end at the story's chip, keel-web 255), so a way no item was left for on one study
+    is carried to the next; on the last study (money) a way never taken anywhere is the failed check."""
     tried = {r["fr3"]: r for r in rows if r.get("fr3")}
+    seen = run.__dict__.setdefault("fr3_seen", set())
+    seen.update(tried)
     for how, words in (("letter", f"*{LETTER}* said holds the second row (keel-cloud 266 through the fake transcriber)"),
                        ("words", "the first row's words said hold the first row"),
                        ("tap", "a tap on the first row holds it")):
         r = tried.get(how) or {}
+        if not r and how not in seen and study != "money":
+            leg.check(run, f"speak or tap: {words} -- no item left for it on this study's links; carried to the next "
+                           "study", True, screen="an item with rows", view=view, detail={"carried": how}, stop=False)
+            continue
+        if not r and how in seen:
+            leg.check(run, f"speak or tap: {words} -- held on an earlier study", True, screen="an item with rows",
+                      view=view, detail={"held_on_an_earlier_study": how}, stop=False)
+            continue
         lit = (r.get("read") or {}).get("lit") or []
         leg.check(run, f"speak or tap: {words}", bool(r) and bool(lit) and lit[0] == r.get("want_lit"),
                   screen="an item with rows",
@@ -672,7 +684,7 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
     tap_wire, _ = read_served(run, tap_link["url"])
     tapped = walk_link(run, tap_link["url"], tap_wire, shot=f"orb-{study}-taps", refused=True, speak_or_tap=ways)
     speak_or_tap_checks(run, leg, walked["rows"] + (said["rows"] if study != "money" else []) + tapped["rows"],
-                        view=view)
+                        view=view, study=study)
     run.orbs.append({"study": study, "link": "the microphone refused", **summary(tapped)})
     leg.check(run, "the microphone refused: *Test your mic* reads the fallback, Start goes on",
               bool((tapped.get("mic") or {}).get("fallback")), screen="the AI intro", view=f"{view} · refused",
