@@ -137,12 +137,13 @@ def test_the_walk_finds_the_item_a_sheet_asks():
 
 
 def test_the_ways_are_taken_by_the_items_that_can_take_them():
-    """159 FR-3: the letter only on a one-pick item; the words and the tap on any item with rows but the price ladder."""
+    """159 FR-3: the letter and the tap on a one-pick item; the words on any item with rows but the price ladder."""
     ways = list(strangers.SPEAK_OR_TAP)
     assert strangers.way_for(ways, "pick_one_then_one") == "words"
     assert strangers.way_for(ways, "fixed_four") == "letter"
     assert strangers.way_for(ways, "price_ladder") is None and strangers.way_for(ways, None) is None
     assert strangers.way_for(["tap"], "fixed_four") == "tap" and strangers.way_for([], "fixed_four") is None
+    assert strangers.way_for(["tap"], "pick_one_then_one") is None       # its tap goes straight to the second ask
 
 
 def test_the_report_names_the_orb():

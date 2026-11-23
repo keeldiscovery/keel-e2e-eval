@@ -262,13 +262,16 @@ def _option_index(options: list[str], word: str, fallback: int) -> int:
 
 
 def way_for(ways: list[str], control: str | None) -> str | None:
-    """Spec 159 FR-3: which of the ways still owed answers an item of `control` -- the letter only on a one-pick item
-    (the hold goes on by itself), the words or the tap on any item with rows but the price ladder (its second step)."""
+    """Spec 159 FR-3: which of the ways still owed answers an item of `control` -- the letter and the tap only on a
+    one-pick item (the hold goes on by itself and the tapped row stands lit; a tap on *pick one, then one more* moves
+    straight to its second ask, run 2), the words on any item with rows but the price ladder (its second step)."""
     if "letter" in ways and control in ONE_PICK:
         return "letter"
-    if control == "price_ladder" or control is None:
-        return None
-    return next((w for w in ("words", "tap") if w in ways), None)
+    if "words" in ways and control not in ("price_ladder", None):
+        return "words"
+    if "tap" in ways and control in ONE_PICK:
+        return "tap"
+    return None
 
 
 def _lit_after(p, before_q: str, *, timeout_s: float = 12) -> dict:
@@ -438,8 +441,7 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                 row["said"] = f"tap: {options[0]}"
                 page.get_by_test_id("ai-sheet").locator("[data-testid=ai-options] .opt").nth(0).click()
             elif len(options) >= 2 and way_for(ways, item.get("control")):
-                # the letter on the first one-pick item; the words and the tap on the next items with rows, whatever
-                # their control (a tapped multi-pick finishes on Save and next)
+                # the letter and the tap on one-pick items, the words on any item with rows (`way_for`)
                 how = way_for(ways, item.get("control"))
                 ways.remove(how)
                 row["fr3"] = how
