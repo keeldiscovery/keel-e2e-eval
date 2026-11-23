@@ -256,7 +256,7 @@ SAVE_AND_NEXT = "Save and next"
 START_THE_INTERVIEW = "Start the interview"
 MIC_TEST = "Test your mic"
 SAY_HELLO = "Say hello"
-MIC_FALLBACK = "You can tap or type your answers instead"
+MIC_FALLBACK = "You can tap your answers instead"   # keel-web 254: nothing typed
 #: keel-web 115 FR-3 (spec 074 FR-1): the intro's line loses its condition -- the page records wherever it can listen.
 INTRO_TRANSCRIBED = "Keel's transcription provider writes your answer down and keeps nothing."
 GOT_THAT = "Got that…"
