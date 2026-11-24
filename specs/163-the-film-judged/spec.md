@@ -52,8 +52,13 @@ keel-cloud 263 and the film is built from the board (268), drawn by keel-web's e
   the player at each scene; the caption settled), plus the served story JSON (`roomId`, scenes with `pictureAssetId`,
   `chapter`, lines, `clipIds`), the pictures themselves (`GET /v2/assets/{id}`), the build's `pictures.setting` and
   `pictures.prompts`; all in the bundle under `film/<entry>/` (`frames/scene-<n>-phone.png`, `-laptop.png`,
-  `story.json`, `pictures/`, `prompts.json`). Seven people are not sent (`PEOPLE=0`): the film is judged before any
-  stranger sees it. The ledger is read: one `STORY_PICTURES` row at 0 credits with its cost, one `PICTURE_REVIEW` row
+  `story.json`, `pictures/`, `prompts.json`). The film is captured before any stranger sees it; then the walk goes
+  on as `quality-walk` does -- the seven simulated people answer on the person's own link (`cycle.toml`'s `people`),
+  the founder's page is read after the answers -- so one bundle carries the three things the founder named
+  (2026-11-24: *"that agent also should evaluate the dashboard finally created post the interview, which we used to
+  do earlier"*): the film (FR-3), every respondent screen (`make read-screens`, the question-quality rubric's §A and
+  R6), and the founder's page after the answers (the rubric's §B, spec 109: the Overview's cards, the Insights tab,
+  the brief, read by the founder-reader as the earlier cycles read them; `report_marks` on the dimension cards). The ledger is read: one `STORY_PICTURES` row at 0 credits with its cost, one `PICTURE_REVIEW` row
   per picture; the bundle records the dollars.
 - **FR-3 The film reader.** `make read-films RUN=<bundle>` (PAID): one call per entry through the **Anthropic API
   with vision** (`KEEL_ANTHROPIC_API_KEY` in the shell, as the walks' door `keel`; the `claude` CLI door cannot carry
@@ -65,7 +70,8 @@ keel-cloud 263 and the film is built from the board (268), drawn by keel-web's e
   not shown) and an `instead` line per criterion under 2. Written as `quality/scores/<bundle>-film-<entry>.json`
   with the reader block and `FILM_RUBRIC_VERSION`.
 - **FR-4 The table and the gate.** `make read-film-table RUN=<bundle>` (free): one row per entry (F1..F8, `film_pct`,
-  flagged, the dollars), the mean over the entries, the bar `film_bar_pct` (`quality/cycle.toml` `[film]`, 80 as the
+  flagged, the dollars) **beside the same entry's question score (`score_pct`, §A) and its founder's-page score (§B)
+  from `read-screens` on the same bundle** (three columns a study, one record), the mean over the entries, the bar `film_bar_pct` (`quality/cycle.toml` `[film]`, 80 as the
   gallery's gate, the founder's to move), the weak rows; `quality/FILM-TABLE.md` rewritten; `quality/cycles/<record>-
   film.md` the record. An entry passes at `film_pct` >= the bar with no 0; a round passes when every entry does.
 - **FR-5 The nine.** `quality/cycle.toml` gains `[film] holdout = [...]`: the nine entries the founder named as the
@@ -89,5 +95,5 @@ keel-cloud 263 and the film is built from the board (268), drawn by keel-web's e
 - `make unit` green with the new mirrors (`tests/test_the_film_judged_163.py`); one local `film-walk` on the stack
   (keel-cloud with 273, keel-web with 261, `FakePictures`) on 08-fresco producing the bundle's `film/` folder with
   fourteen frames, the story JSON, seven pictures and the prompts; `read-film-table` on the three fixture scores.
-- The paid run of record on the nine (`make film-walk ENTRIES=holdout`, then `read-films`, then `read-film-table`)
+- The paid run of record on the nine (`make film-walk ENTRIES=holdout`, then `read-films` and `read-screens`, then `read-film-table`)
   runs only on the founder's word and is recorded in `quality/cycles/` with its dollars.
