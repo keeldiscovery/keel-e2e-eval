@@ -520,3 +520,16 @@ def test_a_ladder_is_compared_as_its_bands():
                                                              {"optionId": "b", "label": "$10 to $20"}]},
                                        "over": {"options": [{"optionId": "c", "label": "$20 or more"}]}}}]}
     assert ts.same_script({"orb": served, "card": ts.card_record(card)})["same"] is True
+
+
+def test_a_second_stem_on_the_card_is_reported_not_compared():
+    """Spec 161 FR-9 (run 3's reading): the card carries a rung's second stem's hint (`followUp.also`), the link one
+    `followUps` entry a rung -- the second stem is kept on the card's record and not compared."""
+    served = [ts.step(ts.FREQUENCY, "How often?", list(ts.FREQUENCY_LABELS), [ts.DIFFERENCE_WHY])]
+    card = {"passages": [{"kind": "item", "dimension": ts.FREQUENCY, "stem": "How often?",
+                          "options": [{"optionId": str(i), "label": x} for i, x in enumerate(ts.FREQUENCY_LABELS)],
+                          "followUp": {"against": [], "hint": {"third": ts.DIFFERENCE_WHY},
+                                       "also": {"on": ["4"], "hint": {"third": ts.NEVER_WHY}}}}]}
+    record = ts.card_record(card)
+    assert record[0]["also"] == [ts.NEVER_WHY]
+    assert ts.same_script({"orb": served, "card": record})["same"] is True

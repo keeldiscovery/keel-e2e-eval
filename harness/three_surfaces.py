@@ -107,15 +107,15 @@ def served_record(interview: dict | None) -> list[dict]:
 
 
 def _hints(follow: dict | None) -> list[str]:
-    f = follow or {}
-    out = []
-    hint = f.get("hint") or {}
-    if hint:
-        out.append(hint.get("third") or hint.get("first"))
-    also = (f.get("also") or {}).get("hint") or {}
-    if also:
-        out.append(also.get("third") or also.get("first"))
-    return out
+    """The rung's hint as the card says it. A second stem's hint (`also`) is kept apart (`_also`): the link serves one
+    `followUps` entry a rung and plays the second stem from its clip alone, so only the rung's words are compared."""
+    hint = (follow or {}).get("hint") or {}
+    return [hint.get("third") or hint.get("first")] if hint else []
+
+
+def _also(follow: dict | None) -> list[str]:
+    also = ((follow or {}).get("also") or {}).get("hint") or {}
+    return [also.get("third") or also.get("first")] if also else []
 
 
 def _card_labels(passage: dict) -> list[str]:
@@ -143,6 +143,8 @@ def card_record(script: dict | None) -> list[dict]:
         elif kind == "item":
             one = step(str(p.get("dimension") or p.get("itemId")), p.get("stem"), _card_labels(p),
                        _hints(p.get("followUp")))
+            if _also(p.get("followUp")):
+                one["also"] = _also(p.get("followUp"))       # reported, not compared (see `_hints`)
             if p.get("twoSteps"):
                 one["ladder"] = True          # the card lays a ladder out in two steps: its bands compared as a set
             out.append(one)
@@ -209,7 +211,7 @@ def same_script(records: dict[str, list[dict]], *, reference: str = "orb") -> di
 
     def plain(rec: list[dict]) -> list[dict]:
         return [{k: (sorted(v) if k == "options" and s.get("step") in ladders else v)
-                 for k, v in s.items() if k != "ladder"} for s in rec]
+                 for k, v in s.items() if k not in ("ladder", "also")} for s in rec]
     records = {name: plain(rec) for name, rec in records.items()}
     ref = records.get(reference) or []
     parts: list[dict] = []
