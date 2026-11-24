@@ -486,6 +486,10 @@ def test_the_record_of_record_keeps_every_spoken_rule(registry):
     items = [ci for e in corpus.entries for ci in cloud.items_of(e.id)]
     if not any(ci.under for ci in items):
         pytest.skip("the spoken record predates keel-cloud 185 (no second-step lines)")
+    # spec 161: a record written before keel-cloud 269 (Frequency a count with *I can't recall*, Current solution asked)
+    # is read on registry 4's rules -- against registry 5 it is skipped by name until keel-cloud regenerates it
+    from tests import v9_fixtures as fx                                  # noqa: PLC0415
+    fx.skip_a_spoken_record_before_269(KEEL_CLOUD, registry)
     faults = [(ci.entry, ci.key, f) for e in corpus.entries for ci in cloud.items_of(e.id)
               for f in spoken_mod.item_faults(ci, registry, e)]
     assert faults == []

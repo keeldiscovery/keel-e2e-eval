@@ -130,11 +130,28 @@ class Case:
         return f"{self.item}: {self.said!r}{prev}"
 
 
+#: Spec 161 FR-6, FR-10 (keel-cloud 269 FR-3, 268 FR-8): the eval's own Frequency item -- the five rows of `fixed_five`,
+#: no escape -- and its cases, answered by letter and by words (*B*, *most times*, *si* for C); never in the canon's copy
+#: (`classifier_cases`), so the copy stays the canon's word for word. A careful human's answers: A and B the two for the
+#: founder, C, D and E against (`working_rung.frequency_side`).
+EVAL_ITEMS = {"often": {"kind": "single", "escape": None, "options": [
+    "Every time", "Most times", "About half the time", "Now and then", "Never"]}}
+EVAL_CASES = [
+    ("frequency", "often", "B", {"picks": [2]}), ("frequency", "often", "most times", {"picks": [2]}),
+    ("frequency", "often", "si", {"picks": [3]}), ("frequency", "often", "sí", {"picks": [3]}),
+    ("frequency", "often", "every time", {"picks": [1]}), ("frequency", "often", "about half the time", {"picks": [3]}),
+    ("frequency", "often", "now and then", {"picks": [4]}), ("frequency", "often", "E", {"picks": [5]}),
+    ("frequency", "often", "A", {"picks": [1]}), ("frequency", "often", "option D", {"picks": [4]}),
+]
+
+
 def all_cases() -> list[Case]:
-    """The 155 answers (137 of 099, 18 `readaloud` of 100) and the 15 confirmation turns, in the check's order."""
+    """The canon's answers (137 of 099, 18 `readaloud` of 100, the `letters` of 266 and 268) and its 15 confirmation
+    turns, in the check's order; then the eval's own Frequency cases (spec 161)."""
     out = [Case(group, item, said, expected) for group, item, said, expected in cases.CASES]
     out += [Case("confirm", item, said, expected, tuple(previous) if previous else None)
             for item, previous, said, expected in cases.CONFIRM]
+    out += [Case(group, item, said, expected) for group, item, said, expected in EVAL_CASES]
     return out
 
 
@@ -164,9 +181,12 @@ _FROM_TO = re.compile(r"from\s+(\d+)\s+to\s+(\d+)", re.I)
 _OUT_OF = re.compile(r"out of\s+(\d+)", re.I)
 #: Importance's controls: keel-cloud 158's `pick_one_then_one` (contract 46) and `pick_two` as served before it.
 PICK_CONTROLS = ("pick_one_then_one", "pick_two")
-#: Frequency's controls: keel-cloud 158's `segmented_1_to_n` (contract 46: a count from 1) and the number box, and
-#: `segmented_0_to_7`, which a run recorded before 46 served.
-FREQUENCY_CONTROLS = ("segmented_1_to_n", "segmented_0_to_7", "number_with_unit")
+#: Spec 161 FR-6 (keel-cloud 269 FR-3, contract 86): Frequency's one control -- `fixed_five`, five rows served by code,
+#: read as a single pick over them (no escape).
+FREQUENCY_CONTROLS = ("fixed_five",)
+#: Frequency's controls before keel-cloud 269: 158's `segmented_1_to_n` (contract 46: a count from 1) and the number box,
+#: and `segmented_0_to_7`, which a run recorded before 46 served -- still read as a number where a recorded run serves one.
+RETIRED_FREQUENCY_CONTROLS = ("segmented_1_to_n", "segmented_0_to_7", "number_with_unit")
 _SINGLE = {"single_choice", "single_choice_5", "fixed_four", "fixed_three", "price_ladder", "scale_four"}
 
 
@@ -209,6 +229,9 @@ def served_items(interview: dict, market_currency: str | None = None) -> list[Se
                     out.append(Served(**base, kind="single", options=options,
                                       escape=(second.get("escape") or {}).get("label"), ask="second"))
             elif control in FREQUENCY_CONTROLS:
+                # spec 161 FR-6: the five rows, one pick, no escape
+                out.append(Served(**base, kind="single", options=options, escape=None))
+            elif control in RETIRED_FREQUENCY_CONTROLS:
                 low, high = _range(item)
                 out.append(Served(**base, kind="number", escape=escape, low=low, high=high,
                                   unit=(item.get("numeric") or {}).get("defaultUnit")))
@@ -222,7 +245,7 @@ def served_items(interview: dict, market_currency: str | None = None) -> list[Se
 
 def case_item(key: str) -> Served:
     """A check item (`classifier_cases.ITEMS`) as a `Served`, for the identity transposition the unit tests read."""
-    raw = cases.ITEMS[key]
+    raw = cases.ITEMS.get(key) or EVAL_ITEMS[key]
     rng = raw.get("range") or [None, None]
     return Served(item_id=key, dimension=key, kind=raw["kind"], options=tuple(raw.get("options") or ()),
                   escape=raw.get("escape"), pick=int(raw.get("pick") or 0), low=rng[0], high=rng[1],

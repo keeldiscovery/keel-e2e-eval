@@ -2559,7 +2559,7 @@ def leg_calibrate(j: Journey, vector: str) -> None:
                 ["commercial.ability_to_pay"] if vector == "COMMERCIAL" else []):
             founder = j.entry.founder_calibration.get(key) or {}
             row = rows.get(key) or {}
-            if founder.get("unsure") or (key == "problem.frequency" and not vs.frequency_fits(j.entry)):
+            if founder.get("unsure"):                    # spec 161: Frequency is always asked (no window to fit)
                 if not (row.get("leftOut") or row.get("unsure")):
                     mismatches.append({"dimension": key, "want": "left out", "row": row})
                 continue
@@ -5849,12 +5849,10 @@ def _refusal(body) -> str | None:
 # ----------------------------------------------------------------------------- leg 7: standings
 
 def expected_status(entry, key: str) -> str:
-    """The entry's own status for `key`, but `LEFT_OUT` where this journey had to leave Frequency
-    out (spec 039 / 041 / 042 D-1: the corpus's Frequency is on an "out of N" its own window cannot carry -- since
-    revision 11 on Mulch Run alone)."""
-    if key == "problem.frequency" and not vs.frequency_fits(entry):
-        return "LEFT_OUT"
-    return str(((entry.expected.get("standings") or {}).get(key) or {}).get("status") or "").upper()
+    """The entry's own status for `key`, read through keel-cloud 269 (spec 161 FR-6, `corpus.expected_269`: Frequency on
+    the five rows -- always asked, `frequency_fits` retired -- and Current solution not asked)."""
+    read = corpus_mod.expected_269(entry.id, entry.expected) or {}
+    return str(((read.get("standings") or {}).get(key) or {}).get("status") or "").upper()
 
 
 def _option_counts(raw: str) -> dict[str, int]:

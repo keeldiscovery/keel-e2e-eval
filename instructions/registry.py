@@ -46,6 +46,16 @@ VECTORS = ("PROBLEM", "SOLUTION", "COMMERCIAL")
 
 #: Invariant 1: 13 keys, 4 / 3 / 6.
 PER_VECTOR = {"PROBLEM": 4, "SOLUTION": 3, "COMMERCIAL": 6}
+#: Spec 161 (keel-cloud 269 FR-5, `DimensionRegistry.VERSION` 5): Current solution retired from the PROBLEM study --
+#: twelve keys, 3 / 3 / 6, part 1 three; Frequency `fixed_five` read by `share_most_or_every`, no escape (*Never* is the
+#: floor). A registry at 4 (the eval's own fixture slice, the corpus's) is still read by 087's invariants.
+REGISTRY_269 = 5
+PER_VECTOR_269 = {"PROBLEM": 3, "SOLUTION": 3, "COMMERCIAL": 6}
+PER_PART_269 = {1: 3, 2: 3, 3: 6}
+RETIRED_KEYS_269 = ("problem.current_solution_satisfaction",)
+#: keel-cloud 269 FR-3: Frequency's control and compare rule.
+FIXED_FIVE_CONTROL = "fixed_five"
+SHARE_RULE = "share_most_or_every"
 
 #: Invariant 3: `b2b_only` on exactly Purchase friction, `b2b_link_only` on exactly Ability to pay, and
 #: every entry asked in the part of its own vector -- 4 / 3 / 6 entries a part.
@@ -91,7 +101,7 @@ FOUNDER_CONTROLS = ("single_choice", "numeric_interval") + LIST_FOUNDER_CONTROLS
 #: `benefit_with_advantages`, gone with its advantages).
 RESPONDENT_CONTROLS = ("gate_yes_no", "segmented_1_to_n", "number_with_unit", "single_choice",
                        "single_choice_5", "pick_one_then_one", "fixed_four", "fixed_three", "cost_total",
-                       "price_ladder", "scale_four", "value_box", "duration_bands")
+                       "price_ladder", "scale_four", "value_box", "duration_bands", "fixed_five")
 #: Spec 118 FR-2 (keel-cloud 182 FR-2): Purchase friction's six -- five duration bands around the founder's time and
 #: *It wouldn't be needed* (`PurchaseFriction.bands`, codes `days_under_N`, `days_A_to_B`, `days_over_N`, `not_needed`).
 DURATION_CONTROL = "duration_bands"
@@ -118,7 +128,7 @@ FIXED_ANSWER_CONTROLS = ("fixed_four", "fixed_three", "scale_four")
 #: `fixed_last_two_against` over its four).
 COMPARE_RULES = ("proportion_from_gate", "interval_contains_median", "share_in_picks", "below_line",
                  "fixed_last_two_against", "ordinal_band", "cost_covers_price",
-                 "first_supports", "duration_band")
+                 "first_supports", "duration_band", "share_most_or_every")
 #: keel-cloud 182 FR-3: `caution_turned` (spec 118's fear) is `duration_band` -- the time against the founder's. A
 #: registry before 182 (the eval's fixture slice) is still read; its name is the retired one.
 RETIRED_COMPARE_RULES = {"caution_turned": "duration_band"}
@@ -586,14 +596,33 @@ def _proportion_bins_contiguous(codes: list) -> bool:
         and edges[-1][1] == 100
 
 
+def is_269(registry) -> bool:
+    """Spec 161: a registry at keel-cloud 269's version (5) -- or one with Current solution gone and Frequency on
+    `fixed_five` -- read by 269's invariant 1 and 3 counts."""
+    version = getattr(registry, "version", None)
+    try:
+        if version is not None and int(version) >= REGISTRY_269:
+            return True
+    except (TypeError, ValueError):
+        pass
+    keys = {d.key for d in getattr(registry, "dimensions", [])}
+    frequency = next((d for d in getattr(registry, "dimensions", []) if d.key == FREQUENCY_KEY), None)
+    return bool(keys) and CURRENT_SOLUTION_KEY not in keys and frequency is not None \
+        and frequency.respondent_control == FIXED_FIVE_CONTROL
+
+
 def check_invariants(registry: Registry) -> list[str]:
     """Every invariant the registry fails, one sentence each naming the invariant and the key."""
     faults = []
     dims = list(registry.dimensions)
     keys = [d.key for d in dims]
+    # spec 161: registry 5 (keel-cloud 269) -- Current solution retired, Frequency on the five rows
+    at_269 = is_269(registry)
+    per_vector = PER_VECTOR_269 if at_269 else PER_VECTOR
+    per_part = PER_PART_269 if at_269 else PER_PART
 
-    total = sum(PER_VECTOR.values())
-    split = " / ".join(str(n) for n in PER_VECTOR.values())
+    total = sum(per_vector.values())
+    split = " / ".join(str(n) for n in per_vector.values())
 
     # 0. The shape registry 4 reads: what keel-cloud 087 removed is refused by name, never ignored.
     for d in dims:
@@ -618,7 +647,7 @@ def check_invariants(registry: Registry) -> list[str]:
     if len(keys) != total or len(set(keys)) != len(keys):
         faults.append(f"invariant 1 ({total} unique keys): the registry has {len(set(keys))} "
                       f"unique of {len(keys)}")
-    for vector, count in PER_VECTOR.items():
+    for vector, count in per_vector.items():
         in_vector = [d for d in dims if d.vector == vector]
         orders = sorted(d.order for d in in_vector if isinstance(d.order, int))
         if len(in_vector) != count:
@@ -637,6 +666,8 @@ def check_invariants(registry: Registry) -> list[str]:
     for d in dims:
         raw = d.respondent.get("escape")
         if raw is None:
+            if at_269 and d.key == FREQUENCY_KEY:
+                continue                    # keel-cloud 269 FR-3 (D2): no escape; Never is the floor
             if d.key not in (GATE_KEY, COMMITMENT_KEY):
                 faults.append(f"invariant 2 (one escape): {d.key} carries none; only the gate and "
                               "Commitment have no way out")
@@ -669,8 +700,8 @@ def check_invariants(registry: Registry) -> list[str]:
     for key in sorted(set(B2B_LINK_ONLY) - link_flagged):
         faults.append(f"invariant 3 (b2b_link_only on exactly {', '.join(B2B_LINK_ONLY)}): {key} is "
                       "not b2b_link_only")
-    parts = " / ".join(str(n) for n in PER_PART.values())
-    for part, count in PER_PART.items():
+    parts = " / ".join(str(n) for n in per_part.values())
+    for part, count in per_part.items():
         in_part = [d.key for d in dims if d.part == part]
         if len(in_part) != count:
             faults.append(f"invariant 3 (parts {parts}): part {part} has {len(in_part)}")

@@ -213,7 +213,9 @@ def test_no_screen_builds_a_brief_context_since_keel_cloud_104(entry, registry):
     assert facts["money"] == {"currency": "GBP", "currencySymbol": "\u00a3", "period": "month",
                               "periodWords": "a month"}
     assert facts["pilot"]["optedIn"] == 3 and facts["pilot"]["finished"] == 10      # spec 064 FR-6a: gate Yes alone
-    assert [c["key"] for c in facts["cards"]] == registry.calibrated_keys(False)
+    # spec 161 (keel-cloud 269 FR-5): no Current solution card
+    assert [c["key"] for c in facts["cards"]] == [k for k in registry.calibrated_keys(False)
+                                                 if k != "problem.current_solution_satisfaction"]
     assert facts["cards"][0]["number"] == "10 of 12" and facts["cards"][0]["line"] == "had it in the last 7 nights"
     assert facts["commercial"]["broke"]["key"] == "commercial.existing_sacrifice"
     assert "broke" not in facts["problem"] and "broke" not in facts["solution"]

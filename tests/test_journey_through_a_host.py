@@ -205,8 +205,9 @@ def test_the_founder_types_the_entrys_own_title_market_context_and_two_seeds():
     assert founder.window.as_wire() == entry.context["recall_window"]
     # Spec 041: revision 10's founder lists are typed as lists -- the Answer words, the saved list, its pick.
     listed = {a.dimension: a for v in vectors_script.VECTORS for a in founder.calibration[v] if a.listed}
+    # spec 161 (keel-cloud 269 FR-5): Current solution is not calibrated -- no list typed for it
     assert set(listed) == {k for k in vectors_script.LIST_CONTROLS if k in entry.founder_calibration
-                           and not entry.unsure(k)}
+                           and not entry.unsure(k) and k not in vectors_script.RETIRED_KEYS}
     # spec 135 (the coordinator's decision): Current solution's two boxes are typed apart, each to its own 25 words
     cs = "problem.current_solution_satisfaction"
     assert all(a.text and len(a.text.split()) <= 25 for k, a in listed.items() if k != cs)

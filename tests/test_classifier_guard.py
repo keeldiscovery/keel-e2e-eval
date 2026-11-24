@@ -13,14 +13,16 @@ from stack.config import load_config
 
 
 def test_the_cases_are_the_checks_170():
-    """099's 152 and keel-cloud 100's 18 `readaloud` cases (spec 049 FR-1 / FR-8)."""
-    assert (len(cases.CASES), len(cases.CONFIRM), len(guard.all_cases())) == (155, 15, 170)
+    """099's 152 and keel-cloud 100's 18 `readaloud` cases (spec 049 FR-1 / FR-8); spec 161: keel-cloud 266's and 268's
+    21 `letters` re-copied from the canon, and the eval's own ten Frequency cases on the five rows."""
+    assert (len(cases.CASES), len(cases.CONFIRM), len(guard.EVAL_CASES)) == (176, 15, 10)
+    assert len(guard.all_cases()) == 176 + 15 + 10
     readaloud = [c for c in guard.all_cases() if c.group == "readaloud"]
     assert len(readaloud) == 18
     assert {c.item for c in readaloud} == {"gate", "better", "approval", "effort", "importance", "benefits", "cost",
                                            "days", "budget"}
     assert sum(1 for c in readaloud if c.expected == {"unclear": True}) >= 2
-    assert set(cases.ITEMS) == {c.item for c in guard.all_cases()}
+    assert set(cases.ITEMS) | set(guard.EVAL_ITEMS) == {c.item for c in guard.all_cases()}
     for said in guard.CORRECTIONS:
         assert said in {c.said for c in guard.all_cases()}, said
 
@@ -174,20 +176,22 @@ def test_the_judge_reads_right_safe_and_wrong():
 
 
 def test_run_sends_each_case_once_and_counts():
-    served = [guard.case_item(k) for k in cases.ITEMS]
+    served = [guard.case_item(k) for k in (*cases.ITEMS, *guard.EVAL_ITEMS)]
     sent: list[dict] = []
 
     def post(body: dict) -> tuple[int, dict]:
         sent.append(body)
         return 200, _got(unclear=True, confidence="low")
 
+    every = len(guard.all_cases())                     # spec 161: the canon's 191 and the eval's ten Frequency cases
     report = guard.run(post, served)
     unclear = [c for c in guard.all_cases() if guard.matches(guard.case_item(c.item), c.expected, _got(unclear=True))]
-    assert len(sent) == 170 and not report.wrong and not report.skipped
-    assert (report.count("right"), report.count("safe")) == (len(unclear), 170 - len(unclear))
+    assert every == 201 and len(sent) == every and not report.wrong and not report.skipped
+    assert (report.count("right"), report.count("safe")) == (len(unclear), every - len(unclear))
     groups = report.groups()
     assert groups["readaloud"]["asked"] == 18 and groups["confirm"]["asked"] == 15
-    assert sum(g["asked"] for g in groups.values()) == 170 and not any(g["wrong"] for g in groups.values())
+    assert groups["letters"]["asked"] == 21 and groups["frequency"]["asked"] == 10
+    assert sum(g["asked"] for g in groups.values()) == every and not any(g["wrong"] for g in groups.values())
     assert all(set(b) <= {"itemId", "heard", "language", "previous", "ask"} for b in sent)
     assert sum(1 for b in sent if b.get("previous")) == 14            # the confirmation turn on days holds no option
     with pytest.raises(ValueError, match="over the"):
@@ -199,8 +203,12 @@ def test_the_live_budget_holds_what_a_link_can_ask():
     live check asks only the cases its link's items can carry (048 measured 83 and 119 on the corpus links) and is
     refused by name before the first call when the plan would pass the ceiling (`run(limit=...)`), never overspent."""
     calls = int(guard.LIVE_BUDGET_USD / guard.COST_PER_CALL_USD)
-    assert calls == 166 and len(guard.all_cases()) - calls == 4
-    assert len([c for c in guard.all_cases() if c.group != "readaloud"]) * guard.COST_PER_CALL_USD < guard.LIVE_BUDGET_USD
+    # spec 161: the copy grew (266's and 268's letters, the eval's Frequency cases) -- 201 in all, 35 over one live
+    # run's ceiling; a link carries a part of them and a plan past the ceiling is refused before the first call
+    assert calls == 166 and len(guard.all_cases()) - calls == 35
+    canon_170 = [c for c in guard.all_cases() if c.group not in ("letters", "frequency")]
+    assert len(canon_170) == 170 and len([c for c in canon_170 if c.group != "readaloud"]) * guard.COST_PER_CALL_USD \
+        < guard.LIVE_BUDGET_USD
 
 
 def test_the_fakes_reasons_are_its_own():
@@ -237,3 +245,29 @@ def test_a_run_the_model_never_answered_is_told_apart():
     assert failed.model_never_answered and not failed.answered_by_fake
     failed.outcomes.append(guard.Outcome(None, 200, {"reason": "two labels fit"}, "safe"))
     assert not failed.model_never_answered
+
+
+# ------------------------------------------------------------------------------------------- spec 161 FR-6, FR-10
+
+def test_si_is_c_on_three_or_more_rows_and_unclear_on_two():
+    """Spec 161 FR-10 (keel-cloud 268 FR-8): *si* and *sí* read as C on a three-or-more-row item, unclear on a two-row
+    one -- the canon's letters, and the eval's own on Frequency's five."""
+    letters = {(c.item, c.said): c.expected for c in guard.all_cases() if c.group in ("letters", "frequency")}
+    assert letters[("better", "si")] == {"picks": [3]} and letters[("better", "sí")] == {"picks": [3]}
+    assert letters[("twoBenefits", "si")] == {"unclear": True}
+    assert letters[("often", "si")] == {"picks": [3]} and letters[("often", "sí")] == {"picks": [3]}
+
+
+def test_frequency_is_read_on_its_five_rows():
+    """Spec 161 FR-6 (keel-cloud 269 FR-3): `fixed_five` is Frequency's one control, read as one pick over the five
+    served rows with no escape; a count (the controls before 269) is still read as a number on a recorded run."""
+    assert guard.FREQUENCY_CONTROLS == ("fixed_five",)
+    interview = {"parts": [{"items": [
+        {"itemId": "f", "dimension": "problem.frequency", "control": "fixed_five", "escape": None,
+         "options": [{"optionId": str(i), "label": x} for i, x in enumerate(guard.EVAL_ITEMS["often"]["options"])]},
+        {"itemId": "n", "dimension": "problem.frequency", "control": "segmented_1_to_n", "scale": {"min": 1, "max": 7}}]}]}
+    five, count = guard.served_items(interview)
+    assert (five.kind, five.options, five.escape) == ("single", tuple(guard.EVAL_ITEMS["often"]["options"]), None)
+    assert (count.kind, count.low, count.high) == ("number", 1, 7)
+    asked, _ = guard.plan([five], [c for c in guard.all_cases() if c.item == "often"])
+    assert len(asked) == len(guard.EVAL_CASES)

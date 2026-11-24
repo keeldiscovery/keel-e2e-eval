@@ -206,10 +206,39 @@ SCOPE_STEPS = {"PROBLEM": ("context", "problem", "ready"), "SOLUTION": ("context
                "ALL": ("context", "problem", "solution", "commercial", "ready")}
 
 
-def calibrates(vector: str, scope: str = "ALL") -> bool:
+def calibrates(vector: str, scope: str = "ALL", *, spoken: bool = False) -> bool:
     """keel-web 109 `calibrates`: whether the scope walks a vector's questions (the problem only in the problem study
-    and the whole one)."""
+    and the whole one). Spec 161 FR-2 (keel-web 257 FR-5, keel-cloud 269 FR-6): on a project whose problem came from the
+    spoken story (`spoken`: the boxes confirmed) no PROBLEM belief page is walked -- the three beliefs were written at
+    the boxes' yes; the typed path walks them as before. The count of screens (`SCOPE_STEPS`) is unchanged."""
+    if spoken and vector == "PROBLEM":
+        return False
     return vector in SCOPE_STAGES[scope]
+
+
+#: Spec 161 FR-2 (keel-cloud 269 FR-6): the PROBLEM study's three dimensions, written by code at the boxes' yes.
+PROBLEM_WRITTEN = ("problem.prevalence", "problem.frequency", "problem.importance")
+
+
+def written_beliefs(review: dict | None) -> dict:
+    """Spec 161 FR-2: the PROBLEM review table's rows as written at the yes -- Prevalence's and Frequency's codes, the
+    Importance list's labels in order, how many rows the slice has (`counts.dimensions`) and the dimensions on the table."""
+    rows = {r.get("dimension"): r for r in (review or {}).get("rows") or []}
+
+    def codes(key: str) -> list:
+        return list(((rows.get(key) or {}).get("answer") or {}).get("codes") or [])
+    items = (((rows.get("problem.importance") or {}).get("answer") or {}).get("list") or {}).get("items") or []
+    return {"prevalence": codes("problem.prevalence"), "frequency": codes("problem.frequency"),
+            "importance": [str(i.get("label") or "") for i in items],
+            "beliefs": {k: (rows.get(k) or {}).get("belief") for k in PROBLEM_WRITTEN},
+            "dimensions": ((review or {}).get("counts") or {}).get("dimensions"), "rows": list(rows)}
+
+
+def calibration_answered(calibration: dict | None) -> bool:
+    """Spec 161 FR-2: a PROBLEM calibration with nothing owed -- three screens (`total` 3, keel-cloud 269) and every one
+    answered (written at the boxes' yes), so no belief page is walked."""
+    c = calibration or {}
+    return c.get("total") == 3 and int(c.get("answered") or 0) >= 3
 
 
 def stage_exit(vector: str, scope: str = "ALL") -> str:
@@ -642,8 +671,9 @@ REVIEW_CONTRACT = 71  # keel-cloud 251 (spec 154): 66 at 245, 67 at 247, 68 at 2
 #: Relative advantage, the fourth -- its Save names its `review` and the Check holds like the three (`list-reviewing`,
 #: then the band and *Continue*); its put-aside benefits are `put-aside-row`, no row carries `row-changed` (a benefit is
 #: never reworded); the *Keel will test* box reads the served belief while the rows are the saved ones.
-REVIEWED_LISTS = ("problem.importance", "problem.current_solution_satisfaction", "solution.compatibility",
-                  "solution.relative_advantage")
+REVIEWED_LISTS = ("problem.importance", "solution.compatibility", "solution.relative_advantage")
+#: Spec 161 FR-2 (keel-cloud 269 FR-5): Current solution left the PROBLEM study -- no screen, no list, no review.
+REVIEWED_LISTS_RETIRED = ("problem.current_solution_satisfaction",)
 #: keel-web 180 FR-4: `LIST_REVIEWING` -- the held Check's words (the primary disabled, the `calib__drafting` register,
 #: `role="status"`); `LIST_CONTINUE` / `LIST_CONTINUE_CHOOSE` -- the primary once the review changed a row and the Check
 #: stays with the band. Pinned to the texts (180's test ids are read off its branch when it lands; see tasks.md).

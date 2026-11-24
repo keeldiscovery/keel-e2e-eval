@@ -20,8 +20,9 @@ four read a page and are this module's alone (call 120).
 - **`report_insights`**: one box per dimension not holding up or split, worst first, each the served `insights[]`
   entry's words -- the name, the pill, the split line, the rung's heading with *· {answered} of the {against} said
   why*, the themes (label, count, up to three quotes each ending *— {Name}*), *Only k of the n were asked here…*,
-  *No follow-up on this rung: …*, the raw *In their words* -- with the served numbers consistent (`asked + Σ tookBy ==
-  against`, counts within `answered`, at most three themes and three quotes) and every quote a named person's own
+  *No follow-up on this rung: …*, the raw *In their words* -- with the served numbers consistent (`asked + capped ==
+  against` since keel-cloud 270, spec 161 FR-7: `tookBy` is gone; counts within `answered`, at most three themes and
+  three quotes) and every quote a named person's own
   follow-up words; on the scripted stack (`strict`) the themes are the fake's grouping of the rung's follow-up answers
   (`harness/interviewer_fake.themes`), word for word; else the right one of the two empty states.
 - **`report_no_repeat`** (D6, a literal check): outside a quote and the view's own *said why* / *Only k of the n* lines,
@@ -53,6 +54,9 @@ from harness import interviewer_fake as fake
 from instructions import overview as ov
 from instructions.brief_facts import BAR_LINES, BROKE_ON, DID_NOT_HOLD, _plain, bar_words
 
+#: Spec 161 FR-7 (keel-cloud 270 FR-1): Frequency's second stem's heading (after Never following a yes) -- the fake's
+#: ladder port (spec 051) is not moved, so its own `ALSO` does not carry it.
+ALSO_HEADINGS_270 = {"problem.frequency": "A yes, then never"}
 #: Bumped whenever a mark is born, retired, or reads its record differently.
 #: v1 (spec 052): the five born. v2 (spec 073 FR-3, keel-web 113 FR-4): the panel lead line leaves the full Overview --
 #: `report_overview` holds it absent there (the rows carry the state as before) and `report_binding` holds it on page one,
@@ -451,8 +455,17 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
         if insight.get("noQuestionWhy") is not None:
             faults.append({key: "noQuestionWhy is served (keel-cloud 119: always null)", "insight": insight})
         heading = insight.get("rungHeading")
-        if heading and insight.get("tookBy") is not None and int(insight.get("asked") or 0) + sum(
+        if "capped" in insight:
+            # spec 161 FR-7 (keel-cloud 270 FR-2, contract 87): every rung against is owed -- `tookBy` is gone, `capped`
+            # in its place, `asked + capped == against`
+            if "tookBy" in insight:
+                faults.append({key: "tookBy served beside capped (keel-cloud 270: gone)", "insight": insight})
+            if heading and int(insight.get("asked") or 0) + int(insight.get("capped") or 0) != \
+                    int(insight.get("against") or 0):
+                faults.append({key: "asked + capped != against", "insight": insight})
+        elif heading and insight.get("tookBy") is not None and int(insight.get("asked") or 0) + sum(
                 int(t.get("count") or 0) for t in insight.get("tookBy") or []) != int(insight.get("against") or 0):
+            # a record from before keel-cloud 270 (contract 86 and earlier): the first rung against took the rest
             faults.append({key: "asked + tookBy != against", "insight": insight})
         themes = insight.get("themes") or []
         state = insight.get("state")
@@ -494,7 +507,8 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
                     for t in themes]
             if have != want:
                 faults.append({key: "themes are not the fake's grouping", "served": have, "fake": want})
-        if heading and heading not in (fake.RUNG_HEADINGS.get(key), (fake.ALSO.get(key) or (None,) * 4)[3]):
+        if heading and heading not in (fake.RUNG_HEADINGS.get(key), (fake.ALSO.get(key) or (None,) * 4)[3],
+                                       ALSO_HEADINGS_270.get(key)):
             faults.append({key: "rung heading", "served": heading, "registry": fake.RUNG_HEADINGS.get(key)})
     by_key = {b.get("key"): b for b in boxes}
     for key in want_dims:

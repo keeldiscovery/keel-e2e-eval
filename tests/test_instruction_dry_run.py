@@ -90,11 +90,11 @@ def test_a_dry_run_measures_the_four_deterministic_marks_and_never_passes(dry, c
                  "refusals", "shape_refusals"):
         assert marks[name]["measured"] is False, name
     assert "brief_answers" not in marks, "retired at v20 (call 116)"
-    assert scorecard["totals"]["brief_facts_checks"] == 14, "twelve cards, the pilot and the price median"
+    assert scorecard["totals"]["brief_facts_checks"] == 13, "eleven cards (spec 161: no Current solution), the pilot and the price median"
     assert scorecard["totals"]["report_overview_checks"] == 7, "the hero, two tiles, three panels, the foot"
     assert scorecard["totals"]["spoken_units"] == 4, "one composed item and the entry's three faces"
     assert "20 cases" in out and "2 asked" in out and "1 COMPARE row" in out
-    assert "spoken_form: 4 of 4" in out and "brief_facts: 14 of 14" in out and "report_overview: 7 of 7" in out
+    assert "spoken_form: 4 of 4" in out and "brief_facts: 13 of 13" in out and "report_overview: 7 of 7" in out
     assert (bundle / "cloud-corpus" / "spoken-corpus.txt").is_file(), "kept in the bundle for a re-score"
     assert "nothing was called and nothing was spent" in out
     assert (bundle / "compare" / "09-fixture.in.json").is_file()

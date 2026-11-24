@@ -223,10 +223,10 @@ def test_the_lock_notes_read_214s_rules_by_name():
 
 #: The corpus's own words that break a 214 rule, as the scripted writer drafts them (214's *Owed*: a corpus revision
 #: rewords them) -- findings, never failures; the rule named.
+#: Spec 161 (keel-cloud 269 FR-5): the five L38 findings were Current solution's scales (17-expanse, 23-taiga,
+#: 27-blacksmith, 28-relvy-ai, 32-frizzle) -- no Current solution list is drafted since, so none is found.
 FINDINGS = {"05-paidly": ["L37"], "07-mulchrun": ["L37"], "08-fresco": ["L37"], "09-karsa": ["L37"],
-            "17-expanse": ["L38"], "22-andy-ai": ["L37"], "23-taiga": ["L38"],
-            "25-bidflow": ["L37"], "27-blacksmith": ["L38"], "28-relvy-ai": ["L38"], "32-frizzle": ["L38"],
-            "33-cardboard": ["L37"]}
+            "22-andy-ai": ["L37"], "25-bidflow": ["L37"], "33-cardboard": ["L37"]}
 
 
 @pytest.fixture(scope="module")
@@ -263,7 +263,8 @@ def test_the_scripted_drafts_break_214s_rules_only_in_the_corpus_words(entries):
         # the coordinator's word (2026-11-04): the scripted occasion is *time* where the corpus's noun breaks X14
         if w.occasion_fault(vs.context_result(entry)["occasion"], None, ctx.get("circumstance"), False):
             rules.append("X14")
-        for key, vector in (("problem.importance", "PROBLEM"), ("problem.current_solution_satisfaction", "PROBLEM"),
+        # spec 161 (keel-cloud 269 FR-5): no Current solution list is drafted any more -- its rules read nothing
+        for key, vector in (("problem.importance", "PROBLEM"),
                             ("commercial.purchase_friction", "COMMERCIAL"), ("commercial.commitment", "COMMERCIAL")):
             if not entry.founder_list(key) or entry.unsure(key):
                 continue

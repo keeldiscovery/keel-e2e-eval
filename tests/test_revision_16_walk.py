@@ -160,8 +160,11 @@ def test_a_moved_persons_line_for_the_second_yes_belongs_to_commitment_and_other
     assert fake.first_rung(farida.picks, vs.founder_side(issen), farida.link, b2b=vs.is_b2b(issen)) is None
     karsa = _backtest("09-karsa")
     bilal = next(p for p in vs.person_inputs(karsa) if p.person == "Bilal Qureshi")
-    assert "Bilal Qureshi" in karsa.commitment_moved and bilal.follow_up_dimension is None
-    assert not vs.moved_line_for_the_second_yes(karsa, bilal)
+    # spec 161 (keel-cloud 269 FR-5): Bilal Qureshi's earlier rung was Current solution, not asked any more -- he is
+    # owed nothing, so his moved line is Commitment's, as Farida's is
+    assert "Bilal Qureshi" in karsa.commitment_moved and bilal.follow_up_dimension == "commercial.commitment"
+    assert vs.moved_line_for_the_second_yes(karsa, bilal)
+    assert fake.first_rung(bilal.picks, vs.founder_side(karsa), bilal.link, b2b=vs.is_b2b(karsa)) is None
 
 
 def test_a_second_yes_line_is_never_typed_and_the_walk_says_why():
@@ -286,10 +289,12 @@ def test_frequencys_card_counts_the_served_gates_units_where_a_gate_is_stored():
     paidly = corpus_mod.load_file(corpus_mod.corpus_dir(Path(load_config(validate=False).keel_cloud)) / "05-paidly.yaml",
                                   registry=registry)
     frequency = registry.by_key("problem.frequency")
-    standing = {"status": "HOLDING_UP", "n": 10, "median": 2}
-    assert bf.card(paidly, frequency, standing)["line"] == "the middle answer"
-    assert bf.card(paidly, frequency, standing, clause=vs.event_past(paidly))["line"] == \
-        "the middle answer · months they " + vs.event_past(paidly)
+    standing = {"status": "HOLDING_UP", "n": 10, "inside": 7, "median": 2}
+    # spec 161 FR-8 (keel-cloud 269 FR-3): the card says the share on Every time or Most times, never the middle answer
+    # over the window -- with or without a stored gate (129 FR-1 / 130 FR-2's reading retired with the count)
+    for clause in (None, vs.event_past(paidly)):
+        card = bf.card(paidly, frequency, standing, clause=clause)
+        assert (card["number"], card["line"]) == ("7 of 10", bf.FREQUENCY_LINE)
 
 
 def test_the_follow_up_clips_may_carry_an_also_clip_beside_the_rung():

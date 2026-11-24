@@ -39,11 +39,11 @@ def readings() -> dict:
 
 
 def test_the_beats_are_the_scripts_heard_words_in_order():
-    """Spec 158 (keel-cloud 263 FR-1): one answer a beat, 1-4, and 5 where beat 2 named no moment."""
+    """Spec 161 (keel-cloud 268 FR-3; 158's 263 before it): one answer a beat, 1-5, 6 where beat 2 named no moment, 7."""
     script = readings()
     told = ss.said_turns(script)
-    assert [n for n, _ in told][:4] == [1, 2, 3, 4]
-    assert ([n for n, _ in told][4:] == [5]) == (ss.moment_beat(script) == 5)
+    assert [n for n, _ in told][:5] == [1, 2, 3, 4, 5] and [n for n, _ in told][-1] == 7
+    assert (6 in [n for n, _ in told]) == (ss.moment_beat(script) == 6)
     assert all(words and words == words.strip() for _, words in told)
 
 
@@ -70,7 +70,7 @@ def test_the_context_result_is_the_scripts_slots():
     assert result["actor"] == who["actor"] and result["actor_plural"] == who["actor_plural"]
     assert result["occasion"] == {"noun": when["occasion"], "stem": when["occasion_stem"], "rhythm": "DAILY"}
     assert result["segment"] == {"core": who["segment_core"],
-                                 "condition": ss.reading_of(script, 4)["only_those_who"]}
+                                 "condition": ss.reading_of(script, ss.ALL_OF_THEM_BEAT)["only_those_who"]}
     assert result["window"] == {"proposed": None}
 
 
@@ -110,8 +110,8 @@ def test_the_runtime_script_moves_exactly_three_answers():
     assert out["CALIBRATION_QUESTIONS+repair"] == base["CALIBRATION_QUESTIONS+repair"]   # a solution answer, untouched
     part1 = out["RESPONDENT_QUESTIONS"][0]["result"]
     assert part1["items"][0]["event"] == "E"
-    assert part1["condition"] == {"question": ss.condition_question(ss.reading_of(script, 4)["only_those_who"]),
-                                  "inside": "YES"}
+    assert part1["condition"] == {"question": ss.condition_question(
+        ss.reading_of(script, ss.ALL_OF_THEM_BEAT)["only_those_who"]), "inside": "YES"}
     assert "_story" in out
 
 
@@ -205,7 +205,7 @@ def test_the_registry_export_holds_the_story_wording():
             for value in node:
                 walk(value)
     walk(json.loads(text))
-    assert found == {"story_gate": "In your {window_last}, did this happen to you?",
+    assert found == {"story_gate": "Did this happen to you?",                  # spec 161 (keel-cloud 269 FR-1)
                      "problem_check": "Does your {actor} have this problem?",
                      "problem_check_introduced": "what your {actor} goes through"}
 
@@ -282,6 +282,11 @@ def test_the_chime_counter_is_keel_webs_test_hook():
 def test_the_card_rows_are_keel_webs():
     """Spec 158c FR-7: the walk reads the card's rows by `data-box`, keyed as keel-web's `BOX_KEYS` names them."""
     board = _need(WEB / "src" / "lib" / "story" / "board.ts").read_text(encoding="utf-8")
+    if not ss.web_has_257(WEB):
+        # spec 161 FR-1: the tasks row is keel-web 257's -- before it the six rows of 249 (`CARD_ROWS` less `tasks`)
+        keys = "[" + ", ".join(f'"{k}"' for k in ss.CARD_ROWS if k != "tasks") + "]"
+        assert f"BOX_KEYS = {keys} as const" in board, keys
+        pytest.skip("keel-web 257 is not in the keel-web checkout: the tasks row pending keel-web 257")
     keys = "[" + ", ".join(f'"{k}"' for k in ss.CARD_ROWS) + "]"
     assert f"BOX_KEYS = {keys} as const" in board, keys
 
@@ -296,7 +301,9 @@ def test_every_selector_the_walk_presses_is_in_keel_web(path):
 def test_the_story_lines_are_keel_webs():
     """keel-web 245's lines the walk waits on: the beats' questions, the openings, the questions back, the return."""
     source = _need(WEB / "src" / "lib" / "storyLines.ts").read_text(encoding="utf-8")
-    for n, question in ss.STORY_QUESTIONS.items():
+    # spec 161 FR-1: the seven beats are keel-web 257's -- before it the five of 245 (`STORY_QUESTIONS_263`)
+    questions = ss.STORY_QUESTIONS if ss.web_has_257(WEB) else ss.STORY_QUESTIONS_263
+    for n, question in questions.items():
         assert f'"{question}"' in source, (n, question)
     for line in (ss.STORY_READY, ss.SOLUTION_READY, ss.SOLUTION_TURN):
         assert f'"{line}"' in source, line

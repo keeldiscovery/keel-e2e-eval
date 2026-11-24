@@ -157,7 +157,7 @@ def test_the_report_names_the_orb():
              "response": {"status": 201, "format": "TEXT", "anchorChip": None, "answers": 6}, "done": "Thank you"}]
     md = report.report_markdown([], {"cloud": "c", "web": "w"}, report.log_scan(""), orbs=orbs)
     # spec 160 FR-8: *The orb* became *The two speakers*; the links walked are kept under it
-    assert "## The two speakers (spec 160, keel-web 256 on keel-cloud 267)" in md and "### The links walked" in md
+    assert "## The two speakers (spec 160, keel-web 256 on keel-cloud 267; under the three surfaces since spec 161)" in md and "### The links walked" in md
     assert "| problem | voice | film:problem > speaking > listening |" in md
     assert "201 TEXT  (6 answers)" in md and "-> held `['BOne']`" in md
 
@@ -263,7 +263,9 @@ def test_the_charge_table_is_20_with_card_speech_at_0():
     if table is None:
         pytest.skip("no InferenceCharge in the checkout")
     text = table.read_text(encoding="utf-8")
-    assert int(re.search(r"public static final int VERSION = (\d+);", text).group(1)) == charge.PRICE_VERSION_267
+    # spec 161 FR-11 (keel-cloud 270 FR-3): 21 -- EXPERIENCE_WAYS added at 0; CARD_SPEECH still 0 (267's 20 before it)
+    version = int(re.search(r"public static final int VERSION = (\d+);", text).group(1))
+    assert version in (charge.PRICE_VERSION_267, charge.PRICE_VERSION_270)
     assert re.search(r"CARD_SPEECH\s*\(\s*0,", text)
 
 

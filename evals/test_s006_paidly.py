@@ -176,7 +176,6 @@ def _paidly_extras(j, sample: sample_export.Pending | None = None) -> None:
         h.record_assert({"status": "HOLDING_UP", "n": 9, "founder": "2 to 3 months out of 3"},
                         {"frequency": {k: frequency.get(k) for k in ("status", "n", "interval")},
                          "screen": j.framing["problem.frequency"][0].get("question")})
-        assert vs.frequency_fits(j.entry)
         assert frequency.get("status") == "HOLDING_UP" and frequency.get("n") == 9, frequency
         assert "3 months" in (j.framing["problem.frequency"][0].get("question") or ""), j.framing["problem.frequency"]
 

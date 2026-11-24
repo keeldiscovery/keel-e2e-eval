@@ -283,6 +283,31 @@ def card_speech_rows(ledger: list[dict]) -> list[dict]:
     return [x for x in ledger if x.get("action") == CARD_SPEECH]
 
 
+#: Spec 161 FR-11 (keel-cloud 268 FR-7, 270 FR-3): `InferenceCharge.VERSION` 21 -- `EXPERIENCE_WAYS` added, priced 0;
+#: `STORY_TURN` (and the story's correct, draft, check and draw rows) still priced 0.
+PRICE_VERSION_270 = 21
+#: The readings the spoken story and the ways run as: never a charge.
+FREE_READINGS = ("STORY_TURN", "STORY_CORRECT", "STORY_DRAFT", "STORY_CHECK", "PICTURE_DRAW", "EXPERIENCE_WAYS",
+                 "THEMES", "INTERPRET")
+
+
+def reading_rows(ledger: list[dict]) -> dict:
+    """Spec 161 FR-11: the free readings' rows on the ledger, counted by action (what the run met)."""
+    out: dict = {}
+    for row in ledger:
+        if row.get("action") in FREE_READINGS:
+            out[row["action"]] = out.get(row["action"], 0) + 1
+    return out
+
+
+def free_reading_faults(ledger: list[dict]) -> list[str]:
+    """Spec 161 FR-11: a story turn or a ways reading that moved credits or was priced -- [] where every such row on
+    the ledger is 0 credits, priced 0."""
+    return [f"{row.get('action')} row {row.get('idempotency_key')}: credits {row.get('credits')}, price "
+            f"{row.get('price_credits')}" for row in ledger if row.get("action") in FREE_READINGS
+            and (int(row.get("credits") or 0) != 0 or int(row.get("price_credits") or 0) != 0)]
+
+
 def orb_charge_faults(ledger: list[dict]) -> list[str]:
     """Spec 159 FR-4: what in `ledger` (non-stand-in rows) would be a charge for the orb's clips -- a `CARD_SPEECH` row
     that is not a measured SPEND of 0 credits priced 0, or any row that moves the balance down other than the two

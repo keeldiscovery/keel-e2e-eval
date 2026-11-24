@@ -510,6 +510,7 @@ def test_the_corpus_record_keeps_every_rule_and_nothing_is_known_apart(real):
     fx.skip_a_spoken_record_before_170(_keel_cloud(), corpus.entries[0].registry)    # spec 110 FR-2
     fx.skip_a_spoken_record_before_174(_keel_cloud(), corpus.entries[0].registry)    # spec 115 FR-0
     fx.skip_a_spoken_record_before_198(_keel_cloud(), corpus.entries[0].registry)    # spec 130 (keel-cloud 198)
+    fx.skip_a_spoken_record_before_269(_keel_cloud(), corpus.entries[0].registry)    # spec 161 (keel-cloud 269)
     score = spoken_mod.score(cloud, corpus)
     assert sorted((f["entry"], f["unit"]) for f in score.faults) == FIVE_ADOPTION_K2, score.faults
     assert all(f["key"] == "solution.adoption_friction" and f["evidence"].startswith('K2: framed, it reads "To use it')
@@ -524,6 +525,7 @@ def test_the_record_follows_registry_revision_13s_five_changes(real):
     corpus, cloud = real
     registry = corpus.entries[0].registry
     fx.skip_a_spoken_record_before_198(_keel_cloud(), registry)       # spec 130 (keel-cloud 198)
+    fx.skip_a_spoken_record_before_269(_keel_cloud(), registry)       # spec 161: Current solution's row retired in 5
     items = {(i.entry, i.key): i for e in corpus.entries for i in cloud.items_of(e.id)}
     lullaby = lambda key: items[("03-lullaby", key)]                  # noqa: E731
     assert spoken_mod.registry_escape(registry, "problem.current_solution_satisfaction") == "Someone else did it"

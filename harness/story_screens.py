@@ -22,6 +22,16 @@ trade, company or title is named here beyond the script's. The Prevalence fields
 are the cloud's own test fixture (`src/test/resources/story/example-prevalence.json`, keel-cloud 259 judgement call 20).
 
 Every write the page makes is read off the response keel-web received, so the leg holds the wire the page was handed.
+
+**Spec 161: seven beats** (keel-cloud 268 on contract 85-87, keel-web 257). The founder is asked seven beats: 1 who;
+2 what and when; 3 how they do it today and where that falls short, in one breath; 4 what that costs them; 5 all or
+some; 6 the when, only where beat 2 named no moment; 7 two or three other tasks of the role. Beats 3, 4 and 7 are the
+long beats (keel-web 257 FR-11, `LONG_BEATS`): they never close on quiet -- the walk ends each by saying a done word
+(*That's it.*) as its last words, and the words sent carry none. The board reads seven rows (who, job, when, today,
+falls short, costs, other tasks); after the film's yes Keel says the served `verdictLine` (`story-verdict`) and, on a
+spoken PROBLEM project, no belief page is drawn. The film's seventh scene is the pain (`pain: true`, `costLine` its
+line). `limits_only_beat_3` / `way_answer` are the one telling whose beat 3 names no way, so code's one ask (*And how do
+they do it today?*) is walked; `two_part_beat_3` is beat 3 said in two parts across seven seconds of quiet.
 """
 
 from __future__ import annotations
@@ -65,11 +75,19 @@ def _answers(script: dict, key: str) -> list[dict]:
     return [t for t in script.get(key) or [] if not t.get("correction")]
 
 
+#: Spec 161 FR-1 (keel-cloud 268 FR-3): the founder's seven beats in order -- 1 who, 2 what and when, 3 the way and every
+#: limitation, 4 the cost, 5 all or some, 6 the when (owed only where beat 2 named no moment), 7 the role's other tasks.
+BEATS = (1, 2, 3, 4, 5, 6, 7)
+#: keel-cloud 268 `StoryTurns`: the cost (4), all or some (5), the when (6), the other tasks (7).
+COST_BEAT, ALL_OF_THEM_BEAT, WHEN_BEAT, OTHER_TASKS_BEAT = 4, 5, 6, 7
+
+
 def said_turns(script: dict) -> list[tuple[int, str]]:
-    """keel-cloud 263's beats as the founder says them, in order -- one answer a beat: 1 who, 2 what and when, 3 every
-    limitation in one answer, 4 all of them or some, and 5 the when where beat 2 named no moment -- the script's
-    `heard` words (a correction's entry is not a beat). The script's first story only: keel-cloud 263c (`1fb1fa71`)
-    adds more tellings after it (another who, beat 2 said several ways), where the beats start again at 1."""
+    """keel-cloud 268's beats as the founder says them, in order -- one answer a beat: 1 who, 2 what and when, 3 the way
+    and every limitation in one answer, 4 the cost, 5 all of them or some, 6 the when where beat 2 named no moment, and
+    7 the role's other tasks -- the script's `heard` words (a correction's entry is not a beat). The script's first story
+    only: keel-cloud 263c (`1fb1fa71`) adds more tellings after it (another who, beat 2 said several ways), where the
+    beats start again at 1. Any other order is refused by name (spec 161 FR-1)."""
     out: list[tuple[int, str]] = []
     for t in _answers(script, "turns"):
         n = int(t["turn"])
@@ -77,8 +95,8 @@ def said_turns(script: dict) -> list[tuple[int, str]]:
             break
         out.append((n, str(t["heard"])))
     beats = [n for n, _ in out]
-    if beats[:4] != [1, 2, 3, 4] or beats[4:] not in ([], [5]):
-        raise ValueError(f"the fake readings' beats are not 1-4 (and 5 where owed): {beats}")
+    if beats not in ([1, 2, 3, 4, 5, 6, 7], [1, 2, 3, 4, 5, 7]):
+        raise ValueError(f"the fake readings' beats are not keel-cloud 268's seven (1-5, 6 where owed, 7): {beats}")
     return out
 
 
@@ -108,8 +126,9 @@ def idea_reading_of(script: dict, turn: int, heard: str | None = None, *, correc
 
 
 def moment_beat(script: dict) -> int:
-    """The beat whose reading names the moment: 2 where its one answer carried the when, else 5 (263 FR-1)."""
-    return 2 if reading_of(script, 2).get("circumstance") else 5
+    """The beat whose reading names the moment: 2 where its one answer carried the when, else 6 (keel-cloud 268 FR-3;
+    263's beat 5 before it)."""
+    return 2 if reading_of(script, 2).get("circumstance") else WHEN_BEAT
 
 
 def scripted_room(script: dict) -> str | None:
@@ -130,8 +149,84 @@ def limits_read(script: dict) -> list[str]:
 
 
 def heard_cost(script: dict) -> str | None:
-    """The cost the script hears said in passing on beat 3 (263 FR-2b's `heard.cost`), or None."""
+    """The cost the script hears said in passing on beat 3 (263 FR-2b's `heard.cost`), or None. Spec 161 FR-1: such a
+    cost is on the board before beat 4, and beat 4 is still asked (keel-cloud 268 FR-2)."""
     return ((reading_of(script, 3).get("heard") or {}).get("cost")) or None
+
+
+def steps_read(script: dict) -> list[str]:
+    """Spec 161 FR-1 (keel-cloud 268 FR-1): today's way the script reads beat 3's one answer as -- its steps, in order."""
+    return [str(x) for x in reading_of(script, 3).get("steps") or []]
+
+
+def act_read(script: dict) -> str | None:
+    """Spec 161 FR-1: the -ing phrase of today's way the script reads beat 3 as (`act`), or None."""
+    return reading_of(script, 3).get("act") or None
+
+
+def cost_read(script: dict) -> str | None:
+    """Spec 161 FR-1 (keel-cloud 268 FR-2): the cost the script reads beat 4 as."""
+    return reading_of(script, COST_BEAT).get("cost") or None
+
+
+def other_tasks_read(script: dict) -> list[str]:
+    """Spec 161 FR-1 (keel-cloud 268 FR-3): the role's other tasks the script reads beat 7 as."""
+    return [str(x) for x in reading_of(script, OTHER_TASKS_BEAT).get("other_tasks") or []]
+
+
+def tasks_correction(script: dict) -> tuple[str, list[str]] | None:
+    """Spec 161 FR-1 (keel-cloud 268 FR-4): the cloud's own correction of the other tasks -- the words said on the board
+    and the whole new list they are read as (`fake-readings.json`'s `corrections` entry that writes `other_tasks`), or
+    None where the script carries none."""
+    for entry in script.get("corrections") or []:
+        tasks = (entry.get("result") or {}).get("other_tasks")
+        if tasks:
+            return str(entry["heard"]), [str(t) for t in tasks]
+    return None
+
+
+# ------------------------------------------------------------------------------------ the long beats (keel-web 257)
+
+#: keel-web 257 FR-11 (`LONG_BEATS` in `storyLines.ts`): the beats that never close on quiet alone.
+LONG_BEATS = (3, 4, 7)
+#: keel-web 257 FR-11 (`DONE_WORDS`): the words that close a long beat when they are the answer's last words.
+DONE_WORDS = ("that's it", "that's all", "that is all", "I'm done", "done", "that is everything", "you can go on")
+#: The done word the walk says (spec 161 FR-1: *that's it*).
+DONE_WORD = "That's it."
+#: keel-web 257 FR-11 (translate): the state line after `THINK_MS` of quiet on a long beat, and the line under the orb
+#: while a long beat listens.
+THINK_LINE = "Take your time."
+LONG_BEAT_SUB = 'Take your time. Say "that\'s it" when you are done.'
+#: keel-web 257 FR-11: quiet on a long beat dims the orb after 6 s (`THINK_MS`); *Anything else?* at 20 s.
+THINK_MS = 6_000
+ANYTHING_ELSE_MS = 20_000
+#: Spec 161 FR-1: the quiet between the two parts of beat 3 on one founder leg -- past `THINK_MS`, short of 20 s.
+TWO_PART_QUIET_S = 7.0
+_DONE_TAIL = re.compile(r"(?i)[\s,.;:!-]*\b(?:" + "|".join(re.escape(w).replace("'", "['\u2019]")
+                                                       for w in sorted(DONE_WORDS, key=len, reverse=True))
+                        + r")[\s.!]*$")
+
+
+def with_done_word(words: str) -> str:
+    """A long beat's answer as the walk says it: the words, then the done word as their last words."""
+    return f"{str(words).rstrip()} {DONE_WORD}"
+
+
+def ends_on_a_done_word(text: str | None) -> bool:
+    """Whether words end on a done word (keel-web 257 FR-11: only as the last words is it a close; inside a sentence it
+    is not)."""
+    return bool(_DONE_TAIL.search(str(text or "")))
+
+
+_DONE_STRIP = re.compile(r"(?i)\s*\b(?:" + "|".join(re.escape(w).replace("'", "['\u2019]")
+                                                  for w in sorted(DONE_WORDS, key=len, reverse=True))
+                         + r")[\s.!]*$")
+
+
+def without_done_word(text: str) -> str:
+    """The words a long beat sends: the done word at their end stripped (keel-web 257 FR-11), the words' own last
+    stop kept."""
+    return _DONE_STRIP.sub("", str(text or "")).rstrip(" ,;:-")
 
 
 #: Spec 158 FR-1: beat 3's long answer is at least this long (keel-cloud 263 FR-2a: no 240 cut).
@@ -167,14 +262,16 @@ def _lower(text: str) -> str:
 
 
 def long_beat_3(script: dict) -> tuple[str, list[str]]:
-    """Beat 3 told the long way (spec 158 FR-1): five limitations in one breath -- the script's three, then two more --
-    and a cost said in passing, over at least 1,500 characters. The first four limitations are a sentence each (the
-    cloud's fake reader, `FakeStoryReadings`, reads an unscripted beat 3 a sentence a row and keeps four), the fifth,
-    the cost and the rest of the telling one long last sentence. Returns the words and the four rows a reading keeps."""
+    """Beat 3 told the long way (spec 158 FR-1; spec 161 FR-1: the way as well as the limitations): today's way in one
+    sentence opening *Today they* (keel-cloud 268's fake reads it as the steps), five limitations in one breath -- the
+    script's three, then two more -- and the cost said in passing in its own sentence (*In the end ...*: heard on beat 3,
+    on the board before beat 4), over at least 1,500 characters. The first four limitations are a sentence each (the
+    cloud's fake reader, `FakeStoryReadings`, reads an unscripted beat 3 a sentence a row and keeps four), the fifth and
+    the rest of the telling one long last sentence. Returns the words and the four rows a reading keeps."""
     limits = (limits_read(script) + list(MORE_LIMITS))[:5]
     rows = limits[:4]
     cost = _lower(heard_cost(script) or "someone gets paid wrong")
-    head = " ".join(f"{row}." for row in rows)
+    head = f"{way_sentence(script)} " + " ".join(f"{row}." for row in rows) + f" In the end, {cost}."
     tail = [f"And {_lower(limits[4])}"]
     for clause in _TELLING:
         tail.append(clause.format(cost=cost))
@@ -184,6 +281,39 @@ def long_beat_3(script: dict) -> tuple[str, list[str]]:
     if len(words) > LONG_ANSWER_MAX:
         raise ValueError(f"the long answer is {len(words)} characters, over the transcriber's {LONG_ANSWER_MAX}")
     return words, rows
+
+
+def way_sentence(script: dict) -> str:
+    """Today's way as one sentence opening *Today they* -- the script's own steps joined by *then* (keel-cloud 268's
+    fake reader, `FakeStoryReadings`, reads such a sentence as the steps, in order)."""
+    steps = [_lower(x) for x in steps_read(script)] or ["do it by hand"]
+    return "Today they " + ", then ".join(steps) + "."
+
+
+def limits_only_beat_3(script: dict) -> str:
+    """Spec 161 FR-1 (keel-cloud 268 FR-1): beat 3 answered with the limitations alone -- the script's own, a sentence
+    each, no way named -- so code asks once, *And how do they do it today?* (`WAY_ASK`)."""
+    return " ".join(f"{row}." for row in limits_read(script))
+
+
+def way_answer(script: dict) -> str:
+    """The words said after the way's one ask: today's way, its steps joined by *then* (read as the way: the steps, the
+    act from the first)."""
+    steps = [_lower(x) for x in steps_read(script)] or ["do it by hand"]
+    return "They " + ", then ".join(steps) + "."
+
+
+def two_part_beat_3(script: dict) -> tuple[str, str]:
+    """Spec 161 FR-1 (keel-web 257 FR-11): beat 3 said in two parts with seven seconds of quiet between them -- the way
+    and the first limitations, then the rest -- which the page joins into one answer, closed by the done word."""
+    rows = limits_read(script)
+    first = f"{way_sentence(script)} " + " ".join(f"{row}." for row in rows[:2])
+    second = " ".join(f"{row}." for row in rows[2:]) or "And it happens again the next time."
+    return first, second
+
+
+#: keel-cloud 268 FR-1 (`StoryTurns.WAY_ASK`): beat 3's one ask where the words named limitations but no way.
+WAY_ASK = "And how do they do it today?"
 
 
 #: Spec 158 FR-1: the correction said after beat 4's readback (the spec's own words), through the fake mic.
@@ -197,8 +327,9 @@ LONG_WHO_SUFFIX = " in small teams"
 
 
 def condition_question(only_those_who: str | None) -> str | None:
-    """The screener the runtime's RESPONDENT_QUESTIONS answer writes for a story whose beat 4 named a condition: *Do
-    you {only those who}?* -- the founder's own words, one yes-or-no question (none where it happens to all of them)."""
+    """The screener the runtime's RESPONDENT_QUESTIONS answer writes for a story whose all-or-some beat named a
+    condition: *Do you {only those who}?* -- the founder's own words, one yes-or-no question (none where it happens to
+    all of them)."""
     words = " ".join(str(only_those_who or "").split()).rstrip(".?")
     if not words:
         return None
@@ -206,11 +337,12 @@ def condition_question(only_those_who: str | None) -> str | None:
 
 
 def context_interpret_result(script: dict, rhythm: str) -> dict:
-    """keel-cloud 259's acceptance pair's `contextResultOfTheScript`, restated on 263's beats: what CONTEXT_INTERPRET
+    """keel-cloud 259's acceptance pair's `contextResultOfTheScript`, restated on 268's beats: what CONTEXT_INTERPRET
     answers for the story's own words -- the script's slots in the job's result shape (the window Save reads the
-    context again, keel-web 241 FR-1). The when is the beat that named it (2, else 5). `rhythm` is the window's
-    (keel-cloud `Rhythm.of`)."""
-    who, when, everyone = reading_of(script, 1), reading_of(script, moment_beat(script)), reading_of(script, 4)
+    context again, keel-web 241 FR-1). The when is the beat that named it (2, else 6), the condition beat 5's. `rhythm`
+    is the window's (keel-cloud `Rhythm.of`)."""
+    who, when, everyone = reading_of(script, 1), reading_of(script, moment_beat(script)), \
+        reading_of(script, ALL_OF_THEM_BEAT)
     return {"spelling": [],
             "occasion": {"noun": when.get("occasion"), "stem": when.get("occasion_stem"), "rhythm": rhythm},
             "actor": who.get("actor"), "actor_plural": who.get("actor_plural"),
@@ -243,7 +375,7 @@ def story_runtime_script(base: dict, readings: dict, prevalence: dict, window: d
     story's context), and part 1's screener the story's own condition (`condition_question`). Nothing else moved; the
     `_source` line says so."""
     out = copy.deepcopy(base)
-    everyone = reading_of(readings, 4)
+    everyone = reading_of(readings, ALL_OF_THEM_BEAT)
     out["_story"] = ("spec 157: CONTEXT_INTERPRET, the PROBLEM calibration's Prevalence fields and part 1's screener are "
                      "the story's own (keel-cloud fake-readings.json, example-prevalence.json); the rest is "
                      f"{base.get('_entry_id')}'s")
@@ -282,12 +414,28 @@ STORY_START = "[data-testid=story-start]"
 STORY_TURN = "[data-testid=story-turn]"
 STORY_CHECK = "[data-testid=story-check]"
 WINDOW_PATH = re.compile(r"/define/context/window")
-#: keel-web 245 `lib/storyLines.ts` -- the beats' questions (keel-cloud 263 FR-1, verbatim) and the opening line.
+#: keel-web 257 FR-1 `lib/storyLines.ts` -- the seven beats' questions (keel-cloud 268 `StoryTurns.QUESTIONS`, verbatim)
+#: and the opening line. (keel-web 245's five, keel-cloud 263's: `STORY_QUESTIONS_263`.)
 STORY_QUESTIONS = {1: "Who has this problem?",
                    2: "What are they trying to get done, and when does that happen?",
-                   3: "While doing that, what limitations do they run into today? Tell me all of them.",
-                   4: "Does it happen to all of them, or just to some?",
-                   5: "When does that come up?"}
+                   3: "How do they do it today, and where does that fall short? Tell me all of it.",
+                   4: "And what does that cost them? What happens to them because of it?",
+                   5: "Does it happen to all of them, or just to some?",
+                   6: "When does that come up?",
+                   7: "Besides this, what else do they have to do in their role? Name two or three."}
+STORY_QUESTIONS_263 = {1: "Who has this problem?",
+                       2: "What are they trying to get done, and when does that happen?",
+                       3: "While doing that, what limitations do they run into today? Tell me all of them.",
+                       4: "Does it happen to all of them, or just to some?",
+                       5: "When does that come up?"}
+#: keel-web 257 FR-4: after the film's yes, the verdict -- the card (`story-verdict`) with the served `verdictLine`, Keel
+#: saying it, then the fixed line; other words than a yes are answered with the second line and the walk goes on.
+VERDICT_CARD = "[data-testid=story-verdict]"
+VERDICT_ASK = "Say yes, or just tell me if you want a different bar."
+VERDICT_LATER = "You can change that later on the review page."
+#: keel-cloud 269 FR-6 (`StoryView.verdictLine`): the three defaults said in one breath.
+VERDICT_LINE = ("I will call this real if at least six in ten say it happened, most of those say most times or every "
+                "time, and most put it in their top two.")
 STORY_READY = "Ready? I am ready when you are. Let us start with the problem."
 SOLUTION_READY = "Ready? Let us first go through the problem."
 SOLUTION_TURN = "This is the problem. Now let us talk about the solution. How will your product solve it?"
@@ -304,8 +452,12 @@ TURN_READBACK = "Your turn. Is that right?"
 TURN_ASKING = "Keel is asking"
 TURN_READING = "Keel is reading it to you"
 #: keel-web 249 FR-5 (`lib/story/board.ts` BOX_KEYS): the card's rows' `data-box` keys, as the card names them (the job's
-#: row is `task`, *Must get done*; the idea's product row rides on `today`, *The product*).
-CARD_ROWS = ("person", "task", "when", "today", "limits", "cost")
+#: row is `task`, *Must get done*; the idea's product row rides on `today`, *The product*). Spec 161 FR-1 (keel-web 257
+#: FR-3): `tasks` after `cost` -- the role's other tasks, *Besides this they ...*.
+CARD_ROWS = ("person", "task", "when", "today", "limits", "cost", "tasks")
+#: Spec 161 FR-1 (keel-web 257 FR-3): the board's seven rows in the narration's order -- who, job, when, today, falls
+#: short, costs, other tasks -- by their `data-box` keys.
+BOARD_ROWS = ("person", "task", "when", "today", "limits", "cost", "tasks")
 #: keel-web 249 FR-5 (`translate.ts` STORY.card): the card's label, and the cost row's name (no "drafted" tag).
 CARD_LABEL = "What Keel understood"
 CARD_COST_NAME = "So"
@@ -953,21 +1105,44 @@ class StoryWalk(Conversation):
             return seen
 
     # ------------------------------------------------------------------------------------------- one beat
-    def beat(self, n: int, words: str, *, correction: str | None = None) -> dict:
+    def beat(self, n: int, words: str, *, correction: str | None = None, two_part: tuple[str, str] | None = None,
+             ask_answer: str | None = None) -> dict:
         """One beat as the founder answers it: Keel's question, the words said once, Keel's readback, then the quiet --
         or, after the readback, `correction` said (sent as the beat again with `correction: true`) and its readback,
-        then the quiet. Beat 3's quiet closes the list (`done: true`). Returns what the screen drew and the wire."""
+        then the quiet. Beat 3's quiet closes the list (`done: true`). Returns what the screen drew and the wire.
+
+        Spec 161 FR-1 (keel-web 257 FR-11): a long beat (3, 4, 7) is said with the done word as its last words
+        (`with_done_word`) and never waits on the quiet to close; `two_part` (beat 3 on one leg) says the first part,
+        lets `TWO_PART_QUIET_S` of quiet pass -- reading that nothing was sent and the state line says *Take your
+        time.* -- then the second part and the done word; `ask_answer` is said after code's one ask on beat 3 (*And how
+        do they do it today?*, keel-cloud 268 FR-1)."""
+        long = n in LONG_BEATS
         with self._b.step(f"beat {n}: {STORY_QUESTIONS.get(n)}") as h:
             self._wait_beat(n)
             # the beat's log starts where its screen came (Keel is already asking by the time the walk reads it)
             log = self.orb_log()
             path = f"/define/story/{n}"
             mark = next((i for i, row in enumerate(log) if str(row.get("path") or "").endswith(path)), len(log))
-            seen: dict = {"turn": n, "asked": self.snapshot()}
-            put = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(words))
+            seen: dict = {"turn": n, "asked": self.snapshot(), "long": long}
+            if two_part:
+                seen["two_part"] = self.two_parts(n, two_part)
+                put = self.writes_to(rf"/story/turns/{n}$")[-1] if self.writes_to(rf"/story/turns/{n}$") else {}
+                if not put:
+                    raise AssertionError(f"beat {n}: the two parts were never sent ({seen['two_part']})")
+            else:
+                said = with_done_word(words) if long else words
+                put = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(said))
             seen["put"] = {"status": put["status"], "sent": put["sent"], "body": put["body"]}
             if (put.get("status") or 500) >= 400:
                 raise AssertionError(f"beat {n} refused {put.get('status')}: {put.get('body')}")
+            asked = (put.get("body") or {}).get("ask")
+            if asked and ask_answer:
+                # keel-cloud 268 FR-1: the way's one ask -- said by Keel, the microphone open again on the same beat
+                seen["ask"] = asked
+                said = with_done_word(ask_answer) if long else ask_answer
+                again = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(said))
+                seen["way"] = {"status": again["status"], "sent": again["sent"], "body": again["body"]}
+                put = again
             seen["quiet"] = self.after_answer(n, mark)
             seen["straight_on"] = bool(seen["quiet"].get("straight_on"))
             if seen["straight_on"]:
@@ -976,6 +1151,10 @@ class StoryWalk(Conversation):
                 seen["readback"] = {"straight_on": True, "buttons": []}
                 if correction:
                     seen["correction_deferred"] = correction
+                closes = [w for w in self.writes_to(rf"/story/turns/{n}$") if (w["sent"] or {}).get("done")]
+                if closes:
+                    seen["closed"] = {"status": closes[-1]["status"], "sent": closes[-1]["sent"],
+                                      "next": (closes[-1]["body"] or {}).get("next"), "by": "the done word"}
                 seen["next"] = self.page.url.rstrip("/").split("/")[-1]
                 seen["orb"] = orb_sequence(self.orb_log()[mark:])
                 h.add_screenshot(self._b.screenshot(f"story-beat-{n}-next"))
@@ -1000,10 +1179,15 @@ class StoryWalk(Conversation):
                 seen["corrected"] = self.snapshot()
                 h.add_screenshot(self._b.screenshot(f"story-beat-{n}-corrected"))
             if n == 3:
-                closed = self.put_after(r"/story/turns/3$", self.silence)
+                closes = [w for w in self.writes_to(r"/story/turns/3$") if (w["sent"] or {}).get("done")]
+                if closes:
+                    closed, by = closes[-1], "the done word"
+                else:
+                    # a page before keel-web 257: the quiet after *Anything else?* closes the list
+                    closed, by = self.put_after(r"/story/turns/3$", self.silence), "the quiet"
                 seen["closed"] = {"status": closed["status"], "sent": closed["sent"],
-                                  "next": (closed["body"] or {}).get("next")}
-            else:
+                                  "next": (closed["body"] or {}).get("next"), "by": by}
+            elif not long:
                 self.silence()
             self.wait_path(rf"/define/story/(?!{n}$)(\d|check)$")
             seen["next"] = self.page.url.rstrip("/").split("/")[-1]
@@ -1013,16 +1197,45 @@ class StoryWalk(Conversation):
             self.beats_seen.append(seen)
             return seen
 
+    def two_parts(self, n: int, parts: tuple[str, str]) -> dict:
+        """Spec 161 FR-1 (keel-web 257 FR-11): a long beat said in two parts -- the first, then `TWO_PART_QUIET_S` of
+        quiet (nothing sent, the beat still open, the state line *Take your time.* once `THINK_MS` passed), then the
+        second and the done word; the page sends the two as one answer."""
+        before = len(self.writes_to(rf"/story/turns/{n}$"))
+        self.voice.say(parts[0])
+        deadline = time.monotonic() + TWO_PART_QUIET_S
+        lines: list[str] = []
+        while time.monotonic() < deadline:
+            line = _tc(self.page.locator("[data-testid=story-state]"))
+            if line and line not in lines:
+                lines.append(line)
+            self.page.wait_for_timeout(250)
+        quiet = {"sent_in_the_quiet": len(self.writes_to(rf"/story/turns/{n}$")) - before,
+                 "still_on_the_beat": bool(re.search(rf"/define/story/{n}/?$", self.page.url)),
+                 "state_lines": lines, "think_line": any(line.startswith(THINK_LINE) for line in lines),
+                 "listening": self.voice.listening()}
+        put = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(with_done_word(parts[1])))
+        quiet["sent"] = (put.get("sent") or {}).get("text")
+        quiet["joined"] = all(_bare_words(p) in _bare_words(quiet["sent"]) for p in parts)
+        return quiet
+
     def tell(self, beats: list[tuple[int, str]], *, long3: str | None = None,
-             correction: str | None = None) -> list[dict]:
-        """Beats 1-4 in order (beat 3 the long answer where given, `correction` after beat 4's readback), then beat 5
-        only where the page asks it (keel-cloud 263: owed only while the when is unknown), then the boxes."""
+             correction: str | None = None, two_part: tuple[str, str] | None = None,
+             limits_only: tuple[str, str] | None = None) -> list[dict]:
+        """The beats in order (beat 3 the long answer where given, or in two parts, or the limitations alone and then
+        the way after code's ask; `correction` after beat 5's readback), beat 6 only where the page asks it (keel-cloud
+        268: owed only while the when is unknown), then the boxes."""
         seen = []
         for n, words in beats:
-            if n == 5 and not re.search(r"/define/story/5$", self.page.url):
+            if n == WHEN_BEAT and not re.search(rf"/define/story/{WHEN_BEAT}$", self.page.url):
                 continue
-            seen.append(self.beat(n, long3 if (n == 3 and long3) else words,
-                                  correction=correction if n == 4 else None))
+            kw: dict = {"correction": correction if n == ALL_OF_THEM_BEAT else None}
+            if n == 3 and two_part:
+                kw["two_part"] = two_part
+            if n == 3 and limits_only:
+                words = limits_only[0]
+                kw["ask_answer"] = limits_only[1]
+            seen.append(self.beat(n, long3 if (n == 3 and long3) else words, **kw))
             if seen[-1].get("correction_deferred"):
                 self.deferred_correction = seen[-1]["correction_deferred"]
         self.wait_path(r"/define/story/check$")
@@ -1092,16 +1305,123 @@ class StoryWalk(Conversation):
             h.record_assert({"state": "story"}, seen)
             return seen
 
-    def story_yes(self, *, lands: re.Pattern | str = WINDOW_PATH) -> dict:
+    def story_yes(self, *, lands: re.Pattern | str = WINDOW_PATH, verdict: bool = False) -> dict:
         """The story played through, *Is that how it goes for them?*, then the quiet goes on (244's window, or the
-        return trip)."""
+        return trip). Spec 161 FR-2 (keel-web 257 FR-4, `verdict`): after the film's yes Keel says the verdict line on
+        its card (`story-verdict`) and the fixed ask; the walk answers nothing and the quiet goes on."""
         with self._b.step("the story's question, then the quiet goes on") as h:
-            self.silence(timeout_s=180, landed=re.compile(lands) if isinstance(lands, str) else lands)
+            landing = re.compile(lands) if isinstance(lands, str) else lands
+            self.silence(timeout_s=180, landed=landing)
             said = self.snapshot()
+            heard = self.hear_verdict(landing) if verdict else None
             landed = self.wait_path(lands, timeout_s=60)
-            h.record_wire({"quiet": "after the story"}, {"url": landed, "said": said.get("said")})
+            h.record_wire({"quiet": "after the story"}, {"url": landed, "said": said.get("said"), "verdict": heard})
             h.add_screenshot(self._b.screenshot("story-landed"))
-            return {"landed": landed, "said": said.get("said")}
+            return {"landed": landed, "said": said.get("said"), "verdict": heard}
+
+    def hear_verdict(self, landing: re.Pattern, *, timeout_s: float = 30) -> dict:
+        """Spec 161 FR-2 (keel-web 257 FR-4): the verdict card read -- its words, what Keel said beside it -- then the
+        quiet (a yes or four seconds of silence goes on). Where no card stands (`drawn` false) the page went on without
+        it."""
+        card = self.page.locator(VERDICT_CARD)
+        deadline = time.monotonic() + timeout_s * self.patience
+        while time.monotonic() < deadline and not card.count() and not landing.search(self.page.url):
+            self.page.wait_for_timeout(200)
+        if not card.count():
+            return {"drawn": False, "url": self.page.url}
+        words = _tc(card)
+        said: list[str] = []
+        ask_by = time.monotonic() + 20 * self.patience
+        while time.monotonic() < ask_by and card.count():
+            line = _tc(self.page.locator("[data-testid=story-check-said]")) or _tc(self.page.locator(
+                "[data-testid=story-state]"))
+            if line and line not in said:
+                said.append(line)
+            if VERDICT_ASK in " ".join(said):
+                break
+            self.page.wait_for_timeout(200)
+        h_shot = self._b.screenshot("story-verdict")
+        if not landing.search(self.page.url):
+            self.silence(timeout_s=60, landed=landing)
+        return {"drawn": True, "words": words, "said": said, "shot": h_shot}
+
+
+class StoryWire:
+    """Spec 161 (keel-cloud 268-270 on contract 87): the founder's story told on the wire, as keel-web 257's page sends
+    it -- each beat's words whole (`PUT story/turns/{n}`, the done words never in them), beat 3's list and beat 7's rows
+    closed by `done: true`, the way's one ask answered on beat 3, a correction on the board (`POST story/correct`), the
+    boxes' yes (`POST story/confirm`), the build waited for, the window stored (`PUT context/window`). Used where the
+    keel-web checkout the stack serves does not yet carry keel-web 257 (`web_has_257`): the cloud's reads are held on the
+    wire and every screen check is said to be pending keel-web 257, by name. `call` is `Run.call` (the founder's cookie)."""
+
+    def __init__(self, call, project_id: str):
+        self.call = call
+        self.base = f"/v2/projects/{project_id}"
+        self.writes: list[dict] = []
+
+    def _w(self, method: str, path: str, body: dict | None) -> dict:
+        status, answer = self.call(method, f"{self.base}/{path}", body)
+        row = {"method": method, "path": path, "status": status, "sent": body,
+               "body": answer if isinstance(answer, dict) else None}
+        self.writes.append(row)
+        return row
+
+    def beat(self, n: int, words: str, *, ask_answer: str | None = None) -> dict:
+        put = self._w("PUT", f"story/turns/{n}", {"text": words})
+        seen: dict = {"turn": n, "put": put, "asked": {"question": STORY_QUESTIONS.get(n)}}
+        body = put.get("body") or {}
+        if body.get("ask") and ask_answer:
+            seen["ask"] = body["ask"]
+            put = self._w("PUT", f"story/turns/{n}", {"text": ask_answer})
+            seen["way"] = put
+            body = put.get("body") or {}
+        if n in (3, OTHER_TASKS_BEAT) and body.get("next") == n and (put.get("status") or 500) < 400:
+            closed = self._w("PUT", f"story/turns/{n}", {"done": True})
+            seen["closed"] = {"status": closed["status"], "sent": closed["sent"],
+                              "next": (closed.get("body") or {}).get("next"), "by": "done: true"}
+            body = closed.get("body") or {}
+        seen["next"] = str(body.get("next") or "")
+        return seen
+
+    def tell(self, beats: list[tuple[int, str]], *, words3: str | None = None,
+             limits_only: tuple[str, str] | None = None) -> list[dict]:
+        """The beats in order on the wire: beat 3 `words3` (the long telling, or the two parts joined) or the
+        limitations alone then the way after the ask; beat 6 only where the last answer's `next` names it."""
+        seen: list[dict] = []
+        nxt = "1"
+        for n, words in beats:
+            if n == WHEN_BEAT and nxt != str(WHEN_BEAT):
+                continue
+            if n == 3 and limits_only:
+                one = self.beat(3, limits_only[0], ask_answer=limits_only[1])
+            else:
+                one = self.beat(n, words3 if (n == 3 and words3) else words)
+            seen.append(one)
+            nxt = one["next"]
+            if (one["put"].get("status") or 500) >= 400:
+                raise AssertionError(f"beat {n} refused on the wire {one['put'].get('status')}: {one['put'].get('body')}")
+        return seen
+
+    def story(self) -> dict:
+        status, body = self.call("GET", f"{self.base}/story", None)
+        return body if status < 400 and isinstance(body, dict) else {}
+
+    def correct(self, words: str) -> dict:
+        return self._w("POST", "story/correct", {"text": words})
+
+    def confirm(self) -> dict:
+        return self._w("POST", "story/confirm", None)
+
+    def built(self, *, timeout_s: float = 120) -> dict:
+        deadline = time.monotonic() + timeout_s
+        story = self.story()
+        while time.monotonic() < deadline and ((story.get("build") or {}).get("state") not in ("ready", "failed")):
+            time.sleep(1)
+            story = self.story()
+        return story
+
+    def window(self, recall_window: dict) -> dict:
+        return self._w("PUT", "context/window", {"recallWindow": dict(recall_window)})
 
 
 def _json(response) -> dict | None:
@@ -1906,6 +2226,90 @@ def web_pared_down(keel_web: Path) -> bool:
     return source.exists() and 'data-testid="ai-film-begin"' in source.read_text(encoding="utf-8")
 
 
+#: keel-web 257's story lines (the seven beats, `LONG_BEATS`) and keel-web 258's interview control and flow -- read to say
+#: which keel-web the walk meets (spec 161: written to the specs; the stranger's and the founder's sides run once each is
+#: merged, and where one is not the leg says so by name).
+STORY_LINES_SOURCE = "src/lib/storyLines.ts"
+CONTROL_SOURCE = "src/components/interview/Control.tsx"
+
+
+def web_has_257(keel_web: Path) -> bool:
+    """keel-web 257 is in the checkout: the seven beats and the long beats (`LONG_BEATS` in `storyLines.ts`)."""
+    source = Path(keel_web) / STORY_LINES_SOURCE
+    return source.exists() and "LONG_BEATS" in source.read_text(encoding="utf-8") \
+        and STORY_QUESTIONS[7] in source.read_text(encoding="utf-8")
+
+
+def web_has_258(keel_web: Path) -> bool:
+    """keel-web 258 is in the checkout: Frequency's five rows drawn (`fixed_five` in `Control.tsx`) and the screener's own
+    step before the film (`kind: "condition"` in `aiInterviewFlow.ts`'s `stepsOf`)."""
+    control = Path(keel_web) / CONTROL_SOURCE
+    flow = Path(keel_web) / TYPING_SOURCE
+    return control.exists() and '"fixed_five"' in control.read_text(encoding="utf-8") and flow.exists() \
+        and "fixed_five" in flow.read_text(encoding="utf-8")
+
+
+# ------------------------------------------------------------------------------------ spec 161: the film's seven scenes
+
+#: keel-cloud 268 FR-5: the film's scenes (the seventh the pain) and its clips (the seven scenes' and the ask line's).
+SCENES = 7
+CLIPS = 8
+
+
+def scenes_verdict(story: dict | None, *, cost: str | None = None) -> dict:
+    """Spec 161 FR-3 (keel-cloud 268 FR-5): a drawn or served story read for the pain scene -- seven scenes, the seventh
+    alone `pain: true`, its line the board's cost (where `cost` is given) and a picture (a library pictogram or a drawn
+    one), `costLine` equal to its line, eight clips. `ok` and every part by name."""
+    story = story or {}
+    scenes = list(story.get("scenes") or [])
+    pains = [i for i, sc in enumerate(scenes) if (sc or {}).get("pain") is True]
+    seventh = scenes[6] if len(scenes) >= 7 else {}
+    line = str(seventh.get("line") or "")
+    parts = {
+        "seven": len(scenes) == SCENES,
+        "the seventh alone is the pain": pains == [6],
+        "a picture": bool(seventh.get("pictogramId")),
+        "costLine is its line": bool(line) and story.get("costLine") == line,
+        "eight clips": len(story.get("clipIds") or []) == CLIPS,
+        "the cost said": cost is None or _bare_words(cost) in _bare_words(line),
+    }
+    return {"ok": all(parts.values()), "parts": parts, "scenes": len(scenes), "pain_at": pains,
+            "seventh": {"line": line, "pictogramId": seventh.get("pictogramId")}, "costLine": story.get("costLine"),
+            "clips": len(story.get("clipIds") or [])}
+
+
+def _bare_words(text: str | None) -> str:
+    return " ".join(re.findall(r"[a-z0-9']+", str(text or "").lower()))
+
+
+def held_longer(holds: dict | None) -> bool:
+    """Spec 161 FR-3 (keel-web 257 FR-6, `HOLD_PAIN`): the film's pain scene held longer than a scene -- `holds` is the
+    fake clock's two reads, `{"scene": ms, "pain": ms}`."""
+    holds = holds or {}
+    try:
+        return float(holds.get("pain") or 0) > float(holds.get("scene") or 0) > 0
+    except (TypeError, ValueError):
+        return False
+
+
+def board_rows_verdict(card: dict | None, want: dict[str, str | list | None]) -> dict:
+    """Spec 161 FR-1 (keel-web 257 FR-3): the board read by its `data-box` keys -- the rows drawn in `BOARD_ROWS`' order
+    (a row the story has no words for may be missing, never out of order), and each wanted row holding its words
+    (`want`: key -> the words, or a list whose every item must be on the row). `ok`, the rows, what is missing."""
+    rows = card_rows(card)
+    order = [k for k in rows]
+    in_order = order == [k for k in BOARD_ROWS if k in rows]
+    missing = {}
+    for key, words in (want or {}).items():
+        drawn = _bare_words(rows.get(key))
+        need = words if isinstance(words, list) else ([words] if words else [])
+        gone = [w for w in need if _bare_words(w) not in drawn]
+        if key not in rows or gone:
+            missing[key] = gone or ["(no row)"]
+    return {"ok": in_order and not missing and (order[-1:] == ["tasks"] if "tasks" in (want or {}) else True),
+            "order": order, "missing": missing, "in_order": in_order}
+
+
 def speech_key(voice: str, text: str) -> str:
     """keel-cloud `KeelVoice.key`: the sha256 hex of the voice, a newline and the words as spoken (whitespace runs as one
     space, the ends stripped) -- the `speech_clip.cache_key` a clip of these words in this voice is stored under."""
@@ -2024,6 +2428,7 @@ ORB_INTERVIEW_WATCH = r"""(() => {
       film: story ? story.getAttribute('data-kind') : null,
       first: !!(story && story.hasAttribute('data-first')),
       hand: story ? t(story.querySelector('.aiv-story__hand')) : null,
+      line: story ? t(story.querySelector('[data-testid=story-line]')) : null,
       filmState: player ? player.getAttribute('data-state') : null,
       begin: !!q('[data-testid=ai-film-begin]'),
       filmOrb: !!q('[data-testid=ai-story-orb]') || (story ? !!story.querySelector('[data-testid=story-orb]') : false),
@@ -2056,6 +2461,32 @@ ORB_INTERVIEW_WATCH = r"""(() => {
                                                                    'data-size', 'data-lit'] });
   read();
 })();""" % json.dumps(list(WALK_IDS))
+
+
+def film_holds(log: list[dict], story: dict | None) -> dict:
+    """Spec 161 FR-3 (keel-web 257 FR-6, `HOLD_PAIN`): how long the film held each line, read off the watched rows'
+    `story-line` changes (the page's clock, ms): the pain scene's line (`costLine`, the seventh) and the scene before it
+    -- the last run of the film (a start over draws it again). `{"scene": ms, "pain": ms}`; None where unseen."""
+    scenes = list((story or {}).get("scenes") or [])
+    pain = next((sc.get("line") for sc in scenes if sc.get("pain")), (story or {}).get("costLine"))
+    before = scenes[5].get("line") if len(scenes) >= 7 else None
+    changes: list[tuple[float, str]] = []
+    for row in log:
+        if row.get("film") != "problem" or row.get("t") is None:
+            continue
+        line = row.get("line") or ""
+        if not changes or changes[-1][1] != line:
+            changes.append((float(row["t"]), line))
+    holds: dict = {"scene": None, "pain": None}
+    for i, (t, line) in enumerate(changes):
+        end = changes[i + 1][0] if i + 1 < len(changes) else None
+        if end is None:
+            continue
+        if pain and _bare_words(line) == _bare_words(pain):
+            holds["pain"] = end - t
+        elif before and _bare_words(line) == _bare_words(before):
+            holds["scene"] = end - t
+    return holds
 
 
 def iv_log(page) -> list[dict]:

@@ -53,8 +53,8 @@ def _walk(tmp_path, entry: str, bundle: dict) -> cycle.Study:
 
 
 def test_the_bundle_records_the_four_lists_it_waits_on():
-    assert bt.reviewed_lists() == ["problem.importance", "problem.current_solution_satisfaction",
-                                   "solution.compatibility", RA]
+    # spec 161 (keel-cloud 269 FR-5): Current solution is not a list the walk waits on any more -- three
+    assert bt.reviewed_lists() == ["problem.importance", "solution.compatibility", RA]
 
 
 def test_a_walk_reads_the_fourth_dimension_off_its_bundle(tmp_path):

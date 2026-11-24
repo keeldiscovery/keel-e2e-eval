@@ -158,13 +158,15 @@ def countly():
 def test_the_golden_walk_is_unchanged_under_all(countly):
     """FR-1 / FR-6: an entry as written is ALL, and its script, plan and people are exactly today's."""
     assert countly.scope == "ALL" and vs.scope_vectors(countly) == vs.VECTORS
-    assert [v for v, _ in vs.calibration_jobs(countly)] == ["PROBLEM"] * 3 + ["SOLUTION"] * 4 + ["COMMERCIAL"] * 3
+    # spec 161 (keel-cloud 269 FR-5): Current solution's redraft is gone with it -- two PROBLEM jobs, no `answer_parts`
+    assert [v for v, _ in vs.calibration_jobs(countly)] == ["PROBLEM"] * 2 + ["SOLUTION"] * 4 + ["COMMERCIAL"] * 3
     assert vs.respondent_jobs(countly) == [(1, vs.LINK_PRIMARY)]
     # spec 154 FR-0 (keel-cloud 229): Importance's draft is handed `problem_clause`, a second key set of its own
     assert set(vs.generate(countly).screens) == {"CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "SOLUTION_MECHANISM",
                                                  "CALIBRATION_QUESTIONS", vs.CALIBRATION_WITH_CLAUSE_SCREEN,
-                                                 vs.CALIBRATION_WITH_PARTS_SCREEN,
-                                                 *(x + vs.REPAIR_SUFFIX for x in vs.CALIBRATION_SCREENS), "ASKED",
+                                                 *(x + vs.REPAIR_SUFFIX for x in (vs.CALIBRATION_SCREEN,
+                                                                                  vs.CALIBRATION_WITH_CLAUSE_SCREEN)),
+                                                 "ASKED",
                                                  "ASKED" + vs.REPAIR_SUFFIX,
                                                  "RESPONDENT_QUESTIONS", "INTERPRET", "THEMES"}
     assert all(vs.serves_part(countly, part, vs.LINK_PRIMARY) for part in (1, 2, 3))
@@ -194,9 +196,10 @@ def test_the_problem_study_s_expected_walk(countly):
     script = vs.generate(seed).screens
     # spec 129 (keel-cloud 200 FR-1): the founder's typed Importance rows are owed their short names -- one ASKED job,
     # the problem's own, face-less (no faces: no solution list is drafted)
+    # spec 161 (keel-cloud 269 FR-5): no Current solution redraft (`answer_parts`)
     assert set(script) == {"CONTEXT_INTERPRET", "PROBLEM_INTERPRET", "CALIBRATION_QUESTIONS", "RESPONDENT_QUESTIONS",
                            "INTERPRET", "THEMES", "ASKED", "ASKED" + vs.REPAIR_SUFFIX, vs.CALIBRATION_WITH_CLAUSE_SCREEN,
-                           vs.CALIBRATION_WITH_PARTS_SCREEN, *(x + vs.REPAIR_SUFFIX for x in vs.CALIBRATION_SCREENS)}
+                           *(x + vs.REPAIR_SUFFIX for x in (vs.CALIBRATION_SCREEN, vs.CALIBRATION_WITH_CLAUSE_SCREEN))}
     # spec 154 FR-0: the problem stage's own ASKED job, then the Importance probe's two (keel-cloud 200's short names)
     assert [e["result"] for e in script["ASKED"]] == [vs.importance_asked_result(seed),
                                                       *vs.importance_probe_asked_results(seed)]
@@ -204,7 +207,7 @@ def test_the_problem_study_s_expected_walk(countly):
     # (`answer_parts`), the slice's own job as before
     assert [r["result"]["vector"] for r in script["CALIBRATION_QUESTIONS"]] == ["PROBLEM"]
     assert [r["result"]["vector"] for r in script[vs.CALIBRATION_WITH_CLAUSE_SCREEN]] == ["PROBLEM"]
-    assert [r["result"]["vector"] for r in script[vs.CALIBRATION_WITH_PARTS_SCREEN]] == ["PROBLEM"]
+    assert vs.CALIBRATION_WITH_PARTS_SCREEN not in script
     (questions,) = script["RESPONDENT_QUESTIONS"]
     assert [i["key"] for i in questions["result"]["items"]] == vs.plan_keys(countly, 1, vs.LINK_PRIMARY)
     assert vs.plan_keys(seed, 2, vs.LINK_PRIMARY) == vs.plan_keys(seed, 3, vs.LINK_PRIMARY) == []

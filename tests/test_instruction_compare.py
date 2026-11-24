@@ -103,7 +103,9 @@ cp "{agree}" "$out"
 """)
     bundle = tmp_path / "bundle" / "compare"
     score = compare_mod.compare_entry(checkout, entry, entry.registry, bundle)
-    assert (score.agreed, score.checks, score.measured) == (_checks(entry), _checks(entry), True)
+    # spec 161 FR-6: the engine's standings are held to `expected` read through keel-cloud 269 -- Current solution's
+    # standing is not asked, one check fewer
+    assert (score.agreed, score.checks, score.measured) == (_checks(entry) - 1, _checks(entry) - 1, True)
     assert (bundle / "09-fixture.in.json").is_file() and (bundle / "09-fixture.out.json").is_file()
     argv = (checkout / "argv.txt").read_text()
     assert argv.startswith("-q screenContracts --args=compare ")
@@ -172,14 +174,19 @@ def test_keel_clouds_engine_agrees_with_corpus_r10_on_all_108_checks(tmp_path):
         pytest.skip("no keel-cloud checkout to run `screenContracts compare` against")
     for name in ("01-countly", "05-paidly"):
         fx.canon_entry(f"{name}.yaml")
-    corpus = corpus_mod.load(keel_cloud, registry=fx.registry())
+    # spec 161: the engine pins the registry it loads -- keel-cloud 269's (5) is read off the checkout (its registry of
+    # record), so the input names it and the corpus is read through 269 against it
+    from instructions import cloud_corpus as cloud_mod                        # noqa: PLC0415
+    from instructions import registry as registry_mod                          # noqa: PLC0415
+    of_record = cloud_mod.registry_of_record(keel_cloud)
+    registry = of_record if registry_mod.is_269(of_record) else fx.registry()
+    corpus = corpus_mod.load(keel_cloud, registry=registry)
     scores = [compare_mod.compare_entry(keel_cloud, e, e.registry, tmp_path) for e in corpus.entries]
     assert all(s.measured for s in scores), [s.reason for s in scores if not s.measured][:1]
-    assert [s.checks for s in scores] == [15, 15, 15, 15, 16, 16, 16]
-    # spec 080 FR-3 (keel-cloud 147, corpus revision 17): 02-compliancelog's Buyer and payer is recorded as the engine
-    # reads it since keel-cloud 145 FR-2 (HOLDING_UP / none, 7 of 9), so 076's one named disagreement is agreed: 108 of
-    # 108, no mismatch
+    # spec 161 FR-6 (keel-cloud 269): the corpus read through 269 -- Current solution not asked, one check fewer an
+    # entry (101 of the 108), and the moved Frequency rows and PROBLEM verdicts (`corpus.SPEC_269_MOVES`) agreed
+    assert [s.checks for s in scores] == [14, 14, 14, 14, 15, 15, 15]
     mismatches = [(s.entry_id, m["key"], m["expected"], m["produced"]) for s in scores for m in s.mismatches]
-    assert sum(s.checks for s in scores) == 108
+    assert sum(s.checks for s in scores) == 101
     assert mismatches == [], mismatches
-    assert sum(s.agreed for s in scores) == 108
+    assert sum(s.agreed for s in scores) == 101

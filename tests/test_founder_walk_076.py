@@ -317,21 +317,22 @@ def test_the_interviewer_marks_moved_to_12():
 
 
 def test_the_script_groups_the_junk_not_about_this(corpus):
-    """Spec 076 FR-6: S-005's Priya Natarajan types *Meow, you are a fool.* on her one rung, and the THEMES script puts it
-    in NOT_ABOUT_THIS, last; every other answer grouped as `FakeThemes` groups it."""
+    """Spec 076 FR-6: S-005's one person owed a single rung types *Meow, you are a fool.* on it, and the THEMES script puts
+    it in NOT_ABOUT_THIS, last; every other answer grouped as `FakeThemes` groups it. Spec 161 (keel-cloud 269 FR-5):
+    Priya Natarajan's one rung was Current solution, not asked since -- the words moved to Aisha Rahman's Commitment."""
     from harness import vectors_script as vs                           # noqa: PLC0415
+    rung = "commercial.commitment"
     countly = _entry(corpus, "01-countly")
     people = vs.person_inputs(countly)
-    assert vs.junk_follow_ups(countly, people) == [("problem.current_solution_satisfaction", "Meow, you are a fool.")]
-    priya = next(p for p in people if p.person == "Priya Natarajan")
-    assert vs.follow_up_line(countly, priya, {"dimension": "problem.current_solution_satisfaction"}) == \
-        "Meow, you are a fool."
+    assert vs.junk_follow_ups(countly, people) == [(rung, "Meow, you are a fool.")]
+    aisha = next(p for p in people if p.person == "Aisha Rahman")
+    assert vs.follow_up_line(countly, aisha, {"dimension": rung}) == "Meow, you are a fool."
     entries = vs.themes_entries(countly, vs.walked_follow_ups(countly, people))
-    current = next(e for e in entries if e.get("dimension") == "problem.current_solution_satisfaction")
+    current = next(e for e in entries if e.get("dimension") == rung)
     assert current["result"]["themes"][-1] == {"label": fake.NOT_ABOUT_THIS, "answers": ["Meow, you are a fool."]}
     # nowhere else, and not on the scope journeys' copies
     assert all(fake.NOT_ABOUT_THIS not in [t["label"] for t in (e.get("result") or {}).get("themes") or []]
-               for e in entries if e.get("dimension") != "problem.current_solution_satisfaction")
+               for e in entries if e.get("dimension") != rung)
     import dataclasses                                                  # noqa: PLC0415
     assert vs.junk_follow_ups(dataclasses.replace(countly, scope="PROBLEM"), people) == []
     assert vs.junk_follow_ups(_entry(corpus, "05-paidly"), vs.person_inputs(_entry(corpus, "05-paidly"))) == []

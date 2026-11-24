@@ -658,6 +658,7 @@ def test_the_backtest_record_holds_every_served_item_to_the_spoken_form():
     # spec 110 FR-2: a record before keel-cloud 170 names Existing sacrifice's old escape *I don't know* against the
     # registry of record's *I can't recall* -- Lullaby's one item of ten not clean, the record's age, not the guard's
     fx.skip_a_spoken_record_before_170(KEEL_CLOUD, registry)
+    fx.skip_a_spoken_record_before_269(KEEL_CLOUD, registry)           # spec 161: registry 5 on a record before it
     lullaby = corpus.by_id("03-lullaby")
     items = cloud.items_of("03-lullaby")
 
