@@ -162,7 +162,8 @@ def lock_project(call: Callable[[str, str, dict | None], tuple[int, Any]], proje
     """FR-1: the film's project locked, step by step; `LockFailed` names the first step that does not hold.
 
     1 the window (`PUT context/window` 200); 2 the PROBLEM calibration READY (answered at the boxes' yes); 3 the
-    credits (`GET /v2/me` `creditsAvailable` >= `need`, else `top_up` once and read again); 4 the lock (`press`: the
+    credits (`GET /v2/me` `creditsAvailable` >= `need`, else `top_up` once and read again; only read where `need`
+    is 0 -- the free walk's lock is bought by a stand-in inside `press`); 4 the lock (`press`: the
     ready page's button, 200 or 201); 5 the questions READY (`GET overview` `questionsState`; FAILED retried once on
     `POST questionnaire/retry`)."""
     base = f"/v2/projects/{project_id}"
@@ -185,7 +186,7 @@ def lock_project(call: Callable[[str, str, dict | None], tuple[int, Any]], proje
     status, me = call("GET", "/v2/me", None)
     credits = (me or {}).get("creditsAvailable") if isinstance(me, dict) else None
     record["credits_before"] = credits
-    if not isinstance(credits, (int, float)) or credits < need:
+    if need > 0 and (not isinstance(credits, (int, float)) or credits < need):
         if top_up is None:
             raise LockFailed("the credits (GET /v2/me)", {"creditsAvailable": credits, "need": need})
         record["topped_up"] = top_up()
@@ -265,14 +266,25 @@ def walk_summary(plan: dict, link: dict, walked: dict | None, *, error: str | No
     rows = (walked or {}).get("rows") or []
     films = [r for r in rows if r.get("screen") == "film"]
     return {"person": plan["person"], "invitation": link.get("invitationId"), "url": link.get("url"),
-            "plan": {k: plan.get(k) for k in ("screener", "gate", "story_how", "frequency", "importance", "own")},
+            "plan": {k: plan.get(k) for k in ("screener", "gate", "story_how", "chip", "frequency", "importance", "own")},
             "steps": [r.get("key") or (f"why:{r['follow_up'].get('dimension')}" if r.get("follow_up") else None)
                       or r.get("step") or r.get("where") for r in rows if r.get("screen") == "question"],
             "said": [(r.get("key") or r.get("step"), r.get("said")) for r in rows if r.get("screen") == "question"],
             "film": [{k: f.get(k) for k in ("kind", "first", "stuck")} for f in films],
             "whys": [r["follow_up"].get("dimension") for r in rows if r.get("follow_up")],
             "response": response_shape(walked), "done": bool((walked or {}).get("done")),
+            **({"chip_remapped": remapped} if (remapped := chip_remapped(plan, rows)) else {}),
             **({"error": error} if error else {})}
+
+
+def chip_remapped(plan: dict, rows: list[dict]) -> dict | None:
+    """A recorded story chip the film link does not draw, re-expressed as the chip it does (spec 064 FR-7's rule: a
+    finding, never a silent drop): `{recorded, tapped}`, or None where the person tapped no chip."""
+    tapped = next((r.get("said") for r in rows if r.get("story") and str(r.get("said") or "").startswith("tap:")),
+                  None)
+    if not plan.get("chip") or not tapped:
+        return None
+    return {"recorded": plan["chip"], "tapped": tapped.removeprefix("tap:").strip()}
 
 
 def watched(plans: list[dict]) -> str | None:
@@ -294,8 +306,13 @@ def respondents_record(person: str | None, interview: dict | None, walked: dict 
     served = backtest.served_items(interview or {})
     served["followUps"] = [{k: f.get(k) for k in ("dimension", "text", "spoken") if f.get(k)}
                            for f in (interview or {}).get("followUps") or [] if isinstance(f, dict)]
-    return {LINK: {"person": person, "served": served, "drawn": drawn_of(walked.get("rows")),
-                   "screens": list(shots or [])}}
+    drawn = drawn_of(walked.get("rows"))
+    gate = (interview or {}).get("gate") or {}
+    spoken = (gate.get("condition") or (interview or {}).get("condition") or {}).get("spoken")
+    for d in drawn:
+        if d["screen"] == "screener" and isinstance(spoken, dict):
+            d["spoken"] = spoken                    # the screener's served spoken form, for R6
+    return {LINK: {"person": person, "served": served, "drawn": drawn, "screens": list(shots or [])}}
 
 
 def screens_bundle(*, entry: dict, project_id: str, door: str, stack: dict, people: int, lock: dict,
@@ -314,6 +331,60 @@ def screens_bundle(*, entry: dict, project_id: str, door: str, stack: dict, peop
             "respondents": respondents, "after_screens": after_screens, "answers_leg": answers_leg,
             "brief": brief, "themes_settled": themes_settled, "founder_page": founder_page,
             **({"typos": list(typos)} if typos else {})}
+
+
+# ------------------------------------------------------------------------------------------------ the scripted runtime
+
+def said_by_rung(walked: dict) -> dict[str, list[str]]:
+    """Every why each walk answered, by rung (`{dimension: [text said, ...]}`), in the order walked -- what the
+    founder's own runtime is handed to group (`THEMES`) on the free walk."""
+    out: dict[str, list[str]] = {}
+    for walk in (walked or {}).values():
+        for r in (walk or {}).get("rows") or []:
+            if r.get("follow_up") and isinstance(r.get("said"), str) and r["said"].strip():
+                out.setdefault(str(r["follow_up"].get("dimension")), []).append(r["said"])
+    return out
+
+
+def _label(text: str) -> str:
+    """A theme's label from its first answer's own words (keel-cloud 119 T11: a label shares words with its answers;
+    T5: never the rung's name): its first five words, the punctuation dropped."""
+    words = _bare(text).split()[:5]
+    return " ".join(words).capitalize() if words else "What they said"
+
+
+def themes_script(said: dict[str, list[str]]) -> list[dict]:
+    """The scripted runtime's `THEMES` entries for the free walk (spec 012's shape, the texts resolved to the job's own
+    answer ids by the runtime): one theme a rung holding every text said on it, labelled from its first. Machinery for
+    the fakes, never a reading of the people."""
+    out = []
+    for dimension, texts in said.items():
+        kept = list(dict.fromkeys(t for t in texts if t))
+        if kept:
+            out.append({"dimension": dimension, "outcome": "COMPLETED",
+                        "result": {"themes": [{"label": _label(kept[0]), "answers": kept}]}})
+    return out
+
+
+def ways_script(stories: list[tuple[str, str]], founder_act: str | None) -> dict:
+    """The scripted runtime's `EXPERIENCE_WAYS` answer for the free walk: every story told under the founder's way
+    (the act the film shows, word for word), or on their own where the story names none."""
+    from harness import three_surfaces as ts                                        # noqa: PLC0415
+    ids = [i for i, text in stories if i and text]
+    label = founder_act if founder_act else ts.ON_THEIR_OWN
+    return {"outcome": "COMPLETED", "result": {"ways": [{"label": label, "answerIds": ids}] if ids else []}}
+
+
+def stories_told(walks: list[dict], walked: dict) -> list[tuple[str, str]]:
+    """`(invitationId, the story said)` for every person who told one on the film link."""
+    out = []
+    for w in walks:
+        rows = ((walked or {}).get(w["person"]) or {}).get("rows") or []
+        text = next((r.get("said") for r in rows if r.get("story") and isinstance(r.get("said"), str)
+                     and not r["said"].startswith("tap:")), None)
+        if text and w.get("invitation"):
+            out.append((w["invitation"], text))
+    return out
 
 
 # ------------------------------------------------------------------------------------------------ the founder's words
@@ -405,21 +476,23 @@ def walk_people(run: FilmRun, project_id: str, plans: list[dict], *, out: dict) 
 
 
 def settle(run: FilmRun, project_id: str, *, timeout_s: float = SETTLE_WAIT_S) -> dict:
-    """The founder's page read once the answers have settled: no Insights line still GROUPING (keel-cloud 119), or the
-    time out -- what it saw, recorded either way."""
-    run.get(f"/v2/projects/{project_id}/overview")
+    """The founder's page read once the answers have settled: no Insights line still GROUPING (keel-cloud 119) and the
+    ways not GROUPING (keel-cloud 270), or the time out -- what it saw, recorded either way."""
     deadline = time.monotonic() + timeout_s
     waited = 0.0
     while True:
+        overview = run.get(f"/v2/projects/{project_id}/overview") or {}
         standings = run.get(f"/v2/projects/{project_id}/standings") or {}
         grouping = [i.get("dimension") for i in standings.get("insights") or [] if i.get("state") == "GROUPING"]
-        if not grouping or time.monotonic() > deadline:
-            return {"grouping": grouping, "waited_s": round(waited, 1), "standings": standings}
+        ways = (overview.get("ways") or {}).get("state")
+        if (not grouping and ways != "GROUPING") or time.monotonic() > deadline:
+            return {"grouping": grouping, "ways": ways, "waited_s": round(waited, 1), "standings": standings}
         time.sleep(2)
         waited += 2
 
 
-def founder_page_after(run: FilmRun, project_id: str, run_dir: Path) -> dict:
+def founder_page_after(run: FilmRun, project_id: str, run_dir: Path,
+                       before_settle: Callable[[], Any] | None = None) -> dict:
     """FR-2: the founder's page after the seven answers -- the back-test's answers leg (§B's screens: the stage page,
     every card opened, the Insights screen and its folds) and spec 164's reads of the page as drawn (the ways panel,
     Frequency's card, the Insights boxes, the brief's breakdown), each a check kept, never a stop."""
@@ -428,6 +501,8 @@ def founder_page_after(run: FilmRun, project_id: str, run_dir: Path) -> dict:
     from evals import backtest                                                       # noqa: PLC0415
     from evals import three_views as tv                                              # noqa: PLC0415
     from evals import three_views_strangers as tvs                                   # noqa: PLC0415
+    if before_settle is not None:
+        before_settle()                       # the free walk: the founder's runtime handed the groupings first
     settled = settle(run, project_id)
     standings = settled.pop("standings")
     cam = backtest.Camera(run_dir=run_dir, page=run.page, watched={})

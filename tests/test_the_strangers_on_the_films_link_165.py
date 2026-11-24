@@ -205,6 +205,18 @@ def test_a_walk_is_kept_by_its_shape():
     assert summary["response"] == {"status": 201, "recency": True, "story": True, "anchorChip": None, "answers": 2,
                                    "followUps": [ts.FREQUENCY], "outsideSegment": None}
     assert "error" in fs.walk_summary({"person": "B"}, {}, None, error="stopped")
+    chip_rows = [{"screen": "question", "story": "chip-tap", "said": "tap: I can't recall one"}]
+    assert fs.walk_summary({"person": "C", "chip": "RATHER_NOT_SAY"}, {}, {"rows": chip_rows})["chip_remapped"] == \
+        {"recorded": "RATHER_NOT_SAY", "tapped": "I can't recall one"}
+
+
+def test_the_screener_carries_its_served_spoken_form():
+    interview = dict(INTERVIEW, gate=dict(INTERVIEW["gate"], condition={
+        "question": "Do you work in a team of five or fewer?", "spoken": {"stem": "Do you work in a small team?"}}))
+    record = fs.respondents_record("A", interview, WALKED)["PRIMARY"]
+    assert record["drawn"][0]["spoken"] == {"stem": "Do you work in a small team?"}
+    screener = readers.respondent_screens({"respondents": {"PRIMARY": record}})["PRIMARY"][0]
+    assert screener.said == "Do you work in a small team?"
 
 
 def film_bundle(**over) -> dict:
@@ -352,3 +364,22 @@ def test_the_record_says_the_films_project_and_never_tables_a_typed_one():
     text = ft.render(table, [{}], [], {"film_bar_pct": 80.0, "holdout": []}, bundle="w", found=[], typed=["e2"])
     assert "**the film's project**" in text and "The film's project: e1 `p1`." in text
     assert "Not tabled (a walk before spec 165, whose §A and §B were a second, typed project's): e2." in text
+
+
+# ------------------------------------------------------------------------------------------------ the free walk's runtime
+
+def test_the_free_walk_hands_its_runtime_the_groupings_of_what_was_said():
+    walked = {"A": WALKED, "B": {"rows": [{"screen": "question", "follow_up": {"dimension": ts.FREQUENCY},
+                                           "said": "Mine."},
+                                          {"screen": "question", "follow_up": {"dimension": ts.PREVALENCE},
+                                           "said": "We check it twice, always."}]}}
+    said = fs.said_by_rung(walked)
+    assert said == {ts.FREQUENCY: ["Mine.", "Mine."], ts.PREVALENCE: ["We check it twice, always."]}
+    themes = {e["dimension"]: e["result"]["themes"] for e in fs.themes_script(said)}
+    assert themes[ts.FREQUENCY] == [{"label": "Mine", "answers": ["Mine."]}]
+    assert themes[ts.PREVALENCE][0]["label"] == "We check it twice always"
+    stories = fs.stories_told([{"person": "A", "invitation": "inv1"}, {"person": "B", "invitation": "inv2"}], walked)
+    assert stories == [("inv1", "It happened on the last day.")]
+    assert fs.ways_script(stories, "they write it on paper")["result"]["ways"] == [
+        {"label": "they write it on paper", "answerIds": ["inv1"]}]
+    assert fs.ways_script(stories, None)["result"]["ways"][0]["label"] == ts.ON_THEIR_OWN

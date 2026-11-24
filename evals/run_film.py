@@ -147,11 +147,22 @@ def test_film_leg(stack, browser, run_dir):
     recorder = Recorder(run_dir)
     stamp = time.strftime("%H%M%S", time.gmtime())
     domain = PAID_DOMAIN if DOOR == "keel" else FAKE_DOMAIN
-    founder = remote.register_cell_identity(stack, f"film · {ENTRY} · {time.strftime('%Y-%m-%d', time.gmtime())}",
-                                            name=f"Film Founder {stamp}", id=f"film-{ff.safe_name(ENTRY)}-{stamp}",
-                                            email=f"film-{ff.safe_name(ENTRY)}-{stamp}@{domain}")
-    context = browser.new_context()
-    page = context.new_page()
+    own_ai = None
+    if DOOR == "fake":
+        # spec 165 (judgement call 1): the free walk's founder is on her own AI through the code story, the scripted
+        # runtime answering every job (as e2e-157's founder is) -- this stack has no key, so Keel's door answers only
+        # the story's readings, the pictures, the voice and the transcriber (`fake-for`), never the calibration, the
+        # questions, the readings of the stories or the groupings the people's answers need
+        from evals import three_views as tv                                # noqa: PLC0415
+        own_ai = tv.Run(stack, browser, recorder, run_dir)
+        own_ai.open()
+        founder, context, page = own_ai.founder, own_ai.context, own_ai.page
+    else:
+        founder = remote.register_cell_identity(stack, f"film · {ENTRY} · {time.strftime('%Y-%m-%d', time.gmtime())}",
+                                                name=f"Film Founder {stamp}", id=f"film-{ff.safe_name(ENTRY)}-{stamp}",
+                                                email=f"film-{ff.safe_name(ENTRY)}-{stamp}@{domain}")
+        context = browser.new_context()
+        page = context.new_page()
     cloud = stack.cloud_base_url.rstrip("/")
 
     def call(method: str, path: str, body: dict | None = None):
@@ -171,7 +182,8 @@ def test_film_leg(stack, browser, run_dir):
         return response.status, response.body(), response.headers.get("content-type")
 
     try:
-        Auth(page, recorder, stack.web_base_url).sign_up(founder)
+        if own_ai is None:
+            Auth(page, recorder, stack.web_base_url).sign_up(founder)
         status, me = call("GET", "/v2/me")
         market = {"country": str(((entry["yaml"].get("market") or {}).get("country")) or "US")}
         with recorder.step(f"spec 163: a PROBLEM project for {ENTRY} ({DOOR} door)", party="founder", kind="assert") as h:
@@ -227,7 +239,7 @@ def test_film_leg(stack, browser, run_dir):
         strangers, refused = None, None
         if state == "ready":
             strangers, refused = strangers_leg(stack, browser, recorder, context, page, run_dir, founder, entry,
-                                               entry_path, project_id, versions, stamp, typed)
+                                               entry_path, project_id, versions, stamp, typed, own_ai=own_ai)
         film = {
             "spec": "163", "entry": {"id": ENTRY, "path": str(entry_path), "sha256": entry["sha256"]},
             "door": DOOR, "telling": telling, "project_id": project_id,
@@ -260,7 +272,14 @@ def test_film_leg(stack, browser, run_dir):
             f"on the film's link: {[(w['person'], w.get('error'), w['response']) for w in (strangers or {}).get('walks') or []]}"
         assert strangers["after_screens"], "spec 165: the founder's page shot nothing after the answers"
     finally:
-        context.close()
+        if own_ai is not None:
+            from harness.connect import stop_runtime                       # noqa: PLC0415
+            try:
+                own_ai.close()
+            finally:
+                stop_runtime(stack, recorder)                              # the runtime this leg started
+        else:
+            context.close()
 
 
 def _vs_entry(stack, cap: int):
@@ -273,12 +292,17 @@ def _vs_entry(stack, cap: int):
 
 
 def strangers_leg(stack, browser, recorder, context, page, run_dir: Path, founder, entry: dict, entry_path: Path,
-                  project_id: str, versions: dict, stamp: str, typed: list) -> tuple[dict | None, str | None]:
+                  project_id: str, versions: dict, stamp: str, typed: list, *, own_ai=None
+                  ) -> tuple[dict | None, str | None]:
     """Spec 165 FR-1, FR-2 on the stack: the film's project locked, the people on its link, the founder's page after
-    them, `backtest.json` written. Returns `(the strangers' record, None)` or `(None, the refusal naming the step)`."""
+    them, `backtest.json` written. Returns `(the strangers' record, None)` or `(None, the refusal naming the step)`.
+    `own_ai` (the free walk, a `three_views.Run`): the founder's scripted runtime -- the lock bought on Keel's door by
+    a stand-in and the questions written on her own (`three_views.lock_once`'s way), the stories read ANCHORED, the
+    groupings handed after the answers."""
     from evals import three_views as tv                                    # noqa: PLC0415
+    from harness import three_surfaces as ts                               # noqa: PLC0415
     from harness import vectors_script as vs                               # noqa: PLC0415
-    run = fs.FilmRun(stack=stack, browser=browser, recorder=recorder, context=context, page=page, stamp=stamp)
+    run = own_ai or fs.FilmRun(stack=stack, browser=browser, recorder=recorder, context=context, page=page, stamp=stamp)
     cap = people_cap()
 
     def top_up():
@@ -287,18 +311,36 @@ def strangers_leg(stack, browser, recorder, context, page, run_dir: Path, founde
                                        spec=STAND_IN_SPEC, label="topped",
                                        what="the balance topped to the grant to see the film's project locked")
 
+    press = fs.press_on_the_ready_page(run, project_id)
+    if own_ai is not None:
+        own_ai.load_runtime("PROBLEM")
+        pressed_on_keels_door = press
+
+        def press():
+            # the lock bought on Keel's door (a stand-in grant, `three_views.lock_once`), the door given back after:
+            # the questions are written on her own door (`lock_project` retries a FAILED set once)
+            account = own_ai.account_id
+            ledger.stand_in_keels_door(stack, account, f"{project_id[:8]}-door-{stamp}", spec=STAND_IN_SPEC)
+            try:
+                return pressed_on_keels_door()
+            finally:
+                ledger.restore_own_door(stack, account, f"{project_id[:8]}-restore-{stamp}", spec=STAND_IN_SPEC)
+
     with recorder.step("spec 165: the film's project locked -- the window, the calibration, the credits, the ready "
                        "page's lock, the questions READY", party="founder", kind="assert") as h:
         try:
-            lock = fs.lock_project(run.call, project_id, window=fs.recall_window(entry["yaml"]),
-                                   press=fs.press_on_the_ready_page(run, project_id),
-                                   need=tv.PROJECT_PRICE, top_up=top_up)
+            # the entry's window on Keel's door; the free walk tells the fake script, whose window is the default
+            lock = fs.lock_project(run.call, project_id,
+                                   window=fs.recall_window(entry["yaml"] if own_ai is None else {}),
+                                   press=press, need=0 if own_ai is not None else tv.PROJECT_PRICE, top_up=top_up)
         except fs.LockFailed as failed:
             h.record_assert({"locked": True}, {"locked": False, "step": failed.step, "detail": failed.detail})
             return None, str(failed)
         h.record_assert({"locked": True}, {"locked": True, **lock})
     plans = fs.people_plans(vs.person_inputs(_vs_entry(stack, cap)))
     kept: dict = {}
+    if own_ai is not None:
+        own_ai.load_runtime("PROBLEM", extra={"INTERPRET": [ts.ANCHORED] * max(12, 2 * len(plans))})
     with recorder.step(f"spec 165: the film's link sent to {len(plans)} people, each walking the four questions",
                        party="participant", kind="assert") as h:
         walks = fs.walk_people(run, project_id, plans, out=kept)
@@ -309,7 +351,16 @@ def strangers_leg(stack, browser, recorder, context, page, run_dir: Path, founde
                                                              for w in walks]})
     with recorder.step("spec 165: the founder's page after the answers -- the stage page, the cards, Insights, the "
                        "ways, the brief", party="founder") as h:
-        after = fs.founder_page_after(run, project_id, run_dir)
+        handed = None
+        if own_ai is not None:
+            def handed():
+                said = fs.said_by_rung(kept.get("walked") or {})
+                own_ai.load_runtime("PROBLEM", extra={
+                    "THEMES": fs.themes_script(said),
+                    "EXPERIENCE_WAYS": [fs.ways_script(fs.stories_told(walks, kept.get("walked") or {}),
+                                                       (own_ai.get(f"/v2/projects/{project_id}/story") or {}).get("act"))],
+                    "INTERPRET": [ts.ANCHORED] * max(12, 2 * len(plans))})
+        after = fs.founder_page_after(run, project_id, run_dir, before_settle=handed)
         h.record_wire({"after": "the answers leg and spec 164's reads"},
                       {"screens": len(after["after_screens"]), "checks": after["founder_page"]["checks"]})
     who = fs.watched(plans)
