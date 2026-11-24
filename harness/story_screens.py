@@ -1205,14 +1205,19 @@ class StoryWalk(Conversation):
         self.voice.say(parts[0])
         deadline = time.monotonic() + TWO_PART_QUIET_S
         lines: list[str] = []
+        think = False
         while time.monotonic() < deadline:
             line = _tc(self.page.locator("[data-testid=story-state]"))
             if line and line not in lines:
                 lines.append(line)
+            # keel-web 257 (its tasks.md's eval mirrors): after 6 s of quiet the orb dims (`story-orb[data-think]`) and
+            # the state line says *Take your time.*
+            think = think or self.page.locator(f"{ORB}[data-think]").count() > 0
             self.page.wait_for_timeout(250)
         quiet = {"sent_in_the_quiet": len(self.writes_to(rf"/story/turns/{n}$")) - before,
                  "still_on_the_beat": bool(re.search(rf"/define/story/{n}/?$", self.page.url)),
-                 "state_lines": lines, "think_line": any(line.startswith(THINK_LINE) for line in lines),
+                 "state_lines": lines, "orb_thinks": think,
+                 "think_line": think and any(THINK_LINE in line for line in lines),
                  "listening": self.voice.listening()}
         put = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(with_done_word(parts[1])))
         quiet["sent"] = (put.get("sent") or {}).get("text")
@@ -2282,14 +2287,22 @@ def _bare_words(text: str | None) -> str:
     return " ".join(re.findall(r"[a-z0-9']+", str(text or "").lower()))
 
 
+#: keel-web 257 FR-6 (`scene.ts`): a scene's hold after its clip, and the pain scene's -- twice it.
+HOLD_MS = 450
+HOLD_PAIN_MS = 2 * HOLD_MS
+
+
 def held_longer(holds: dict | None) -> bool:
     """Spec 161 FR-3 (keel-web 257 FR-6, `HOLD_PAIN`): the film's pain scene held longer than a scene -- `holds` is the
-    fake clock's two reads, `{"scene": ms, "pain": ms}`."""
+    page's clock read on the lines, `{"scene": ms (the shortest other scene), "pain": ms}`. Each line's time is its clip,
+    its drawing and its hold, and the drawing differs scene to scene, so the pain scene is held to at least `HOLD_PAIN_MS`
+    and to the shortest other scene's time plus the hold it adds (`HOLD_PAIN_MS - HOLD_MS`)."""
     holds = holds or {}
     try:
-        return float(holds.get("pain") or 0) > float(holds.get("scene") or 0) > 0
+        pain, scene = float(holds.get("pain") or 0), float(holds.get("scene") or 0)
     except (TypeError, ValueError):
         return False
+    return pain >= HOLD_PAIN_MS and scene > 0 and pain >= scene + (HOLD_PAIN_MS - HOLD_MS)
 
 
 def board_rows_verdict(card: dict | None, want: dict[str, str | list | None]) -> dict:
@@ -2469,7 +2482,7 @@ def film_holds(log: list[dict], story: dict | None) -> dict:
     -- the last run of the film (a start over draws it again). `{"scene": ms, "pain": ms}`; None where unseen."""
     scenes = list((story or {}).get("scenes") or [])
     pain = next((sc.get("line") for sc in scenes if sc.get("pain")), (story or {}).get("costLine"))
-    before = scenes[5].get("line") if len(scenes) >= 7 else None
+    others = {_bare_words(sc.get("line")) for sc in scenes if not sc.get("pain") and sc.get("line")}
     changes: list[tuple[float, str]] = []
     for row in log:
         if row.get("film") != "problem" or row.get("t") is None:
@@ -2477,15 +2490,17 @@ def film_holds(log: list[dict], story: dict | None) -> dict:
         line = row.get("line") or ""
         if not changes or changes[-1][1] != line:
             changes.append((float(row["t"]), line))
-    holds: dict = {"scene": None, "pain": None}
+    holds: dict = {"scene": None, "pain": None, "scenes": []}
     for i, (t, line) in enumerate(changes):
         end = changes[i + 1][0] if i + 1 < len(changes) else None
         if end is None:
             continue
         if pain and _bare_words(line) == _bare_words(pain):
             holds["pain"] = end - t
-        elif before and _bare_words(line) == _bare_words(before):
-            holds["scene"] = end - t
+        elif _bare_words(line) in others:
+            holds["scenes"].append(end - t)
+    # the last run of the film counts (a start over draws it again): its scenes are the last of each line's reads
+    holds["scene"] = min(holds["scenes"][-len(others):]) if holds["scenes"] else None
     return holds
 
 

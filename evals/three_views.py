@@ -1269,12 +1269,18 @@ def fr1_d(run: Run, leg: Leg) -> None:
     except Exception:  # noqa: BLE001 - recorded
         drawn = {"rows": _safe(lambda: page.locator(".project-list").first.inner_text())}
     wire = run.list_row(problem)
+    nested = "Defined, not sent" in (drawn.get("text") or "") and (drawn.get("href") or "").endswith(problem)
     leg.check(run, "the list nests the defined problem project under the study that uses it, *Defined, not sent*",
-              "Defined, not sent" in (drawn.get("text") or "") and (drawn.get("href") or "").endswith(problem)
-              and (wire.get("definition") or {}).get("status") in YES_STATUSES, screen="/ (the project list)",
-              detail={"drawn": drawn, "wire": {k: wire.get(k) for k in ("definition", "lineage", "story")}})
+              nested and (wire.get("definition") or {}).get("status") in YES_STATUSES, screen="/ (the project list)",
+              detail={"drawn": drawn, "wire": {k: wire.get(k) for k in ("definition", "lineage", "story")},
+                      "drift": "runs/DRIFT.md #114 (spec 161: a PROBLEM study is calibrated at its yes since "
+                               "keel-cloud 269, and the list no longer nests it)"}, stop=False)
     with run.recorder.step("FR-1d: the founder opens it from the list", party="founder"):
-        row.click()
+        if nested:
+            row.click()
+        else:
+            # spec 161 (DRIFT #114): the problem project drawn as a study of its own -- opened at its own address
+            page.goto(f"{run.web}/p/{problem}", wait_until="load")
         page.wait_for_url(re.compile(rf"/p/{problem}"), timeout=30_000)
         page.wait_for_timeout(2500)
     resumed = page.url

@@ -220,8 +220,9 @@ def test_the_pain_is_held_longer_on_the_films_clock():
     log = [{"film": "problem", "t": t, "line": line} for t, line in (
         (0, "Line 4."), (1500, "Line 5."), (3300, "And someone gets paid wrong."), (6900, "Is that how it goes for you?"))]
     holds = ss.film_holds(log, story)
-    assert holds == {"scene": 1800.0, "pain": 3600.0} and ss.held_longer(holds)
+    assert (holds["scene"], holds["pain"]) == (1500.0, 3600.0) and ss.held_longer(holds)
     assert not ss.held_longer({"scene": 2000, "pain": 1500}) and not ss.held_longer({})
+    assert not ss.held_longer({"scene": 1500, "pain": 1700})                   # under the hold the pain adds
 
 
 # ------------------------------------------------------------------------------------------- FR-4 the gate, the order
@@ -508,3 +509,14 @@ def test_the_web_checkouts_are_named():
     assert isinstance(ss.web_has_257(WEB), bool) and isinstance(ss.web_has_258(WEB), bool)
     assert tv.FR1B_TELLING == "two-part" and tv.FR1C_TELLING == "limits-only"
     assert [k for k, _, _ in tv.FR1A_TOLD] == ["a-script", "a-long"]
+
+
+def test_a_ladder_is_compared_as_its_bands():
+    """Spec 161 FR-9 (the run's reading): the card lays the price ladder out in two steps -- its bands held as a set."""
+    served = [ts.step("commercial.price", "Worth?", ["Under $10", "$10 to $20", "$20 or more", "I wouldn't pay"])]
+    card = {"passages": [{"kind": "item", "dimension": "commercial.price", "stem": "Worth?",
+                          "options": [{"optionId": None, "label": "$10 to $20"}, {"optionId": "x", "label": "I wouldn't pay"}],
+                          "twoSteps": {"under": {"options": [{"optionId": "a", "label": "Under $10"},
+                                                             {"optionId": "b", "label": "$10 to $20"}]},
+                                       "over": {"options": [{"optionId": "c", "label": "$20 or more"}]}}}]}
+    assert ts.same_script({"orb": served, "card": ts.card_record(card)})["same"] is True

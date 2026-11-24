@@ -141,8 +141,11 @@ def card_record(script: dict | None) -> list[dict]:
                 out.append(step("screener", condition, ["Yes", "No"]))
             out.append(step("gate", p.get("stem"), _labels(p.get("options")), _hints(p.get("followUp"))))
         elif kind == "item":
-            out.append(step(str(p.get("dimension") or p.get("itemId")), p.get("stem"), _card_labels(p),
-                            _hints(p.get("followUp"))))
+            one = step(str(p.get("dimension") or p.get("itemId")), p.get("stem"), _card_labels(p),
+                       _hints(p.get("followUp")))
+            if p.get("twoSteps"):
+                one["ladder"] = True          # the card lays a ladder out in two steps: its bands compared as a set
+            out.append(one)
     return out
 
 
@@ -200,6 +203,14 @@ def same_script(records: dict[str, list[dict]], *, reference: str = "orb") -> di
         if lacking and len(lacking) < len(records):
             absent[key] = lacking
     records = {name: [s for s in rec if s.get("step") not in absent] for name, rec in records.items()}
+    # a price or duration ladder: the card says its middle band first and the second steps after (its digits and its
+    # steps are the card's own), so its bands are held as a set beside the served order
+    ladders = {s.get("step") for rec in records.values() for s in rec if s.get("ladder")}
+
+    def plain(rec: list[dict]) -> list[dict]:
+        return [{k: (sorted(v) if k == "options" and s.get("step") in ladders else v)
+                 for k, v in s.items() if k != "ladder"} for s in rec]
+    records = {name: plain(rec) for name, rec in records.items()}
     ref = records.get(reference) or []
     for surface, rec in records.items():
         if surface == reference:
