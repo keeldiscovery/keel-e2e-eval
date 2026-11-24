@@ -1,7 +1,8 @@
 """Spec 157 FR-3: `make e2e-157` -- the lot, once, on the current profile (`evals/three_views.py`); since spec 158 the
 founder's legs walk the conversation (keel-web 245 on keel-cloud 263) and the report names the beats; since spec 159
 the stranger's three views are the orb, the face and the copilot (keel-web 253 / 254 on keel-cloud 267) and the report
-names the orb.
+names the orb; since spec 160 the orb and the face walk the same walk (keel-web 256) and the report names the two
+speakers.
 
 Not a `test_*.py`: `make eval` never collects it (the scenario set is unchanged); the make target names this file.
 Every leg runs whatever the one before it did (a leg whose project is missing is skipped by name), and the report is
@@ -60,8 +61,9 @@ def test_e2e_157_three_views(stack, browser):
                     "profile": getattr(stack, "profile", "?"), "started": stamp,
                     "seconds": round(time.monotonic() - started), "bundle": str(bundle.relative_to(REPO_ROOT))}
             legs = list(run.legs.values())
+            speakers = report.speaker_rows(run.__dict__.get("speaker_walks"), run.__dict__.get("speaker_verdicts"))
             written = report.write_report(folder / "report.md", legs, meta, scan, run.beats, run.fits, run.turns,
-                                           run.orbs)
+                                           run.orbs, speakers)
             (bundle / "report.md").write_text(written.read_text(encoding="utf-8"), encoding="utf-8")
             print(f"\nreport: {written}\nbundle: {bundle}")
     assert scan.get("clean") is not False, report.scan_line(scan)

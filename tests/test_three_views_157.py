@@ -238,13 +238,21 @@ WEB_SELECTORS = {
                                             "money-offer-name", "money-use-name"),
     "src/routes/founder/corridor/MoneyReplayRoute.tsx": ("money-replay",),
     # spec 159 (keel-web 253 / 254): the stranger's views are the one AI player -- the orb or the face, the film on its
-    # stage; the text player's story card (`StoryScreen`) and its voice bar (`CardVoice`) are no longer walked
+    # stage; the text player's story card (`StoryScreen`) and its voice bar (`CardVoice`) are no longer walked. Spec 160
+    # (keel-web 256): the film's dim orb and *Go on to the question* are gone; *Begin the interview*, the face's column
+    # and caption, the tick; the intro's one button and its block; the replay mark; the film's icons and board; the words
     "src/components/interview/ai/AiInterviewPlayer.tsx": ("ai-player", "ai-stage", "ai-orb", "ai-orb-state", "ai-story",
-                                                          "ai-story-orb", "ai-story-go-on", "ai-face", "ai-done"),
-    "src/components/interview/ai/AiIntro.tsx": ("ai-intro", "intro-orb", "start-talking", "ai-mic-test",
-                                                "ai-mic-heard", "ai-mic-fallback"),
+                                                          "ai-film-begin", "ai-face", "ai-facecol", "ai-caption",
+                                                          "ai-face-state", "ai-done", "ai-done-tick"),
+    "src/components/interview/ai/AiIntro.tsx": ("ai-intro", "intro-orb", "ai-start", "ai-mic-test", "ai-mic-heard",
+                                                "ai-mic-block", "ai-intro-answers", "ai-intro-chips", "ai-intro-asks",
+                                                "ai-intro-study", "ai-intro-mic-line", "ai-intro-transcribed",
+                                                "ai-intro-consent"),
     "src/components/interview/ai/Sheet.tsx": ("ai-sheet", "ai-options", "ai-back", "ai-skip", "ai-yes", "ai-save",
-                                              "ai-field"),
+                                              "ai-field", "ai-replay"),
+    "src/lib/story/StoryPlayer.tsx": ("story-player", "story-board", "story-line", "story-read", "ai-film-pause",
+                                      "ai-film-again", "ai-film-board"),
+    "src/components/interview/ai/SpokenWords.tsx": ("ai-words",),
     "src/components/interviews/SentPage.tsx": ("try-it-yourself", "try-keel-voice"),
     "src/routes/landing/ProjectTabs.tsx": ("project-row-defined",),
     "src/routes/founder/calls/CopilotCard.tsx": ("show-story", "story-again", "show-idea-story", "copilot-grown",

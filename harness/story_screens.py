@@ -1538,6 +1538,9 @@ def measure_story(page, root: str, *, state: str | None = None, play: bool = Fal
     250 ms until the player ends (or `timeout_s`): every overlap of a text on a drawn element met at any moment (one
     row a pair), every spoken line with its rows (the most), the fit at its worst, and the numbers of the fullest read."""
     if play:
+        # `story-play` is the worded player's (the founder's screens; the retired text player's card). Spec 160 (keel-web
+        # 256 FR-3): the AI link's film plays by itself and has no *Play* -- its icons are `ai-film-pause` /
+        # `ai-film-again`, its words behind `ai-film-board` -- so it is measured with `play=False`.
         button = page.locator(f"{root} [data-testid=story-play]").first
         try:
             button.wait_for(state="visible", timeout=15_000)
@@ -1896,6 +1899,13 @@ def web_retired_typing(keel_web: Path) -> bool:
         and not (Path(keel_web) / CARD_VOICE_SOURCE).exists()
 
 
+def web_pared_down(keel_web: Path) -> bool:
+    """keel-web 256 is in the checkout: the film ends on *Begin the interview* (`ai-film-begin`) and the speaker has two
+    sizes (`data-size`)."""
+    source = Path(keel_web) / ORB_PLAYER_SOURCE
+    return source.exists() and 'data-testid="ai-film-begin"' in source.read_text(encoding="utf-8")
+
+
 def speech_key(voice: str, text: str) -> str:
     """keel-cloud `KeelVoice.key`: the sha256 hex of the voice, a newline and the words as spoken (whitespace runs as one
     space, the ends stripped) -- the `speech_clip.cache_key` a clip of these words in this voice is stored under."""
@@ -1958,8 +1968,32 @@ def served_items(interview: dict) -> list[dict]:
 #: hand-over line), the question pill and the sheet's question, the intro's speaker, and on every row what must never be
 #: drawn on an orb link: a typed box (`textarea`, `input[type=text]`), the text player's voice bar (`card-voice`), the
 #: Let-them-choose buttons (`choice-talk`, `choice-write`), the words *Read and tap*; the recorder running (`mic`).
+#:
+#: Spec 160 (keel-web 256): on both speakers, each row also carries the speaker's size (`size`: `data-size` on `ai-orb`
+#: or `ai-facecol`), the ids drawn of `WALK_IDS` (`ids`; the speaker's own box as `speaker`; on the film, the ids inside
+#: `ai-story` alone -- it covers the stage), the words drawn and how many are lit (`words`, `lit`: `ai-words`' `data-lit`),
+#: the intro's mic state, the film player's state and whether *Begin the interview* is up, and the retired ids
+#: (`filmOrb`: `ai-story-orb`; `again`: `ai-again`; `goOn`: `ai-story-go-on`; `fallback`: `ai-mic-fallback`). Every
+#: `play()` on a media element is stamped on `window.__ivPlays` (`[t, src, video, data-clip]`: the one player swaps
+#: blob sources and names the clip in `data-clip`) -- what played, and when.
+WALK_IDS = ("ai-intro", "ai-intro-study", "ai-intro-asks", "ai-intro-chips", "ai-intro-answers", "ai-mic-test",
+            "ai-mic-heard", "ai-mic-block", "ai-start", "ai-story", "ai-film-pause", "ai-film-again", "ai-film-board",
+            "ai-film-begin", "story-read", "speaker", "ai-words", "ship-mark", "ai-where", "ai-state", "ai-end",
+            "ai-sheet", "ai-options", "ai-field", "ai-replay", "ai-back", "ai-skip", "ai-yes", "ai-save", "ai-finish",
+            "ai-tap-to-hear", "ai-done", "ai-done-tick", "ai-mic-off", "ai-ended")
 ORB_INTERVIEW_WATCH = r"""(() => {
   const log = (window.__ivLog = window.__ivLog || []);
+  const plays = (window.__ivPlays = window.__ivPlays || []);
+  const IDS = %s;
+  if (!window.__ivPlayWrapped && window.HTMLMediaElement) {
+    window.__ivPlayWrapped = true;
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function (...args) {
+      try { plays.push([Date.now(), this.currentSrc || this.src || '', this instanceof HTMLVideoElement,
+                        this.getAttribute('data-clip')]); } catch (e) {}
+      return play.apply(this, args);
+    };
+  }
   let last = '';
   const t = (el) => (el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : null);
   const read = () => {
@@ -1967,8 +2001,18 @@ ORB_INTERVIEW_WATCH = r"""(() => {
     const stage = q('[data-testid=ai-stage]');
     const onStage = !!stage && !stage.hasAttribute('hidden');
     const orb = q('[data-testid=ai-orb]');
+    const col = q('[data-testid=ai-facecol]');
     const story = q('[data-testid=ai-story]');
     const intro = q('[data-testid=ai-intro]');
+    const words = q('[data-testid=ai-words]');
+    const player = story ? story.querySelector('[data-testid=story-player], [data-testid=idea-story-player]') : null;
+    const mic = q('[data-testid=ai-mic]');
+    const scope = story || document;
+    const mark = q('[data-testid=ship-mark]');
+    // the stage is drawn hidden under the intro and the last page: what it holds then is not on the screen
+    const shown = (el) => !!el && !(stage && !onStage && stage.contains(el));
+    const ids = IDS.filter((id) => id === 'speaker' ? onStage && !story && !!(orb || col)
+      : shown(scope.querySelector('[data-testid="' + id + '"]')));
     const typed = [...document.querySelectorAll('textarea, input[type=text]')]
       .map((el) => el.getAttribute('data-testid') || el.tagName.toLowerCase());
     const row = {
@@ -1976,16 +2020,31 @@ ORB_INTERVIEW_WATCH = r"""(() => {
       phase: stage ? stage.getAttribute('data-phase') : null, onStage,
       speaker: stage ? stage.getAttribute('data-speaker') : null,
       intro: intro ? intro.getAttribute('data-speaker') : null,
+      micState: mic ? mic.getAttribute('data-state') : null,
       film: story ? story.getAttribute('data-kind') : null,
       first: !!(story && story.hasAttribute('data-first')),
       hand: story ? t(story.querySelector('.aiv-story__hand')) : null,
-      filmOrb: story ? !!story.querySelector('[data-testid=ai-story-orb] [data-testid=story-orb]') : false,
+      filmState: player ? player.getAttribute('data-state') : null,
+      begin: !!q('[data-testid=ai-film-begin]'),
+      filmOrb: !!q('[data-testid=ai-story-orb]') || (story ? !!story.querySelector('[data-testid=story-orb]') : false),
+      size: onStage && !story && (orb || col) ? (orb || col).getAttribute('data-size') : null,
+      ids,
+      chip: mark ? t(mark) : null,
+      chipIn: mark ? (mark.closest('[data-testid=ai-caption]') ? 'caption'
+        : mark.closest('[data-testid=ai-facecol]') ? 'facecol' : mark.closest('[data-testid=ai-orb]') ? 'orb' : 'other')
+        : null,
+      words: words ? t(words) : null,
+      lit: words ? words.querySelectorAll('[data-lit=true]').length : 0,
+      litFirst: words ? (words.querySelector('[data-lit]') || {getAttribute: () => null}).getAttribute('data-lit') === 'true' : null,
       where: t(q('[data-testid=ai-where]')),
       question: t(q('[data-testid=ai-sheet] .iv-q')),
       typed,
       voiceBar: document.querySelectorAll('[data-testid=card-voice]').length,
       choice: document.querySelectorAll('[data-testid=choice-talk], [data-testid=choice-write]').length,
       readTap: (document.body ? document.body.textContent || '' : '').includes('Read and tap'),
+      again: document.querySelectorAll('[data-testid=ai-again]').length,
+      goOn: document.querySelectorAll('[data-testid=ai-story-go-on]').length,
+      fallback: document.querySelectorAll('[data-testid=ai-mic-fallback]').length,
       video: document.querySelectorAll('video').length,
       mic: !!(window.__listening && window.__listening()),
       path: location.pathname };
@@ -1993,15 +2052,25 @@ ORB_INTERVIEW_WATCH = r"""(() => {
     if (key !== last) { last = key; row.t = Date.now(); log.push(row); }
   };
   new MutationObserver(read).observe(document, { subtree: true, childList: true, characterData: true, attributes: true,
-                                                 attributeFilter: ['data-state', 'data-phase', 'data-speaker', 'hidden'] });
+                                                 attributeFilter: ['data-state', 'data-phase', 'data-speaker', 'hidden',
+                                                                   'data-size', 'data-lit'] });
   read();
-})();"""
+})();""" % json.dumps(list(WALK_IDS))
 
 
 def iv_log(page) -> list[dict]:
     """`ORB_INTERVIEW_WATCH`'s rows so far ([] where the page has gone)."""
     try:
         return list(page.evaluate("() => (window.__ivLog || []).slice()") or [])
+    except Exception:  # noqa: BLE001 - a page that has gone
+        return []
+
+
+def iv_plays(page) -> list[list]:
+    """Spec 160: every media `play()` stamped by `ORB_INTERVIEW_WATCH` so far -- `[t (ms since the epoch), src, video,
+    data-clip]`."""
+    try:
+        return list(page.evaluate("() => (window.__ivPlays || []).slice()") or [])
     except Exception:  # noqa: BLE001 - a page that has gone
         return []
 
@@ -2041,3 +2110,99 @@ def never_drawn(log: list[dict]) -> dict:
             "voice_bar": any(r.get("voiceBar") for r in log), "choice": any(r.get("choice") for r in log),
             "read_and_tap": any(r.get("readTap") for r in log),
             "video": any(r.get("video") for r in log if r.get("speaker") == "ORB")}
+
+
+# ================================================================================ spec 160: both speakers, one walk
+# keel-web 256 pared the player down on both speakers alike; the founder's rule (2026-11-23): "test for both the
+# interviewers and ensure that it is in sync". A link's walk is folded into steps (`walk_steps`) and the orb's and the
+# face's are compared step for step (`same_walk`).
+
+#: The stage's own moments that are not a step of the walk: the flow's loading and sending (a fetch's length, never the
+#: same twice), and the film's phase where no film is drawn (the frame between the film's end and the opening).
+TRANSIENT_PHASES = ("loading", "sending", "story", None, "")
+#: The speaker-specific ids are never in `WALK_IDS` (`intro-orb`, `ai-face`, `ai-caption`, `ai-face-state`,
+#: `ai-orb-state`); the speaker's own box is `speaker` on both.
+
+
+def step_of(row: dict) -> str | None:
+    """The step a watched row stands in: `intro` (`+start` once *Start the interview* is up, `+block` at the block), the
+    film (`film:<kind>`, `+begin` once *Begin the interview* is up), the stage's `<phase>:<where>` (speaking, beat,
+    listening, held, confirming), `done` / `ended`; None for a transient moment."""
+    ids = set(row.get("ids") or [])
+    if row.get("onStage"):
+        if row.get("film"):
+            return f"film:{row['film']}" + ("+begin" if row.get("begin") else "")
+        phase = row.get("phase")
+        if phase in TRANSIENT_PHASES:
+            return None
+        if phase in ("done", "ended"):
+            return phase
+        return f"{phase}:{row.get('where') or ''}"
+    if "ai-done" in ids:
+        return "done"
+    if "ai-ended" in ids:
+        return "ended"
+    if row.get("intro") or "ai-intro" in ids:
+        return "intro" + ("+start" if "ai-start" in ids else "") + ("+block" if "ai-mic-block" in ids else "")
+    return None
+
+
+def walk_steps(log: list[dict]) -> list[dict]:
+    """Spec 160 FR-3: the walk as its steps, repeats folded -- per step the state word (`step`), the speaker's sizes
+    seen (`sizes`: `large` while it asks, `small` once the sheet opens), the ids drawn in it (`ids`, the union of its
+    rows: a frame drawn a moment late is still the step's), the words drawn while it speaks (`words`) and how they lit
+    (`lit_first`: the first word lit, `lit_max`: the most lit at once)."""
+    steps: list[dict] = []
+    for row in log:
+        name = step_of(row)
+        if name is None:
+            continue
+        if not steps or steps[-1]["step"] != name:
+            steps.append({"step": name, "sizes": [], "ids": [], "words": None, "lit_first": False, "lit_max": 0,
+                          "rows": 0})
+        cur = steps[-1]
+        cur["rows"] += 1
+        size = row.get("size")
+        if size and size not in cur["sizes"]:
+            cur["sizes"].append(size)
+        for i in row.get("ids") or []:
+            if i not in cur["ids"]:
+                cur["ids"].append(i)
+        if row.get("words"):
+            cur["words"] = row["words"]
+            cur["lit_first"] = cur["lit_first"] or bool(row.get("litFirst"))
+            cur["lit_max"] = max(cur["lit_max"], int(row.get("lit") or 0))
+    for cur in steps:
+        cur["ids"] = sorted(cur["ids"])
+    return steps
+
+
+def step_record(step: dict) -> dict:
+    """What `same_walk` compares of a step: the state word, the sizes, the ids, the words and that they lit from the
+    first (the count lit at the clip's end is a timer's race against a clip of 0.312 s on the orb and 1 s on the face --
+    reported, not compared)."""
+    return {"step": step.get("step"), "sizes": list(step.get("sizes") or []), "ids": list(step.get("ids") or []),
+            "words": step.get("words"), "lit": bool(step.get("lit_first")) if step.get("words") else None}
+
+
+def same_walk(orb: list[dict], face: list[dict]) -> dict:
+    """Spec 160 FR-3: the orb's walk and the face's, step for step -- equal (`same`), or the first step they part at
+    (`at`, its index, both records and what differs: `differs`)."""
+    for i in range(max(len(orb), len(face))):
+        a = step_record(orb[i]) if i < len(orb) else None
+        b = step_record(face[i]) if i < len(face) else None
+        if a != b:
+            differs = (["missing on the face"] if b is None else ["missing on the orb"] if a is None
+                       else [k for k in a if a[k] != b[k]])
+            return {"same": False, "at": i, "orb": a, "face": b, "differs": differs,
+                    "orb_steps": len(orb), "face_steps": len(face)}
+    return {"same": True, "at": None, "steps": len(orb)}
+
+
+def sizes_line(steps: list[dict]) -> str:
+    """The sizes as the walk went: one letter a stage step (L large, S small), `-` where no speaker is drawn."""
+    out = []
+    for s in steps:
+        sizes = s.get("sizes") or []
+        out.append("/".join("L" if z == "large" else "S" if z == "small" else z for z in sizes) or "-")
+    return " ".join(out)

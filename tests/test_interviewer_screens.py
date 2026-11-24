@@ -175,23 +175,38 @@ def test_the_templates_are_keel_webs_own():
     assert "`${SETUP_INTERVIEWER} on the ${kindLabel} card first`" in translate
     assert "`Make ${first}'s link`" in translate and iv.send_make_one("Renee") == "Make Renee's link"
     assert "`${first}'s link is ready`" in translate and iv.send_link_ready("Renee") == "Renee's link is ready"
-    assert '`${face} will ask you ${questions} question${questions === 1 ? "" : "s"}.`' in translate
-    assert ivs.ai_intro_heading("Daphne", 1) == "Daphne will ask you 1 question."
-    assert ivs.ai_intro_heading("Daphne", 9) == "Daphne will ask you 9 questions."
+    # spec 160 (keel-web 256 FR-1, `aiIntroHeadline`): the headline names the founder
+    assert '`${founder} has ${questions} question${questions === 1 ? "" : "s"} for you.`' in translate
+    assert ivs.ai_intro_heading("Robin", 1) == "Robin has 1 question for you."
+    assert ivs.ai_intro_heading("Robin", 9) == "Robin has 9 questions for you."
+    assert ivs.intro_founder({"founderFirstName": " Robin ", "founderName": "Robin Vale"}) == "Robin"
+    assert ivs.intro_founder({"founderFirstName": None, "founderName": "Robin Vale"}) == "Robin Vale"
 
 
 # spec 154 (keel-web 187): the persona line and its popup (`persona-line`, `change-who-asks`, `change-face-popup`,
 # `change-face-confirm`) are gone; the kind card's are `kind-card`, `set-up-interviewer`, `set-up-interviewer-popup`,
 # `set-up-record`, `set-up-not-now`, `kind-asks`, `kind-progress`, `kind-try-again`. Spec 159 (keel-web 253): the
-# Let-them-choose screen (`choice-talk`, `choice-write`) is gone; the orb's intro (`intro-orb`), its stage (`ai-orb`),
-# the film's dim orb (`ai-story-orb`) and the kind card's *Try it yourself* on Keel's voice (`try-keel-voice`) are
-# pressed or read; *Type instead* (`ai-type`, `ai-typed`) until keel-web 254 retires typing.
+# Let-them-choose screen (`choice-talk`, `choice-write`) is gone; the orb's intro (`intro-orb`), its stage (`ai-orb`)
+# and the kind card's *Try it yourself* on Keel's voice (`try-keel-voice`) are pressed or read; *Type instead*
+# (`ai-type`, `ai-typed`) until keel-web 254 retires typing. Spec 160 (keel-web 256): *Start the interview* is
+# `ai-start` (in *Test your mic*'s place), the block `ai-mic-block`, the closed disclosure `ai-intro-answers`, the film's
+# `ai-film-pause` / `ai-film-again` / `ai-film-board` / `ai-film-begin`, the replay mark `ai-replay`, the face's column
+# `ai-facecol` and caption `ai-caption`, the words `ai-words`, the tick `ai-done-tick`; the film's dim orb
+# (`ai-story-orb`) is gone.
+#: Spec 160: the ids keel-web 256 brought.
+PARED_DOWN_IDS = ("ai-start", "ai-mic-block", "ai-intro-answers", "ai-film-pause", "ai-film-again", "ai-film-board",
+                  "ai-film-begin", "ai-replay", "ai-facecol", "ai-caption", "ai-words", "ai-done-tick")
+
+
 @pytest.mark.parametrize("testid", ["kind-card", "set-up-interviewer", "set-up-interviewer-popup", "set-up-record",
                                     "set-up-not-now", "set-up-cost", "set-up-title", "kind-asks", "kind-progress",
                                     "kind-try-again", "kind-failure", "new-link", "new-group-link", "plan-call",
                                     "new-link-popup", "send-make", "link-made", "format-set-up-on-card",
-                                    "try-it-yourself", "try-keel-voice", "ai-intro", "intro-orb", "start-talking",
-                                    "ai-stage", "ai-orb", "ai-story-orb", "ai-where", "ai-end", "ship-mark", "ai-sheet",
+                                    "try-it-yourself", "try-keel-voice", "ai-intro", "intro-orb", "ai-start",
+                                    "ai-mic-block", "ai-intro-answers", "ai-film-pause", "ai-film-again",
+                                    "ai-film-board", "ai-film-begin", "ai-replay", "ai-facecol", "ai-caption",
+                                    "ai-words", "ai-done-tick",
+                                    "ai-stage", "ai-orb", "ai-where", "ai-end", "ship-mark", "ai-sheet",
                                     "ai-options", "ai-field", "ai-preview", "ai-heard", "ai-type",
                                     "ai-typed", "ai-done", "face-carousel", "lock-and-record"])
 def test_every_selector_the_page_objects_press_is_in_keel_web(testid):
@@ -200,8 +215,10 @@ def test_every_selector_the_page_objects_press_is_in_keel_web(testid):
         pytest.skip("keel-web predates spec 069")
     if testid in ("ai-type", "ai-typed") and ss.web_retired_typing(root.parent):
         pytest.skip("keel-web 254: nothing typed on a link (*Type instead* retired)")
-    if testid in ("intro-orb", "ai-orb", "ai-story-orb", "try-keel-voice") and not ss.web_has_orb(root.parent):
+    if testid in ("intro-orb", "ai-orb", "try-keel-voice") and not ss.web_has_orb(root.parent):
         pytest.skip("keel-web before 253 (the orb interviews)")
+    if testid in PARED_DOWN_IDS and not ss.web_pared_down(root.parent):
+        pytest.skip("keel-web before 256 (the player pared down)")
     hits = [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")]
     assert hits, testid
     assert testid in Path(ivs.__file__).read_text(encoding="utf-8") + Path(
@@ -235,7 +252,8 @@ def test_thats_my_answer_is_gone_from_keel_web():
         encoding="utf-8"))]
 
 
-@pytest.mark.parametrize("word", [ivs.START_THE_INTERVIEW, ivs.MIC_TEST, ivs.SAY_HELLO, ivs.MIC_FALLBACK,
+@pytest.mark.parametrize("word", [ivs.START_THE_INTERVIEW, ivs.MIC_TEST, ivs.SAY_HELLO, ivs.MIC_BLOCK,
+                                  ivs.MIC_BLOCK_HOW, ivs.MIC_LABEL,
                                   ivs.INTRO_TRANSCRIBED, ivs.GOT_THAT, ivs.WRITING_DOWN, ivs.HELD, ivs.IS_THAT_RIGHT,
                                   ivs.YES_THATS_IT, ivs.SAVE_AND_NEXT, ivs.FINISH])
 def test_the_answer_paths_words_are_keel_webs_own(word):

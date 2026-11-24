@@ -1287,7 +1287,9 @@ def _dry_run(j, wire: _Wire, record: dict) -> None:
         assert (opening.get("url") or "").startswith(f"/v2/projects/{j.project_id}/interviewer/clips/"), opening
         assert founder_clip["status"] == 206, founder_clip
         assert before == after, (before, after)
-        assert drawn["mark"] == ivs.MARK_TRY and drawn["done"]["tryRun"], drawn
+        # spec 160 (keel-web 256 FR-6): the dry run's chip names her too, *· try run* after it
+        face_name = ((player.get("face") or {}).get("name")) or fake.FACE_NAMES[FIRST_FACE]
+        assert drawn["mark"] == ivs.face_mark(face_name, try_run=True) and drawn["done"]["tryRun"], drawn
         stores = [w for w in drawn["writes"] if w not in drawn["reads"]]
         assert ivs.TRY_NOTHING_STORED in drawn["done"]["text"] and not stores, drawn
         assert drawn["first"]["question"] and drawn["videos"] == 1, drawn
@@ -3152,16 +3154,19 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
                          "top": {k: expected[k] for k in top}, "pilot": 204, "formatUsed": "AI_INTERVIEWER",
                          "That's my answer": "never in the DOM", "answer": f">= {len(spoken)} calls, all 200",
                          "classify": 0,
-                         "intro": {"intro": "AI_INTERVIEWER", "heading": f"{fake.FACE_NAMES[FIRST_FACE]} will ask you"}},
+                         "intro": {"intro": "AI_INTERVIEWER",
+                                   "heading": ivs.ai_intro_heading(ivs.intro_founder(interview),
+                                                                   ai_question_count(interview))}},
                         {"responses": len(responses), "format": body.get("format"), "answers": sent, "how": hows,
                          "top": top, "pilots": pilots, "row": row, "intro": intro, "walked": walked,
                          "saw That's my answer": saw, "answer": [c["status"] for c in classified],
                          "classify": len(stray_classify),
                          "statuses": [s.get("status") for s in statuses]})
-        assert intro["intro"] == "AI_INTERVIEWER" and intro["buttons"] == ["start-talking"], intro
-        assert intro["heading"].startswith(f"{fake.FACE_NAMES[FIRST_FACE]} will ask you"), intro
-        # spec 125 FR-2 (keel-web 160 FR-2): the heading counts every question -- the condition where the link asks one
-        assert intro["heading"] == ivs.ai_intro_heading(fake.FACE_NAMES[FIRST_FACE], ai_question_count(interview)), \
+        # spec 160 (keel-web 256 FR-1, FR-2): one button -- *Test your mic* before the hello (`ai-start` after it)
+        assert intro["intro"] == "AI_INTERVIEWER" and intro["buttons"] == ["ai-mic-test"], intro
+        # spec 125 FR-2 (keel-web 160 FR-2): the heading counts every question -- the condition where the link asks one;
+        # spec 160 (keel-web 256 FR-1): *{founder} has {n} questions for you.*
+        assert intro["heading"] == ivs.ai_intro_heading(ivs.intro_founder(interview), ai_question_count(interview)), \
             (intro["heading"], ai_question_count(interview))
         assert len(responses) == 1 and responses[0]["status"] in (200, 201), responses
         assert body.get("format") == "AI_INTERVIEWER", body
@@ -3175,7 +3180,8 @@ def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: di
         assert not stray_classify, stray_classify
         assert len(pilots) == 1 and pilots[0]["status"] == 204, pilots
         assert row.get("formatUsed") == "AI_INTERVIEWER" and row.get("status") == "ANSWERED", row
-        assert all(w["mark"] == ivs.MARK for w in walked), [w["mark"] for w in walked]
+        # spec 160 (keel-web 256 FR-6): her chip names her -- *{name} · AI interviewer*
+        assert all(w["mark"] == ivs.face_mark(fake.FACE_NAMES[FIRST_FACE]) for w in walked), [w["mark"] for w in walked]
     _follow_up_on_the_ai_link(j, record)
     _read_on_arrival(j, wire, record, made["invitationId"], "the AI link's")
 
