@@ -259,3 +259,18 @@ def test_the_studys_other_yes_sayers_count_on_the_founders_page():
              {"url": "u3", "interview": interview, "invitation": "v3", "sent": {"recency": False, "answers": []}}]
     assert strangers.other_yes_sayers(_Run(walks), "p", "problem") == {"picks": ["most_times"],
                                                                         "stories": [("v1", "It happened.")]}
+
+
+def test_the_cards_question_is_its_anchor_then_its_stem():
+    strips = [{"phase": "reading", "read": "Would it have helped you?", "anchor": "Think of the last time.",
+               "options": ["A lot better"], "passage_kind": "item", "passage_dimension": "solution.relative_advantage"}]
+    assert ts.strips_record(strips)[0]["words"] == "Think of the last time. Would it have helped you?"
+
+
+def test_a_walked_why_is_compared_by_where_it_is_asked_not_its_words():
+    orb = [ts.step(ts.IMPORTANCE, IMP_Q, IMP_ROWS, ["You picked filing over checking. Why did that matter more?"])]
+    card = [ts.step(ts.IMPORTANCE, IMP_Q, IMP_ROWS, ["What mattered more to you?"])]
+    assert ts.same_script({"orb": orb, "card": card}, follow_up_words=False)["same"] is True
+    assert ts.same_script({"orb": orb, "card": card})["differs"] == ["follow_ups"]
+    none = [ts.step(ts.IMPORTANCE, IMP_Q, IMP_ROWS)]
+    assert ts.same_script({"orb": orb, "card": none}, follow_up_words=False)["differs"] == ["follow_ups"]

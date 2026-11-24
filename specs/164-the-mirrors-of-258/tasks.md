@@ -34,3 +34,40 @@ stack allowed ONLY once the integrator's run has released it. Push after every c
 |---|---|---|
 
 ## Judgement calls
+1. **keel-web for the local run is master `9ef65690`, not `1fdea165`** (the coordinator's word, 2026-11-24 ~17:00 ET, after
+   the brief): `1fdea165` (the on-the-spot follow-up waits for the route) and `9ef65690` (the real cause of the No-sayer's
+   missing why in the run of record: the cloud serves no `counts` on a counted gate, only `false` on an anchor, and
+   `noGoesOn` required `true`, so every real link's No still ended the interview -- it now reads absent as counted).
+   `9ef65690` also carries keel-web 261 and 259 (contract 89 vendored) -- the stack's keel-cloud stays `8fc10e71`
+   (contract 87). A run already started on `1fdea165` (run 2) was stopped by the builder (its own make, then `make down`)
+   and the temporary keel-web worktree detached at `9ef65690`.
+2. **The stack served temporary worktrees**: keel-cloud-docs `8fc10e71` at `wt/keel-cloud-eval-164` and keel-web at
+   `wt/keel-web-eval-164` (the main keel-web checkout had moved to `c7f5b97a` under the integrator's run), with
+   `node_modules` cloned (`cp -c`, the lockfile unchanged between the shas); `stack.toml` pointed at them in the
+   worktree's copy only, never committed. Run 1 lost the founder's sign-in to vite's first-load dependency
+   re-optimisation (*new dependencies optimized ... reloading*, the empty cache of the new worktree) -- an environment
+   miss, not a red; the cache warm, the run was made again.
+3. **All of `pending_258` is retired**, not only the film-first branch keel-web 258's item 1 names: 258 is merged and
+   every branch it guarded was dead (the wire-only roster walk, the pending checks, the order note). `roster_on_the_wire`
+   stays as a function (its record shape is documented by it), uncalled.
+4. **The card's walked record keeps the screener** where the card draws it (the condition passage): the wire's card
+   record keeps it too, so the walked step 1 is the screener and the gate step 2 (FR-2's *step 1 is the gate* was read
+   off the failing verdict, where the screener had been dropped as not on every surface).
+5. **The yes call is answered on the orb's rows** (`answered_rows`: Frequency by its letter's row, Importance by its first
+   row's words), so the card owes the whys the orb owed and the walked follow-ups can be compared at all; the No call
+   picks as before.
+6. **A two-step ladder's bands on the card's walked record are its passage's** (`_card_labels`): the card draws only the
+   side the first answer opens, so the drawn bubbles cannot hold the whole ladder; compared as a set, as 161 does.
+7. **The decision-maker's check** (the script serves none; the route words it from the story's people) is read as the
+   card's `check` passage by the card's own press: on a script with no gate, the question strip that carries *Story
+   again*.
+8. **The founder's page counts every yes-sayer the study's links were walked with** (`other_yes_sayers`): on keel-web 258
+   the problem link's walk by voice runs before the roster (its Frequency by letter, *Most times*, and its story), so the
+   run of record's `n/share` [5, 0.4] against the roster's [4, 0.25] and the ways' `read` 5 were the harness's count, not
+   the product's. Its invitation id is the `MadeLink` Send more posted.
+9. **The founder's page is read on screen too** (`founder_page_on_screen`): mirrors 2, 4, 5 and 9 are DOM reads, so they
+   are held on the founder's real page right after the wire reads -- the Overview's ways panel, the stage page's
+   Frequency card, the Insights boxes, the binding's breakdown.
+10. **Unit reds that are 258's moves were moved, the rest left**: the film-first mirrors of 159 / 160 and 076's
+    formatter-wrapped `firstItemId` line; every other red is the base's own (the sibling checkouts' drift of earlier
+    specs).

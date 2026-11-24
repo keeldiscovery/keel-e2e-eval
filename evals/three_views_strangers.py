@@ -419,7 +419,11 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
             continue
         where = ss._tc(page.get_by_test_id("ai-where"))
         step = page.get_by_test_id("ai-sheet").first.get_attribute("data-step") if page.get_by_test_id("ai-sheet").count() else None
-        options = [re.sub(r"^[A-Z](?=[A-Z0-9])", "", o["label"]) for o in sheet["options"]]
+        # the row's words without its badge: on a story link each row carries its letter first (`cpl-bubble__let`,
+        # `letterOf(i)`) -- taken off by its place (spec 164: a row such as *$10 to under $20* kept whole)
+        lettered = page.locator("[data-testid=ai-sheet] .aiv__bubble").count() > 0
+        options = [o["label"][1:] if lettered and o["label"][:1] == chr(ord("A") + i) and len(o["label"]) > 1
+                   else re.sub(r"^[A-Z](?=[A-Z0-9])", "", o["label"]) for i, o in enumerate(sheet["options"])]
         row = {"screen": "question", "question": q, "where": where, "step": step,
                "back": page.get_by_test_id("ai-back").count(), "type_instead": page.get_by_test_id("ai-type").count(),
                "options": options, "chips": sheet.get("chips") or [], "banner": sheet.get("banner"),
@@ -498,9 +502,11 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                 p.say(row["said"])
         elif sheet.get("chips"):
             # a box with no rows (an amount, a count): its escape, tapped
+            row["key"] = item_of(items, q).get("dimension")        # spec 164: a step of the walked record too
             row["said"] = f"tap: {sheet['chips'][0]}"
             p.tap_chip()
         else:
+            row["key"] = item_of(items, q).get("dimension")
             row["said"] = "about three"
             p.say(row["said"])
         said_at = time.monotonic()
@@ -869,13 +875,22 @@ def film_checks(run, leg, walked: dict, interview: dict, *, view: str) -> None:
     plays = after_press.get("plays") or []
     first_clip = plays[0][3] if plays and len(plays[0]) > 3 else None
     box = after_press.get("speaker") or {}
-    leg.check(run, "after *Begin the interview*: the opening's clip is the first to play (keel-web 258: the gate's, the "
-                   "opening and the screener said before the film), and the speaker is drawn (large, as it asks)",
-              bool(plays) and first_clip == after_press.get("opening")
-              and box.get("seen") and not box.get("covered") and box.get("size") == ivs.SIZE_LARGE,
-              screen="Begin the interview -> the opening", view=view,
-              detail={"plays": plays, "opening": after_press.get("opening"), "speaker": box,
-                      "phase": after_press.get("phase")}, stop=False)
+    if (interview.get("gate") or {}).get("itemId"):
+        leg.check(run, "after *Begin the interview*: the gate's clip is the first to play (keel-web 258 FR-2b: the "
+                       "opening and the screener said before the film), and the speaker is drawn (large, as it asks)",
+                  bool(plays) and first_clip == after_press.get("opening")
+                  and box.get("seen") and not box.get("covered") and box.get("size") == ivs.SIZE_LARGE,
+                  screen="Begin the interview -> the gate", view=view,
+                  detail={"plays": plays, "gate clip": after_press.get("opening"), "speaker": box,
+                          "phase": after_press.get("phase")}, stop=False)
+    else:
+        # the decision-maker's link (spec 164, keel-web 258 FR-2b): the problem check follows the film -- a step with
+        # no clip of its own (`stepsOf`: `clip: undefined`), so nothing plays and its window opens
+        leg.check(run, "after *Begin the interview*: the problem check, asked with no clip of its own (keel-web 258 "
+                       "FR-2b: the opening and the screener said before the film), the speaker drawn",
+                  not plays and after_press.get("phase") == "listening" and box.get("seen") and not box.get("covered"),
+                  screen="Begin the interview -> the check", view=view,
+                  detail={"plays": plays, "speaker": box, "phase": after_press.get("phase")}, stop=False)
 
 
 def pain_hold_check(run, leg, walked: dict, interview: dict, *, view: str) -> None:
@@ -1343,7 +1358,8 @@ ORB_FILM_PLAYER = "[data-testid=ai-story] [data-testid=story-player]"
 
 def phone_film(run, leg, study: str, project_id: str, person: str) -> None:
     """Spec 158b, moved onto the orb (spec 159): one more TEXT link, opened on a phone (390 x 844): the mic test, Start,
-    and the film read while it plays -- no text on the drawing, it fits, the spoken line at most three rows."""
+    and the film read while it plays -- no text on the drawing, it fits, the spoken line at most three rows. Since
+    keel-web 258 FR-2b (spec 164) the opening and the screener come first: the screener is answered *yes* on the way."""
     from harness import interviewer_screens as ivs    # noqa: PLC0415
     made = tv.send_link(run, leg, f"{study}-orb-phone", project_id, "TEXT", person=person, decider=study == "money")
     phone = run.browser.new_context(viewport=ss.PHONE)
@@ -1356,7 +1372,18 @@ def phone_film(run, leg, study: str, project_id: str, person: str) -> None:
             p.open(made["url"])
             p.mic_test()
             p.start()
-            page.locator(ORB_FILM_PLAYER).first.wait_for(state="visible", timeout=30_000)
+            film = page.locator(ORB_FILM_PLAYER).first
+            deadline = time.monotonic() + 60 * p.patience
+            answered: set = set()
+            while time.monotonic() < deadline and not film.is_visible():
+                # keel-web 258 FR-2b: the opening, then the screener on a step of its own -- *yes* -- then the film
+                if p.phase() == "listening" and p.recorder()["live"]:
+                    q = p.sheet().get("question")
+                    if q and q not in answered:
+                        answered.add(q)
+                        p.say("yes")
+                page.wait_for_timeout(300)
+            film.wait_for(state="visible", timeout=5_000)
             reached = True
         except Exception as missed:  # noqa: BLE001 - recorded on the check
             leg.notes.append(f"phone film ({study}): {str(missed)[:200]}")
@@ -1629,6 +1656,7 @@ def copilot_walk(run, page, call: dict, *, no_on: str | None = None, script: dic
     passages = ts.card_passages(script, check=check) if script else []
     picks = dict(picks or {})
     filed: list = []
+    ladder_passage: dict | None = None
     card = calls_leg.Card(page, run.recorder, run.web)
     card.open(call["copilotPath"])
 
@@ -1707,6 +1735,8 @@ def copilot_walk(run, page, call: dict, *, no_on: str | None = None, script: dic
             # the one question strip that carries the story's press (keel-web 243 FR-2, `withCheck`)
             passage = {"kind": "check", "itemId": "problemCheck", "dimension": None}
         strip = {"phase": phase, "head": head, "read": read[:200],
+                 # the question's anchor, drawn apart above its stem (`.cpl-anchor`): the card says both
+                 "anchor": ss._tc(card_root.locator(".cpl-anchor")) or None,
                  "still": page.get_by_test_id("copilot-still").count(),
                  "show_story": page.get_by_test_id("show-story").count(),
                  "story_again": page.get_by_test_id("story-again").count(),
@@ -1720,6 +1750,7 @@ def copilot_walk(run, page, call: dict, *, no_on: str | None = None, script: dic
                  "badges": ss._texts(card_root.locator(".cpl-bubble__let"))}
         if passage and passage.get("twoSteps"):
             strip["ladder"] = ts._card_labels(passage)
+            ladder_passage = passage
         if (read, head) != last:
             strips.append(strip)
             last = (read, head)
@@ -1747,6 +1778,14 @@ def copilot_walk(run, page, call: dict, *, no_on: str | None = None, script: dic
             at = 1 if (no_on == "check" and "have this problem" in read) else min(row, bubbles.count() - 1)
             if passage and passage.get("kind") == "item" and not passage.get("twoSteps"):
                 filed.append((passage.get("itemId"), _option_ids(passage, [at])))
+            elif phase == "second-step" and ladder_passage:
+                # a ladder's second step files its own option (the side the first band opened)
+                drawn = [ts._words(o) for o in strip["options"]]
+                for side in ("under", "over"):
+                    rows = ((ladder_passage.get("twoSteps") or {}).get(side) or {}).get("options") or []
+                    if [ts._words(o.get("label")) for o in rows] == drawn:
+                        filed.append((ladder_passage.get("itemId"), _option_ids({"options": rows}, [at])))
+                        break
             bubbles.nth(at).click()
         elif answers.get_by_role("radio").count():
             answers.get_by_role("radio").first.click()
@@ -2345,7 +2384,9 @@ def three_surfaces_check(run, leg, study: str) -> dict:
         missing = [x for x in ("orb", "face", "card") if x not in records]
         if kind == "walked" and missing:
             continue
-        verdict = ts.same_script(records) if not missing else {"same": None, "missing": missing}
+        # spec 164: a walked why is compared by where it is asked (`three_surfaces.WALKED_WHY`); its words on the wire
+        verdict = ts.same_script(records, follow_up_words=kind == "wire") if not missing else \
+            {"same": None, "missing": missing}
         verdicts[kind] = verdict
         where = "" if verdict.get("same") or verdict.get("same") is None else \
             f" -- they part at step {int(verdict['at']) + 1} (`{verdict.get('step')}`) on the {verdict.get('surface')}: " \

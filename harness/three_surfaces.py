@@ -247,7 +247,7 @@ def strip_step(strip: dict) -> str | None:
 def strips_record(strips: list[dict] | None) -> list[dict]:
     """Spec 161 FR-9 off the Copilot card's walk (`copilot_walk` strips, keel-web 258 FR-5), each strip read by its
     passage (spec 164 FR-2: `strip_step` -- the passage's kind and item, never the strip's place): each question as a
-    step -- its words (`read`, the card's question) and its bubbles' words in order (their badges are not compared); a
+    step -- its words (the anchor drawn above it, then `read`, the card's question) and its bubbles' words in order (their badges are not compared); a
     follow-up's words folded onto the question it hangs on; a ladder's second step folded onto its item (the card draws
     the side the first answer opens, so a ladder's bands are its passage's, compared as a set)."""
     out: list[dict] = []
@@ -261,7 +261,8 @@ def strips_record(strips: list[dict] | None) -> list[dict]:
             continue
         if key is None or s.get("phase") != "reading":
             continue
-        one = step(key, s.get("read"), [_words(o) for o in s.get("options") or []])
+        said = " ".join(x for x in (s.get("anchor"), s.get("read")) if x)     # the anchor, then the stem
+        one = step(key, said, [_words(o) for o in s.get("options") or []])
         if s.get("ladder"):
             one["options"] = list(s["ladder"])
             one["ladder"] = True
@@ -347,7 +348,13 @@ def badge_faults(strips: list[dict] | None) -> list[dict]:
 OPTIONAL_STEPS = ("screener", "check")
 
 
-def same_script(records: dict[str, list[dict]], *, reference: str = "orb") -> dict:
+#: Spec 164: on the walked records a follow-up is compared by where it is asked, not by its words -- the orb and the face
+#: say the route's why, which says the person's pick back (*You picked ... over ...*, *You said under $10 a month ...*),
+#: the card reads the script's hint; the words are held on the served records (the cloud's one script).
+WALKED_WHY = "a why"
+
+
+def same_script(records: dict[str, list[dict]], *, reference: str = "orb", follow_up_words: bool = True) -> dict:
     """Spec 161 FR-9: the surfaces' records held equal step for step -- the question's words, the options' labels in
     order, the follow-up stems (the face's clip routes and the card's digits are never in a record). `same`, or the first
     step and surface where one differs (`at`, `surface`, `step`, `differs`: which of words / options / follow_ups /
@@ -365,7 +372,8 @@ def same_script(records: dict[str, list[dict]], *, reference: str = "orb") -> di
     ladders = {s.get("step") for rec in records.values() for s in rec if s.get("ladder")}
 
     def plain(rec: list[dict]) -> list[dict]:
-        return [{k: (sorted(v) if k == "options" and s.get("step") in ladders else v)
+        return [{k: (sorted(v) if k == "options" and s.get("step") in ladders
+                     else [WALKED_WHY] * len(v) if k == "follow_ups" and not follow_up_words else v)
                  for k, v in s.items() if k not in ("ladder", "also")} for s in rec]
     records = {name: plain(rec) for name, rec in records.items()}
     ref = records.get(reference) or []
