@@ -41,7 +41,21 @@ keel-cloud 263 and the film is built from the board (268), drawn by keel-web's e
   - **F8 Legible.** No word garbled anywhere: every word written on the frame (the caption, the chapter mark, the
     board's ask) is clearly readable at the size it is drawn, on the phone frame and the laptop frame; no text,
     letters, digits or logos inside any picture; no caption cut, overlapping or clipped.
-  The film's score is `film_pct` = the mean over the eight as a percentage of 2; a 0 anywhere flags the film; the
+  **The solution film, the other way around** (the founder, 2026-11-24: *"if it's a problem, it should test whether it
+  really represents the person doing the task, having the limitations and the pain, and the solution the other way
+  around"*), nine criteria on a study whose solution film is served (keel-cloud 271/273; walked once the solution batch
+  is built): **S1** the same person in the same setting, the brand (its colour and mark) on the screen wherever the
+  product appears; **S2** the setup shown before the task where the founder named one, and nowhere where none;
+  **S3** the person doing the task with the product, step by step as the board says; **S4** each limitation of the
+  problem film shown solved (a tick) or shown as not solved (a cross), none missing; **S5** what the product does
+  better, said once; **S6** the joy as what the person gets back, the pain's opposite, never a feature; **S7** clearly
+  spelled out (as F6); **S8** end to end in the five chapters (as F7); **S9** legible (as F8).
+  **The founder's questions** (the founder, 2026-11-24: *"the quality of the questions shown to the respondent [and]
+  to the founder"*): the founder-reader (the rubric's §B reader, from inside the entry's founder) scores Keel's spoken
+  beat questions, asks and readbacks on the founder's walk -- the problem's seven beats and the verdict line, the
+  solution's four beats, the pilot ask -- on R1 fits here, R2 plain to this founder, R3 about what they know, R5 the
+  founder's words kept in the readback and on the board, the instead line as today; `founder_pct` per study.
+  The film's score is `film_pct` = the mean over the eight (nine on the solution film) as a percentage of 2; a 0 anywhere flags the film; the
   weak rule as `RUBRIC.md`'s (`FILM_WEAK`). A change to a criterion bumps `FILM_RUBRIC_VERSION`; scores of two
   versions are never tabled together.
 - **FR-2 The frames.** `make film-walk ENTRIES=<ids> WHY=<...>` (PAID, the founder's word): for each entry, the
@@ -71,7 +85,9 @@ keel-cloud 263 and the film is built from the board (268), drawn by keel-web's e
   with the reader block and `FILM_RUBRIC_VERSION`.
 - **FR-4 The table and the gate.** `make read-film-table RUN=<bundle>` (free): one row per entry (F1..F8, `film_pct`,
   flagged, the dollars) **beside the same entry's question score (`score_pct`, §A) and its founder's-page score (§B)
-  from `read-screens` on the same bundle** (three columns a study, one record), the mean over the entries, the bar `film_bar_pct` (`quality/cycle.toml` `[film]`, 80 as the
+  from `read-screens` on the same bundle** plus `founder_pct` (the founder's beats) and, once the solution batch is built, the solution film's
+  `film_pct` (four or five columns a study, one record; the Insights tab's cards and quotes and the brief are inside
+  §B's reads, named in the record), the mean over the entries, the bar `film_bar_pct` (`quality/cycle.toml` `[film]`, 80 as the
   gallery's gate, the founder's to move), the weak rows; `quality/FILM-TABLE.md` rewritten; `quality/cycles/<record>-
   film.md` the record. An entry passes at `film_pct` >= the bar with no 0; a round passes when every entry does.
 - **FR-5 The nine.** `quality/cycle.toml` gains `[film] holdout = [...]`: the nine entries the founder named as the
