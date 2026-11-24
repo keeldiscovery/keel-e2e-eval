@@ -318,6 +318,9 @@ class Run:
         return j
 
 
+#: Spec 161 (keel-cloud 269 judgement call 20): the story's status after the boxes' yes -- `defined`, or on a PROBLEM study
+#: `calibrating` / `calibrated` (the three beliefs written at the yes).
+YES_STATUSES = ("defined", "calibrating", "calibrated")
 #: Spec 161 FR-12: the HTTP contract the walk is written to -- keel-cloud 270's (the four questions, every why, the ways).
 CONTRACT = 87
 
@@ -642,8 +645,9 @@ def tell_on_the_wire(run: Run, leg: Leg, project_id: str, label: str, *, telling
     story = wire.story()
     board_checks(run, leg, label, story, view="wire")
     confirmed = wire.confirm()
-    leg.check(run, f"{label}: the boxes' yes (story/confirm 200, defined)", confirmed["status"] == 200
-              and (confirmed.get("body") or {}).get("status") == "defined", screen="the board (the yes)", view="wire",
+    leg.check(run, f"{label}: the boxes' yes (story/confirm 200; a PROBLEM study `calibrating` at its yes, the beliefs "
+                   "written -- keel-cloud 269 judgement call 20 -- else defined)", confirmed["status"] == 200
+              and (confirmed.get("body") or {}).get("status") in YES_STATUSES, screen="the board (the yes)", view="wire",
               detail={"status": confirmed["status"], "body": {k: (confirmed.get("body") or {}).get(k)
                                                               for k in ("status", "verdictLine")}})
     built = wire.built()
@@ -802,7 +806,7 @@ def tell_on_screen(run: Run, leg: Leg, project_id: str, label: str, *, telling: 
     leg.check(run, f"{label}: the board -- *What Keel understood* read by `data-box`: who, job, when, today, falls short, "
                    "costs, other tasks (`tasks` last, keel-web 257 FR-3); *Is that right?*; no button; the quiet confirms "
                    "(story/confirm 200, defined)",
-              boxes["confirm"]["status"] == 200 and (boxes["confirm"]["body"] or {}).get("status") == "defined"
+              boxes["confirm"]["status"] == 200 and (boxes["confirm"]["body"] or {}).get("status") in YES_STATUSES
               and boxes["screen"].get("said") == ss.BOXES_ASK and not boxes["screen"].get("buttons")
               and card.get("label") == ss.CARD_LABEL and board["ok"],
               screen="define/story/check (boxes)",
@@ -1267,7 +1271,7 @@ def fr1_d(run: Run, leg: Leg) -> None:
     wire = run.list_row(problem)
     leg.check(run, "the list nests the defined problem project under the study that uses it, *Defined, not sent*",
               "Defined, not sent" in (drawn.get("text") or "") and (drawn.get("href") or "").endswith(problem)
-              and (wire.get("definition") or {}).get("status") == "defined", screen="/ (the project list)",
+              and (wire.get("definition") or {}).get("status") in YES_STATUSES, screen="/ (the project list)",
               detail={"drawn": drawn, "wire": {k: wire.get(k) for k in ("definition", "lineage", "story")}})
     with run.recorder.step("FR-1d: the founder opens it from the list", party="founder"):
         row.click()
