@@ -230,3 +230,32 @@ def test_a_posted_frequency_is_read_back_to_its_band():
                                                    for i, x in enumerate(ts.FREQUENCY_LABELS)]}]}]}
     assert ts.frequency_code_of(interview, {"answers": [{"itemId": "i1", "optionIds": ["o1"]}]}) == "most_times"
     assert ts.frequency_code_of(interview, {"answers": []}) is None
+
+
+def test_the_invitation_of_a_link_made_on_send_more():
+    made = {"url": "https://x/i/t2", "batch": {"links": [{"invitationId": "a", "url": "https://x/i/t1"},
+                                                          {"invitationId": "b", "url": "https://x/i/t2"}]}}
+    assert strangers.made_invitation(made) == "b"
+    assert strangers.made_invitation({"url": "u", "batch": {"links": [{"invitationId": "c"}]}}) == "c"
+    assert strangers.made_invitation({"url": "u", "batch": {}}) is None
+
+
+class _Run:
+    def __init__(self, walks):
+        self.__dict__["study_walks"] = {"problem": walks}
+
+    def get(self, path):
+        return {}
+
+
+def test_the_studys_other_yes_sayers_count_on_the_founders_page():
+    interview = {"parts": [{"items": [{"itemId": "i1", "dimension": ts.FREQUENCY,
+                                       "options": [{"optionId": f"o{i}", "label": x}
+                                                   for i, x in enumerate(ts.FREQUENCY_LABELS)]}]}]}
+    walks = [{"url": "u1", "interview": interview, "invitation": "v1",
+              "sent": {"recency": True, "story": "It happened.", "answers": [{"itemId": "i1", "optionIds": ["o1"]}]}},
+             {"url": "u2", "interview": interview, "invitation": "v2",
+              "sent": {"recency": True, "anchorChip": "CANT_RECALL", "answers": []}},
+             {"url": "u3", "interview": interview, "invitation": "v3", "sent": {"recency": False, "answers": []}}]
+    assert strangers.other_yes_sayers(_Run(walks), "p", "problem") == {"picks": ["most_times"],
+                                                                        "stories": [("v1", "It happened.")]}

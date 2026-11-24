@@ -5,9 +5,25 @@ Base: `origin/master` (161, 162, 163 specs; 161 merged at 9b01518). Built by a b
 no key, no pip install (the main checkout's `.venv`), no network but `git fetch` / `git push` of this branch; the local
 stack allowed ONLY once the integrator's run has released it. Push after every commit.
 
-- [ ] T1 FR-1 the ten mirrors, their unit mirrors.
-- [ ] T2 FR-2 the card's walked record by passage kind.
+- [x] T1 FR-1 the ten mirrors, their unit mirrors.
+- [x] T2 FR-2 the card's walked record by passage kind.
 - [ ] T3 FR-3 `make unit`; the local run; this file.
+
+## How each mirror is met
+
+| # | keel-web 258's item | Where | What the harness holds |
+|---|---|---|---|
+| 1 | the `pending_258` film-first branch retired | `evals/three_views_strangers.py`: `pending_258`, `pending_check`, `SCREEN_CHECKS_258` gone; `film_first_checks` holds 258's order alone; the film's *Begin* compared with `gate_clip`; orb / face / card walk the problem link on screen always; `tests/test_orb_159.py`, `tests/test_both_speakers_160.py` moved to 258's order | the opening and the screener before the film, no film-first branch left to take |
+| 2 | `.rp-tookby` -> `insights-capped` | `harness/vectors_screens.Answers.insights`: `capped` (`[data-testid=insights-capped]`), `count_line` (`insights-count-line`), both among the view's own lines | the drawn box's `capped` / `count_line` |
+| 3 | `report_marks` `capped` in place of `took_by` | `evals/report_marks.expected_box` (`count_line`, `capped` via `capped_line`, `interviewer_fake.insights_capped`), `insight_faults`' parts, `consumer_report_words`; `tests/test_insights_also_group_120.py`, `tests/test_report_marks.py` | *{k} of the {n} were past the two-question cap* (*1 of the n was ...*) where `capped > 0` and the count line does not say it; no composed footer, ever |
+| 4 | Frequency's chart: `data-chart="frequency"`, five bands, `data-for`, the caption | `evals/backtest.CARD_JS` (`frequency_caption`, each bar's `for` and `count`); `harness/three_surfaces.frequency_chart_faults`; `three_views_strangers.founder_page_on_screen` (the stage page's Frequency card) | the five bands with their served counts, Every time / Most times `data-for`, *{k} of {n} said most times or every time · you said {band}* |
+| 5 | the breakdown's bands cell, no Current solution row | `vectors_screens.Answers.brief` (`breakdown`: `section.rp-bd tr[data-dim]`, `.rp-bd__facts`); `report_marks.breakdown_frequency` / `breakdown_faults` (in `binding_faults` too); `founder_page_on_screen` | *Every time 4 · Most times 5 · ...* (an older server's `middle` words), no `problem.current_solution_satisfaction` row |
+| 6 | the card's Frequency bubbles as digits 1..5 | `copilot_walk` reads each strip's `.cpl-bubble__let`; `three_surfaces.badge_faults` / `FREQUENCY_DIGITS`; `card_machine_checks`; the note at `story_screens.StoryLinkText._card` | Frequency's five badged 1-5 on the card, every other question lettered |
+| 7 | the card walk: two follow-ups a call, Frequency's `also` on Never, the gate's `followUp` on a No, Importance alone after | `three_surfaces.card_follow_ups` / `card_no_path` / `CARD_MAX_FOLLOW_UPS` (the machine's mirror); `copilot_walk` keeps the picks filed (`filed`); `card_machine_checks`; `evals/calls_leg.py`'s words | the follow-ups the card opens are its machine's for the picks filed, on both calls; after the gate's No: the gate's follow-up, then Importance alone |
+| 8 | `interviewer_fake.owed` on `recency` | `owed(..., recency=)`, `first_stem` / `first_rung` pass it; `PREVALENCE_RUNG`, `AFTER_A_NO` | `recency=False`: Prevalence first (unless asked or not served), Importance's pick alone read |
+| 9 | the ways panel's DOM | `three_views_strangers.WAYS_PANEL_JS`, `founder_page_on_screen`; `three_surfaces.ways_panel_faults` (`WAYS_HEADING`, `ways_read_from`, `WAYS_YOUR_WAY`, `WAYS_READING`, `ON_THEIR_OWN_LABEL`) | `[data-testid=rp-ways]` in `li.rp-ways-row` right after Prevalence's row in the problem's panel; the heading, the read line, a row a group (*On their own*, *your way* on the founder's); GROUPING *Reading …*; RAW the line alone |
+| 10 | the nesting on `defined`, `calibrating`, `calibrated` | `story_screens.BEFORE_THE_LOCK` / `is_defined` / `parent_of`; `three_views.fr1_d` | the list nests the problem project under the solution whose lineage names it, and the wire's row says it nests (DRIFT #114 dropped from the check) |
+| FR-2 | the card's walked record by passage kind | `three_surfaces.card_passages` (`withCondition`, `withCheck`), `passage_of`, `strip_step`, `strips_record`; `copilot_walk` (`passage_kind` / `passage_item` / `passage_dimension` / `options` / `badges`, a follow-up's `read`); the yes call answered on the orb's rows (`answered_rows`) | the intro, the reveal and the pilot ask are never a step; the screener, the gate (*Did this happen to you?*, Yes / No), each item by its dimension, each follow-up folded onto its question |
 
 ## Runs
 | run | result |

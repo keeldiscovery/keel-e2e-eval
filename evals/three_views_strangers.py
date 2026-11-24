@@ -1142,7 +1142,8 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
     steps = speaker_walk(run, study, ivs.SPEAKER_ORB, walked)
     run.__dict__.setdefault("orb_rows", {})[study] = answered_rows(walked["rows"])
     run.__dict__.setdefault("study_walks", {}).setdefault(study, []).append(
-        {"url": made["url"], "interview": interview, "sent": first_response(walked).get("sent") or {}})
+        {"url": made["url"], "interview": interview, "sent": first_response(walked).get("sent") or {},
+         "invitation": made_invitation(made)})
     run.orbs.append({"study": study, "link": "voice", **summary(walked)})
     orb_screen_checks(run, leg, walked, interview, view=view, label="by voice")
     retired_checks(run, leg, walked, view=view, label="by voice")
@@ -1700,6 +1701,11 @@ def copilot_walk(run, page, call: dict, *, no_on: str | None = None, script: dic
         head = ss._tc(page.locator("[data-testid=head]"))
         card_root = page.locator(calls_leg.COPILOT_CARD).first
         passage = ts.passage_of(read, passages) if phase == "reading" else None
+        if passage is None and phase == "reading" and passages and not any(x["kind"] == "gate" for x in passages) \
+                and page.get_by_test_id("story-again").count():
+            # the decision-maker's check: the route words it (the script serves none) -- on a script with no gate it is
+            # the one question strip that carries the story's press (keel-web 243 FR-2, `withCheck`)
+            passage = {"kind": "check", "itemId": "problemCheck", "dimension": None}
         strip = {"phase": phase, "head": head, "read": read[:200],
                  "still": page.get_by_test_id("copilot-still").count(),
                  "show_story": page.get_by_test_id("show-story").count(),
@@ -2153,8 +2159,17 @@ def founder_page_on_the_wire(run, leg, project_id: str, roster: dict) -> None:
     founder_page_on_screen(run, leg, project_id, overview, standings)
 
 
+def made_invitation(made: dict) -> str | None:
+    """The invitation id of a link made on Send more (`MadeLink.invitationId` in the batch Send more posted): the link
+    whose url is the one kept, else the batch's one link."""
+    links = (made.get("batch") or {}).get("links") or []
+    by_url = next((x.get("invitationId") for x in links if x.get("url") and x.get("url") == made.get("url")), None)
+    return by_url or (links[0].get("invitationId") if len(links) == 1 else None)
+
+
 def invitation_of(run, project_id: str, url: str) -> str | None:
-    """The invitation id of a link the walk was given by its address (the register's rows carry the link's token)."""
+    """The invitation id of a link by its address, where the register carries the link's token (a fallback: the link
+    made on Send more keeps its `MadeLink.invitationId`)."""
     token = token_of(url)
     found: list[str] = []
 
@@ -2184,7 +2199,11 @@ def other_yes_sayers(run, project_id: str, study: str) -> dict:
         if code:
             out["picks"].append(code)
         if body.get("story"):
-            out["stories"].append((invitation_of(run, project_id, w["url"]), body["story"]))
+            invitation = w.get("invitation") or invitation_of(run, project_id, w["url"])
+            if invitation:
+                out["stories"].append((invitation, body["story"]))
+            else:
+                out.setdefault("unfound", []).append(w["url"])
     return out
 
 
