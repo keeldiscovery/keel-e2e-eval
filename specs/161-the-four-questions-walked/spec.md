@@ -19,6 +19,11 @@ three-surfaces check. Nothing paid (FakeSpeech, the fake avatar, the fake transc
   before beat 4, and beat 4 is still asked). The walk (`evals/three_views.py`, the founder's legs) answers seven
   beats by the fake transcriber, nothing pressed, and reads the board's rows: who, job, when, today, falls short,
   costs, other tasks (`UnderstoodCard`), each lit as named; a correction on the tasks row by voice redraws it.
+  **The long beats (keel-web 257 FR-11):** beats 3, 4 and 7 never close on quiet; the walk closes each by saying a
+  done word (*that's it*) as its last words, and reads that the words sent carry no done word; on one founder leg
+  beat 3 is answered in two parts with 7 seconds of quiet between them: the walk asserts the beat did not close, the
+  state line reads *Take your time.*, the second part joins the first, and *that's it* closes it. Beat 2 still closes
+  on the pause alone. The 20 s / 60 s *Anything else?* ladder is keel-web's unit test, not walked here.
 - **FR-2 The verdict and the corridor.** After the film's yes the walk hears the verdict line (`story-verdict`,
   the served `verdictLine` word for word) and answers nothing (silence goes on); then the window page, then the
   ready page: **no belief page is drawn** on a spoken PROBLEM project (`vectors_screens.calibrates` learns `spoken`;
@@ -30,9 +35,13 @@ three-surfaces check. Nothing paid (FakeSpeech, the fake avatar, the fake transc
   seventh with `pain: true`, its line the board's cost, a picture (library id or `drawn-...`), `costLine` equal to its
   line, eight clips; the film on the link (`interviewer_screens`, 160 FR-4's checks) ends on the pain scene before
   `ai-film-begin` and its step is held longer than a scene's (the fake clock, two holds).
-- **FR-4 The gate's words.** On a film link the gate's question is exactly *Did this happen to you?* (no window
-  phrase) on the orb, the face and the Copilot card; the No label the served one. `interviewer_screens`' gate reads
-  and `classifier_guard`'s gate cases follow.
+- **FR-4 The gate's words, and the screener first.** On a film link the gate's question is exactly *Did this happen
+  to you?* (no window phrase) on the orb, the face and the Copilot card; the No label the served one.
+  `interviewer_screens`' gate reads and `classifier_guard`'s gate cases follow. The order on a film link (keel-web
+  258 FR-2b): the opening passage, the screener (its own counted step, before the film), the film ending on the pain
+  scene, *Begin*, then the gate; `interviewer_screens`' state sequence and `interviewer_leg`'s walk follow it, and one
+  stranger per study answers the screener No and is read as leaving before the film (the thanks, nothing counted);
+  a link without a screener goes opening, film, gate. The Copilot card lists the screener before the film's lines.
 - **FR-5 A No goes on.** The No-sayer's walk (one per study, orb and face): the No said, the Prevalence follow-up on
   the spot (*How do you go about it, and what keeps this from happening to you?*, heading *What keeps it from
   happening to them*), then Importance, the pilot ask, the thanks; the response's shape (the gate's No, no story, no
