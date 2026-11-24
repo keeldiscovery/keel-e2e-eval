@@ -1278,13 +1278,18 @@ def fr1_d(run: Run, leg: Leg) -> None:
         drawn = {"text": _safe(lambda: row.inner_text()), "href": row.get_attribute("href")}
     except Exception:  # noqa: BLE001 - recorded
         drawn = {"rows": _safe(lambda: page.locator(".project-list").first.inner_text())}
-    wire = run.list_row(problem)
+    rows = (run.get("/v2/me/projects") or {}).get("mine") or []
+    wire = next((r for r in rows if r.get("projectId") == problem), {})
+    # spec 164 mirror 10 (keel-web 258, DRIFT #114 resolved): the list nests it on `defined`, `calibrating` and
+    # `calibrated` -- the wire's row says where it nests (`story_screens.parent_of`, keel-web `storyList.parentOf`)
+    parent = (ss.parent_of(wire, rows) or {}).get("projectId")
     nested = "Defined, not sent" in (drawn.get("text") or "") and (drawn.get("href") or "").endswith(problem)
-    leg.check(run, "the list nests the defined problem project under the study that uses it, *Defined, not sent*",
-              nested and (wire.get("definition") or {}).get("status") in YES_STATUSES, screen="/ (the project list)",
-              detail={"drawn": drawn, "wire": {k: wire.get(k) for k in ("definition", "lineage", "story")},
-                      "drift": "runs/DRIFT.md #114 (spec 161: a PROBLEM study is calibrated at its yes since "
-                               "keel-cloud 269, and the list no longer nests it)"}, stop=False)
+    leg.check(run, "the list nests the defined problem project under the study that uses it, *Defined, not sent* "
+                   "(on `defined`, `calibrating` or `calibrated`; keel-web 258)",
+              nested and parent == solution and (wire.get("definition") or {}).get("status") in YES_STATUSES,
+              screen="/ (the project list)",
+              detail={"drawn": drawn, "parent (storyList)": parent,
+                      "wire": {k: wire.get(k) for k in ("definition", "lineage", "story")}}, stop=False)
     with run.recorder.step("FR-1d: the founder opens it from the list", party="founder"):
         if nested:
             row.click()

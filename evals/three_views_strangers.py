@@ -27,8 +27,11 @@ mark (FR-5); the last page's tick (FR-6). The taps-only walk of 159 FR-3 is gone
 Spec 161 (keel-cloud 269 / 270, contract 87; keel-web 258): the four questions -- the gate's fixed words, a No that
 goes on, Frequency's five rows, a why on every step against -- walked with the problem study's five people
 (`three_surfaces.ROSTER`) and read on the founder's page (Frequency on bands, the ways, Insights with `capped`, no
-Current solution); the orb, the face and the Copilot card held to one script (`three_surfaces_check`). Before keel-web
-258 is in the checkout the four questions are answered on the wire and the screens are named pending keel-web 258.
+Current solution); the orb, the face and the Copilot card held to one script (`three_surfaces_check`).
+
+Spec 164 (the mirrors of keel-web 258): keel-web 258 is merged, so the wire-only path and the film-first order of a
+keel-web before it are retired; the card's strips are read as its passages (FR-2), its machine's follow-ups and badges
+held (mirrors 6, 7), and the founder's page read on screen too (the Frequency chart, the ways panel, Insights' `capped`).
 
 Nothing here is new product: what these views draw is keel-web's; the walk reads it and the leg judges it.
 """
@@ -625,7 +628,7 @@ def watch_film(run, p, page, interview: dict, *, checks: bool = False, timeout_s
         row["stuck"] = str(missed)[:200]
     page.wait_for_timeout(200)
     row["after"] = {"plays": _plays_after(page, pressed_at)[:4], "phase": p.phase(), "speaker": p.speaker_box(),
-                    "opening": opening_clip(interview) if pending_258(run) else gate_clip(interview)}
+                    "opening": gate_clip(interview)}
     row["returned"] = returned(p, page)
     return row
 
@@ -709,32 +712,21 @@ def first_response(walked: dict) -> dict:
 # ------------------------------------------------------------------------------------------------ the orb's checks
 
 def film_first_checks(run, leg, walked: dict, *, view: str, study: str) -> None:
-    """159 FR-1 / FR-2 (keel-web 253 FR-3): after Start the film plays first -- no hand-over line, nothing spoken before
-    it -- then the speaker says the opening before the first question; on a solution or money link the idea's story
-    later, after its hand-over line."""
+    """159 FR-1 / FR-2 as keel-web 258 FR-2b moved them: the opening (and the screener) first, then the film with no
+    hand-over line before it; on a solution or money link the idea's story later, after its hand-over line. The
+    film-first order of keel-web 253 is retired (spec 164 mirror 1)."""
     log = walked.get("log") or []
     seq = ss.stage_sequence(log)
     lead = [s for s in seq if s in ("speaking", "listening", "held", "confirming") or str(s).startswith("film:")]
     films = [r for r in walked["rows"] if r["screen"] == "film"]
     first = films[0] if films else {}
-    if not pending_258(run):
-        # spec 161 FR-4 (keel-web 258 FR-2b): the opening passage and the screener come before the film now -- the
-        # order itself is `screener_order_check`'s; here the film is drawn with no hand-over line, then the gate
-        leg.check(run, "the film after the opening (and the screener), with no hand-over line before it (keel-web 258 "
-                       "FR-2b)", first.get("kind") == "problem" and not first.get("hand") and bool(first.get("player"))
-                  and bool(lead) and lead[0] != "film:problem", screen="the opening -> the film", view=view,
-                  detail={"stage": seq[:12], "film": first}, stop=False)
-    else:
-        leg.check(run, "the film first: after Start the problem's film is on the stage before anything is said or asked, "
-                       "with no hand-over line before it",
-                  bool(lead) and lead[0] == "film:problem" and first.get("kind") == "problem" and first.get("first")
-                  and not first.get("hand") and bool(first.get("player")), screen="Start -> the film", view=view,
-                  detail={"stage": seq[:12], "film": first})
-        after = lead[1:] if lead[:1] == ["film:problem"] else []
-        leg.check(run, "then the opening: the speaker speaks after the film, before the first question",
-                  "speaking" in after and after.index("speaking") < (after.index("listening") if "listening" in after
-                                                                        else len(after)),
-                  screen="the film -> the opening", view=view, detail={"after the film": after[:8]})
+    # spec 161 FR-4 (keel-web 258 FR-2b; spec 164 mirror 1: the film-first branch retired): the opening passage and the
+    # screener come before the film -- the order itself is `screener_order_check`'s; here the film is drawn with no
+    # hand-over line, then the gate
+    leg.check(run, "the film after the opening (and the screener), with no hand-over line before it (keel-web 258 "
+                   "FR-2b)", first.get("kind") == "problem" and not first.get("hand") and bool(first.get("player"))
+              and bool(lead) and lead[0] != "film:problem", screen="the opening -> the film", view=view,
+              detail={"stage": seq[:12], "film": first}, stop=False)
     if study in ("solution", "money"):
         idea = [r for r in films if r.get("kind") == "idea"]
         leg.check(run, "the idea's story after its hand-over line (*Let me show you how ...*)",
@@ -1013,6 +1005,27 @@ def blocked_checks(run, leg, blocked: dict, *, view: str) -> None:
                       "stuck": allowed.get("stuck")})
 
 
+def answered_rows(rows: list[dict] | None) -> dict[str, int]:
+    """Spec 164 FR-2: the row each item of a walk was answered on, by its dimension (`{dimension: row}`) -- the row lit
+    or said (the letter's row for a letter), so the Copilot card can be walked on the same answers and owe the same
+    whys."""
+    out: dict[str, int] = {}
+    for r in rows or []:
+        key, options = r.get("key"), r.get("options") or []
+        if r.get("screen") != "question" or not key or key in ("screener", "gate", "check") or not options:
+            continue
+        said = str(r.get("said") or "")
+        if said.startswith("tap: "):
+            said = said[len("tap: "):]
+        for want in (r.get("want_lit"), said):
+            if want and want in options:
+                out[str(key)] = options.index(want)
+                break
+        else:
+            out[str(key)] = 1 if said == LETTER else 0
+    return out
+
+
 def speaker_walk(run, study: str, speaker: str, walked: dict) -> list[dict]:
     """Spec 160 FR-3: the walk's steps kept for the comparison and the report."""
     steps = ss.walk_steps(walked.get("log") or [])
@@ -1092,14 +1105,6 @@ def no_typed_box_check(run, leg, walked: dict, *, view: str, label: str) -> None
 
 # ------------------------------------------------------------------------------------------------ the orb view
 
-#: Spec 161: the screen checks of the stranger's four questions a keel-web before 258 cannot hold (FR-2b, FR-4 to FR-7).
-SCREEN_CHECKS_258 = ["the screener before the film (opening, screener, film, Begin, gate)",
-                     "the screener's No leaving before the film", "Frequency's five rows drawn and answered by letter "
-                     "and by words", "a No that goes on (the Prevalence why on the spot, Importance, the thanks)",
-                     "every why answered in words", "the orb's and the face's walk of the four questions",
-                     "the Copilot card's No path (the why, then Importance)"]
-
-
 def orb_view(run, leg, study: str, project_id: str) -> None:
     """Spec 159 FR-1, FR-3, FR-4: the TEXT link is the orb. Four links (three on money, which has no story): the walk
     by voice (a story told; letter, words, tap -- spec 160: the film's controls, the replay mark, the last page, and the
@@ -1107,17 +1112,16 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
     the block, then allowed), and the No; then the film on a phone (158b), and the ledger (no charge for the orb's
     clips).
 
-    Spec 161: the link's script kept for the three surfaces (FR-9); on keel-web 258 the screener before the film (FR-4)
-    and, on the problem study, the five people of `three_surfaces.ROSTER` walked on the orb (FR-5, FR-7) in place of the
-    one No that ended it; before 258 the problem study's four questions are walked on the wire alone and the screens
-    said pending by name. Then the founder's page read (FR-7, FR-8)."""
+    Spec 161: the link's script kept for the three surfaces (FR-9); the screener before the film (FR-4) and, on the
+    problem study, the five people of `three_surfaces.ROSTER` walked on the orb (FR-5, FR-7) in place of the one No
+    that ended it. Then the founder's page read (FR-7, FR-8) -- spec 164: on the wire and on screen, over every
+    yes-sayer the study's links were walked with. Spec 164 retired the wire-only path of a keel-web before 258."""
     from harness import interview_charge as charge    # noqa: PLC0415
     from harness import interviewer_screens as ivs    # noqa: PLC0415
     from harness import three_surfaces as ts    # noqa: PLC0415
     names = people(run, "PROBLEM")
     decider = study == "money"
     view = "orb"
-    pending = pending_258(run)
     four = study == "problem"
     made = tv.send_link(run, leg, f"{study}-orb", project_id, "TEXT", person=person_at(names, 1), decider=decider)
     popup_checks(run, leg, made)
@@ -1131,39 +1135,34 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
               got.get("status") == 200 and "audio" in str(got.get("type") or ""), screen="GET /v2/clips/{id}",
               view=f"{view} (wire)", detail=got)
     ways = list(SPEAK_OR_TAP)          # owed across the voice links (a problem link has two items with rows)
-    walked: dict = {"rows": []}
-    if four and pending:
-        pending_check(run, leg, "the problem link by voice", SCREEN_CHECKS_258, view=view,
-                      screen="the problem link (keel-web 258)")
-        leg.notes.append("keel-web 258 not in the checkout: the problem link's yes walk on the orb is not run (its "
-                         "Frequency is `fixed_five`, which only 258 draws); the four questions are walked on the wire")
-    else:
-        # 1. by voice: a story told; one item by its letter, one by its words, one by tap; the film's controls and the
-        # replay mark (spec 160 FR-4, FR-5) -- the walk the face's is held to (FR-3)
-        walked = walk_link(run, made["url"], interview, shot=f"orb-{study}-done", speak_or_tap=ways, film_checks=True,
-                           replay=True)
-        steps = speaker_walk(run, study, ivs.SPEAKER_ORB, walked)
-        run.orbs.append({"study": study, "link": "voice", **summary(walked)})
-        orb_screen_checks(run, leg, walked, interview, view=view, label="by voice")
-        retired_checks(run, leg, walked, view=view, label="by voice")
-        film_first_checks(run, leg, walked, view=view, study=study)
-        film_checks(run, leg, walked, interview, view=view)
-        pain_hold_check(run, leg, walked, interview, view=view)
-        replay_checks(run, leg, walked, view=view)
-        last_page_checks(run, leg, walked, interview, view=view)
-        chip_checks(run, leg, walked, view=view, speaker=ivs.SPEAKER_ORB)
-        screener_order_check(run, leg, walked, interview, view=view, pending=pending)
-        leg.notes.append(f"the orb's walk ({study}): {len(steps)} steps -- " + " > ".join(s_["step"] for s_ in steps)[:600])
-        orb_states_check(run, leg, walked, view=view)
-        no_typed_box_check(run, leg, walked, view=view, label="by voice")
-        sent = first_response(walked)
-        leg.check(run, "the answers are sent (201), named TEXT (the format the link was served), and the thank-you drawn",
-                  sent.get("status") == 201 and (sent.get("sent") or {}).get("format") == "TEXT" and bool(walked["done"]),
-                  screen="the last question -> the thank-you", view=view,
-                  detail={"status": sent.get("status"), "format": (sent.get("sent") or {}).get("format"),
-                          "answers": len((sent.get("sent") or {}).get("answers") or []), "done": walked["done"]})
-        if not pending:
-            keep_surface(run, study, "orb", ts.walked_record(walked["rows"]), source="the orb's walk (keel-web 258)")
+    # 1. by voice: a story told; one item by its letter, one by its words, one by tap; the film's controls and the
+    # replay mark (spec 160 FR-4, FR-5) -- the walk the face's is held to (FR-3)
+    walked = walk_link(run, made["url"], interview, shot=f"orb-{study}-done", speak_or_tap=ways, film_checks=True,
+                       replay=True)
+    steps = speaker_walk(run, study, ivs.SPEAKER_ORB, walked)
+    run.__dict__.setdefault("orb_rows", {})[study] = answered_rows(walked["rows"])
+    run.__dict__.setdefault("study_walks", {}).setdefault(study, []).append(
+        {"url": made["url"], "interview": interview, "sent": first_response(walked).get("sent") or {}})
+    run.orbs.append({"study": study, "link": "voice", **summary(walked)})
+    orb_screen_checks(run, leg, walked, interview, view=view, label="by voice")
+    retired_checks(run, leg, walked, view=view, label="by voice")
+    film_first_checks(run, leg, walked, view=view, study=study)
+    film_checks(run, leg, walked, interview, view=view)
+    pain_hold_check(run, leg, walked, interview, view=view)
+    replay_checks(run, leg, walked, view=view)
+    last_page_checks(run, leg, walked, interview, view=view)
+    chip_checks(run, leg, walked, view=view, speaker=ivs.SPEAKER_ORB)
+    screener_order_check(run, leg, walked, interview, view=view)
+    leg.notes.append(f"the orb's walk ({study}): {len(steps)} steps -- " + " > ".join(s_["step"] for s_ in steps)[:600])
+    orb_states_check(run, leg, walked, view=view)
+    no_typed_box_check(run, leg, walked, view=view, label="by voice")
+    sent = first_response(walked)
+    leg.check(run, "the answers are sent (201), named TEXT (the format the link was served), and the thank-you drawn",
+              sent.get("status") == 201 and (sent.get("sent") or {}).get("format") == "TEXT" and bool(walked["done"]),
+              screen="the last question -> the thank-you", view=view,
+              detail={"status": sent.get("status"), "format": (sent.get("sent") or {}).get("format"),
+                      "answers": len((sent.get("sent") or {}).get("answers") or []), "done": walked["done"]})
+    keep_surface(run, study, "orb", ts.walked_record(walked["rows"]), source="the orb's walk (keel-web 258)")
     said: dict = {"rows": []}
     if study != "money":                                   # the decision-maker's link has no gate and no story
         story_rows = [r for r in walked["rows"] if r.get("story")]
@@ -1198,8 +1197,7 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
     blocked_checks(run, leg, blocked, view=f"{view} · refused")
     if four:
         # spec 161 FR-5, FR-7: the five people (the No goes on); the screener's No; then the founder's page
-        roster = roster_on_the_wire(run, leg, project_id) if pending else \
-            roster_on_screen(run, leg, project_id, speaker=ivs.SPEAKER_ORB)
+        roster = roster_on_screen(run, leg, project_id, speaker=ivs.SPEAKER_ORB)
         founder_page_on_the_wire(run, leg, project_id, roster)
     else:
         # 4. the No that ends it (a solution or money link: the gate is the anchor alone, spec 269 FR-2)
@@ -1234,7 +1232,7 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
                   detail={"faults": free, "rows": charge.reading_rows(rows)}, stop=False)
 
 
-def screener_order_check(run, leg, walked: dict, interview: dict, *, view: str, pending: bool) -> None:
+def screener_order_check(run, leg, walked: dict, interview: dict, *, view: str) -> None:
     """Spec 161 FR-4 (keel-web 258 FR-2b): on a film link the opening passage, the screener (its own step), the film,
     *Begin*, then the gate; a link without a screener: the opening, the film, the gate."""
     from harness import three_surfaces as ts    # noqa: PLC0415
@@ -1251,9 +1249,6 @@ def screener_order_check(run, leg, walked: dict, interview: dict, *, view: str, 
     steps = [s.get("step") for s in ss.walk_steps(walked.get("log") or [])]
     order = (["speaking:opening"] if steps and str(steps[0]).startswith(("intro", "speaking")) else []) + labelled
     v = ts.screener_first(order, screener=screener)
-    if pending:
-        leg.notes.append(f"the order on the film link (keel-web 258 FR-2b) pending 258: walked {v['order']}")
-        return
     leg.check(run, "the order on the film link: the opening, the screener (its own step), the film, *Begin*, then the "
                    "gate (keel-web 258 FR-2b)" if screener else "the order on a film link without a screener: the "
                    "opening, the film, the gate", v["ok"], screen="the link's order", view=view,
@@ -1525,8 +1520,7 @@ def same_words(run, leg, study: str, project_id: str, role_id: str | None, avata
 
 def avatar_view(run, leg, study: str, project_id: str) -> None:
     """The face's links (159 FR-2, 160 FR-1 to FR-6). Spec 161: the link's script kept for the three surfaces (FR-9); on
-    keel-web 258 the problem study's No-sayer walked on the face too (FR-5: the No goes on); before 258 the problem
-    link's walk of the four questions on the face is said pending by name."""
+    keel-web 258 the problem study's No-sayer walked on the face too (FR-5: the No goes on)."""
     from harness import interviewer_screens as ivs    # noqa: PLC0415
     from harness import three_surfaces as ts    # noqa: PLC0415
     from stack import ledger    # noqa: PLC0415
@@ -1537,7 +1531,6 @@ def avatar_view(run, leg, study: str, project_id: str) -> None:
     kinds = register.get("kinds") or []
     kind = next((k for k in kinds if (k.get("respondentType") == tv.vs.LINK_B2B) == (study == "money")), kinds[0])
     names = people(run, "PROBLEM")
-    pending = pending_258(run)
     four = study == "problem"
     try:
         interviewer_ready(run, leg, study, project_id, kind.get("label"))
@@ -1547,53 +1540,48 @@ def avatar_view(run, leg, study: str, project_id: str) -> None:
         keep_surface(run, study, "face", ts.served_record(interview), source="the link as served (the wire)")
         wire_checks(run, leg, study, interview, "avatar", speaker=ivs.SPEAKER_AVATAR, reads=reads)
         same_words(run, leg, study, project_id, kind.get("roleId"), interview)
-        if four and pending:
-            pending_check(run, leg, "the problem link on the face", SCREEN_CHECKS_258, view="avatar",
-                          screen="the problem link (keel-web 258)")
-        else:
-            # spec 160 FR-3: walked as the orb's voice link was -- the same ways from the start, the film's controls,
-            # the replay mark on the first item -- so the two walks can be held equal step for step
-            walked = walk_link(run, made["url"], interview, shot=f"avatar-{study}-done",
-                               speak_or_tap=list(SPEAK_OR_TAP), film_checks=True, replay=True)
-            steps = speaker_walk(run, study, ivs.SPEAKER_AVATAR, walked)
-            if not pending:
-                keep_surface(run, study, "face", ts.walked_record(walked["rows"]), source="the face's walk (keel-web 258)")
-            leg.notes.append(f"the face's walk ({study}): {len(steps)} steps -- "
-                             + " > ".join(s_["step"] for s_ in steps)[:600])
-            run.orbs.append({"study": study, "link": "the face", **summary(walked)})
-            rows = walked["rows"]
-            films = [r for r in rows if r["screen"] == "film"]
-            name = ((interview.get("interviewer") or {}).get("face") or {}).get("name") or FACE.title()
-            intro_checks(run, leg, walked, interview, view="avatar", label="the face", speaker=ivs.SPEAKER_AVATAR,
-                         name=name)
-            retired_checks(run, leg, walked, view="avatar", label="the face")
-            film_first_checks(run, leg, walked, view="avatar", study=study)
-            film_checks(run, leg, walked, interview, view="avatar")
-            pain_hold_check(run, leg, walked, interview, view="avatar")
-            replay_checks(run, leg, walked, view="avatar")
-            last_page_checks(run, leg, walked, interview, view="avatar")
-            chip_checks(run, leg, walked, view="avatar", speaker=ivs.SPEAKER_AVATAR, name=name)
-            screener_order_check(run, leg, walked, interview, view="avatar", pending=pending)
-            same_walk_check(run, leg, study, view="avatar")
-            leg.check(run, "Daphne returns after the film and each hand-over: the story gone, her face on the stage",
-                      bool(films) and all((h.get("returned") or {}).get("story_gone")
-                                          and (h.get("returned") or {}).get("face") for h in films),
-                      screen="the stage after the film", view="avatar", detail=[h.get("returned") for h in films])
-            questions = [r for r in rows if r["screen"] == "question"]
-            leg.check(run, "the face asks on the stage (`data-speaker` AVATAR, her `<video>`)",
-                      bool(questions) and all(r.get("speaker") == ivs.SPEAKER_AVATAR for r in questions),
-                      screen="every question", view="avatar",
-                      detail={"speakers": sorted({str(r.get('speaker')) for r in questions})})
-            items = [r for r in questions if r.get("step") == "item"
-                     and not str(r.get("where") or "").startswith("Question 1 ")]
-            backless = [r["question"] for r in items if not r["back"]]
-            leg.check(run, "*Back to question n* on every question card after the first (the screener, the gate, its "
-                           "story and the check are the link's opening)", bool(items) and not backless,
-                      screen="every question sheet", view="avatar", detail={"without Back": backless,
-                                                                             "rows": [(r["question"][:60], r["back"])
-                                                                                      for r in questions]})
-            leg.check(run, "the thank-you", bool(walked["done"]), screen="the done screen", view="avatar",
-                      detail=walked["done"])
+        # spec 160 FR-3: walked as the orb's voice link was -- the same ways from the start, the film's controls,
+        # the replay mark on the first item -- so the two walks can be held equal step for step
+        walked = walk_link(run, made["url"], interview, shot=f"avatar-{study}-done",
+                           speak_or_tap=list(SPEAK_OR_TAP), film_checks=True, replay=True)
+        steps = speaker_walk(run, study, ivs.SPEAKER_AVATAR, walked)
+        keep_surface(run, study, "face", ts.walked_record(walked["rows"]), source="the face's walk (keel-web 258)")
+        leg.notes.append(f"the face's walk ({study}): {len(steps)} steps -- "
+                         + " > ".join(s_["step"] for s_ in steps)[:600])
+        run.orbs.append({"study": study, "link": "the face", **summary(walked)})
+        rows = walked["rows"]
+        films = [r for r in rows if r["screen"] == "film"]
+        name = ((interview.get("interviewer") or {}).get("face") or {}).get("name") or FACE.title()
+        intro_checks(run, leg, walked, interview, view="avatar", label="the face", speaker=ivs.SPEAKER_AVATAR,
+                     name=name)
+        retired_checks(run, leg, walked, view="avatar", label="the face")
+        film_first_checks(run, leg, walked, view="avatar", study=study)
+        film_checks(run, leg, walked, interview, view="avatar")
+        pain_hold_check(run, leg, walked, interview, view="avatar")
+        replay_checks(run, leg, walked, view="avatar")
+        last_page_checks(run, leg, walked, interview, view="avatar")
+        chip_checks(run, leg, walked, view="avatar", speaker=ivs.SPEAKER_AVATAR, name=name)
+        screener_order_check(run, leg, walked, interview, view="avatar")
+        same_walk_check(run, leg, study, view="avatar")
+        leg.check(run, "Daphne returns after the film and each hand-over: the story gone, her face on the stage",
+                  bool(films) and all((h.get("returned") or {}).get("story_gone")
+                                      and (h.get("returned") or {}).get("face") for h in films),
+                  screen="the stage after the film", view="avatar", detail=[h.get("returned") for h in films])
+        questions = [r for r in rows if r["screen"] == "question"]
+        leg.check(run, "the face asks on the stage (`data-speaker` AVATAR, her `<video>`)",
+                  bool(questions) and all(r.get("speaker") == ivs.SPEAKER_AVATAR for r in questions),
+                  screen="every question", view="avatar",
+                  detail={"speakers": sorted({str(r.get('speaker')) for r in questions})})
+        items = [r for r in questions if r.get("step") == "item"
+                 and not str(r.get("where") or "").startswith("Question 1 ")]
+        backless = [r["question"] for r in items if not r["back"]]
+        leg.check(run, "*Back to question n* on every question card after the first (the screener, the gate, its "
+                       "story and the check are the link's opening)", bool(items) and not backless,
+                  screen="every question sheet", view="avatar", detail={"without Back": backless,
+                                                                         "rows": [(r["question"][:60], r["back"])
+                                                                                  for r in questions]})
+        leg.check(run, "the thank-you", bool(walked["done"]), screen="the done screen", view="avatar",
+                  detail=walked["done"])
         # spec 160 FR-2 on the face: the microphone refused -- the block; allowed again -- Start
         block_made = tv.send_link(run, leg, f"{study}-avatar-block", project_id, "AI_INTERVIEWER",
                                   person=person_at(names, 10), decider=study == "money")
@@ -1601,9 +1589,8 @@ def avatar_view(run, leg, study: str, project_id: str) -> None:
         run.orbs.append({"study": study, "link": "the face, the microphone refused", "block": block_line(blocked)})
         blocked_checks(run, leg, blocked, view="avatar · refused")
         if four:
-            if not pending:
-                # spec 161 FR-5: the No-sayer on the face too -- the No goes on
-                roster_on_screen(run, leg, project_id, speaker=ivs.SPEAKER_AVATAR, fmt="AI_INTERVIEWER", only_no=True)
+            # spec 161 FR-5: the No-sayer on the face too -- the No goes on
+            roster_on_screen(run, leg, project_id, speaker=ivs.SPEAKER_AVATAR, fmt="AI_INTERVIEWER", only_no=True)
         else:
             no_made = tv.send_link(run, leg, f"{study}-avatar-no", project_id, "AI_INTERVIEWER",
                                    person=person_at(names, 4), decider=study == "money")
@@ -1623,13 +1610,24 @@ def avatar_view(run, leg, study: str, project_id: str) -> None:
 
 # ------------------------------------------------------------------------------------------------ copilot
 
-def copilot_walk(run, page, call: dict, *, no_on: str | None = None) -> dict:
+def copilot_walk(run, page, call: dict, *, no_on: str | None = None, script: dict | None = None,
+                 check: str | None = None, picks: dict | None = None) -> dict:
     """The copilot card headless (spec 154's fake sources): the set-up steps by their own buttons (the Meet ticked, the
     mic opened on its step, the tab shared, the sign-in skipped, Start), then each strip by the card's own buttons --
     the screener's Yes, *Show the story* (the window grown, measured, shrunk), the gate's *Story again* (grown again)
     then Yes (or the No), each question's first answer, the idea's story where offered, the stretches stopped -- and
-    End, the call's own recording sent."""
+    End, the call's own recording sent.
+
+    Spec 164 FR-2: each strip is read as the card's passage it draws (`three_surfaces.card_passages` over the call's
+    `script`, `check` the decision-maker's check the route words) -- its kind and item, its bubbles' words and badges,
+    a follow-up's words -- and each pick is kept (`filed`: the passage's option ids, in the order filed) so the card's
+    own follow-ups can be held to its machine (`three_surfaces.card_follow_ups`). `picks` (`{dimension: row}`): the row
+    each item is answered on (the orb's walk's), else the first."""
     from evals import calls_leg    # noqa: PLC0415
+    from harness import three_surfaces as ts    # noqa: PLC0415
+    passages = ts.card_passages(script, check=check) if script else []
+    picks = dict(picks or {})
+    filed: list = []
     card = calls_leg.Card(page, run.recorder, run.web)
     card.open(call["copilotPath"])
 
@@ -1681,6 +1679,7 @@ def copilot_walk(run, page, call: dict, *, no_on: str | None = None) -> dict:
             continue
         if phase in ("story", "follow-up"):
             strips.append({"phase": phase, "head": ss._tc(page.locator("[data-testid=head]")),
+                           "read": ss._tc(page.locator("[data-testid=read]"))[:200],
                            "still": page.get_by_test_id("copilot-still").count()})
             if enabled("stop") is not None:
                 enabled("stop").click()
@@ -1699,13 +1698,22 @@ def copilot_walk(run, page, call: dict, *, no_on: str | None = None) -> dict:
             continue
         read = ss._tc(page.locator("[data-testid=read]"))
         head = ss._tc(page.locator("[data-testid=head]"))
-        strip = {"phase": phase, "head": head, "read": read[:120],
+        card_root = page.locator(calls_leg.COPILOT_CARD).first
+        passage = ts.passage_of(read, passages) if phase == "reading" else None
+        strip = {"phase": phase, "head": head, "read": read[:200],
                  "still": page.get_by_test_id("copilot-still").count(),
                  "show_story": page.get_by_test_id("show-story").count(),
                  "story_again": page.get_by_test_id("story-again").count(),
                  "idea_story": page.get_by_test_id("show-idea-story").count(),
-                 "screener": page.locator(calls_leg.COPILOT_CARD).first.get_attribute("data-screener"),
-                 "question": page.locator(calls_leg.COPILOT_CARD).first.get_attribute("data-question")}
+                 "screener": card_root.get_attribute("data-screener"),
+                 "question": card_root.get_attribute("data-question"),
+                 # spec 164 FR-2: the strip read as its passage -- the kind and the item, never its place
+                 "passage_kind": (passage or {}).get("kind"), "passage_item": (passage or {}).get("itemId"),
+                 "passage_dimension": (passage or {}).get("dimension"),
+                 "options": ss._texts(card_root.locator(".cpl-bubble__w")),
+                 "badges": ss._texts(card_root.locator(".cpl-bubble__let"))}
+        if passage and passage.get("twoSteps"):
+            strip["ladder"] = ts._card_labels(passage)
         if (read, head) != last:
             strips.append(strip)
             last = (read, head)
@@ -1715,17 +1723,25 @@ def copilot_walk(run, page, call: dict, *, no_on: str | None = None) -> dict:
         if strip["idea_story"] and not any(g["press"] == "show-idea-story" for g in grows):
             grow("show-idea-story")
             continue
-        gate_strip = bool(strip["story_again"])
+        gate_strip = bool(strip["story_again"]) if not passage else passage.get("kind") == "gate"
         if gate_strip and no_on == "gate" and enabled("opt-2") is not None:
+            if passage:
+                filed.append((passage.get("itemId"), _option_ids(passage, [1])))
             enabled("opt-2").click()
             page.wait_for_timeout(600)
             continue
         answers = page.locator("[data-testid=as-the-interview], [data-testid=as-the-condition]")
+        row = int(picks.get(str((passage or {}).get("dimension")), 0)) if passage and passage.get("kind") == "item" else 0
         if enabled("opt-1") is not None:
+            if passage and passage.get("kind") in ("gate", "pilot"):
+                filed.append((passage.get("itemId"), _option_ids(passage, [0])))
             enabled("opt-1").click()
         elif answers.locator("label.cpl-bubble").count():
             bubbles = answers.locator("label.cpl-bubble")
-            bubbles.nth(1 if (no_on == "check" and "have this problem" in read) else 0).click()
+            at = 1 if (no_on == "check" and "have this problem" in read) else min(row, bubbles.count() - 1)
+            if passage and passage.get("kind") == "item" and not passage.get("twoSteps"):
+                filed.append((passage.get("itemId"), _option_ids(passage, [at])))
+            bubbles.nth(at).click()
         elif answers.get_by_role("radio").count():
             answers.get_by_role("radio").first.click()
         elif answers.locator("input[type=number], input[type=text], input:not([type])").count():
@@ -1748,7 +1764,14 @@ def copilot_walk(run, page, call: dict, *, no_on: str | None = None) -> dict:
         card.wait_phase("done", "sent", "failed", timeout_s=60)
     except Exception:  # noqa: BLE001 - recorded: the phase the card stood in
         pass
-    return {"strips": strips, "grows": grows, "end_phase": end_phase, "phase": card.phase()}
+    return {"strips": strips, "grows": grows, "end_phase": end_phase, "phase": card.phase(), "filed": filed,
+            "passages": passages}
+
+
+def _option_ids(passage: dict, rows: list[int]) -> list[str]:
+    """The option ids a passage files for the rows picked (by their place in the passage's options)."""
+    options = passage.get("options") or []
+    return [str(options[i].get("optionId")) for i in rows if 0 <= i < len(options) and options[i].get("optionId")]
 
 
 def first_person(run, leg, project_id: str) -> None:
@@ -1767,6 +1790,10 @@ def first_person(run, leg, project_id: str) -> None:
 
 
 def copilot_view(run, leg, study: str, project_id: str) -> None:
+    """The Copilot card's two calls (241 FR-9, 242 FR-4): a yes walk and a No. Spec 164 FR-2: each strip read as the
+    card's passage (its kind and item), the yes walk answered on the orb's rows (`answered_rows`) so the card owes the
+    whys the orb owed, the card's follow-ups held to its machine (`three_surfaces.card_follow_ups`, mirror 7), the
+    bubbles' badges (Frequency's digits, mirror 6), and the card's walked record kept for the three surfaces."""
     from evals import calls_leg    # noqa: PLC0415
     register = run.get(f"/v2/projects/{project_id}/invitations") or {}
     kinds = register.get("kinds") or []
@@ -1781,15 +1808,17 @@ def copilot_view(run, leg, study: str, project_id: str) -> None:
         leg.check(run, f"a call planned with {person} (POST calls 201, the copilot's path)",
                   status == 201 and bool((call or {}).get("copilotPath")), screen="Sent · Calls with me",
                   view="copilot", detail=call)
+        script = card_script(run, project_id, call or {})
         if which == "yes":
             # spec 161 FR-9: the card's script, kept for the three surfaces
-            keep_surface(run, study, "card", ts.card_record(card_script(run, project_id, call or {})),
-                         source="the call's script (the wire)")
+            keep_surface(run, study, "card", ts.card_record(script), source="the call's script (the wire)")
         page = run.context.new_page()
         try:
             page.add_init_script(calls_leg.FAKE_MEDIA)
             page.add_init_script(calls_leg.UPLOAD_SEAM)
-            results[which] = copilot_walk(run, page, call, no_on=no_on)
+            results[which] = copilot_walk(run, page, call, no_on=no_on, script=script,
+                                          picks=(run.__dict__.get("orb_rows") or {}).get(study) if which == "yes"
+                                          else None)
             ss._BrowserStep(run.recorder, page, "founder").screenshot(f"copilot-{study}-{which}")
         finally:
             page.close()
@@ -1831,42 +1860,63 @@ def copilot_view(run, leg, study: str, project_id: str) -> None:
     if study == "problem":
         # spec 161 FR-5 (keel-web 258 FR-5): on the problem study the No goes on -- the Prevalence why, then Importance
         after = [s.get("phase") for s in asked_after]
-        if pending_258(run):
-            pending_check(run, leg, "the Copilot card's No", ["the No goes on: the Prevalence why, then Importance"],
-                          view="copilot", screen="the gate's strip (keel-web 258)")
-        else:
-            leg.check(run, "a No on the gate in the copilot view goes on: the Prevalence why, then Importance, nothing "
-                           "else (keel-web 258 FR-5)", after[:2] == ["follow-up", "reading"] and len(after) == 2,
-                      screen="the gate's strip -> the why -> Importance", view="copilot", stop=False,
-                      detail={"end": no["end_phase"], "after": [(s["phase"], s["head"], s.get("read", "")[:60])
-                                                                for s in asked_after]})
+        leg.check(run, "a No on the gate in the copilot view goes on: the Prevalence why, then Importance, nothing "
+                       "else (keel-web 258 FR-5)", after[:2] == ["follow-up", "reading"] and len(after) == 2,
+                  screen="the gate's strip -> the why -> Importance", view="copilot", stop=False,
+                  detail={"end": no["end_phase"], "after": [(s["phase"], s["head"], s.get("read", "")[:60])
+                                                            for s in asked_after]})
     else:
         leg.check(run, "a No on the gate in the copilot view ends the questions (no item strip after it)",
                   not asked_after,
                   screen="the gate's strip -> the end", view="copilot", stop=False,
                   detail={"end": no["end_phase"], "after": [(s["head"], s.get("read", "")[:60]) for s in asked_after]})
-    if not pending_258(run):
-        keep_surface(run, study, "card", ts.strips_record(walked["strips"]), source="the card's walk (keel-web 258)")
+    card_machine_checks(run, leg, study, walked, no)
+    keep_surface(run, study, "card", ts.strips_record(walked["strips"]), source="the card's walk (keel-web 258)")
     three_surfaces_check(run, leg, study)
+
+
+def card_machine_checks(run, leg, study: str, walked: dict, no: dict) -> None:
+    """Spec 164 mirrors 6 and 7 on the Copilot card's two walks (keel-web 258 FR-5): every question strip read as its
+    passage; the follow-ups the card opened are its machine's for the picks filed (two a call, the rung's or the second
+    stem's hint, the gate's on a No where it carries one); after a No on a gate with a follow-up, the why and Importance
+    alone; the bubbles' badges -- Frequency's the digits 1-5, every other question's letters."""
+    from harness import three_surfaces as ts    # noqa: PLC0415
+    questions = [s for s in walked["strips"] if s.get("phase") == "reading" and (s.get("question") or s.get("story_again")
+                                                                                 or s.get("show_story"))]
+    unread = [(s.get("head"), str(s.get("read") or "")[:60]) for s in questions if not s.get("passage_kind")]
+    leg.check(run, "every question strip on the card is read as its passage -- the kind and the item (spec 164 FR-2)",
+              bool(questions) and not unread, screen="the strips", view="copilot", stop=False,
+              detail={"unread": unread, "read": [(s.get("passage_kind"), s.get("passage_dimension"),
+                                                  str(s.get("read") or "")[:50]) for s in questions]})
+    for name, walk in (("the yes", walked), ("the No", no)):
+        want = [ts._words(f.get("hint")) for f in ts.card_follow_ups(walk.get("passages") or [], walk.get("filed") or [])]
+        got = [ts._words(s.get("read")) for s in walk["strips"] if s.get("phase") == "follow-up"]
+        leg.check(run, f"{name} call: the card opens the follow-ups its machine owes the picks filed -- at most two, the "
+                       "rung's hint or Frequency's second stem's, the gate's on a No (keel-web 258 FR-5)", got == want,
+                  screen="the follow-up strips", view="copilot", stop=False,
+                  detail={"opened": got, "machine": want, "filed": walk.get("filed")})
+    if study == "problem":
+        passages = no.get("passages") or []
+        gate_at = next((i for i, s in enumerate(no["strips"]) if s.get("passage_kind") == "gate"), None)
+        after = [ts.strip_step(s) for s in (no["strips"][gate_at + 1:] if gate_at is not None else [])
+                 if s.get("phase") in ("reading", "follow-up")]
+        after = [a for a in after if a]
+        want = [x for x in ts.card_no_path(passages) if x not in ("pilot", "screened")]
+        leg.check(run, "after the gate's No the card asks its machine's No path by passage: the gate's follow-up, then "
+                       "Importance alone (keel-web 258 FR-5)", after == want, screen="the No path (by passage)",
+                  view="copilot", stop=False, detail={"asked": after, "machine": want})
+    faults = ts.badge_faults(walked["strips"])
+    leg.check(run, "the bubbles' badges: Frequency's five the digits 1-5, every other question's letters (keel-web 258 "
+                   "FR-5)", not faults, screen="the strips' bubbles", view="copilot", stop=False,
+              detail={"faults": faults, "badges": [(s.get("passage_dimension") or s.get("passage_kind"), s.get("badges"))
+                                                   for s in walked["strips"] if s.get("badges")]})
 
 
 # ================================================================================ spec 161: the four questions
 # keel-cloud 269 / 270 (contract 87), keel-web 258. The gate's fixed words, a No that goes on, Frequency's five rows,
 # every why; the founder's page on bands, the ways, no Current solution; the orb, the face and the Copilot card held to
-# one script. Where the keel-web checkout the stack serves carries 258, the stranger's screens are walked to it; the cloud's
-# side is read on the wire every time (`harness/three_surfaces.py`), so a run before 258 still proves what the cloud serves.
-
-def pending_258(run) -> bool:
-    """Spec 161: keel-web 258 is not in the checkout the stack serves (`story_screens.web_has_258`)."""
-    return not ss.web_has_258(run.stack.keel_web)
-
-
-def pending_check(run, leg, label: str, what: list[str], *, view: str, screen: str) -> None:
-    """The screen checks written to keel-web 258 and not run on a checkout without it -- one failed check naming them,
-    *pending keel-web 258* (spec 161's rule: written to the spec, recorded in tasks.md, never a DRIFT entry)."""
-    leg.check(run, f"{label}: pending keel-web 258 -- the screen checks written to it not run: " + "; ".join(what),
-              False, screen=screen, view=view, detail={"pending": "keel-web 258", "checks": what}, stop=False)
-
+# one script. The stranger's screens are walked to keel-web 258 (spec 164: the wire-only path of a keel-web before it is
+# retired); the cloud's side is read on the wire every time (`harness/three_surfaces.py`), the founder's page on screen too.
 
 def make_links(run, project_id: str, names: list[str], *, fmt: str = "TEXT", decider: bool = False) -> list[dict]:
     """Links made on the wire (`POST invitations/batch`, Send more's last step): one a person, the kind's, `fmt`."""
@@ -2049,6 +2099,13 @@ def founder_page_on_the_wire(run, leg, project_id: str, roster: dict) -> None:
     the founder's way flagged and never on Insights, the Insights cards read as spec 119's with `capped` and no
     `tookBy`, the brief's facts on bands."""
     from harness import three_surfaces as ts    # noqa: PLC0415
+    # spec 164: every yes-sayer the study's links were walked with counts on the founder's page -- the roster's and the
+    # orb's walk by voice before it (on keel-web 258 the problem link's yes walk runs, its Frequency and its story too)
+    others = other_yes_sayers(run, project_id, "problem")
+    roster = dict(roster, picks=list(roster["picks"]) + others["picks"],
+                  stories=list(roster["stories"]) + others["stories"])
+    if others["picks"] or others["stories"]:
+        leg.notes.append(f"the founder's page counts the study's other yes-sayers too: {others}")
     run.load_runtime("PROBLEM", extra={"THEMES": ts.themes_entries(roster["said"]),
                                        "EXPERIENCE_WAYS": [ts.ways_entry(roster["stories"], roster.get("act"))],
                                        "INTERPRET": [ts.ANCHORED] * 12})
@@ -2093,6 +2150,148 @@ def founder_page_on_the_wire(run, leg, project_id: str, roster: dict) -> None:
                    "(keel-cloud 269 FR-3)", not faults, screen="the brief's facts", view="founder (wire)",
               detail={"faults": faults, "frequency": ((standings.get("facts") or {}).get("problem") or {})
                       .get("frequency")}, stop=False)
+    founder_page_on_screen(run, leg, project_id, overview, standings)
+
+
+def invitation_of(run, project_id: str, url: str) -> str | None:
+    """The invitation id of a link the walk was given by its address (the register's rows carry the link's token)."""
+    token = token_of(url)
+    found: list[str] = []
+
+    def walk(value) -> None:
+        if isinstance(value, dict):
+            if value.get("invitationId") and any(isinstance(v, str) and token in v for v in value.values()):
+                found.append(str(value["invitationId"]))
+            for v in value.values():
+                walk(v)
+        elif isinstance(value, list):
+            for v in value:
+                walk(v)
+    walk(run.get(f"/v2/projects/{project_id}/invitations") or {})
+    return found[0] if found else None
+
+
+def other_yes_sayers(run, project_id: str, study: str) -> dict:
+    """Spec 164: the yes-sayers the study's links were walked with outside the roster (`run.study_walks`: the orb's walk
+    by voice) -- each one's Frequency code and story `(invitationId, words)`, read off what the page posted."""
+    from harness import three_surfaces as ts    # noqa: PLC0415
+    out: dict = {"picks": [], "stories": []}
+    for w in (run.__dict__.get("study_walks") or {}).get(study) or []:
+        body = w.get("sent") or {}
+        if body.get("recency") is not True or body.get("anchorChip"):
+            continue
+        code = ts.frequency_code_of(w.get("interview"), body)
+        if code:
+            out["picks"].append(code)
+        if body.get("story"):
+            out["stories"].append((invitation_of(run, project_id, w["url"]), body["story"]))
+    return out
+
+
+#: Spec 164 (keel-web 258 FR-8): the ways panel as the Overview draws it, read for `three_surfaces.ways_panel_faults`.
+WAYS_PANEL_JS = r"""() => {
+  const t = (e) => e ? (e.textContent || '').replace(/\s+/g, ' ').trim() : '';
+  const w = document.querySelector('[data-testid=rp-ways]');
+  if (!w) return {present: false};
+  const li = w.closest('li');
+  const rowLi = !!(li && li.classList.contains('rp-ways-row'));
+  const prev = rowLi ? li.previousElementSibling : null;
+  const prevRow = prev ? prev.querySelector('.rp-row') : null;
+  const panel = w.closest('[data-testid^=report-stage-]');
+  const reading = w.querySelector('[data-testid=rp-ways-reading]');
+  return {present: true, in_row_li: rowLi, panel: panel ? panel.getAttribute('data-testid') : null,
+          before: prevRow ? prevRow.getAttribute('data-dim') : null,
+          after_prevalence: rowLi && !!prevRow && prevRow.getAttribute('data-dim') === 'problem.prevalence'
+                            && (!panel || panel.getAttribute('data-testid') === 'report-stage-PROBLEM'),
+          state: w.getAttribute('data-state'), head: t(w.querySelector('.rp-ways__head')),
+          reading: reading ? t(reading) : null, line: reading ? null : t(w.querySelector('.rp-ways__line')),
+          rows: Array.from(w.querySelectorAll('.rp-ways__row')).map((r) => {
+            const lab = r.querySelector('.rp-ways__label');
+            const yours = lab ? lab.querySelector('.rp-ways__yours') : null;
+            const label = lab ? Array.from(lab.childNodes).filter((n) => n !== yours).map((n) => n.textContent)
+                .join('').replace(/\s+/g, ' ').trim() : '';
+            return {label: label, founders: r.getAttribute('data-founders') === 'true',
+                    yours: yours ? t(yours) : null, n: t(r.querySelector('.rp-ways__n'))};
+          })};
+}"""
+
+
+def founder_page_on_screen(run, leg, project_id: str, overview: dict, standings: dict) -> None:
+    """Spec 164 (the mirrors of keel-web 258 FR-6 to FR-9): the founder's page as drawn, held to the wire just read --
+    the ways panel under Prevalence's row (mirror 9), Frequency's card on the stage page (mirror 4: five bands, the two
+    `data-for`, the caption), the Insights boxes' `capped` line in `tookBy`'s place (mirrors 2, 3) and the breakdown's
+    Frequency cell on bands with no Current solution row (mirror 5). Each read failed by name where the page would not
+    draw (`stop=False`)."""
+    from evals import backtest    # noqa: PLC0415
+    from evals import report_marks as rm    # noqa: PLC0415
+    from harness import three_surfaces as ts    # noqa: PLC0415
+    from harness import vectors_screens as vs_screens    # noqa: PLC0415
+    page = run.page
+    answers = vs_screens.Answers(page, run.recorder, run.web)
+    view = "founder (screen)"
+    try:
+        answers._report(project_id, "overview")
+        page.get_by_test_id("report-hero").first.wait_for(state="visible", timeout=30_000)
+        drawn = page.evaluate(WAYS_PANEL_JS)
+        ss._BrowserStep(run.recorder, page, "founder").screenshot("report-overview-ways")
+    except Exception as missed:  # noqa: BLE001 - the read named
+        drawn = {"error": str(missed)[:300]}
+    faults = ts.ways_panel_faults(drawn, overview.get("ways")) if "error" not in drawn else [drawn]
+    leg.check(run, "the ways panel as drawn (*How they do it today*, keel-web 258 FR-8): right under Prevalence's row, "
+                   "the read line, a row a group with the founder's marked *your way*", not faults,
+              screen="the Overview · the ways", view=view, stop=False,
+              detail={"faults": faults, "drawn": drawn, "served": overview.get("ways")})
+    row = ts.frequency_row(standings)
+    try:
+        page.goto(f"{run.web}/p/{project_id}/s/PROBLEM", wait_until="load")
+        key = ts.FREQUENCY
+        page.wait_for_selector(backtest.card_selector(key), state="visible", timeout=30_000)
+        body = backtest.card_selector(key, backtest.CARD_BODY)
+        if not page.evaluate("(sel) => !!document.querySelector(sel)", body):
+            page.click(backtest.card_selector(key, backtest.CARD_OPEN))
+        page.wait_for_selector(body, state="visible", timeout=10_000)
+        card = page.evaluate(backtest.CARD_JS, key) or {}
+        ss._BrowserStep(run.recorder, page, "founder").screenshot("stage-problem-frequency")
+    except Exception as missed:  # noqa: BLE001 - the read named
+        card = {"error": str(missed)[:300]}
+    chart = card.get("chart") if "error" not in card else None
+    faults = ts.frequency_chart_faults(chart, row) if chart is not None else [card]
+    leg.check(run, "Frequency's card as drawn (keel-web 258 FR-6): `data-chart=\"frequency\"`, the five bands with their "
+                   "counts, Every time and Most times `data-for`, the caption *{k} of {n} said most times or every time "
+                   "· you said {band}*", not faults, screen="the stage page · Frequency", view=view, stop=False,
+              detail={"faults": faults, "drawn": {k: (chart or {}).get(k) for k in ("chart", "frequency_caption",
+                                                                                      "bars")}})
+    try:
+        insights = answers.insights(project_id)
+    except Exception as missed:  # noqa: BLE001 - the read named
+        insights = {"error": str(missed)[:300]}
+    served = {i.get("dimension"): i for i in standings.get("insights") or []}
+    faults = []
+    for box in insights.get("boxes") or []:
+        want = served.get(box.get("key")) or {}
+        if ts._words(box.get("capped")) != ts._words(rm.capped_line(want)):
+            faults.append({box.get("key"): "capped", "drawn": box.get("capped"), "want": rm.capped_line(want)})
+        if box.get("took_by"):
+            faults.append({box.get("key"): "a took-by line drawn (keel-web 258 FR-9: gone)", "drawn": box["took_by"]})
+    if "error" in insights or not insights.get("boxes"):
+        faults.append({"insights": insights.get("error") or "no box drawn"})
+    leg.check(run, "the Insights boxes as drawn (keel-web 258 FR-9): the people past the two-question cap on their own "
+                   "line where served (`insights-capped`), no took-by line", not faults, screen="Insights",
+              view=view, stop=False, detail={"faults": faults, "boxes": [{k: b.get(k) for k in (
+                  "key", "capped", "count_line", "took_by")} for b in insights.get("boxes") or []]})
+    try:
+        binding = answers.brief(project_id)
+    except Exception as missed:  # noqa: BLE001 - the read named
+        binding = {"error": str(missed)[:300]}
+    faults = rm.breakdown_faults(binding.get("breakdown"), standings.get("facts") or {}) if "error" not in binding \
+        else [binding]
+    if "error" not in binding and not any(r.get("key") == ts.FREQUENCY for r in binding.get("breakdown") or []):
+        faults.append({"breakdown": "no Frequency row"})
+    leg.check(run, "the breakdown as drawn (keel-web 258 FR-6, FR-7): Frequency's answers the served bands (*Every time "
+                   "k · Most times k · ...*), no Current solution row", not faults, screen="Download the brief · the "
+                   "breakdown", view=view, stop=False,
+              detail={"faults": faults, "rows": binding.get("breakdown"),
+                      "want": rm.breakdown_frequency(standings.get("facts") or {})})
 
 
 # ------------------------------------------------------------------------------------------------ FR-9: three surfaces

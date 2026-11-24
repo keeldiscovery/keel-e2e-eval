@@ -863,6 +863,8 @@ CARD_JS = """(key) => {
   const drawing = either("dimension-chart", ".dimrow__drawing");
   const verdict = either("dimension-verdict", "span.status");
   const chart = drawing && drawing.querySelector(".achart");
+  // spec 164 mirror 4 (keel-web 258 FR-6): Frequency is `data-chart="frequency"` -- its five bands, the two that count
+  // for the founder `data-for` (`dimbar--for`), the caption over them; `window-*` only on a server serving `chart.window`
   const kind = chart ? (chart.getAttribute("data-chart") || "chart")
       : drawing && drawing.querySelector("ul.dimbars") ? "bars" : (drawing && drawing.children.length ? "strip" : null);
   // spec 118 FR-4 (keel-web 155 T005): the bar strip under the chart -- its mode, counted and bar, the label, the
@@ -902,6 +904,7 @@ CARD_JS = """(key) => {
                   count: t(either("dimension-count", "span.status .sub")),
                   asked: one(".dimrow__asked"), bar: one(".dimrow__said"), chart: kind,
                   caption: one(".achart__caption"), legend: chips.length ? chips.join(" · ") : one(".achart__legend"),
+                  frequency_caption: one("[data-testid=frequency-caption]") || null,
                   line: one(".achart__linelabel"),
                   drawing: drawingWords, midwords: midwords,
                   rule: one("[data-testid=dimension-rule]") || null,
@@ -916,6 +919,8 @@ CARD_JS = """(key) => {
                   bars: Array.from(row.querySelectorAll("li.dimbar")).map((li) => ({
                       label: t(li.querySelector("span")), side: li.getAttribute("data-side"),
                       side_word: t(li.querySelector(".dimbar__side")) || null,
+                      for: li.getAttribute("data-for") === "true",
+                      count: t(li.querySelector(":scope > span:last-child")) || null,
                       founder_band: li.hasAttribute("data-founder-band")})),
                   marks: Object.fromEntries(["founder-range", "most-often", "chart-caption", "problem-you-named",
                       "current-solution-line", "benefit-limit", "strip-unit", "strip-median", "ability-values"]

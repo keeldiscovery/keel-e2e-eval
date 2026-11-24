@@ -389,5 +389,5 @@ def test_the_dry_runs_hello_on_the_gates_id_is_not_the_story():
              "answered": [], "story": {"reached": True, "hold": {"status": leg.ivs.HELD, "heard": leg.DRY_RUN_STORY},
                                        "sheet_text": "", "statuses": []}}
     assert leg.dry_run_written_down(drawn, gate, leg.DRY_RUN_STORY) == []
-    flow = _web("src/lib/aiInterviewFlow.ts")
+    flow = " ".join(_web("src/lib/aiInterviewFlow.ts").split())        # the words, whatever the formatter's wrap
     assert 'return first?.kind === "gate" ? first.gate.itemId' in flow

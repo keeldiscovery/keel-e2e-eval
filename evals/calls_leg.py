@@ -18,7 +18,10 @@ check passes (headless Chromium has no Document PiP: the Float step is asserted 
 floating). The mic dropdown lists two and remembers the one picked across a reload (`localStorage` `keel-copilot-mic`);
 Start posts `start` (ON_CALL on the wire, the row's status); the script is walked by the card's own buttons -- the
 intro, the gate's Yes (the STORY stretch, stopped), six filings with one undo (Z on the newest, filed again), the
-follow-up stretch where a filing is in `against`, the reveal, the pilot; the two closing stretches (OWN_QUESTIONS,
+follow-up stretch where a filing is in `against` (since keel-web 258 FR-5, spec 164 mirror 7: up to two a call, a filing
+in a rung's `also` -- Frequency's *Never* -- opening its second stem's hint, and a gate passage that carries `followUp`
+opening its stretch on the gate's item at once on a No, then Importance alone; `three_surfaces.card_follow_ups` is the
+machine's mirror), the reveal, the pilot; the two closing stretches (OWN_QUESTIONS,
 THEIR_QUESTIONS) opened and stopped; End -> the upload hits `POST calls/{id}/record` as one multipart with three parts
 named `founder`, `them` and `keys` (the request is kept off the wire by the harness). **Since keel-cloud 249** (the second pass): the
 upload answers 200 with the row, the digest files it (ENDED, then ANSWERED on the poll) -- the card's own record on the
@@ -662,8 +665,9 @@ def walk_the_card(j, browser, call: dict, *, record: dict) -> dict:
 
 def _walk_filings(card: Card, page) -> dict:
     """The script by the card's buttons: the intro's →, the gate's Yes (STORY stretch stopped), each item's first
-    option (a number item typed 3 and filed; a two-step ladder's first band then its first option), the follow-up
-    stretch stopped where it opens, the reveal's →, the pilot's Yes; one undo (Z) on the second filing, filed again."""
+    option (a number item typed 3 and filed; a two-step ladder's first band then its first option), each follow-up
+    stretch stopped where it opens (up to two a call since keel-web 258 FR-5), the reveal's →, the pilot's Yes; one undo
+    (Z) on the second filing, filed again."""
     filed = 0
     undo = 0
     seen: list[dict] = []

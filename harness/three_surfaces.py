@@ -171,21 +171,176 @@ def walked_record(rows: list[dict] | None, *, whys: dict[str, list[str]] | None 
     return out
 
 
+# ------------------------------------------------------------------------------------------- the Copilot card's passages
+# Spec 164 FR-2 (keel-web 258 FR-5, `src/lib/copilot/machine.ts`): the card walks the call's script as its own passages --
+# the wire's, with the gate's condition before the gate (`withCondition`) and, on a script with no gate, the
+# decision-maker's check before the first reveal (else the first item; `withCheck`). A strip of the card's walk is read
+# as the passage it draws -- its kind and its item -- never by its place in the walk.
+
+#: The card's passage kinds a strip can stand on (the wire's five, the condition and the check the card inserts).
+CARD_KINDS = ("intro", "condition", "gate", "check", "item", "reveal", "pilot")
+#: The step a passage of the four questions files in a record (the intro, the reveal and the pilot ask are not compared).
+CARD_STEP = {"condition": "screener", "gate": "gate", "check": "check"}
+
+
+def _spoken_stem(p: dict) -> str | None:
+    return ((p.get("spoken") or {}).get("stem")) or p.get("stem")
+
+
+def card_passages(script: dict | None, *, check: str | None = None) -> list[dict]:
+    """The card's passages as keel-web 258's machine builds them from the call's script: each `{kind, itemId,
+    dimension, words, options, followUp, twoSteps, picks, control}` -- `words` what the strip reads (the condition's and
+    the check's question, the gate's and an item's spoken stem, the pilot ask's first form). The condition goes before
+    the gate that carries one; `check` (the decision-maker's check, worded by the route -- the script serves none) goes
+    before the first reveal, else the first item, on a script with no gate."""
+    raw = [p for p in (script or {}).get("passages") or [] if isinstance(p, dict)]
+    out: list[dict] = []
+    for p in raw:
+        kind = p.get("kind")
+        if kind == "gate" and str(((p.get("condition") or {}).get("question")) or "").strip():
+            out.append({"kind": "condition", "itemId": "condition", "dimension": None,
+                        "words": p["condition"]["question"], "options": [{"optionId": "YES", "label": "Yes"},
+                                                                         {"optionId": "NO", "label": "No"}]})
+        words = {"gate": _spoken_stem(p), "item": _spoken_stem(p),
+                 "pilot": ((p.get("question") or {}).get("first") if isinstance(p.get("question"), dict)
+                           else p.get("question")),
+                 "intro": None, "reveal": None}.get(str(kind))
+        out.append({"kind": kind, "itemId": p.get("itemId"), "dimension": p.get("dimension"), "words": words,
+                    "stem": p.get("stem"), "options": list(p.get("options") or []), "followUp": p.get("followUp"),
+                    "twoSteps": p.get("twoSteps"), "picks": p.get("picks"), "control": p.get("control")})
+    if check and str(check).strip() and not any(p["kind"] == "gate" for p in out):
+        at = next((i for i, p in enumerate(out) if p["kind"] == "reveal"), None)
+        if at is None:
+            at = next((i for i, p in enumerate(out) if p["kind"] == "item"), len(out))
+        out.insert(at, {"kind": "check", "itemId": "problemCheck", "dimension": None, "words": check,
+                        "options": [{"optionId": "YES", "label": "Yes"}, {"optionId": "NO", "label": "No"}]})
+    return out
+
+
+def passage_of(read: str | None, passages: list[dict], *, head: str | None = None) -> dict | None:
+    """The card's passage a strip draws, by what the strip reads -- the passage whose words (or stem) are the strip's
+    question; None where no passage of the four reads so (the intro, the reveal, the closing screens)."""
+    said = _bare(read)
+    if not said:
+        return None
+    for p in passages:
+        for words in (p.get("words"), p.get("stem")):
+            if words and _bare(words) == said:
+                return p
+    return None
+
+
+def strip_step(strip: dict) -> str | None:
+    """The step a strip files in the card's walked record, from its passage's kind and item (`passage_kind`,
+    `passage_dimension`, set by the walk): the condition the screener, the gate, the check, an item its dimension; a
+    follow-up `followUp`; anything else (the intro, the reveal, the pilot ask, an unread strip) None."""
+    if strip.get("phase") == "follow-up":
+        return "followUp"
+    kind = strip.get("passage_kind")
+    if kind in CARD_STEP:
+        return CARD_STEP[kind]
+    if kind == "item":
+        return str(strip.get("passage_dimension") or strip.get("passage_item") or "") or None
+    return None
+
+
 def strips_record(strips: list[dict] | None) -> list[dict]:
-    """Spec 161 FR-9 off the Copilot card's walk (`copilot_walk` strips, keel-web 258 FR-5): each question strip as a
-    step -- its words (`read`, the card's question) and its answers' labels (the card's digits are not compared); a
-    follow-up strip folded onto the step before it."""
+    """Spec 161 FR-9 off the Copilot card's walk (`copilot_walk` strips, keel-web 258 FR-5), each strip read by its
+    passage (spec 164 FR-2: `strip_step` -- the passage's kind and item, never the strip's place): each question as a
+    step -- its words (`read`, the card's question) and its bubbles' words in order (their badges are not compared); a
+    follow-up's words folded onto the question it hangs on; a ladder's second step folded onto its item (the card draws
+    the side the first answer opens, so a ladder's bands are its passage's, compared as a set)."""
     out: list[dict] = []
     for s in strips or []:
-        if s.get("phase") == "follow-up":
+        key = strip_step(s)
+        if key == "followUp":
             if out:
                 out[-1]["follow_ups"].append(_words(s.get("read") or s.get("head")))
             continue
-        if s.get("phase") not in ("reading", "second-step"):
+        if s.get("phase") == "second-step":
             continue
-        out.append(step(str(s.get("key") or s.get("question") or "?"), s.get("read"),
-                        [_words(o) for o in s.get("options") or []]))
+        if key is None or s.get("phase") != "reading":
+            continue
+        one = step(key, s.get("read"), [_words(o) for o in s.get("options") or []])
+        if s.get("ladder"):
+            one["options"] = list(s["ladder"])
+            one["ladder"] = True
+        out.append(one)
     return out
+
+
+def card_follow_ups(passages: list[dict], filings: list[tuple[str, list[str]]]) -> list[dict]:
+    """keel-web 258's card machine (`pick` on the gate, `afterItemFiling`, `CARD_MAX_FOLLOW_UPS`): the follow-ups the
+    card opens for these filings (`(itemId, optionIds)`, in the order filed), each `{itemId, hint}` -- a gate No where the
+    gate carries `followUp` (Prevalence's, against NO) opens its hint at once; an item whose every pick is in its rung's
+    `against` opens the rung's hint, or, every pick in `also.on` (Frequency's *Never* after a yes), the second stem's;
+    at most two a call. A gate No with no `followUp` opens none (the screener's card)."""
+    by_id = {p.get("itemId"): p for p in passages}
+    out: list[dict] = []
+    for item_id, ids in filings:
+        if len(out) >= CARD_MAX_FOLLOW_UPS:
+            break
+        p = by_id.get(item_id) or {}
+        rung = p.get("followUp")
+        if not rung or not ids:
+            continue
+        if p.get("kind") == "gate":
+            options = p.get("options") or []
+            second = options[1].get("optionId") if len(options) > 1 else None
+            no = any(str(i).lower() == "no" or i == second for i in ids)
+            if no:
+                out.append({"itemId": item_id, "hint": (rung.get("hint") or {}).get("first")})
+            continue
+        if p.get("kind") != "item":
+            continue
+        against = all(i in (rung.get("against") or []) for i in ids)
+        also = rung.get("also") or None
+        on_also = bool(also) and all(i in (also.get("on") or []) for i in ids)
+        if against or on_also:
+            hint = (also.get("hint") or {}).get("first") if (on_also and not against) else (rung.get("hint") or {}).get("first")
+            out.append({"itemId": item_id, "hint": hint})
+    return out
+
+
+def card_no_path(passages: list[dict]) -> list[str]:
+    """keel-web 258 FR-5 (the card's `noPath`): what the card asks after a No on a gate that carries `followUp` -- the
+    gate's follow-up, then Importance alone (the story, Frequency, the reveal and the idea stepped over), then the pilot
+    ask; a gate with no `followUp`: the screener's card (`screened`), nothing asked."""
+    gate = next((p for p in passages if p.get("kind") == "gate"), None)
+    if not gate or not gate.get("followUp"):
+        return ["screened"]
+    after = passages[passages.index(gate) + 1:]
+    asked = ["followUp"] + [str(p.get("dimension")) for p in after if p.get("kind") == "item"
+                             and p.get("dimension") == IMPORTANCE]
+    return asked + ["pilot" for p in after if p.get("kind") == "pilot"][:1]
+
+
+#: keel-web 258 FR-5 (`CARD_MAX_FOLLOW_UPS`): two follow-ups a call, as on the orb and the face (188's one is gone).
+CARD_MAX_FOLLOW_UPS = 2
+#: keel-web 258 FR-5 (`ChoiceRows` `badge="digit"`): Frequency's five bubbles on the card carry the digits their keys
+#: hold; every other question's bubbles stay lettered.
+FREQUENCY_DIGITS = ("1", "2", "3", "4", "5")
+
+
+def letters(n: int) -> list[str]:
+    """`letterOf`: A, B, C, ... for n rows."""
+    return [chr(ord("A") + i) for i in range(n)]
+
+
+def badge_faults(strips: list[dict] | None) -> list[dict]:
+    """Spec 164 mirror 6 (keel-web 258 FR-5): every question strip's bubble badges -- Frequency's five the digits 1-5,
+    every other question's letters A, B, ... -- by the strip's passage."""
+    faults = []
+    for s in strips or []:
+        badges = s.get("badges") or []
+        if s.get("phase") != "reading" or not badges or s.get("passage_kind") not in ("item", "condition", "gate",
+                                                                                     "check", "pilot"):
+            continue
+        want = list(FREQUENCY_DIGITS) if s.get("passage_dimension") == FREQUENCY else letters(len(badges))
+        if badges != want:
+            faults.append({"strip": _words(s.get("read"))[:60], "dimension": s.get("passage_dimension"),
+                           "badges": badges, "want": want})
+    return faults
 
 
 #: Steps a surface may not carry (the screener, the decision-maker's check): compared where all three carry them.
@@ -566,3 +721,104 @@ def brief_frequency_faults(facts: dict, *, picks: list[str] | None = None) -> li
         if got != want or f.get("mostOrEvery") != sum(want[c] for c in FOR_CODES) or f.get("n") != len(picks):
             faults.append({"counts": got, "want": want, "mostOrEvery": f.get("mostOrEvery"), "n": f.get("n")})
     return faults
+
+
+# ------------------------------------------------------------------------------------------- the founder's page, drawn
+# Spec 164 (the mirrors of keel-web 258 FR-6, FR-8): what the founder's page draws of the wire read above -- the
+# Frequency chart on the stage page and the ways panel on the Overview -- held to the served numbers. Pure.
+
+#: keel-web 258 FR-6 (`chartFrequencyCaption`): the caption over Frequency's five bands.
+FREQUENCY_CAPTION = "{k} of {n} said most times or every time · you said {band}"
+#: keel-web 258 FR-8 (translate.ts): the ways panel's words.
+WAYS_HEADING = "How they do it today"
+WAYS_YOUR_WAY = "your way"
+WAYS_READING = "Reading …"
+ON_THEIR_OWN_LABEL = "On their own"
+
+
+def frequency_caption(k: int, n: int, founder_band: str) -> str:
+    return FREQUENCY_CAPTION.format(k=k, n=n, band=founder_band)
+
+
+def ways_read_from(n: int) -> str:
+    """keel-web 258 `waysReadFrom`."""
+    return "read from the 1 experience, not asked" if n == 1 else f"read from the {n} experiences, not asked"
+
+
+def frequency_chart_faults(drawn: dict | None, row: dict) -> list:
+    """Spec 164 mirror 4 (keel-web 258 FR-6, `FrequencyChart`): Frequency's card as drawn (`evals/backtest.CARD_JS`'s
+    `chart`) against its served standing -- `data-chart="frequency"`, the five bands in the served order with their
+    served counts, the two `forCodes` bands `data-for`, the rest not, and the caption *{k} of {n} said most times or
+    every time · you said {founderBand}* (k the two bands' served counts, n `chart.frequency.n`)."""
+    drawn = drawn or {}
+    f = ((row or {}).get("chart") or {}).get("frequency") or {}
+    bands = ((row or {}).get("choice") or {}).get("optionCounts") or []
+    faults = []
+    if drawn.get("chart") != "frequency":
+        faults.append({"chart": drawn.get("chart"), "want": "frequency"})
+    bars = drawn.get("bars") or []
+    if [_bare(b.get("label")) for b in bars] != [_bare(b.get("label")) for b in bands]:
+        faults.append({"bands": [b.get("label") for b in bars], "served": [b.get("label") for b in bands]})
+    if [str(b.get("count")) for b in bars] != [str(b.get("count")) for b in bands]:
+        faults.append({"counts": [b.get("count") for b in bars], "served": [b.get("count") for b in bands]})
+    held = [bool(b.get("code") in (f.get("forCodes") or [])) for b in bands]
+    if [bool(b.get("for")) for b in bars] != held:
+        faults.append({"data-for": [bool(b.get("for")) for b in bars], "want": held})
+    if f:
+        k = sum(int(b.get("count") or 0) for b in bands if b.get("code") in (f.get("forCodes") or []))
+        want = frequency_caption(k, int(f.get("n") or 0), str(f.get("founderBand") or ""))
+        if _words(drawn.get("frequency_caption")) != _words(want):
+            faults.append({"caption": drawn.get("frequency_caption"), "want": want})
+    return faults
+
+
+def ways_panel_faults(drawn: dict | None, ways: dict | None) -> list:
+    """Spec 164 mirror 9 (keel-web 258 FR-8, `WaysPanel`): the ways panel as drawn -- `[data-testid=rp-ways]` in the
+    `li.rp-ways-row` right after Prevalence's row in the problem's panel, *How they do it today*, the read line (*read
+    from the {read} experiences, not asked*), a row a group (its label, *On their own* for ON_THEIR_OWN, the founder's
+    marked `data-founders` with *your way*, its count); GROUPING *Reading …* and no rows; RAW the read line alone; no
+    panel where `Overview.ways` is not served."""
+    drawn = drawn or {}
+    if not ways:
+        return [{"panel": "drawn where no ways are served"}] if drawn.get("present") else []
+    faults = []
+    if not drawn.get("present"):
+        return [{"panel": "not drawn", "ways": ways}]
+    if not drawn.get("after_prevalence"):
+        faults.append({"place": "not right under Prevalence's row", "before": drawn.get("before")})
+    if _words(drawn.get("head")) != WAYS_HEADING:
+        faults.append({"head": drawn.get("head"), "want": WAYS_HEADING})
+    state = ways.get("state")
+    rows = drawn.get("rows") or []
+    if state == "GROUPING":
+        if _words(drawn.get("reading")) != WAYS_READING or rows:
+            faults.append({"GROUPING": {"reading": drawn.get("reading"), "rows": rows}})
+        return faults
+    if _words(drawn.get("line")) != ways_read_from(int(ways.get("read") or 0)):
+        faults.append({"line": drawn.get("line"), "want": ways_read_from(int(ways.get("read") or 0))})
+    groups = ways.get("groups") or [] if state == "GROUPED" else []
+    want = [{"label": ON_THEIR_OWN_LABEL if g.get("label") == ON_THEIR_OWN else _words(g.get("label")),
+             "founders": bool(g.get("founders")), "n": str(g.get("count"))} for g in groups]
+    got = [{"label": _words(r.get("label")), "founders": bool(r.get("founders")), "n": str(r.get("n"))} for r in rows]
+    if got != want:
+        faults.append({"rows": got, "want": want})
+    yours = [r for r in rows if r.get("founders")]
+    if any(_words(r.get("yours")) != WAYS_YOUR_WAY for r in yours) or \
+            any(r.get("yours") for r in rows if not r.get("founders")):
+        faults.append({"your way": [(r.get("label"), r.get("yours")) for r in rows]})
+    return faults
+
+
+def frequency_code_of(interview: dict | None, body: dict | None) -> str | None:
+    """The Frequency code a posted response carries (`answers[]` on Frequency's item, its one option id read back to its
+    band by the served option's code, else its place among the five); None where the response answered no Frequency."""
+    item = item_of(interview or {}, FREQUENCY)
+    answer = next((a for a in (body or {}).get("answers") or [] if a.get("itemId") == item.get("itemId")), None)
+    ids = (answer or {}).get("optionIds") or []
+    if not item or not ids:
+        return None
+    for i, o in enumerate(item.get("options") or []):
+        if o.get("optionId") == ids[0]:
+            code = o.get("normalized") or o.get("code")
+            return code if code in FREQUENCY_CODES else (FREQUENCY_CODES[i] if i < len(FREQUENCY_CODES) else None)
+    return None
