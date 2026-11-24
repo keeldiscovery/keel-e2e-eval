@@ -338,7 +338,9 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
     Spec 161 (`plan`, one of `three_surfaces.ROSTER`'s people, keel-web 258): the screener answered as the plan says,
     the gate yes or no, the plan's own story, Frequency answered by its row's words, Importance's first pick the own row
     or not (then *Nothing else*), and every why answered in words (never skipped); each sheet's row names its step's
-    key (`screener`, `gate`, the item's dimension) and a why's row `follow_up` with the rung it asks."""
+    key (`screener`, `gate`, the item's dimension) and a why's row `follow_up` with the rung it asks. Spec 165 (the
+    film's strangers, `harness/film_strangers.walk_plan`): a plan's `pick` names Importance's row by its label and its
+    `why` the person's own words for every why."""
     from harness import interviewer_screens as ivs    # noqa: PLC0415
     p = ivs.Player(page, run.recorder)
     responses: list = []
@@ -444,7 +446,8 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
             row["follow_up"] = _why_of(q)
             if plan is not None:
                 from harness import three_surfaces as ts    # noqa: PLC0415
-                row["said"] = ts.why_said(row["follow_up"])
+                # spec 165: a person's own recorded words where the plan carries them (the film's strangers)
+                row["said"] = plan.get("why") or ts.why_said(row["follow_up"])
                 p.say(row["said"])
             else:
                 row["said"] = "skip"
@@ -486,8 +489,8 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                 mine = ts.own_option(item, other_tasks=plan.get("other_tasks") or (),
                                      own_label=plan.get("own_label"))
                 labels = [o.get("label") for o in item.get("options") or []]
-                pick = (mine or {}).get("label") if plan.get("own") else next(
-                    (x for x in labels if not mine or x != mine.get("label")), labels[0] if labels else None)
+                pick = plan.get("pick") or ((mine or {}).get("label") if plan.get("own") else next(
+                    (x for x in labels if not mine or x != mine.get("label")), labels[0] if labels else None))
                 row["said"] = pick
                 p.say(str(pick))
             elif len(options) >= 2 and way_for(ways, item.get("control")):

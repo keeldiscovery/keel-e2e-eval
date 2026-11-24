@@ -19,6 +19,15 @@ Then, either door: a PROBLEM project (`POST /v2/projects`), the beats, the boxes
 waited for, and **the film captured before any stranger sees it** (`film_frames.FilmCamera`: fourteen frames, the
 story, the pictures, the setting and the prompts, the ledger's rows) into `KEEL_FILM_OUT/film/<entry>/` (the walk's
 bundle), with its own evidence (transcript, screenshots) in `runs/<stamp>-film-<entry>/`.
+
+**Spec 165: then the strangers on the film's link, on the same project** (`harness/film_strangers.py`; 163's
+judgement call 1 closed -- no second, typed project is made): the project locked (the window, the calibration, the
+credits, the ready page's lock, the questions READY; a step that does not hold fails the leg by name), its link sent
+to the entry's first `KEEL_FILM_PEOPLE` people (`quality/cycle.toml`'s seven; the PROBLEM scope's own-link people in
+corpus order), each walking the film link on the orb with their recorded answers mapped onto the four questions, then
+the founder's page read after them (§B's screens, spec 164's reads) and the bundle `make read-screens` reads written
+as `backtest.json` (`kind: "film"`) in the evidence folder, named in `film.json` (`screens_bundle`). `KEEL_FILM_TYPOS=1`
+types the founder's beats with a person's typos on Keel's door (spec 126's typist; the fakes tell their own script).
 """
 
 from __future__ import annotations
@@ -31,6 +40,7 @@ from pathlib import Path
 import pytest
 
 from harness import film_frames as ff
+from harness import film_strangers as fs
 from harness import story_screens as ss
 from harness.browser import Auth
 from harness.steps import Recorder
@@ -40,6 +50,11 @@ from stack.lifecycle import boot, quick_gates_pass
 from stack.lifecycle import teardown as stack_teardown
 
 ENTRY_VAR, DOOR_VAR, OUT_VAR = "KEEL_FILM_ENTRY", "KEEL_FILM_DOOR", "KEEL_FILM_OUT"
+#: Spec 165: how many of the entry's people answer on the film's link (`quality/cycle.toml`'s `people` when unsaid),
+#: and whether the founder's beats are typed with typos (Keel's door alone).
+PEOPLE_VAR, TYPOS_VAR = "KEEL_FILM_PEOPLE", "KEEL_FILM_TYPOS"
+#: Spec 165: the stand-in that tops a short balance to the grant before the lock (as `three_views.fr1_d` does).
+STAND_IN_SPEC = "165"
 DOORS = ("keel", "fake")
 KEYS = ("KEEL_ANTHROPIC_API_KEY", "KEEL_OPENAI_API_KEY")
 #: Outside keel-cloud's `fake-for` (the eval stack's default lists `keel-e2e-eval.test`): Keel's AI and the pictures.
@@ -73,6 +88,21 @@ def refusal(env: dict | None = None) -> str | None:
     elif (env.get("KEEL_PICTURES") or "").strip().lower() == "openai":
         return "make film-leg refuses: DOOR=fake with KEEL_PICTURES=openai -- the free walk never draws a paid picture"
     return None
+
+
+def people_cap(env: dict | None = None) -> int:
+    """Spec 165: the people sent on the film's link -- `KEEL_FILM_PEOPLE`, else `quality/cycle.toml`'s `people`."""
+    env = os.environ if env is None else env
+    raw = (env.get(PEOPLE_VAR) or "").strip()
+    if raw:
+        return int(raw)
+    from quality import cycle as cyc                                       # noqa: PLC0415
+    return int(cyc.resolve_people(None, cyc.load_config()) or 7)
+
+
+def typos_on(env: dict | None = None) -> bool:
+    env = os.environ if env is None else env
+    return (env.get(TYPOS_VAR) or "").strip().lower() in ("1", "on", "true", "yes")
 
 
 @pytest.fixture(scope="session")
@@ -151,9 +181,14 @@ def test_film_leg(stack, browser, run_dir):
             assert status < 300 and isinstance(created, dict) and created.get("projectId"), (status, created)
         project_id = created["projectId"]
         wire = ss.StoryWire(call, project_id)
+        typed: list = []
         if DOOR == "keel":
             beats = ff.entry_beats(entry["yaml"])
             telling = "the entry's own words"
+            if typos_on():
+                # spec 165 (TYPOS=1 on the founder's words, as the quality walk types them): spec 126's typist
+                beats, typed = fs.typed_beats(beats, _vs_entry(stack, 1), seed=ENTRY)
+                telling += f", typed with {len(typed)} typo(s)"
         else:
             beats = list(ss.said_turns(ss.fake_readings(stack.keel_cloud)))
             telling = "keel-cloud's fake readings script (FakeStoryReadings) -- not the entry's words"
@@ -188,6 +223,11 @@ def test_film_leg(stack, browser, run_dir):
             spent = {"rows": [], "unread": str(e)[:200], "usd": None}
         versions = json.loads((run_dir / "versions.json").read_text(encoding="utf-8")) \
             if (run_dir / "versions.json").is_file() else {}
+        # spec 165: the strangers on the film's link, on this project -- the lock, the people, the founder's page after
+        strangers, refused = None, None
+        if state == "ready":
+            strangers, refused = strangers_leg(stack, browser, recorder, context, page, run_dir, founder, entry,
+                                               entry_path, project_id, versions, stamp, typed)
         film = {
             "spec": "163", "entry": {"id": ENTRY, "path": str(entry_path), "sha256": entry["sha256"]},
             "door": DOOR, "telling": telling, "project_id": project_id,
@@ -200,11 +240,91 @@ def test_film_leg(stack, browser, run_dir):
             "beats": ff.beats_record(told, dict(beats)), "verdict_line": story.get("verdictLine"),
             "ledger": spent, "dollars": spent.get("usd"),
             "measures": {"faults": faults, "frames": len(frames), "pictures": sum(1 for p in pictures if p.get("path"))},
+            # spec 165: the one project the strangers answered on, and the bundle read-screens reads
+            "screens_bundle": str(run_dir) if strangers else None,
+            "strangers": strangers, **({"refused": refused} if refused else {}),
+            **({"typos": typed} if typed else {}),
         }
         ff.write_folder(out, story=story, film=film)
         print(f"\nfilm: {out} -- {len(frames)} frames, {film['measures']['pictures']} pictures, build {state}, "
               f"{len(faults)} capture fault(s)")
+        if strangers:
+            print(f"strangers: {strangers['answered']} of {strangers['people']} answered on the film's link "
+                  f"(project {project_id}); {len(strangers['after_screens'])} screen(s) after the answers; "
+                  f"read-screens bundle {run_dir}")
         assert state == "ready", f"the build ended {state}"
         assert len(frames) == 2 * ff.SCENES, f"{len(frames)} frames of {2 * ff.SCENES}: {[f['what'] for f in faults]}"
+        assert not refused, refused
+        assert strangers and strangers["answered"] == strangers["people"], \
+            f"spec 165: {strangers and strangers['answered']} of {strangers and strangers['people']} people answered " \
+            f"on the film's link: {[(w['person'], w.get('error'), w['response']) for w in (strangers or {}).get('walks') or []]}"
+        assert strangers["after_screens"], "spec 165: the founder's page shot nothing after the answers"
     finally:
         context.close()
+
+
+def _vs_entry(stack, cap: int):
+    """The entry as `vectors_script` reads it, under the PROBLEM scope and the walk's cap (spec 106's `people_cap`)."""
+    import dataclasses                                                     # noqa: PLC0415
+
+    from harness import vectors_script as vs                               # noqa: PLC0415
+    _, read = vs.entry_for(stack.keel_cloud, ENTRY, backtest=True)
+    return dataclasses.replace(read, scope=fs.SCOPE, people_cap=int(cap))
+
+
+def strangers_leg(stack, browser, recorder, context, page, run_dir: Path, founder, entry: dict, entry_path: Path,
+                  project_id: str, versions: dict, stamp: str, typed: list) -> tuple[dict | None, str | None]:
+    """Spec 165 FR-1, FR-2 on the stack: the film's project locked, the people on its link, the founder's page after
+    them, `backtest.json` written. Returns `(the strangers' record, None)` or `(None, the refusal naming the step)`."""
+    from evals import three_views as tv                                    # noqa: PLC0415
+    from harness import vectors_script as vs                               # noqa: PLC0415
+    run = fs.FilmRun(stack=stack, browser=browser, recorder=recorder, context=context, page=page, stamp=stamp)
+    cap = people_cap()
+
+    def top_up():
+        account = ledger.founder_account(stack, founder.sub)
+        return ledger.stand_in_balance(stack, account["id"], f"film-{stamp}", to=ledger.GRANT_CREDITS,
+                                       spec=STAND_IN_SPEC, label="topped",
+                                       what="the balance topped to the grant to see the film's project locked")
+
+    with recorder.step("spec 165: the film's project locked -- the window, the calibration, the credits, the ready "
+                       "page's lock, the questions READY", party="founder", kind="assert") as h:
+        try:
+            lock = fs.lock_project(run.call, project_id, window=fs.recall_window(entry["yaml"]),
+                                   press=fs.press_on_the_ready_page(run, project_id),
+                                   need=tv.PROJECT_PRICE, top_up=top_up)
+        except fs.LockFailed as failed:
+            h.record_assert({"locked": True}, {"locked": False, "step": failed.step, "detail": failed.detail})
+            return None, str(failed)
+        h.record_assert({"locked": True}, {"locked": True, **lock})
+    plans = fs.people_plans(vs.person_inputs(_vs_entry(stack, cap)))
+    kept: dict = {}
+    with recorder.step(f"spec 165: the film's link sent to {len(plans)} people, each walking the four questions",
+                       party="participant", kind="assert") as h:
+        walks = fs.walk_people(run, project_id, plans, out=kept)
+        h.record_assert({"answered": len(plans)}, {"answered": sum(1 for w in walks if w["response"]["status"] == 201
+                                                                   and w["done"]),
+                                                   "walks": [{k: w.get(k) for k in ("person", "steps", "whys",
+                                                                                     "response", "error")}
+                                                             for w in walks]})
+    with recorder.step("spec 165: the founder's page after the answers -- the stage page, the cards, Insights, the "
+                       "ways, the brief", party="founder") as h:
+        after = fs.founder_page_after(run, project_id, run_dir)
+        h.record_wire({"after": "the answers leg and spec 164's reads"},
+                      {"screens": len(after["after_screens"]), "checks": after["founder_page"]["checks"]})
+    who = fs.watched(plans)
+    respondents = fs.respondents_record(who, (kept.get("interviews") or {}).get(who),
+                                        (kept.get("walked") or {}).get(who))
+    commits = {name: ((versions.get(name) or {}).get("commit") or "") for name in ("keel-cloud", "keel-web")}
+    bundle = fs.screens_bundle(
+        entry={"id": ENTRY, "title": entry["yaml"].get("title"), "path": str(entry_path), "sha256": entry["sha256"]},
+        project_id=project_id, door=DOOR, stack=commits, people=cap, lock=lock, plans=plans, walks=walks,
+        respondents=respondents, after_screens=after["after_screens"], answers_leg=after["answers_leg"],
+        brief=after["brief"], themes_settled=after["themes_settled"], founder_page=after["founder_page"],
+        run=run_dir.name, typos=typed)
+    (run_dir / "backtest.json").write_text(json.dumps(bundle, indent=2, ensure_ascii=False, default=str) + "\n",
+                                           encoding="utf-8")
+    return {"project_id": project_id, "people": len(plans), "watched": who,
+            "answered": sum(1 for w in walks if w["response"]["status"] == 201 and w["done"]),
+            "walks": walks, "lock": lock, "after_screens": [s.get("screen") for s in after["after_screens"]],
+            "founder_page": after["founder_page"]["checks"]}, None
