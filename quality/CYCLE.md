@@ -202,6 +202,40 @@ make quality-accept CYCLE=quality/cycles/<record>.md
 - **Nothing runs by itself**: none of these events starts a walk. The founder kicks off, and his words are the WHY the
   record's header carries.
 
+## The film, judged (spec 163 -- `make film-walk`, `make read-films`, `make read-film-table`, `make film-advise`)
+
+The founder, 2026-11-24: *"the judging criteria should be based on the quality of the animation that we create for the
+respondent ... the user persona, the things they want to do, the limitation and the pain ... clearly spelled out ...
+end-to-end"*, and *"no words are garbled"*. A second ruler beside the questions', with its own version
+(`quality/FILM-RUBRIC.md`, `FILM_RUBRIC_VERSION`): F1-F8 on the problem film (S1-S9 on the solution film once its batch
+is walked), the founder's beats on R1, R2, R3, R5. **Every step but the table is paid and runs on the founder's word.**
+
+```
+export KEEL_ANTHROPIC_API_KEY=... KEEL_OPENAI_API_KEY=... KEEL_PICTURES=openai     # Keel's AI, the real pictures
+make film-walk ENTRIES=holdout WHY="<the founder's words>"     # the nine of [film] holdout (the integrator writes them)
+make read-films RUN=runs/<stamp>-film-walk                     # the film reader (API, vision) + the founder's beats (CLI)
+make read-film-table RUN=runs/<stamp>-film-walk [DRIFT=1]      # free: FILM-TABLE.md and quality/cycles/<record>-film.md
+make film-advise RUN=runs/<stamp>-film-walk [DRY=1]            # one claude CLI call per weak criterion, never applied
+make film-walk ENTRIES=08-fresco DOOR=fake WHY="local"         # free: the film alone on keel-cloud's fakes
+```
+
+- **The walk** (FR-2): per entry, the film leg (`evals/run_film.py`: its own stack with the keys, a PROBLEM project, the
+  seven beats told in the entry's words on the wire, the boxes' yes, the build with the real pictures, then the film
+  captured on the founder's player at `define/story/check` -- each scene held by parking the next line's clip, shot on
+  a phone 390 x 844 and a laptop 1280 x 800 -- with the story, the pictures, the setting and the prompts and the
+  ledger's rows) into `<walk>/film/<entry>/`; then `make backtest ENTRY= SCOPE=PROBLEM` (the scenario-maker unchanged:
+  the seven people, the founder's page after the answers) and `make read-screens` on its bundle, named in
+  `<walk>/walk.json`. One walk bundle, three reads: the film, the questions (§A), the founder's page (§B).
+- **The table** (FR-4): one row an entry -- F1..F8, `film_pct`, flagged, `founder_pct`, §A `score_pct`, §B `after_pct`,
+  the dollars; the bar `[film] film_bar_pct` (80); an entry passes at the bar with no 0, a round when every entry does,
+  and a tabled holdout entry short fails it whatever the five did. The record carries *The film, judged*: each entry's
+  whys a line a criterion, its frames linked, the findings for `runs/DRIFT.md` (`DRIFT=1` appends them).
+- **What it costs** (estimates): the walk on Keel's door about $1 an entry (the back-test's ~$0.50 and the pictures'
+  ~$0.45 by keel-cloud 273's `STORY_PICTURES` estimate, plus the beats' readings); `read-screens` on the PROBLEM study
+  about $5 an entry on the founder's plan (the cycles' rate); `read-films` about $0.30 a film at list price (some 35,000
+  tokens in with twenty-two images, ~3,000 out) and about $0.50 of the founder's plan for the eight beats. The record says
+  what it actually cost.
+
 ## Rules that do not move
 
 - The thirteen bundles of 2026-10-24 are never scored and never enter a baseline or the gallery (walked before the
