@@ -212,6 +212,7 @@ def same_script(records: dict[str, list[dict]], *, reference: str = "orb") -> di
                  for k, v in s.items() if k != "ladder"} for s in rec]
     records = {name: plain(rec) for name, rec in records.items()}
     ref = records.get(reference) or []
+    parts: list[dict] = []
     for surface, rec in records.items():
         if surface == reference:
             continue
@@ -222,8 +223,13 @@ def same_script(records: dict[str, list[dict]], *, reference: str = "orb") -> di
                 continue
             differs = (["missing on " + surface] if b is None else ["missing on " + reference] if a is None
                        else [k for k in ("step", "words", "options", "follow_ups") if a.get(k) != b.get(k)])
-            return {"same": False, "at": i, "surface": surface, "step": (a or b or {}).get("step"),
-                    "differs": differs, reference: a, surface + "_record": b, "not_on_every_surface": absent}
+            parts.append({"at": i, "surface": surface, "step": (a or b or {}).get("step"), "differs": differs,
+                          reference: a, surface + "_record": b})
+    if parts:
+        first = parts[0]
+        # the first step and surface where one differs, then every other part (so one difference hides none after it)
+        return {"same": False, **first, "parts": [{k: x[k] for k in ("at", "surface", "step", "differs")}
+                                                   for x in parts], "not_on_every_surface": absent}
     return {"same": True, "steps": len(ref), "surfaces": sorted(records), "not_on_every_surface": absent}
 
 
@@ -307,6 +313,11 @@ def themes_entries(said: dict[str, list[str]] | None = None) -> list[dict]:
         if kept:
             out.append({"dimension": dimension, "outcome": "COMPLETED", "result": {"themes": kept}})
     return out
+
+
+#: The scripted reading of a roster story (`INTERPRET`): ANCHORED, so every yes-sayer's answers count on the founder's
+#: page (a GUESSED story is shown hollow and counted nowhere) -- the runtime fills the invitation id from the job.
+ANCHORED = {"outcome": "COMPLETED", "result": {"anchoring": "ANCHORED", "unprompted": [], "flags": []}}
 
 
 def ways_entry(stories: list[tuple[str, str]], founder_act: str | None) -> dict:

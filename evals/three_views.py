@@ -387,6 +387,13 @@ def _bare(text: str | None) -> str:
     return re.sub(r"[.!?,;:\s]+$", "", _norm_words(text).lower())
 
 
+def _names_a_prefix(rows: list[str], said: str | None) -> bool:
+    """keel-cloud 263 / 268 FR-1: beat 3's readback names the limitations a row at a time within its forty words (the
+    way's clause first since 268), so the rows it names are the first ones, at least one, and it stays under forty."""
+    named = [r for r in rows if r not in _named(rows, said)]
+    return bool(named) and rows[:len(named)] == named and len(str(said or "").split()) <= 40
+
+
 def _named(rows: list[str], said: str | None) -> list[str]:
     """The rows `said` does not name (compared without case or end punctuation)."""
     words = _bare(said)
@@ -778,7 +785,7 @@ def tell_on_screen(run: Run, leg: Leg, project_id: str, label: str, *, telling: 
     crosses = list((b3.get("readback") or {}).get("limits") or [])
     leg.check(run, f"{label}: beat 3's answer read into {len(rows)} red crosses (`story-card-limit`), the readback naming "
                    "each, the done word closing the list (next 4)",
-              limits == rows and (not crosses or crosses == rows) and not _named(rows, read3.get("readback"))
+              limits == rows and (not crosses or crosses == rows) and _names_a_prefix(rows, read3.get("readback"))
               and str((b3.get("closed") or {}).get("next") or b3.get("next")) == "4",
               screen="define/story/3", detail={"limits": limits, "crosses": crosses, "want": rows,
                                                "readback": read3.get("readback"), "closed": b3.get("closed"),
@@ -797,11 +804,12 @@ def tell_on_screen(run: Run, leg: Leg, project_id: str, label: str, *, telling: 
               detail={"readback": read5.get("readback"), "sentence": sentence}, stop=False)
     # the boxes, by the quiet (a correction of the condition deferred from beat 5, or of the tasks row)
     fix = ss.tasks_correction(run.readings) if tasks_fix else None
+    # the board as drawn before any correction: its rows are the story's as the beats left it
+    story_before = run.get(f"/v2/projects/{project_id}/story") or {}
     boxes = walk.boxes(correction=fix[0] if fix else None)
     card = boxes["screen"].get("card") or {}
-    story_after = run.get(f"/v2/projects/{project_id}/story") or {}
-    want_rows = {"person": (story_after.get("person") or {}).get("who"), "limits": rows,
-                 "tasks": list(story_after.get("otherTasks") or [])}
+    want_rows = {"person": (story_before.get("person") or {}).get("who"), "limits": rows,
+                 "tasks": list(story_before.get("otherTasks") or [])}
     board = ss.board_rows_verdict(card, want_rows)
     leg.check(run, f"{label}: the board -- *What Keel understood* read by `data-box`: who, job, when, today, falls short, "
                    "costs, other tasks (`tasks` last, keel-web 257 FR-3); *Is that right?*; no button; the quiet confirms "
@@ -855,8 +863,8 @@ def tell_on_screen(run: Run, leg: Leg, project_id: str, label: str, *, telling: 
     leg.check(run, f"{label}: after the film's yes Keel says the verdict line on its card (`story-verdict`), word for "
                    "word the served `verdictLine`, then *Say yes, or just tell me if you want a different bar.*; the "
                    "quiet goes on (keel-web 257 FR-4)",
-              heard_verdict.get("drawn") is True and _bare(heard_verdict.get("words")) == _bare(story.get("verdictLine")
-                                                                                              or ss.VERDICT_LINE)
+              heard_verdict.get("drawn") is True and _bare(story.get("verdictLine") or ss.VERDICT_LINE)
+              in _bare(heard_verdict.get("words"))
               and any(ss.VERDICT_ASK in x for x in heard_verdict.get("said") or []),
               screen="define/story/check (the verdict)", detail={"heard": heard_verdict,
                                                                  "verdictLine": story.get("verdictLine")}, stop=False)
@@ -864,9 +872,11 @@ def tell_on_screen(run: Run, leg: Leg, project_id: str, label: str, *, telling: 
     keep_founder(run, label, project_id, run.get(f"/v2/projects/{project_id}/story") or story, wire=False, beats=beats,
                  telling=telling, heard=heard_verdict)
     if back_to == "solution":
-        leg.check(run, f"{label}: the quiet after the verdict goes back to the solution, Keel saying so",
-                  yes.get("said") in (ss.BACK_TO_SOLUTION, ss.STORY_ASK), screen="define/story/check (story)",
-                  detail=yes, stop=False)
+        said_then = [yes.get("said")] + list((yes.get("verdict") or {}).get("said") or [])
+        leg.check(run, f"{label}: the quiet after the verdict goes back to the solution (the which-problem page, the "
+                       "problem picked)", "start=solution" in str(yes.get("landed") or "")
+                  and (yes.get("said") in (ss.BACK_TO_SOLUTION, ss.STORY_ASK) or (yes.get("verdict") or {}).get("drawn")),
+                  screen="define/story/check (story)", detail={"yes": yes, "said": said_then}, stop=False)
     read = walk.turn_read()
     hand_over_checks(run, leg, label, read, "define/story/*", beat_path=r"/define/story/\d$")
     heard = ss.heard_verdict(read["heard"], said, lambda n: f"/define/story/{n}")

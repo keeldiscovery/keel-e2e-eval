@@ -1267,6 +1267,7 @@ def roster_on_screen(run, leg, project_id: str, *, speaker: str, fmt: str = "TEX
     alone (the face's). The roster's record as `roster_on_the_wire` keeps it."""
     from harness import three_surfaces as ts    # noqa: PLC0415
     view = "orb" if speaker == "ORB" else "avatar"
+    run.load_runtime("PROBLEM", extra={"INTERPRET": [ts.ANCHORED] * 12})      # the stories read ANCHORED (as above)
     own, tasks, act = owner_row_and_tasks(run, project_id)
     people_ = [p for p in ts.ROSTER if not only_no or not p["gate"]]
     names = [f"Stranger {run.stamp} {view} {i}" for i in range(1, len(people_) + (1 if not only_no else 0) + 1)]
@@ -1980,6 +1981,9 @@ def roster_on_the_wire(run, leg, project_id: str, *, view: str = "orb (wire)") -
     Importance) -- each link served, each why asked as the page asks it, each response sent and taken; then one stranger
     who answers the screener No and leaves, counted nowhere."""
     from harness import three_surfaces as ts    # noqa: PLC0415
+    # the roster's stories read ANCHORED, so every yes-sayer's answers count (the run's reading: a GUESSED story is
+    # counted nowhere, and the base script's readings are the corpus people's, in its own order)
+    run.load_runtime("PROBLEM", extra={"INTERPRET": [ts.ANCHORED] * 12})
     names = [f"Stranger {run.stamp} {i}" for i in range(1, len(ts.ROSTER) + 2)]
     links = make_links(run, project_id, names)
     own, tasks, act = owner_row_and_tasks(run, project_id)
@@ -2046,7 +2050,8 @@ def founder_page_on_the_wire(run, leg, project_id: str, roster: dict) -> None:
     `tookBy`, the brief's facts on bands."""
     from harness import three_surfaces as ts    # noqa: PLC0415
     run.load_runtime("PROBLEM", extra={"THEMES": ts.themes_entries(roster["said"]),
-                                       "EXPERIENCE_WAYS": [ts.ways_entry(roster["stories"], roster.get("act"))]})
+                                       "EXPERIENCE_WAYS": [ts.ways_entry(roster["stories"], roster.get("act"))],
+                                       "INTERPRET": [ts.ANCHORED] * 12})
     deadline = time.monotonic() + 120
     overview, standings = {}, {}
     while time.monotonic() < deadline:
