@@ -74,3 +74,21 @@ entry_mean_pct = 80.0
 # Spec 079 FR-7: a cycle is DUE after a registry or instruction change merged in keel-cloud, a routing table or model
 # change, or this many days since the last record. Nothing here runs anything: the founder kicks off.
 days = 7
+
+[film]
+# Spec 163 FR-4 / FR-5: the film, judged (quality/FILM-RUBRIC.md, `make film-walk`, `make read-films`,
+# `make read-film-table`, `make film-advise`). The bar an entry's film_pct is held to -- 80, the gallery's gate
+# ([gallery] entry_mean_pct), the founder's to move: an entry passes at film_pct >= the bar with no 0; a round passes
+# when every entry does.
+film_bar_pct = 80.0
+# The study the film is walked on: the problem film (keel-cloud 268 / 273). The solution film (keel-cloud 271 / 273,
+# S1-S9) is read once the solution batch is walked.
+scopes = ["PROBLEM"]
+# FR-5: the nine entries the founder named as the holdout (2026-11-04, *rules not cases*; quality/decisions.toml's rule:
+# if the five pass and the nine fall short, the round fails). LEFT EMPTY ON PURPOSE: the integrator writes the
+# founder's nine here, from his list, before the paid run -- `make film-walk ENTRIES=holdout` refuses an empty list.
+holdout = []
+# FR-6: the film adviser -- one bounded call per weak criterion through the claude CLI, as quality-advise.
+adviser_model = "claude-opus-5-5"
+adviser_effort = "medium"
+adviser_timeout_s = 300
