@@ -78,6 +78,8 @@ def test_a_block_is_a_step_of_its_own():
     assert ss.step_of(_row(intro="AVATAR", ids=["ai-intro", "ai-mic-test", "ai-mic-block"])) == "intro+block"
     assert ss.step_of(_row(ids=["ai-ended"])) == "ended"
     assert ss.step_of(_row(onStage=True, phase="beat", where="Opening")) == "beat:Opening"
+    # run 1: the stage shown on the Start tap a frame before the flow leaves `intro` -- not a step
+    assert ss.step_of(_row(onStage=True, phase="intro", where="")) is None
 
 
 def test_the_same_walk_on_both_speakers_is_the_same():
@@ -105,6 +107,7 @@ def test_the_report_names_the_two_speakers():
     assert "## The two speakers (spec 160, keel-web 256 on keel-cloud 267)" in md
     assert "| problem | ORB | intro > intro+start > film:problem > film:problem+begin > speaking:Opening" in md
     assert "| - - - - L L S - |" in md and "| - - - - L L L - |" in md
+    assert "| 1 of 1 lit from the first word; all lit at the end on 1 |" in md
     assert "**parts at step 7**: orb `listening:Question 1 of 7`, face `listening:Question 1 of 7` (sizes)" in md
     assert "### problem: where the two speakers part" in md
 

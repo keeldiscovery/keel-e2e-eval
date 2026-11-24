@@ -2118,8 +2118,9 @@ def never_drawn(log: list[dict]) -> dict:
 # face's are compared step for step (`same_walk`).
 
 #: The stage's own moments that are not a step of the walk: the flow's loading and sending (a fetch's length, never the
-#: same twice), and the film's phase where no film is drawn (the frame between the film's end and the opening).
-TRANSIENT_PHASES = ("loading", "sending", "story", None, "")
+#: same twice), the film's phase where no film is drawn (the frame between the film's end and the opening), and the
+#: frame in which the stage is shown on the Start tap before the flow has left `intro` (run 1: `intro:`).
+TRANSIENT_PHASES = ("loading", "sending", "story", "intro", None, "")
 #: The speaker-specific ids are never in `WALK_IDS` (`intro-orb`, `ai-face`, `ai-caption`, `ai-face-state`,
 #: `ai-orb-state`); the speaker's own box is `speaker` on both.
 

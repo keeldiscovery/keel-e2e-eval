@@ -210,11 +210,16 @@ def orb_markdown(orbs: list[dict] | None, speakers: list[dict] | None = None) ->
     out = ["## The two speakers (spec 160, keel-web 256 on keel-cloud 267)", ""]
     if speakers:
         from harness import story_screens as ss    # noqa: PLC0415
-        out += ["| Study | Speaker | Steps, in order | Sizes (L large, S small) | Same walk |", "|---|---|---|---|---|"]
+        out += ["| Study | Speaker | Steps, in order | Sizes (L large, S small) | Words lit (asked steps) | Same walk |",
+                "|---|---|---|---|---|---|"]
         for r in speakers:
             steps = r.get("steps") or []
+            worded = [s for s in steps if s.get("words")]
+            lit = sum(1 for s in worded if s.get("lit_first"))
             out.append(f"| {r.get('study')} | {r.get('speaker')} | {_cell(' > '.join(s.get('step') for s in steps), 400)} | "
-                       f"{_cell(ss.sizes_line(steps), 200)} | {_verdict(r.get('verdict'))} |")
+                       f"{_cell(ss.sizes_line(steps), 200)} | {lit} of {len(worded)} lit from the first word"
+                       f"{'; all lit at the end on ' + str(sum(1 for s in worded if s.get('lit_max') == len(str(s.get('words')).split()))) if worded else ''} | "
+                       f"{_verdict(r.get('verdict'))} |")
         out.append("")
         parted = {r.get("study"): r.get("verdict") for r in speakers
                   if r.get("verdict") and r["verdict"].get("same") is False}
