@@ -8,12 +8,18 @@ place, the film first, speak or tap, nothing typed):
   two rows), served `interviewer.speaker` ORB -- the AI intro with the orb, the mic test, Start, the film first, the
   orb's opening at `/v2/clips/`, the condition, the gate, the items; the orb's states logged through every answer
   (`story_screens.ORB_INTERVIEW_WATCH`); one item answered by its letter, one by its words, one by tap; the story's chip
-  said aloud on one link and tapped on another; a link with the microphone refused walked by taps alone, with no
-  typed box on any screen.
+  said aloud on one link; no typed box on any screen.
 * **avatar** (241 FR-8, 242 FR-4; 159 FR-2): the AI link through the stack's fake renderer and the seam's recorder --
   the face, the film first, Daphne's return, *Back to question n* on every question, the idea's hand-over; the two
   links' opening (and one item) the same words, read off the stack's `speech_clip` row and the recording's script.
   Before the face is set up the kind card's *Try it yourself* opens the dry run on the orb (159 FR-4).
+
+Spec 160 (keel-web 256, the player pared down; the founder: "test for both the interviewers and ensure that it is in
+sync"): the intro's one button and its block (FR-1, FR-2: the microphone refused ends at `ai-mic-block`, allowed again
+-> *Start the interview*, one link a study on each speaker); the orb's voice link and the face's link walked alike --
+the same ways, the film's controls, the replay mark on the first item -- and held equal step for step (FR-3,
+`story_screens.walk_steps` / `same_walk`); the film's two icons, its board and *Begin the interview* (FR-4); the replay
+mark (FR-5); the last page's tick (FR-6). The taps-only walk of 159 FR-3 is gone with the refused path.
 * **copilot** (241 FR-9, 242 FR-4; untouched by 159): a call planned on the project, the card opened headless on the
   fake sources (spec 154's way), the strips in order, *Show the story* / *Story again* growing the window (under half
   the viewport, the card still drawn) and its return, the recorded answer uploaded at End.
@@ -290,14 +296,16 @@ def _lit_after(p, before_q: str, *, timeout_s: float = 12) -> dict:
 
 
 def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None, story: str = "said",
-              speak_or_tap: list | None = None, refused: bool = False, film_ms: int = 1500) -> dict:
-    """The AI player on a link -- the orb or the face -- walked through the seam: the intro (its mic test, or the
-    microphone refused), Start, then the film and the idea's story let play a moment and gone on from, and each window
+              speak_or_tap: list | None = None, film_checks: bool = False, replay: bool = False) -> dict:
+    """The AI player on a link -- the orb or the face -- walked through the seam: the intro (its mic test), Start, the
+    film watched to its end and *Begin the interview* pressed (spec 160 FR-4: `film_checks` also pauses, resumes,
+    starts it over and taps the board for its words first), the idea's story let play to its end, and each window
     answered -- the screener *yes*, the gate *yes* (or the No), the story (`story`: `said` -- a story told, `chip-voice`
     -- *I can't recall one particular ...* said, `chip-tap` -- that chip tapped), each item its first option said (or,
     `speak_or_tap`, the ways still owed -- the letter on a one-pick item, the words, the tap -- each taken off the list
     as an item takes it, so a second link walks what the first had no item for), a follow-up skipped, the pilot *yes*.
-    `refused`: every answer by tap (the story by its chip). Every response the page posted is kept."""
+    `replay` (spec 160 FR-5): on the first item the replay mark is pressed before the answer. Every response the page
+    posted is kept; the last page read once *Microphone off* is drawn (FR-6)."""
     from harness import interviewer_screens as ivs    # noqa: PLC0415
     p = ivs.Player(page, run.recorder)
     responses: list = []
@@ -310,17 +318,15 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
     items = ss.served_items(interview)
     p.open(url)
     intro = p.intro()
-    mic = p.refused_mic_test() if refused else p.mic_test()
+    mic = p.mic_test()
     p.start()
     last_q = None
     said_at = 0.0
     again: dict = {}
     seconds: set = set()
-    # The ways owed (spec 159 FR-3). On a refused link only the tap can be taken (run of record on keel-web 255: the
-    # chip said now ends its link at the story, so the problem's tap moves onto the refused link's first one-pick item).
+    replayed: dict = {}
+    # The ways owed (spec 159 FR-3); a way no item is left for on this study's links is carried to the next study.
     ways = speak_or_tap if speak_or_tap is not None else []
-    if refused:
-        ways = ways if "tap" in ways else []
 
     def answer_row(index: int, how: str, row: dict) -> None:
         """One option row by `how` -- said by its words, said by its letter, or tapped."""
@@ -342,23 +348,7 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
             break
         film = page.get_by_test_id("ai-story")
         if film.count():
-            row = {"screen": "film", "kind": film.first.get_attribute("data-kind"),
-                   "first": film.first.get_attribute("data-first") is not None,
-                   "hand": ss._tc(film.locator(".aiv-story__hand")),
-                   "player": film.locator("[data-testid=story-player], [data-testid=idea-story-player]").count(),
-                   "orb": film.locator(f"[data-testid={ivs.FILM_ORB}] [data-testid=story-orb]").first
-                   .get_attribute("data-state") if film.locator(f"[data-testid={ivs.FILM_ORB}]").count() else None,
-                   "phase": p.phase(), "speaker": p.speaker()}
-            rows.append(row)
-            page.wait_for_timeout(film_ms)                       # let it play a moment, as a person would watch
-            go_on = page.get_by_test_id("ai-story-go-on")
-            if go_on.count():
-                go_on.first.click()
-            page.wait_for_timeout(1500)
-            row["returned"] = {"phase": p.phase(), "story_gone": page.get_by_test_id("ai-story").count() == 0,
-                               "face": page.get_by_test_id("ai-face").count(),
-                               "orb": page.get_by_test_id(ivs.STAGE_ORB).count(),
-                               "video": page.locator("video.aiv-stage__video").count()}
+            rows.append(watch_film(run, p, page, interview, checks=film_checks))
             continue
         phase = p.phase()
         if phase == "confirming":
@@ -368,9 +358,8 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                 p.say("yes")
             page.wait_for_timeout(1500)
             continue
-        # a refused microphone listens to nothing: the sheet stands open (`listening` with no recorder; before keel-web
-        # 254 the story's typed box, `typing`) and waits on a tap
-        if not (phase == "listening" or (refused and phase == "typing")) or (not refused and not p.recorder()["live"]):
+        # spec 160 FR-2: a refused microphone never starts (`blocked_walk`), so every window here records
+        if phase != "listening" or not p.recorder()["live"]:
             page.wait_for_timeout(300)
             continue
         sheet = p.sheet()
@@ -382,10 +371,10 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                 # Importance's second ask (*And one more?*): one pick is a whole answer
                 seconds.add(q)
                 nothing.first.click()
-            elif (refused or str((rows[-1] if rows else {}).get("said") or "").startswith("tap:")) and save.count() \
+            elif str((rows[-1] if rows else {}).get("said") or "").startswith("tap:") and save.count() \
                     and save.first.is_visible() and save.first.is_enabled():
                 save.first.click()                               # a tapped multi-pick finishes on Save and next
-            elif not refused and rows and rows[-1].get("said") and not str(rows[-1]["said"]).startswith(("tap:", "skip")) \
+            elif rows and rows[-1].get("said") and not str(rows[-1]["said"]).startswith(("tap:", "skip")) \
                     and time.monotonic() - said_at > 10 and again.get(q, 0) < 2:
                 # spec 158: the same window still listening ten seconds after the answer -- the words fell between the
                 # recorder's windows (seen once on the money link's check, 2026-11-22): said again, as a person would
@@ -405,15 +394,14 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                "speaker": p.speaker(), "typed": p.typed_boxes()}
         rows.append(row)
         last_q = q
+        if replay and not replayed and step == "item":
+            # spec 160 FR-5: the replay mark on the first item -- the clip again, the window open again -- then the answer
+            replayed = press_replay(p, page, interview, q)
+            row["replay"] = replayed
 
         def yes_no(word: str) -> None:
-            if refused and options:
-                i = _option_index(options, word, 0 if word == "yes" else 1)
-                row["said"] = f"tap: {options[i]}"
-                page.get_by_test_id("ai-sheet").locator("[data-testid=ai-options] .opt").nth(i).click()
-            else:
-                row["said"] = word
-                p.say(word)
+            row["said"] = word
+            p.say(word)
 
         if step == "followUp" or where == ivs.FOLLOW_UP_KICKER:
             row["said"] = "skip"
@@ -425,7 +413,7 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
         elif check and q == check:
             yes_no("no" if no_on == "check" else "yes")
         elif step == "story" or (gate and q == gate.get("storyPrompt")):
-            how = "chip-tap" if refused else story
+            how = story
             row["story"] = how
             if how == "chip-tap" and row["chips"]:
                 row["said"] = f"tap: {row['chips'][0]}"
@@ -441,15 +429,7 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
         elif options:
             item = item_of(items, q)
             row["control"] = item.get("control")
-            if refused and "tap" in ways and item.get("control") in ONE_PICK:
-                ways.remove("tap")
-                row["fr3"] = "tap"
-                answer_row(0, "tap", row)
-                row["read"] = _lit_after(p, q)
-            elif refused:
-                row["said"] = f"tap: {options[0]}"
-                page.get_by_test_id("ai-sheet").locator("[data-testid=ai-options] .opt").nth(0).click()
-            elif len(options) >= 2 and way_for(ways, item.get("control")):
+            if len(options) >= 2 and way_for(ways, item.get("control")):
                 # the letter and the tap on one-pick items, the words on any item with rows (`way_for`)
                 how = way_for(ways, item.get("control"))
                 ways.remove(how)
@@ -463,13 +443,6 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
             # a box with no rows (an amount, a count): its escape, tapped
             row["said"] = f"tap: {sheet['chips'][0]}"
             p.tap_chip()
-        elif refused and page.get_by_test_id("ai-field").count():
-            # a number box with no escape: its digits, the one thing a tap cannot give (judgement call 6)
-            row["said"] = "field: 3"
-            p.fill_field("3")
-            page.wait_for_timeout(300)
-            if page.get_by_test_id("ai-save").count():
-                page.get_by_test_id("ai-save").first.click()
         else:
             row["said"] = "about three"
             p.say(row["said"])
@@ -482,9 +455,166 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
         ss._BrowserStep(run.recorder, page, "participant").screenshot("link-walk-stuck")
         raise AssertionError(json.dumps({"the link never reached its end": str(missed)[:200],
                                          "rows": rows[-6:], "where": p.where_it_stood()}, default=str)[:3000])
-    page.wait_for_timeout(1000)
-    return {"rows": rows, "done": ss._tc(done.first), "intro": intro, "mic": mic, "responses": responses,
-            "log": ss.iv_log(page)}
+    try:                                                  # keel-web 075 FR-4: *Microphone off* once all is let go
+        page.get_by_test_id("ai-mic-off").first.wait_for(state="attached", timeout=8_000)
+    except Exception:  # noqa: BLE001 - read below as missing
+        pass
+    page.wait_for_timeout(500)
+    return {"rows": rows, "done": ss._tc(done.first), "last_page": last_page(page), "intro": intro, "mic": mic,
+            "responses": responses, "log": ss.iv_log(page), "plays": ss.iv_plays(page), "replay": replayed}
+
+
+# ------------------------------------------------------------------------------------------------ spec 160 machinery
+
+def opening_clip(interview: dict) -> str | None:
+    """The opening's clip id as served (`interviewer.clips.opening.clipId`)."""
+    return (((interview.get("interviewer") or {}).get("clips") or {}).get("opening") or {}).get("clipId")
+
+
+def item_clip(interview: dict, question: str) -> str | None:
+    """The clip id of the served item a sheet's question is (`interviewer.items[itemId].clip.clipId`)."""
+    item = item_of(ss.served_items(interview), question)
+    entry = ((interview.get("interviewer") or {}).get("items") or {}).get(item.get("itemId")) or {}
+    return (entry.get("clip") or {}).get("clipId")
+
+
+def _plays_after(page, since_ms: float) -> list:
+    return [x for x in ss.iv_plays(page) if float(x[0]) >= since_ms]
+
+
+def film_controls(p, page, *, timeout_s: float = 60) -> dict:
+    """Spec 160 FR-4 (keel-web 256 FR-3): on the film while it plays -- read first (nothing above the board, the two
+    icons), then once three strokes are on the board: pause (the icon flips, the drawing holds for 1.5 s), resume, start
+    over (the board drawn from the start again), and the board tapped (the lines under it) and tapped again (gone)."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    out: dict = {"first": p.film(), "speaker": p.speaker_box()}
+    deadline = time.monotonic() + timeout_s
+    f = out["first"]
+    while time.monotonic() < deadline:
+        f = p.film()
+        if not f.get("drawn") or f.get("begin") or ((f.get("sig") or {}).get("on") or 0) >= 3:
+            break
+        page.wait_for_timeout(150)
+    out["playing"] = f
+    if not f.get("drawn") or f.get("begin"):
+        out["missed"] = "the film ended (or went) before three strokes were drawn"
+        return out
+    page.get_by_test_id(ivs.FILM_PAUSE).first.click()
+    page.wait_for_timeout(300)
+    held = p.film()
+    page.wait_for_timeout(1500)
+    out["paused"] = {"at": held, "later": p.film()}
+    page.get_by_test_id(ivs.FILM_PAUSE).first.click()
+    page.wait_for_timeout(1500)
+    out["resumed"] = p.film()
+    before = p.film()
+    page.get_by_test_id(ivs.FILM_AGAIN).first.click()
+    page.wait_for_timeout(150)
+    out["again"] = {"before": before, "after": p.film()}
+    page.get_by_test_id(ivs.FILM_BOARD).first.click()
+    page.wait_for_timeout(250)
+    out["shown"] = p.film()
+    page.get_by_test_id(ivs.FILM_BOARD).first.click()
+    page.wait_for_timeout(250)
+    out["hidden"] = p.film()
+    return out
+
+
+def watch_film(run, p, page, interview: dict, *, checks: bool = False, timeout_s: float = 240) -> dict:
+    """The film on the stage, watched to its end. The problem's film (keel-web 256 FR-3) ends on *Begin the interview*
+    (`ai-film-begin`): held 2 s with nothing pressed (`at_end`: nothing played, the phase still the film, no speaker
+    seen), then pressed (`after`: the first clip played after the press, the speaker seen and its size). The idea's
+    story goes on by itself at its end. `checks`: `film_controls` first (FR-4)."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    film = page.get_by_test_id("ai-story").first
+    kind = film.get_attribute("data-kind")
+    row = {"screen": "film", "kind": kind, "first": film.get_attribute("data-first") is not None,
+           "hand": ss._tc(film.locator(".aiv-story__hand")),
+           "player": film.locator("[data-testid=story-player], [data-testid=idea-story-player]").count(),
+           "phase": p.phase(), "speaker": p.speaker(), "read": p.film()}
+    limit = timeout_s * 1000 * p.patience
+    if kind == "idea":
+        try:
+            page.locator("[data-testid=ai-story][data-kind=idea]").first.wait_for(state="detached", timeout=limit)
+        except Exception as missed:  # noqa: BLE001 - recorded
+            row["stuck"] = str(missed)[:200]
+        row["returned"] = returned(p, page)
+        return row
+    if checks:
+        row["controls"] = film_controls(p, page)
+    begin = page.get_by_test_id(ivs.FILM_BEGIN)
+    try:
+        begin.first.wait_for(state="visible", timeout=limit)
+    except Exception as missed:  # noqa: BLE001 - recorded; the walk goes on where it can
+        row["stuck"] = str(missed)[:200]
+        row["returned"] = returned(p, page)
+        return row
+    shown_at = p.now_ms()
+    page.wait_for_timeout(2000)
+    row["at_end"] = {"film": p.film(), "phase": p.phase(), "plays": _plays_after(page, shown_at),
+                     "speaker": p.speaker_box(), "words": page.get_by_test_id(ivs.WORDS).count(),
+                     "begin": ss._tc(begin)}
+    pressed_at = p.now_ms()
+    begin.first.click()
+    try:
+        page.get_by_test_id("ai-story").first.wait_for(state="detached", timeout=10_000)
+        p.wait_phase("speaking", "listening", "beat", timeout_s=15)
+    except Exception as missed:  # noqa: BLE001 - recorded
+        row["stuck"] = str(missed)[:200]
+    page.wait_for_timeout(200)
+    row["after"] = {"plays": _plays_after(page, pressed_at)[:4], "phase": p.phase(), "speaker": p.speaker_box(),
+                    "opening": opening_clip(interview)}
+    row["returned"] = returned(p, page)
+    return row
+
+
+def returned(p, page) -> dict:
+    """What the stage drew once the film was gone."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    return {"phase": p.phase(), "story_gone": page.get_by_test_id("ai-story").count() == 0,
+            "face": page.get_by_test_id("ai-face").count(), "orb": page.get_by_test_id(ivs.STAGE_ORB).count(),
+            "video": page.locator("video.aiv-stage__video").count()}
+
+
+def press_replay(p, page, interview: dict, question: str, *, timeout_s: float = 20) -> dict:
+    """Spec 160 FR-5 (keel-web 256 FR-4): the replay mark (`ai-replay`, *Hear the question again*) pressed on a question
+    whose window is open: the item's clip plays again (`plays`, by `data-clip`), the stage speaks, and the window opens
+    again (a recording begun after the press, the phase listening)."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    mark = page.get_by_test_id(ivs.REPLAY)
+    out = {"question": question, "clip": item_clip(interview, question), "drawn": mark.count(),
+           "label": mark.first.get_attribute("aria-label") if mark.count() else None,
+           "again_drawn": page.get_by_test_id(ivs.AGAIN_RETIRED).count()}
+    if not mark.count():
+        return out
+    made = p.recorder()["count"]
+    pressed_at = p.now_ms()
+    mark.first.click()
+    try:
+        p.wait_listening(newer_than=made, timeout_s=timeout_s)
+        p.wait_phase("listening", timeout_s=timeout_s)
+        out["reopened"] = True
+    except Exception as missed:  # noqa: BLE001 - recorded
+        out["reopened"] = False
+        out["stuck"] = str(missed)[:200]
+    out["plays"] = _plays_after(page, pressed_at)[:4]
+    out["phase"] = p.phase()
+    return out
+
+
+def last_page(page) -> dict:
+    """Spec 160 FR-6 (keel-web 256 FR-7): the last page as drawn -- the tick (`ai-done-tick`) and whether the title
+    follows it, the title, the words."""
+    return page.evaluate(r"""() => {
+        const done = document.querySelector('[data-testid=ai-done]');
+        if (!done) return { drawn: false };
+        const tick = done.querySelector('[data-testid=ai-done-tick]');
+        const h1 = done.querySelector('h1');
+        const t = (el) => (el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : null);
+        return { drawn: true, tick: !!tick, title: t(h1),
+                 tick_first: !!(tick && h1 && (tick.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING)),
+                 mic_off: !!document.querySelector('[data-testid=ai-mic-off]'), text: t(done) };
+    }""")
 
 
 def avatar_walk(run, page, url: str, interview: dict, *, no_on: str | None = None) -> dict:
@@ -543,19 +673,58 @@ def film_first_checks(run, leg, walked: dict, *, view: str, study: str) -> None:
                   detail={"films": films, "drift": "runs/DRIFT.md #106" if study == "money" else None}, stop=False)
 
 
-def orb_screen_checks(run, leg, walked: dict, *, view: str, label: str) -> None:
-    """159 FR-1: the orb's intro (the avatar's, with the orb), the orb on the stage, no `<video>`, nothing an orb link
-    never draws."""
+def question_count(interview: dict) -> int:
+    """keel-web `questionCount`: the screener where the link asks one, the gate on a FULL link, and every item -- the
+    count the intro's headline says."""
+    items = sum(len(part.get("items") or []) for part in interview.get("parts") or [])
+    gate = 1 if interview.get("kind", "FULL") == "FULL" and interview.get("gate") else 0
+    return (1 if fake.condition_of(interview) else 0) + gate + items
+
+
+def intro_checks(run, leg, walked: dict, interview: dict, *, view: str, label: str, speaker: str,
+                 name: str | None = None) -> None:
+    """Spec 160 FR-1 (keel-web 256 FR-1, FR-2): the pared-down first screen on either speaker -- the orb (or her face)
+    beside *{founder} has {n} questions for you.*, *A spoken interview with Keel (her name), an AI interviewer, not a
+    person.* under it, the one sentence, the chips, *What happens to your answers* closed with the microphone line, the
+    transcriber line and the consent inside it, and one button: *Test your mic* before the hello, *Start the interview*
+    in its place after, never both."""
     from harness import interviewer_screens as ivs    # noqa: PLC0415
     intro = walked.get("intro") or {}
-    text = intro.get("text") or ""
-    leg.check(run, f"{label}: the AI intro with the orb -- *{ivs.ORB_NAME} will ask you ...*, *{ivs.ORB_NOT_A_PERSON}*, "
-                   "the consent, the mic test and Start; no choice buttons",
-              intro.get("speaker") == ivs.SPEAKER_ORB and intro.get("orb", 0) >= 1
-              and str(intro.get("heading") or "").startswith(f"{ivs.ORB_NAME} will ask you")
-              and ivs.ORB_NOT_A_PERSON in text and "What happens to your answers" in text
-              and intro.get("mic_test") and intro.get("buttons") == ["start-talking"],
-              screen="the AI intro", view=view, detail=intro)
+    after = (walked.get("mic") or {}).get("after") or {}
+    who = ivs.ORB_NAME if speaker == ivs.SPEAKER_ORB else (name or "")
+    founder = ivs.intro_founder(interview)
+    heading = ivs.ai_intro_heading(founder, question_count(interview))
+    answers = intro.get("answers") or {}
+    lines = answers.get("lines") or []
+    leg.check(run, f"{label}: the intro's headline *{heading}* and *{ivs.ai_intro_spoken(who)}* under it "
+                   f"({'the orb' if speaker == ivs.SPEAKER_ORB else 'her portrait'} beside them)",
+              intro.get("speaker") == speaker and intro.get("heading") == heading
+              and intro.get("spoken") == ivs.ai_intro_spoken(who)
+              and (intro.get("orb", 0) >= 1 if speaker == ivs.SPEAKER_ORB else not intro.get("orb")),
+              screen="the AI intro", view=view,
+              detail={k: intro.get(k) for k in ("speaker", "orb", "heading", "spoken", "study")} | {"want": heading})
+    chips = ivs.ai_intro_chips(interview.get("minutes"))
+    leg.check(run, f"{label}: one sentence (*{ivs.ai_intro_asks(who)[:40]}...*), the chips {chips}, and *What happens to "
+                   "your answers* closed, holding the microphone line, the transcriber line and the consent",
+              intro.get("asks") == ivs.ai_intro_asks(who) and intro.get("chips") == chips
+              and answers.get("drawn") and not answers.get("open") and answers.get("summary") == ivs.CONSENT_HEADING
+              and lines[:2] == [ivs.AI_INTRO_MIC_LINE, ivs.INTRO_TRANSCRIBED]
+              and len(lines) == 3 and lines[2] == " ".join(str(interview.get("consentText") or "").split()),
+              screen="the AI intro", view=view, detail={"asks": intro.get("asks"), "chips": intro.get("chips"),
+                                                        "want chips": chips, "answers": answers})
+    leg.check(run, f"{label}: one button -- *{ivs.MIC_TEST}* before the hello, *{ivs.START_THE_INTERVIEW}* in its place "
+                   "once *Heard: hello* (`ai-mic-test` -> `ai-start`, never both)",
+              intro.get("buttons") == ["ai-mic-test"] and after.get("buttons") == ["ai-start"]
+              and after.get("mic_heard") == ivs.mic_heard("hello") and not intro.get("fallback"),
+              screen="the AI intro", view=view,
+              detail={"before": intro.get("buttons"), "after": after.get("buttons"), "heard": after.get("mic_heard")})
+
+
+def orb_screen_checks(run, leg, walked: dict, interview: dict, *, view: str, label: str) -> None:
+    """159 FR-1 (the stage) with 160 FR-1's intro: the orb on the stage, no `<video>`, nothing an orb link never
+    draws."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    intro_checks(run, leg, walked, interview, view=view, label=label, speaker=ivs.SPEAKER_ORB)
     log = walked.get("log") or []
     stage = [r for r in log if r.get("onStage")]
     leg.check(run, f"{label}: the orb asks on the stage (`data-speaker` ORB), no `<video>` anywhere",
@@ -567,6 +736,223 @@ def orb_screen_checks(run, leg, walked: dict, *, view: str, label: str) -> None:
     leg.check(run, f"{label}: no voice bar, no *Read and tap*, no talk-or-write choice on any screen",
               not never["voice_bar"] and not never["read_and_tap"] and not never["choice"], screen="every screen",
               view=view, detail=never)
+
+
+def retired_checks(run, leg, walked: dict, *, view: str, label: str) -> None:
+    """Spec 160 FR-1 / FR-4 / FR-5: what keel-web 256 retired is drawn on no screen of the link -- the film's orb
+    (`ai-story-orb`), *Go on to the question* (`ai-story-go-on`), *Say it again* (`ai-again`), the mic fallback
+    (`ai-mic-fallback`)."""
+    log = walked.get("log") or []
+    seen = {"ai-story-orb": any(r.get("filmOrb") for r in log), "ai-story-go-on": any(r.get("goOn") for r in log),
+            "ai-again": any(r.get("again") for r in log), "ai-mic-fallback": any(r.get("fallback") for r in log)}
+    leg.check(run, f"{label}: none of 256's retired ids on any screen (`ai-story-orb`, `ai-story-go-on`, `ai-again`, "
+                   "`ai-mic-fallback`)", not any(seen.values()), screen="every screen", view=view, detail=seen,
+              stop=False)
+
+
+def film_checks(run, leg, walked: dict, interview: dict, *, view: str) -> None:
+    """Spec 160 FR-4 (keel-web 256 FR-3) on the problem's film: nothing above the board, two icons and no worded button,
+    pause flips and holds, resume, start over, the board's words shown and hidden, the end drawing *Begin the
+    interview* with nothing played until it is pressed, then the opening and the speaker."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    film = next((r for r in walked.get("rows") or [] if r.get("screen") == "film" and r.get("kind") == "problem"), {})
+    c = film.get("controls") or {}
+    first = c.get("first") or film.get("read") or {}
+    inside = first.get("inside") or {}
+    speaker = c.get("speaker") or {}
+    leg.check(run, "the film: no speaker above the board -- no orb, face or `<video>` inside it, the speaker's box "
+                   "under it", bool(first.get("drawn")) and not any(inside.values())
+              and not (speaker.get("seen") and not speaker.get("covered")) and first.get("covered") is not False,
+              screen="the film", view=view, detail={"inside": inside, "covered": first.get("covered"),
+                                                    "speaker": speaker}, stop=False)
+    leg.check(run, "the film: two icons under the board (`ai-film-pause`, `ai-film-again`), no worded button",
+              bool(first.get("pause")) and bool(first.get("again")) and not first.get("worded")
+              and not first.get("begin"), screen="the film", view=view,
+              detail={k: first.get(k) for k in ("pause", "again", "worded", "begin", "pauseLabel")}, stop=False)
+    paused = c.get("paused") or {}
+    at, later = paused.get("at") or {}, paused.get("later") or {}
+    leg.check(run, f"the film: pause flips the icon (*{ivs.FILM_RESUME_LABEL}*) and holds the drawing for 1.5 s",
+              at.get("state") == "paused" and at.get("pauseLabel") == ivs.FILM_RESUME_LABEL
+              and at.get("paused") == "true" and bool(at.get("sig")) and at.get("sig") == later.get("sig"),
+              screen="the film · pause", view=view,
+              detail={"playing": (c.get("playing") or {}).get("sig"), "at": {k: at.get(k) for k in
+                                                                              ("state", "pauseLabel", "paused", "sig")},
+                      "later": later.get("sig"), "missed": c.get("missed")}, stop=False)
+    resumed = c.get("resumed") or {}
+    again = c.get("again") or {}
+    before, after = (again.get("before") or {}).get("sig") or {}, (again.get("after") or {}).get("sig") or {}
+    leg.check(run, f"the film: resumed (*{ivs.FILM_PAUSE_LABEL}* again), then *Start over* draws it from the start",
+              resumed.get("state") == "playing" and resumed.get("pauseLabel") == ivs.FILM_PAUSE_LABEL
+              and (again.get("after") or {}).get("state") == "playing"
+              and (before.get("on") or 0) > (after.get("on") or 0), screen="the film · start over", view=view,
+              detail={"resumed": {k: resumed.get(k) for k in ("state", "pauseLabel", "sig")}, "before": before,
+                      "after": after}, stop=False)
+    shown, hidden = c.get("shown") or {}, c.get("hidden") or {}
+    leg.check(run, "the film: a tap on the board shows its lines under it, a second tap hides them",
+              shown.get("read") and shown.get("expanded") == "true" and bool(shown.get("lines"))
+              and not hidden.get("read") and hidden.get("expanded") == "false", screen="the film · the board",
+              view=view, detail={"shown": {k: shown.get(k) for k in ("expanded", "lines")},
+                                 "hidden": {k: hidden.get(k) for k in ("read", "expanded")}}, stop=False)
+    end = film.get("at_end") or {}
+    end_film = end.get("film") or {}
+    leg.check(run, f"the film's end: *{ivs.FILM_BEGIN_WORDS}* in the icons' place, and for 2 s nothing plays, the "
+                   "stage stays on the film, no speaker seen, no words",
+              end.get("begin") == ivs.FILM_BEGIN_WORDS and not end_film.get("pause") and not end.get("plays")
+              and end.get("phase") == "story" and not ((end.get("speaker") or {}).get("seen")
+                                                       and not (end.get("speaker") or {}).get("covered"))
+              and not end.get("words"), screen="the film's end", view=view,
+              detail={"begin": end.get("begin"), "plays": end.get("plays"), "phase": end.get("phase"),
+                      "speaker": end.get("speaker"), "stuck": film.get("stuck")}, stop=False)
+    after_press = film.get("after") or {}
+    plays = after_press.get("plays") or []
+    first_clip = plays[0][3] if plays and len(plays[0]) > 3 else None
+    box = after_press.get("speaker") or {}
+    leg.check(run, "after *Begin the interview*: the opening's clip is the first to play, and the speaker is drawn "
+                   "(large, as it asks)", bool(plays) and first_clip == after_press.get("opening")
+              and box.get("seen") and not box.get("covered") and box.get("size") == ivs.SIZE_LARGE,
+              screen="Begin the interview -> the opening", view=view,
+              detail={"plays": plays, "opening": after_press.get("opening"), "speaker": box,
+                      "phase": after_press.get("phase")}, stop=False)
+
+
+def replay_checks(run, leg, walked: dict, *, view: str) -> None:
+    """Spec 160 FR-5 (keel-web 256 FR-4): the replay mark on the first item -- *Hear the question again* -- plays the
+    item's clip again and the window opens again; *Say it again* (`ai-again`) is drawn nowhere."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    r = walked.get("replay") or {}
+    played = [x[3] for x in r.get("plays") or [] if len(x) > 3]
+    leg.check(run, f"the replay mark (*{ivs.REPLAY_LABEL}*) on the first item plays its clip again and opens the "
+                   "window again", bool(r.get("drawn")) and r.get("label") == ivs.REPLAY_LABEL
+              and bool(r.get("clip")) and r.get("clip") in played and r.get("reopened") is True
+              and not r.get("again_drawn"), screen="an item · the replay mark", view=view,
+              detail={k: r.get(k) for k in ("question", "clip", "drawn", "label", "plays", "reopened", "phase",
+                                            "again_drawn", "stuck")}, stop=False)
+
+
+def chip_checks(run, leg, walked: dict, *, view: str, speaker: str, name: str | None = None) -> None:
+    """Spec 160 FR-1 (keel-web 256 FR-5, FR-6, judgement call 9): the chip that says it is an AI -- on the orb *Keel ·
+    AI interviewer* with the orb; on the face *{name} · AI interviewer* in her caption band while she speaks (large)
+    and in her column under her portrait once the sheet opens (small)."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    rows = [r for r in walked.get("log") or [] if r.get("onStage") and not r.get("film") and r.get("chip")]
+    want = ivs.MARK if speaker == ivs.SPEAKER_ORB else ivs.face_mark(name or "")
+    words = sorted({r.get("chip") for r in rows})
+    if speaker == ivs.SPEAKER_ORB:
+        places = sorted({str(r.get("chipIn")) for r in rows})
+        ok = bool(rows) and words == [want] and places == ["orb"]
+    else:
+        wrong = [(r.get("size"), r.get("chipIn")) for r in rows
+                 if (r.get("size"), r.get("chipIn")) not in (("large", "caption"), ("small", "facecol"))]
+        places = sorted({f"{r.get('size')}:{r.get('chipIn')}" for r in rows})
+        ok = bool(rows) and words == [want] and not wrong
+    leg.check(run, f"the chip *{want}* -- " + ("with the orb" if speaker == ivs.SPEAKER_ORB else
+                                                "in her caption band while she asks, under her portrait once the "
+                                                "sheet opens"), ok, screen="the stage · the chip", view=view,
+              detail={"words": words, "places": places}, stop=False)
+
+
+def last_page_checks(run, leg, walked: dict, interview: dict, *, view: str) -> None:
+    """Spec 160 FR-6 (keel-web 256 FR-7, judgement call 8): the last page -- the tick, then *Done. Your answers have
+    gone to {founder}.*, *Microphone off*, *What is Keel?*; the served thanks sentence is not drawn."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    page = walked.get("last_page") or {}
+    title = ivs.ai_done_title(ivs.intro_founder(interview))
+    thanks = " ".join(str((interview.get("done") or {}).get("thanks") or "").split())
+    text = page.get("text") or ""
+    leg.check(run, f"the last page: the tick, then *{title}*, *{ivs.MIC_OFF}*, *{ivs.WHAT_IS_KEEL}*; the served thanks "
+                   "not drawn", bool(page.get("drawn")) and page.get("tick") and page.get("tick_first")
+              and page.get("title") == title and page.get("mic_off") and ivs.WHAT_IS_KEEL in text
+              and (not thanks or thanks not in text), screen="the last page", view=view,
+              detail={**{k: page.get(k) for k in ("tick", "tick_first", "title", "mic_off")}, "want": title,
+                      "served thanks": thanks, "text": text[:300]}, stop=False)
+
+
+def blocked_walk(run, url: str, *, shot: str) -> dict:
+    """Spec 160 FR-2 (keel-web 256 FR-2): a stranger's browser with the microphone refused -- *Test your mic* ends at
+    the block and nothing starts; then the microphone allowed (`Player.allow_mic`) and *Test your mic* pressed again:
+    *Heard: hello* and *Start the interview* (not pressed: the link is left unanswered)."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    stranger = run.browser.new_context()
+    try:
+        stranger.add_init_script(ivs.speech_seam(refused=True))
+        stranger.add_init_script(ss.ORB_INTERVIEW_WATCH)
+        page = stranger.new_page()
+        p = ivs.Player(page, run.recorder)
+        intro = p.open(url)
+        refused = p.refused_mic_test()
+        ss._BrowserStep(run.recorder, page, "participant").screenshot(shot)
+        p.allow_mic()
+        try:
+            allowed = p.mic_test()
+        except Exception as missed:  # noqa: BLE001 - recorded on the check
+            allowed = {"stuck": str(missed)[:200], "after": p.intro()}
+        log = ss.iv_log(page)
+        return {"intro": intro, "refused": refused, "allowed": allowed, "log": log}
+    finally:
+        stranger.close()
+
+
+def block_line(blocked: dict) -> str:
+    """What the report keeps of a refused link: the block's words, the buttons at it, the buttons once allowed."""
+    r = blocked.get("refused") or {}
+    after = (blocked.get("allowed") or {}).get("after") or {}
+    return (f"refused: {(r.get('block') or {}).get('line')} / {(r.get('block') or {}).get('how')}; buttons "
+            f"{(r.get('at') or {}).get('buttons')}; stage shown {r.get('stage_shown')}; allowed again: buttons "
+            f"{after.get('buttons')}, {after.get('mic_heard')}")
+
+
+def blocked_checks(run, leg, blocked: dict, *, view: str) -> None:
+    """Spec 160 FR-2: the block, no Start, no stage, no question; the microphone allowed again -> *Start the
+    interview*."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    r = blocked.get("refused") or {}
+    at, later = r.get("at") or {}, r.get("after") or {}
+    log = blocked.get("log") or []
+    leg.check(run, f"the microphone refused: the block (*{ivs.MIC_BLOCK}* and how to allow it), the button still "
+                   f"*{ivs.MIC_TEST}*, no *{ivs.START_THE_INTERVIEW}*",
+              (r.get("block") or {}).get("line") == ivs.MIC_BLOCK and (r.get("block") or {}).get("how") == ivs.MIC_BLOCK_HOW
+              and at.get("buttons") == ["ai-mic-test"] and later.get("buttons") == ["ai-mic-test"]
+              and at.get("mic_test_words") == ivs.MIC_TEST and not at.get("fallback"),
+              screen="the AI intro · refused", view=view,
+              detail={"block": r.get("block"), "buttons": [at.get("buttons"), later.get("buttons")],
+                      "button": at.get("mic_test_words"), "fallback": at.get("fallback")})
+    leg.check(run, "the microphone refused: nothing starts -- no stage, no question ever drawn",
+              not r.get("stage_shown") and not r.get("sheet") and not any(r_.get("onStage") for r_ in log)
+              and not any(r_.get("question") for r_ in log), screen="the AI intro · refused", view=view,
+              detail={"stage": r.get("stage_shown"), "sheet": r.get("sheet"), "phase": r.get("phase"),
+                      "on stage": sum(1 for r_ in log if r_.get("onStage"))})
+    allowed = blocked.get("allowed") or {}
+    after = allowed.get("after") or {}
+    leg.check(run, f"the microphone allowed again: *{ivs.MIC_TEST}* once more -> *Heard: hello* and *{ivs.START_THE_INTERVIEW}*",
+              after.get("buttons") == ["ai-start"] and after.get("mic_heard") == ivs.mic_heard("hello")
+              and not (after.get("block") or {}).get("drawn"), screen="the AI intro · allowed", view=view,
+              detail={"buttons": after.get("buttons"), "heard": after.get("mic_heard"), "block": after.get("block"),
+                      "stuck": allowed.get("stuck")})
+
+
+def speaker_walk(run, study: str, speaker: str, walked: dict) -> list[dict]:
+    """Spec 160 FR-3: the walk's steps kept for the comparison and the report."""
+    steps = ss.walk_steps(walked.get("log") or [])
+    run.__dict__.setdefault("speaker_walks", {}).setdefault(study, {})[speaker] = steps
+    return steps
+
+
+def same_walk_check(run, leg, study: str, *, view: str) -> None:
+    """Spec 160 FR-3: the orb's link and the face's, walked alike, are the same walk step for step (the state word, the
+    speaker's size, the ids drawn, the words lit) -- or the leg fails naming the step they part at."""
+    walks = (run.__dict__.get("speaker_walks") or {}).get(study) or {}
+    orb, face = walks.get("ORB"), walks.get("AVATAR")
+    if orb is None or face is None:
+        verdict = {"same": None, "why": "the orb's walk was not recorded" if orb is None else "no face walk"}
+    else:
+        verdict = ss.same_walk(orb, face)
+    run.__dict__.setdefault("speaker_verdicts", {})[study] = verdict
+    where = "" if verdict.get("same") or verdict.get("at") is None else \
+        f" -- they part at step {verdict['at'] + 1}: orb `{(verdict.get('orb') or {}).get('step')}`, face " \
+        f"`{(verdict.get('face') or {}).get('step')}` ({', '.join(verdict.get('differs') or [])})"
+    leg.check(run, "the same walk on both speakers: the orb's link and the face's, step for step -- the state, the "
+                   "speaker's size, the ids drawn, the words lit" + where, verdict.get("same") is True,
+              screen="every screen (both links)", view=view, detail=verdict, stop=False)
 
 
 def orb_states_check(run, leg, walked: dict, *, view: str) -> None:
@@ -583,8 +969,9 @@ def orb_states_check(run, leg, walked: dict, *, view: str) -> None:
 def speak_or_tap_checks(run, leg, rows: list[dict], *, view: str, study: str) -> None:
     """159 FR-3: one item by its letter (*B* holds the second row), one by its words, one by tap (the first row) --
     over the voice links' rows, across the three studies. A problem link hosts two items with rows at most (the chip
-    said and the refused link both end at the story's chip, keel-web 255), so a way no item was left for on one study
-    is carried to the next; on the last study (money) a way never taken anywhere is the failed check."""
+    said ends its link at the story's chip, keel-web 255; since spec 160 the refused link never starts), so a way no
+    item was left for on one study is carried to the next; on the last study (money) a way never taken anywhere is the
+    failed check."""
     tried = {r["fr3"]: r for r in rows if r.get("fr3")}
     seen = run.__dict__.setdefault("fr3_seen", set())
     seen.update(tried)
@@ -624,8 +1011,10 @@ def no_typed_box_check(run, leg, walked: dict, *, view: str, label: str) -> None
 
 def orb_view(run, leg, study: str, project_id: str) -> None:
     """Spec 159 FR-1, FR-3, FR-4: the TEXT link is the orb. Four links (three on money, which has no story): the walk
-    by voice (a story told; letter, words, tap), the story's chip said aloud, the microphone refused and walked by taps,
-    and the No; then the film on a phone (158b), and the ledger (no charge for the orb's clips)."""
+    by voice (a story told; letter, words, tap -- spec 160: the film's controls, the replay mark, the last page, and the
+    walk's steps kept for the face's to be held to), the story's chip said aloud, the microphone refused (spec 160 FR-2:
+    the block, then allowed), and the No; then the film on a phone (158b), and the ledger (no charge for the orb's
+    clips)."""
     from harness import interview_charge as charge    # noqa: PLC0415
     from harness import interviewer_screens as ivs    # noqa: PLC0415
     names = people(run, "PROBLEM")
@@ -641,12 +1030,21 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
     leg.check(run, "the orb's opening clip is served to a stranger with no cookie (audio, FakeSpeech's)",
               got.get("status") == 200 and "audio" in str(got.get("type") or ""), screen="GET /v2/clips/{id}",
               view=f"{view} (wire)", detail=got)
-    # 1. by voice: a story told; one item by its letter, one by its words, one by tap
+    # 1. by voice: a story told; one item by its letter, one by its words, one by tap; the film's controls and the
+    # replay mark (spec 160 FR-4, FR-5) -- the walk the face's is held to (FR-3)
     ways = list(SPEAK_OR_TAP)          # owed across the voice links (a problem link has two items with rows)
-    walked = walk_link(run, made["url"], interview, shot=f"orb-{study}-done", speak_or_tap=ways)
+    walked = walk_link(run, made["url"], interview, shot=f"orb-{study}-done", speak_or_tap=ways, film_checks=True,
+                       replay=True)
+    steps = speaker_walk(run, study, ivs.SPEAKER_ORB, walked)
     run.orbs.append({"study": study, "link": "voice", **summary(walked)})
-    orb_screen_checks(run, leg, walked, view=view, label="by voice")
+    orb_screen_checks(run, leg, walked, interview, view=view, label="by voice")
+    retired_checks(run, leg, walked, view=view, label="by voice")
     film_first_checks(run, leg, walked, view=view, study=study)
+    film_checks(run, leg, walked, interview, view=view)
+    replay_checks(run, leg, walked, view=view)
+    last_page_checks(run, leg, walked, interview, view=view)
+    chip_checks(run, leg, walked, view=view, speaker=ivs.SPEAKER_ORB)
+    leg.notes.append(f"the orb's walk ({study}): {len(steps)} steps -- " + " > ".join(s_["step"] for s_ in steps)[:600])
     orb_states_check(run, leg, walked, view=view)
     no_typed_box_check(run, leg, walked, view=view, label="by voice")
     sent = first_response(walked)
@@ -678,29 +1076,13 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
                   view=view, detail={"said": chip_row.get("said"), "sent": {k: body.get(k) for k in
                                                                             ("recency", "anchorChip", "story", "gate")},
                                      "answers": len(body.get("answers") or []), "done": said["done"]}, stop=False)
-    # 3. the microphone refused: the lot by taps, no typed box (and the tap still owed, on its first one-pick item)
-    tap_link = tv.send_link(run, leg, f"{study}-orb-taps", project_id, "TEXT", person=person_at(names, 9),
-                            decider=decider)
-    tap_wire, _ = read_served(run, tap_link["url"])
-    tapped = walk_link(run, tap_link["url"], tap_wire, shot=f"orb-{study}-taps", refused=True, speak_or_tap=ways)
-    speak_or_tap_checks(run, leg, walked["rows"] + (said["rows"] if study != "money" else []) + tapped["rows"],
-                        view=view, study=study)
-    run.orbs.append({"study": study, "link": "the microphone refused", **summary(tapped)})
-    leg.check(run, "the microphone refused: *Test your mic* reads the fallback, Start goes on",
-              bool((tapped.get("mic") or {}).get("fallback")), screen="the AI intro", view=f"{view} · refused",
-              detail=tapped.get("mic"))
-    taps = [r for r in tapped["rows"] if r["screen"] == "question"]
-    spoken = [(r["question"], r.get("said")) for r in taps if not str(r.get("said") or "").startswith(("tap:", "skip",
-                                                                                                         "field:"))]
-    body = first_response(tapped).get("sent") or {}
-    leg.check(run, "the microphone refused: the interview walked by taps alone to its end (the story by its chip)",
-              bool(taps) and not spoken and bool(tapped["done"]) and first_response(tapped).get("status") in (200, 201),
-              screen="every question", view=f"{view} · refused",
-              detail={"said": spoken, "rows": [(r["question"][:60], r.get("said")) for r in taps],
-                      "response": {"status": first_response(tapped).get("status"),
-                                   "anchorChip": body.get("anchorChip"), "answers": len(body.get("answers") or [])},
-                      "done": tapped["done"]})
-    no_typed_box_check(run, leg, tapped, view=f"{view} · refused", label="the microphone refused")
+    speak_or_tap_checks(run, leg, walked["rows"] + (said["rows"] if study != "money" else []), view=view, study=study)
+    # 3. the microphone refused: the block, nothing starts; allowed again, Start (spec 160 FR-2)
+    block_link = tv.send_link(run, leg, f"{study}-orb-block", project_id, "TEXT", person=person_at(names, 9),
+                              decider=decider)
+    blocked = blocked_walk(run, block_link["url"], shot=f"orb-{study}-blocked")
+    run.orbs.append({"study": study, "link": "the microphone refused", "block": block_line(blocked)})
+    blocked_checks(run, leg, blocked, view=f"{view} · refused")
     # 4. the No that ends it
     no_on = "check" if decider else "gate"
     no_link = tv.send_link(run, leg, f"{study}-orb-no", project_id, "TEXT", person=person_at(names, 2), decider=decider)
@@ -863,10 +1245,11 @@ def dry_run_on_the_orb(run, leg, project_id: str, card: dict) -> None:
         p.mic_test()
         p.start()
         asked = None
-        deadline = time.monotonic() + 60
+        deadline = time.monotonic() + 180            # spec 160: the film is watched to its end (never skipped now)
         while time.monotonic() < deadline and not asked:
-            if page.get_by_test_id("ai-story-go-on").count():
-                page.get_by_test_id("ai-story-go-on").first.click()
+            begin = page.get_by_test_id(ivs.FILM_BEGIN)
+            if begin.count() and begin.first.is_visible():
+                begin.first.click()                     # keel-web 256 FR-3: *Begin the interview* at the film's end
             if p.phase() == "listening" and p.question():
                 asked = p.question()
             page.wait_for_timeout(300)
@@ -943,11 +1326,25 @@ def avatar_view(run, leg, study: str, project_id: str) -> None:
         interview, reads = read_served(run, made["url"])
         wire_checks(run, leg, study, interview, "avatar", speaker=ivs.SPEAKER_AVATAR, reads=reads)
         same_words(run, leg, study, project_id, kind.get("roleId"), interview)
-        walked = walk_link(run, made["url"], interview, shot=f"avatar-{study}-done", film_ms=500)
+        # spec 160 FR-3: walked as the orb's voice link was -- the same ways from the start, the film's controls, the
+        # replay mark on the first item -- so the two walks can be held equal step for step
+        walked = walk_link(run, made["url"], interview, shot=f"avatar-{study}-done", speak_or_tap=list(SPEAK_OR_TAP),
+                           film_checks=True, replay=True)
+        steps = speaker_walk(run, study, ivs.SPEAKER_AVATAR, walked)
+        leg.notes.append(f"the face's walk ({study}): {len(steps)} steps -- " + " > ".join(s_["step"] for s_ in steps)[:600])
         run.orbs.append({"study": study, "link": "the face", **summary(walked)})
         rows = walked["rows"]
         films = [r for r in rows if r["screen"] == "film"]
+        name = ((interview.get("interviewer") or {}).get("face") or {}).get("name") or FACE.title()
+        intro_checks(run, leg, walked, interview, view="avatar", label="the face", speaker=ivs.SPEAKER_AVATAR,
+                     name=name)
+        retired_checks(run, leg, walked, view="avatar", label="the face")
         film_first_checks(run, leg, walked, view="avatar", study=study)
+        film_checks(run, leg, walked, interview, view="avatar")
+        replay_checks(run, leg, walked, view="avatar")
+        last_page_checks(run, leg, walked, interview, view="avatar")
+        chip_checks(run, leg, walked, view="avatar", speaker=ivs.SPEAKER_AVATAR, name=name)
+        same_walk_check(run, leg, study, view="avatar")
         leg.check(run, "Daphne returns after the film and each hand-over: the story gone, her face on the stage",
                   bool(films) and all((h.get("returned") or {}).get("story_gone") and (h.get("returned") or {}).get("face")
                                       for h in films), screen="the stage after the film", view="avatar",
@@ -966,8 +1363,14 @@ def avatar_view(run, leg, study: str, project_id: str) -> None:
                                                                                   for r in questions]})
         leg.check(run, "the thank-you", bool(walked["done"]), screen="the done screen", view="avatar",
                   detail=walked["done"])
+        # spec 160 FR-2 on the face: the microphone refused -- the block; allowed again -- Start
+        block_made = tv.send_link(run, leg, f"{study}-avatar-block", project_id, "AI_INTERVIEWER",
+                                  person=person_at(names, 10), decider=study == "money")
+        blocked = blocked_walk(run, block_made["url"], shot=f"avatar-{study}-blocked")
+        run.orbs.append({"study": study, "link": "the face, the microphone refused", "block": block_line(blocked)})
+        blocked_checks(run, leg, blocked, view="avatar · refused")
         no_interview, _ = read_served(run, no_made["url"])
-        no_walk = walk_link(run, no_made["url"], no_interview, shot=f"avatar-{study}-no", film_ms=300,
+        no_walk = walk_link(run, no_made["url"], no_interview, shot=f"avatar-{study}-no",
                             no_on="check" if study == "money" else "gate")
         asked = [r["question"] for r in no_walk["rows"] if r["screen"] == "question"]
         sent = first_response(no_walk).get("sent") or {}

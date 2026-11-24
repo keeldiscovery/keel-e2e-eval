@@ -190,11 +190,12 @@ def test_the_leg_keeps_the_heard_line_on_hear_out():
 # --------------------------------------------------------------------------- FR-2: Test your mic's wave (IM17)
 
 #: keel-web 143's `MicBlock`, as a page: *Test your mic* -> listening (the wave in `ai-mic-level`) -> the hello's
-#: silence -> writing (the wave held, the writing line) -> the recorder's stop -> *Heard: hello*, Start enabled. The
+#: silence -> writing (the wave held, the writing line) -> the recorder's stop -> *Heard: hello*, and (keel-web 256 FR-2)
+#: the one button *Start the interview* in *Test your mic*'s place (not drawn before: `start_enabled` False). The
 #: harness's own seam (`SPEECH_SEAM`) is the recorder; its stop is what `Player.mic_test` holds.
-_INTRO = """<main data-testid="ai-intro" data-intro="AI_INTERVIEWER"><h1>Daphne will ask you 5 questions.</h1>
-<section data-testid="ai-mic" data-state="idle"><button data-testid="ai-mic-test">Test your mic</button></section>
-<button data-testid="start-talking" disabled>Start the interview</button></main>
+_INTRO = """<main data-testid="ai-intro" data-intro="AI_INTERVIEWER"><h1>Robin has 5 questions for you.</h1>
+<section data-testid="ai-mic" data-state="idle"></section>
+<div class="aiv-intro__go"><button data-testid="ai-mic-test">Test your mic</button></div></main>
 <script>
 (() => {
   const block = document.querySelector('[data-testid=ai-mic]');
@@ -217,7 +218,8 @@ _INTRO = """<main data-testid="ai-intro" data-intro="AI_INTERVIEWER"><h1>Daphne 
       const bytes = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0));
       const text = new TextDecoder().decode(bytes).replace(/\\0+$/, '');
       draw('passed', text);
-      document.querySelector('[data-testid=start-talking]').disabled = false;
+      // keel-web 256 FR-2: the one button becomes *Start the interview* in the same place
+      document.querySelector('.aiv-intro__go').innerHTML = '<button data-testid="ai-start">Start the interview</button>';
     };
     await recorder.start((rms) => {
       if (rms > 0.02) { clearTimeout(silence); silence = setTimeout(finish, 300); }

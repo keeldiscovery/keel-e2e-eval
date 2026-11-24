@@ -111,8 +111,12 @@ def test_never_drawn_names_a_typed_box_and_the_old_chrome():
 
 
 def test_the_refused_seam_refuses_the_microphone():
-    assert "mic(() => 0.12, true)" in ivs.speech_seam(refused=True)
+    """Spec 160 FR-2: the refusal is `window.__micRefused` (keel-web's fixture's own name), so the walk can allow the
+    microphone again (`Player.allow_mic`)."""
+    refused = ivs.speech_seam(refused=True)
+    assert "window.__micRefused = true;" in refused and "return !refused && !window.__micRefused;" in refused
     assert ivs.speech_seam() == ivs.SPEECH_SEAM and "mic(() => 0.12, false)" in ivs.SPEECH_SEAM
+    assert "__micRefused = true" not in ivs.SPEECH_SEAM
 
 
 def test_the_orbs_clips_buy_nothing():
@@ -152,7 +156,8 @@ def test_the_report_names_the_orb():
              "films": [("problem", True, None)], "never": ss.never_drawn(_log({})),
              "response": {"status": 201, "format": "TEXT", "anchorChip": None, "answers": 6}, "done": "Thank you"}]
     md = report.report_markdown([], {"cloud": "c", "web": "w"}, report.log_scan(""), orbs=orbs)
-    assert "## The orb (spec 159, keel-web 253 on keel-cloud 267)" in md
+    # spec 160 FR-8: *The orb* became *The two speakers*; the links walked are kept under it
+    assert "## The two speakers (spec 160, keel-web 256 on keel-cloud 267)" in md and "### The links walked" in md
     assert "| problem | voice | film:problem > speaking > listening |" in md
     assert "201 TEXT  (6 answers)" in md and "-> held `['BOne']`" in md
 
@@ -274,8 +279,10 @@ def test_keel_web_plays_the_orb():
     intro = (WEB / "src" / "components" / "interview" / "ai" / "AiIntro.tsx").read_text(encoding="utf-8")
     assert 'data-speaker={face ? "AVATAR" : "ORB"}' in intro and f'data-testid="{ivs.INTRO_ORB}"' in intro
     player = (WEB / ss.ORB_PLAYER_SOURCE).read_text(encoding="utf-8")
-    for testid in (ivs.STAGE_ORB, ivs.STAGE_ORB_STATE, ivs.FILM_ORB):
+    for testid in (ivs.STAGE_ORB, ivs.STAGE_ORB_STATE):
         assert f'data-testid="{testid}"' in player, testid
+    # spec 160 (keel-web 256 FR-3): the film's dim orb is gone
+    assert f'data-testid="{ivs.FILM_ORB}"' not in player
     flow = (WEB / "src" / "lib" / "aiInterviewFlow.ts").read_text(encoding="utf-8")
     assert '...(film ? [{ kind: "film" } as const] : [])' in flow           # the film first
     assert "if (!film) passage(\"problem\");" in flow                          # no problem passage after it
@@ -288,7 +295,9 @@ def test_the_orbs_words_are_keel_webs():
     if "ORB_INTERVIEWER" not in translate:
         pytest.skip("keel-web before 253")
     assert 'ORB_INTERVIEWER = { name: "Keel AI", subject: "It", object: "it", isAre: "is" }' in translate
-    assert ivs.ORB_NOT_A_PERSON == "It is an AI interviewer, not a person."      # aiIntroNotAPerson("It", "is")
+    # spec 160 (keel-web 256 FR-1): the intro names the orb *Keel* (`ORB_INTRO_NAME`) in `aiIntroSpoken`
+    assert f'ORB_INTRO_NAME = "{ivs.ORB_NAME}"' in translate and ivs.ORB_STAGE_NAME == "Keel AI"
+    assert ivs.ORB_NOT_A_PERSON == "A spoken interview with Keel, an AI interviewer, not a person."
     assert f'AI_STAGE_LABEL_ORB = "{ivs.ORB_STAGE_LABEL}"' in translate
     assert f'TEXT_FORMAT_NAME = "{iv.KEELS_VOICE}"' in translate
     assert f'"{ivs.RECORDING_MEANWHILE}"' in translate and f'"{ivs.KEELS_VOICE_LINE}"' in translate

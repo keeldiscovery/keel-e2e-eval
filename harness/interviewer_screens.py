@@ -4,7 +4,16 @@ path (spec 048 T003, contract 18: no *That's my answer*, the three tiers, the ho
 Machinery, not judgement: every class here acts and reads, and asserts nothing -- `evals/interviewer_leg.py` judges.
 The words are copied from keel-web `src/lib/translate.ts`; the selectors are the ones 069's tasks.md names for this
 repository (*Selectors (for keel-e2e-eval 044)*) and 072's spec names (`ai-yes`, `ai-back`, `ai-mic-test`,
-`ai-mic-heard`, `start-talking`).
+`ai-mic-heard`, `start-talking` -- `ai-start` since keel-web 256, spec 160).
+
+Spec 160 (keel-web 256, the player pared down): the first screen's one button (*Test your mic*, `ai-mic-test`, becomes
+*Start the interview*, `ai-start`, once hello is heard; never both), the refused microphone a block (`ai-mic-block`, no
+Start), the intro's headline *{founder} has {n} questions for you.* with the spoken line under it, three chips and the
+closed *What happens to your answers* (`ai-intro-answers`); the film's two icons (`ai-film-pause`, `ai-film-again`), the
+board tapped for the words (`ai-film-board`, `story-read`) and *Begin the interview* (`ai-film-begin`); the replay mark
+(`ai-replay`) where *Say it again* (`ai-again`) was; the speaker's two sizes (`data-size` on `ai-orb` / `ai-facecol`),
+the words lit (`ai-words`); the face's chip *{name} · AI interviewer* (`face_mark`); the last page's tick
+(`ai-done-tick`) over *Done. Your answers have gone to {founder}.*
 
 * `Persona`   -- Sent's persona line (`[data-testid=persona-line]`, `data-state`), its progress bar, *Change who asks* /
                  *Record the interviewer* and the popup (`[data-testid=change-face-popup]`, the carousel,
@@ -223,27 +232,104 @@ RECORD_FACE_TITLE = "Record the interviewer"
 #: keel-web 068's replay of W1 on Sent's header, gone with keel-web 088 FR-1 (spec 059): never on Sent again.
 HOW_IT_WORKS = "How it works"
 WALKTHROUGH_GOT_IT = "Got it"
+#: The orb's chip, the served `InterviewerPlayer.mark` (`aiMarkWords`; a dry run adds *· try run*). Spec 160 (keel-web 256
+#: FR-6, judgement call 9): the face's chip reads her own name -- `face_mark`.
 MARK = "Keel · AI interviewer"
 MARK_TRY = "Keel · AI interviewer · try run"
+TRY_MARK_SUFFIX = "try run"
+
+
+def face_mark(name: str, *, try_run: bool = False) -> str:
+    """keel-web 256 FR-6 (`aiFaceMark`, `aiMarkWords`): the face's chip -- *{name} · AI interviewer* (*· try run* on a dry
+    run), in her caption band while she speaks and under her portrait once the sheet opens."""
+    words = f"{name} · AI interviewer"
+    return f"{words} · {TRY_MARK_SUFFIX}" if try_run else words
+
+
 # ---- spec 159 (keel-web 253 FR-1 / FR-2, keel-cloud 267 FR-2): one player, the orb in the face's place
 #: `Interview.interviewer.speaker` (contract 84) and the player's `data-speaker`.
 SPEAKER_ORB = "ORB"
 SPEAKER_AVATAR = "AVATAR"
-#: The orb's name and pronoun on the intro (`ORB_INTERVIEWER`): *Keel AI will ask you N questions.* / *It is an AI
-#: interviewer, not a person.* / *You will hear it ...*; the stage's name (`AI_STAGE_LABEL_ORB`).
-ORB_NAME = "Keel AI"
-ORB_NOT_A_PERSON = "It is an AI interviewer, not a person."
+#: Spec 160 (keel-web 256 FR-1, `ORB_INTRO_NAME`): the orb's name in the intro's two sentences is *Keel*; the stage keeps
+#: *Keel AI* (`AI_STAGE_LABEL_ORB`). 253's *Keel AI will ask you N questions.* / *It is an AI interviewer, not a person.*
+#: are gone: the line under the headline names the speaker (`ai_intro_spoken`).
+ORB_NAME = "Keel"
+ORB_STAGE_NAME = "Keel AI"
 ORB_STAGE_LABEL = "Keel AI, the AI interviewer"
-#: The orb on the intro (`intro-orb`, the still orb where the face's hello was), on the stage (`ai-orb`, with its state
-#: line `ai-orb-state`), and dim beside the film (`ai-story-orb`); each wraps keel-web's `story-orb` (`KeelOrb still`).
+
+
+def ai_intro_spoken(name: str) -> str:
+    """keel-web 256 FR-1 (`aiIntroSpoken`): the line under the headline -- *Keel* on the orb, her name on the face."""
+    return f"A spoken interview with {name}, an AI interviewer, not a person."
+
+
+def ai_intro_asks(name: str) -> str:
+    """keel-web 256 FR-1 (`aiIntroAsks`): the one sentence on the microphone and the sound."""
+    return (f"{name} asks each question aloud and listens to your answer, so you will need your microphone and the "
+            "sound on.")
+
+
+def ai_intro_chips(minutes: int | None) -> list[str]:
+    """keel-web 256 FR-1: the three chips (*About {n} minutes* only where minutes are served)."""
+    return ([f"About {minutes} minutes"] if minutes else []) + [AI_INTRO_MIC_NEEDED, AI_INTRO_SOUND_ON]
+
+
+ORB_NOT_A_PERSON = ai_intro_spoken(ORB_NAME)
+AI_INTRO_MIC_NEEDED = "Microphone needed"
+AI_INTRO_SOUND_ON = "Sound on"
+#: keel-web 256 FR-1: the microphone line, verbatim, inside the closed *What happens to your answers* (`ai-intro-answers`)
+#: with the transcriber line (`INTRO_TRANSCRIBED`) and the served consent.
+AI_INTRO_MIC_LINE = "Your microphone is used only while you answer, and only your answers are kept."
+INTRO_ANSWERS = "ai-intro-answers"
+CONSENT_HEADING = "What happens to your answers"
+#: The orb on the intro (`intro-orb`, the still orb where the face's hello was) and on the stage (`ai-orb`, with its state
+#: line `ai-orb-state`); each wraps keel-web's `story-orb` (`KeelOrb still`). Spec 160 (keel-web 256 FR-3): the film's dim
+#: orb (`ai-story-orb`) is gone -- no speaker above the board; kept here as the id the walk holds is never drawn.
 INTRO_ORB = "intro-orb"
 STAGE_ORB = "ai-orb"
 STAGE_ORB_STATE = "ai-orb-state"
 FILM_ORB = "ai-story-orb"
+#: keel-web 256 FR-6: the face's column (`data-size`), its caption band while she speaks, its state line.
+FACE_COL = "ai-facecol"
+FACE_CAPTION = "ai-caption"
+FACE_STATE = "ai-face-state"
+#: keel-web 256 FR-5 / FR-6: the speaker's two sizes (`data-size` on `ai-orb` / `ai-facecol`) and the words lit as they
+#: are said (`ai-words`, one `<span data-lit>` a word).
+SIZE_LARGE = "large"
+SIZE_SMALL = "small"
+WORDS = "ai-words"
+#: keel-web 256 FR-3: the respondent's film -- two icons, the board tapped for the words, *Begin the interview* at its end.
+FILM_PAUSE = "ai-film-pause"
+FILM_AGAIN = "ai-film-again"
+FILM_BOARD = "ai-film-board"
+FILM_BEGIN = "ai-film-begin"
+FILM_READ = "story-read"
+FILM_PAUSE_LABEL = "Pause the story"
+FILM_RESUME_LABEL = "Play the story"
+FILM_BEGIN_WORDS = "Begin the interview"
+#: Spec 159's (keel-web 253's) *Go on to the question* -- gone with keel-web 256 FR-3; never drawn.
+FILM_GO_ON_RETIRED = "ai-story-go-on"
+#: keel-web 256 FR-4: the replay mark before the question (`AI_REPLAY_LABEL`); *Say it again* (`ai-again`) is gone.
+REPLAY = "ai-replay"
+REPLAY_LABEL = "Hear the question again"
+AGAIN_RETIRED = "ai-again"
+#: keel-web 256 FR-7: the last page's green tick and title.
+DONE_TICK = "ai-done-tick"
+WHAT_IS_KEEL = "What is Keel?"
+
+
+def ai_done_title(founder: str) -> str:
+    """keel-web 256 FR-7 (`aiDoneTitle`): the last page's title, over the tick (the served first name, else the name)."""
+    return f"Done. Your answers have gone to {founder}."
+
+
 #: keel-web 253 FR-4: the kind card's *Try it yourself* on Keel's voice, beside its set-up, where no face is READY.
 TRY_KEEL_VOICE = "try-keel-voice"
-#: The intro's mic test refused (`ai-mic-fallback`, `AI_MIC_FALLBACK`): Start is enabled and the interview runs on taps.
-MIC_FALLBACK_ID = "ai-mic-fallback"
+#: Spec 160 (keel-web 256 FR-2, the founder's hard block for now): the microphone refused, absent or nothing heard --
+#: the block (`ai-mic-block`, `AI_MIC_BLOCK` and its how line), no Start, the button stays *Test your mic*. 254's
+#: fallback (`ai-mic-fallback`, *You can tap your answers instead*, the taps-only walk) is gone.
+MIC_BLOCK_ID = "ai-mic-block"
+MIC_FALLBACK_RETIRED = "ai-mic-fallback"
 #: Spec 159 FR-3: a box that takes typed words, anywhere on the link's page (keel-web 254: none).
 TYPED_BOXES = "textarea, input[type=text]"
 LAST_QUESTION = "Last question"
@@ -256,7 +342,10 @@ SAVE_AND_NEXT = "Save and next"
 START_THE_INTERVIEW = "Start the interview"
 MIC_TEST = "Test your mic"
 SAY_HELLO = "Say hello"
-MIC_FALLBACK = "You can tap your answers instead"   # keel-web 254: nothing typed
+#: keel-web 256 FR-2: the line above the one button before the test, and the block's two lines.
+MIC_LABEL = "Say hello, so we know your mic works. The interview starts after."
+MIC_BLOCK = "This interview needs your microphone."
+MIC_BLOCK_HOW = "Allow the microphone for this page in your browser, then test your mic again."
 #: keel-web 115 FR-3 (spec 074 FR-1): the intro's line loses its condition -- the page records wherever it can listen.
 INTRO_TRANSCRIBED = "Keel's transcription provider writes your answer down and keeps nothing."
 GOT_THAT = "Got that…"
@@ -334,8 +423,8 @@ SPEAK_ASKING = "Allow the microphone…"
 #: keel-web 126 FR-3: a free window's (the story's, the follow-up's) empty transcript -- the red line
 #: (`AI_REASON_DIDNT_CATCH`) and the second miss's status (`AI_SECOND_MISS_FREE`). Read by no walk; the dry run's
 #: story is held to be none of them.
-AI_REASON_DIDNT_CATCH = "I didn't catch that. Say it again, or type instead."
-AI_SECOND_MISS_FREE = "Say it again, or type it."
+AI_REASON_DIDNT_CATCH = "I didn't catch that. Say it again."      # keel-web 254: nothing typed
+AI_SECOND_MISS_FREE = "Say it again."
 #: keel-web 072's closed-question miss (`AI_REASON_NO_MATCH`): what the dry run's story read before keel-web 126 FR-2
 #: (an empty transcript taken for a miss, though a story has no options).
 AI_REASON_NO_MATCH = "That didn't match an option. Say it again, or tap one."
@@ -481,9 +570,17 @@ def walkthrough_asks_title(face: str) -> str:
     return f"{face} asks your questions"
 
 
-def ai_intro_heading(face: str, questions: int) -> str:
-    """keel-web `aiIntroHeading` (since 109, keel-cloud 133 FR-9: *1 question* for one)."""
-    return f"{face} will ask you {questions} question{'' if questions == 1 else 's'}."
+def ai_intro_heading(founder: str, questions: int) -> str:
+    """keel-web 256 FR-1 `aiIntroHeadline` (it was 109's `aiIntroHeading`, *{face} will ask you N questions.*): the
+    headline names the founder (the served first name, else the name -- `intro_founder`) and the count (keel-cloud 133
+    FR-9: *1 question* for one)."""
+    return f"{founder} has {questions} question{'' if questions == 1 else 's'} for you."
+
+
+def intro_founder(interview: dict) -> str:
+    """keel-web 256 judgement call 3: the founder the intro's headline and the last page's title name -- the served
+    `founderFirstName`, else `founderName`."""
+    return str(interview.get("founderFirstName") or "").strip() or str(interview.get("founderName") or "").strip()
 
 
 #: Spec 074 FR-1 (keel-web 115 FR-5, one recorded path): keel-web `tests/fixtures/interviewer/fakeSpeech.ts`
@@ -567,7 +664,8 @@ _RECORDER = r"""
                            // keel-web 126 FR-4 (`installHeldMic`): the permission sheet still up -- the box stays
                            // *asking* until `__grantMic()`
                            if (window.__micHeld) await new Promise((resolve) => (window.__grantMic = resolve));
-                           return !refused; },
+                           // spec 160 FR-2: `__micRefused` refuses it until the walk allows it (`Player.allow_mic`)
+                           return !refused && !window.__micRefused; },
     level,
     release: () => { window.__micReleased += 1; stamps('__micReleasedAt').push(performance.now()); },
   });
@@ -583,12 +681,13 @@ SPEECH_SEAM = "(() => {" + _RECORDER + """
 
 def speech_seam(*, refused: bool = False) -> str:
     """`SPEECH_SEAM`, or (spec 159 FR-3, `refused`) the same recorder with the microphone **refused** -- the harness's
-    refusal hook on the AI page: *Test your mic* reads the fallback, Start is enabled, and keel-web plays the interview
-    with `listen = none` (taps; keel-web 254: and nothing typed)."""
+    refusal hook on the AI page. Spec 160 FR-2 (keel-web 256 FR-2): *Test your mic* then ends at the block (no Start);
+    the refusal is `window.__micRefused` (keel-web's own fixture's name, `installRefusedMic`), so the walk can allow the
+    microphone again (`Player.allow_mic`) and test once more."""
     if not refused:
         return SPEECH_SEAM
-    return "(() => {" + _RECORDER + """
-  window.__keelSpeech = { recorder, mic: mic(() => 0.12, true), earcons: false };
+    return "(() => { window.__micRefused = true;" + _RECORDER + """
+  window.__keelSpeech = { recorder, mic: mic(() => 0.12, false), earcons: false };
 })();
 """
 
@@ -904,6 +1003,47 @@ class Persona:
 
 # --------------------------------------------------------------------------------------------- the player
 
+#: Spec 160 (keel-web 256 FR-3): the respondent's film read in one evaluate -- see `Player.film`.
+FILM_JS = r"""() => {
+  const story = document.querySelector('[data-testid=ai-story]');
+  if (!story) return { drawn: false };
+  const t = (el) => (el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : null);
+  const player = story.querySelector('[data-testid=story-player], [data-testid=idea-story-player]');
+  const board = story.querySelector('[data-testid=story-board]');
+  const pause = story.querySelector('[data-testid=ai-film-pause]');
+  const tap = story.querySelector('[data-testid=ai-film-board]');
+  const read = story.querySelector('[data-testid=story-read]');
+  const begin = story.querySelector('[data-testid=ai-film-begin]');
+  const sp = document.querySelector('[data-testid=ai-orb], [data-testid=ai-facecol]');
+  let covered = null;
+  if (sp) {
+    const r = sp.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      const at = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(r.height / 2, 40));
+      covered = !!(at && story.contains(at));
+    }
+  }
+  return {
+    drawn: true, kind: story.getAttribute('data-kind'), first: story.hasAttribute('data-first'),
+    state: player ? player.getAttribute('data-state') : null,
+    pause: !!pause, pauseLabel: pause ? pause.getAttribute('aria-label') : null,
+    paused: pause ? pause.getAttribute('data-paused') : null, pauseDisabled: pause ? pause.disabled : null,
+    again: !!story.querySelector('[data-testid=ai-film-again]'),
+    begin: !!begin, beginWords: t(begin),
+    board: !!tap, expanded: tap ? tap.getAttribute('aria-expanded') : null,
+    read: !!read, lines: read ? [...read.querySelectorAll('li')].map(t) : [],
+    worded: [...story.querySelectorAll('button')].map(t).filter(Boolean),
+    sig: board ? { on: board.querySelectorAll('.on').length, off: board.querySelectorAll('.off').length,
+                   gone: board.querySelectorAll('.gone').length,
+                   line: t(story.querySelector('[data-testid=story-line]')) } : null,
+    inside: { orb: story.querySelectorAll('[data-testid=story-orb], [data-testid=ai-story-orb], [data-testid=ai-orb]').length,
+              face: story.querySelectorAll('[data-testid=ai-face], [data-testid=ai-facecol]').length,
+              video: story.querySelectorAll('video').length },
+    covered,
+  };
+}"""
+
+
 class Player:
     """The AI interviewer's page, for a stranger (a link) or the founder (Try it yourself): driven through the speech
     seam, a tap, a typed field or *Type instead*, the way a person would."""
@@ -945,19 +1085,41 @@ class Player:
         return self.intro()
 
     def intro(self) -> dict:
+        """The AI intro as drawn now. Spec 160 (keel-web 256 FR-1, FR-2): the headline (`heading`) and the spoken line
+        under it, the study line, the one sentence (`asks`), the chips, the closed disclosure (`answers`: open or not,
+        its three lines), the mic test's line and block, and the one button -- `buttons` finds *Test your mic*
+        (`ai-mic-test`) before the hello is heard and *Start the interview* (`ai-start`) after, never both."""
         intro = self.page.get_by_test_id("ai-intro")
-        start = self.page.get_by_test_id("start-talking")
+        start = self.page.get_by_test_id("ai-start")
         heard = self.page.get_by_test_id("ai-mic-heard")
+        answers = self.page.get_by_test_id(INTRO_ANSWERS)
+        block = self.page.get_by_test_id(MIC_BLOCK_ID)
         return {"intro": intro.get_attribute("data-intro"), "heading": _words(intro.locator("h1").first),
                 "text": _words(intro),
                 # spec 159 (keel-web 253 FR-2): who asks -- the face's hello, or the still orb in its place
                 "speaker": intro.get_attribute("data-speaker"),
                 "orb": self.page.locator(f"[data-testid={INTRO_ORB}] [data-testid=story-orb]").count(),
-                "buttons": [t for t in ("start-talking", "choice-talk", "choice-write")
+                "spoken": _words(intro.locator(".ivhello .iv-note").first),
+                "study": _words(self.page.get_by_test_id("ai-intro-study")),
+                "asks": _words(self.page.get_by_test_id("ai-intro-asks")),
+                "chips": [_words(c) for c in self.page.locator("[data-testid=ai-intro-chips] li").all()],
+                "answers": {"drawn": answers.count() > 0,
+                            "open": bool(answers.count() and answers.first.evaluate("(d) => d.open")),
+                            "summary": _words(answers.locator("summary").first),
+                            "lines": [_words(self.page.get_by_test_id(t)) for t in
+                                      ("ai-intro-mic-line", "ai-intro-transcribed", "ai-intro-consent")]},
+                "buttons": [t for t in ("ai-mic-test", "ai-start", "start-talking", "choice-talk", "choice-write")
                             if self.page.get_by_test_id(t).count()],
                 "mic_test": self.page.get_by_test_id("ai-mic-test").count() > 0,
+                "mic_test_words": _words(self.page.get_by_test_id("ai-mic-test")) or None,
+                "mic_state": self.page.get_by_test_id("ai-mic").first.get_attribute("data-state")
+                if self.page.get_by_test_id("ai-mic").count() else None,
                 "mic_heard": _words(heard) or None,
-                "start_enabled": start.is_enabled() if start.count() else None}
+                "block": {"drawn": block.count() > 0, "line": _words(block.locator(".aiv-mic__block-line").first),
+                          "how": _words(block.locator(".aiv-mic__block-how").first)},
+                "fallback": self.page.get_by_test_id(MIC_FALLBACK_RETIRED).count(),
+                # keel-web 256 FR-2: Start is not drawn until the hello is heard -- not drawn is not enabled (IM17)
+                "start_enabled": start.is_enabled() if start.count() else False}
 
     def hear(self, *, wait_s: float) -> dict:
         """keel-web 087 FR-3: *Hear <name>* (`intro-hear`) on the intro -- its words, the clip that played in place of
@@ -1003,19 +1165,59 @@ class Player:
             self.page.evaluate("() => window.__releaseStop()")
         line = self.page.get_by_test_id("ai-mic-heard")
         line.wait_for(state="visible", timeout=deadline)
-        self.page.locator("[data-testid=start-talking]:not([disabled])").wait_for(timeout=deadline)
+        # keel-web 256 FR-2: the one button becomes *Start the interview* in the same place once hello is heard
+        self.page.locator("[data-testid=ai-start]:not([disabled])").wait_for(timeout=deadline)
         return {"before": before, "listening": listening, "said": said, "writing": writing, "after": self.intro()}
 
-    def refused_mic_test(self, *, timeout_s: float = 20) -> dict:
-        """Spec 159 FR-3: *Test your mic* with the microphone refused (`speech_seam(refused=True)`): the fallback line
-        (`ai-mic-fallback`) and *Start the interview* enabled -- what the intro drew before and after."""
+    def refused_mic_test(self, *, timeout_s: float = 20, hold_s: float = 2.0) -> dict:
+        """Spec 160 FR-2 (keel-web 256 FR-2): *Test your mic* with the microphone refused (`speech_seam(refused=True)`)
+        ends at the block (`ai-mic-block`: *This interview needs your microphone.* and how to allow it) -- the button
+        stays *Test your mic*, no *Start the interview*. Read once the block is drawn and again `hold_s` later (nothing
+        starts by itself): what the intro drew before, at the block and after the wait, and whether the stage ever
+        showed."""
         before = self.intro()
         self.page.get_by_test_id("ai-mic-test").click()
         deadline = timeout_s * 1000 * self.patience
-        line = self.page.get_by_test_id(MIC_FALLBACK_ID)
-        line.wait_for(state="visible", timeout=deadline)
-        self.page.locator("[data-testid=start-talking]:not([disabled])").wait_for(timeout=deadline)
-        return {"before": before, "fallback": _words(line), "after": self.intro()}
+        block = self.page.get_by_test_id(MIC_BLOCK_ID)
+        block.wait_for(state="visible", timeout=deadline)
+        at = self.intro()
+        self.page.wait_for_timeout(int(hold_s * 1000))
+        stage = self.page.get_by_test_id("ai-stage")
+        return {"before": before, "block": at["block"], "at": at, "after": self.intro(),
+                "stage_shown": bool(stage.count() and stage.first.is_visible()),
+                "sheet": self.page.get_by_test_id("ai-sheet").count(), "phase": self.phase()}
+
+    def allow_mic(self) -> None:
+        """Spec 160 FR-2: the microphone allowed again (the seam's `__micRefused` cleared), as a person would in the
+        browser's site settings before pressing *Test your mic* once more."""
+        self.page.evaluate("() => { window.__micRefused = false; }")
+
+    # ---- spec 160 (keel-web 256 FR-3, FR-4, FR-5 / FR-6): the film, the replay mark, the speaker's size
+    def film(self) -> dict:
+        """The film on the stage as drawn now (`FILM_JS`): its kind, the player's state, the pause icon's label and
+        `data-paused`, *Start over*, *Begin the interview*, the board's `aria-expanded` and the lines under it, the
+        drawing's progress (`sig`: the strokes lit, erased, gone, and the line said), and what is inside it or above it
+        -- a speaker (`story-orb`, `ai-face`, a `<video>`, `ai-orb`) inside the film, and whether the speaker's own box,
+        where it has a size, is under the film (`covered`) or seen over it."""
+        return self.page.evaluate(FILM_JS)
+
+    def speaker_box(self) -> dict:
+        """keel-web 256 FR-5 / FR-6: the speaker's own box (`ai-orb` or `ai-facecol`) -- whether it is seen, its size
+        (`data-size`), its box."""
+        return self.page.evaluate("""() => {
+            const el = document.querySelector('[data-testid=ai-orb], [data-testid=ai-facecol]');
+            if (!el) return { drawn: false };
+            const r = el.getBoundingClientRect();
+            const seen = (el.checkVisibility ? el.checkVisibility() : true) && r.width > 0 && r.height > 0;
+            const at = seen ? document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(r.height / 2, 40)) : null;
+            const story = document.querySelector('[data-testid=ai-story]');
+            return { drawn: true, id: el.getAttribute('data-testid'), size: el.getAttribute('data-size'), seen,
+                     covered: !!(at && story && story.contains(at)), w: Math.round(r.width), h: Math.round(r.height) };
+        }""")
+
+    def now_ms(self) -> float:
+        """The page's clock (`Date.now()`), the one `ORB_INTERVIEW_WATCH` stamps its plays with."""
+        return float(self.page.evaluate("() => Date.now()"))
 
     def speaker(self) -> str | None:
         """Spec 159: the stage's `data-speaker` (ORB or AVATAR), None off the stage."""
@@ -1045,7 +1247,7 @@ class Player:
             const wave = level ? level.querySelector('[data-testid=ai-mic-wave], [data-testid=ai-mic-writing]') : null;
             const intro = document.querySelector('[data-testid=ai-intro]');
             const say = block ? block.querySelector('.aiv-mic__say') : null;
-            const start = document.querySelector('[data-testid=start-talking]');
+            const start = document.querySelector('[data-testid=ai-start]');
             return { state: block ? block.getAttribute('data-state') : null,
                      wave: wave ? wave.getAttribute('data-testid') : null,
                      wave_state: wave ? wave.getAttribute('data-state') : null,
@@ -1056,13 +1258,14 @@ class Player:
                      writing_line: words(document.querySelector('[data-testid=ai-mic-writing-line]')),
                      say: words(say),
                      mic_heard: words(document.querySelector('[data-testid=ai-mic-heard]')),
-                     start_enabled: start ? !start.disabled : null };
+                     start_enabled: start ? !start.disabled : false };
         }""")
 
-    def start(self, testid: str = "start-talking") -> None:
+    def start(self, testid: str = "ai-start") -> None:
         """The intro's button -- pressed again while the page is still the intro: a press that lands before the app
         has hydrated is lost (seen once on S-006: the intro drawn, the stage never left it). Since keel-web 072 it is
-        enabled by *Test your mic* (or its fallback), so the leg tests the mic first."""
+        enabled by *Test your mic*; since keel-web 256 FR-2 it is drawn only once the hello is heard (`ai-start`, in
+        *Test your mic*'s place), so the leg tests the mic first."""
         button = self.page.get_by_test_id(testid)
         for _ in range(5):
             button.click()

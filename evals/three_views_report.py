@@ -12,6 +12,10 @@ orb's links (by voice, the story's chip said, the microphone refused) and the fa
 film first, then the opening), the orb's states through each answer, how each question was answered and what the sheet
 held, what an orb link must never draw (a typed box, the voice bar, *Read and tap*), and the response.
 
+Spec 160: *The orb* becomes *The two speakers* -- one row a study a speaker (the orb's voice link, the face's link, walked
+alike): the walk's steps in order, the speaker's size at each, and the same-walk verdict (where the two part, by step);
+then each link walked, as 159 kept it.
+
 Pure functions over the legs and a log's text, so `tests/test_three_views_157.py` holds them with no stack.
 """
 
@@ -176,14 +180,59 @@ def turn_markdown(turns: list[dict] | None) -> list[str]:
     return out
 
 
-def orb_markdown(orbs: list[dict] | None) -> list[str]:
-    """Spec 159: one block a link walked on the one player -- the stage in order, the orb's runs, the answers (how each
-    was given and what the sheet held), what was never to be drawn, the response."""
-    if not orbs:
+def speaker_rows(walks: dict | None, verdicts: dict | None) -> list[dict]:
+    """Spec 160 FR-8: one row a study a speaker -- `{study, speaker, steps, verdict}` -- from the run's walks
+    (`{study: {ORB | AVATAR: steps}}`) and verdicts (`{study: verdict}`)."""
+    rows = []
+    for study, by in (walks or {}).items():
+        for speaker in ("ORB", "AVATAR"):
+            if speaker in by:
+                rows.append({"study": study, "speaker": speaker, "steps": by[speaker],
+                             "verdict": (verdicts or {}).get(study)})
+    return rows
+
+
+def _verdict(v: dict | None) -> str:
+    if not v or v.get("same") is None:
+        return "not compared" + (f" ({v.get('why')})" if v and v.get("why") else "")
+    if v.get("same"):
+        return f"**same** ({v.get('steps')} steps)"
+    return (f"**parts at step {int(v.get('at') or 0) + 1}**: orb `{(v.get('orb') or {}).get('step')}`, face "
+            f"`{(v.get('face') or {}).get('step')}` ({', '.join(v.get('differs') or [])})")
+
+
+def orb_markdown(orbs: list[dict] | None, speakers: list[dict] | None = None) -> list[str]:
+    """Spec 160 FR-8 (it was 159's *The orb*): *The two speakers* -- one row a study a speaker: the walk's steps, the
+    sizes, the same-walk verdict; where the two part, both records at that step. Then each link walked on the one player
+    (159's blocks): the stage in order, the orb's runs, the answers, what was never to be drawn, the response."""
+    if not orbs and not speakers:
         return []
-    out = ["## The orb (spec 159, keel-web 253 on keel-cloud 267)", "",
-           "| Study | Link | Stage, in order | Orb through the answers | Typed boxes | Voice bar / Read and tap | Response |",
-           "|---|---|---|---|---|---|---|"]
+    out = ["## The two speakers (spec 160, keel-web 256 on keel-cloud 267)", ""]
+    if speakers:
+        from harness import story_screens as ss    # noqa: PLC0415
+        out += ["| Study | Speaker | Steps, in order | Sizes (L large, S small) | Words lit (asked steps) | Same walk |",
+                "|---|---|---|---|---|---|"]
+        for r in speakers:
+            steps = r.get("steps") or []
+            worded = [s for s in steps if s.get("words")]
+            lit = sum(1 for s in worded if s.get("lit_first"))
+            out.append(f"| {r.get('study')} | {r.get('speaker')} | {_cell(' > '.join(s.get('step') for s in steps), 400)} | "
+                       f"{_cell(ss.sizes_line(steps), 200)} | {lit} of {len(worded)} lit from the first word"
+                       f"{'; all lit at the end on ' + str(sum(1 for s in worded if s.get('lit_max') == len(str(s.get('words')).split()))) if worded else ''} | "
+                       f"{_verdict(r.get('verdict'))} |")
+        out.append("")
+        parted = {r.get("study"): r.get("verdict") for r in speakers
+                  if r.get("verdict") and r["verdict"].get("same") is False}
+        for study, v in parted.items():
+            out += [f"### {study}: where the two speakers part", "",
+                    f"- step {int(v.get('at') or 0) + 1} (orb {v.get('orb_steps')} steps, face {v.get('face_steps')})",
+                    f"- orb: `{json.dumps(v.get('orb'), default=str)[:600]}`",
+                    f"- face: `{json.dumps(v.get('face'), default=str)[:600]}`", ""]
+    if not orbs:
+        return out
+    out += ["### The links walked", "",
+            "| Study | Link | Stage, in order | Orb through the answers | Typed boxes | Voice bar / Read and tap | Response |",
+            "|---|---|---|---|---|---|---|"]
     for o in orbs:
         never = o.get("never") or {}
         r = o.get("response") or {}
@@ -194,7 +243,7 @@ def orb_markdown(orbs: list[dict] | None) -> list[str]:
                    f"({r.get('answers', 0)} answers) |")
     out.append("")
     for o in orbs:
-        out += [f"### {o.get('study')} · {o.get('link')}", ""]
+        out += [f"#### {o.get('study')} · {o.get('link')}", ""]
         for film in o.get("films") or []:
             kind, first, hand = (list(film) + [None, None, None])[:3]
             out.append(f"- film `{kind}`{' (first)' if first else ''}: hand-over line {_cell(hand, 80) or '-'}")
@@ -202,16 +251,18 @@ def orb_markdown(orbs: list[dict] | None) -> list[str]:
             out.append(f"- *{_cell(q, 70)}* -- {_cell(said, 70)}" + (f" -> held `{_cell(lit, 70)}`" if lit else ""))
         for t in (o.get("never") or {}).get("typed") or []:
             out.append(f"- typed box `{t.get('typed')}` on *{_cell(t.get('question'), 70)}* ({t.get('phase')})")
+        if o.get("block"):
+            out.append(f"- {_cell(o.get('block'), 200)}")
         out.append("")
     return out
 
 
 def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = None,
                     fits: list[dict] | None = None, turns: list[dict] | None = None,
-                    orbs: list[dict] | None = None) -> str:
+                    orbs: list[dict] | None = None, speakers: list[dict] | None = None) -> str:
     """The report: the head (shas, profile, the run's bundle), the table of legs, each leg's checks, then the beats."""
-    out = [f"# Spec 157 / 158 / 159 -- the three views (the orb, the face, the copilot) on the conversation, end to end "
-           "(one run)", "",
+    out = [f"# Spec 157 / 158 / 159 / 160 -- the three views (the orb, the face, the copilot) on the conversation, end to "
+           "end (one run)", "",
            f"- keel-cloud `{meta.get('cloud')}` · keel-web `{meta.get('web')}` · keel-e2e-eval `{meta.get('eval')}`",
            f"- profile `{meta.get('profile')}` · started {meta.get('started')} · {meta.get('seconds', 0):g} s",
            f"- bundle `{meta.get('bundle')}`", f"- {scan_line(scan)}", "",
@@ -234,13 +285,13 @@ def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = Non
     out += beats_markdown(beats)
     out += drawn_story_markdown(fits)
     out += turn_markdown(turns)
-    out += orb_markdown(orbs)
+    out += orb_markdown(orbs, speakers)
     return "\n".join(out).rstrip() + "\n"
 
 
 def write_report(path: Path, legs, meta: dict, scan: dict, beats: list[dict] | None = None,
                  fits: list[dict] | None = None, turns: list[dict] | None = None,
-                 orbs: list[dict] | None = None) -> Path:
+                 orbs: list[dict] | None = None, speakers: list[dict] | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(report_markdown(legs, meta, scan, beats, fits, turns, orbs), encoding="utf-8")
+    path.write_text(report_markdown(legs, meta, scan, beats, fits, turns, orbs, speakers), encoding="utf-8")
     return path

@@ -5893,6 +5893,7 @@ said aloud is taken as the chip* is a failed check by name (`stop=False`), the w
 `CANT_RECALL` chip said aloud as `RATHER_NOT_SAY` is matched (`chipSaid` over both chips), or say in 254 that only *I'd
 rather not say* is a spoken chip.
 
+**Status (spec 160, 2026-11-23): resolved** on keel-web `3b19090c` (255 / 256 merged) with keel-cloud-docs `8bd57d6f`: the chip said aloud is taken as the chip -- `anchorChip` CANT_RECALL, the link ends at the story -- on the problem's and the solution's orb links in both of spec 160's runs (`runs/157/8bd57d6f-3b19090c/`).
 
 ## 113. Observation (keel-web, intermittent): a welcome sheet on the story's start after the stage opener -- spec 158c's *one film* missed once
 
@@ -5904,3 +5905,5 @@ new project's story route. Met once in six new problem conversations across the 
 the same shas), so a race between the opener's close and the welcome's own trigger rather than a steady path. **What the
 harness does**: 158c's check fails FR-1 (a) by name (`stop=False`). **For keel-web:** hold the welcome sheet off the
 conversation routes whatever the order the guide's two reads land in.
+
+**Status (spec 160, 2026-11-23):** not met in spec 160's two runs on keel-web `3b19090c` (every new conversation's *one film* held: the opener alone, no welcome sheet); kept open as intermittent.
