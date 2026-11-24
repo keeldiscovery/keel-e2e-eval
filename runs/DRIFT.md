@@ -5927,6 +5927,10 @@ lock). **For keel-web** (or keel-cloud): nest a problem project that a solution 
 (`defined`, `calibrating`, `calibrated`), or keep `definition.status` at `defined` for a PROBLEM project whose beliefs
 were written by code at the yes.
 
+**Status (spec 164, 2026-11-24): resolved** on keel-web `d4fb9318` (258's DRIFT #114 commit, in `9ef65690`): the list
+nests the problem project under the solution on `calibrated`, *Defined, not sent* -- FR-1 (d) green in spec 164's runs
+(`runs/157/8fc10e71-9ef65690/`, `runs/157/8fc10e71-eb4955fc/`).
+
 ## 115. Observation (keel-cloud 269, the Copilot card): the card's gate is the framed clause, not *Did this happen to you?* -- the orb and the face say the fixed words; and the framed clause reads *did you found mistakes ...*
 
 Found by spec `161-the-four-questions-walked` (FR-4, FR-9, the founder's D12: *"ensure that the voice interview, the AI
@@ -5942,3 +5946,52 @@ hints). And the clause turned to the second person keeps the founder's past tens
 card (`stop=False`). **For keel-cloud**: serve the gate passage the fixed words where the problem's story is served to the
 card (as the link does), or say in 269 that the card's gate differs by design (and spec 161 FR-4 moves with it); and turn
 the clause's verb to its base form after *did you* (*did you find*).
+
+**Status (spec 164, 2026-11-24): resolved** on keel-cloud-docs `8fc10e71` (*CallService composes the card from the
+interview as the link serves it*): the card's gate is *Did this happen to you?* on the problem's and the solution's
+calls, as served and as walked (`runs/157/8fc10e71-9ef65690/`, `runs/157/8fc10e71-eb4955fc/`).
+
+## 116. Observation (keel-cloud, the Copilot card's script): Importance's `followUp.against` is empty -- the card never asks Importance's why where the orb and the face do
+
+Found by spec `164-the-mirrors-of-258` (FR-2, the walked three surfaces) on keel-cloud-docs `8fc10e71` with keel-web
+`9ef65690`, the local eval stack (`runs/157/8fc10e71-9ef65690/20261124T220247Z`, FR-2 problem · copilot); met again on
+keel-web `eb4955fc` (`runs/157/8fc10e71-eb4955fc/20261124T224322Z`). The problem
+link's yes walk picks Importance's first row (*Keeping the tax filings up to date*, not the founder's own row): the orb
+and the face are asked *You picked keeping the tax filings up to date over checking the payroll. Why did that matter
+more to you?*; the Copilot card, answered on the same row, opens no follow-up -- its machine owes none, because the
+call's script serves Importance's passage with `followUp.against: []`. `CallScriptComposer.followUps` asks
+`Ladder.isAgainst(rung, new PickValue.Code(code), founder)` one option at a time, and `Ladder.against` reads
+Importance only from `PickValue.Codes` (`!picks.codes().contains(founder.importanceItem())`), so a single `Code` is never
+against. The No call's Importance pick owed nothing on the card either. **What the harness does**: the walked
+one-script check fails by name at step 4 (`problem.importance`, `follow_ups`) on the card (`stop=False`); the card's own
+machine check (`three_surfaces.card_follow_ups`) holds -- the card does what its script says. **For keel-cloud**: list
+every Importance option but the founder's own row in the card's `against` (read the option as a one-pick `Codes`, or
+special-case Importance in `CallScriptComposer`).
+
+## 117. Observation (keel-cloud, the Copilot card's script): on a solution study the card's gate carries Prevalence's follow-up, so the card's No goes on where the orb's and the face's No end the interview
+
+Found by spec `164-the-mirrors-of-258` on keel-cloud-docs `8fc10e71` with keel-web `9ef65690`
+(`runs/157/8fc10e71-9ef65690/20261124T220247Z`, FR-2 solution · copilot; again on keel-web `eb4955fc`,
+`runs/157/8fc10e71-eb4955fc/20261124T224322Z`). The solution link's gate is the anchor
+alone (`counts: false`, keel-cloud 269 FR-2): a No ends the interview on the orb and the face (`exitText`). The call's
+script serves the same study's gate passage with `followUp` (Prevalence's, against `NO`): `CallScriptComposer.followUps`
+adds `GATE_NO` wherever the interview's `followUps` carry the Prevalence rung, with no regard to whether the gate counts;
+keel-web 258's card goes on on a gate that carries `followUp` (258 judgement call 7) -- the script carries no `counts`.
+So the card's No opens *How do you go about it, and what keeps this from happening to you?* and then the pilot ask.
+**What the harness does**: *a No on the gate in the copilot view ends the questions* fails by name (`stop=False`).
+**For keel-cloud**: serve the gate passage's `followUp` only where the gate counts (the problem study), or serve the
+gate's `counts` on the call's script so the card can read it as the link's player does.
+
+## 118. Observation (keel-cloud, the Copilot card's script): Compatibility's second stem (*You said yes, with some steps ...*) is opened on *Yes, most of the time*
+
+Found by spec `164-the-mirrors-of-258` on keel-cloud-docs `8fc10e71` with keel-web `9ef65690`
+(`runs/157/8fc10e71-9ef65690/20261124T220247Z`, FR-2 solution · copilot; again on keel-web `eb4955fc`,
+`runs/157/8fc10e71-eb4955fc/20261124T224322Z`). The solution's condition is an ability, so
+Compatibility is served on the ability four (*Yes, easily* · *Yes, most of the time* · *Only sometimes* · *No*), the code
+behind *Yes, most of the time* being `yes_with_steps`. The orb and the face, answered *B* (*Yes, most of the time*), are
+owed no why: the route asks the second stem only where its option says the steps (`FollowUpComposer.saysItsSteps`,
+keel-cloud 183 FR-1). The call's script lists that option in `followUp.also.on` (`CallScriptComposer.followUps` reads
+`rung.also().on()` by code alone), so the card, answered on the same row, opens *You said yes, with some steps. What did
+you have to do?* -- words the person never said. **What the harness does**: the walked one-script check fails by name
+at `solution.compatibility` (`follow_ups`) on the card (`stop=False`); the card's machine check holds. **For
+keel-cloud**: hold the card's `also.on` to `saysItsSteps` as the route does.

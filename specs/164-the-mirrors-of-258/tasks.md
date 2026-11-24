@@ -7,7 +7,7 @@ stack allowed ONLY once the integrator's run has released it. Push after every c
 
 - [x] T1 FR-1 the ten mirrors, their unit mirrors.
 - [x] T2 FR-2 the card's walked record by passage kind.
-- [ ] T3 FR-3 `make unit`; the local run; this file.
+- [x] T3 FR-3 `make unit`; the local run; this file.
 
 ## How each mirror is met
 
@@ -26,12 +26,60 @@ stack allowed ONLY once the integrator's run has released it. Push after every c
 | FR-2 | the card's walked record by passage kind | `three_surfaces.card_passages` (`withCondition`, `withCheck`), `passage_of`, `strip_step`, `strips_record`; `copilot_walk` (`passage_kind` / `passage_item` / `passage_dimension` / `options` / `badges`, a follow-up's `read`); the yes call answered on the orb's rows (`answered_rows`) | the intro, the reveal and the pilot ask are never a step; the screener, the gate (*Did this happen to you?*, Yes / No), each item by its dimension, each follow-up folded onto its question |
 
 ## Runs
-| run | result |
-|---|---|
+All local (`make e2e-157 PROFILE=eval`, the main checkout's `.venv`), FakeSpeech / fake avatar / fake transcriber /
+scripted readers only: no vendor host contacted (the log scan), every Keel AI clip FakeSpeech at 0 µUSD. Started only
+after the integrator's run of record 3 logged `EXIT` (16:5x ET); keel-cloud served from the temporary worktree
+`wt/keel-cloud-eval-164` (`8fc10e71`), keel-web from `wt/keel-web-eval-164`; `stack.toml` pointed at them in this
+worktree's copy only (restored, never committed); both worktrees removed after; `make down` after each run (the last
+run's Gradle daemon and JVM, started by this run, gone).
+
+| run | stack | result |
+|---|---|---|
+| 1 (16:53 ET) | cloud `8fc10e71`, web `1fdea165`, eval `9f4518c` | stopped at the founder's sign-in (*.auth-title* never drawn): vite's first-load dependency re-optimisation in the new worktree's empty cache reloaded the page -- environment, not a red; no bundle |
+| 2 (16:56 ET) | cloud `8fc10e71`, web `1fdea165` | stopped by the builder (its own make; `make down`) on the coordinator's word: keel-web for the run is `9ef65690` |
+| 3 `runs/157/8fc10e71-9ef65690/20261124T220247Z` | cloud `8fc10e71` (contract 87), web `9ef65690`, eval `9f4518c`, 17:02-17:40 ET | **6 of 13 green** (FR-1a-d, problem avatar, solution avatar). The No-sayer's why, the No path, Frequency on bands, the ways, Insights, the brief, the founder's page on screen and the card's walked gate all held on the problem study. Red: problem orb and solution orb on the phone film (the walk did not answer the screener 258 puts before the film -- harness), money orb and avatar after *Begin* (the check, which has no clip, read as the gate -- harness), money copilot (a ladder's second step not filed; the orb's sheet rows' badge on *$...* rows; number items not in the walked record; the card's anchor -- harness), problem copilot (**DRIFT #116**), solution copilot (**DRIFT #117**, **#118**). All harness reds fixed in `eb5222d` |
+| **4 (the run reported)** `runs/157/8fc10e71-eb4955fc/20261124T224322Z` | cloud `8fc10e71` (contract 87), web `eb4955fc` (= `9ef65690` + a test-only commit, the coordinator's word), eval `eb5222d`, 17:43-18:20 ET | **11 of 13 green**: FR-1a, FR-1b, FR-1c, FR-1d (the list's nesting held: DRIFT #114 resolved), problem orb, problem avatar, solution orb, solution avatar, money orb, money avatar, money copilot. Red, both the product's: **problem copilot** by one check, the walked one script at step 4 (`problem.importance`): the orb and the face ask Importance's why on a row that is not the founder's own, the card opens none (**DRIFT #116**; every other check of the leg green -- the card read by passage, its gate *Did this happen to you?* with Yes / No, the No path by passage, its machine's follow-ups on both calls, Frequency's digits); **solution copilot** by two: the card's No goes on with Prevalence's why on an anchor that ends the interview on the orb and the face (**DRIFT #117**), and the walked one script at `solution.compatibility`: the card opens *You said yes, with some steps ...* on *Yes, most of the time* (**DRIFT #118**) |
+
 
 ## Commits
 | Commit | FR | What |
 |---|---|---|
+| `d976972` | FR-1, FR-2 | T1+T2: the ten mirrors (pending_258 retired, capped, the Frequency chart, the breakdown, the digits, the card's machine, owed on recency, the ways panel, the nesting), the founder's page on screen, the card's walked record by passage kind; tests |
+| `9f4518c` | FR-1, FR-2 | the voice walk's yes-sayer by its `MadeLink` invitation id; the decision-maker's check strip read as the card's check passage; the mirror table |
+| `eb5222d` | FR-2, FR-3 | run 3's reading (harness): the phone film answers the screener first; the money link after *Begin* is the check with no clip; a row's badge off by its place; number items in the walked record; a ladder's second step filed; the card's anchor before its stem; a walked why compared by where it is asked |
+| (this commit) | FR-3 | DRIFT #116-#118 written, #114 / #115 resolved; this file's runs, unit counts, commits and judgement calls |
+
+## make unit
+- Before (`b4843ca`, the base, 16:31-16:38 ET, siblings keel-cloud-docs `8fc10e71` / keel-web `c7f5b97a`): **92 failed,
+  6050 passed, 137 skipped**.
+- After T1+T2 (`d976972`, siblings cloud `6a50f661` -- the integrator's checkout back on it -- / web `c7f5b97a`): 90
+  failed, 6068 passed, 137 skipped; the one red not in the base's list (`test_three_views_157::
+  test_the_idea_beats_answer_every_limit_of_the_story`) is the sibling keel-cloud's 271 fake readings (*idea beats are not
+  1 and 2*), not this branch (green on `8fc10e71`).
+- **After (the head, 18:22-18:29 ET, siblings keel-cloud-docs `b48e1f49` / keel-web `7c98d472` as the main checkouts
+  stood): 97 failed, 6065 passed, 137 skipped -- no new red**: the base `b4843ca` run beside it on the same siblings, at
+  the same time, has **100 failed, 6042 passed, 137 skipped**; the after's reds are a subset of the base's, three fixed
+  (`test_orb_159::test_keel_web_plays_the_orb`, `test_both_speakers_160::test_the_web_side_walks_the_same_states` --
+  258's order -- and `test_founder_walk_076::test_the_dry_runs_hello_on_the_gates_id_is_not_the_story`), 20 tests added
+  (`tests/test_mirrors_of_258_164.py`'s 19, 120's capped line). Every remaining red is the base's own (the sibling checkouts'
+  drift of earlier specs' mirrors).
+
+## DRIFT written
+- **#116** (keel-cloud, `CallScriptComposer`): Importance's `followUp.against` empty on the card's script -- the card never
+  asks Importance's why where the orb and the face do. Met in runs 3 and 4.
+- **#117** (keel-cloud, `CallScriptComposer`): on a solution study the card's gate carries Prevalence's follow-up, so the
+  card's No goes on where the anchor ends the interview on the orb and the face. Met in runs 3 and 4.
+- **#118** (keel-cloud, `CallScriptComposer`): Compatibility's second stem opened on *Yes, most of the time* (the card's
+  `also.on` not held to `saysItsSteps`). Met in runs 3 and 4.
+- **#114** status: resolved (keel-web `d4fb9318`, in `9ef65690`). **#115** status: resolved (keel-cloud-docs `8fc10e71`).
+
+## Open
+- The two copilot legs stay red until keel-cloud answers DRIFT #116-#118 (the card's script); nothing in the harness
+  patches around them.
+- keel-web `9ef65690` / `eb4955fc` vendor contract 89 / 90 (261, 259) while the stack's keel-cloud serves 87: the run
+  read 87 and the four questions held; the next integrator run on merged masters names its own pair.
+- The money's walked comparison now runs (161 compared it on the wire alone): green on run 4.
+
 
 ## Judgement calls
 1. **keel-web for the local run is master `9ef65690`, not `1fdea165`** (the coordinator's word, 2026-11-24 ~17:00 ET, after
@@ -71,3 +119,16 @@ stack allowed ONLY once the integrator's run has released it. Push after every c
 10. **Unit reds that are 258's moves were moved, the rest left**: the film-first mirrors of 159 / 160 and 076's
     formatter-wrapped `firstItemId` line; every other red is the base's own (the sibling checkouts' drift of earlier
     specs).
+11. **Run 4 is on keel-web `eb4955fc`** (the coordinator's second word: `9ef65690` plus a test-only commit, two e2e walks
+    answering Importance after the gate's No; *use it if the run has not started*): run 3 had run on `9ef65690`; run 4,
+    started after, ran on `eb4955fc` -- the sha each report names.
+12. **A walked why is compared by where it is asked, not by its words** (`three_surfaces.WALKED_WHY`, the walked records
+    only): the orb and the face say the route's why, which says the person's pick back (*You picked ... over ...*, *You
+    said under $10 a month ...*), the card reads the script's hint; the words are held on the served records (the cloud's
+    one script, compared word for word as 161 did). A why asked on one surface and not another still parts the records.
+13. **A sheet row's badge is taken off by its place** (`letterOf(i)` on a story link): 161's regex kept the letter on a row
+    starting with *$* (*B$10 to under $20*); a number item (no rows) is a step of the walked record too, so the card's
+    *Existing sacrifice* is matched on the orb and the face.
+14. **The decision-maker's link after *Begin*** is the problem check, which keel-web 258 asks with no clip of its own
+    (`stepsOf`: `clip: undefined`): the check holds that nothing plays and the window opens; a link with a gate keeps the
+    gate's clip first.
