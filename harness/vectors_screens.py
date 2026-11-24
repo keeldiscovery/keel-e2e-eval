@@ -5284,7 +5284,9 @@ class Answers:
     def insights(self, project_id: str) -> dict:
         """The Insights view (keel-web 077 FR-3; keel-web 095, spec 064 FR-8b): per box (`section.rp-ibox[data-dim]
         [data-status][data-state]`, `[data-dissent=true]` on a held line) its head (`.rp-ihead`), its whole text, the
-        rung heading alone (`.rp-concern`), the dissent frame (`.rp-frame`), `.rp-tookby`, the split line, the themes
+        rung heading alone (`.rp-concern`), the dissent frame (`.rp-frame`), the served count line
+        (`insights-count-line`) and, since keel-web 258 FR-9 (spec 164 mirror 2), the people past the two-question cap
+        (`insights-capped`, `.rp-capped`, in `.rp-tookby`'s place -- `took_by` stays None), the split line, the themes
         (`ol.rp-themes > li`: `span.rp-themes__label`, `.rp-themes__n`, `li[data-own]` for *On their own*, each quote
         `p.rp-quote` with its `div.rp-iq > p.rp-pick` -- `.rp-opt` and `.rp-side[data-side]`), the GROUPING list
         (`[data-testid=insights-grouping]`), the RAW list (`.rp-raw`, its `.rp-raw__note`); a folded group is opened
@@ -5325,10 +5327,12 @@ class Answers:
                                    "picks": picks_of(li)})
                 concern = _tc(box.locator(".rp-concern"))
                 frame = _tc(box.locator(".rp-frame"))
-                took = _tc(box.locator(".rp-tookby"))
+                took = _tc(box.locator(".rp-tookby"))        # keel-web before 258: never drawn since
+                capped = _tc(box.get_by_test_id("insights-capped"))
+                count_line = _tc(box.get_by_test_id("insights-count-line"))
                 # spec 076 FR-6 (keel-web 127 FR-4): the muted line under the groups, *{n} answer(s) were not about this*
                 not_about = _tc(box.get_by_test_id("insights-not-about-this")) or None
-                own_lines += [x for x in (concern, frame, took, not_about) if x]
+                own_lines += [x for x in (concern, frame, took, capped, count_line, not_about) if x]
                 grouping = box.get_by_test_id("insights-grouping")
                 # keel-web 155 FR-9 (keel-cloud 184 FR-8): a line with a second stem draws the quotes that answered it
                 # under their own heading (`[data-testid=insights-also]`, `.rp-concern--also`), not in `ol.rp-themes`
@@ -5344,7 +5348,7 @@ class Answers:
                     "not_about": not_about,
                     "themes": themes, "text": text, "also": also,
                     "split": fake.SPLIT_NOTE if fake.SPLIT_NOTE in text else None,
-                    "took_by": took or None,
+                    "took_by": took or None, "capped": capped or None, "count_line": count_line or None,
                     "grouping": [_tc(q) for q in grouping.locator(".rp-quote").all()] if grouping.count() else None,
                     "raw": [_tc(q) for q in box.locator(".rp-raw .rp-quote").all()],
                     "raw_note": _tc(box.locator(".rp-raw__note")) or None,
@@ -5499,7 +5503,11 @@ class Answers:
                                         if page.locator(f"[data-testid='report-stage-{stage}']").count()},
                               "text": _words(page)})
             text = _screen_text(self.page, "[data-testid='report-binding']")
+            # spec 164 mirror 5 (keel-web 258 FR-6, FR-7): the breakdown's rows -- each card's key and its answers cell
+            breakdown = [{"key": tr.get_attribute("data-dim"), "facts": _tc(tr.locator(".rp-bd__facts")) or None}
+                         for tr in binding.locator("section.rp-bd tr[data-dim]").all()]
             h.capture_text("download", text)
             h.add_screenshot(self._b.screenshot("brief-print"))
             return {"title": self.page.title(), "preparing_seen": bool(self.page.evaluate("window.__preparingSeen")),
-                    "pages": pages, "old_headline": self.page.locator(".bhead__headline").count(), "text": text}
+                    "pages": pages, "old_headline": self.page.locator(".bhead__headline").count(), "text": text,
+                    "breakdown": breakdown}

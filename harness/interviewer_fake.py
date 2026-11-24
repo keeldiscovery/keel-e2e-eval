@@ -1110,13 +1110,29 @@ def closes(dimension: str, pick) -> bool:
     return dimension == "commercial.buyer_payer_alignment" and v["codes"][:1] == [BUYER_ALONE] and not v["chip"]
 
 
+#: keel-cloud 270 FR-1 (registry 5): the gate's rung -- a No owes Prevalence's why first, on the spot.
+PREVALENCE_RUNG = "problem.prevalence"
+#: keel-cloud 269 FR-2: after the gate's No only Importance is answered (a Frequency answer, a story or any other item is
+#: refused 422 SHAPE_MISMATCH), so only Importance's rung is read.
+AFTER_A_NO = ("problem.importance",)
+
+
 def owed(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False, served: set[str] | None = None,
-         first=(), asked=(), failing=(), whys=None) -> list[tuple[str, bool]]:
+         first=(), asked=(), failing=(), whys=None, recency: bool | None = None) -> list[tuple[str, bool]]:
     """`Ladder.owed` (keel-cloud 118): every question these answers are owed, `(dimension, apart)`, in the walk's order
     -- the deciding lines first, then registry order -- on the rungs the link walks (and, given, the interview serves).
-    Spec 075 (keel-cloud 142 FR-1, `FollowUpComposer.ask(..., asked)`): a rung in `asked` is left out."""
+    Spec 075 (keel-cloud 142 FR-1, `FollowUpComposer.ask(..., asked)`): a rung in `asked` is left out.
+
+    Spec 164 mirror 8 (keel-web 258 FR-4, keel-cloud 270 FR-1, contract 87 `FollowUpRequest.recency`): the route is
+    sent `recency` once the gate is answered -- `False` (the gate's No) owes Prevalence first (`problem.prevalence`,
+    unless asked or not served), and of the picks only Importance's is read (the page sends Importance's answer alone
+    after a No); `True` or `None` (no gate, or not yet answered) as before."""
+    if recency is False:
+        picks = [p for p in picks if _value(p)["dimension"] in AFTER_A_NO]
     by_dimension = {_value(p)["dimension"]: p for p in picks}
     out = []
+    if recency is False and PREVALENCE_RUNG not in (asked or ()) and (served is None or PREVALENCE_RUNG in served):
+        out.append((PREVALENCE_RUNG, False))
     for dimension in ordered(walks(link, b2b), first):
         if served is not None and dimension not in served:
             continue
@@ -1129,24 +1145,30 @@ def owed(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False, s
             out.append((dimension, False))
         elif apart(dimension, pick, founder):
             out.append((dimension, True))
+    if failing and out[:1] == [(PREVALENCE_RUNG, False)] and recency is False:
+        return out[:1] + fewest_first(out[1:], failing, whys)       # the No's why is asked on the spot, first
     return fewest_first(out, failing, whys) if failing else out
 
 
 def first_stem(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False,
-               served: set[str] | None = None, first=(), asked=(), failing=(), whys=None) -> tuple[str, bool] | None:
+               served: set[str] | None = None, first=(), asked=(), failing=(), whys=None,
+               recency: bool | None = None) -> tuple[str, bool] | None:
     """`Ladder.stemOf`: the question the route returns -- the first owed not in `asked` (keel-cloud 142) -- or None;
-    since keel-cloud 183 the failing line with the fewest whys first (`fewest_first`, `failing` / `whys` given)."""
-    stems = owed(picks, founder, link, b2b=b2b, served=served, first=first, asked=asked, failing=failing, whys=whys)
+    since keel-cloud 183 the failing line with the fewest whys first (`fewest_first`, `failing` / `whys` given); since
+    keel-cloud 270 the gate's No (`recency` False) Prevalence's first (spec 164 mirror 8)."""
+    stems = owed(picks, founder, link, b2b=b2b, served=served, first=first, asked=asked, failing=failing, whys=whys,
+                 recency=recency)
     return stems[0] if stems else None
 
 
 def first_rung(picks, founder: Founder, link: str = "PRIMARY", *, b2b: bool = False,
-               served: set[str] | None = None, first=(), asked=(), failing=(), whys=None) -> str | None:
+               served: set[str] | None = None, first=(), asked=(), failing=(), whys=None,
+               recency: bool | None = None) -> str | None:
     """The rung of the question the route returns (`first_stem`), or None (nothing owed). Since keel-cloud 118 the
     deciding lines (`first`) are walked first, and an answer a second stem is asked on is owed too; since 142 a rung
     in `asked` is passed over."""
     stem = first_stem(picks, founder, link, b2b=b2b, served=served, first=first, asked=asked, failing=failing,
-                      whys=whys)
+                      whys=whys, recency=recency)
     return stem[0] if stem else None
 
 
@@ -1470,6 +1492,12 @@ def took_by(asked: int, against: int, rungs) -> str:
     earlier = " and ".join([f"{rungs[0].get('count')} had already been asked about {rungs[0].get('name')}"]
                            + [f"{r.get('count')} about {r.get('name')}" for r in rungs[1:]])
     return f"Only {asked} of the {against} were asked here: {earlier}, the first rung they failed."
+
+
+def insights_capped(k: int, n: int) -> str:
+    """keel-web 258 FR-9 (`insightsCapped`, translate.ts): the people counted against on a line who were past the
+    two-question cap -- in `TOOK_BY`'s place (keel-cloud 270: `Insight.capped`, `tookBy` gone)."""
+    return f"1 of the {n} was past the two-question cap" if k == 1 else f"{k} of the {n} were past the two-question cap"
 
 
 def not_asked_line(entry: dict) -> str:

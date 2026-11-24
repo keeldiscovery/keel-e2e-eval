@@ -336,11 +336,13 @@ def test_keel_webs_player_draws_what_the_walk_reads():
 
 def test_the_web_side_walks_the_same_states():
     """keel-web 256's own two-speaker walk (`walk("ORB")` / `walk("AVATAR")`): the states this harness's steps mirror --
-    the film, the film's end, the opening and the first question speaking large, the sheet small."""
+    the opening speaking large, the film, the film's end, the first question speaking large, the sheet small (keel-web
+    258 FR-2b moved the opening before the film; spec 164 mirror 1)."""
     test = _web("tests/unit/the-player-pared-down-256.test.tsx")
-    want = ['"film"', '"film+begin"', '"speaking:Opening:large"', '"speaking:Question 1 of 7:large"',
+    block = test[test.find("expect(orb.states).toEqual(["):]
+    want = ['"speaking:Opening:large"', '"film"', '"film+begin"', '"speaking:Question 1 of 7:large"',
             '"listening:Question 1 of 7:small"']
-    at = [test.find(w) for w in want]
+    at = [block.find(w) for w in want]
     assert all(i >= 0 for i in at) and at == sorted(at), dict(zip(want, at))
     assert "expect(face.states).toEqual(orb.states);" in test and "expect(face.words).toEqual(orb.words);" in test
 

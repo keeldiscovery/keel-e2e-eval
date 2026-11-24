@@ -286,8 +286,12 @@ def test_keel_web_plays_the_orb():
     # spec 160 (keel-web 256 FR-3): the film's dim orb is gone
     assert f'data-testid="{ivs.FILM_ORB}"' not in player
     flow = (WEB / "src" / "lib" / "aiInterviewFlow.ts").read_text(encoding="utf-8")
-    assert '...(film ? [{ kind: "film" } as const] : [])' in flow           # the film first
-    assert "if (!film) passage(\"problem\");" in flow                          # no problem passage after it
+    # spec 164 mirror 1 (keel-web 258 FR-2b): the film-first order is retired -- the opening, the screener on a step of
+    # its own, then the film, then the gate; no problem passage on a film link
+    assert '...(film ? [{ kind: "film" } as const] : [])' not in flow
+    screener = flow.find('steps.push({ kind: "condition", condition: screener')
+    assert 0 <= screener < flow.find('steps.push({ kind: "film" });')
+    assert "if (!film) passage(\"problem\");" in flow
     orb = (WEB / "src" / "components" / "voice" / "KeelOrb.tsx").read_text(encoding="utf-8")
     assert 'data-testid="story-orb"' in orb
 

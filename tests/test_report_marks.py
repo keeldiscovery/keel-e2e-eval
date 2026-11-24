@@ -159,12 +159,14 @@ def insights_page(st: dict) -> dict:
         loose = w["grouping"] or w["raw"] or []
         lead = [fake.GROUPING_LINE] if w["grouping"] else ([fake.IN_THEIR_WORDS] + ([w["note"]] if w["note"] else [])
                                                            if w["raw"] else [])
-        text = _join(*w["head"], w["split"], w["concern"], w["frame"], *theme_text, w["took_by"], *lead, *loose)
+        text = _join(*w["head"], w["split"], w["concern"], w["count_line"], w["frame"], *theme_text, *lead, *loose,
+                     w["capped"])
         quotes += [q for t in themes for q in t["quotes"]] + list(loose)
-        own += [x for x in (w["concern"], w["frame"], w["took_by"]) if x]
+        own += [x for x in (w["concern"], w["frame"], w["count_line"], w["capped"]) if x]
         boxes.append({"key": w["key"], "state": w["state"], "dissent": w["dissent"], "head": _join(*w["head"]),
                       "concern": w["concern"] or "", "frame": w["frame"], "themes": themes, "text": text,
-                      "split": w["split"], "took_by": w["took_by"], "grouping": w["grouping"], "raw": w["raw"] or [],
+                      "split": w["split"], "count_line": w["count_line"], "capped": w["capped"],
+                      "grouping": w["grouping"], "raw": w["raw"] or [],
                       "raw_note": w["note"]})
     not_asked = [{"key": n["dimension"], "text": fake.not_asked_line(n)} for n in st.get("notAsked") or []]
     empty = None
@@ -398,8 +400,8 @@ def test_keel_clouds_facts_draw_the_corpus_overview_on_all_seven_entries():
     (lambda r: r["insights"]["boxes"][0].update(concern="What they would start with"),
      "the rung's heading not the served stem"),
     (lambda r: r["insights"].update(not_asked=[]), "the notAsked line not drawn"),
-    (lambda r: r["insights"]["boxes"][0].update(took_by="Only 1 of the 2 were asked here: ..."),
-     "a took-by line the wire has none of"),
+    (lambda r: r["insights"]["boxes"][0].update(capped="1 of the 2 was past the two-question cap"),
+     "a capped line the wire has none of (keel-web 258 FR-9)"),
     (lambda r: r["insights"]["boxes"][1].update(text="Adoption friction Holding up"), "the dissent frame not drawn"),
     (lambda r: r["standings"]["insights"][0]["themes"][0].update(label="office"), "the served themes not the fake's"),
     (lambda r: r["standings"]["insights"][0]["quotes"][0].update(name="Somebody Else"),

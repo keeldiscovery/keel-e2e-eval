@@ -322,7 +322,8 @@ def consumer_report_words(board: dict | None, insights: dict | None) -> list:
         places += [(f"row:{r.get('key')}", r.get("text")) for r in panel.get("rows") or []]
     for box in (insights or {}).get("boxes") or []:
         key = box.get("key")
-        places += [(f"insight:{key}:{part}", box.get(part)) for part in ("head", "concern", "frame", "took_by")]
+        places += [(f"insight:{key}:{part}", box.get(part)) for part in ("head", "concern", "frame", "capped",
+                                                                          "count_line")]
         places += [(f"insight:{key}:theme", t.get("label")) for t in box.get("themes") or []]
     places += [(f"not_asked:{n.get('key')}", n.get("text")) for n in (insights or {}).get("not_asked") or []]
     out = []
@@ -406,15 +407,28 @@ def expected_box(insight: dict, standing: dict | None = None, guessed: frozenset
         "frame": insight.get("frame") if insight.get("dissent") else None,
         "themes": themes,
         "also": {"heading": also_heading, "quotes": also} if also_heading and also else None,
-        # keel-web 155 FR-7: the served `countLine` is drawn in place of the composed *Only k of the n* footer
-        "took_by": insight.get("countLine") if insight.get("countLine")
-        else (fake.took_by(insight.get("asked"), insight.get("against"), insight.get("tookBy"))
-              if insight.get("tookBy") else None),
+        # keel-web 155 FR-7: the served `countLine` is drawn (`insights-count-line`); keel-web 258 FR-9 (spec 164
+        # mirror 3): the composed *Only k of the n* footer is never drawn (an older server's `tookBy` read, not drawn),
+        # and the people past the two-question cap are their own line (`insights-capped`) where the count line does not
+        # already say it
+        "count_line": insight.get("countLine") or None,
+        "capped": capped_line(insight),
         "grouping": loose if state == "GROUPING" else None,
         "raw": loose if state == "RAW" else None,
         "note": insight.get("note") if state == "RAW" else None,
         "guessed": [fake.quote_words(q) for q in every if not said(q)],
     }
+
+
+def capped_line(insight: dict) -> str | None:
+    """keel-web 258 FR-9 (`InsightBox`, `insightsCapped`): *{k} of the {n} were past the two-question cap* (*1 of the n
+    was ...*), k the served `capped`, n `against` -- drawn only where `capped > 0` and the served count line does not
+    already carry the sentence."""
+    k = int(insight.get("capped") or 0)
+    if k <= 0:
+        return None
+    line = fake.insights_capped(k, int(insight.get("against") or 0))
+    return None if line in str(insight.get("countLine") or "") else line
 
 
 def predicted_themes(standings: dict, insight: dict) -> list[dict]:
@@ -525,7 +539,7 @@ def insight_faults(standings: dict, page: dict, *, strict: bool, names: dict) ->
         if got.get("state") != want["state"] or bool(got.get("dissent")) != want["dissent"]:
             faults.append({key: "the box's state", "drawn": [got.get("state"), got.get("dissent")],
                            "wire": [want["state"], want["dissent"]]})
-        for part in ("split", "took_by", "frame"):
+        for part in ("split", "count_line", "capped", "frame"):
             if want[part] is not None:
                 missing += ov.in_order(got.get("text"), [want[part]])
             elif got.get(part):
@@ -791,6 +805,42 @@ def binding_faults(r: dict) -> list:
         faults.append({"title": binding.get("title"), "want": want_title})
     if not binding.get("preparing_seen"):
         faults.append({"preparing": f"{PREPARING!r} was not drawn before the pages"})
+    if binding.get("breakdown") is not None:
+        faults += breakdown_faults(binding["breakdown"], standings.get("facts") or {})
+    return faults
+
+
+#: keel-cloud 269 FR-5 (keel-web 258 FR-7): Current solution is gone -- no row on the breakdown.
+CURRENT_SOLUTION = "problem.current_solution_satisfaction"
+
+
+def breakdown_picks(picks) -> str:
+    """keel-web `breakdownRows.picks`: *{label} {count}* joined by *·* (the code where a pick has no label)."""
+    return " · ".join(f"{p.get('label') or p.get('code')} {p.get('count')}" for p in picks or [])
+
+
+def breakdown_frequency(facts: dict) -> str | None:
+    """Spec 164 mirror 5 (keel-web 258 FR-6, `breakdownRows.answersOf`): Frequency's answers cell on the breakdown --
+    the served bands as *Every time 4 · Most times 5 · ...*; an older server's `middle` words where it serves no bands."""
+    f = ((facts or {}).get("problem") or {}).get("frequency")
+    if not f:
+        return None
+    if f.get("bands"):
+        return breakdown_picks(f["bands"])
+    return f.get("middle") if str(f.get("middle") or "").strip() else None
+
+
+def breakdown_faults(rows: list[dict] | None, facts: dict) -> list:
+    """Spec 164 mirror 5 (keel-web 258 FR-6, FR-7): the breakdown's rows (`section.rp-bd tr[data-dim]`, the answers
+    cell `.rp-bd__facts`) -- Frequency's cell the served bands, no Current solution row."""
+    faults = []
+    by_key = {r.get("key"): r for r in rows or []}
+    if CURRENT_SOLUTION in by_key:
+        faults.append({"breakdown": "a Current solution row (keel-web 258 FR-7: gone)"})
+    want = breakdown_frequency(facts)
+    row = by_key.get("problem.frequency")
+    if want is not None and row is not None and ov.norm(row.get("facts")) != ov.norm(want):
+        faults.append({"problem.frequency": row.get("facts"), "want": want})
     return faults
 
 

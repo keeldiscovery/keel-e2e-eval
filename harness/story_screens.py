@@ -2014,6 +2014,9 @@ class StoryLinkText:
                "mute": main.get_by_test_id("card-voice-mute").count(),
                "still": main.locator(".iv-still").count(),
                "bubbles": bubbles.count(),
+               # the badges as drawn: letters on every question here; on the Copilot card Frequency's five carry the
+               # digits 1-5 (keel-web 258 FR-5, spec 164 mirror 6: `three_surfaces.badge_faults`), and the orb's sheet
+               # on a film link letters Frequency A-E
                "letters": _texts(main.locator(".cpl-bubble__let")),
                "rows": _texts(main.locator(".cpl-bubble__w")) or _texts(main.locator("[role=radio]")),
                # keel-web 244 FR-4: a scale keeps its cells -- count cells, the four-point scale, Hours / Amount -- and
@@ -2243,6 +2246,28 @@ def web_has_257(keel_web: Path) -> bool:
     source = Path(keel_web) / STORY_LINES_SOURCE
     return source.exists() and "LONG_BEATS" in source.read_text(encoding="utf-8") \
         and STORY_QUESTIONS[7] in source.read_text(encoding="utf-8")
+
+
+#: keel-web 258 (DRIFT #114, `storyList.ts` `BEFORE_THE_LOCK`): a problem project a solution uses is nested under it,
+#: *Defined, not sent*, on `defined`, `calibrating` and `calibrated` (keel-cloud 269 writes the PROBLEM beliefs at the
+#: board's yes); `locked` stands on its own.
+BEFORE_THE_LOCK = ("defined", "calibrating", "calibrated")
+
+
+def is_defined(row: dict | None) -> bool:
+    """keel-web `storyList.isDefined` (spec 164 mirror 10)."""
+    return str(((row or {}).get("definition") or {}).get("status") or "") in BEFORE_THE_LOCK
+
+
+def parent_of(row: dict | None, rows: list[dict]) -> dict | None:
+    """keel-web `storyList.parentOf`: the study a defined project is nested under, where the list holds it -- the one whose
+    lineage names it as its problem, or the one it was made to return to."""
+    if not is_defined(row):
+        return None
+    me = (row or {}).get("projectId")
+    back = ((row or {}).get("definition") or {}).get("returnTo")
+    return next((o for o in rows or [] if o.get("projectId") != me and (
+        ((o.get("lineage") or {}).get("problemProjectId") == me) or o.get("projectId") == back)), None)
 
 
 def web_has_258(keel_web: Path) -> bool:
