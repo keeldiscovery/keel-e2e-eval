@@ -159,6 +159,9 @@ def test_the_walk_saves_waits_out_both_turns_shoots_the_band_and_never_puts_back
     """144 FR-1 on 235's ladder: the Check drawn with the founder's five (nothing to type), Save; the hold waited out
     (235's two turns inside it); the Check stays with the scale's band and three changed rungs; read and shot again
     (`check-{CS}-reviewed`); Continue pressed; Put back never pressed, no rung typed."""
+    if CS not in vs_screens.REVIEWED_LISTS:
+        pytest.skip("spec 161 (keel-cloud 269 FR-5): Current solution left the PROBLEM study -- its Check, its review "
+                    "and the hold on it are no longer walked (`REVIEWED_LISTS_RETIRED`)")
     page = browser.new_page()
     put: list = []
 

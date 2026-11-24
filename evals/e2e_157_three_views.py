@@ -2,7 +2,8 @@
 founder's legs walk the conversation (keel-web 245 on keel-cloud 263) and the report names the beats; since spec 159
 the stranger's three views are the orb, the face and the copilot (keel-web 253 / 254 on keel-cloud 267) and the report
 names the orb; since spec 160 the orb and the face walk the same walk (keel-web 256) and the report names the two
-speakers.
+speakers; since spec 161 the four questions (keel-cloud 268-270, contract 87; keel-web 257 / 258) and the report's *The
+three surfaces* and *The founder's seven beats*.
 
 Not a `test_*.py`: `make eval` never collects it (the scenario set is unchanged); the make target names this file.
 Every leg runs whatever the one before it did (a leg whose project is missing is skipped by name), and the report is
@@ -62,8 +63,10 @@ def test_e2e_157_three_views(stack, browser):
                     "seconds": round(time.monotonic() - started), "bundle": str(bundle.relative_to(REPO_ROOT))}
             legs = list(run.legs.values())
             speakers = report.speaker_rows(run.__dict__.get("speaker_walks"), run.__dict__.get("speaker_verdicts"))
+            surfaces = report.surface_rows(run.__dict__.get("surfaces"), run.__dict__.get("surface_verdicts"))
+            meta["contract"] = run.__dict__.get("contract_read")
             written = report.write_report(folder / "report.md", legs, meta, scan, run.beats, run.fits, run.turns,
-                                           run.orbs, speakers)
+                                           run.orbs, speakers, surfaces, run.__dict__.get("founder_beats"))
             (bundle / "report.md").write_text(written.read_text(encoding="utf-8"), encoding="utf-8")
             print(f"\nreport: {written}\nbundle: {bundle}")
     assert scan.get("clean") is not False, report.scan_line(scan)

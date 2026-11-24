@@ -118,6 +118,9 @@ def calibration_screen_of(entry, only: str | None, *, with_clause: bool) -> str:
     if only == CURRENT_SOLUTION_KEY:
         return CALIBRATION_WITH_PARTS_SCREEN
     return CALIBRATION_SCREEN
+#: Spec 161 (keel-cloud 270 FR-3): the ways read from the strangers' stories, `{heading, founderWay, stories}` ->
+#: `{ways: [{label, answerIds}]}`; in the screen table only where keel-cloud's export carries it (contract 87).
+EXPERIENCE_WAYS_SCREEN = "EXPERIENCE_WAYS"
 CORRIDOR_SCREENS = (CONTEXT_SCREEN, PROBLEM_SCREEN, MECHANISM_SCREEN, CALIBRATION_SCREEN,
                     ASKED_SCREEN, INTERPRET_SCREEN, THEMES_SCREEN)
 
@@ -217,31 +220,12 @@ def window_of(entry) -> Window:
     return Window(count=int(raw["count"]), unit=str(raw["unit"]))
 
 
-def frequency_fits(entry) -> bool:
-    """Whether the corpus's Frequency can be stated on the entry's **own** recall window.
-
-    keel-cloud counts Frequency in the window's own unit, on an axis from 1 to the window's count (spec 089 FR-2,
-    keel-cloud 158: the respondent's `segmented_1_to_n` runs 1..count, a number box from 1; a 0 after the yes is
-    SHAPE_MISMATCH, and the five recorded 0s are sent as 1, `ZERO_SENT_AS_ONE`, spec 090 FR-3). The corpus keeps
-    Frequency on the founder's
-    own "out of N", so where the founder's range or any pick lies past the window's count the founder
-    cannot state it and no respondent can answer it, and the journey leaves Frequency **out** (`unsure`)
-    rather than inventing a number (spec 039 D-1, spec 041 D-1, spec 042 D-1). Countly's {4, WEEKS}
-    carries its "1 to 3 weeks out of 4" and, since revision 11 (keel-cloud 091), Paidly's {3, MONTHS}
-    its "2 to 3 months out of 3": Frequency is asked on both. Mulch Run's "working days out of 7" on
-    {2, WEEKS} still does not fit (091 judgement call 11 left it).
-    """
-    window = window_of(entry)
-    answer = (entry.founder_calibration.get("problem.frequency") or {}).get("answer")
-    if not isinstance(answer, dict):
-        return False
-    if float(answer.get("upper") or 0) > window.count:
-        return False
-    for person in entry.people():
-        value = (person.picks or {}).get("problem.frequency")
-        if isinstance(value, (int, float)) and value > window.count:
-            return False
-    return True
+#: Spec 161 FR-6 (keel-cloud 269 FR-3): `frequency_fits` is retired -- Frequency is a share scale with no window to fit,
+#: so it is always asked (where the founder did not leave it out). Its last word, for the record: Mulch Run's *working
+#: days out of 7* on a {2, WEEKS} window no longer leaves it out.
+FREQUENCY_FITS_RETIRED = "spec 161: Frequency is always asked (keel-cloud 269: five rows, no window)"
+#: Spec 161 FR-5 (keel-cloud 269 FR-5): the dimension the PROBLEM study no longer calibrates, plans or asks.
+RETIRED_KEYS = ("problem.current_solution_satisfaction",)
 
 
 def window_words(window: Window) -> str:
@@ -1511,8 +1495,7 @@ def primary_link(entry) -> bool:
 def calibrated_keys(entry, vector: str) -> list[str]:
     """The registry slice the calibration job writes for `vector`, in registry order: Ability to pay
     never (derived), Purchase friction on a B2B persona only."""
-    keys = {"PROBLEM": ["problem.prevalence", "problem.frequency", "problem.importance",
-                        "problem.current_solution_satisfaction"],
+    keys = {"PROBLEM": ["problem.prevalence", "problem.frequency", "problem.importance"],     # spec 161: 269 FR-5
             "SOLUTION": ["solution.compatibility", "solution.relative_advantage",
                          "solution.adoption_friction"],
             "COMMERCIAL": ["commercial.existing_sacrifice", "commercial.price",
@@ -4047,12 +4030,9 @@ def calibration_answers(entry, vector: str) -> list[CalibrationAnswer]:
         if founder.get("unsure") or answer is None:
             body["unsure"] = True
         elif key == "problem.frequency":
-            if not frequency_fits(entry):
-                body["unsure"] = True
-            else:
-                window = window_of(entry)
-                body["interval"] = {"low": answer["lower"], "high": answer["upper"],
-                                    "unit": f"{_UNIT_WORDS[window.unit][1]} out of {window.count}"}
+            # spec 161 FR-6 (keel-cloud 269 FR-3): the founder's Frequency is a bin -- the recorded range read as the bin
+            # code writes at the boxes' yes (`corpus.spec269_founder_bin`)
+            body["codes"] = [corpus_reader.spec269_founder_bin(entry.founder_calibration)]
         elif key == "commercial.existing_sacrifice" and chain_mod.cost_in_chain(answer):
             # spec 064 FR-2 (keel-cloud 115): a chain cost posts every field the entry carries
             # spec 118 (keel-cloud 180 FR-9, contract 50): `CalibrationAnswer.cost.rate` is gone -- hours stay hours
@@ -4176,10 +4156,8 @@ def plan_keys(entry, part: int, link: str) -> list[str]:
     if part == 1 and "PROBLEM" not in scope_vectors(entry):
         return ["problem.prevalence"]           # 133 FR-5: the gate alone, the anchor, uncounted
     left_out = {key for key in entry.founder_calibration if entry.unsure(key)}
-    if not frequency_fits(entry):
-        left_out.add("problem.frequency")
-    keys = {1: ["problem.prevalence", "problem.frequency", "problem.importance",
-                "problem.current_solution_satisfaction"],
+    # spec 161 FR-5, FR-6 (keel-cloud 269): Current solution is not asked; Frequency always is (no window to fit)
+    keys = {1: ["problem.prevalence", "problem.frequency", "problem.importance"],
             2: ["solution.compatibility", "solution.relative_advantage",
                 "solution.adoption_friction"],
             3: ["commercial.existing_sacrifice", "commercial.price", "commercial.ability_to_pay",
@@ -4415,10 +4393,11 @@ def walked_follow_ups(entry, people) -> list[tuple[str, str]]:
 
 
 #: Spec 076 FR-6 (keel-cloud 145 FR-6, keel-web 127 FR-4): the one person a golden journey has type an answer that is
-#: not about the question on their follow-up -- 01-countly's Priya Natarajan (S-005), owed one rung alone (Current
-#: solution), so the rung her words land on is known before the run and the THEMES script can place them. The fake's
-#: grouping (`interviewer_fake.themes_with_junk`) puts them in NOT_ABOUT_THIS.
-JUNK_FOLLOW_UPS = {"01-countly": {"Priya Natarajan": "Meow, you are a fool."}}
+#: not about the question on their follow-up -- 01-countly's Aisha Rahman (S-005), owed one rung alone (Commitment),
+#: so the rung her words land on is known before the run and the THEMES script can place them. The fake's grouping
+#: (`interviewer_fake.themes_with_junk`) puts them in NOT_ABOUT_THIS. Spec 161 (keel-cloud 269 FR-5): it was Priya
+#: Natarajan, whose one rung was Current solution -- not asked since, so she is owed none and the words moved to Aisha.
+JUNK_FOLLOW_UPS = {"01-countly": {"Aisha Rahman": "Meow, you are a fool."}}
 
 
 def junk_rung(entry, person) -> str | None:
@@ -4500,6 +4479,10 @@ def context_keys_for(exported: dict) -> dict:
             f"keel-cloud's RESPONDENT_QUESTIONS keys {union} no longer carry both `mechanism` and "
             "`offer_name`; part 1's key set cannot be derived")
     out[RESPONDENT_SCREEN] = [k for k in union if k not in ("mechanism", "offer_name")]
+    if EXPERIENCE_WAYS_SCREEN in exported:
+        # spec 161 FR-8 (keel-cloud 270 FR-3): the ways read from the stories -- a screen the scripted runtime answers by
+        # its key set (`{heading, founderWay, stories}`) once the walk scripts it (`three_surfaces.ways_entry`)
+        out[EXPERIENCE_WAYS_SCREEN] = list(exported[EXPERIENCE_WAYS_SCREEN])
     if tuple(out[THEMES_SCREEN]) != THEMES_KEYS:
         raise VectorsScriptError(f"keel-cloud's THEMES keys {out[THEMES_SCREEN]} are not {list(THEMES_KEYS)} "
                                  "(keel-runtime 012 matches the screen by exactly these four)")
@@ -4820,7 +4803,11 @@ def _pick(entry, key: str, raw) -> Pick:
                     cost_period=raw.get("period"))
     # spec 089 FR-1 (keel-cloud 159, revision 19): Relative advantage's pick is one code of the scale, sent as it is
     if key == "problem.frequency":
-        return Pick(dimension=key, scale=int(raw))
+        # spec 161 FR-6 (keel-cloud 269 FR-3): the recorded count read on the five rows (`corpus.spec269_frequency`)
+        read = corpus_reader.spec269_frequency(raw, window_of(entry).count)
+        if isinstance(read, dict):
+            return Pick(dimension=key, chip=str(read["chip"]).upper())
+        return Pick(dimension=key, codes=[read])
     # spec 130 (keel-cloud 198 FR-5): revision 22's Ability to pay `no_budget` is answered `outside_funding` (the one rule)
     if isinstance(raw, list):
         return Pick(dimension=key, codes=[on_the_wire(entry, key, corpus_reader.spec198_pick(key, str(c))) for c in raw])

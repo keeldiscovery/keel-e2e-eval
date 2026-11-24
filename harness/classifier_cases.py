@@ -1,7 +1,10 @@
 """The spoken-answer cases (spec 048 FR-3; re-copied by spec 049 FR-1 / FR-8), copied whole from keel-cloud
 canon/designs/spoken-classifier-check-2026-10-16/cases.py at keel-cloud-docs d2f00d4 (the file is unchanged since
 e20d8aa, spec 100: 18 `readaloud` cases, 170 in all; the canon keeps the record, this repository owns the copy from now
-on). Read by harness/classifier_guard.py. The original docstring follows.
+on). Read by harness/classifier_guard.py. Spec 161 FR-10 (keel-cloud 268 FR-8) re-copied it at keel-cloud-docs
+`bf5a5b7d`: the `letters` group (keel-cloud 266's badge letters and 268's *si* as C), word for word; the eval's own
+Frequency cases on the five rows (`fixed_five`, keel-cloud 269) are `classifier_guard.EVAL_CASES`, never in this copy.
+The original docstring follows.
 """
 
 """The spoken-answer check: what people say aloud against one closed question each, with the answer a careful human
@@ -148,6 +151,17 @@ CASES = [
     ("readaloud", "days", "how many days ago... um, five? No, about a week ago.", {"value": 7}),
     ("readaloud", "budget", "a budget line we already had, a new one someone signed off, or no budget... it was a new one, someone signed it off", P(2)),
     ("readaloud", "budget", "an existing budget line, or a new one, or none at all, hmm", U),
+    # --- the options' badge letters said aloud (spec 266; keel-web 252 badges every option A, B, C... in order) ---
+    ("letters", "better", "B", P(2)), ("letters", "better", "option C", P(3)), ("letters", "better", "bee", P(2)),
+    ("letters", "better", "see, please", P(3)), ("letters", "better", "a", P(1)), ("letters", "better", "a quick one", U),
+    ("letters", "importance", "F", U), ("letters", "better", "not B", U), ("letters", "better", "B, no wait, C", P(3)),
+    ("letters", "importance", "A and D", P(1, 4)), ("letters", "budget", "a", ANY(P(1), U)),
+    ("letters", "better", "um, C.", P(3)), ("letters", "better", "it's B", P(2)), ("letters", "better", "dee", U),
+    ("letters", "importance", "option B and option E", P(2, 5)), ("letters", "benefits", "letter A and letter C", P(1, 3)),
+    ("letters", "better", "I see", U),
+    # spec 268 FR-8: speech-to-text writes the spoken C as "si" (the founder's audio test, 2026-11-23)
+    ("letters", "better", "si", P(3)), ("letters", "better", "si, please", P(3)), ("letters", "better", "sí", P(3)),
+    ("letters", "twoBenefits", "si", U),
 ]
 
 # confirmation turns: (item, previous pick numbers, said, expected)

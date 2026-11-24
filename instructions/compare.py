@@ -215,4 +215,7 @@ def compare_entry(keel_cloud: Path, entry, registry, compare_dir: Path) -> Compa
                        compare_dir / f"{entry.id}.out.json")
     except EngineUnavailable as reason:
         return unmeasured(entry.id, str(reason))
-    return diff(entry.expected, produced, entry=entry)
+    # spec 161 FR-6: the engine reads the input through keel-cloud 269 (`VectorCorpusFixture.toInput`), so its standings
+    # are held to the corpus's `expected` read through 269 too (`corpus.expected_269`)
+    from instructions import corpus as corpus_mod                       # noqa: PLC0415
+    return diff(corpus_mod.expected_269(entry.id, entry.expected), produced, entry=entry)

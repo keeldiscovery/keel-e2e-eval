@@ -45,11 +45,19 @@ def readings() -> dict:
 
 # ------------------------------------------------------------------------------------------- beat 3, told long
 
+#: keel-cloud 268 `FakeStoryReadings`: a sentence opening on *Today* is the way, one opening on *In the end* the cost.
+WAY_OR_COST = re.compile(r"(?i)^(?:(?:today|these days|right now)[,\s]|(?:so\s+)?(?:in the end|it costs them|which means)"
+                         r"[,:\s])")
+
+
 def echo_rows(words: str) -> list[str]:
     """What `FakeStoryReadings` reads an unscripted beat 3 as: each sentence a row (its end punctuation off, nine
-    words at most, capitalised), repeats dropped, four kept."""
+    words at most, capitalised), repeats dropped, four kept -- spec 161 (keel-cloud 268 FR-1): the way's sentence and
+    the cost's are not rows."""
     rows: list[str] = []
     for sentence in SENTENCES.split(words.strip().rstrip(".!? ")):
+        if WAY_OR_COST.match(sentence.strip()):
+            continue
         row = " ".join(re.sub(r"[.!?;,\s]+$", "", sentence.strip()).split()[:ROW_MAX_WORDS])
         row = row[:1].upper() + row[1:]
         if row and row.lower() not in (r.lower() for r in rows):
@@ -103,10 +111,12 @@ def test_the_correction_narrows_with_its_word():
 def test_said_turns_refuses_a_script_off_the_beats():
     with pytest.raises(ValueError):
         ss.said_turns({"turns": [{"turn": 1, "heard": "a"}, {"turn": 2, "heard": "b"}, {"turn": 6, "heard": "c"}]})
-    ok = {"turns": [{"turn": n, "heard": str(n), "result": {}} for n in (1, 2, 3, 4)]
-          + [{"turn": 4, "heard": "fix", "correction": True, "result": {"only_those_who": "x"}}]}
-    assert ss.said_turns(ok) == [(1, "1"), (2, "2"), (3, "3"), (4, "4")]
-    assert ss.reading_of(ok, 4, correction=True) == {"only_those_who": "x"}
+    with pytest.raises(ValueError):                         # spec 161: 263's four beats are no longer the script
+        ss.said_turns({"turns": [{"turn": n, "heard": str(n), "result": {}} for n in (1, 2, 3, 4)]})
+    ok = {"turns": [{"turn": n, "heard": str(n), "result": {}} for n in (1, 2, 3, 4, 5, 7)]
+          + [{"turn": 5, "heard": "fix", "correction": True, "result": {"only_those_who": "x"}}]}
+    assert ss.said_turns(ok) == [(1, "1"), (2, "2"), (3, "3"), (4, "4"), (5, "5"), (7, "7")]
+    assert ss.reading_of(ok, 5, correction=True) == {"only_those_who": "x"}
 
 
 def test_the_said_name_carries_the_colour():
@@ -136,7 +146,7 @@ def test_the_report_names_the_beats():
          "correction": {"sent": {"text": ss.CORRECTION_4}, "body": {"readback": "Got it: Europe."}}}]}]
     md = "\n".join(report.beats_markdown(told))
     assert "## The beats (spec 158)" in md and "### the long telling -- `12345678`" in md
-    assert "| 3 | While doing that" in md and "1600 chars" in md and "A; B" in md
+    assert "| 3 | How do they do it today" in md and "1600 chars" in md and "A; B" in md
     assert "speaking > listening > hearing > writing > speaking" in md
     assert f"then *{ss.CORRECTION_4}*: Got it: Europe." in md
     assert report.beats_markdown(None) == []
@@ -174,8 +184,9 @@ def test_the_five_questions_are_keel_clouds_and_keel_webs():
                   / "StoryTurns.java").read_text(encoding="utf-8")
     lines = _need(WEB / "src" / "lib" / "storyLines.ts").read_text(encoding="utf-8")
     for n, question in ss.STORY_QUESTIONS.items():
-        assert f'"{question}"' in turns, (n, question)
-        assert f'"{question}"' in lines, (n, question)
+        assert f'"{question}"' in turns, (n, question)            # spec 161: keel-cloud 268's seven
+    for n, question in (ss.STORY_QUESTIONS if ss.web_has_257(WEB) else ss.STORY_QUESTIONS_263).items():
+        assert f'"{question}"' in lines, (n, question)            # keel-web 257's seven, 245's five before it
 
 
 def test_keel_webs_silence_hook_is_in_the_test_build():

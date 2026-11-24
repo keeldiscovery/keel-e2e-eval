@@ -205,6 +205,18 @@ def could_phrase(condition: str) -> str:
     return f"said {lowered}"
 
 
+def _expected(entry) -> dict | None:
+    """Spec 161 FR-6, FR-8: the entry's `expected` read through keel-cloud 269 (`corpus.expected_269`: Frequency's row
+    on the five rows, Current solution not asked) -- the facts keel-cloud writes are the engine's on that read."""
+    return corpus_mod.expected_269(entry.id, entry.expected)
+
+
+#: keel-cloud 269 FR-3 (`BriefFacts.FREQUENCY_LINE`): Frequency's card line after *k of n*.
+FREQUENCY_LINE = "say most times or every time"
+#: keel-cloud 269 FR-5: not asked -- no card, no row, no fact.
+RETIRED = ("problem.current_solution_satisfaction",)
+
+
 def _count(standing: dict, name: str = "inside") -> str:
     return f"{standing.get(name)} of {standing.get('n')}"
 
@@ -340,11 +352,9 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
         out.update(number=f"{standing.get('yes')} of {standing.get('n')}",
                    line=prevalence_line(clause, entry.window().words()))
     elif key == FREQUENCY_KEY:
-        unit = ((entry.founder_calibration.get(key) or {}).get("answer") or {}).get("unit")
-        # keel-cloud 129 FR-1 (`BriefFacts.card`, T003): where the study stores a gate (a journey's scripted one), the
-        # units counted are the served gate's -- the corpus's line alone otherwise; keel-cloud 130 FR-2
-        # (`BriefFacts.frequencyLine`): in the window's unit, 05-paidly's *months they waited ...*, never *days*
-        out.update(number=f"{_plain(standing.get('median'))} {unit}", line=frequency_line(clause, entry.window()))
+        # spec 161 FR-8 (keel-cloud 269 FR-3): the share on Every time or Most times -- *10 of 14 · say most times or
+        # every time* (the median over the window and its line are gone)
+        out.update(number=_count(standing), line=FREQUENCY_LINE)
     elif key == IMPORTANCE_KEY:
         out.update(number=_count(standing, "own_item_picks"), line="put it in their top two")
     elif key == CURRENT_SOLUTION_KEY:
@@ -418,8 +428,9 @@ def card(entry, dimension, standing: dict, *, clause: str | None = None) -> dict
 
 def cards_for(entry, registry) -> list:
     """`BriefFacts.cards[]`: one card a calibrated dimension, in registry order (twelve on B2C, thirteen on B2B)."""
-    standings = (entry.expected or {}).get("standings") or {}
-    return [card(entry, d, standings.get(d.key) or {}) for d in registry.calibrated(entry.b2b())]
+    standings = (_expected(entry) or {}).get("standings") or {}
+    return [card(entry, d, standings.get(d.key) or {}) for d in registry.calibrated(entry.b2b())
+            if d.key not in RETIRED]
 
 
 def not_counted(gate_no: int, outside: int) -> str | None:
@@ -515,7 +526,7 @@ def price_median_for(entry) -> dict | None:
     """The entry's price median: its Price standing's `optionCounts` (the counted picks: anchored, a band or *would
     not pay*, never an escape) over the founder's ladder. `None` where Price was left out, the founder gave no price,
     or nobody counted answered it."""
-    standing = ((entry.expected or {}).get("standings") or {}).get(PRICE_KEY) or {}
+    standing = ((_expected(entry) or {}).get("standings") or {}).get(PRICE_KEY) or {}
     price = entry.price() or {}
     if standing.get("status") == "LEFT_OUT" or not price or price.get("unsure") or not standing.get("n"):
         return None
@@ -573,7 +584,7 @@ def vectors_for(entry, cards: list | None = None) -> list:
     """`BriefFacts.vectors`: each stage's verdict and words. Since keel-cloud 192 FR-1 (spec 123, *Not foreseen*) the
     stage reads as its cards read (`stage_verdict`) where the cards are handed; without them the corpus's engine
     verdict, as before."""
-    verdicts = (entry.expected or {}).get("vector_verdicts") or {}
+    verdicts = (_expected(entry) or {}).get("vector_verdicts") or {}
     out = []
     for v in VECTORS:
         engine = verdicts.get(v) or {}
@@ -586,8 +597,9 @@ def vectors_for(entry, cards: list | None = None) -> list:
 def decision(entry, registry) -> dict:
     """`BriefFacts.decision` (§4.2 as 082 amended it), over **every** dimension (D3, 089 FR-006)."""
     verdicts = {v["vector"]: v["verdict"] for v in vectors_for(entry)}
-    standings = (entry.expected or {}).get("standings") or {}
-    problem = [standings.get(d.key) or {} for d in registry.calibrated_slice("PROBLEM", entry.b2b())]
+    standings = (_expected(entry) or {}).get("standings") or {}
+    problem = [standings.get(d.key) or {} for d in registry.calibrated_slice("PROBLEM", entry.b2b())
+               if d.key not in RETIRED]
     not_tested = [v for v in VECTORS if verdicts.get(v) == "NOT_TESTED"]
     split = False
     if any(s.get("status") in _THIN for s in problem) or verdicts.get("PROBLEM") == "NOT_TESTED":
@@ -622,7 +634,7 @@ def decision(entry, registry) -> dict:
 
 def broke_of(entry, cards: list, vector: str) -> dict | None:
     """089 FR-002: the one dimension that decided a NOT_HOLDING_UP or PEOPLE_DISAGREE verdict, with its card."""
-    verdict = ((entry.expected or {}).get("vector_verdicts") or {}).get(vector) or {}
+    verdict = ((_expected(entry) or {}).get("vector_verdicts") or {}).get(vector) or {}
     if verdict.get("verdict") not in BROKE_ON or not verdict.get("deciding"):
         return None
     found = next((c for c in cards if c["key"] == verdict["deciding"]), None) or {}
@@ -631,9 +643,11 @@ def broke_of(entry, cards: list, vector: str) -> dict | None:
 
 def not_asked(entry, registry, vector: str) -> list:
     """089 FR-002's `notAsked`: left out; Ability to pay derived on B2C; Purchase friction on B2C."""
-    standings = (entry.expected or {}).get("standings") or {}
+    standings = (_expected(entry) or {}).get("standings") or {}
     out = []
     for d in registry.slice(vector):
+        if d.key in RETIRED:
+            continue
         if d.b2b_only and not entry.b2b():
             out.append({"key": d.key, "name": d.name, "why": NOT_ASKED_WHY[d.key]})
         elif (standings.get(d.key) or {}).get("status") == "LEFT_OUT":

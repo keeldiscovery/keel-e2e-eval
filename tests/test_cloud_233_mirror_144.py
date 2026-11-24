@@ -104,5 +104,5 @@ def test_compatibilitys_list_saves_without_a_pick_and_savedlist_is_232s():
     assert ("record SavedListDto(List<SavedItemDto> items, Integer pickedIndex, String phrase, Integer line,\n"
             "            DurationDto duration, Integer lineAfter, List<PutAsideDto> putAside, ChangedDto changed)") in dtos
     # eval spec 147 FR-2 (keel-cloud 237): Relative advantage's Check holds too, the fourth
-    assert vs_screens.REVIEWED_LISTS[:3] == ("problem.importance", "problem.current_solution_satisfaction",
-                                             "solution.compatibility")
+    assert vs_screens.REVIEWED_LISTS[:2] == ("problem.importance", "solution.compatibility")   # spec 161: 269 FR-5
+    assert vs_screens.REVIEWED_LISTS_RETIRED == ("problem.current_solution_satisfaction",)

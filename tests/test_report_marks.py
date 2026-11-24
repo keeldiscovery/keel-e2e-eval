@@ -315,7 +315,7 @@ def test_the_overview_of_too_few_is_keep_interviewing_not_asked_and_nobody_yet()
 def test_the_lead_lines_follow_the_stage_status():
     st = standings()
     drawn = rm.expected_overview(st)["panels"]
-    assert drawn["PROBLEM"]["lead"] == ["4 of 4 holding."]
+    assert drawn["PROBLEM"]["lead"] == ["3 of 3 holding."]      # spec 161 (keel-cloud 269 FR-5): no Current solution
     assert drawn["COMMERCIAL"]["lead"] == [
         # spec 118 FR-1 re-pin (keel-cloud 182 FR-4): a list with no time says *said {step} would take a long time*,
         # the number those against; (180 FR-7) every yes is Commitment's number, the second beside it *of them*
@@ -482,7 +482,7 @@ def test_report_no_repeat_holds_on_the_faithful_view_and_inside_a_quote():
     assert _card(r)["report_no_repeat"].ok, "a quote is the person's own words"
 
 
-@pytest.mark.parametrize("repeat", ["3 of 5 did not agree.", "£35 a month", "2.5 nights out of 7",
+@pytest.mark.parametrize("repeat", ["3 of 5 did not agree.", "£35 a month", "7 of 8 say most times",
                                     "6 months out of 12", "6 of 8 put it in their top two"])
 def test_report_no_repeat_fails_on_a_seeded_repeat(repeat):
     r = record()

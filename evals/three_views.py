@@ -20,6 +20,12 @@ One run (`make e2e-157`, `evals/e2e_157_three_views.py`) is a chain of legs over
 * **FR-2, the stranger's legs** (`evals/three_views_strangers.py`, unchanged by 158 but for the beats' slots the story
   cards are spoken from): the text, avatar and copilot views of each locked project's link.
 
+**Spec 161** (keel-cloud 268-270, contract 87; keel-web 257 / 258): the founder's legs tell seven beats (the way and
+the shortfall, the cost, the role's other tasks; the long beats closed by *That's it.*), read the board's seven rows and
+the served verdict line, and pass the window page to the ready page with no belief page (the three PROBLEM beliefs
+written at the boxes' yes). Where the keel-web checkout the stack serves does not yet carry 257 the story is told on the
+wire as 257's page sends it (`story_screens.StoryWire`) and every screen check is named pending keel-web 257.
+
 **Nothing paid.** The founder is a fresh stub identity on her own AI (the code story's door); every job is the scripted
 runtime's on a script built for the story (`story_screens.story_runtime_script`: the 01-countly study of the scope with
 the story's context, Prevalence and screener); every story reading, build, clip and transcript is keel-cloud's fakes.
@@ -44,6 +50,7 @@ from evals import scope_journey as sj
 from harness import interviewer_screens as ivs
 from harness import interviews_screens as iv_screens
 from harness import story_screens as ss
+from harness import vectors_screens as vs_screens
 from harness import vectors_script as vs
 from harness.browser import Landing, MarketStep, ScopeChoose
 from harness.connect import start_runtime_via_skill, stop_runtime
@@ -201,9 +208,12 @@ class Run:
             return sj.money_entry(entry)
         return solution_entry(entry)
 
-    def script_for(self, scope: str, *, consumed: int = 0) -> dict:
+    def script_for(self, scope: str, *, consumed: int = 0, extra: dict | None = None) -> dict:
         base = vs.generate(self.base_entry(scope)).to_json()
         script = ss.story_runtime_script(base, self.readings, self.prevalence, STORY_WINDOW)
+        for screen, entries in (extra or {}).items():
+            # spec 161: the walk's own THEMES (chosen by dimension, before the base's catch-all) and EXPERIENCE_WAYS
+            script[screen] = list(entries) + list(script.get(screen) or [])
         if consumed:
             # the chain's answer already applied on the project (at the story's or the idea's yes): a runtime started
             # again begins its cursor past it, so the founder's redrafts meet their own answers
@@ -213,16 +223,17 @@ class Run:
                     script[screen] = entries[consumed:]
         return script
 
-    def load_runtime(self, scope: str, *, consumed: int = 0) -> None:
+    def load_runtime(self, scope: str, *, consumed: int = 0, extra: dict | None = None) -> None:
         """The scripted runtime on `scope`'s script: written into the bundle, the runtime asked to go, and started again
         on it (it reconnects on the credential its home holds -- no code, no new door). `consumed`: the chain's answers
-        the project already took (the scripted executor's cursor starts at 0 on every start)."""
-        key = f"{scope}:{consumed}"
-        if self.runtime_scope in (scope, key) and not consumed:
+        the project already took (the scripted executor's cursor starts at 0 on every start). `extra` (spec 161): more
+        entries by screen, put first -- the walk's THEMES and EXPERIENCE_WAYS -- always a fresh start."""
+        key = f"{scope}:{consumed}" + (":extra" if extra else "")
+        if not extra and self.runtime_scope in (scope, key) and not consumed:
             return
-        if self.runtime_scope == key:
+        if not extra and self.runtime_scope == key:
             return
-        script = self.script_for(scope, consumed=consumed)
+        script = self.script_for(scope, consumed=consumed, extra=extra)
         (self.run_dir / "script.json").write_text(json.dumps(script, indent=1, ensure_ascii=False) + "\n",
                                                   encoding="utf-8")
         (self.run_dir / f"script-{scope.lower()}.json").write_text(json.dumps(script, indent=1, ensure_ascii=False)
@@ -231,13 +242,15 @@ class Run:
             stop_runtime(self.stack, self.recorder)
             start_runtime_via_skill(self.stack, self.recorder, env_extra={
                 "KEEL_SCRIPT": str(self.run_dir / "script.json"), "KEEL_CONTEXT_KEYS": str(self.keys_path)})
-        self.runtime_scope = key if consumed else scope
+        self.runtime_scope = key if (consumed or extra) else scope
 
     # ------------------------------------------------------------------------------------- set up
     def open(self) -> None:
         """A fresh founder (a stub identity of this run), her own AI through the code story, the runtime on the
         problem's script; the founder's context carries the speech seam."""
         exported = contract_mod.export(self.stack.keel_cloud, self.run_dir / "export")
+        # spec 161 FR-12: the contract the stack's keel-cloud serves, read on `x-keel-contract` (contract 87)
+        self.contract_read = contract_version(self.stack.keel_cloud)
         self.registry = exported.registry
         self.keys_path = self.run_dir / "context-keys.json"
         self.keys_path.write_text(json.dumps(vs.context_keys_for(exported.context_keys), indent=2) + "\n",
@@ -305,6 +318,23 @@ class Run:
         return j
 
 
+#: Spec 161 (keel-cloud 269 judgement call 20): the story's status after the boxes' yes -- `defined`, or on a PROBLEM study
+#: `calibrating` / `calibrated` (the three beliefs written at the yes).
+YES_STATUSES = ("defined", "calibrating", "calibrated")
+#: Spec 161 FR-12: the HTTP contract the walk is written to -- keel-cloud 270's (the four questions, every why, the ways).
+CONTRACT = 87
+
+
+def contract_version(keel_cloud) -> int | None:
+    """`info.x-keel-contract` of the keel-cloud checkout the stack serves (`canon/openapi-v2.yaml`), or None."""
+    import yaml                                                                 # noqa: PLC0415
+    try:
+        doc = yaml.safe_load((Path(keel_cloud) / "canon" / "openapi-v2.yaml").read_text(encoding="utf-8"))
+        return int((doc.get("info") or {}).get("x-keel-contract"))
+    except Exception:  # noqa: BLE001 - unread
+        return None
+
+
 #: The recall window the story's projects keep: the default the confirm stores (keel-cloud 259 FR-3; DRIFT #103).
 STORY_WINDOW = {"count": 7, "unit": "NIGHTS"}
 
@@ -357,6 +387,13 @@ def _bare(text: str | None) -> str:
     return re.sub(r"[.!?,;:\s]+$", "", _norm_words(text).lower())
 
 
+def _names_a_prefix(rows: list[str], said: str | None) -> bool:
+    """keel-cloud 263 / 268 FR-1: beat 3's readback names the limitations a row at a time within its forty words (the
+    way's clause first since 268), so the rows it names are the first ones, at least one, and it stays under forty."""
+    named = [r for r in rows if r not in _named(rows, said)]
+    return bool(named) and rows[:len(named)] == named and len(str(said or "").split()) <= 40
+
+
 def _named(rows: list[str], said: str | None) -> list[str]:
     """The rows `said` does not name (compared without case or end punctuation)."""
     words = _bare(said)
@@ -407,14 +444,263 @@ def one_film(run: Run, leg: Leg, label: str, project_id: str, sheets: list[dict]
                       "woke": woke.get("sheets") if isinstance(woke, dict) else woke}, stop=False)
 
 
-def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bool = False,
-                   correction: str | None = None, back_to: str | None = None, goto: bool = True) -> dict:
-    """keel-web 245 on one problem project, nothing pressed: the opening (the stage's opener passed, or the begin
-    screen's orb; *Ready?*; the quiet), the beats said once each (beat 3 the long telling where `long3`; `correction`
-    after beat 4's readback), the boxes by the quiet, the build, the story by the quiet. The checks: the questions
-    verbatim, no button but the orb on any screen, the orb's states through each beat, beat 3's red crosses named by the
-    readback and closed by the quiet, beat 5 asked only where owed, the boxes (no cost label; the cost box where a
-    cost is known), the build `ready`, the cost on the story's seventh line, and where the quiet lands."""
+#: Spec 161 FR-1: the founder's ways of telling beat 3 on the legs (one leg each): the script's words, the long telling,
+#: the two parts across the quiet, the limitations alone (code's one ask walked).
+TELLINGS = ("script", "long", "two-part", "limits-only")
+
+
+def pending_web(run: Run, leg: Leg, spec: str, label: str, what: list[str], *, screen: str) -> None:
+    """Spec 161 (the brief's rule): where the keel-web checkout the stack serves does not yet carry keel-web `spec`, the
+    screen checks written to it are not run -- one failed check names them, `stop=False`, *pending keel-web {spec}*."""
+    leg.check(run, f"{label}: pending keel-web {spec} -- the screen checks written to it not run: " + "; ".join(what),
+              False, screen=screen, view="founder", detail={"pending": f"keel-web {spec}", "checks": what},
+              stop=False)
+    leg.notes.append(f"{label}: keel-web {spec} is not in the checkout -- told on the wire; {len(what)} screen checks "
+                     f"pending keel-web {spec}")
+
+
+#: The screen checks of the founder's story a keel-web before 257 cannot hold (spec 161 FR-1 to FR-3).
+SCREEN_CHECKS_257 = ["the seven questions asked (`story-q`)", "no button but the orb on any beat",
+                     "the long beats closed by *That's it.* and sent without it",
+                     "beat 3 in two parts across 7 s of quiet, *Take your time.*",
+                     "the board's seven rows lit in turn (`story-boxes`, the tasks row)",
+                     "a correction on the tasks row redrawn", "the verdict line on `story-verdict`",
+                     "the film held longer on the pain scene", "no belief page after the window page"]
+
+
+def _beat3_words(run: Run, telling: str) -> tuple[str, list[str]]:
+    """The words beat 3 is told with on a leg, and the rows (the limitations) a reading keeps."""
+    if telling == "long":
+        return ss.long_beat_3(run.readings)
+    if telling == "two-part":
+        first, second = ss.two_part_beat_3(run.readings)
+        return f"{first} {second}", ss.limits_read(run.readings)
+    if telling == "limits-only":
+        return ss.limits_only_beat_3(run.readings), ss.limits_read(run.readings)
+    return dict(ss.said_turns(run.readings))[3], ss.limits_read(run.readings)
+
+
+def story_wire_checks(run: Run, leg: Leg, label: str, beats: dict, story: dict, *, telling: str,
+                      rows: list[str], said: dict, view: str) -> None:
+    """Spec 161 FR-1 on the wire (keel-cloud 268, contract 87): each beat read as keel-cloud 268 reads it -- beat 3's
+    limitations (and its way, or the one ask where the words named none), beat 4's cost, beat 7's other tasks, beat 6
+    owed only where beat 2 named no moment -- and the story's slots after the last beat."""
+    def body(n: int) -> dict:
+        b = beats.get(n) or {}
+        return ((b.get("way") or b.get("put") or {}).get("body") or {})
+    read3 = body(3).get("story") or {}
+    want_way = telling == "limits-only" or ss.steps_read(run.readings)
+    leg.check(run, f"{label}: beat 3 read into {len(rows)} limitations and today's way apart (keel-cloud 268 FR-1)",
+              list(read3.get("limits") or [])[:len(rows)] == rows and (not want_way or bool(read3.get("steps"))
+                                                                       or bool(read3.get("act"))),
+              screen="define/story/3", view=view,
+              detail={"limits": read3.get("limits"), "want": rows, "steps": read3.get("steps"), "act": read3.get("act"),
+                      "readback": body(3).get("readback")}, stop=False)
+    if telling == "limits-only":
+        b3 = beats.get(3) or {}
+        leg.check(run, f"{label}: the limitations alone -- code asks once, *{ss.WAY_ASK}*, on beat 3, and the next words "
+                       "are read as the way (the limitations kept)",
+                  b3.get("ask") == ss.WAY_ASK and bool((body(3).get("story") or {}).get("steps"))
+                  and list(read3.get("limits") or [])[:len(rows)] == rows,
+                  screen="define/story/3 (the way's ask)", view=view,
+                  detail={"ask": b3.get("ask"), "way": ((b3.get("way") or {}).get("sent")), "story": {
+                      k: read3.get(k) for k in ("steps", "act", "limits")}}, stop=False)
+    if telling != "limits-only" and ss.heard_cost(run.readings) and telling == "script":
+        leg.check(run, f"{label}: the cost heard on beat 3 is on the board before beat 4, and beat 4 is still asked "
+                       "(keel-cloud 268 FR-2)", bool(read3.get("cost")) and 4 in beats,
+                  screen="define/story/3 -> 4", view=view, detail={"cost after beat 3": read3.get("cost"),
+                                                                   "beats": sorted(beats)}, stop=False)
+    cost = ss.cost_read(run.readings)
+    read4 = body(4).get("story") or {}
+    leg.check(run, f"{label}: beat 4 asks the cost and reads it (*{cost}*)",
+              4 in beats and (telling != "script" or _bare(read4.get("cost")) == _bare(cost)) and bool(read4.get("cost")),
+              screen="define/story/4", view=view, detail={"cost": read4.get("cost"), "want": cost,
+                                                          "readback": body(4).get("readback")}, stop=False)
+    owed = ss.moment_beat(run.readings) == ss.WHEN_BEAT
+    leg.check(run, f"{label}: beat 6 (*When does that come up?*) asked {'because beat 2 named no moment' if owed else 'never: beat 2 named the moment'}",
+              (ss.WHEN_BEAT in beats) == owed, screen="define/story/6", view=view,
+              detail={"beats": sorted(beats), "owed": owed}, stop=False)
+    tasks = ss.other_tasks_read(run.readings)
+    leg.check(run, f"{label}: beat 7 reads the role's other tasks ({len(tasks)} rows; keel-cloud 268 FR-3) and the "
+                   "story is ready for the board (`next` check)",
+              [_bare(t) for t in (body(7).get("story") or {}).get("otherTasks") or []] == [_bare(t) for t in tasks]
+              and str((beats.get(7) or {}).get("next") or (body(7).get("next"))) in ("check", "8", "None"),
+              screen="define/story/7", view=view,
+              detail={"otherTasks": (body(7).get("story") or {}).get("otherTasks"), "want": tasks,
+                      "next": (beats.get(7) or {}).get("next")}, stop=False)
+    sent = {n: (((b.get("put") or {}).get("sent")) or {}).get("text") for n, b in beats.items()}
+    leg.check(run, f"{label}: every beat's words sent whole and with no done word at their end (keel-web 257 FR-11)",
+              all(not ss.ends_on_a_done_word(t) for t in sent.values() if t)
+              and all(_bare(sent[n]) == _bare(said[n]) for n in said
+                      if n in sent and not (n == 3 and telling == "limits-only")),
+              screen="define/story/1..7", view=view,
+              detail={n: (len(t or ""), (t or "")[-40:]) for n, t in sent.items()}, stop=False)
+
+
+def board_checks(run: Run, leg: Leg, label: str, story: dict, *, view: str) -> None:
+    """Spec 161 FR-1 on the wire: the board's rows as the story serves them (keel-cloud 268 FR-4) -- who, the job, the
+    when, today's way, the limitations, the cost and the other tasks, each filled."""
+    person = story.get("person") or {}
+    filled = {"who": person.get("who"), "job": person.get("job"), "when": person.get("when"),
+              "today": story.get("act") or story.get("steps"), "limits": story.get("limits"),
+              "cost": story.get("cost"), "otherTasks": story.get("otherTasks")}
+    leg.check(run, f"{label}: the story serves the board's seven rows -- who, job, when, today, falls short, costs, "
+                   "other tasks (`StoryView.otherTasks` two to four)",
+              all(bool(v) for v in filled.values()) and 2 <= len(story.get("otherTasks") or []) <= 4,
+              screen="GET story (the board's rows)", view=view, detail=filled, stop=False)
+
+
+def verdict_wire_checks(run: Run, leg: Leg, label: str, project_id: str, story: dict, *, view: str) -> dict:
+    """Spec 161 FR-2 on the wire (keel-cloud 269 FR-6): after the boxes' yes the verdict line is served word for word,
+    the three PROBLEM beliefs are written (Prevalence and Frequency `p_60_80`, Importance the own row then the other
+    tasks), the review table reads them and is complete -- no belief page owed."""
+    line = story.get("verdictLine")
+    leg.check(run, f"{label}: `StoryView.verdictLine` served after the yes, word for word (*{ss.VERDICT_LINE[:60]}...*)",
+              line == ss.VERDICT_LINE, screen="GET story (after the yes)", view=view,
+              detail={"verdictLine": line}, stop=False)
+    review = wait_review(run, project_id)
+    read = vs_screens.written_beliefs(review)
+    tasks = [_bare(t) for t in story.get("otherTasks") or []]
+    leg.check(run, f"{label}: the review table's three rows read as written at the yes -- *6 or 7 in 10* on Prevalence, "
+                   "the bin on Frequency, Importance the own row first then the other tasks; complete (no belief page "
+                   "owed)", review.get("complete") is True and read["prevalence"] == ["p_60_80"]
+              and read["frequency"] == ["p_60_80"] and len(read["importance"]) >= 3
+              and [_bare(x) for x in read["importance"][1:]] == tasks and read["dimensions"] == 3,
+              screen="review/PROBLEM", view=view,
+              detail={"read": read, "complete": review.get("complete"), "counts": review.get("counts"),
+                      "tasks": story.get("otherTasks")}, stop=False)
+    return review
+
+
+def wait_review(run: Run, project_id: str, *, timeout_s: float = 30) -> dict:
+    deadline = time.monotonic() + timeout_s
+    review: dict = {}
+    while time.monotonic() < deadline:
+        review = run.get(f"/v2/projects/{project_id}/review/PROBLEM") or {}
+        if review.get("complete"):
+            return review
+        time.sleep(1)
+    return review
+
+
+def scenes_checks(run: Run, leg: Leg, label: str, drawn: dict, cost: str | None, *, view: str, where: str) -> None:
+    """Spec 161 FR-3 (keel-cloud 268 FR-5): the film's seven scenes, the seventh the pain with its picture, `costLine`
+    its line, eight clips."""
+    v = ss.scenes_verdict(drawn, cost=cost)
+    leg.check(run, f"{label}: the film's seven scenes -- the seventh alone `pain: true`, its line the cost with a picture, "
+                   "`costLine` equal to it, eight clips", v["ok"], screen=where, view=view, detail=v, stop=False)
+
+
+def keep_founder(run: Run, label: str, project_id: str, story: dict, *, wire: bool, beats: dict, telling: str,
+                 heard: dict | None = None) -> None:
+    """Spec 161 FR-12: what the report's *The founder's seven beats* keeps of one story -- the beats answered, the board's
+    seven rows as served, the verdict line served (and heard on the screens), the film's scenes."""
+    person = story.get("person") or {}
+    run.__dict__.setdefault("founder_beats", []).append({
+        "label": label, "project": project_id, "wire": wire, "telling": telling, "beats": sorted(beats),
+        "board": {"who": person.get("who"), "job": person.get("job"), "when": person.get("when"),
+                  "today": story.get("act") or story.get("steps"), "limits": story.get("limits"),
+                  "cost": story.get("cost"), "otherTasks": story.get("otherTasks")},
+        "verdictLine": story.get("verdictLine"), "verdict_heard": heard,
+        "scenes": ss.scenes_verdict(((story.get("build") or {}).get("story")) or {}, cost=story.get("cost"))})
+
+
+def tell_on_the_wire(run: Run, leg: Leg, project_id: str, label: str, *, telling: str = "script",
+                     correction: str | None = None, tasks_fix: bool = False, back_to: str | None = None) -> dict:
+    """Spec 161 with keel-web 257 not in the checkout: the founder's seven beats told on the wire (`StoryWire`), the
+    board's rows and a correction read off the story, the boxes' yes, the build, the verdict line and the beliefs
+    written -- every cloud read held -- and the screen checks pending keel-web 257 by name. The page is then taken where
+    the story's yes would land: the window page (stored on the wire), or the return trip."""
+    # the page before keel-web 257 is taken off the story's route first, so its own five-beat conversation can send
+    # nothing while the seven are told on the wire (the browser's storage -- a waiting start -- is kept)
+    run.page.goto("about:blank")
+    wire = ss.StoryWire(run.call, project_id)
+    told = list(ss.said_turns(run.readings))
+    words3, rows = _beat3_words(run, telling)
+    if telling == "long":
+        told[0] = (1, told[0][1] + ss.LONG_WHO_SUFFIX)
+    limits_only = (ss.limits_only_beat_3(run.readings), ss.way_answer(run.readings)) if telling == "limits-only" \
+        else None
+    seen = wire.tell(told, words3=words3 if telling in ("long", "two-part") else None, limits_only=limits_only)
+    said = {n: (words3 if n == 3 else w) for n, w in told}
+    beats = {s["turn"]: s for s in seen}
+    run.beats.append({"label": f"{label} (on the wire)", "project": project_id, "beats": [
+        {"turn": b["turn"], "asked": b["asked"], "put": b.get("way") or b["put"], "readback": {},
+         "orb": [], "next": b.get("next")} for b in seen]})
+    story = wire.story()
+    story_wire_checks(run, leg, label, beats, story, telling=telling, rows=rows, said=said, view="wire")
+    if correction:
+        fixed = wire.correct(correction)
+        after = (fixed.get("body") or {})
+        leg.check(run, f"{label}: *{correction}* on the board is a story/correct that narrows the condition",
+                  (fixed.get("status") or 500) < 400 and ss.CORRECTION_4_WORD in json.dumps(after.get("story") or {}),
+                  screen="the board (story/correct)", view="wire",
+                  detail={"status": fixed.get("status"), "changed": after.get("changed"),
+                          "readback": after.get("readback")}, stop=False)
+    if tasks_fix:
+        fix = ss.tasks_correction(run.readings)
+        if fix:
+            fixed = wire.correct(fix[0])
+            after = (fixed.get("body") or {})
+            leg.check(run, f"{label}: a correction of the other tasks by voice (*{fix[0]}*) rewrites the tasks row "
+                           "(`changed` names `otherTasks`; keel-cloud 268 FR-4)",
+                      (fixed.get("status") or 500) < 400 and "otherTasks" in (after.get("changed") or [])
+                      and [_bare(t) for t in (after.get("story") or {}).get("otherTasks") or []] == [_bare(t) for t in fix[1]],
+                      screen="the board (story/correct, the tasks row)", view="wire",
+                      detail={"status": fixed.get("status"), "changed": after.get("changed"),
+                              "otherTasks": (after.get("story") or {}).get("otherTasks"), "want": fix[1]}, stop=False)
+    story = wire.story()
+    board_checks(run, leg, label, story, view="wire")
+    confirmed = wire.confirm()
+    leg.check(run, f"{label}: the boxes' yes (story/confirm 200; a PROBLEM study `calibrating` at its yes, the beliefs "
+                   "written -- keel-cloud 269 judgement call 20 -- else defined)", confirmed["status"] == 200
+              and (confirmed.get("body") or {}).get("status") in YES_STATUSES, screen="the board (the yes)", view="wire",
+              detail={"status": confirmed["status"], "body": {k: (confirmed.get("body") or {}).get(k)
+                                                              for k in ("status", "verdictLine")}})
+    built = wire.built()
+    drawn = (built.get("build") or {}).get("story") or {}
+    leg.check(run, f"{label}: the build reaches ready, the check passed",
+              (built.get("build") or {}).get("state") == "ready"
+              and ((built.get("build") or {}).get("checked") or {}).get("pass") is True,
+              screen="the build", view="wire", detail={k: (built.get("build") or {}).get(k) for k in ("state", "checked")})
+    scenes_checks(run, leg, label, drawn, built.get("cost"), view="wire", where="GET story (the build's story)")
+    verdict_wire_checks(run, leg, label, project_id, built, view="wire")
+    pending_web(run, leg, "257", label, SCREEN_CHECKS_257, screen="define/story/* (keel-web 257)")
+    keep_founder(run, label, project_id, wire.story(), wire=True, beats=beats, telling=telling)
+    landed = None
+    if back_to == "solution":
+        landed = f"{run.web}/?start=solution&problem={project_id}"
+    elif back_to == "money":
+        landed = f"{run.web}/?start=money&problem={project_id}"
+    if landed:
+        run.page.goto(landed, wait_until="load")
+    return {"walk": wire, "landed": landed or run.page.url, "story": built, "beats": beats, "wire": True}
+
+
+def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, telling: str = "script",
+                   correction: str | None = None, tasks_fix: bool = False, back_to: str | None = None,
+                   goto: bool = True) -> dict:
+    """Spec 161 FR-1 to FR-3: one problem project told in seven beats -- on keel-web 257's screens where the checkout
+    carries it (`tell_on_screen`), else on the wire with every screen check pending keel-web 257 by name
+    (`tell_on_the_wire`). `telling`: beat 3 as the script says it, the long telling, in two parts across the quiet, or
+    the limitations alone (code's one ask walked)."""
+    if not ss.web_has_257(run.stack.keel_web):
+        return tell_on_the_wire(run, leg, project_id, label, telling=telling, correction=correction,
+                                tasks_fix=tasks_fix, back_to=back_to)
+    return tell_on_screen(run, leg, project_id, label, telling=telling, correction=correction, tasks_fix=tasks_fix,
+                          back_to=back_to, goto=goto)
+
+
+def tell_on_screen(run: Run, leg: Leg, project_id: str, label: str, *, telling: str = "script",
+                   correction: str | None = None, tasks_fix: bool = False, back_to: str | None = None,
+                   goto: bool = True) -> dict:
+    """keel-web 245 / 249 / 257 on one problem project, nothing pressed: the opening (the stage's opener passed, or the
+    begin screen's orb; *Ready?*; the quiet), the seven beats said once each (the long beats closed by *That's it.*;
+    beat 3 as `telling` says; `correction` after beat 5), the boxes (the board's seven rows; `tasks_fix` a correction of
+    the tasks row by voice) by the quiet, the build, the story by the quiet, the verdict line heard. The checks: the
+    questions verbatim, no button but the orb on any screen, the orb's states through each beat, the long beats' done
+    word, beat 3's red crosses, beat 6 asked only where owed, the board, the build `ready`, the seven scenes, and where
+    the quiet lands."""
     walk = ss.StoryWalk(run.page, run.recorder, run.web)
     opening = walk.open_start(project_id, goto=goto)
     woke = opening["woke"]
@@ -427,254 +713,227 @@ def tell_the_story(run: Run, leg: Leg, project_id: str, label: str, *, long3: bo
               and not ((woke.get("begin_screen") or {}).get("buttons")),
               screen="define/story/start", detail=opening)
     told = list(ss.said_turns(run.readings))
-    words3, rows = (ss.long_beat_3(run.readings) if long3 else (dict(told)[3], ss.limits_read(run.readings)))
-    if long3:
+    words3, rows = _beat3_words(run, telling)
+    if telling == "long":
         told[0] = (1, told[0][1] + ss.LONG_WHO_SUFFIX)
-    seen = walk.tell(told, long3=words3 if long3 else None, correction=correction)
+    seen = walk.tell(told, long3=words3 if telling == "long" else None, correction=correction,
+                     two_part=ss.two_part_beat_3(run.readings) if telling == "two-part" else None,
+                     limits_only=(words3, ss.way_answer(run.readings)) if telling == "limits-only" else None)
     said = {n: (words3 if n == 3 else w) for n, w in told}
     beats = {s["turn"]: s for s in seen}
     run.beats.append({"label": label, "project": project_id, "beats": seen})
     # the questions, the buttons, the wire
     asked = {n: (b["asked"].get("question")) for n, b in beats.items()}
-    leg.check(run, f"{label}: Keel asks each beat's question as keel-cloud 263 FR-1 words it",
-              all(asked[n] == ss.STORY_QUESTIONS[n] for n in asked), screen="define/story/1..5",
-              detail=asked)
-    pressed = {n: sorted(set((b["asked"].get("buttons") or []) + (b["readback"].get("buttons") or [])
+    leg.check(run, f"{label}: Keel asks each beat's question as keel-cloud 268 words it (keel-web 257 FR-1)",
+              all(asked[n] == ss.STORY_QUESTIONS[n] for n in asked), screen="define/story/1..7", detail=asked)
+    pressed = {n: sorted(set((b["asked"].get("buttons") or []) + ((b.get("readback") or {}).get("buttons") or [])
                              + ((b.get("corrected") or {}).get("buttons") or []))) for n, b in beats.items()}
     leg.check(run, f"{label}: no button on any beat but the orb (no Tap to talk, Type instead, Send, That is all, Yes)",
-              not any(pressed.values()), screen="define/story/1..5", detail=pressed)
+              not any(pressed.values()), screen="define/story/1..7", detail=pressed)
     small = {n: {k: b["asked"].get(k) for k in ("orbs", "orbSize", "glow", "line")} for n, b in beats.items()}
     leg.check(run, f"{label}: the small orb on every beat (one, at most 44 px), its state line beside it, no glow "
                    "(keel-web 249 FR-1)",
               all(v["orbs"] == 1 and (v["orbSize"] or 99) <= 44 and v["line"] and not v["glow"] for v in small.values()),
-              screen="define/story/1..5 (story-orb, story-state)", detail=small, stop=False)
+              screen="define/story/1..7 (story-orb, story-state)", detail=small, stop=False)
     answers = [w for w in walk.writes if re.search(r"/story/turns/\d$", w["path"]) and (w["sent"] or {}).get("text")
                and not (w["sent"] or {}).get("correction")]
-    leg.check(run, f"{label}: every beat sent once as said (the words whole), every answer 200",
-              [((w["sent"] or {}).get("text")) for w in answers] == [said[n] for n in sorted(beats)]
-              and all((w["status"] or 0) < 400 for w in walk.writes if "/story/turns/" in w["path"]),
-              screen="define/story/1..5", detail=[(w["path"].split("/story/")[-1], w["status"],
+    by_beat: dict[int, list[str]] = {}
+    for w in answers:
+        by_beat.setdefault(int(w["path"].rsplit("/", 1)[-1]), []).append((w["sent"] or {}).get("text") or "")
+    whole = all(_bare(" ".join(by_beat.get(n) or [])) == _bare(said[n] if not (n == 3 and telling == "limits-only")
+                                                                  else f"{said[3]} {ss.way_answer(run.readings)}")
+                for n in beats)
+    leg.check(run, f"{label}: every beat sent as said, the words whole, every answer 200",
+              whole and all((w["status"] or 0) < 400 for w in walk.writes if "/story/turns/" in w["path"]),
+              screen="define/story/1..7", detail=[(w["path"].split("/story/")[-1], w["status"],
                                                    len(((w["sent"] or {}).get("text")) or ""), (w["sent"] or {}).get("done"),
                                                    (w["sent"] or {}).get("correction")) for w in walk.writes
                                                   if "/story/turns/" in w["path"]])
+    long_beats = {n: b for n, b in beats.items() if n in ss.LONG_BEATS}
+    done_words = {n: [t[-30:] for t in by_beat.get(n) or [] if ss.ends_on_a_done_word(t)] for n in long_beats}
+    closed_by = {n: (b.get("closed") or {}).get("by") for n, b in long_beats.items()}
+    leg.check(run, f"{label}: the long beats (3, 4, 7) closed by *{ss.DONE_WORD}* said as their last words, never by the "
+                   "quiet, and the words sent carry no done word (keel-web 257 FR-11)",
+              not any(done_words.values()) and closed_by.get(3) != "the quiet" and set(long_beats) == set(ss.LONG_BEATS),
+              screen="define/story/3, 4, 7", detail={"done words sent": done_words, "closed by": closed_by,
+                                                      "subs": {n: (b["asked"].get("sub")) for n, b in long_beats.items()}},
+              stop=False)
+    if telling == "two-part":
+        q = (beats.get(3) or {}).get("two_part") or {}
+        leg.check(run, f"{label}: beat 3 in two parts across {ss.TWO_PART_QUIET_S:g} s of quiet -- nothing sent in the "
+                       f"quiet, the beat still open, the state line *{ss.THINK_LINE}*, the second part joined to the "
+                       "first, *That's it.* closing it (keel-web 257 FR-11)",
+                  q.get("sent_in_the_quiet") == 0 and q.get("still_on_the_beat") and q.get("think_line")
+                  and q.get("joined"), screen="define/story/3 (the quiet)", detail=q, stop=False)
     transcribed = [((w.get("body") or {}).get("text")) for w in walk.writes if w["path"].endswith("/story/transcribe")]
+    heard_all = " ".join(_bare(t) for t in transcribed if t)
     leg.check(run, f"{label}: every answer written down through story/transcribe, heard as said (the fake: the words "
-                   "in, the same words out)", all(said[n] in transcribed for n in beats)
-              and (not correction or correction in transcribed
-                   or any(b.get("correction_deferred") for b in beats.values())), screen="define/story/1..5",
-              detail={"heard": [t[:120] if t else t for t in transcribed]})
+                   "in, the same words out)", all(_bare(said[n])[:200] in heard_all for n in beats
+                                                  if not (n == 3 and telling in ("two-part",))),
+              screen="define/story/1..7", detail={"heard": [t[:120] if t else t for t in transcribed]}, stop=False)
     orbs = {n: b.get("orb") for n, b in beats.items()}
     leg.check(run, f"{label}: the orb through every beat -- speaking (the question), listening, hearing, writing, "
-                   "speaking (Keel's next line: no per-beat readback since keel-web 245 FR-4 as amended), and from "
-                   "writing straight to speaking (keel-web 249: `listening` only where the microphone opened)",
+                   "speaking (Keel's next line), and from writing straight to speaking",
               all(ss.holds_in_order(o or [], ss.BEAT_ORB) and ss.writing_then_speaking(o or []) for o in orbs.values()),
-              screen="define/story/1..5 (story-orb data-state)", detail=orbs, stop=False)
-    # beat 3: every limitation, broken out, named back, closed by the quiet
+              screen="define/story/1..7 (story-orb data-state)", detail=orbs, stop=False)
+    story_now = run.get(f"/v2/projects/{project_id}/story") or {}
+    story_wire_checks(run, leg, label, beats, story_now, telling=telling, rows=rows, said=said, view="founder + wire")
+    # beat 3: every limitation, broken out, named back
     b3 = beats.get(3) or {}
-    read3 = ((b3.get("put") or {}).get("body") or {})
+    read3 = (((b3.get("way") or b3.get("put") or {}).get("body") or {}))
     limits = list((read3.get("story") or {}).get("limits") or [])
     crosses = list((b3.get("readback") or {}).get("limits") or [])
-    leg.check(run, f"{label}: beat 3's one answer read into {len(rows)} red crosses (`story-card-limit`), the "
-                   "readback naming each, the quiet closing the list (done: true, next 4)",
-              limits == rows and crosses == rows and not _named(rows, read3.get("readback"))
-              and (b3.get("closed") or {}).get("sent") == {"done": True} and (b3.get("closed") or {}).get("next") == 4,
+    leg.check(run, f"{label}: beat 3's answer read into {len(rows)} red crosses (`story-card-limit`), the readback naming "
+                   "each, the done word closing the list (next 4)",
+              limits == rows and (not crosses or crosses == rows) and _names_a_prefix(rows, read3.get("readback"))
+              and str((b3.get("closed") or {}).get("next") or b3.get("next")) == "4",
               screen="define/story/3", detail={"limits": limits, "crosses": crosses, "want": rows,
-                                               "readback": read3.get("readback"), "closed": b3.get("closed")})
-    folded = (b3.get("readback") or {}).get("folded") or ""
-    words_said = len(said[3].split())
-    rb3 = b3.get("readback") or {}
-    leg.check(run, f"{label}: the transcript folds to one line when the crosses arrive (*You spoke for m:ss · n words*); "
-                   "*What I hear* gives way to it (keel-web 249 FR-4: no `story-heard` words left, `story-words` Keel's)",
-              folded.startswith("You spoke for ") and f"· {words_said} word" in folded
-              and not [w for w in rb3.get("heard") or [] if w.get("who") == "you"]
-              and all(w.get("who") == "keel" for w in rb3.get("words") or []),
-              screen="define/story/3 (story-folded)", detail={"folded": folded, "words said": words_said,
-                                                              "heard": rb3.get("heard"), "words": rb3.get("words")},
-              stop=False)
-    understood = rb3.get("understood") or {}
-    marks3 = ss.card_items(understood, "limits")
-    leg.check(run, f"{label}: beat 3's crosses are a card of what Keel understood (`story-understood`: *What Keel "
-                   "understood*, the row `limits`, every line a cross) -- never plain text on the turn screen "
-                   "(keel-web 249 FR-4, FR-5)",
-              understood.get("label") == ss.CARD_LABEL and [r.get("box") for r in understood.get("rows") or []]
-              == ["limits"] and len(marks3) == len(rows) and all(m.get("mark") == "cross" for m in marks3)
-              and [_bare(m.get("text")) for m in marks3] == [_bare(r) for r in rows],
-              screen="define/story/3 (story-understood)", detail={"card": understood, "want": rows}, stop=False)
-    if long3:
-        sent3 = next((w for w in answers if w["path"].endswith("/story/turns/3")), {})
-        text3 = (sent3.get("sent") or {}).get("text") or ""
-        leg.check(run, f"{label}: beat 3's long answer -- {len(said[3])} characters, five limitations and a cost in one "
-                       f"breath -- sent whole and taken (200, no 240 cut, keel-cloud 263 FR-2a)",
-                  len(said[3]) >= ss.LONG_ANSWER_MIN and text3 == said[3] and (sent3.get("status") or 500) < 400
-                  and bool((read3.get("readback") or "").startswith("I kept the four")),
-                  screen="define/story/3", detail={"sent": len(text3), "status": sent3.get("status"),
-                                                   "readback": read3.get("readback")})
-        if run.remote:
-            leg.notes.append(f"{label}: remote profile -- beat 3's stored words are not read (the twin's database)")
-        else:
-            kept = ledger.story_turns(run.stack, project_id)
-            leg.check(run, f"{label}: the story keeps beat 3's words whole (project_story's turn 3: every character, "
-                           "nothing cut)", _norm_words(kept.get(3)) == _norm_words(said[3]),
-                      screen="the stored story (no route serves the words)", view="wire",
-                      detail={"stored": len(kept.get(3) or ""), "said": len(said[3]),
-                              "ends": (kept.get(3) or "")[-80:]})
-    # beat 4 (and its correction)
-    b4 = beats.get(4) or {}
-    read4 = ((b4.get("put") or {}).get("body") or {})
-    sentence = ((read4.get("story") or {}).get("person") or {}).get("sentence")
-    leg.check(run, f"{label}: beat 4's readback is the sentence, then *Right?*",
-              bool(sentence) and read4.get("readback") == f"{sentence.strip()} Right?", screen="define/story/4",
-              detail={"readback": read4.get("readback"), "sentence": sentence})
-    if correction and b4.get("correction"):
-        fixed = b4.get("correction") or {}
-        body = fixed.get("body") or {}
-        condition = ((body.get("story") or {}).get("person") or {}).get("onlyThoseWho") or ""
-        stored = ((run.get(f"/v2/projects/{project_id}/story") or {}).get("person") or {}).get("onlyThoseWho") or ""
-        leg.check(run, f"{label}: *{correction}* after beat 4's readback is sent as a correction and narrows the "
-                       "condition; the new readback says so (keel-cloud 263 FR-5)",
-                  (fixed.get("sent") or {}).get("correction") is True and (fixed.get("status") or 500) < 400
-                  and ss.CORRECTION_4_WORD in condition and ss.CORRECTION_4_WORD in stored
-                  and ss.CORRECTION_4_WORD in (body.get("readback") or ""),
-                  screen="define/story/4 (after the readback)", detail={"sent": fixed.get("sent"),
-                                                                       "readback": body.get("readback"),
-                                                                       "condition": condition, "stored": stored})
-    straight = sorted(n for n, b in beats.items() if b.get("straight_on"))
-    leg.notes.append(f"{label}: " + (f"beats {straight} went straight on (keel-web 245 FR-4 as amended 2026-11-22: no "
-                                     "per-beat readback)" if straight else
-                                     "every beat read back and waited for the quiet (the build before polish round 2)"))
-    owed = ss.moment_beat(run.readings) == 5
-    leg.check(run, f"{label}: beat 5 (*When does that come up?*) asked {'because beat 2 named no moment' if owed else 'never: beat 2 named the moment'}",
-              (5 in beats) == owed, screen="define/story/5", detail={"beats": sorted(beats), "owed": owed})
-    # the boxes, by the quiet
-    before = run.get(f"/v2/projects/{project_id}/story") or {}
-    boxes = walk.boxes()
-    board = boxes["screen"].get("board") or ""
-    if correction and boxes.get("correction"):
-        # keel-web 245 FR-4 / FR-6 as amended (2026-11-22): no readback after beat 4 -- the correction is said on the
-        # boxes after *Is that right?* and sent as `story/correct`
-        fixed = boxes["correction"]
-        body = fixed.get("body") or {}
-        stored = ((run.get(f"/v2/projects/{project_id}/story") or {}).get("person") or {}).get("onlyThoseWho") or ""
-        leg.check(run, f"{label}: *{correction}* said on the boxes after *Is that right?* is sent as story/correct "
-                       "(the words whole, 200)", (fixed.get("sent") or {}).get("text") == correction
-                  and (fixed.get("status") or 500) < 400, screen="define/story/check (boxes, the correction)",
-                  detail={"sent": fixed.get("sent"), "status": fixed.get("status"), "changed": body.get("changed"),
-                          "readback": body.get("readback")})
-        leg.check(run, f"{label}: the correction on the boxes narrows the condition and the readback says so",
-                  ss.CORRECTION_4_WORD in stored and ss.CORRECTION_4_WORD in (body.get("readback") or ""),
-                  screen="define/story/check (boxes, the correction)", view="wire",
-                  detail={"stored": stored, "readback": body.get("readback"), "changed": body.get("changed"),
-                          "why it may not": "keel-cloud's FakeStoryReadings answers a story/correct it has no "
-                                            "`corrections` entry for with *Nothing changed.*",
-                          "drift": "runs/DRIFT.md #110"}, stop=False)
-        if not (ss.CORRECTION_4_WORD in stored and ss.CORRECTION_4_WORD in (body.get("readback") or "")):
-            leg.notes.append(f"{label}: the correction on the boxes did not narrow the condition on the fakes (DRIFT #110) "
-                             "-- this check stays `stop=False` until keel-cloud 264's `corrections` entry lands (spec "
-                             "158c FR-9)")
-    elif correction and not b4.get("correction"):
-        leg.check(run, f"{label}: *{correction}* said somewhere -- after beat 4's readback or on the boxes", False,
-                  screen="define/story/4 -> check", detail={"beat 4": {k: b4.get(k) for k in ("straight_on", "next")},
-                                                            "boxes": boxes.get("correction")}, stop=False)
-    cost_before = before.get("cost")
+                                               "readback": read3.get("readback"), "closed": b3.get("closed"),
+                                               "next": b3.get("next")}, stop=False)
+    if telling == "long" and not run.remote:
+        kept = ledger.story_turns(run.stack, project_id)
+        leg.check(run, "the story keeps beat 3's words whole (project_story's turn 3: every character, nothing cut)",
+                  _norm_words(kept.get(3)) == _norm_words(said[3]), screen="the stored story (no route serves the words)",
+                  view="wire", detail={"stored": len(kept.get(3) or ""), "said": len(said[3]),
+                                       "ends": (kept.get(3) or "")[-80:]}, stop=False)
+    b5 = beats.get(ss.ALL_OF_THEM_BEAT) or {}
+    read5 = ((b5.get("put") or {}).get("body") or {})
+    sentence = ((read5.get("story") or {}).get("person") or {}).get("sentence")
+    leg.check(run, f"{label}: beat 5's reading is the sentence, its readback the sentence then *Right?*",
+              bool(sentence) and read5.get("readback") == f"{sentence.strip()} Right?", screen="define/story/5",
+              detail={"readback": read5.get("readback"), "sentence": sentence}, stop=False)
+    # the boxes, by the quiet (a correction of the condition deferred from beat 5, or of the tasks row)
+    fix = ss.tasks_correction(run.readings) if tasks_fix else None
+    # the board as drawn before any correction: its rows are the story's as the beats left it
+    story_before = run.get(f"/v2/projects/{project_id}/story") or {}
+    boxes = walk.boxes(correction=fix[0] if fix else None)
     card = boxes["screen"].get("card") or {}
-    by_box = ss.card_rows(card)
-    crosses_on_card = [_bare(m.get("text")) for m in ss.card_items(card, "limits") if m.get("mark") == "cross"]
-    person = (before.get("person") or {}).get("who")
-    leg.check(run, f"{label}: the boxes are the card (keel-web 249 FR-5) -- *What Keel understood*, read by `data-box`: "
-                   "the person, the limitations as crosses, the cost as the last row (*So*, no cost label) where a cost "
-                   "is known; *Is that right?*; no button; the quiet confirms (story/confirm 200, defined)",
-              boxes["confirm"]["status"] == 200 and (boxes["confirm"]["body"] or {}).get("status") == "defined"
+    want_rows = {"person": (story_before.get("person") or {}).get("who"), "limits": rows,
+                 "tasks": list(story_before.get("otherTasks") or [])}
+    board = ss.board_rows_verdict(card, want_rows)
+    leg.check(run, f"{label}: the board -- *What Keel understood* read by `data-box`: who, job, when, today, falls short, "
+                   "costs, other tasks (`tasks` last, keel-web 257 FR-3); *Is that right?*; no button; the quiet confirms "
+                   "(story/confirm 200, defined)",
+              boxes["confirm"]["status"] == 200 and (boxes["confirm"]["body"] or {}).get("status") in YES_STATUSES
               and boxes["screen"].get("said") == ss.BOXES_ASK and not boxes["screen"].get("buttons")
-              and card.get("label") == ss.CARD_LABEL and ss.COST_TAG not in board
-              and set(by_box) <= set(ss.CARD_ROWS) and "person" in by_box
-              and (not person or _bare(person) in _bare(by_box.get("person")))
-              and crosses_on_card == [_bare(r) for r in rows]
-              and (not cost_before or (list(by_box)[-1:] == ["cost"] and _bare(cost_before) in _bare(by_box["cost"])
-                                       and ss.card_name(card, "cost") == ss.CARD_COST_NAME)),
+              and card.get("label") == ss.CARD_LABEL and board["ok"],
               screen="define/story/check (boxes)",
-              detail={"rows": by_box, "names": {r.get("box"): r.get("name") for r in card.get("rows") or []},
-                      "said": boxes["screen"].get("said"), "cost": cost_before,
-                      "costDrafted": before.get("costDrafted"), "lit": boxes.get("lit"),
-                      "buttons": boxes["screen"].get("buttons"), "confirm": boxes["confirm"]["status"]})
-    turn_screen(run, leg, label, boxes["screen"], "define/story/check (boxes)", card=True)
-    leg.check(run, f"{label}: Keel narrates the card row by row -- the rows lit are the card's own (`data-lit`)",
-              bool(boxes.get("lit")) and all(set(str(x).split(",")) <= set(ss.CARD_ROWS) for x in boxes.get("lit") or []),
+              detail={"board": board, "rows": ss.card_rows(card), "said": boxes["screen"].get("said"),
+                      "lit": boxes.get("lit"), "buttons": boxes["screen"].get("buttons"),
+                      "confirm": boxes["confirm"]["status"]}, stop=False)
+    lit = [set(str(x).split(",")) for x in boxes.get("lit") or []]
+    leg.check(run, f"{label}: Keel narrates the board row by row, the tasks row last (`data-lit`)",
+              bool(lit) and all(x <= set(ss.CARD_ROWS) for x in lit) and any("tasks" in x for x in lit),
               screen="define/story/check (boxes)", detail={"lit": boxes.get("lit")}, stop=False)
+    if fix:
+        fixed = boxes.get("correction") or {}
+        body = fixed.get("body") or {}
+        redrawn = ss.card_rows(((boxes.get("corrected") or {}).get("card")) or {})
+        leg.check(run, f"{label}: *{fix[0]}* said on the board is a story/correct of the tasks row -- `changed` names "
+                       "`otherTasks` and the tasks row is redrawn with the new list",
+                  (fixed.get("status") or 500) < 400 and "otherTasks" in (body.get("changed") or [])
+                  and all(_bare(t) in _bare(redrawn.get("tasks")) for t in fix[1]),
+                  screen="define/story/check (the tasks row corrected)",
+                  detail={"sent": fixed.get("sent"), "changed": body.get("changed"), "tasks row": redrawn.get("tasks"),
+                          "want": fix[1]}, stop=False)
+    elif correction:
+        stored = ((run.get(f"/v2/projects/{project_id}/story") or {}).get("person") or {}).get("onlyThoseWho") or ""
+        leg.check(run, f"{label}: *{correction}* narrows the condition, said after beat 5 or on the board",
+                  ss.CORRECTION_4_WORD in stored, screen="define/story/5 -> check", view="wire",
+                  detail={"stored": stored, "deferred": walk.deferred_correction}, stop=False)
+    turn_screen(run, leg, label, boxes["screen"], "define/story/check (boxes)", card=True)
     built = walk.building_then_story()
     if built["state"] == "story":
         turn_screen(run, leg, label, built.get("story") or {}, "define/story/check (story)")
-        # spec 158b: the drawn story read while it plays on the founder's screen (desktop)
         measure_fit(run, leg, run.page, label, FOUNDER_PLAYER, where="define/story/check (story)",
                     view="founder · desktop", phone=False, state=FOUNDER_STATE)
     story = run.get(f"/v2/projects/{project_id}/story") or {}
     build = story.get("build") or {}
     drawn = build.get("story") or {}
-    want_room = ss.scripted_room(run.readings) if _bare((story.get("person") or {}).get("who")) == \
-        _bare(ss.scripted_who(run.readings)) else None
-    leg.check(run, f"{label}: the build reaches ready, the check passed{', the scripted room' if want_room else ''}, "
-                   "the story drawn; no button",
+    leg.check(run, f"{label}: the build reaches ready, the check passed, the story drawn; no button",
               built["state"] == "story" and build.get("state") == "ready" and (build.get("checked") or {}).get("pass")
-              is True and (want_room is None or drawn.get("roomId") == want_room)
-              and not (built.get("story") or {}).get("buttons") and not ((built.get("building") or {}).get("buttons")),
+              is True and not (built.get("story") or {}).get("buttons") and not ((built.get("building") or {}).get("buttons")),
               screen="define/story/check (building, story)",
               detail={"screen": built.get("state"), "build": {k: build.get(k) for k in ("state", "checked")},
                       "room": drawn.get("roomId"), "scenes": len(drawn.get("scenes") or [])})
-    # the story's lines: six scenes, then the cost line (the seventh), then the ask line (keel-cloud 259 FR-5's draft)
-    scenes = drawn.get("scenes") or []
-    seventh = drawn.get("costLine") or ((scenes[6] or {}).get("line") if len(scenes) > 6 else None)
-    cost = story.get("cost")
-    heard = bool(cost_before) and not before.get("costDrafted")
-    leg.check(run, f"{label}: the story's seventh line carries the cost -- {'heard' if heard else 'drafted from the limitations'}"
-                   f" (`costDrafted` {'false' if heard else 'true'} on the wire, never on the screen)",
-              bool(cost) and bool(seventh) and _bare(cost) in _bare(seventh)
-              and story.get("costDrafted") is (not heard) and "drafted" not in _bare(board),
-              screen="define/story/check (story)", view="wire",
-              detail={"cost": cost, "costDrafted": story.get("costDrafted"), "before": cost_before,
-                      "seventh": seventh, "costLine": drawn.get("costLine")})
+    scenes_checks(run, leg, label, drawn, story.get("cost"), view="wire", where="define/story/check (story)")
     lands = {"solution": r"/\?start=solution", "money": r"/\?start=money"}.get(back_to or "", r"/define/context")
-    yes = walk.story_yes(lands=re.compile(lands))
+    yes = walk.story_yes(lands=re.compile(lands), verdict=True)
+    heard_verdict = yes.get("verdict") or {}
+    leg.check(run, f"{label}: after the film's yes Keel says the verdict line on its card (`story-verdict`), word for "
+                   "word the served `verdictLine`, then *Say yes, or just tell me if you want a different bar.*; the "
+                   "quiet goes on (keel-web 257 FR-4)",
+              heard_verdict.get("drawn") is True and _bare(story.get("verdictLine") or ss.VERDICT_LINE)
+              in _bare(heard_verdict.get("words"))
+              and any(ss.VERDICT_ASK in x for x in heard_verdict.get("said") or []),
+              screen="define/story/check (the verdict)", detail={"heard": heard_verdict,
+                                                                 "verdictLine": story.get("verdictLine")}, stop=False)
+    verdict_wire_checks(run, leg, label, project_id, story, view="wire")
+    keep_founder(run, label, project_id, run.get(f"/v2/projects/{project_id}/story") or story, wire=False, beats=beats,
+                 telling=telling, heard=heard_verdict)
     if back_to == "solution":
-        leg.check(run, f"{label}: the quiet after the story goes back to the solution, Keel saying so",
-                  yes.get("said") in (ss.BACK_TO_SOLUTION, ss.STORY_ASK), screen="define/story/check (story)",
-                  detail=yes, stop=False)
+        said_then = [yes.get("said")] + list((yes.get("verdict") or {}).get("said") or [])
+        leg.check(run, f"{label}: the quiet after the verdict goes back to the solution (the which-problem page, the "
+                       "problem picked)", "start=solution" in str(yes.get("landed") or "")
+                  and (yes.get("said") in (ss.BACK_TO_SOLUTION, ss.STORY_ASK) or (yes.get("verdict") or {}).get("drawn")),
+                  screen="define/story/check (story)", detail={"yes": yes, "said": said_then}, stop=False)
     read = walk.turn_read()
     hand_over_checks(run, leg, label, read, "define/story/*", beat_path=r"/define/story/\d$")
     heard = ss.heard_verdict(read["heard"], said, lambda n: f"/define/story/{n}")
     leg.check(run, f"{label}: each beat's words shown as heard -- in *What I hear* (`story-heard`) on the beat's screen, "
                    "in quotation marks -- and never among Keel's lines (`story-words` Keel's alone; keel-web 249 FR-4)",
-              heard["all_shown"] and heard["words_keels_only"] and heard["quoted"], screen="define/story/1..5 (story-heard, story-words)",
-              detail=heard, stop=False)
+              heard["all_shown"] and heard["words_keels_only"] and heard["quoted"],
+              screen="define/story/1..7 (story-heard, story-words)", detail=heard, stop=False)
     one_film(run, leg, label, project_id, walk.sheets_of(project_id), "PROBLEM", woke)
     walk.stop_listening()
     return {"walk": walk, "landed": yes["landed"], "story": story, "beats": beats}
 
 
-def window_then_prevalence(run: Run, leg: Leg, project_id: str, label: str) -> dict:
-    """After the story's quiet: 244's window screen -- a page, no orb on it (keel-web 245 FR-13, keel-cloud 263 FR-11:
-    the window stays a page; no spoken window) -- a window chosen and stored (`PUT context/window`), then Prevalence
-    (`define/problem/q/1`) with the story's own question. Where the window screen is not drawn (runs/DRIFT.md #103)
-    both are failed checks by name and the walk goes on to Prevalence by its address."""
+#: Spec 161 FR-2 (keel-web 257 FR-5): where the window page's forward press lands on a spoken PROBLEM project -- the
+#: ready page (the PROBLEM study's next stage), never a belief page.
+READY_PATH = re.compile(r"/define/ready")
+BELIEF_PATH = re.compile(r"/define/problem/(q/\d|seed)")
+
+
+def window_then_ready(run: Run, leg: Leg, project_id: str, label: str, *, wire: bool = False) -> dict:
+    """Spec 161 FR-2 after the story's yes and the verdict: 244's window screen -- a page, no orb on it -- a window
+    chosen and stored (`PUT context/window`), then the ready page: **no belief page is drawn** on a spoken PROBLEM
+    project (keel-web 257 FR-5, keel-cloud 269 FR-6: the beliefs were written at the boxes' yes). `wire` (keel-web 257
+    not in the checkout): the window stored on the wire and the corridor read off the calibration alone."""
+    if wire:
+        stored = ss.StoryWire(run.call, project_id).window(STORY_WINDOW)
+        leg.check(run, f"{label}: the window stored (PUT context/window 200, on the wire)", stored["status"] == 200,
+                  screen="define/context/window", view="wire", detail={"status": stored["status"]})
+        calibration = wait_calibration(run, project_id, "PROBLEM")
+        leg.check(run, f"{label}: the PROBLEM calibration answered at the yes -- the three questions served answered, "
+                       "none owed (no belief page to walk; `CalibrationView.total` 3)",
+                  vs_screens.calibration_answered(calibration), screen="calibration/PROBLEM", view="wire",
+                  detail={"state": calibration.get("state"), "total": calibration.get("total"),
+                          "answered": [q.get("dimension") for q in calibration.get("questions") or []
+                                       if q.get("answer")]}, stop=False)
+        return {"calibration": calibration, "landed": None}
     page = run.page
     page.wait_for_timeout(1500)
     url = page.url
     window_page = "/define/context/window" in url and page.locator("[data-testid=context-window-page]").count() > 0 \
         and page.locator("[data-testid=context-window-page]").first.is_visible()
-    leg.check(run, f"{label}: the story's quiet opens 244's window screen -- a page, no orb on it", window_page
+    leg.check(run, f"{label}: the verdict's quiet opens 244's window screen -- a page, no orb on it", window_page
               and page.locator(ss.ORB).count() == 0, screen="define/context/window",
               detail={"url": url, "window page": window_page, "orb": page.locator(ss.ORB).count()}, stop=False)
     shot = ss._BrowserStep(run.recorder, page, "founder")
     stored = None
-    with run.recorder.step(f"{label}: the window chosen, then on to the problem's first question", party="founder") as h:
+    seen: list[str] = []
+    with run.recorder.step(f"{label}: the window chosen, then on to the ready page", party="founder") as h:
         if window_page:
             page.locator("button.cwindow__chip").first.click()
             with page.expect_response(lambda r: r.request.method == "PUT" and r.url.split("?")[0]
                                       .endswith("/context/window"), timeout=30_000) as got:
                 page.get_by_role("button", name=re.compile(r"save and continue", re.I)).first.click()
             stored = {"status": got.value.status, "sent": got.value.request.post_data_json}
-        else:
-            page.get_by_role("button", name=re.compile(r"continue to the problem", re.I)).first.click()
         deadline = time.monotonic() + 30
-        while time.monotonic() < deadline and not re.search(r"/define/problem/(q/1|seed)", page.url):
+        while time.monotonic() < deadline and not READY_PATH.search(page.url):
+            if page.url not in seen:
+                seen.append(page.url)
             page.wait_for_timeout(250)
         page.wait_for_timeout(1000)
         landed = page.url
@@ -682,22 +941,12 @@ def window_then_prevalence(run: Run, leg: Leg, project_id: str, label: str) -> d
     if window_page:
         leg.check(run, f"{label}: the window stored (PUT context/window 200)", (stored or {}).get("status") == 200,
                   screen="define/context/window", view="wire", detail=stored)
-    leg.check(run, f"{label}: the window's forward press goes on to Prevalence (define/problem/q/1), never the seed "
-                   "chat the story already answered", "/define/problem/q/1" in landed, screen="define/context -> "
-              "define/problem/q/1", detail={"landed": landed, "drift": "runs/DRIFT.md #103"}, stop=False)
-    if "/define/problem/q/1" not in landed:
-        page.goto(f"{run.web}/p/{project_id}/define/problem/q/1", wait_until="load")
-    page.locator("h1").first.wait_for(state="visible", timeout=60_000)
-    page.wait_for_timeout(1500)
-    shot.screenshot(f"prevalence-{label}")
+    leg.check(run, f"{label}: the window's forward press goes on to the ready page -- no belief page drawn on a spoken "
+                   "PROBLEM project (keel-web 257 FR-5)", bool(READY_PATH.search(landed))
+              and not any(BELIEF_PATH.search(u) for u in seen + [landed]), screen="define/context -> define/ready",
+              detail={"landed": landed, "seen": seen}, stop=False)
     calibration = wait_calibration(run, project_id, "PROBLEM")
-    prevalence = next((q for q in calibration.get("questions") or [] if q.get("dimension") == "problem.prevalence"), {})
-    heading = _safe(lambda: page.locator("main h1, .ccard h1").first.inner_text())
-    leg.check(run, f"{label}: Prevalence is drawn with the story's own event (the chain applied on the founder's runtime)",
-              calibration.get("state") == "READY" and run.prevalence["event"] in (prevalence.get("question") or ""),
-              screen="define/problem/q/1", detail={"state": calibration.get("state"),
-                                                   "question": prevalence.get("question"), "drawn": heading})
-    return {"calibration": calibration}
+    return {"calibration": calibration, "landed": landed}
 
 
 # ------------------------------------------------------------------------------------------------ the drawn story (158b)
@@ -760,16 +1009,29 @@ def phone_story(run: Run, leg: Leg, project_id: str, label: str) -> None:
 
 # ------------------------------------------------------------------------------------------------ FR-1 (a)
 
-#: FR-1 (a)'s two problem projects: the script's own words, and the long telling with the correction (spec 158 FR-1).
-FR1A_TOLD = (("a-script", "the script's words", False), ("a-long", "the long telling", True))
+#: FR-1 (a)'s two problem projects: the script's own words (spec 161: the tasks row corrected on the board), and the
+#: long telling with the condition's correction (spec 158 FR-1).
+FR1A_TOLD = (("a-script", "the script's words", "script"), ("a-long", "the long telling", "long"))
+#: Spec 161 FR-1: how beat 3 is told on the problems FR-1 (b) and (c) start -- in two parts across the quiet on the
+#: solution's, the limitations alone (code's one ask walked) on the money's.
+FR1B_TELLING = "two-part"
+FR1C_TELLING = "limits-only"
 
 
 def fr1_a(run: Run, leg: Leg) -> None:
-    """Two problem projects by voice, to Prevalence: one told in the script's own words (every reading scripted, the
-    cost heard), one told the long way (beat 3 over 1,500 characters, five limitations and a cost in one breath, read
-    by the cloud's echo; *only the ones in Europe* after beat 4's readback; the cost drafted from the limitations)."""
-    for key, label, long3 in FR1A_TOLD:
-        name = f"158 problem {'long' if long3 else 'script'} {run.stamp}"
+    """Two problem projects by voice, to the ready page (spec 161: seven beats, the board's seven rows, the verdict line,
+    no belief page): one told in the script's own words (every reading scripted, the cost heard on beat 3 and asked
+    again on beat 4, the tasks row corrected on the board), one told the long way (beat 3 over 1,500 characters -- the
+    way, five limitations and a cost in one breath, read by the cloud's echo; *only the ones in Europe* after beat 5)."""
+    wire = not ss.web_has_257(run.stack.keel_web)
+    leg.check(run, f"the stack's keel-cloud serves contract {CONTRACT} (`x-keel-contract`; keel-cloud 268-270)",
+              run.__dict__.get("contract_read") == CONTRACT, screen="canon/openapi-v2.yaml", view="wire",
+              detail={"x-keel-contract": run.__dict__.get("contract_read")}, stop=False)
+    if wire:
+        leg.notes.append("keel-web 257 is not in the keel-web checkout the stack serves: every story is told on the wire "
+                         "(the cloud's reads held) and the founder's screen checks are pending keel-web 257, by name")
+    for key, label, telling in FR1A_TOLD:
+        name = f"161 problem {telling} {run.stamp}"
         run.new_project(name, "PROBLEM")
         # spec 158c FR-8: the guide sheet is held, not pressed past by the market step -- on a new problem project it is
         # the stage opener on the story route (keel-web 249 FR-6), which the walk itself passes and reads
@@ -779,14 +1041,16 @@ def fr1_a(run: Run, leg: Leg) -> None:
         run.page.wait_for_timeout(1500)
         leg.check(run, f"{label}: a new problem project opens on its conversation", "/define" in run.page.url,
                   screen="/p/{id}", detail=run.page.url, stop=False)
-        tell_the_story(run, leg, pid, label, long3=long3, correction=ss.CORRECTION_4 if long3 else None)
-        window_then_prevalence(run, leg, pid, label)
-        phone_story(run, leg, pid, label)
+        tell_the_story(run, leg, pid, label, telling=telling,
+                       correction=ss.CORRECTION_4 if telling == "long" else None, tasks_fix=telling == "script")
+        window_then_ready(run, leg, pid, label, wire=wire)
+        if not wire:
+            phone_story(run, leg, pid, label)
     review = run.get(f"/v2/projects/{run.projects['a-script']}/review/PROBLEM") or {}
     want = ss.reading_of(run.readings, max(n for n, _ in ss.said_turns(run.readings))).get("statement")
-    leg.check(run, "the statement is the last beat's reading's (keel-cloud 263 judgement call 4: drafted on beats 3-5)",
+    leg.check(run, "the statement is the last beat's reading's (keel-cloud 263 judgement call 4: drafted on the beats)",
               review.get("statement") == want, screen="review/PROBLEM", view="wire",
-              detail={"statement": review.get("statement"), "want": want})
+              detail={"statement": review.get("statement"), "want": want}, stop=False)
 
 
 # ------------------------------------------------------------------------------------------------ FR-1 (b)
@@ -814,6 +1078,14 @@ def idea_leg(run: Run, leg: Leg, solution: str, label: str, *, back_to_money: bo
               detail={"said": replay["screen"].get("said"), "rows": rrows, "cost": problem.get("cost"),
                       "woke": replay.get("woke"), "buttons": replay["screen"].get("buttons"),
                       "confirm": replay["confirm"]["status"]})
+    if ss.web_has_257(run.stack.keel_web):
+        tasks = list(problem.get("otherTasks") or [])
+        leg.check(run, f"{label}: the replay carries the tasks row -- the problem's other tasks, last (keel-web 257 "
+                       "FR-3; spec 161 FR-11)", list(rrows)[-1:] == ["tasks"]
+                  and all(_bare(t) in _bare(rrows.get("tasks")) for t in tasks),
+                  screen="define/idea/start (the replay)", detail={"rows": rrows, "otherTasks": tasks}, stop=False)
+    else:
+        leg.notes.append(f"{label}: the replay's tasks row is pending keel-web 257 (not in the checkout)")
     turn_screen(run, leg, label, replay["screen"], "define/idea/start (the replay)", card=True)
     said = ss.said_idea(run.readings)
     name = str(ss.idea_reading_of(run.readings, 1).get("name") or said[0][1])
@@ -923,7 +1195,8 @@ def fr1_b(run: Run, leg: Leg) -> None:
               created["status"] == 201 and (created["sent"] or {}).get("scope") == "PROBLEM"
               and (created["sent"] or {}).get("name") == ss.problem_name_of(name),
               screen="which problem", detail=created)
-    told = tell_the_story(run, leg, problem, "the solution's problem", back_to="solution", goto=False)
+    told = tell_the_story(run, leg, problem, "the solution's problem", telling=FR1B_TELLING, back_to="solution",
+                          goto=False)
     leg.check(run, "the story's quiet is the return trip: the which-problem page with the problem just agreed picked",
               f"problem={problem}" in told["landed"], screen="define/story/check -> /?start=solution",
               detail=told["landed"])
@@ -1006,12 +1279,18 @@ def fr1_d(run: Run, leg: Leg) -> None:
     except Exception:  # noqa: BLE001 - recorded
         drawn = {"rows": _safe(lambda: page.locator(".project-list").first.inner_text())}
     wire = run.list_row(problem)
+    nested = "Defined, not sent" in (drawn.get("text") or "") and (drawn.get("href") or "").endswith(problem)
     leg.check(run, "the list nests the defined problem project under the study that uses it, *Defined, not sent*",
-              "Defined, not sent" in (drawn.get("text") or "") and (drawn.get("href") or "").endswith(problem)
-              and (wire.get("definition") or {}).get("status") == "defined", screen="/ (the project list)",
-              detail={"drawn": drawn, "wire": {k: wire.get(k) for k in ("definition", "lineage", "story")}})
+              nested and (wire.get("definition") or {}).get("status") in YES_STATUSES, screen="/ (the project list)",
+              detail={"drawn": drawn, "wire": {k: wire.get(k) for k in ("definition", "lineage", "story")},
+                      "drift": "runs/DRIFT.md #114 (spec 161: a PROBLEM study is calibrated at its yes since "
+                               "keel-cloud 269, and the list no longer nests it)"}, stop=False)
     with run.recorder.step("FR-1d: the founder opens it from the list", party="founder"):
-        row.click()
+        if nested:
+            row.click()
+        else:
+            # spec 161 (DRIFT #114): the problem project drawn as a study of its own -- opened at its own address
+            page.goto(f"{run.web}/p/{problem}", wait_until="load")
         page.wait_for_url(re.compile(rf"/p/{problem}"), timeout=30_000)
         page.wait_for_timeout(2500)
     resumed = page.url
@@ -1021,11 +1300,25 @@ def fr1_d(run: Run, leg: Leg) -> None:
               stop=False)
     run.load_runtime("PROBLEM")
     j = run.journey("d", "PROBLEM", problem)
-    page.goto(f"{run.web}/p/{problem}/define/problem/q/1", wait_until="load")
-    cs.leg_calibrate(j, "PROBLEM")
-    cs.plan_complete(j)
-    leg.check(run, "calibrated: the plan reads complete over the problem", True, screen="define/problem/*",
-              detail=j.changed.get("plan_complete"))
+    # spec 161 FR-2: a spoken PROBLEM project walks no belief page -- the window, then the ready page; the review table's
+    # three rows read as written at the boxes' yes
+    on_screen = ss.web_has_257(run.stack.keel_web) and "/define/context/window" in resumed
+    window_then_ready(run, leg, problem, "the defined problem", wire=not on_screen)
+    review = wait_review(run, problem)
+    read = vs_screens.written_beliefs(review)
+    leg.check(run, "the review table's three rows as written: *6 or 7 in 10* (Prevalence), the bin (Frequency), "
+                   "Importance the own row first then the other tasks -- no belief page walked",
+              review.get("complete") is True and read["prevalence"] == ["p_60_80"] and read["frequency"] == ["p_60_80"]
+              and len(read["importance"]) >= 3 and read["dimensions"] == 3, screen="review/PROBLEM", view="wire",
+              detail=read, stop=False)
+    try:
+        cs.plan_complete(j)
+        planned = True
+    except AssertionError as missed:
+        planned = False
+        leg.notes.append(f"the plan: {str(missed)[:300]}")
+    leg.check(run, "calibrated with no belief page: the plan reads complete over the problem", planned,
+              screen="GET plan", view="wire", detail=j.changed.get("plan_complete"))
     page.goto(f"{run.web}/p/{problem}/define/ready/interviewer", wait_until="load")
     if run.remote:
         leg.notes.append("remote profile: no stand-in -- the drained grant and the lock's charge are not walked; the "
@@ -1175,7 +1468,8 @@ def fr1_c(run: Run, leg: Leg) -> None:
               got.value.status == 201 and (got.value.request.post_data_json or {}).get("scope") == "PROBLEM",
               screen="which problem (will they pay)", detail=got.value.request.post_data_json)
     page.locator(ss.STORY_START).first.wait_for(state="visible", timeout=30_000)
-    told = tell_the_story(run, leg, problem, "the money's problem", back_to="money", goto=False)
+    told = tell_the_story(run, leg, problem, "the money's problem", telling=FR1C_TELLING, back_to="money",
+                          goto=False)
     leg.check(run, "the story's quiet goes back to the money start", "start=money" in told["landed"],
               screen="define/story/check -> /?start=money", detail=told["landed"])
     second = page.locator("[data-testid=money-start][data-screen=solution]").first

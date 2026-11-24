@@ -388,3 +388,19 @@ def skip_a_spoken_record_before_198(keel_cloud, registry) -> None:
                     "*Or say you can't say.*; the registry of record opens on "
                     f"{registry.by_key(BUYER_KEY).fixed_answers[0].get('label')!r}) -- rerun `./gradlew test --tests "
                     "'*SpokenGuidelinesCorpusTest'` in the keel-cloud checkout to compare")
+
+
+def skip_a_spoken_record_before_269(keel_cloud, registry) -> None:
+    """Spec 161 (keel-cloud 269 FR-3, FR-5): `build/spoken-corpus.txt` writes the items the lock served when its Gradle
+    run ran -- a record written before 269 carries Current solution's item and Frequency as a count with *I can't
+    recall*, which registry 5 (Frequency `fixed_five`, no escape; Current solution retired) reads as faults that are the
+    record's age. Such a record is skipped by name against registry 5 (rerun its SpokenGuidelinesCorpusTest to compare)."""
+    import pytest                                                     # noqa: PLC0415
+    from instructions import cloud_corpus as cloud_mod                # noqa: PLC0415
+    from instructions import registry as registry_mod                 # noqa: PLC0415
+    path = Path(keel_cloud) / cloud_mod.SPOKEN_FILE
+    record = path.read_text(encoding="utf-8") if path.is_file() else ""
+    if registry is not None and registry_mod.is_269(registry) and "problem.current_solution_satisfaction [" in record:
+        pytest.skip("keel-cloud's build/spoken-corpus.txt predates keel-cloud 269 (Current solution's item, Frequency a "
+                    "count) against registry 5 -- rerun `./gradlew test --tests '*SpokenGuidelinesCorpusTest'` in the "
+                    "keel-cloud checkout to compare")

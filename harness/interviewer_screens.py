@@ -93,6 +93,16 @@ from playwright.sync_api import Page
 from harness import interviews_screens as _iv
 from harness.browser import _BrowserStep, _safe_text
 
+# ---- spec 161 (keel-cloud 269 / 270, contract 87; keel-web 258): the four questions' words, one script on every surface
+#: The gate's fixed words after the film (keel-cloud 269 FR-1) -- the orb, the face and the Copilot card alike.
+GATE_WORDS = "Did this happen to you?"
+#: keel-cloud 269 FR-3: Frequency's five rows, in order, letters A-E.
+FREQUENCY_LABELS = ("Every time", "Most times", "About half the time", "Now and then", "Never")
+#: Spec 161 FR-4 (keel-web 258 FR-2b): the order on a film link -- the opening passage, the screener (its own counted
+#: step), the film ending on the pain scene, *Begin*, then the gate; without a screener the opening, the film, the gate.
+FILM_LINK_ORDER = ("opening", "screener", "film", "begin", "gate")
+FILM_LINK_ORDER_NO_SCREENER = ("opening", "film", "begin", "gate")
+
 # ---- keel-web d23895f `translate.ts`
 PERSONA_RECORDING = "Recording now, usually ready in about five minutes. You can leave this page."
 PERSONA_NOT_RECORDED = "No interviewer recorded yet."

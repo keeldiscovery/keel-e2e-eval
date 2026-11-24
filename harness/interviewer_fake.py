@@ -530,7 +530,10 @@ def only_if_said_back(condition: str) -> str:
 
 
 #: Design §2's rungs with no question since keel-cloud 118 (a gate No ends the interview; a number has no why; derived).
-NO_FOLLOW_UP = ("problem.prevalence", "problem.frequency", "commercial.existing_sacrifice", "commercial.ability_to_pay")
+NO_FOLLOW_UP = ("commercial.existing_sacrifice", "commercial.ability_to_pay")
+#: Before keel-cloud 270 (spec 161 FR-7): the gate and Frequency carried no follow-up either -- a record from then reads so.
+NO_FOLLOW_UP_BEFORE_270 = ("problem.prevalence", "problem.frequency", "commercial.existing_sacrifice",
+                           "commercial.ability_to_pay")
 #: `PassageComposer.ONE_MORE_THING` (keel-cloud 144 FR-2, spec 075 FR-5): every FOLLOW_UP clip opens on it, first or
 #: second, on the spot or at the end (the ALSO stems too); the screens' one kicker is *One more thing* (keel-web 126
 #: FR-5: *About that* and *One last thing* are gone).
@@ -577,9 +580,6 @@ NAMED: dict[str, dict[str, str]] = {
         "spoken": "What mattered more to you than {short_name}?",
         "one": "You picked {their_pick} over {short_name}. Why did that matter more to you?",
         "several": "You picked {their_pick} and {their_next} over {short_name}. Why did those matter more to you?"},
-    "problem.current_solution_satisfaction": {
-        "text": "You said {short_name} works for you. What keeps it working?",
-        "spoken": "You said {short_name} works for you. What keeps it working?"},
     "solution.relative_advantage": {
         "text": "You said {solution_name} wouldn't make much difference on your last {occasion}. What would make "
                 "{short_name} better for you, if anything?",
@@ -592,6 +592,10 @@ NAMED: dict[str, dict[str, str]] = {
         "text": "What would you start with instead of {short_name}?",
         "spoken": "What would you start with instead of {short_name}?"},
 }
+#: Spec 161 (keel-cloud 269 FR-5): Current solution's named wording, retired with it -- kept for a record from before.
+NAMED_RETIRED_269 = {"problem.current_solution_satisfaction": {
+    "text": "You said {short_name} works for you. What keeps it working?",
+    "spoken": "You said {short_name} works for you. What keeps it working?"}}
 #: keel-cloud 200 FR-3: the second stems' named wordings (`also.named`) -- Compatibility's *What steps did it take?*
 #: filled, never a bare *it*; Commitment's smaller step by its own short name.
 ALSO_NAMED: dict[str, dict[str, str]] = {
@@ -1408,8 +1412,10 @@ def served_quotes(ids, by_id: dict) -> list[dict]:
 #: the rung's heading over its quotes, one a dimension with a question. Spec 118 FR-4b (keel-cloud 180 T025, 182 FR-5,
 #: 184 T032): every heading in the question's own tense, a question -- registry of record at keel-cloud-docs `f3f0d99e`.
 RUNG_HEADINGS = {
+    # spec 161 FR-7 (keel-cloud 270 FR-1): the gate's No and Frequency are rungs; Current solution is gone (269 FR-5)
+    "problem.prevalence": "What keeps it from happening to them",
+    "problem.frequency": "What makes the difference",
     "problem.importance": "What made the others more pressing?",
-    "problem.current_solution_satisfaction": "What keeps today's way working?",
     "solution.compatibility": "What got in the way?",
     "solution.relative_advantage": "What would have made a difference?",
     "solution.adoption_friction": "What makes that too much?",
@@ -1423,8 +1429,6 @@ RUNG_HEADINGS = {
 ALSO_HEADINGS = {key: also[3] for key, also in ALSO.items()}
 #: Design §2 *Rungs with no question* (`no_follow_up`), as the registry carries them since keel-cloud 118 / 115.
 NO_FOLLOW_UP_WHY = {
-    "problem.prevalence": "a No at the gate ends the interview",
-    "problem.frequency": "a number has no why worth a question",
     "commercial.existing_sacrifice": "a number has no why worth a question",
     "commercial.ability_to_pay": "it is read from the cost and the price (or the budget item), never asked of the "
                                  "founder",

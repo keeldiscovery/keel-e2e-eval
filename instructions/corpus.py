@@ -1835,6 +1835,11 @@ def _check_keys(entry: Entry, registry) -> None:
     registry_keys = set(registry.keys())
     keys = set(registry.calibrated_keys(entry.b2b()))
     persona = "B2B" if entry.b2b() else "B2C"
+    # spec 161 FR-6 (keel-cloud 269): against registry 5 the corpus is read through 269 -- Current solution's records are
+    # read as not asked (never refused: the files are keel-cloud's), and Frequency's recorded counts and row are the
+    # five rows' by one rule (`spec269_frequency`), never the registry's fixed codes
+    retired = {k for k in RETIRED_269 if k not in registry_keys}
+    through_269 = bool(retired)
 
     def outside(key) -> str:
         if key not in registry_keys:
@@ -1852,7 +1857,7 @@ def _check_keys(entry: Entry, registry) -> None:
                                     f"registry's codes {fixed}", entry.path)
         if dimension.founder_list:
             _check_list(entry, registry, key)
-    calibrated = set(entry.founder_calibration)
+    calibrated = set(entry.founder_calibration) - retired
     for key in sorted(calibrated - keys):
         raise _refuse(entry.id, f"founder_calibration names {key}, {outside(key)}", entry.path)
     if calibrated != keys:
@@ -1861,16 +1866,24 @@ def _check_keys(entry: Entry, registry) -> None:
                                 f"{persona} entry calibrates; missing {', '.join(missing)}",
                       entry.path)
     for key, row in (entry.respondent_questions or {}).items():
+        if key in retired:
+            continue
         if key not in keys:
             raise _refuse(entry.id, f"respondent_questions carries {key}, {outside(key)}", entry.path)
+        if through_269 and key == FREQUENCY_KEY:
+            continue                                 # the recorded count row, read on the five rows (spec 161)
         _check_row(entry, registry, key, row or {})
     for person in entry.answers:
         for key, pick in (person.get("picks") or {}).items():
+            if key in retired:
+                continue
             if key not in keys:
                 raise _refuse(entry.id, f"{person.get('person')} picks {key}, {outside(key)}",
                               entry.path)
+            if through_269 and key == FREQUENCY_KEY:
+                continue                             # a recorded count, read on the five rows (spec 161)
             _check_pick(entry, registry, person, key, pick)
-    standings = set(entry.expected.get("standings") or {})
+    standings = set(entry.expected.get("standings") or {}) - retired
     for key in sorted(standings - keys):
         raise _refuse(entry.id, f"expected.standings carries {key}, {outside(key)}", entry.path)
     if standings and standings != keys:
@@ -1879,7 +1892,7 @@ def _check_keys(entry: Entry, registry) -> None:
     derived = entry.plan(registry)
     for part, plan_keys in derived.items():
         recorded = [k for k, row in (entry.respondent_questions or {}).items()
-                    if (row or {}).get("part") == part]
+                    if (row or {}).get("part") == part and k not in retired]
         if sorted(recorded) != sorted(plan_keys):
             raise _refuse(entry.id, f"respondent_questions part {part} holds "
                                     f"{', '.join(recorded) or 'nothing'}; the registry plans "
@@ -2169,6 +2182,117 @@ def spec173_reads(recorded):
     if unnamed:
         return f"For most, the last time would have gone better with it: {unnamed.group(1)}."
     return recorded
+
+
+# ------------------------------------------------------------------------------------ spec 161: read through keel-cloud 269
+
+#: Spec 161 FR-6 (keel-cloud 269 FR-3, FR-5; its judgement call 1): **the corpus read through keel-cloud 269** -- the
+#: eval's read of the files, one rule each, exactly keel-cloud's `VectorCorpusFixture` (`spec269Frequency`,
+#: `SPEC_269_MOVES`, `SPEC_269_PROBLEM`): every recorded Frequency count read on the five rows, the founder's Frequency
+#: the bin code writes at the boxes' yes, Current solution not asked. The files are keel-cloud's canon and are never
+#: written here (spec 010's rule: one place); the revision that records the scale is keel-cloud's to cut, and until it
+#: is this is the eval's read revision of the corpus -- `READ_REVISION_161` over the files' 23 / 25.
+READ_REVISION_161 = "r23+269"
+#: keel-cloud 269 FR-3: the five codes, in order; the two that count for the founder.
+FREQUENCY_CODES_269 = ("every_time", "most_times", "about_half", "now_and_then", "never")
+FREQUENCY_FOR_269 = ("every_time", "most_times")
+#: keel-cloud 269 FR-6 (D3): the bin code writes at the boxes' yes, on Prevalence and Frequency (`ProblemBeliefs.DEFAULT_BIN`).
+DEFAULT_BIN_269 = "p_60_80"
+#: keel-cloud 269 FR-5: the dimension the PROBLEM study no longer asks.
+RETIRED_269 = ("problem.current_solution_satisfaction",)
+
+
+def spec269_frequency(recorded, of: int):
+    """keel-cloud `VectorCorpusFixture.spec269Frequency`: a recorded Frequency count read on the share scale against the
+    window's count `of` -- every unit `every_time`, more than half `most_times`, exactly half `about_half`, fewer
+    `now_and_then`, none `never`; a `{value, unit}` the same; a recorded code as it is; the retired *I can't recall* chip
+    kept as a chip (`{"chip": ...}`, not one of the five: not counted)."""
+    if isinstance(recorded, dict) and "chip" in recorded:
+        return {"chip": recorded["chip"]}
+    if isinstance(recorded, str):
+        return recorded
+    count = float(recorded.get("value") if isinstance(recorded, dict) else recorded)
+    if count >= of:
+        return "every_time"
+    if count <= 0:
+        return "never"
+    if 2 * count > of:
+        return "most_times"
+    if 2 * count == of:
+        return "about_half"
+    return "now_and_then"
+
+
+def spec269_founder_bin(founder_calibration: dict | None):
+    """keel-cloud `VectorCorpusFixture.toInput` (spec 269 FR-3, FR-6): the recorded Frequency range read as the bin code
+    writes at the boxes' yes (`p_60_80`); a left-out one stays left out (None)."""
+    recorded = (founder_calibration or {}).get("problem.frequency") or {}
+    return None if recorded.get("unsure") else DEFAULT_BIN_269
+
+
+#: keel-cloud `VectorCorpusFixture.SPEC_269_MOVES`: the golden Frequency rows as the engine reads the recorded counts
+#: on the share scale -- status, drift, n and the count on Every time or Most times (`inside`); no median.
+SPEC_269_MOVES = {
+    "01-countly": ("NOT_HOLDING_UP", "short", 8, 2), "02-compliancelog": ("HOLDING_UP", "stronger", 9, 8),
+    "03-lullaby": ("HOLDING_UP", "none", 8, 6), "04-linerly": ("NOT_HOLDING_UP", "short", 8, 0),
+    "05-paidly": ("HOLDING_UP", "none", 9, 7), "06-repeatline": ("HOLDING_UP", "none", 9, 7),
+    "07-mulchrun": ("HOLDING_UP", "stronger", 7, 7)}
+#: keel-cloud `VectorCorpusFixture.SPEC_269_PROBLEM`: the golden PROBLEM verdicts with Current solution gone and
+#: Frequency on the scale (01-countly and 04-linerly decided by Frequency; 03-lullaby by Importance).
+SPEC_269_PROBLEM = {
+    "01-countly": ("NOT_HOLDING_UP", "problem.frequency"), "02-compliancelog": ("HOLDING_UP", "problem.prevalence"),
+    "03-lullaby": ("PEOPLE_DISAGREE", "problem.importance"), "04-linerly": ("NOT_HOLDING_UP", "problem.frequency"),
+    "05-paidly": ("HOLDING_UP", "problem.prevalence"), "06-repeatline": ("HOLDING_UP", "problem.prevalence"),
+    "07-mulchrun": ("NOT_HOLDING_UP", "problem.prevalence")}
+
+
+#: keel-cloud `VectorCorpusFixture.SPEC_246_MOVES` (hours stay hours; no corpus revision): 06-repeatline's Existing
+#: sacrifice, every practice answered in money against an hours estimate -- none counted.
+SPEC_246_MOVES = {"06-repeatline": {"commercial.existing_sacrifice": {
+    "status": "TOO_FEW_TO_CALL", "drift": None, "n": 0, "inside": 0, "below": 0, "above": 0, "outside": 0,
+    "median": None}}}
+
+
+def expected_269(entry_id: str, expected: dict | None) -> dict | None:
+    """keel-cloud `VectorCorpusFixture.expected()` (spec 269, and the spec 246 move it carries): the recorded `expected`
+    with Current solution's standing dropped, the golden Frequency row and PROBLEM verdict moved, 06-repeatline's
+    Existing sacrifice read as 246 reads it -- a copy; the record is never rewritten."""
+    if not isinstance(expected, dict):
+        return expected
+    import copy as _copy                                                    # noqa: PLC0415
+    read = _copy.deepcopy(expected)
+    standings = read.get("standings")
+    if isinstance(standings, dict):
+        for key in RETIRED_269:
+            standings.pop(key, None)
+        for key, fields in (SPEC_246_MOVES.get(str(entry_id)) or {}).items():
+            if isinstance(standings.get(key), dict):
+                for field, value in fields.items():
+                    if value is None:
+                        standings[key].pop(field, None)
+                    else:
+                        standings[key][field] = value
+        moved = SPEC_269_MOVES.get(str(entry_id))
+        if moved and isinstance(standings.get("problem.frequency"), dict):
+            status, drift, n, inside = moved
+            row = standings["problem.frequency"]
+            row.update({"status": status, "drift": drift, "n": n, "inside": inside, "outside": n - inside})
+            row.pop("median", None)
+    verdict = SPEC_269_PROBLEM.get(str(entry_id))
+    if verdict and isinstance(read.get("vector_verdicts"), dict):
+        read["vector_verdicts"]["PROBLEM"] = {"verdict": verdict[0], "deciding": verdict[1]}
+    return read
+
+
+def picks_269(picks: dict | None, of: int) -> dict:
+    """One person's recorded picks read through keel-cloud 269: Frequency on the five codes (`spec269_frequency`),
+    Current solution not asked."""
+    out = {}
+    for key, value in (picks or {}).items():
+        if key in RETIRED_269:
+            continue
+        out[key] = spec269_frequency(value, of) if key == "problem.frequency" else value
+    return out
 
 
 def advantage_benefit(label) -> str:

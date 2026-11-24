@@ -104,7 +104,7 @@ def test_the_report_names_the_two_speakers():
                                {"problem": ss.same_walk(orb, face)})
     assert [(r["study"], r["speaker"]) for r in rows] == [("problem", "ORB"), ("problem", "AVATAR")]
     md = report.report_markdown([], {"cloud": "c", "web": "w"}, report.log_scan(""), speakers=rows)
-    assert "## The two speakers (spec 160, keel-web 256 on keel-cloud 267)" in md
+    assert "## The two speakers (spec 160, keel-web 256 on keel-cloud 267; under the three surfaces since spec 161)" in md
     assert "| problem | ORB | intro > intro+start > film:problem > film:problem+begin > speaking:Opening" in md
     assert "| - - - - L L S - |" in md and "| - - - - L L L - |" in md
     assert "| 1 of 1 lit from the first word; all lit at the end on 1 |" in md

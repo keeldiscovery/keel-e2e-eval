@@ -92,9 +92,11 @@ def test_the_script_answers_every_corridor_screen_from_the_entry(entry_id):
     screens = vs.generate(entry).screens
     # spec 154 FR-0 (keel-cloud 229 / 228): Importance's draft (`problem_clause`) and Current solution's (`answer_parts`)
     # under their own key sets
+    # spec 161 (keel-cloud 269 FR-5): Current solution's `answer_parts` redraft is gone with it
     want = {vs.CONTEXT_SCREEN, vs.PROBLEM_SCREEN, vs.MECHANISM_SCREEN, vs.CALIBRATION_SCREEN,
-            vs.CALIBRATION_WITH_CLAUSE_SCREEN, vs.CALIBRATION_WITH_PARTS_SCREEN,
-            *(s + vs.REPAIR_SUFFIX for s in vs.CALIBRATION_SCREENS), vs.ASKED_SCREEN + vs.REPAIR_SUFFIX,
+            vs.CALIBRATION_WITH_CLAUSE_SCREEN,
+            *(s + vs.REPAIR_SUFFIX for s in (vs.CALIBRATION_SCREEN, vs.CALIBRATION_WITH_CLAUSE_SCREEN)),
+            vs.ASKED_SCREEN + vs.REPAIR_SUFFIX,
             vs.ASKED_SCREEN, vs.RESPONDENT_SCREEN, vs.INTERPRET_SCREEN, vs.THEMES_SCREEN}
     assert set(screens) == want, "no BRIEF since keel-cloud 104; THEMES chosen by dimension (keel-runtime 012)"
     assert screens[vs.THEMES_SCREEN][-1] == {"outcome": "COMPLETED", "result": {"themes": []}}, "the catch-all last"
@@ -301,24 +303,22 @@ def test_an_export_that_lost_the_per_part_keys_is_refused_by_name():
 
 # ------------------------------------------------------------------------------- the founder
 
-def test_frequency_is_asked_where_the_window_carries_it_and_left_out_on_mulch_run():
-    """D13 (spec 040): Countly's {4, WEEKS} carries its "1 to 3 weeks out of 4"; since revision 11 (keel-cloud 091
-    FR-G) Paidly's {3, MONTHS} carries its "2 to 3 months out of 3" -- both asked. D-1 (spec 042): Mulch Run's
-    "working days out of 7" on two weeks still does not (091 call 11), so the founder leaves it out and the standing
-    asserted is LEFT_OUT."""
-    for entry_id, interval in (("01-countly", {"low": 1, "high": 3, "unit": "weeks out of 4"}),
-                               ("05-paidly", {"low": 2, "high": 3, "unit": "months out of 3"})):
+def test_frequency_is_asked_on_every_entry_as_a_bin_and_five_codes():
+    """Spec 161 FR-6 (keel-cloud 269 FR-3): `frequency_fits` is retired -- Frequency is always asked, Mulch Run's too.
+    The founder's Frequency is the bin code writes at the boxes' yes (`p_60_80`, the recorded range read through 269);
+    each person's recorded count is one of the five codes (`corpus.spec269_frequency`); the standings are the corpus's
+    read through 269 (01-countly NOT_HOLDING_UP on Frequency, the rest as keel-cloud's `SPEC_269_MOVES`)."""
+    assert not hasattr(vs, "frequency_fits")
+    for entry_id, status in (("01-countly", "NOT_HOLDING_UP"), ("05-paidly", "HOLDING_UP"),
+                             ("07-mulchrun", "HOLDING_UP")):
         entry = _entry(entry_id)
-        assert vs.frequency_fits(entry), entry_id
         problem = {a.dimension: a.body for a in vs.calibration_answers(entry, "PROBLEM")}
-        assert problem["problem.frequency"]["interval"] == interval, entry_id
-        assert corpus_scenario.expected_status(entry, "problem.frequency") == "HOLDING_UP", entry_id
-        assert "problem.frequency" in vs.plan_keys(entry, 1, vs.LINK_PRIMARY), entry_id
-    mulch = _entry("07-mulchrun")
-    assert not vs.frequency_fits(mulch)
-    assert corpus_scenario.expected_status(mulch, "problem.frequency") == "LEFT_OUT"
-    problem = {a.dimension: a.body for a in vs.calibration_answers(mulch, "PROBLEM")}
-    assert problem["problem.frequency"] == {"dimension": "problem.frequency", "unsure": True}
+        assert problem["problem.frequency"] == {"dimension": "problem.frequency", "codes": ["p_60_80"]}, entry_id
+        assert "problem.current_solution_satisfaction" not in problem, entry_id
+        assert corpus_scenario.expected_status(entry, "problem.frequency") == status, entry_id
+        assert vs.plan_keys(entry, 1, vs.LINK_PRIMARY)[:3] == ["problem.prevalence", "problem.frequency",
+                                                               "problem.importance"], entry_id
+        assert "problem.current_solution_satisfaction" not in vs.plan_keys(entry, 1, vs.LINK_PRIMARY)
 
 
 def test_idea_names_read_as_keel_cloud_derives_them():

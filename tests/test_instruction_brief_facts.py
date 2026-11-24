@@ -48,12 +48,15 @@ def test_lower_keeps_an_acronym_and_could_phrase_reads_103_fr_9():
 def test_one_card_a_calibrated_dimension_in_registry_order(entry, b2b):
     registry = fx.registry()
     cards = bf.cards_for(entry, registry)
-    assert [c["key"] for c in cards] == registry.calibrated_keys(False)
-    assert len(bf.cards_for(b2b, registry)) == 13
+    # spec 161 FR-8 (keel-cloud 269 FR-5): Current solution is not asked -- no card; eleven on B2C, twelve on B2B
+    assert [c["key"] for c in cards] == [k for k in registry.calibrated_keys(False) if k not in bf.RETIRED]
+    assert len(bf.cards_for(b2b, registry)) == 12
     by_key = {c["key"]: c for c in cards}
     assert by_key["problem.prevalence"]["number"] == "10 of 12"
     assert by_key["problem.prevalence"]["line"] == "had it in the last 7 nights"
-    assert by_key["problem.frequency"]["number"] == "2.5 nights out of 7"
+    # spec 161 FR-8 (keel-cloud 269 FR-3): the share on Every time or Most times, never a median over the window
+    assert (by_key["problem.frequency"]["number"], by_key["problem.frequency"]["line"]) == (
+        "7 of 8", "say most times or every time")
     assert by_key["problem.importance"]["line"] == "put it in their top two"
     assert by_key["solution.compatibility"]["line"] == "said they had a phone to hand"
     # spec 089 FR-4 (keel-cloud 159 FR-2): the scale's supporters, how many a lot; no benefit, no occasion
@@ -73,9 +76,8 @@ def test_one_card_a_calibrated_dimension_in_registry_order(entry, b2b):
         # spec 118 FR-1 re-pin (keel-cloud 180 FR-7): every yes, and *on a condition* where no smaller step is named;
         # spec 130 re-pin (keel-cloud 198 FR-1): the soft yes as served, *said probably*
         "6 of 8", "would install the app · 2 of them said probably")
-    # spec 064 FR-5a (keel-cloud 117 FR-3): Current solution's bar names the rung above the line
-    assert by_key["problem.current_solution_satisfaction"]["keelBar"] == \
-        "holds if at least 2 in 3 land below 'Found them after a quick look'"
+    # spec 064 FR-5a (keel-cloud 117 FR-3) retired by spec 161 (keel-cloud 269 FR-5): no Current solution card, no bar
+    assert "problem.current_solution_satisfaction" not in by_key
     # spec 064 FR-4a (keel-cloud 116 FR-3): the founder's clause in the window, where the study carries one
     clause = bf.card(entry, registry.by_key("problem.prevalence"),
                      entry.expected["standings"]["problem.prevalence"], clause="Had to search for the keys.")
@@ -246,7 +248,7 @@ def test_the_compare_agrees_with_its_own_reading_and_reports_insights(entry):
     cloud = bf.facts_for(entry, registry)
     cloud["cards"][2]["statusWords"] += " · it's the difficulty they'd most like made easier"
     score = bf.compare(entry, registry, cloud)
-    assert (score.agreed, score.checks) == (14, 14) and score.correctness == 1.0
+    assert (score.agreed, score.checks) == (13, 13) and score.correctness == 1.0      # spec 161: no Current solution
     assert [d["field"] for d in score.reported_diffs] == ["statusWords (insight)"]
 
 
@@ -256,7 +258,7 @@ def test_a_card_that_differs_is_a_mismatch_and_the_pilot_too(entry):
     cloud["cards"][0]["number"] = "9 of 12"
     cloud["pilot"]["optedIn"] += 1
     score = bf.compare(entry, registry, cloud)
-    assert score.checks == 14 and score.agreed == 12
+    assert score.checks == 13 and score.agreed == 11                                   # spec 161: no Current solution
     assert {m["key"] for m in score.mismatches} == {"problem.prevalence", "pilot"}
 
 

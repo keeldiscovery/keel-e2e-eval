@@ -117,12 +117,10 @@ def test_the_plan_composes_each_question_and_where_it_hangs():
     interview = {"parts": [{"items": [{"dimension": d, "options": []} for d in B2B_ORDER]}],
                  "followUps": [{"dimension": d} for d in fake.walks("PRIMARY", True)], "occasion": "invoice"}
     plan = vs.follow_up_plan(entry, talia.picks, vs.LINK_PRIMARY, interview, "tok")
-    assert [(a["dimension"], a["on"]) for a in plan] == [(IMP, IMP), (CUR, CUR)]
-    # keel-cloud 129 FR-3: said as it reads; 154 (spec 086 FR-5): the spoken line filled with the project's words --
-    # spec 093 FR-2 (keel-cloud 161 T003): the founder's phrase as the question says it, not the job gerund
-    phrase = vs.said_phrase(entry.founder_list(CUR)["phrase"])
-    assert plan[1]["text"] == fake.spoken_filled(CUR, {"{phrase}": phrase}) == \
-        "You said getting an approved invoice paid works for you. What keeps it working?"
+    # spec 161 (keel-cloud 269 FR-5): Current solution is not asked -- the second why is the next rung she is against
+    # on, Compatibility (keel-cloud 129 FR-3's said-as-it-reads wording of Current solution retired with it)
+    assert [(a["dimension"], a["on"]) for a in plan] == [(IMP, IMP), ("solution.compatibility", "solution.compatibility")]
+    assert CUR not in [a["dimension"] for a in plan]
     # the first rung's call held past the beat: every later call returns that earlier rung, so nothing more is asked on
     # the spot and the end asks it
     late = vs.follow_up_plan(entry, talia.picks, vs.LINK_PRIMARY, interview, "tok", late=(IMP,))

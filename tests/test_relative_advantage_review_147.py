@@ -110,8 +110,7 @@ def browser():
 
 def test_relative_advantage_is_the_fourth_reviewed_list():
     """FR-2 (keel-cloud 237 FR-1, keel-web 181 FR-2): the Check's Save holds on Relative advantage too."""
-    assert vs_screens.REVIEWED_LISTS == ("problem.importance", "problem.current_solution_satisfaction",
-                                         "solution.compatibility", RA)
+    assert vs_screens.REVIEWED_LISTS == ("problem.importance", "solution.compatibility", RA)    # spec 161: 269 FR-5
     assert vs.is_list(RA)
 
 

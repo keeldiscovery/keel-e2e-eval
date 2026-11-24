@@ -283,9 +283,10 @@ def test_the_orb_is_the_small_orb_and_the_glow_is_never_read(browser):
 
 def test_said_turns_takes_the_scripts_first_story():
     """keel-cloud 263c (`1fb1fa71`) adds tellings after the first story (another who, beat 2 said several ways)."""
-    script = {"turns": [{"turn": n, "heard": str(n)} for n in (1, 2, 3, 4, 5)]
+    # spec 161: the first story is keel-cloud 268's seven beats
+    script = {"turns": [{"turn": n, "heard": str(n)} for n in (1, 2, 3, 4, 5, 6, 7)]
               + [{"turn": 1, "heard": "Angel investors"}] + [{"turn": 2, "heard": f"way {i}"} for i in range(4)]}
-    assert ss.said_turns(script) == [(1, "1"), (2, "2"), (3, "3"), (4, "4"), (5, "5")]
+    assert ss.said_turns(script) == [(1, "1"), (2, "2"), (3, "3"), (4, "4"), (5, "5"), (6, "6"), (7, "7")]
 
 
 def test_an_idea_beat_straight_on_waits_for_the_next_idea_beat():

@@ -5862,6 +5862,10 @@ the condition *work at a company with more than 50 employees*. keel-cloud 264 (b
 run of record ran) adds the `corrections` entry; until it lands the check stays `stop=False` and FR-1 (a) is reported
 failed by this one check alone (spec 158c FR-9).
 
+**Status (spec 161, 2026-11-24): resolved** on keel-cloud-docs `bf5a5b7d` (264's `corrections` entry for *only the ones in
+Europe*): the correction narrows the condition to *work in Europe* and the readback says so, on the wire
+(`runs/157/bf5a5b7d-f7d00534/20261124T171548Z`) and said on keel-web 257's board (`runs/157/bf5a5b7d-00507e5e/`).
+
 ## 111. Observation (keel-web): on a phone the story screens are a little taller than the screen -- the site footer under the story
 
 Found by spec 158b (*The drawn story*: 390 x 844) on keel-web `18e23482`. The story itself fits on every screen
@@ -5907,3 +5911,34 @@ harness does**: 158c's check fails FR-1 (a) by name (`stop=False`). **For keel-w
 conversation routes whatever the order the guide's two reads land in.
 
 **Status (spec 160, 2026-11-23):** not met in spec 160's two runs on keel-web `3b19090c` (every new conversation's *one film* held: the opener alone, no welcome sheet); kept open as intermittent.
+
+## 114. Observation (keel-web on keel-cloud 269): a problem project made from a solution's start is listed as a study of its own (*In discovery*), not nested under the solution as *Defined, not sent* -- the story's yes now makes it `calibrated`
+
+Found by spec `161-the-four-questions-walked` (FR-1 (d)) on keel-cloud-docs `bf5a5b7d` (268-270 merged, contract 87) with
+keel-web `f7d00534`, the local eval stack (`runs/157/bf5a5b7d-f7d00534/20261124T171548Z`). keel-cloud 269 FR-6 writes the
+three PROBLEM beliefs at the boxes' yes, and its judgement call 20 says a PROBLEM study is `calibrating` / `calibrated`
+from that yes; `GET /v2/me/projects` serves the problem project FR-1 (b) made from the solution's start with
+`definition.status: calibrated` (it was `defined` until the first belief was saved). keel-web's project list nests a
+problem project under the solution that uses it, *Defined, not sent* (`project-row-defined[data-under]`), only while it
+reads `defined`; the run's list drew it as its own row, *PROBLEM · In discovery · Describing the idea.*, beside the
+solution's *Defined, not sent*. **What the harness does**: FR-1 (d)'s check *the list nests the defined problem project*
+fails by name (`stop=False`) and the walk opens the problem project at its own address and goes on (window, ready page,
+lock). **For keel-web** (or keel-cloud): nest a problem project that a solution uses whatever its status before the lock
+(`defined`, `calibrating`, `calibrated`), or keep `definition.status` at `defined` for a PROBLEM project whose beliefs
+were written by code at the yes.
+
+## 115. Observation (keel-cloud 269, the Copilot card): the card's gate is the framed clause, not *Did this happen to you?* -- the orb and the face say the fixed words; and the framed clause reads *did you found mistakes ...*
+
+Found by spec `161-the-four-questions-walked` (FR-4, FR-9, the founder's D12: *"ensure that the voice interview, the AI
+avatar and Copilot all are in sync"*) on keel-cloud-docs `bf5a5b7d`, the local eval stack
+(`runs/157/bf5a5b7d-f7d00534/20261124T171548Z`, FR-2 solution · copilot). On a study whose problem's film is served, the
+link serves the gate as *Did this happen to you?* (keel-cloud 269 FR-1) to the orb and the face alike, but the call's
+script (`GET .../calls/{callId}/script`, the Copilot card's) serves the gate passage's `stem` as the framed clause:
+*In the last 7 nights, did you found mistakes after the money had gone?* -- keel-cloud 269's own judgement call 12 (*the
+copilot's gate stays the framed clause: a call shows no film*), though the card does show the story (*Show the story*,
+*Story again*). Everything else on the three surfaces was one script (the items' words and options, the whys and their
+hints). And the clause turned to the second person keeps the founder's past tense after *did you* (*did you found*).
+**What the harness does**: FR-9's one-script check and FR-4's gate-words check fail by name at step 2 (`gate`) on the
+card (`stop=False`). **For keel-cloud**: serve the gate passage the fixed words where the problem's story is served to the
+card (as the link does), or say in 269 that the card's gate differs by design (and spec 161 FR-4 moves with it); and turn
+the clause's verb to its base form after *did you* (*did you find*).

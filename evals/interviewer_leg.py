@@ -8,6 +8,12 @@ answered in writing, the change of face for 400 credits, its refusal at a low ba
 line of every role, its Yes counted where a text link's is. S-005 walks the short form: the recording, READY, one AI
 link served.
 
+Spec 161 (keel-cloud 269 / 270, keel-web 258): the corpus journeys' links serve no film, so their gate keeps the framed
+clause and their walk keeps its order -- the film link's order (the opening, the screener, the film, *Begin*, the gate:
+`interviewer_screens.FILM_LINK_ORDER`) and the gate's fixed words (`interviewer_screens.GATE_WORDS`) are walked on the
+story links of `make e2e-157` (`evals/three_views_strangers.py`). The classifier guard reads Frequency on its five rows
+(`classifier_guard.FREQUENCY_CONTROLS`, `fixed_five`).
+
 **The founder's door is a stand-in** (judgement call 148): the journey's founder is on their own AI (the scripted
 runtime built the project), and an account on its own AI records nothing -- `POST lock` writes no recording and its
 receipt carries no `interviewer` (contract 16), `GET interviewer` and every AI link answer `INTERVIEWER_NEEDS_CREDITS`.

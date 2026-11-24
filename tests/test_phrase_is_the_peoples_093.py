@@ -54,8 +54,9 @@ def test_every_scripted_draft_writes_the_phrase_bare(name):
     draft = vs.drafted_list(entry, CUR)
     assert draft["phrase"] == vs.bare_phrase(stored) and not draft["phrase"].lower().startswith("your way of")
     assert vs.saved_list(entry, CUR)["phrase"] == draft["phrase"]
-    problem = next(q for q in vs.calibration_result(entry, "PROBLEM")["questions"] if q["key"] == CUR)
-    assert problem["list"]["phrase"] == draft["phrase"]
+    # spec 161 (keel-cloud 269 FR-5): the PROBLEM job writes no Current solution question any more (C1: the slice is
+    # Prevalence, Frequency and Importance) -- the phrase is read off the corpus's saved list alone
+    assert CUR not in [q["key"] for q in vs.calibration_result(entry, "PROBLEM")["questions"]]
 
 
 # ------------------------------------------------------------------------------------------------- FR-2: the rung

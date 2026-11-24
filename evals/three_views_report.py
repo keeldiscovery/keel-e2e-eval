@@ -16,6 +16,12 @@ Spec 160: *The orb* becomes *The two speakers* -- one row a study a speaker (the
 alike): the walk's steps in order, the speaker's size at each, and the same-walk verdict (where the two part, by step);
 then each link walked, as 159 kept it.
 
+Spec 161: *The two speakers* becomes *The three surfaces* -- one row a study a surface (the orb, the face, the Copilot
+card): where its record came from (the link as served, the call's script, or keel-web 258's walk), the steps in order,
+the gate's words, and the one-script verdict (where the three part, by step and surface); spec 160's two-speaker rows
+stay under it. And *The founder's seven beats* -- every story told: how (on the screens, or on the wire where keel-web
+257 is not in the checkout), the board's seven rows as served, the verdict line served and heard, the film's pain scene.
+
 Pure functions over the legs and a log's text, so `tests/test_three_views_157.py` holds them with no stack.
 """
 
@@ -201,13 +207,96 @@ def _verdict(v: dict | None) -> str:
             f"`{(v.get('face') or {}).get('step')}` ({', '.join(v.get('differs') or [])})")
 
 
+def surface_rows(surfaces: dict | None, verdicts: dict | None) -> list[dict]:
+    """Spec 161 FR-12: one row a study a surface a kind (`wire` / `walked`) -- `{study, kind, surface, source, steps,
+    gate, verdict}` -- from the run's records (`{study: {kind: {surface: {record, source}}}}`) and verdicts
+    (`{study: {kind: verdict}}`)."""
+    rows = []
+    for study, kinds in (surfaces or {}).items():
+        for kind in ("wire", "walked"):
+            for surface in ("orb", "face", "card"):
+                kept = ((kinds or {}).get(kind) or {}).get(surface)
+                if not kept:
+                    continue
+                record = kept.get("record") or []
+                rows.append({"study": study, "kind": kind, "surface": surface, "source": kept.get("source"),
+                             "steps": [r.get("step") for r in record],
+                             "gate": next((r.get("words") for r in record if r.get("step") == "gate"), None),
+                             "verdict": ((verdicts or {}).get(study) or {}).get(kind)})
+    return rows
+
+
+def _script_verdict(v: dict | None) -> str:
+    if not v or v.get("same") is None:
+        return "not compared" + (f" ({', '.join(v.get('missing') or [])} missing)" if v and v.get("missing") else "")
+    if v.get("same"):
+        return f"**one script** ({v.get('steps')} steps)"
+    return (f"**parts at step {int(v.get('at') or 0) + 1}** (`{v.get('step')}`) on the {v.get('surface')}: "
+            f"{', '.join(v.get('differs') or [])}")
+
+
+def surfaces_markdown(rows: list[dict] | None) -> list[str]:
+    """Spec 161 FR-12: *The three surfaces* -- one row a study a surface: the record's source, the steps, the gate's
+    words, the verdict; where they part, both records at that step."""
+    if not rows:
+        return []
+    out = ["## The three surfaces (spec 161; keel-cloud 269 FR-8, 270 FR-6; keel-web 258)", "",
+           "| Study | Read | Surface | Source | Steps, in order | The gate's words | One script |",
+           "|---|---|---|---|---|---|---|"]
+    for r in rows:
+        out.append(f"| {r['study']} | {r['kind']} | {r['surface']} | {_cell(r.get('source'), 40)} | "
+                   f"{_cell(' > '.join(str(x) for x in r.get('steps') or []), 200)} | {_cell(r.get('gate'), 60) or '-'} | "
+                   f"{_script_verdict(r.get('verdict'))} |")
+    out.append("")
+    seen = set()
+    for r in rows:
+        v = r.get("verdict") or {}
+        key = (r["study"], r["kind"])
+        if v.get("same") is False and key not in seen:
+            seen.add(key)
+            surface = v.get("surface")
+            out += [f"### {r['study']} ({r['kind']}): where the surfaces part", "",
+                    f"- step {int(v.get('at') or 0) + 1} (`{v.get('step')}`), {', '.join(v.get('differs') or [])}",
+                    f"- orb: `{json.dumps(v.get('orb'), default=str)[:600]}`",
+                    f"- {surface}: `{json.dumps(v.get(f'{surface}_record'), default=str)[:600]}`", ""]
+    return out
+
+
+def founder_beats_markdown(founder: list[dict] | None) -> list[str]:
+    """Spec 161 FR-12: *The founder's seven beats* -- one block a story told: how it was told, the beats answered, the
+    board's seven rows as served, the verdict line served and heard, the film's seven scenes."""
+    if not founder:
+        return []
+    out = ["## The founder's seven beats (spec 161; keel-cloud 268-269, keel-web 257)", ""]
+    for f in founder:
+        board = f.get("board") or {}
+        heard = f.get("verdict_heard") or {}
+        scenes = f.get("scenes") or {}
+        out += [f"### {f.get('label')} -- `{str(f.get('project') or '')[:8]}` ({'on the wire' if f.get('wire') else 'on the screens'})",
+                "", f"- beats: {', '.join(str(b) for b in f.get('beats') or [])}" +
+                (f"; beat 3 {f.get('telling')}" if f.get('telling') else "")]
+        for row in ("who", "job", "when", "today", "limits", "cost", "otherTasks"):
+            value = board.get(row)
+            out.append(f"- {row}: {_cell('; '.join(value) if isinstance(value, list) else value, 160) or '-'}")
+        out.append(f"- verdict line served: {_cell(f.get('verdictLine'), 200) or '-'}")
+        out.append("- verdict line heard: " + (f"*{_cell(heard.get('words'), 200)}*" if heard.get("drawn")
+                                                else "not on the screens (keel-web 257 not in the checkout)"
+                                                if f.get("wire") else "**no card drawn**"))
+        if scenes:
+            out.append(f"- the film: {scenes.get('scenes')} scenes, the pain at {scenes.get('pain_at')}, costLine "
+                       f"{'= the seventh line' if (scenes.get('parts') or {}).get('costLine is its line') else '**differs**'}, "
+                       f"{scenes.get('clips')} clips")
+        out.append("")
+    return out
+
+
 def orb_markdown(orbs: list[dict] | None, speakers: list[dict] | None = None) -> list[str]:
     """Spec 160 FR-8 (it was 159's *The orb*): *The two speakers* -- one row a study a speaker: the walk's steps, the
     sizes, the same-walk verdict; where the two part, both records at that step. Then each link walked on the one player
     (159's blocks): the stage in order, the orb's runs, the answers, what was never to be drawn, the response."""
     if not orbs and not speakers:
         return []
-    out = ["## The two speakers (spec 160, keel-web 256 on keel-cloud 267)", ""]
+    out = ["## The two speakers (spec 160, keel-web 256 on keel-cloud 267; under the three surfaces since spec 161)", ""]
     if speakers:
         from harness import story_screens as ss    # noqa: PLC0415
         out += ["| Study | Speaker | Steps, in order | Sizes (L large, S small) | Words lit (asked steps) | Same walk |",
@@ -259,10 +348,12 @@ def orb_markdown(orbs: list[dict] | None, speakers: list[dict] | None = None) ->
 
 def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = None,
                     fits: list[dict] | None = None, turns: list[dict] | None = None,
-                    orbs: list[dict] | None = None, speakers: list[dict] | None = None) -> str:
+                    orbs: list[dict] | None = None, speakers: list[dict] | None = None,
+                    surfaces: list[dict] | None = None, founder: list[dict] | None = None) -> str:
     """The report: the head (shas, profile, the run's bundle), the table of legs, each leg's checks, then the beats."""
-    out = [f"# Spec 157 / 158 / 159 / 160 -- the three views (the orb, the face, the copilot) on the conversation, end to "
-           "end (one run)", "",
+    out = [f"# Spec 157 / 158 / 159 / 160 / 161 -- the three views (the orb, the face, the copilot) on the four "
+           "questions, end to end (one run)", "",
+           f"- contract read: `x-keel-contract` {meta.get('contract', '-')}",
            f"- keel-cloud `{meta.get('cloud')}` · keel-web `{meta.get('web')}` · keel-e2e-eval `{meta.get('eval')}`",
            f"- profile `{meta.get('profile')}` · started {meta.get('started')} · {meta.get('seconds', 0):g} s",
            f"- bundle `{meta.get('bundle')}`", f"- {scan_line(scan)}", "",
@@ -282,16 +373,20 @@ def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = Non
                 line += f"\n  - got: `{json.dumps(c.detail, default=str)[:900]}`"
             out.append(line)
         out.append("")
+    out += founder_beats_markdown(founder)
     out += beats_markdown(beats)
     out += drawn_story_markdown(fits)
     out += turn_markdown(turns)
+    out += surfaces_markdown(surfaces)
     out += orb_markdown(orbs, speakers)
     return "\n".join(out).rstrip() + "\n"
 
 
 def write_report(path: Path, legs, meta: dict, scan: dict, beats: list[dict] | None = None,
                  fits: list[dict] | None = None, turns: list[dict] | None = None,
-                 orbs: list[dict] | None = None, speakers: list[dict] | None = None) -> Path:
+                 orbs: list[dict] | None = None, speakers: list[dict] | None = None,
+                 surfaces: list[dict] | None = None, founder: list[dict] | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(report_markdown(legs, meta, scan, beats, fits, turns, orbs, speakers), encoding="utf-8")
+    path.write_text(report_markdown(legs, meta, scan, beats, fits, turns, orbs, speakers, surfaces, founder),
+                    encoding="utf-8")
     return path

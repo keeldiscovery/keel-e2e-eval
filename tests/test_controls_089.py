@@ -50,28 +50,36 @@ def _entry(name: str):
 
 # ------------------------------------------------------------------------------------- FR-2: Frequency from 1
 
-def test_the_five_recorded_zeros_are_named_and_nobody_else_is_replayed():
-    """158's *What did not hold*: the five 0s after a yes, exactly, are the ones the harness sends other than recorded;
-    every other Frequency pick on the golden seven is sent 1..N as recorded.
-
-    Re-pinned by spec 090 FR-3 (the founder's D-2026-10-30-01): each of the five is sent as the count 1, no longer as
-    *I can't recall*."""
-    replayed = set()
+def test_the_five_recorded_zeros_are_never_and_nobody_is_replayed():
+    """158's *What did not hold*: the five 0s after a yes. Spec 090 FR-3 sent each as the count 1; spec 161 FR-6
+    (keel-cloud 269 FR-3, the corpus read through 269) reads every recorded count on the five rows -- a 0 after a yes is
+    *Never*, the floor (D2), sent as it is and named by nobody; no Frequency pick is a count on the wire any more."""
     for name in ("01-countly", "02-compliancelog", "03-lullaby", "04-linerly", "05-paidly", "06-repeatline",
                  "07-mulchrun"):
         entry = _entry(name)
         for person in vs.person_inputs(entry):
             frequency = next((p for p in person.picks if p.dimension == "problem.frequency"), None)
-            if person.notes:
-                replayed.add((entry.id, person.person))
-                assert frequency.scale == 1 and frequency.chip is None, person.person
-                assert frequency.as_wire("t") == {"itemId": vs.item_id("t", "problem.frequency"), "scale": 1}
-                assert person.notes == (vs.zero_note(person.person, entry.id),)
-                assert "0 after a yes" in person.notes[0] and vs.ZERO_DECISION in person.notes[0]
-                assert "sends 1" in person.notes[0] and "can't recall" not in person.notes[0].lower()
-            elif frequency is not None and frequency.scale is not None:
-                assert frequency.scale >= registry_mod.FREQUENCY_MIN, (entry.id, person.person)
-    assert replayed == FIVE == set(vs.ZERO_SENT_AS_ONE)
+            assert not person.notes, (entry.id, person.person)
+            if frequency is None or frequency.chip:
+                continue
+            assert frequency.scale is None and len(frequency.codes) == 1, (entry.id, person.person)
+            assert frequency.codes[0] in corpus_mod.FREQUENCY_CODES_269, (entry.id, person.person)
+            if (entry.id, person.person) in vs.ZERO_SENT_AS_ONE:
+                assert frequency.codes == ["never"], person.person
+
+
+def test_a_zero_anywhere_is_never_on_the_five_rows(tmp_path):
+    """A 0 the five do not name (01-countly's first person with a count, moved here) reads *Never* on the five rows and is
+    sent as that code -- never a 0, never a count, never dropped (spec 161 FR-6; spec 090 sent it as 1)."""
+    raw = yaml.safe_load(fx.canon_entry("01-countly.yaml").read_text(encoding="utf-8"))
+    person = next(p for p in raw["answers"] if isinstance(p.get("picks", {}).get("problem.frequency"), int))
+    person["picks"]["problem.frequency"] = 0
+    entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="01-countly.yaml"), registry=fx.registry())
+    walked = next(p for p in vs.person_inputs(entry) if p.person == person["person"])
+    assert not walked.notes
+    sent = [a for a in walked.response("t").get("answers") or [] if a["itemId"] == vs.item_id("t", "problem.frequency")]
+    assert sent == [{"itemId": vs.item_id("t", "problem.frequency"),
+                     "optionIds": [vs.option_id("t", "problem.frequency", "never")]}]
 
 
 def test_the_corpus_still_records_the_five_zeros_and_the_reader_reads_them():
@@ -85,19 +93,6 @@ def test_the_corpus_still_records_the_five_zeros_and_the_reader_reads_them():
         assert f"{window_raw['count']} {window_raw['unit']}" == window
         entry = _entry(entry_id)
         assert next(p for p in entry.people() if p.person == name).picks["problem.frequency"] == 0
-
-
-def test_a_zero_anywhere_is_replayed_and_named_never_sent(tmp_path):
-    """A 0 the five do not name (01-countly's first person with a count, moved here) is sent as 1 and named the same way
-    -- never posted as a 0, never dropped (spec 090 FR-3; spec 089 sent it as I can't recall)."""
-    raw = yaml.safe_load(fx.canon_entry("01-countly.yaml").read_text(encoding="utf-8"))
-    person = next(p for p in raw["answers"] if isinstance(p.get("picks", {}).get("problem.frequency"), int))
-    person["picks"]["problem.frequency"] = 0
-    entry = corpus_mod.load_file(fx.write_entry(tmp_path, raw, name="01-countly.yaml"), registry=fx.registry())
-    walked = next(p for p in vs.person_inputs(entry) if p.person == person["person"])
-    assert walked.notes and person["person"] in walked.notes[0]
-    sent = [a for a in walked.response("t").get("answers") or [] if a["itemId"] == vs.item_id("t", "problem.frequency")]
-    assert sent == [{"itemId": vs.item_id("t", "problem.frequency"), "scale": 1}]
 
 
 def test_the_classifier_reads_the_count_from_one():
@@ -153,7 +148,9 @@ def test_the_registry_of_record_asks_one_then_one_more():
     if importance.respondent_control != registry_mod.IMPORTANCE_CONTROL:
         pytest.skip("keel-cloud predates spec 158 (Importance is not pick_one_then_one)")
     assert "Nothing else" in importance.respondent["option_rule"]
-    assert registry.by_key("problem.frequency").respondent_control == registry_mod.FREQUENCY_CONTROL
+    # spec 161 FR-6 (keel-cloud 269 FR-3): Frequency is the five rows on registry 5; 158's count on registry 4
+    want = registry_mod.FIXED_FIVE_CONTROL if registry_mod.is_269(registry) else registry_mod.FREQUENCY_CONTROL
+    assert registry.by_key("problem.frequency").respondent_control == want
 
 
 def test_the_classifier_reads_the_second_ask_with_its_own_escape():
