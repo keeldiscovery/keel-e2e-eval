@@ -120,12 +120,40 @@ name in the one run until they merge -- one failed check a story or a link, `sto
     spoken record of record written before 269 (`test_money_cards_redrawn_118`); every other moved mirror's test is
     re-pinned to 268-270 with the spec named.
 
+## make unit
+- Before (`e097af0`, the base): 108 failed, 5932 passed, 168 skipped, 5 errors -- every red master's own (the canon
+  copies and mirrors that 268-270 moved, the stale `build/spoken-corpus.txt`).
+- After (`21ff878`, the head, 13:37-13:44 ET): **83 failed, 6055 passed, 141 skipped, 0 errors -- no new red** (every one
+  of the 83 is in the base's list; 25 reds and the 5 errors fixed by re-pinning to 268-270).
+
 ## Runs
-| run | result |
-|---|---|
+All local (`make e2e-157 PROFILE=eval`, the main checkout's `.venv`), FakeSpeech / fake avatar / fake transcriber / scripted
+readers only: no vendor host contacted, every Keel AI clip FakeSpeech at 0 µUSD; the stack torn down after each (no
+java, vite or container of this build left; the two Gradle daemons up since 07:27 ET and the keel-web 258 builder's vite
+on 5258 are not this build's). The checkouts moved under the build: keel-web 257 merged to master (`00507e5e`) during
+run 2, and keel-cloud-docs 271/272 (`ecc31bff`, contract still 87) and keel-web 259/260 (`a6ec9b5c`) before run 4. The
+run of record on merged masters is the integrator's.
+
+| run | stack | result |
+|---|---|---|
+| 1 (12:12 ET) | cloud `bf5a5b7d`, web `f7d00534`, eval `18a8c75` | stopped at 2 min by the builder (SIGINT to its own pid): the story's confirm on a PROBLEM study reads `calibrating` (keel-cloud 269 judgement call 20), the harness wanted `defined` -- harness, fixed in `5b0f0f6` |
+| 2 `runs/157/bf5a5b7d-f7d00534/20261124T171548Z` | cloud `bf5a5b7d`, web `f7d00534` -> `00507e5e` mid-run, eval `5b0f0f6`, 1058 s | 2 of 13 green (solution orb, solution avatar). FR-1a/b/c red only by their *pending keel-web 257* checks, every wire check held; FR-1d stopped at the list's nesting (DRIFT #114; made `stop=False` in `330e4e8`) so the problem link's legs did not run; solution copilot: the card's gate (DRIFT #115); money orb phone film and money avatar pain hold (the hold read changed in `330e4e8`, harness); money copilot price ladder order (harness: compared as bands since `330e4e8`) |
+| 3 `runs/157/bf5a5b7d-00507e5e/20261124T173751Z` | cloud `bf5a5b7d`, web `00507e5e` (257 merged), eval `330e4e8`, 1699 s | 4 of 13 green (solution orb/avatar, money orb/avatar). On 257's screens: the board read after its correction (harness), the verdict card's heading above the line (harness), beat 3's readback naming three of four rows within forty words (harness), the return trip after the verdict landing on the which-problem page (harness) -- all fixed in `e4216fc`; FR-1d nesting (DRIFT #114); problem orb: the Overview's Frequency and the brief's bands one yes-sayer short (the base script read a roster story GUESSED -- harness, ANCHORED since `e4216fc`); pending keel-web 258 on the problem orb / avatar / copilot; the card's gate on problem and solution copilots (DRIFT #115); money copilot a second-stem hint on the card (harness, `21ff878`) |
+| **4 (the run reported)** `runs/157/ecc31bff-a6ec9b5c/20261124T180713Z` | cloud `ecc31bff` (contract 87), web `a6ec9b5c` (257, 259, 260; no 258), eval `21ff878`, 1722 s, 13:07-13:36 ET | **8 of 13 green**: FR-1a, FR-1b, FR-1c, solution orb, solution avatar, money orb, money avatar, money copilot. Red: FR-1d by one check, the list's nesting (**DRIFT #114**; the rest of FR-1d green: window, ready page, review rows, plan complete, credits refusal, one lock charge, questions READY, link sent); problem orb, problem avatar: one check each, **pending keel-web 258** (every wire check green: gate words, seven scenes, `fixed_five`, Importance rows, no Current solution, the five people's whys, the No going on, the screener's No, Overview Frequency bands, ways GROUPED, Insights, brief bands, ledger free); problem copilot: **pending keel-web 258** (the card's No) plus the one-script and gate-words checks at the gate (**DRIFT #115**); solution copilot: the one-script and gate-words checks at the gate (**DRIFT #115**, *did you found*) |
 
 ## Commits
 | Commit | FR | What |
 |---|---|---|
+| `18a8c75` | FR-1..FR-12 | T1-T4: the four questions walked (mirrors, legs, three surfaces, report sections, corpus and registry 5 read through 269, the wire paths where 257 / 258 are not in the checkout) |
+| `5b0f0f6` | FR-1, FR-2 | run 1's reading: the PROBLEM story's yes is `calibrating` |
+| `330e4e8` | FR-1d, FR-3, FR-9 | run 2's reading: FR-1d goes on past the nesting; the pain hold against the shortest other scene; the ladder as bands; the orb's `data-think` |
+| `e4216fc` | FR-1, FR-7, FR-8, FR-9 | run 3's reading on 257's screens; the roster's stories ANCHORED; every part of the three surfaces reported; DRIFT #114, #115 |
+| `21ff878` | FR-9 | the card's second-stem hint kept apart |
+| (this) | FR-12 | DRIFT #110/#114/#115 status, this file's runs, commits and DRIFT |
 
 ## DRIFT written
+- **#114** (keel-web / keel-cloud 269): a problem project made from a solution's start is listed as its own study (*In
+  discovery*), not nested *Defined, not sent* -- the story's yes makes it `calibrated`. Met in runs 2, 3, 4.
+- **#115** (keel-cloud 269): the Copilot card's gate is the framed clause, not *Did this happen to you?* (the link's
+  gate on the orb and the face); and the clause reads *did you found* on the solution's card. Met in runs 2, 3, 4.
+- **#110** status: resolved on `bf5a5b7d` (264's `corrections` entry: *only the ones in Europe* narrows the condition).

@@ -5862,6 +5862,10 @@ the condition *work at a company with more than 50 employees*. keel-cloud 264 (b
 run of record ran) adds the `corrections` entry; until it lands the check stays `stop=False` and FR-1 (a) is reported
 failed by this one check alone (spec 158c FR-9).
 
+**Status (spec 161, 2026-11-24): resolved** on keel-cloud-docs `bf5a5b7d` (264's `corrections` entry for *only the ones in
+Europe*): the correction narrows the condition to *work in Europe* and the readback says so, on the wire
+(`runs/157/bf5a5b7d-f7d00534/20261124T171548Z`) and said on keel-web 257's board (`runs/157/bf5a5b7d-00507e5e/`).
+
 ## 111. Observation (keel-web): on a phone the story screens are a little taller than the screen -- the site footer under the story
 
 Found by spec 158b (*The drawn story*: 390 x 844) on keel-web `18e23482`. The story itself fits on every screen
