@@ -510,8 +510,7 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
             "film": score, "founder": founder,
             "frames": {"frames": [f["path"] for f in film.get("frames") or []],
                        "pictures": [p["path"] for p in film.get("pictures") or []],
-                       "folder": str(folder.relative_to(run_dir.parent) if run_dir.parent in folder.parents
-                                     else folder)},
+                       "folder": str(folder.relative_to(REPO) if REPO in folder.parents else folder)},
             "measures": film.get("measures"),
         }
         fr.validate_file(record, name=label)

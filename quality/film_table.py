@@ -295,7 +295,8 @@ def render(table: list[dict], files: list[dict], weak: list[dict], cfg: dict, *,
         if r["missing"]:
             lines.append(f"- missing: {'; '.join(_flat(m) for m in r['missing'])}")
         if frames:
-            lines.append("- frames: " + ", ".join(f"[{Path(p).name}]({folder}/{p})" for p in frames))
+            base = folder if Path(folder).is_absolute() else f"../{folder}"      # the table lives in quality/
+            lines.append("- frames: " + ", ".join(f"[{Path(p).name}]({base}/{p})" for p in frames))
         lines.append("")
     lines += ["## Findings for DRIFT", ""]
     if found:
