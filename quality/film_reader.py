@@ -1,0 +1,538 @@
+"""The film reader (spec 163 FR-3): `make read-films RUN=<bundle> [DRY=1] [ENTRY=<id>] [FOUNDER=0]`.
+
+A film-walk bundle (`make film-walk`, spec 163 FR-2) carries, per entry, `film/<entry>/`: the fourteen frames
+(`frames/scene-<n>-phone.png`, `-laptop.png`), the served story (`story.json`), the pictures (`pictures/scene-<n>.png`,
+`pictures/sheet.png`), the setting and the prompts (`prompts.json`) and the capture's record (`film.json`: the lines
+with their chapter marks, the beats Keel asked the founder, the verdict line, the ledger, the measures). Each film is
+read in **one call through the Anthropic API with vision** -- the persona card (the entry's context, roles, today's way
+and problem statement), the lines, the setting and the prompts, then every frame and picture as an image, then the
+rubric (`quality/FILM-RUBRIC.md`) -- and answered as the criteria with their whys, `missing[]` and an `instead` line
+per criterion under 2. `film_pct` and the flag are code's.
+
+**The door is the Anthropic Messages API** (`POST /v1/messages`, raw HTTP through `requests`: no SDK is installed here
+and nothing is pip-installed), the model and effort pinned in `quality/readers.toml` `[film_reader]` (`claude-opus-5-5`,
+`output_config.effort` medium, adaptive thinking -- Opus 5.5 cannot disable it), the refusal fallback on
+(`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`; a fallback is recorded in the score file by name, as
+the model that served the film). The key is the shell's `KEEL_ANTHROPIC_API_KEY`, read into the `x-api-key` header
+alone, never logged, echoed or written. **The `claude` CLI door is refused for this reader** (`refuse_cli`): it cannot
+carry the frames. A run refuses before its first call without the key.
+
+**The founder's beats** (FR-1): after the film, the founder-reader of `make read-screens` (the `claude` CLI, `[reader]`,
+`quality/readers/film-founder.md`) reads each of Keel's lines to the founder -- the seven beat questions as asked, the
+readback or ask after each, the verdict line -- one call a line, on R1, R2, R3 and R5; `founder_pct` beside `film_pct`.
+`FOUNDER=0` skips them (the file then says `founder: null`).
+
+A full run writes `quality/scores/<bundle>-film-<entry>.json` (committed) with the reader block and
+`FILM_RUBRIC_VERSION`; every prompt and answer is recorded under `runs/<stamp>-read-films-<bundle>/calls/` (the images
+by path, never inlined). `DRY=1` writes the prompts (the images named in place) and calls nothing.
+
+Never in `make eval`, `make unit`, the matrix, a checker or a schedule; PAID (about $0.30 a film at list price, plus the
+founder's beats on the founder's plan), run on the founder's word.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import datetime as dt
+import hashlib
+import json
+import os
+import re
+import sys
+import time
+import tomllib
+from dataclasses import dataclass, field
+from pathlib import Path
+
+import yaml
+
+from quality import film_rubric as fr
+from quality import readers
+
+REPO = Path(__file__).resolve().parent.parent
+QUALITY = REPO / "quality"
+READERS_TOML = QUALITY / "readers.toml"
+PROMPT_PATH = QUALITY / "readers" / "film-reader.md"
+FOUNDER_PROMPT_PATH = QUALITY / "readers" / "film-founder.md"
+SCORES_DIR = QUALITY / "scores"
+RUNS_DIR = REPO / "runs"
+FILM_DIR = "film"
+
+KEY_NAME = "KEEL_ANTHROPIC_API_KEY"
+API_URL = "https://api.anthropic.com/v1/messages"
+API_VERSION = "2026-10-21"
+FALLBACK_BETA = "server-side-fallback-2026-07-01"
+#: The one door this reader runs through (`[film_reader] door`).
+API_DOOR = "anthropic api"
+#: The phone and the laptop frames (FR-2), in the order they are handed.
+VIEWPORTS = ("phone", "laptop")
+#: The request's ceiling: the API takes 32 MB; the images are base64 (4/3 of their bytes).
+MAX_REQUEST_BYTES = 30 * 1024 * 1024
+#: keel-web 261 / keel-cloud 273's chapter words, by the served key (carried across the scenes of a chapter).
+CHAPTER_WORDS = {"who": "Who", "task": "The task", "today": "Today", "shortfall": "Where it falls short",
+                 "cost": "What it costs them", "before": "Before", "solves": "What it solves", "better": "Better",
+                 "joy": "What they get"}
+
+
+class Refused(RuntimeError):
+    """A reason to stop before the first call -- printed as one sentence, exit 2."""
+
+
+# ------------------------------------------------------------------------------------------------ the config
+
+def load_film_reader(path: Path | None = None) -> dict:
+    """`quality/readers.toml` `[film_reader]`, checked: the model, the effort and the vendor named, the door the API's
+    (`refuse_cli`)."""
+    with Path(path or READERS_TOML).open("rb") as handle:
+        raw = tomllib.load(handle)
+    cfg = dict(raw.get("film_reader") or {})
+    for key in ("model", "effort", "vendor", "door"):
+        if not cfg.get(key):
+            raise Refused(f"quality/readers.toml has no film_reader.{key} (spec 163 FR-3)")
+    refuse_cli(cfg["door"])
+    cfg.setdefault("max_tokens", 16000)
+    cfg.setdefault("timeout_s", 600)
+    for key, value in (("usd_per_mtok_in", 4.0), ("usd_per_mtok_out", 20.0), ("usd_per_mtok_cache_read", 0.2)):
+        cfg.setdefault(key, value)
+    return cfg
+
+
+def refuse_cli(door: str) -> None:
+    """FR-3: the film reader runs through the Anthropic API with vision alone -- the `claude` CLI door cannot carry the
+    frames and is refused by name, as is any other door."""
+    said = str(door or "").strip().lower()
+    if said != API_DOOR:
+        if "cli" in said or "claude" in said or said == "host":
+            raise Refused(f"make read-films refuses the door {door!r}: the film reader reads the frames and pictures as "
+                          "images, which the `claude` CLI door cannot carry -- it runs through the Anthropic API with "
+                          f"vision alone (quality/readers.toml [film_reader] door = \"{API_DOOR}\", spec 163 FR-3)")
+        raise Refused(f"make read-films refuses the door {door!r}: the film reader's one door is \"{API_DOOR}\" "
+                      "(spec 163 FR-3)")
+
+
+def key_refusal(env: dict | None = None) -> str | None:
+    env = os.environ if env is None else env
+    if not (env.get(KEY_NAME) or "").strip():
+        return (f"make read-films refuses: {KEY_NAME} is not set in this shell -- the film reader runs through the "
+                "Anthropic API with vision (spec 163 FR-3); the key is read into the request header alone and never "
+                "logged, echoed or written")
+    return None
+
+
+def template(path: Path, part: str) -> str:
+    text = Path(path).read_text(encoding="utf-8")
+    begin, end = f"<!-- {part}:begin -->", f"<!-- {part}:end -->"
+    if text.count(begin) != 1 or text.count(end) != 1:
+        raise Refused(f"{Path(path).name} must carry one `{part}:begin` and one `{part}:end` marker")
+    return text.split(begin, 1)[1].split(end, 1)[0].strip() + "\n"
+
+
+# --------------------------------------------------------------------------------------------- the bundle
+
+def film_folders(run_dir: Path, only: str | None = None) -> list[Path]:
+    """Every `film/<entry>/` of a bundle that carries its capture's record (`film.json`), in entry order."""
+    root = Path(run_dir) / FILM_DIR
+    folders = sorted(p for p in root.glob("*") if (p / "film.json").is_file()) if root.is_dir() else []
+    if only:
+        folders = [p for p in folders if p.name == only]
+    return folders
+
+
+def resolve_run(run: str | Path) -> Path:
+    if not run:
+        raise Refused("make read-films refuses: no RUN -- name a film-walk bundle, `make read-films RUN=runs/<bundle>` "
+                      "(spec 163 FR-3)")
+    run_dir = Path(run).expanduser()
+    if not run_dir.is_absolute() and not run_dir.exists():
+        run_dir = RUNS_DIR / run_dir
+    if not film_folders(run_dir):
+        raise Refused(f"make read-films refuses: {run_dir} has no film/<entry>/film.json -- only a bundle `make "
+                      "film-walk` wrote is read (spec 163 FR-2)")
+    return run_dir
+
+
+def load_entry_card(film: dict, directory: Path | None = None) -> dict:
+    """The entry yaml the film was walked for -- from the keel-cloud checkout stack.toml names (else the path the
+    capture recorded) -- with whether it is byte for byte the one walked."""
+    entry = film.get("entry") or {}
+    candidates = []
+    if directory:
+        candidates.append(Path(directory) / f"{entry.get('id')}.yaml")
+    if entry.get("path"):
+        candidates.append(Path(entry["path"]))
+    path = next((p for p in candidates if p.is_file()), None)
+    if path is None:
+        raise Refused(f"make read-films refuses: no entry yaml for {entry.get('id')} (looked at "
+                      f"{[str(p) for p in candidates]})")
+    raw = path.read_bytes()
+    data = yaml.safe_load(raw) or {}
+    sources = path.parent / (data.get("sources") or f"{entry.get('id')}.sources.md")
+    sha = hashlib.sha256(raw).hexdigest()
+    return {"id": entry.get("id"), "yaml": data, "yaml_path": str(path), "sha256": sha,
+            "matches_bundle": sha == entry.get("sha256"),
+            "sources": sources.read_text(encoding="utf-8") if sources.is_file() else ""}
+
+
+def persona_card(entry_yaml: dict) -> str:
+    """FR-3: the persona card -- the entry's context (as `make read-screens` hands it), its practitioners' roles,
+    today's way and the problem statement whole (its limitations and its cost are inside it)."""
+    lines = ["The person (the entry's context, in the founder's words):", *readers.context_lines(entry_yaml)]
+    roles = [r for r in entry_yaml.get("roles") or [] if r.get("roleType") != "BUYER"] or (entry_yaml.get("roles") or [])
+    for role in roles:
+        lines.append(f"  role: {role.get('label', '')} -- {role.get('about', '')}")
+    today = (entry_yaml.get("current_solution") or {}).get("today")
+    if today:
+        lines.append(f"  today's way: {today}")
+    problem = (entry_yaml.get("statements") or {}).get("problem")
+    lines += ["", "The founder's problem statement, whole (every limitation it names, and what it costs them):",
+              f"  {problem or '(none recorded)'}"]
+    return "\n".join(lines)
+
+
+def chapters(scenes: list[dict]) -> list[str | None]:
+    """The chapter mark each scene is drawn under: the served key on the chapter's opening scene, carried across the
+    scenes of its chapter (keel-web 261 judgement call 2); none on the ask."""
+    out, now = [], None
+    for scene in scenes:
+        if scene.get("chapter"):
+            now = scene["chapter"]
+        out.append(None if scene.get("ask") else now)
+    return out
+
+
+def lines_block(story: dict) -> str:
+    """The film's lines in order with their chapter marks (the build's scenes)."""
+    scenes = list(((story.get("build") or {}).get("story") or {}).get("scenes") or [])
+    rows = []
+    for i, (scene, mark) in enumerate(zip(scenes, chapters(scenes)), 1):
+        tags = []
+        if mark:
+            tags.append(f"chapter: {CHAPTER_WORDS.get(mark, mark)}")
+        if scene.get("pain"):
+            tags.append("the pain scene")
+        if scene.get("ask"):
+            tags.append("the ask, on the wiped board, no picture")
+        elif not scene.get("pictureAssetId"):
+            tags.append("NO PICTURE SERVED")
+        rows.append(f"{i}. {scene.get('line') or ''}" + (f"  [{'; '.join(tags)}]" if tags else ""))
+    ask = ((story.get("build") or {}).get("story") or {}).get("askLine")
+    if ask:
+        rows.append(f"{len(scenes) + 1}. {ask}  [the ask, on the wiped board, no picture]")
+    return "\n".join(rows) or "(the build served no scene)"
+
+
+def setting_block(prompts: dict) -> str:
+    setting = prompts.get("setting") or {}
+    if not setting:
+        return "(no setting on the build)"
+    return "\n".join(f"  {k}: {', '.join(v) if isinstance(v, list) else v}" for k, v in setting.items())
+
+
+def prompts_block(prompts: dict) -> str:
+    """The build's prompts as the reader needs them: every paragraph once -- the style rule, the character and the place
+    as the first prompt says them -- then, per prompt, only what is new in it (the scene's moment and cue, a re-draw's
+    reasons)."""
+    seen: set[str] = set()
+    rows = []
+    for p in prompts.get("prompts") or []:
+        scene = "the sheet" if p.get("scene") in (None, "sheet") else f"scene {p.get('scene')}"
+        fresh = []
+        for para in re.split(r"\n\s*\n", str(p.get("prompt") or "")):
+            flat = " ".join(para.split())
+            if flat and flat not in seen:
+                seen.add(flat)
+                fresh.append(flat)
+        rows.append(f"- {scene} (attempt {p.get('attempt', 1)}): " + (" / ".join(fresh) or "(as above)"))
+    return "\n".join(rows) or "(no prompt on the build)"
+
+
+def images(folder: Path, film: dict) -> list[dict]:
+    """The images in the order they are handed (FR-3): the fourteen frames (scene by scene, phone then laptop), then the
+    pictures (scene by scene), then the character sheet. Each `{label, path}`; a frame or picture the capture did not
+    write is named and left out (the reader is told it is missing)."""
+    out = []
+    for frame in film.get("frames") or []:
+        out.append({"label": f"Frame -- scene {frame['scene']} on the {frame['viewport']} "
+                             f"({frame.get('size', '')}), as the founder's player held it", "path": folder / frame["path"]})
+    for pic in film.get("pictures") or []:
+        what = "the character sheet" if pic.get("scene") == "sheet" else f"the picture of scene {pic['scene']}"
+        out.append({"label": f"Picture -- {what}, as keel-cloud stored it", "path": folder / pic["path"]})
+    return [i for i in out if Path(i["path"]).is_file()]
+
+
+def build_request(folder: Path, film: dict, story: dict, prompts: dict, entry: dict, cfg: dict, *,
+                  kind: str = "problem") -> dict:
+    """The one Messages API request for one film: the body, and the prompt text with every image named in place (what
+    the calls folder records)."""
+    values = {"persona": persona_card(entry["yaml"]), "lines": lines_block(story), "setting": setting_block(prompts),
+              "prompts": prompts_block(prompts), "rubric": fr.prompt_of(kind),
+              "criteria": ", ".join(fr.KINDS[kind])}
+    before = readers.fill(template(PROMPT_PATH, "before-images"), values)
+    after = readers.fill(template(PROMPT_PATH, "after-images"), values)
+    content, named, size = [{"type": "text", "text": before}], [before], 0
+    for image in images(folder, film):
+        data = Path(image["path"]).read_bytes()
+        b64 = base64.b64encode(data).decode("ascii")
+        size += len(b64)
+        content += [{"type": "text", "text": image["label"]},
+                    {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": b64}}]
+        named.append(f"{image['label']}\n[image: {Path(image['path']).relative_to(folder)}, {len(data)} bytes]")
+    content.append({"type": "text", "text": after})
+    named.append(after)
+    if size > MAX_REQUEST_BYTES:
+        raise Refused(f"make read-films refuses {folder.name}: its images are {size // (1024 * 1024)} MB in base64, over "
+                      f"the request's {MAX_REQUEST_BYTES // (1024 * 1024)} MB -- the pictures are larger than keel-cloud "
+                      "273's 2 MB each")
+    body = {"model": cfg["model"], "max_tokens": int(cfg["max_tokens"]),
+            "output_config": {"effort": cfg["effort"]}, "thinking": {"type": "adaptive"},
+            "fallbacks": "default", "messages": [{"role": "user", "content": content}]}
+    return {"body": body, "text": "\n\n".join(named), "images": sum(1 for c in content if c["type"] == "image"),
+            "image_b64_bytes": size}
+
+
+# --------------------------------------------------------------------------------------------- the door
+
+@dataclass
+class FilmDoor:
+    """One bounded, recorded door to the Messages API: one film a call. `post` is `requests.post` (a stub in tests)."""
+
+    config: dict
+    run_dir: Path
+    post: object = None
+    env: dict | None = None
+    calls: list = field(default_factory=list)
+
+    def ask(self, label: str, request: dict) -> dict:
+        """`{answer, cost_usd, seconds, error, model, fallback, usage}`; the prompt (images by path) and the answer are
+        recorded under `calls/`."""
+        env = os.environ if self.env is None else self.env
+        key = (env.get(KEY_NAME) or "").strip()
+        started = time.monotonic()
+        body, error, status = {}, None, None
+        if self.post is None:
+            import requests                                              # noqa: PLC0415
+            self.post = requests.post
+        try:
+            response = self.post(API_URL, json=request["body"], timeout=float(self.config.get("timeout_s", 600)),
+                                 headers={"x-api-key": key, "anthropic-version": API_VERSION,
+                                          "anthropic-beta": FALLBACK_BETA, "content-type": "application/json"})
+            status = getattr(response, "status_code", None)
+            body = response.json()
+            if status is not None and status >= 400:
+                error = f"HTTP {status}: {str((body.get('error') or {}).get('message') or body)[:300]}"
+            elif body.get("stop_reason") == "refusal":
+                error = f"refused ({(body.get('stop_details') or {}).get('category')})"
+        except Exception as exc:                                          # noqa: BLE001 - recorded, the film unread
+            error = f"{type(exc).__name__}: {str(exc)[:300]}"
+        text = "".join(b.get("text", "") for b in body.get("content") or [] if b.get("type") == "text")
+        usage = body.get("usage") or {}
+        fallback = [b for b in body.get("content") or [] if b.get("type") == "fallback"]
+        result = {"answer": None if error else text, "cost_usd": self.cost(usage), "seconds":
+                  round(time.monotonic() - started, 1), "error": error, "status": status,
+                  "model": body.get("model"), "fallback": [{"from": (b.get("from") or {}).get("model"),
+                                                            "to": (b.get("to") or {}).get("model")} for b in fallback],
+                  "usage": {k: usage.get(k) for k in ("input_tokens", "output_tokens", "cache_read_input_tokens",
+                                                       "cache_creation_input_tokens")}}
+        calls = self.run_dir / "calls"
+        calls.mkdir(parents=True, exist_ok=True)
+        index = len(self.calls) + 1
+        (calls / f"{index:03d}-{label}.prompt.txt").write_text(request["text"], encoding="utf-8")
+        (calls / f"{index:03d}-{label}.answer.json").write_text(
+            json.dumps({**result, "raw": {k: v for k, v in body.items() if k != "content"},
+                        "content": body.get("content")}, indent=2, ensure_ascii=False), encoding="utf-8")
+        self.calls.append({"label": label, **result})
+        return result
+
+    def cost(self, usage: dict) -> float:
+        cfg = self.config
+        usd = ((usage.get("input_tokens") or 0) * float(cfg["usd_per_mtok_in"])
+               + (usage.get("cache_creation_input_tokens") or 0) * float(cfg["usd_per_mtok_in"]) * 1.25
+               + (usage.get("cache_read_input_tokens") or 0) * float(cfg["usd_per_mtok_cache_read"])
+               + (usage.get("output_tokens") or 0) * float(cfg["usd_per_mtok_out"])) / 1_000_000
+        return round(usd, 4)
+
+
+AGAIN_TAIL = ("\n\nYour previous reply could not be read: {error}. Reply again with the one JSON object and nothing "
+              "else.")
+
+
+def read_film(door: FilmDoor, label: str, request: dict, kind: str) -> tuple[dict, bool]:
+    """One film read, and once more with the fault named where the answer could not be read (spec 122's rule)."""
+    said = door.ask(label, request)
+    if said["error"]:
+        raise fr.FilmRubricError(said["error"])
+    try:
+        return fr.parse_film_answer(said["answer"], kind=kind), False
+    except fr.FilmRubricError as first:
+        body = json.loads(json.dumps(request["body"]))
+        body["messages"][0]["content"][-1]["text"] += AGAIN_TAIL.format(error=first)
+        again = door.ask(f"{label}-again", {**request, "body": body, "text": request["text"] +
+                                            AGAIN_TAIL.format(error=first)})
+        if again["error"]:
+            raise fr.FilmRubricError(f"first: {first}; again: {again['error']}") from None
+        try:
+            return fr.parse_film_answer(again["answer"], kind=kind), True
+        except fr.FilmRubricError as second:
+            raise fr.FilmRubricError(f"first: {first}; again: {second}") from None
+
+
+# ------------------------------------------------------------------------------------- the founder's beats
+
+def founder_lines(film: dict) -> list[dict]:
+    """Keel's lines to the founder on the walk, in order (FR-1): each beat's question as asked, with the readback or the
+    ask that followed it where the wire served one, then the verdict line."""
+    out = []
+    for beat in film.get("beats") or []:
+        said = [f"Keel asks: {beat.get('asked') or ''}".strip()]
+        if beat.get("founder"):
+            said.append(f"You said: {beat['founder']}")
+        if beat.get("ask"):
+            said.append(f"Keel asks again: {beat['ask']}")
+        if beat.get("readback"):
+            said.append(f"Keel reads back: {beat['readback']}")
+        out.append({"beat": f"beat {beat.get('turn')}", "said": "\n".join(said)})
+    if film.get("verdict_line"):
+        out.append({"beat": "the verdict line", "said": f"After the film, Keel says: {film['verdict_line']}"})
+    return out
+
+
+def founder_prompts(film: dict, entry: dict) -> list[tuple[dict, str]]:
+    persona = readers.founder_persona(entry)
+    lines = founder_lines(film)
+    out = []
+    for i, line in enumerate(lines):
+        earlier = "\n".join(f"- {x['beat']}: {x['said'].splitlines()[0]}" for x in lines[:i]) or "(none: this is the first)"
+        out.append((line, readers.fill(template(FOUNDER_PROMPT_PATH, "beat"),
+                                        {"persona": persona, "rubric": fr.prompt_founder(), "earlier": earlier,
+                                         "beat": line["said"]})))
+    return out
+
+
+# ------------------------------------------------------------------------------------------------ the run
+
+def score_path(scores_dir: Path, bundle: str, entry: str) -> Path:
+    """FR-3: `quality/scores/<bundle>-film-<entry>.json`."""
+    return Path(scores_dir) / f"{bundle}-film-{entry}.json"
+
+
+def bundle_name(run_dir: Path) -> str:
+    return Path(run_dir).name
+
+
+def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
+    parser = argparse.ArgumentParser(prog="quality.film_reader", description=__doc__.split("\n\n")[0])
+    parser.add_argument("--run", default="")
+    parser.add_argument("--entry", default=None)
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--no-founder", action="store_true")
+    parser.add_argument("--kind", default="problem", choices=sorted(fr.KINDS))
+    parser.add_argument("--out", default=None)
+    parser.add_argument("--scores-dir", default=str(SCORES_DIR))
+    args = parser.parse_args(argv)
+    env = os.environ if env is None else env
+    try:
+        run_dir = resolve_run(args.run)
+        cfg = load_film_reader()
+        folders = film_folders(run_dir, args.entry)
+        if not folders:
+            raise Refused(f"make read-films refuses: no film/{args.entry}/film.json in {run_dir}")
+        if not args.dry_run:
+            said = key_refusal(env)
+            if said:
+                raise Refused(said)
+    except Refused as reason:
+        print(str(reason), file=sys.stderr)
+        return 2
+    now = dt.datetime.now(dt.timezone.utc)
+    out = Path(args.out) if args.out else RUNS_DIR / (f"{now.strftime('%Y%m%dT%H%M%SZ')}-read-films-"
+                                                       f"{bundle_name(run_dir)}{'-dry' if args.dry_run else ''}")
+    out.mkdir(parents=True, exist_ok=True)
+    door = FilmDoor(cfg, out, post=post, env=env)
+    cli = None
+    if not args.no_founder and not args.dry_run:
+        cli = readers.Reader(readers.load_reader_config(), out, **({"runner": cli_runner} if cli_runner else {}))
+        try:
+            cli.probe()
+        except readers.Refused as reason:
+            print(f"{reason} (the founder's beats; FOUNDER=0 reads the films alone)", file=sys.stderr)
+            return 2
+    written = []
+    for folder in folders:
+        film = json.loads((folder / "film.json").read_text(encoding="utf-8"))
+        story = json.loads((folder / "story.json").read_text(encoding="utf-8")) if (folder / "story.json").is_file() else {}
+        prompts = json.loads((folder / "prompts.json").read_text(encoding="utf-8")) \
+            if (folder / "prompts.json").is_file() else {}
+        try:
+            entry = load_entry_card(film, readers.entries_dir())
+            request = build_request(folder, film, story, prompts, entry, cfg, kind=args.kind)
+        except Refused as reason:
+            print(str(reason), file=sys.stderr)
+            return 2
+        label = f"film-{folder.name}"
+        if args.dry_run:
+            (out / f"{label}.prompt.txt").write_text(request["text"], encoding="utf-8")
+            beats = founder_prompts(film, entry) if not args.no_founder else []
+            for i, (line, prompt) in enumerate(beats, 1):
+                (out / f"{label}-founder-{i:02d}.prompt.txt").write_text(prompt, encoding="utf-8")
+            print(f"dry run: {folder.name} -- one film call ({request['images']} images, "
+                  f"{request['image_b64_bytes'] // 1024} KB in base64) and {len(beats)} founder's beats written to "
+                  f"{out}; no call made, no score written")
+            continue
+        started = time.monotonic()
+        try:
+            score, again = read_film(door, label, request, args.kind)
+        except fr.FilmRubricError as reason:
+            print(f"  {folder.name}: the film unread -- {reason}", file=sys.stderr)
+            continue
+        founder = None
+        founder_cost = 0.0
+        if cli is not None:
+            rows, unread = [], []
+            for line, prompt in founder_prompts(film, entry):
+                parse = (lambda raw, b=line["beat"], s=line["said"]: fr.parse_founder_beat(raw, beat=b, said=s))
+                try:
+                    row, _ = readers.ask_twice(cli, f"{folder.name}-{line['beat'].replace(' ', '-')}", prompt, parse)
+                    rows.append(row)
+                except Exception as reason:                              # noqa: BLE001 - the beat unread, named
+                    unread.append({"beat": line["beat"], "error": str(reason)[:300]})
+            founder = {**fr.founder_summary(rows), "beats_scored": rows, "unread": unread}
+            founder["beats"] = rows
+            del founder["beats_scored"]
+            founder_cost = round(sum(c["cost_usd"] for c in cli.calls if not c["cached"]), 4)
+        film_calls = [c for c in door.calls if c["label"].startswith(label)]
+        record = {
+            "entry": entry["id"], "bundle": bundle_name(run_dir),
+            "cloud_sha": (film.get("stack") or {}).get("keel-cloud"), "web_sha": (film.get("stack") or {}).get("keel-web"),
+            "film_rubric_version": fr.FILM_RUBRIC_VERSION,
+            "reader": {k: cfg[k] for k in ("model", "effort", "vendor", "door")} | {
+                "served_by": film_calls[-1].get("model") if film_calls else None,
+                "fallback": [f for c in film_calls for f in c.get("fallback") or []]},
+            "founder_reader": ({k: cli.config[k] for k in ("model", "effort", "vendor", "door")} if cli else None),
+            "cost_usd": round(sum(c["cost_usd"] for c in film_calls) + founder_cost, 4),
+            "film_cost_usd": round(sum(c["cost_usd"] for c in film_calls), 4), "founder_cost_usd": founder_cost,
+            "walk_usd": film.get("dollars"),
+            "seconds": round(time.monotonic() - started, 1), "scored_at": now.isoformat(timespec="seconds"),
+            "asked_again": again,
+            "entry_yaml": {"sha256": entry["sha256"], "matches_bundle": entry["matches_bundle"]},
+            "persona_card": persona_card(entry["yaml"]),
+            "film": score, "founder": founder,
+            "frames": {"frames": [f["path"] for f in film.get("frames") or []],
+                       "pictures": [p["path"] for p in film.get("pictures") or []],
+                       "folder": str(folder.relative_to(REPO) if REPO in folder.parents else folder)},
+            "measures": film.get("measures"),
+        }
+        fr.validate_file(record, name=label)
+        path = score_path(Path(args.scores_dir), bundle_name(run_dir), entry["id"])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        written.append(path)
+        print(f"{entry['id']}: film_pct {score['film_pct']}{' FLAGGED' if score['flagged'] else ''}, founder_pct "
+              f"{(founder or {}).get('founder_pct')}, ${record['cost_usd']} in {record['seconds']} s -> {path}")
+    if not args.dry_run:
+        print(f"{len(written)} film score file(s) written; calls recorded under {out / 'calls'}")
+    return 0 if (args.dry_run or written) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(run())

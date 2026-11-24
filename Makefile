@@ -5,7 +5,8 @@ PLAYWRIGHT := $(VENV)/bin/playwright
 
 .PHONY: up down eval eval-live eval-all report venv unit instruction-eval instruction-screen acceptance oidc-image \
         matrix-check keels-ai sample backtest gallery noise-check copilot-bench copilot-prototype read-screens read-table \
-        quality-walk quality-advise quality-accept quality-due remote e2e-157
+        quality-walk quality-advise quality-accept quality-due remote e2e-157 \
+        film-walk film-leg read-films read-film-table film-advise
 
 # Idempotent: safe to depend on from every other target. Re-run costs a few seconds once the
 # venv already exists (pip/playwright no-op when nothing changed).
@@ -293,6 +294,48 @@ quality-accept: venv
 	PYTHONPATH=. $(PY) -m quality.cycle accept --cycle "$(CYCLE)" $(if $(OUT),--out "$(OUT)",) \
 	  $(if $(RUNS_DIR),--runs-dir "$(RUNS_DIR)",) $(if $(QUALITY_OUT),--quality-out "$(QUALITY_OUT)",) \
 	  $(if $(PROVENANCE_DIR),--provenance-dir "$(PROVENANCE_DIR)",)
+
+# THE FILM, JUDGED (spec 163; quality/FILM-RUBRIC.md, FILM_RUBRIC_VERSION 1). The scenario-maker as before, a film
+# reader with vision grading the respondent's film on the persona, the task, today's way, every limitation, the pain,
+# clarity, the whole and legibility; the founder's beats on R1, R2, R3, R5; beside the question score (§A) and the
+# founder's page after the answers (§B) of the same walk. None of these is a dependency of anything; none runs from
+# `make eval`, `make unit`, the matrix or a schedule.
+#
+# make film-walk (PAID on DOOR=keel, the default -- the founder's word): per entry, the film leg (its own stack with
+# the keys and KEEL_PICTURES=openai, the seven beats in the entry's words, the build with the real pictures, the film
+# captured: fourteen frames, the story, the pictures, the setting and the prompts) into runs/<stamp>-film-walk/film/
+# <entry>/, then `make backtest ENTRY= SCOPE=PROBLEM` as quality-walk runs it and `make read-screens` on its bundle.
+# DOOR=fake is the free local walk (keel-cloud's fakes, FakePictures; the film alone). ENTRIES=holdout walks
+# quality/cycle.toml [film] holdout (refused while empty). DRY=1 prints the plan.
+#   make film-walk ENTRIES=08-fresco DOOR=fake WHY="the local walk"
+#   KEEL_ANTHROPIC_API_KEY=... KEEL_OPENAI_API_KEY=... KEEL_PICTURES=openai make film-walk ENTRIES=holdout WHY="..."
+film-walk: venv
+	PYTHONPATH=. $(PY) -m quality.film walk --entries "$(ENTRIES)" $(if $(DOOR),--door "$(DOOR)",) \
+	  $(if $(DRY),--dry-run,) $(if $(PEOPLE),--people "$(PEOPLE)",) $(if $(filter 0 off,$(TYPOS)),--typos off,) \
+	  $(if $(WHY),--why "$(WHY)",) $(if $(OUT),--out "$(OUT)",)
+
+# make film-leg (spec 163 FR-2) is one entry's film leg alone (evals/run_film.py); `make film-walk` runs it.
+film-leg:
+	@$(MAKE) --no-print-directory venv
+	KEEL_EVAL_PROFILE=eval KEEL_FILM_ENTRY=$(ENTRY) KEEL_FILM_DOOR=$(if $(DOOR),$(DOOR),keel) KEEL_FILM_OUT=$(OUT) $(PY) -m pytest evals/run_film.py -q -rs -l -s -p no:cacheprovider
+
+# make read-films (PAID: about $0.30 a film at list price through the Anthropic API with vision, KEEL_ANTHROPIC_API_KEY
+# in the shell; the founder's beats on the founder's plan through the claude CLI) writes quality/scores/<bundle>-film-
+# <entry>.json. The claude CLI door is refused for the film reader. FOUNDER=0 skips the beats; DRY=1 writes the prompts.
+read-films: venv
+	PYTHONPATH=. $(PY) -m quality.film_reader --run "$(RUN)" $(if $(DRY),--dry-run,) $(if $(ENTRY),--entry "$(ENTRY)",) \
+	  $(if $(filter 0 off,$(FOUNDER)),--no-founder,) $(if $(KIND),--kind "$(KIND)",)
+
+# make read-film-table (FREE): quality/FILM-TABLE.md and quality/cycles/<yyyymmdd>-<cloud7>-film.md -- one row an
+# entry (F1..F8, film_pct, flagged, founder_pct, §A, §B, the dollars), the bar ([film] film_bar_pct), the weak
+# criteria, each entry's whys and frames, the findings for DRIFT (DRIFT=1 appends them to runs/DRIFT.md).
+read-film-table: venv
+	PYTHONPATH=. $(PY) -m quality.film_table --run "$(RUN)" $(if $(DRIFT),--drift,)
+
+# make film-advise (PAID, one claude CLI call per weak criterion): a rule for picture-setting.md, PicturePrompts or
+# story-draft.md, never a case; quality/cycles/<record>-film-advice.md, never applied. DRY=1 writes the prompts.
+film-advise: venv
+	PYTHONPATH=. $(PY) -m quality.film_advise --run "$(RUN)" $(if $(DRY),--dry-run,)
 
 # make quality-due (FREE) says whether a cycle is due (spec 079 FR-7): a registry, instruction or routing change in
 # keel-cloud since the last record's build, or a week since it. It runs nothing else: the founder kicks off.

@@ -1,0 +1,28 @@
+# Spec 163's unit fixture: an invented study with no trade, company or title in it -- the persona card the film reader
+# is handed is read off an entry of this shape (keel-cloud canon/designs/measured-beliefs/backtest/*.yaml).
+id: fixture-film
+sources: fixture-film.sources.md
+market: {country: US, region: null, language: en-US}
+statements:
+  problem: 'Example workers keep the day''s list on paper; the list gets lost on the way back, two people copy the same item, and the copy is late, so they stay an hour after closing.'
+roles:
+- {id: worker, label: Example workers, roleType: PRACTITIONER, about: a person who does the example job}
+- {id: payer, label: Example payers, roleType: BUYER, about: the person who pays for the example tools}
+context:
+  actor: example worker
+  actor_plural: example workers in small teams
+  job: keep the day's list
+  circumstance: the day ends and the list is still on paper
+  segment: example workers in small teams of five or fewer
+  recall_window: {count: 5, unit: WORKING_DAYS}
+interpretations:
+  problem: Example workers lose the day's list or copy it twice, so they stay an hour after closing.
+current_solution:
+  today: They write it on paper and copy it in later.
+founder_calibration:
+  problem.importance:
+    answer:
+      items:
+      - {code: list, label: Keeping the day's list}
+      - {code: stock, label: Ordering the stock}
+      - {code: phone, label: Answering the phone}
