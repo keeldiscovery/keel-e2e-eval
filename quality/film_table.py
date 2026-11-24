@@ -163,6 +163,10 @@ def _cell(value) -> str:
     return f"{value:.1f}" if isinstance(value, float) else str(value)
 
 
+def _usd(value) -> str:
+    return "--" if value is None else f"{float(value):.2f}"
+
+
 def _flat(text: str) -> str:
     return " ".join(str(text or "").split()).replace("|", "/")
 
@@ -269,7 +273,7 @@ def render(table: list[dict], files: list[dict], weak: list[dict], cfg: dict, *,
         cells = [_cell(r["scores"].get(c)) for c in names]
         lines.append(f"| {r['entry']}{' (holdout)' if r['holdout'] else ''} | " + " | ".join(cells)
                      + f" | {_cell(r['film_pct'])} | {'yes' if r['flagged'] else 'no'} | {_cell(r['founder_pct'])} | "
-                     f"{_cell(r['qa_pct'])} | {_cell(r['after_pct'])} | {_cell(r['usd'])} | "
+                     f"{_cell(r['qa_pct'])} | {_cell(r['after_pct'])} | {_usd(r['usd'])} | "
                      f"{'yes' if r['passes'] else 'no'} |")
     lines += ["", "§A and §B are `make read-screens` on the same bundle (RUBRIC.md: the respondent's and the founder's "
                   "screens, and the founder's page after the answers -- the Overview's cards, the Insights tab, the "

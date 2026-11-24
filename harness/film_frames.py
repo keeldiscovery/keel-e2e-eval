@@ -309,16 +309,24 @@ def picture_faults(pictures: list[dict]) -> list[dict]:
     return out
 
 
+#: keel-cloud 273 FR-3 / FR-5: the measured rows of the pictures (`CreditLedgerEntry.measured`: kind SPEND, the charge's
+#: name in `action`, 0 credits, the measured cost).
+PICTURE_CHARGES = ("STORY_PICTURES", "PICTURE_REVIEW")
+
+
+def charge_of(row: dict) -> str | None:
+    return row.get("action") if row.get("action") in PICTURE_CHARGES else row.get("kind")
+
+
 def ledger_rows(rows: list[dict], project_id: str) -> dict:
     """FR-2: the build's `STORY_PICTURES` row (0 credits, its measured cost) and one `PICTURE_REVIEW` row per picture,
     off the founder's ledger; the dollars are their measured cost."""
-    mine = [r for r in rows if str(r.get("project_id")) == str(project_id)
-            and r.get("kind") in ("STORY_PICTURES", "PICTURE_REVIEW")]
+    mine = [r for r in rows if str(r.get("project_id")) == str(project_id) and charge_of(r) in PICTURE_CHARGES]
     usd = round(sum((r.get("actual_cost_micro_usd") or 0) for r in mine) / 1_000_000, 4)
-    return {"rows": [{k: r.get(k) for k in ("kind", "credits", "price_credits", "actual_cost_micro_usd", "action")}
-                     for r in mine],
-            "story_pictures": sum(1 for r in mine if r.get("kind") == "STORY_PICTURES"),
-            "picture_review": sum(1 for r in mine if r.get("kind") == "PICTURE_REVIEW"),
+    return {"rows": [{k: r.get(k) for k in ("kind", "action", "credits", "price_credits", "actual_cost_micro_usd",
+                                            "reason")} for r in mine],
+            "story_pictures": sum(1 for r in mine if charge_of(r) == "STORY_PICTURES"),
+            "picture_review": sum(1 for r in mine if charge_of(r) == "PICTURE_REVIEW"),
             "credits": sum((r.get("credits") or 0) for r in mine), "usd": usd}
 
 

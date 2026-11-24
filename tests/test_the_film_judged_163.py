@@ -466,9 +466,12 @@ def test_the_pictures_the_ledger_and_the_folder(tmp_path):
     assert [p["scene"] for p in pictures] == [1, 2, 3, 4, 5, 6, 7, "sheet"]
     assert pictures[0]["png"] == [48, 32] and (tmp_path / "pictures" / "scene-1.png").is_file()
     assert ff.picture_faults(pictures) == []
-    rows = [{"project_id": "p1", "kind": "STORY_PICTURES", "credits": 0, "actual_cost_micro_usd": 400_000},
-            *[{"project_id": "p1", "kind": "PICTURE_REVIEW", "credits": 0, "actual_cost_micro_usd": 6_000}] * 7,
-            {"project_id": "p2", "kind": "STORY_PICTURES", "credits": 0, "actual_cost_micro_usd": 1}]
+    rows = [{"project_id": "p1", "kind": "SPEND", "action": "STORY_PICTURES", "credits": 0,
+             "actual_cost_micro_usd": 400_000},
+            *[{"project_id": "p1", "kind": "SPEND", "action": "PICTURE_REVIEW", "credits": 0,
+               "actual_cost_micro_usd": 6_000}] * 7,
+            {"project_id": "p1", "kind": "SPEND", "action": "STORY_CHECK", "credits": 0, "actual_cost_micro_usd": 9},
+            {"project_id": "p2", "kind": "SPEND", "action": "STORY_PICTURES", "credits": 0, "actual_cost_micro_usd": 1}]
     spent = ff.ledger_rows(rows, "p1")
     assert (spent["story_pictures"], spent["picture_review"], spent["credits"], spent["usd"]) == (1, 7, 0, 0.442)
     assert ff.chapter_faults(s) == []

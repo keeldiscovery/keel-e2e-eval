@@ -229,12 +229,21 @@ def setting_block(prompts: dict) -> str:
     return "\n".join(f"  {k}: {', '.join(v) if isinstance(v, list) else v}" for k, v in setting.items())
 
 
-def prompts_block(prompts: dict, *, cut: int = 600) -> str:
+def prompts_block(prompts: dict) -> str:
+    """The build's prompts as the reader needs them: every paragraph once -- the style rule, the character and the place
+    as the first prompt says them -- then, per prompt, only what is new in it (the scene's moment and cue, a re-draw's
+    reasons)."""
+    seen: set[str] = set()
     rows = []
     for p in prompts.get("prompts") or []:
         scene = "the sheet" if p.get("scene") in (None, "sheet") else f"scene {p.get('scene')}"
-        text = " ".join(str(p.get("prompt") or "").split())
-        rows.append(f"- {scene} (attempt {p.get('attempt', 1)}): {text[-cut:] if len(text) > cut else text}")
+        fresh = []
+        for para in re.split(r"\n\s*\n", str(p.get("prompt") or "")):
+            flat = " ".join(para.split())
+            if flat and flat not in seen:
+                seen.add(flat)
+                fresh.append(flat)
+        rows.append(f"- {scene} (attempt {p.get('attempt', 1)}): " + (" / ".join(fresh) or "(as above)"))
     return "\n".join(rows) or "(no prompt on the build)"
 
 
