@@ -1,0 +1,202 @@
+{
+  "entry": "entry-a",
+  "bundle": "fixture-walk",
+  "cloud_sha": "b48e1f49",
+  "web_sha": "69e9f2a5",
+  "film_rubric_version": 1,
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "anthropic api",
+    "served_by": "claude-opus-5-5",
+    "fallback": []
+  },
+  "founder_reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 0.31,
+  "film_cost_usd": 0.25,
+  "founder_cost_usd": 0.06,
+  "walk_usd": 0.4,
+  "seconds": 61.2,
+  "scored_at": "2026-11-24T23:00:00+00:00",
+  "asked_again": false,
+  "entry_yaml": {
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "matches_bundle": true
+  },
+  "persona_card": "(fixture)",
+  "film": {
+    "kind": "problem",
+    "scores": {
+      "f1": 2,
+      "f2": 2,
+      "f3": 2,
+      "f4": 2,
+      "f5": 2,
+      "f6": 2,
+      "f7": 2,
+      "f8": 2
+    },
+    "whys": {
+      "f1": "The person is plainly in their own place.",
+      "f2": "The task is shown and said at its moment.",
+      "f3": "Today's way is shown and said.",
+      "f4": "Each limitation has its own scene.",
+      "f5": "The person slumps at the end.",
+      "f6": "Every line is short and plain.",
+      "f7": "The film tells the whole in order.",
+      "f8": "Every caption reads on both frames."
+    },
+    "missing": [],
+    "instead": {},
+    "film_pct": 100.0,
+    "flagged": false
+  },
+  "founder": {
+    "beats": [
+      {
+        "beat": "beat 1",
+        "said": "Keel asks: question 1",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "It fits here.",
+        "why2": "Plain.",
+        "why3": "I know this.",
+        "why5": "My words are kept.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 2",
+        "said": "Keel asks: question 2",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "It fits here.",
+        "why2": "Plain.",
+        "why3": "I know this.",
+        "why5": "My words are kept.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 3",
+        "said": "Keel asks: question 3",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "It fits here.",
+        "why2": "Plain.",
+        "why3": "I know this.",
+        "why5": "My words are kept.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 4",
+        "said": "Keel asks: question 4",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "It fits here.",
+        "why2": "Plain.",
+        "why3": "I know this.",
+        "why5": "My words are kept.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 5",
+        "said": "Keel asks: question 5",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "It fits here.",
+        "why2": "Plain.",
+        "why3": "I know this.",
+        "why5": "My words are kept.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 6",
+        "said": "Keel asks: question 6",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "It fits here.",
+        "why2": "Plain.",
+        "why3": "I know this.",
+        "why5": "My words are kept.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 7",
+        "said": "Keel asks: question 7",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "It fits here.",
+        "why2": "Plain.",
+        "why3": "I know this.",
+        "why5": "My words are kept.",
+        "instead": ""
+      }
+    ],
+    "means": {
+      "r1": 2.0,
+      "r2": 1.857,
+      "r3": 2.0,
+      "r5": 2.0
+    },
+    "zeros": {
+      "r1": 0,
+      "r2": 0,
+      "r3": 0,
+      "r5": 0
+    },
+    "founder_pct": 98.2,
+    "unread": []
+  },
+  "frames": {
+    "frames": [
+      "frames/scene-1-phone.png",
+      "frames/scene-1-laptop.png",
+      "frames/scene-2-phone.png",
+      "frames/scene-2-laptop.png",
+      "frames/scene-3-phone.png",
+      "frames/scene-3-laptop.png",
+      "frames/scene-4-phone.png",
+      "frames/scene-4-laptop.png",
+      "frames/scene-5-phone.png",
+      "frames/scene-5-laptop.png",
+      "frames/scene-6-phone.png",
+      "frames/scene-6-laptop.png",
+      "frames/scene-7-phone.png",
+      "frames/scene-7-laptop.png"
+    ],
+    "pictures": [
+      "pictures/scene-1.png",
+      "pictures/scene-2.png",
+      "pictures/scene-3.png",
+      "pictures/scene-4.png",
+      "pictures/scene-5.png",
+      "pictures/scene-6.png",
+      "pictures/scene-7.png"
+    ],
+    "folder": "fixture-walk/film/entry-a"
+  },
+  "measures": {
+    "faults": [],
+    "frames": 14,
+    "pictures": 7
+  }
+}

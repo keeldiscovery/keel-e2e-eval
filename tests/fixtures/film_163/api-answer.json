@@ -1,0 +1,12 @@
+{
+  "id": "msg_fixture_163",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-opus-5-5",
+  "stop_reason": "end_turn",
+  "content": [
+    {"type": "thinking", "thinking": "", "signature": "fixture"},
+    {"type": "text", "text": "{\"scores\": {\"f1\": 2, \"f2\": 2, \"f3\": 2, \"f4\": 1, \"f5\": 2, \"f6\": 2, \"f7\": 2, \"f8\": 1}, \"whys\": {\"f1\": \"The person stands in their own place at the day's end.\", \"f2\": \"Keeping the list is shown as the day ends.\", \"f3\": \"The paper list is shown and said.\", \"f4\": \"The copy made twice has no scene of its own.\", \"f5\": \"The person slumps, an hour late.\", \"f6\": \"Each line is short and plain.\", \"f7\": \"The film runs who, task, today, short, cost, ask.\", \"f8\": \"Scene 4's caption is tight on the phone.\"}, \"missing\": [\"two people copy the same item\"], \"instead\": {\"f4\": \"Give the doubled copy its own scene: two people writing the same line.\", \"f8\": \"Keep scene 4's caption to two rows on the phone.\"}}"}
+  ],
+  "usage": {"input_tokens": 31000, "output_tokens": 2500, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}
+}
