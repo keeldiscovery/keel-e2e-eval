@@ -859,9 +859,6 @@ def lines_of(story: dict) -> list[dict]:
     return rows
 
 
-BUILDING = "[data-testid=story-building], [data-testid=idea-building]"
-
-
 def watch_building(browser, storage_state: dict, web_base: str, project_id: str, read_view, *, kind: str = "problem",
                    timeout_s: float = 300, poll_ms: int = 400, inits: tuple[str, ...] = (),
                    routes: tuple = ()) -> tuple[dict, dict]:
