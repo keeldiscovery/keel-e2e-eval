@@ -221,7 +221,7 @@ def surface_rows(surfaces: dict | None, verdicts: dict | None) -> list[dict]:
                 record = kept.get("record") or []
                 rows.append({"study": study, "kind": kind, "surface": surface, "source": kept.get("source"),
                              "steps": [r.get("step") for r in record],
-                             "gate": next((r.get("words") for r in record if r.get("step") == "gate"), None),
+                             "gate": next((r.get("words") for r in record if r.get("step") in ("gate", "check")), None),
                              "verdict": ((verdicts or {}).get(study) or {}).get(kind)})
     return rows
 
@@ -240,8 +240,8 @@ def surfaces_markdown(rows: list[dict] | None) -> list[str]:
     words, the verdict; where they part, both records at that step."""
     if not rows:
         return []
-    out = ["## The three surfaces (spec 161; keel-cloud 269 FR-8, 270 FR-6; keel-web 258)", "",
-           "| Study | Read | Surface | Source | Steps, in order | The gate's words | One script |",
+    out = ["## The three surfaces (spec 161, 162; keel-cloud 269 FR-8, 270 FR-6, 272 FR-5; keel-web 258, 260)", "",
+           "| Study | Read | Surface | Source | Steps, in order | The gate's (the check's) words | One script |",
            "|---|---|---|---|---|---|---|"]
     for r in rows:
         out.append(f"| {r['study']} | {r['kind']} | {r['surface']} | {_cell(r.get('source'), 40)} | "
@@ -286,6 +286,49 @@ def founder_beats_markdown(founder: list[dict] | None) -> list[str]:
             out.append(f"- the film: {scenes.get('scenes')} scenes, the pain at {scenes.get('pain_at')}, costLine "
                        f"{'= the seventh line' if (scenes.get('parts') or {}).get('costLine is its line') else '**differs**'}, "
                        f"{scenes.get('clips')} clips")
+        out.append("")
+    return out
+
+
+def founders_solution_markdown(solution: dict | None, films: list[dict] | None = None,
+                                first_question: dict | None = None) -> list[str]:
+    """Spec 162 FR-11: *The founder's solution* -- the board's six rows as served, the film's chapters (each film
+    built), the verdict line and the pilot answer heard; then the time to the first question on the solution link."""
+    if not solution and not films and not first_question:
+        return []
+    out = ["## The founder's solution (spec 162; keel-cloud 271-273, keel-web 259)", ""]
+    if solution:
+        idea = solution.get("idea") or {}
+        after = solution.get("after") or {}
+        brand = idea.get("brand") or {}
+        out += [f"### {solution.get('label')} -- `{str(solution.get('project') or '')[:8]}`", "",
+                f"- product: {brand.get('name')} -- {_cell(brand.get('tagline'), 80) or '-'} ({brand.get('colour')})",
+                "- with it: " + _cell("; ".join(f"{w.get('step')} ({'they' if w.get('by') == 'PERSON' else brand.get('name')})"
+                                                for w in idea.get("workflow") or []), 240),
+                "- before that: " + (_cell("; ".join(idea.get("setup") or []), 160) if idea.get("setup")
+                                     else "Nothing to set up." if idea.get("setupNone") else "-"),
+                f"- what it does: {_cell(idea.get('statement'), 240) or '-'}",
+                "- in the way: " + _cell("; ".join(f"{'✓' if a.get('solved') else '×'} {a.get('limit')}"
+                                                   for a in idea.get("limitAnswers") or []), 240),
+                f"- what they get: {_cell(idea.get('joy'), 120) or '-'}",
+                f"- verdict line served: {_cell(idea.get('verdictLine'), 200) or '-'}",
+                "- verdict line heard: " + (f"*{_cell((after.get('verdict') or {}).get('words'), 200)}*"
+                                            if (after.get("verdict") or {}).get("drawn") else "**no card drawn**"),
+                f"- pilot ask heard: *{_cell((after.get('pilot') or {}).get('ask'), 160) or '-'}* -- answered yes, "
+                f"`PUT idea/pilot` {((after.get('pilot') or {}).get('put') or {}).get('status')}, pilot now "
+                f"{idea.get('pilot')}", ""]
+    for f in films or []:
+        v = f.get("verdict") or {}
+        bad = [k for k, ok in (v.get("parts") or {}).items() if not ok]
+        out.append(f"- the film ({f.get('label')}): {v.get('scenes')} scenes, chapters {' > '.join(v.get('chapters') or [])}"
+                   f", {v.get('clips')} clips" + (f"; **not held: {', '.join(bad)}**" if bad else "; every part held"))
+    if films:
+        out.append("")
+    if first_question:
+        out += ["### The time to the first question on the solution link (D6: recorded, never asserted)", ""]
+        for view, t in first_question.items():
+            out.append(f"- {view}: {t.get('seconds')} s by the cloud's count ({t.get('parts')}; `minutes` served "
+                       f"{t.get('minutes served')})")
         out.append("")
     return out
 
@@ -349,10 +392,11 @@ def orb_markdown(orbs: list[dict] | None, speakers: list[dict] | None = None) ->
 def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = None,
                     fits: list[dict] | None = None, turns: list[dict] | None = None,
                     orbs: list[dict] | None = None, speakers: list[dict] | None = None,
-                    surfaces: list[dict] | None = None, founder: list[dict] | None = None) -> str:
+                    surfaces: list[dict] | None = None, founder: list[dict] | None = None,
+                    solution: dict | None = None) -> str:
     """The report: the head (shas, profile, the run's bundle), the table of legs, each leg's checks, then the beats."""
-    out = [f"# Spec 157 / 158 / 159 / 160 / 161 -- the three views (the orb, the face, the copilot) on the four "
-           "questions, end to end (one run)", "",
+    out = [f"# Spec 157 / 158 / 159 / 160 / 161 / 162 -- the three views (the orb, the face, the copilot) on the four "
+           "questions and the solution, end to end (one run)", "",
            f"- contract read: `x-keel-contract` {meta.get('contract', '-')}",
            f"- keel-cloud `{meta.get('cloud')}` · keel-web `{meta.get('web')}` · keel-e2e-eval `{meta.get('eval')}`",
            f"- profile `{meta.get('profile')}` · started {meta.get('started')} · {meta.get('seconds', 0):g} s",
@@ -374,6 +418,7 @@ def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = Non
             out.append(line)
         out.append("")
     out += founder_beats_markdown(founder)
+    out += founders_solution_markdown(*(solution or {}).get("args", ()) ) if solution else []
     out += beats_markdown(beats)
     out += drawn_story_markdown(fits)
     out += turn_markdown(turns)
@@ -385,8 +430,9 @@ def report_markdown(legs, meta: dict, scan: dict, beats: list[dict] | None = Non
 def write_report(path: Path, legs, meta: dict, scan: dict, beats: list[dict] | None = None,
                  fits: list[dict] | None = None, turns: list[dict] | None = None,
                  orbs: list[dict] | None = None, speakers: list[dict] | None = None,
-                 surfaces: list[dict] | None = None, founder: list[dict] | None = None) -> Path:
+                 surfaces: list[dict] | None = None, founder: list[dict] | None = None,
+                 solution: dict | None = None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(report_markdown(legs, meta, scan, beats, fits, turns, orbs, speakers, surfaces, founder),
+    path.write_text(report_markdown(legs, meta, scan, beats, fits, turns, orbs, speakers, surfaces, founder, solution),
                     encoding="utf-8")
     return path

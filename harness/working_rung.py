@@ -72,3 +72,21 @@ def frequency_side(code: str | None) -> str | None:
     if code in FREQUENCY_AGAINST:
         return "against"
     return None
+
+
+#: Spec 162 FR-6 (keel-cloud 272 FR-1, `share_yes`): the solution's three on `yes_no` -- *Yes* supports the founder's
+#: belief, *No* counts against it (its why owed); the letters A and B the two rows; nothing else counts (no escape).
+YES_NO_FOR = ("yes",)
+YES_NO_AGAINST = ("no",)
+YES_NO_LETTERS = {"A": "yes", "B": "no"}
+
+
+def yes_no_side(code: str | None) -> str | None:
+    """`held` for yes (or A), `against` for no (or B), None for anything else (*si* on two rows, nothing said)."""
+    said = str(code or "").strip()
+    code = YES_NO_LETTERS.get(said.upper(), said.lower())
+    if code in YES_NO_FOR:
+        return "held"
+    if code in YES_NO_AGAINST:
+        return "against"
+    return None

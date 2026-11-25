@@ -211,9 +211,37 @@ def calibrates(vector: str, scope: str = "ALL", *, spoken: bool = False) -> bool
     and the whole one). Spec 161 FR-2 (keel-web 257 FR-5, keel-cloud 269 FR-6): on a project whose problem came from the
     spoken story (`spoken`: the boxes confirmed) no PROBLEM belief page is walked -- the three beliefs were written at
     the boxes' yes; the typed path walks them as before. The count of screens (`SCOPE_STEPS`) is unchanged."""
-    if spoken and vector == "PROBLEM":
+    if spoken and vector in SPOKEN_WRITTEN:
         return False
     return vector in SCOPE_STAGES[scope]
+
+
+#: Spec 162 FR-2 (keel-web 259 FR-8, keel-cloud 271 FR-8 / 272): the vectors whose beliefs a spoken walk writes at the
+#: board's yes -- the problem's three since 269, the solution's three since 271 (`calibrates(spoken=True)` walks neither).
+SPOKEN_WRITTEN = ("PROBLEM", "SOLUTION")
+#: keel-cloud 271 FR-8: the three SOLUTION dimensions, written by code at the board's yes on the default bin.
+SOLUTION_WRITTEN = ("solution.compatibility", "solution.relative_advantage", "solution.adoption_friction")
+SOLUTION_BIN = "p_60_80"
+#: keel-cloud 272 (`PrevalenceBins`): the default bin's label on the review page.
+SOLUTION_BIN_LABEL = "6 or 7 in 10"
+
+
+def solution_written(review: dict | None, calibration: dict | None = None) -> dict:
+    """Spec 162 FR-2: the SOLUTION review table's three rows as written at the board's yes -- each row's codes, its label
+    (the calibration question's option for the code), its belief, and the table's dimensions."""
+    rows = {r.get("dimension"): r for r in (review or {}).get("rows") or []}
+    options = {q.get("dimension"): {o.get("normalized"): o.get("label") for o in q.get("options") or []}
+               for q in (calibration or {}).get("questions") or []}
+    codes = {k: list(((rows.get(k) or {}).get("answer") or {}).get("codes") or []) for k in SOLUTION_WRITTEN}
+    labels = {k: (options.get(k) or {}).get((codes[k] or [None])[0]) for k in SOLUTION_WRITTEN}
+    return {"codes": codes, "labels": labels, "beliefs": {k: (rows.get(k) or {}).get("belief") for k in SOLUTION_WRITTEN},
+            "complete": (review or {}).get("complete"), "rows": list(rows)}
+
+
+def solution_calibration_answered(calibration: dict | None) -> bool:
+    """Spec 162 FR-2: a SOLUTION calibration with nothing owed -- its three questions (`total` 3) every one answered."""
+    c = calibration or {}
+    return c.get("total") == 3 and int(c.get("answered") or 0) >= 3
 
 
 #: Spec 161 FR-2 (keel-cloud 269 FR-6): the PROBLEM study's three dimensions, written by code at the boxes' yes.

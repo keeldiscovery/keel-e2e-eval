@@ -101,10 +101,19 @@ FOUNDER_CONTROLS = ("single_choice", "numeric_interval") + LIST_FOUNDER_CONTROLS
 #: `benefit_with_advantages`, gone with its advantages).
 RESPONDENT_CONTROLS = ("gate_yes_no", "segmented_1_to_n", "number_with_unit", "single_choice",
                        "single_choice_5", "pick_one_then_one", "fixed_four", "fixed_three", "cost_total",
-                       "price_ladder", "scale_four", "value_box", "duration_bands", "fixed_five")
+                       "price_ladder", "scale_four", "value_box", "duration_bands", "fixed_five", "yes_no")
 #: Spec 118 FR-2 (keel-cloud 182 FR-2): Purchase friction's six -- five duration bands around the founder's time and
 #: *It wouldn't be needed* (`PurchaseFriction.bands`, codes `days_under_N`, `days_A_to_B`, `days_over_N`, `not_needed`).
 DURATION_CONTROL = "duration_bands"
+#: Spec 162 FR-6 (keel-cloud 272 FR-1, `DimensionRegistry.VERSION` 7): the solution's three on `yes_no` -- Yes · No,
+#: code's, no escape -- read by `share_yes` (the share of yes against the founder's bin, as Prevalence's gate); the
+#: founder's side a share bin (`single_choice` over Prevalence's five), written at the board's yes.
+YES_NO_CONTROL = "yes_no"
+SHARE_YES_RULE = "share_yes"
+REGISTRY_272 = 7
+SOLUTION_KEYS_272 = ("solution.compatibility", "solution.relative_advantage", "solution.adoption_friction")
+
+
 #: Spec 089 FR-1: the control names the corpus still records for a row whose control keel-cloud 158 renamed. The
 #: corpus is never edited and 158 cut no revision, so revision 19's Frequency row reads `segmented_0_to_7` and its
 #: Importance row `pick_two`; the stored answers are the same integer and the same two codes (158 T003, T011), so a
@@ -128,7 +137,7 @@ FIXED_ANSWER_CONTROLS = ("fixed_four", "fixed_three", "scale_four")
 #: `fixed_last_two_against` over its four).
 COMPARE_RULES = ("proportion_from_gate", "interval_contains_median", "share_in_picks", "below_line",
                  "fixed_last_two_against", "ordinal_band", "cost_covers_price",
-                 "first_supports", "duration_band", "share_most_or_every")
+                 "first_supports", "duration_band", "share_most_or_every", "share_yes")
 #: keel-cloud 182 FR-3: `caution_turned` (spec 118's fear) is `duration_band` -- the time against the founder's. A
 #: registry before 182 (the eval's fixture slice) is still read; its name is the retired one.
 RETIRED_COMPARE_RULES = {"caution_turned": "duration_band"}
@@ -668,6 +677,8 @@ def check_invariants(registry: Registry) -> list[str]:
         if raw is None:
             if at_269 and d.key == FREQUENCY_KEY:
                 continue                    # keel-cloud 269 FR-3 (D2): no escape; Never is the floor
+            if d.respondent_control == YES_NO_CONTROL:
+                continue                    # keel-cloud 272 FR-1 (D4): Yes or No, no escape
             if d.key not in (GATE_KEY, COMMITMENT_KEY):
                 faults.append(f"invariant 2 (one escape): {d.key} carries none; only the gate and "
                               "Commitment have no way out")

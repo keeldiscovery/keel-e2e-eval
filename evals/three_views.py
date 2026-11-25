@@ -322,7 +322,9 @@ class Run:
 #: `calibrating` / `calibrated` (the three beliefs written at the yes).
 YES_STATUSES = ("defined", "calibrating", "calibrated")
 #: Spec 161 FR-12: the HTTP contract the walk is written to -- keel-cloud 270's (the four questions, every why, the ways).
-CONTRACT = 87
+#: Spec 162 FR-11: keel-cloud 272's, **90** (271's founder's solution at 88, 273's pictures at 89, 272's three questions).
+CONTRACT_161 = 87
+CONTRACT = 90
 
 
 def contract_version(keel_cloud) -> int | None:
@@ -1024,7 +1026,7 @@ def fr1_a(run: Run, leg: Leg) -> None:
     again on beat 4, the tasks row corrected on the board), one told the long way (beat 3 over 1,500 characters -- the
     way, five limitations and a cost in one breath, read by the cloud's echo; *only the ones in Europe* after beat 5)."""
     wire = not ss.web_has_257(run.stack.keel_web)
-    leg.check(run, f"the stack's keel-cloud serves contract {CONTRACT} (`x-keel-contract`; keel-cloud 268-270)",
+    leg.check(run, f"the stack's keel-cloud serves contract {CONTRACT} (`x-keel-contract`; keel-cloud 268-273)",
               run.__dict__.get("contract_read") == CONTRACT, screen="canon/openapi-v2.yaml", view="wire",
               detail={"x-keel-contract": run.__dict__.get("contract_read")}, stop=False)
     if wire:
@@ -1055,126 +1057,295 @@ def fr1_a(run: Run, leg: Leg) -> None:
 
 # ------------------------------------------------------------------------------------------------ FR-1 (b)
 
-def idea_leg(run: Run, leg: Leg, solution: str, label: str, *, back_to_money: bool = False,
-             before_yes: Callable[[], None] | None = None) -> dict:
-    """keel-web 245 FR-11 on a solution project: the problem replayed and closed by the quiet (never corrected), the
-    two beats (the name with a colour said; how it solves the limitations), the idea's boxes by the quiet, the build,
-    the day with the idea (the name and the colour on it, clearly), then the quiet goes on."""
-    idea = ss.IdeaWalk(run.page, run.recorder, run.web)
-    replay = idea.replay(solution)
-    board = replay["screen"].get("board") or ""
-    problem = run.get(f"/v2/projects/{solution}/story") or {}
-    rcard = replay["screen"].get("card") or {}
-    rrows = ss.card_rows(rcard)
-    leg.check(run, f"{label}: the problem replayed -- its card (*What Keel understood*, read by `data-box`: the person, "
-                   "the limitations, no cost row), the turn line, no button; the quiet stamps still the problem "
-                   "(story/confirm 200), nothing corrected",
-              replay["confirm"]["status"] == 200 and replay["screen"].get("said") == ss.SOLUTION_TURN
-              and not replay["screen"].get("buttons") and not idea.writes_to(r"/story/correct$")
-              and rcard.get("label") == ss.CARD_LABEL and "person" in rrows and "cost" not in rrows
-              and set(rrows) <= set(ss.CARD_ROWS)
-              and (not problem.get("cost") or _bare(problem.get("cost")) not in _bare(board)),
-              screen="define/idea/start (the replay)",
-              detail={"said": replay["screen"].get("said"), "rows": rrows, "cost": problem.get("cost"),
-                      "woke": replay.get("woke"), "buttons": replay["screen"].get("buttons"),
-                      "confirm": replay["confirm"]["status"]})
-    if ss.web_has_257(run.stack.keel_web):
-        tasks = list(problem.get("otherTasks") or [])
-        leg.check(run, f"{label}: the replay carries the tasks row -- the problem's other tasks, last (keel-web 257 "
-                       "FR-3; spec 161 FR-11)", list(rrows)[-1:] == ["tasks"]
-                  and all(_bare(t) in _bare(rrows.get("tasks")) for t in tasks),
-                  screen="define/idea/start (the replay)", detail={"rows": rrows, "otherTasks": tasks}, stop=False)
+#: Spec 162 FR-1 (keel-cloud 271 FR-13's special scripts): how each solution leg tells its four beats -- FR-1b's solution
+#: beat 1 with advantages alone (code's ask), beat 2 with two rows, beat 3 in two parts across the quiet with one
+#: limitation left unmatched and corrected to a cross, beat 4 a feature first (code's ask); the money's solution (FR-1c)
+#: beat 1 with its steps, beat 2 with none, beat 3 corrected to a match, beat 4 the joy at once; the failed build's
+#: (FR-3) the plainest telling.
+IDEA_TELLINGS = ("asks", "plain", "failed")
+
+
+def idea_plan(run: Run, telling: str) -> dict[int, dict]:
+    """The four beats' words for one of `IDEA_TELLINGS`, every word the cloud's fake script's (`ss.idea_scripts`)."""
+    s = ss.idea_scripts(run.readings)
+    limits = s["limits"]
+    if telling == "asks":
+        cut = limits.find("That is the first one.") + len("That is the first one.")
+        return {1: {"words": s["advantages_only"], "then": [s["first_step"]]},
+                2: {"words": s["setup"]},
+                3: {"words": limits, "two_part": (limits[:cut].strip(), limits[cut:].strip()), "then": [s["cross"]]},
+                4: {"words": s["features"][0], "then": [s["joy"]]}}
+    if telling == "plain":
+        return {1: {"words": s["workflow"]}, 2: {"words": s["setup_none"]}, 3: {"words": limits, "then": [s["match"]]},
+                4: {"words": s["joy"]}}
+    return {1: {"words": s["workflow"]}, 2: {"words": s["setup"]}, 3: {"words": limits, "then": [s["cross"]]},
+            4: {"words": s["joy"]}}
+
+
+def _sent(answer: dict) -> str:
+    return str((answer.get("sent") or {}).get("text") or "")
+
+
+def idea_beats_checks(run: Run, leg: Leg, label: str, beats: dict, plan: dict, story: dict, idea: dict,
+                      *, name: str) -> None:
+    """Spec 162 FR-1 on the four beats: the questions 271's (filled from the brand and the story), every beat closed by
+    the done word (never the quiet) and sent without it, the asks and the cross as code words them, the two parts."""
+    limits = list(story.get("limits") or [])
+    rows_q = {n: (b.get("question") or "") for n, b in beats.items()}
+    templates = {n: re.compile("^" + re.escape(ss.IDEA_QUESTIONS[n]).replace(re.escape("{name}"), re.escape(name))
+                               .replace(re.escape("{role}"), ".+?").replace(re.escape("{task}"), ".+?")
+                               .replace(re.escape("{n}"), r"\w+").replace(re.escape("{the limitations}"), ".+?")
+                               .replace(re.escape("{the pain}"), ".+?") + "$") for n in ss.IDEA_BEATS}
+    exact3 = ss.idea_question(3, name=name, limits=limits)
+    leg.check(run, f"{label}: Keel asks the four beats in keel-cloud 271's words, the brand's name in them (beat 3 "
+                   "word for word: the limitations counted and named)",
+              all(templates[n].match(_norm_words(rows_q.get(n))) for n in ss.IDEA_BEATS)
+              and _norm_words(rows_q.get(3)) == exact3, screen="define/idea/1..4 (story-q)",
+              detail={"asked": rows_q, "beat 3 want": exact3}, stop=False)
+    sent = {n: [_sent(a) for a in b["answers"]] for n, b in beats.items()}
+    closed = {n: [a.get("done") for a in b["answers"]] for n, b in beats.items()}
+    leg.check(run, f"{label}: every beat a long beat -- closed by *That's it.* said as the last words, never by the "
+                   "quiet; each answer sent whole and without the done word; the last answer of each closes it "
+                   "(`done: true`)",
+              all(closed[n] and closed[n][-1] is True and all(x is not True for x in closed[n][:-1])
+                  for n in ss.IDEA_BEATS)
+              and all(t and not ss.ends_on_a_done_word(t) for ts_ in sent.values() for t in ts_),
+              screen="define/idea/1..4", detail={"sent": {n: [t[:80] for t in v] for n, v in sent.items()},
+                                                 "done": closed}, stop=False)
+    want_sent = {n: [plan[n]["words"]] + list(plan[n].get("then") or []) for n in ss.IDEA_BEATS}
+    leg.check(run, f"{label}: the words heard are the words said, beat by beat (the fake transcriber)",
+              all([_bare(t) for t in sent[n]] == [_bare(t) for t in want_sent[n]] for n in ss.IDEA_BEATS),
+              screen="define/idea/1..4", view="founder + wire",
+              detail={n: {"sent": [t[:60] for t in sent[n]], "said": [t[:60] for t in want_sent[n]]}
+                      for n in ss.IDEA_BEATS}, stop=False)
+    asks = {n: [a.get("ask") for a in b["answers"] if a.get("ask")] for n, b in beats.items()}
+    readbacks = {n: [a.get("readback") for a in b["answers"]] for n, b in beats.items()}
+    unmatched = [a.get("limit") for a in (idea.get("limitAnswers") or []) if not a.get("solved")]
+    s = ss.idea_scripts(run.readings)
+    if plan[1].get("then"):
+        leg.check(run, f"{label}: beat 1 answered with advantages alone -- code's one ask (*{ss.STEP_ASK}*) said, the "
+                       "steps answered after it; the workflow read with who does each step",
+                  asks[1] == [ss.STEP_ASK] and len(idea.get("workflow") or []) >= 1
+                  and all(w.get("by") in ("PERSON", "PRODUCT") for w in idea.get("workflow") or []),
+                  screen="define/idea/1 (the ask)", view="founder + wire",
+                  detail={"asks": asks[1], "workflow": idea.get("workflow")}, stop=False)
+    if len(beats[3]["answers"]) > 1:
+        first = beats[3]["answers"][0]
+        crossed = plan[3]["then"][0] == s["cross"]
+        held = [a.get("limit") for a in (idea.get("limitAnswers") or []) if not a.get("solved")]
+        want_ask = ss.unmatched_line(ss.UNMATCHED_ASK, [limits[i] for i, a in enumerate(
+            ss.idea_reading_of(run.readings, 3, plan[3]["words"]).get("limit_answers") or []) if not a.get("solved")])
+        last = readbacks[3][-1] or ""
+        leg.check(run, f"{label}: beat 3 -- one limitation left unmatched: the readback asks *{want_ask}* (`done: "
+                       "false`), the next words sent as its correction (`correction: true`), then "
+                       + ("the cross said (*I will show ... as not solved.*), the limitation crossed on the board"
+                          if crossed else "every limitation matched"),
+                  first.get("done") is False and want_ask in str(first.get("readback") or "")
+                  and (beats[3]["answers"][1].get("sent") or {}).get("correction") is True
+                  and ((ss.unmatched_line(ss.NOT_SOLVED, held) in last and bool(held)) if crossed else not held),
+                  screen="define/idea/3 (the ask, the correction)", view="founder + wire",
+                  detail={"readbacks": readbacks[3], "want ask": want_ask, "unmatched": unmatched}, stop=False)
+    if plan[4].get("then"):
+        leg.check(run, f"{label}: beat 4 answered with a feature -- code's one ask (*{ss.FEATURE_ASK}*), then the joy; "
+                       "the joy read, not a feature", asks[4] == [ss.FEATURE_ASK] and bool(idea.get("joy"))
+                  and idea.get("joyIsFeature") is False, screen="define/idea/4 (the ask)", view="founder + wire",
+                  detail={"asks": asks[4], "joy": idea.get("joy")}, stop=False)
+    if plan[3].get("two_part"):
+        q = beats[3].get("two_part") or {}
+        leg.check(run, f"{label}: beat 3 in two parts across {ss.TWO_PART_QUIET_S:.0f} s of quiet -- nothing sent in the "
+                       f"quiet, the beat still open, *{ss.THINK_LINE}*; the two parts sent as one answer",
+                  q.get("sent_in_the_quiet") == 0 and q.get("still_on_the_beat") and q.get("think_line")
+                  and q.get("joined"), screen="define/idea/3 (the quiet)", detail=q, stop=False)
+    if plan[2]["words"] == s["setup_none"]:
+        leg.check(run, f"{label}: beat 2 -- none to set up: *{ss.NOTHING_TO_SET_UP}* read back, `setupNone`",
+                  readbacks[2][-1] == ss.NOTHING_TO_SET_UP and idea.get("setupNone") is True and not idea.get("setup"),
+                  screen="define/idea/2", view="founder + wire", detail={"readback": readbacks[2]}, stop=False)
     else:
-        leg.notes.append(f"{label}: the replay's tasks row is pending keel-web 257 (not in the checkout)")
-    turn_screen(run, leg, label, replay["screen"], "define/idea/start (the replay)", card=True)
-    said = ss.said_idea(run.readings)
-    name = str(ss.idea_reading_of(run.readings, 1).get("name") or said[0][1])
-    words1 = ss.said_name(name)
-    beats = idea.beats(said, name_words=words1)
-    run.beats.append({"label": f"{label} (idea)", "project": solution, "beats": list(beats.values()), "idea": True})
-    b1, b2 = beats[1], beats[2]
-    brand = (((b1.get("put") or {}).get("body") or {}).get("idea") or {}).get("brand") or {}
-    leg.check(run, f"{label}: idea beat 1 -- *{words1}*: the name read and the colour said written as its hex "
-                   f"({ss.SAID_COLOUR[1]}); the drop zone the one control, no button",
-              (b1["put"]["status"] or 500) < 400 and brand.get("name") == name
-              and str(brand.get("colour") or "").lower() == ss.SAID_COLOUR[1] and b1["asked"].get("drop") is True
-              and not b1["asked"].get("buttons") and not b1["readback"].get("buttons"),
-              screen="define/idea/1", detail={"brand": brand, "asked": b1["asked"].get("question"),
-                                              "buttons": b1["asked"].get("buttons")})
-    read2 = ((b2.get("put") or {}).get("body") or {})
-    answers = ((read2.get("idea") or {}).get("limitAnswers") or [])
-    marks = b2["readback"].get("marks") or []
-    leg.check(run, f"{label}: idea beat 2 -- one answer mapped to ticks and crosses, one a limitation, the readback "
-                   "counting them; no button",
-              (b2["put"]["status"] or 500) < 400 and len(marks) == len(answers) == len(ss.limits_read(run.readings))
-              and [m.get("mark") for m in marks] == ["tick" if a.get("solved") else "cross" for a in answers]
-              and bool(read2.get("readback")) and not b2["readback"].get("buttons"),
-              screen="define/idea/2", detail={"marks": marks, "answers": answers, "readback": read2.get("readback")})
-    iu = b2["readback"].get("understood") or {}
-    imarks = ss.card_items(iu, "limits")
-    leg.check(run, f"{label}: idea beat 2's ticks and crosses are a card (`idea-understood`: *What Keel understood*, the "
-                   "row `limits`, each line `data-mark` tick or cross as the reading maps it; keel-web 249 FR-4)",
-              iu.get("label") == ss.CARD_LABEL and [r.get("box") for r in iu.get("rows") or []] == ["limits"]
-              and [m.get("mark") for m in imarks] == ["tick" if a.get("solved") else "cross" for a in answers],
-              screen="define/idea/2 (idea-understood)", detail={"card": iu, "answers": answers}, stop=False)
-    orbs = {n: b.get("orb") for n, b in beats.items()}
-    leg.check(run, f"{label}: the orb through each idea beat -- speaking, listening, hearing, writing, speaking, and from "
-                   "writing straight to speaking (keel-web 249)",
-              all(ss.holds_in_order(o or [], ss.BEAT_ORB) and ss.writing_then_speaking(o or []) for o in orbs.values()),
-              screen="define/idea/1..2", detail=orbs, stop=False)
-    small = {n: {k: (b.get("asked") or {}).get(k) for k in ("orbs", "orbSize", "glow", "line")} for n, b in beats.items()}
-    leg.check(run, f"{label}: the small orb on each idea beat (one, at most 44 px), its state line beside it, no glow",
-              all(v["orbs"] == 1 and (v["orbSize"] or 99) <= 44 and v["line"] and not v["glow"] for v in small.values()),
-              screen="define/idea/1..2 (story-orb, story-state)", detail=small, stop=False)
-    boxes = idea.boxes()
-    icard = boxes["screen"].get("card") or {}
-    irows = ss.card_rows(icard)
-    iticks = [m.get("mark") for m in ss.card_items(icard, "limits")]
-    leg.check(run, f"{label}: the idea's boxes are the card -- by `data-box`: the person, *The product* with the name "
-                   f"(`today`), *How it helps* as ticks and crosses (`limits`); *Is that your idea?*, no button, the quiet "
-                   "confirms (idea/confirm 200)",
-              boxes["confirm"]["status"] == 200 and boxes["screen"].get("said") == ss.IDEA_BOXES_ASK
-              and not boxes["screen"].get("buttons") and icard.get("label") == ss.CARD_LABEL
-              and "person" in irows and _bare(name) in _bare(irows.get("today"))
-              and iticks == ["tick" if a.get("solved") else "cross" for a in answers],
-              screen="define/idea/check (boxes)",
-              detail={"said": boxes["screen"].get("said"), "rows": irows, "marks": iticks,
-                      "names": {r.get("box"): r.get("name") for r in icard.get("rows") or []},
-                      "confirm": boxes["confirm"]["status"]})
-    turn_screen(run, leg, label, boxes["screen"], "define/idea/check (boxes)", card=True)
-    built = idea.building_then_story(name)
+        leg.check(run, f"{label}: beat 2 -- the setup's rows read back (*Before they can start: ...*)",
+                  str(readbacks[2][-1] or "").startswith("Before they can start: ") and bool(idea.get("setup")),
+                  screen="define/idea/2", view="founder + wire", detail={"readback": readbacks[2],
+                                                                         "setup": idea.get("setup")}, stop=False)
+    leg.check(run, f"{label}: no button on any beat but the orb", all(
+        not (b.get("asked") or {}).get("buttons") for b in beats.values()), screen="define/idea/1..4",
+        detail={n: (b.get("asked") or {}).get("buttons") for n, b in beats.items()}, stop=False)
+
+
+def idea_leg(run: Run, leg: Leg, solution: str, label: str, *, telling: str = "plain", back_to_money: bool = False,
+             before_yes: Callable[[], None] | None = None, name: str = ss.IDEA_NAME,
+             tagline: str = ss.IDEA_TAGLINE) -> dict:
+    """Spec 162 FR-1 to FR-3 (keel-web 259 on keel-cloud 271 / 273): the problem's film then the opening, the brand
+    typed, the four long beats (`telling`: `IDEA_TELLINGS`), the board's six rows by the quiet, the build, the plate and
+    the film in its chapters, then -- on a solution -- the verdict line, the pilot ask answered yes and the ready page;
+    on a money start's solution the quiet goes back to the money start."""
+    idea = ss.IdeaWalk(run.page, run.recorder, run.web)
+    problem = run.get(f"/v2/projects/{solution}/story") or {}
+    opened = idea.film_then_opening(solution)
+    people = ((problem.get("person") or {}).get("who")) or ""
+    brand = idea.brand_page(name=name, tagline=tagline)
+    # the idea is served once its brand is saved (before it `GET idea/spoken` is a 404: keel-web 259 judgement call 2)
+    view0 = run.get(f"/v2/projects/{solution}/idea/spoken") or {}
+    leg.check(run, f"{label}: the problem's film plays through the one player, then Keel says the opening (*Now we know "
+                   f"what {people} are trying to do ...*, the served `opening`), then `story/confirm` stamped with no "
+                   "words -- no board, no *still the problem*; the brand page opens",
+              opened["film"] and opened["said"] == ss.idea_opening(people)
+              and (not view0.get("opening") or opened["said"] == view0.get("opening"))
+              and opened["confirm"]["status"] == 200 and not opened["confirm"]["sent"] and not opened["board"]
+              and not opened["still"], screen="define/idea/start",
+              detail={"said": opened["said"], "served": view0.get("opening"), "film": opened["film"],
+                      "confirm": opened["confirm"]["status"], "sent": opened["confirm"]["sent"],
+                      "board": opened["board"], "still": opened["still"], "woke": opened.get("woke")})
+    sent = brand["put"]["sent"] or {}
+    leg.check(run, f"{label}: the brand page -- a page, no orb; the name, a colour and the tagline typed; the logo line "
+                   "read word for word; a non-square PNG refused on the spot with that same line, nothing uploaded; "
+                   "*Continue* sends `PUT idea/brand {name, colour, tagline}` and beat 1 opens",
+              brand["orb"] == 0 and brand["line"] == ss.LOGO_LINE and brand["fault"] == ss.LOGO_LINE
+              and not brand["uploads"] and brand["put"]["status"] == 200 and sent.get("name") == name
+              and sent.get("tagline") == tagline and str(sent.get("colour") or "").lower() == ss.IDEA_COLOUR,
+              screen="define/idea/brand", detail={k: brand.get(k) for k in ("orb", "line", "fault", "uploads", "count",
+                                                                              "preview")} | {"put": brand["put"]})
+    plan = idea_plan(run, telling)
+    beats = idea.beats(plan)
+    run.beats.append({"label": f"{label} (the solution's four beats)", "project": solution,
+                      "beats": list(beats.values()), "idea": True})
+    view = run.get(f"/v2/projects/{solution}/idea/spoken") or {}
+    idea_beats_checks(run, leg, label, beats, plan, problem, view, name=name)
+    board = idea.boxes()
+    verdict = ss.board_six_verdict(board["card"], view, name=name, tagline=tagline)
+    leg.check(run, f"{label}: the board -- six rows by `data-box` in order (the product with the tagline, *With it*, "
+                   "*Before that*, *What it does*, *In the way* with its ticks and crosses, *What they get*), each "
+                   "holding the idea's words; *Is that your idea?*; no button; the quiet confirms (idea/confirm 200)",
+              verdict["ok"] and board["said"] == ss.IDEA_BOXES_ASK and board["confirm"]["status"] == 200
+              and not (board["screen"] or {}).get("buttons"), screen="define/idea/check (the board)",
+              detail={"verdict": verdict, "said": board["said"], "confirm": board["confirm"]["status"],
+                      "rows": ss.card_rows(board["card"])}, stop=False)
+    lit = [x for x in board["lit"] if x and "," not in x]
+    leg.check(run, f"{label}: Keel names the six rows in the board's order, each lit as named",
+              [k for k in dict.fromkeys(lit)][:6] == [k for k in ss.IDEA_BOARD_ROWS if k in ss.card_rows(board["card"])],
+              screen="define/idea/check (the board)", detail={"lit": board["lit"]}, stop=False)
+    film = idea.building_then_film()
     spoken = run.get(f"/v2/projects/{solution}/idea/spoken") or {}
-    leg.check(run, f"{label}: the idea's build reaches ready; the day with the idea drawn", built["state"] == "story"
-              and ((spoken.get("build") or {}).get("state") == "ready"), screen="define/idea/check (story)",
-              detail={"screen": built["state"], "build": (spoken.get("build") or {}).get("state")})
-    probe = built.get("brand") or {}
-    label_ = probe.get("label") or {}
-    colour = ss.rgb_of(ss.SAID_COLOUR[1])
-    leg.check(run, f"{label}: the story carries the icon in the colour and the name clearly -- never faded, cropped or "
-                   "shrunk (the review condition)",
-              bool(label_) and (label_.get("opacity") or 0) >= 0.99 and label_.get("inside") is True
-              and label_.get("clipped") is False and (label_.get("fontPx") or 0) >= 12 and label_.get("color") == colour
-              and colour in (probe.get("badges") or []), screen="define/idea/check (story)",
-              detail={"probe": probe, "want colour": colour})
+    build = spoken.get("build") or {}
+    leg.check(run, f"{label}: the idea's build reaches ready; the film drawn", film["state"] == "story"
+              and build.get("state") == "ready", screen="define/idea/check (story)",
+              detail={"screen": film["state"], "build": build.get("state"), "failed": film.get("failed")})
+    scenes = ss.idea_scenes_verdict(build.get("story"), spoken, name=name, tagline=tagline)
+    run.__dict__.setdefault("idea_films", []).append({"label": label, "verdict": scenes})
+    leg.check(run, f"{label}: the film in five chapters -- at most eleven scenes, the opening line *This time, {name} is "
+                   "on the screen.*, the setup scene iff a setup, one scene a step, the limitations' marks the board's, "
+                   "the advantage iff read, the joy last (`joy: true`, the board's joy), the brand on every screen, a "
+                   "picture on every scene (FakePictures), one clip a line, the plate the brand with its tagline",
+              scenes["ok"], screen="GET idea (build.story)", view="wire", detail=scenes, stop=False)
+    plate = film.get("plate") or {}
+    words = [ss.CHAPTER_WORDS[c] for c in scenes["chapters"]]
+    leg.check(run, f"{label}: the plate (the name and the tagline) alone about three seconds before the film, then the "
+                   "chapters' words on the band in order (*Before*, *The task*, *What it solves*, ...)",
+              bool(plate.get("text")) and _bare(name) in _bare(plate.get("text"))
+              and (plate.get("held_s") or 0) >= 2.0 and film["chapters"] == [w for w in words if w in film["chapters"]]
+              and len(film["chapters"]) >= 2, screen="define/idea/check (the plate, the film)",
+              detail={"plate": plate, "chapters": film["chapters"], "want": words, "pictures": film["pictures"]},
+              stop=False)
     if before_yes:
         before_yes()
-    landed = idea.story_yes(lands=re.compile(r"start=money") if back_to_money else ss.COMPATIBILITY_PATH)
-    read = idea.turn_read()
-    hand_over_checks(run, leg, label, read, "define/idea/*", beat_path=r"/define/idea/\d$")
-    sheets = ss.sheet_verdict(read["sheets"])
-    leg.check(run, f"{label}: no welcome sheet on the solution's conversation, one sheet at a time (keel-web 249 FR-6)",
-              not sheets["welcome_on"] and sheets["one_at_a_time"], screen="define/idea/* (guide-opener, guide-welcome)",
-              detail={"sheets": sheets, "woke": replay.get("woke")}, stop=False)
-    heard = ss.heard_verdict(read["heard"], dict([(1, words1), (2, dict(said)[2])]), lambda n: f"/define/idea/{n}")
-    leg.check(run, f"{label}: each idea beat's words shown as heard (*What I hear*, `story-heard`), never among Keel's "
-                   "lines, in quotation marks (keel-web 249 FR-4)", heard["all_shown"] and heard["words_keels_only"]
-              and heard["quoted"],
-              screen="define/idea/1..2 (story-heard, story-words)", detail=heard, stop=False)
-    return {"name": name, "landed": landed["landed"], "said": said}
+    if back_to_money:
+        landed = idea.film_yes_to_money()
+        leg.check(run, f"{label}: the film's quiet goes back to the money start (no verdict, no pilot ask there)",
+                  "start=money" in landed["landed"] and not landed["verdict"], screen="define/idea/check -> money",
+                  detail=landed, stop=False)
+        return {"name": name, "landed": landed["landed"], "plan": plan, "idea": spoken}
+    after = idea.film_yes_verdict_pilot()
+    final = run.get(f"/v2/projects/{solution}/idea/spoken") or {}
+    leg.check(run, f"{label}: after the film's yes the verdict line on its card (`story-verdict`), word for word the "
+                   f"served `verdictLine` (*{ss.SOLUTION_VERDICT_LINE[:40]}...*), then *{ss.VERDICT_ASK}*; the quiet "
+                   "goes on", after["verdict"]["drawn"] and _norm_words(after["verdict"]["words"]).endswith(
+                       _norm_words(final.get("verdictLine"))) and final.get("verdictLine") == ss.SOLUTION_VERDICT_LINE
+              and any(ss.VERDICT_ASK in x for x in after["verdict"]["said"]), screen="define/idea/check (the verdict)",
+              detail={"verdict": after["verdict"], "served": final.get("verdictLine")}, stop=False)
+    put = after["pilot"]["put"]
+    leg.check(run, f"{label}: the pilot ask heard word for word (*{ss.pilot_ask(name)}*, the served `pilotAsk`), a yes "
+                   "said; `PUT idea/pilot {offer: true}` on the wire (200), the idea's `pilot` true",
+              after["pilot"]["ask"] == final.get("pilotAsk") == ss.pilot_ask(name) and put["status"] == 200
+              and (put["sent"] or {}).get("offer") is True and final.get("pilot") is True,
+              screen="define/idea/check (the pilot ask)", view="founder + wire",
+              detail={"pilot": after["pilot"], "served": final.get("pilotAsk"), "pilot now": final.get("pilot")},
+              stop=False)
+    return {"name": name, "landed": after["landed"], "plan": plan, "idea": final, "after": after}
+
+
+def ready_checks(run: Run, leg: Leg, solution: str, label: str, landed: str) -> None:
+    """Spec 162 FR-2: the ready page with no belief page on a spoken SOLUTION project -- the three SOLUTION beliefs
+    written at the board's yes (*6 or 7 in 10* each, `p_60_80`), nothing owed; the Before screen's pilot question
+    absent (`pilot-first-step` not drawn, no pilot screen)."""
+    leg.check(run, f"{label}: the pilot's yes goes on to the ready page -- no belief page drawn on a spoken SOLUTION "
+                   "project (`calibrates(spoken)` on SOLUTION)", bool(READY_PATH.search(landed))
+              and "/define/solution/q/" not in landed and not vs_screens.calibrates("SOLUTION", "SOLUTION", spoken=True),
+              screen="define/ready", detail={"landed": landed}, stop=False)
+    review = run.get(f"/v2/projects/{solution}/review/SOLUTION") or {}
+    rows = vs_screens.solution_written(review, wait_calibration(run, solution, "SOLUTION"))
+    leg.check(run, f"{label}: the SOLUTION review table's three rows as written at the yes -- *6 or 7 in 10* on "
+                   "Compatibility, Relative advantage and Adoption friction (`p_60_80`), complete",
+              rows["codes"] == {k: ["p_60_80"] for k in vs_screens.SOLUTION_WRITTEN}
+              and all(rows["labels"].get(k) == vs_screens.SOLUTION_BIN_LABEL for k in vs_screens.SOLUTION_WRITTEN),
+              screen="review/SOLUTION", view="wire", detail=rows, stop=False)
+    page = run.page
+    shown: list[dict] = []
+    for screen in ("word", "pilot", "interviewer"):
+        page.goto(f"{run.web}/p/{solution}/define/ready/{screen}", wait_until="load")
+        page.wait_for_timeout(1500)
+        shown.append({"screen": screen, "url": page.url, "pilot-first-step": page.get_by_test_id(
+            "pilot-first-step").count(), "pilot-pick": page.get_by_test_id("pilot-pick").count(),
+            "counter": _safe(lambda: page.get_by_test_id("before-counter").first.inner_text())
+            if page.get_by_test_id("before-counter").count() else None})
+    leg.check(run, f"{label}: the Before step's pilot question is absent where the pilot was answered by voice -- no "
+                   "pilot screen, no `pilot-first-step` (the counter as drawn kept in the detail)",
+              all(s_["pilot-first-step"] == 0 and s_["pilot-pick"] == 0 for s_ in shown),
+              screen="define/ready (Before people see it)", detail=shown, stop=False)
+    plan = run.get(f"/v2/projects/{solution}/plan") or {}
+    leg.notes.append(f"{label}: the Before step as drawn after the spoken pilot -- {shown}; plan pilotEnabled "
+                     f"{plan.get('pilotEnabled')}")
+
+
+def failed_build_walk(run: Run, leg: Leg) -> None:
+    """Spec 162 FR-3: a failed build walked once -- a solution on the defined problem of FR-1a, the brand the cloud's
+    scripted review always answers no on (`ideaReviews`), the beats told, the board's yes: the build fails on its chapter
+    (`failedChapter`), Keel says *Keel could not draw {chapter}. Say that part again?* and opens that beat again."""
+    problem = run.projects.get("a-script")
+    reviews = run.readings.get("ideaReviews") or []
+    if not problem or not reviews:
+        leg.notes.append("the failed build was not walked: no defined problem of FR-1a, or no scripted review")
+        return
+    failing = str(reviews[0].get("name"))
+    run.new_project(f"162 solution failed {run.stamp}", "SOLUTION")
+    start = ss.SolutionStart(run.page, run.recorder, run.web)
+    start.press_start()
+    start.read()
+    run.load_runtime("SOLUTION")
+    made = start.pick(problem)
+    solution = str((made["body"] or {}).get("projectId"))
+    run.projects["b-failed"] = solution
+    idea = ss.IdeaWalk(run.page, run.recorder, run.web)
+    idea.film_then_opening(solution)
+    idea.brand_page(name=failing, tagline=ss.IDEA_TAGLINE)
+    idea.beats(idea_plan(run, "failed"))
+    idea.boxes()
+    film = idea.building_then_film()
+    build = ((run.get(f"/v2/projects/{solution}/idea/spoken") or {}).get("build")) or {}
+    failed = film.get("failed") or {}
+    chapter = build.get("failedChapter")
+    want = ss.failed_say(chapter or "")
+    reopened = str(failed.get("reopened") or "")
+    beat = build.get("failedBeat") or ss.BEAT_OF_CHAPTER.get(str(chapter))
+    leg.check(run, f"a failed build (the brand *{failing}*, reviewed no twice): `build.state` failed with its chapter "
+                   f"(`failedChapter` {chapter}), *{want}* said on the building screen (`data-failed-chapter`), then "
+                   "that part's beat opened again",
+              build.get("state") == "failed" and bool(chapter) and failed.get("chapter") == chapter
+              and failed.get("said") == want and reopened == ("brand" if chapter == "brand" else str(beat)),
+              screen="define/idea/check (the failed build)", view="founder + wire",
+              detail={"build": {k: build.get(k) for k in ("state", "failedChapter", "failedBeat", "failedScene")},
+                      "screen": failed, "want": want}, stop=False)
 
 
 def fr1_b(run: Run, leg: Leg) -> None:
-    name = f"158 solution {run.stamp}"
+    name = f"162 solution {run.stamp}"
     run.new_project(name, "SOLUTION")
     start = ss.SolutionStart(run.page, run.recorder, run.web)
     start.press_start()
@@ -1200,8 +1371,6 @@ def fr1_b(run: Run, leg: Leg) -> None:
     leg.check(run, "the story's quiet is the return trip: the which-problem page with the problem just agreed picked",
               f"problem={problem}" in told["landed"], screen="define/story/check -> /?start=solution",
               detail=told["landed"])
-    # the list is read again on the return trip (the problem just agreed joins it, picked): waited for, so a read
-    # while the list re-renders is not taken for the page (spec 158c's second run read the old rows mid-refresh)
     try:
         run.page.wait_for_function(
             "(p) => { const rows = [...document.querySelectorAll('[data-testid=solution-candidate]')]; "
@@ -1223,18 +1392,17 @@ def fr1_b(run: Run, leg: Leg) -> None:
                    "names it", made["status"] == 201 and (made["sent"] or {}).get("parentProjectId") == problem
               and ((made["body"] or {}).get("lineage") or {}).get("problemProjectId") == problem,
               screen="which problem", detail=made)
-    done = idea_leg(run, leg, solution, "the solution")
-    leg.check(run, "the idea's story's quiet lands on Compatibility", bool(ss.COMPATIBILITY_PATH.search(done["landed"])),
-              screen="define/solution/q/1", detail=done["landed"])
+    done = idea_leg(run, leg, solution, "the solution", telling="asks")
+    run.__dict__["founders_solution"] = {"label": "the solution", "project": solution, **{
+        k: done.get(k) for k in ("name", "landed")}, "idea": done.get("idea"), "after": done.get("after")}
+    ready_checks(run, leg, solution, "the solution", done["landed"])
     calibration = wait_calibration(run, solution, "SOLUTION")
-    ra = next((q for q in calibration.get("questions") or [] if q.get("dimension") == "solution.relative_advantage"),
-              {})
-    benefits = list(ss.idea_reading_of(run.readings, 2).get("benefits") or [])
-    said_what = json.dumps(ra.get("answerWhat") or ra.get("answer") or "")
-    leg.check(run, "Relative advantage arrives pre-filled with the idea's benefits (keel-cloud 260 judgement call 12)",
-              bool(benefits) and all(b in said_what for b in benefits), screen="define/solution (Relative advantage)",
-              view="wire", detail={"answerWhat": ra.get("answerWhat"), "benefits": benefits,
-                                   "state": calibration.get("state")})
+    leg.check(run, "the SOLUTION calibration answered at the board's yes -- the three questions served answered, none "
+                   "owed (keel-cloud 271 judgement call 16: `calibrated`)",
+              vs_screens.solution_calibration_answered(calibration), screen="calibration/SOLUTION", view="wire",
+              detail={"state": calibration.get("state"), "total": calibration.get("total"),
+                      "answered": calibration.get("answered")}, stop=False)
+    failed_build_walk(run, leg)
 
 
 def wait_calibration(run: Run, project_id: str, vector: str, *, timeout_s: float = 60) -> dict:
@@ -1494,7 +1662,7 @@ def fr1_c(run: Run, leg: Leg) -> None:
               got.value.status == 201 and (got.value.request.post_data_json or {}).get("parentProjectId") == problem,
               screen="which solution", detail=got.value.request.post_data_json)
     # the runtime moves to the money before the idea's quiet goes back (157's order: the money project is made next)
-    done = idea_leg(run, leg, solution, "the money's solution", back_to_money=True,
+    done = idea_leg(run, leg, solution, "the money's solution", telling="plain", back_to_money=True,
                     before_yes=lambda: run.load_runtime("COMMERCIAL"))
     use = page.locator(f"[data-testid=money-solution][data-project='{solution}'] [data-testid=money-use-solution]").first
     use.wait_for(state="visible", timeout=30_000)
@@ -1518,19 +1686,20 @@ def fr1_c(run: Run, leg: Leg) -> None:
               and not replay["screen"].get("buttons"), screen="define/money/start",
               detail={"said": said, "rows": ss.card_rows(replay["screen"].get("card")), "landed": replay["landed"],
                       "woke": replay.get("woke")})
-    money_card(run, leg, "the money's replay", replay, done["name"])
+    money_card(run, leg, "the money's replay", replay, done["name"], idea=done.get("idea"))
     ss.pass_the_welcome(page)
     context = run.get(f"/v2/projects/{money}/context") or {}
     idea_view = run.get(f"/v2/projects/{money}/idea") or {}
     actor = ss.reading_of(run.readings, 1).get("actor")
     leg.check(run, "the persona screen, pre-filled: the chain's actor and the idea's name",
               (context.get("fields") or {}).get("actor") is not None and bool(idea_view.get("what") or
-                                                                              idea_view.get("shortName")),
+                                                                              idea_view.get("shortName") or done["name"]),
               screen="define/persona", detail={"context": context.get("fields"), "actor (script)": actor,
                                                "idea": {k: idea_view.get(k) for k in ("what", "shortName", "line")}})
     j = run.journey("c", "COMMERCIAL", money)
     # the idea's name every money question uses is the chain's (keel-cloud 261 FR-2: Price names the idea)
-    j.idea_name = str(idea_view.get("shortName") or idea_view.get("what") or "")
+    # spec 162 (keel-cloud 271): a spoken idea's name is its brand's (the typed idea's `shortName` where one was typed)
+    j.idea_name = str(idea_view.get("shortName") or idea_view.get("what") or done["name"] or "")
     j.idea_what_it_is = idea_view.get("whatItIs")
     j.idea_line = idea_view.get("line") or None
     cs.leg_persona(j)
@@ -1550,16 +1719,29 @@ def fr1_c(run: Run, leg: Leg) -> None:
     money_by_name(run, leg, problem, done["name"])
 
 
-def money_card(run: Run, leg: Leg, label: str, replay: dict, product: str) -> None:
+def money_card(run: Run, leg: Leg, label: str, replay: dict, product: str, *, idea: dict | None = None) -> None:
     """Spec 158c FR-7 (keel-web 249 FR-5): the money front's replay is the card -- *What Keel understood*, the person,
     *The product* with the name (`today`), no cost row, nothing drawn -- under the small orb, no glow; its one
-    hand-over chimed once; no welcome sheet on `define/money/start` (FR-8)."""
+    hand-over chimed once; no welcome sheet on `define/money/start` (FR-8). Spec 162 FR-4 (keel-web 259 FR-9): on a
+    spoken idea (`idea`, its board) the replay reads the board's rows -- the workflow, the setup, the statement, the
+    limitations and the joy -- in place of the product sentence and the *So* line."""
     card = replay["screen"].get("card") or {}
     rows = ss.card_rows(card)
-    leg.check(run, f"{label}: the card (by `data-box`: the person, *The product* naming *{product}*, no cost row)",
-              card.get("label") == ss.CARD_LABEL and "person" in rows and _bare(product) in _bare(rows.get("today"))
-              and "cost" not in rows, screen="define/money/start (story-boxes)",
-              detail={"rows": rows, "lit": card.get("lit")}, stop=False)
+    if idea and idea.get("workflow"):
+        said = [_norm_words(x.get("text")) for x in replay["screen"].get("words") or []]
+        verdict = ss.board_six_verdict({"rows": [r for r in card.get("rows") or [] if r.get("box") in
+                                                 ss.IDEA_BOARD_ROWS]}, idea, name=product, tagline=None)
+        leg.check(run, f"{label}: the replay reads the idea's board (by `data-box`: the person, then *{product}*, the "
+                       "workflow, the setup, the statement, the limitations and the joy), no product sentence, no *So* "
+                       "row, no cost row (keel-web 259 FR-9)",
+                  "person" in rows and not verdict["missing"] and "today" not in rows and "cost" not in rows
+                  and all(k in rows for k in ("workflow", "statement", "joy")), screen="define/money/start (story-boxes)",
+                  detail={"rows": rows, "verdict": verdict, "lit": card.get("lit"), "said": said}, stop=False)
+    else:
+        leg.check(run, f"{label}: the card (by `data-box`: the person, *The product* naming *{product}*, no cost row)",
+                  card.get("label") == ss.CARD_LABEL and "person" in rows and _bare(product) in _bare(rows.get("today"))
+                  and "cost" not in rows, screen="define/money/start (story-boxes)",
+                  detail={"rows": rows, "lit": card.get("lit")}, stop=False)
     turn_screen(run, leg, label, replay["screen"], "define/money/start", card=True)
     read = replay.get("turn") or {}
     v = (read.get("chime") or {})

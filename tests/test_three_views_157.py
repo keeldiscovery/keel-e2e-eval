@@ -48,13 +48,14 @@ def test_the_beats_are_the_scripts_heard_words_in_order():
 
 
 def test_the_idea_beats_answer_every_limit_of_the_story():
-    """Spec 158 (keel-cloud 263 FR-9): two idea beats; beat 2's one answer maps every limitation of the story."""
+    """Spec 162 FR-1 (keel-cloud 271 FR-3 to FR-6; 158's two beats of 263 before it): four idea beats; beat 3's one
+    answer maps every limitation of the story."""
     script = readings()
     idea = ss.said_idea(script)
-    assert [n for n, _ in idea] == [1, 2]
-    second = ss.idea_reading_of(script, 2, idea[-1][1])
-    assert len(second.get("limit_answers") or []) == len(ss.limits_read(script))
-    assert second.get("new_way") and second.get("benefits")
+    assert [n for n, _ in idea] == [1, 2, 3, 4]
+    third = ss.idea_reading_of(script, 3, dict(idea)[3])
+    assert len(third.get("limit_answers") or []) == len(ss.limits_read(script))
+    assert third.get("statement") and third.get("advantage")
 
 
 def test_the_prevalence_fixture_carries_the_four_fields():
@@ -228,11 +229,17 @@ WEB_SELECTORS = {
     "src/components/guide/GuideStage.tsx": ("guide-skip",),
     "src/components/idea/SolutionStart.tsx": ("solution-start", "solution-candidate", "solution-pick",
                                               "solution-create-problem", "solution-candidate-frame"),
-    "src/components/idea/IdeaStart.tsx": ("idea-still",),
-    "src/components/idea/IdeaTurn.tsx": ("idea-turn", "idea-card-limit", "idea-understood"),
-    "src/components/idea/LogoDrop.tsx": ("idea-drop",),
-    "src/components/idea/IdeaBoxes.tsx": ("idea-check", "idea-boxes-screen", "idea-boxes-said", "idea-readback-story",
-                                          "idea-story-player"),
+    # spec 162 (keel-web 259's eval mirrors): the film opens the solution, the brand typed, four beats, the board, the
+    # plate and the film, the verdict and the pilot ask, the failed build
+    "src/components/idea/IdeaStart.tsx": ("idea-start", "idea-problem-film", "idea-start-said"),
+    "src/components/idea/IdeaBrandPage.tsx": ("idea-brand-page", "idea-name", "idea-tagline", "idea-tagline-count",
+                                              "idea-swatch", "idea-brand-preview", "idea-brand-continue"),
+    "src/components/idea/IdeaTurn.tsx": ("idea-turn", "idea-understood"),
+    "src/components/idea/LogoDrop.tsx": ("idea-drop", "idea-icon-file", "idea-logo-line", "idea-icon-fault"),
+    "src/components/idea/IdeaBoxes.tsx": ("idea-check", "idea-boxes-screen", "idea-board", "idea-boxes-said",
+                                          "idea-readback-story", "idea-story-player", "idea-verdict-screen",
+                                          "idea-verdict-said", "idea-pilot", "idea-pilot-card", "idea-pilot-options",
+                                          "idea-building", "idea-story-said"),
     "src/components/money/MoneyStart.tsx": ("money-start", "money-problem", "money-pick-problem", "money-create-problem",
                                             "money-solution", "money-use-solution", "money-create-solution",
                                             "money-offer-name", "money-use-name"),
@@ -305,7 +312,8 @@ def test_the_story_lines_are_keel_webs():
     questions = ss.STORY_QUESTIONS if ss.web_has_257(WEB) else ss.STORY_QUESTIONS_263
     for n, question in questions.items():
         assert f'"{question}"' in source, (n, question)
-    for line in (ss.STORY_READY, ss.SOLUTION_READY, ss.SOLUTION_TURN):
+    # spec 162 (keel-web 259): the solution's *Ready?* and its turn line retired with the replay
+    for line in (ss.STORY_READY,) + (() if ss.web_has_259(WEB) else (ss.SOLUTION_READY, ss.SOLUTION_TURN)):
         assert f'"{line}"' in source, line
     translate = (WEB / "src" / "lib" / "translate.ts").read_text(encoding="utf-8")
     for words in (ss.STORY_KICKER, ss.VOICE_READS, ss.BEGIN_TITLE, ss.BOXES_ASK, ss.STORY_ASK, ss.IDEA_BOXES_ASK,

@@ -295,7 +295,7 @@ def reading_rows(ledger: list[dict]) -> dict:
     """Spec 161 FR-11: the free readings' rows on the ledger, counted by action (what the run met)."""
     out: dict = {}
     for row in ledger:
-        if row.get("action") in FREE_READINGS:
+        if row.get("action") in FREE_READINGS + SOLUTION_READINGS:
             out[row["action"]] = out.get(row["action"], 0) + 1
     return out
 
@@ -322,3 +322,19 @@ def orb_charge_faults(ledger: list[dict]) -> list[str]:
             faults.append(f"a charge that is not bought: {row.get('action')} {row.get('credits')} "
                           f"({row.get('idempotency_key')})")
     return faults
+
+
+#: Spec 162 FR-10 (keel-cloud 271 / 273): `InferenceCharge.VERSION` 22 -- `STORY_PICTURES` and `PICTURE_REVIEW` added,
+#: priced 0 (`PICTURE_DRAW` kept at 0, never written); `IDEA_TURN` 0 as before; the idea's review metered on STORY_CHECK.
+PRICE_VERSION_273 = 22
+#: The readings the founder's solution and the film's pictures run as: never a charge.
+SOLUTION_READINGS = ("IDEA_TURN", "IDEA_CORRECT", "IDEA_DRAFT", "IDEA_REVIEW", "STORY_PICTURES", "PICTURE_REVIEW",
+                     "PICTURE_DRAW")
+
+
+def solution_reading_faults(ledger: list[dict]) -> list[str]:
+    """Spec 162 FR-10: an idea turn, a picture or a picture review that moved credits or was priced -- [] where every
+    such row is 0 credits, priced 0."""
+    return [f"{row.get('action')} row {row.get('idempotency_key')}: credits {row.get('credits')}, price "
+            f"{row.get('price_credits')}" for row in ledger if row.get("action") in SOLUTION_READINGS
+            and (int(row.get("credits") or 0) != 0 or int(row.get("price_credits") or 0) != 0)]

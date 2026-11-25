@@ -66,7 +66,10 @@ def test_e2e_157_three_views(stack, browser):
             surfaces = report.surface_rows(run.__dict__.get("surfaces"), run.__dict__.get("surface_verdicts"))
             meta["contract"] = run.__dict__.get("contract_read")
             written = report.write_report(folder / "report.md", legs, meta, scan, run.beats, run.fits, run.turns,
-                                           run.orbs, speakers, surfaces, run.__dict__.get("founder_beats"))
+                                           run.orbs, speakers, surfaces, run.__dict__.get("founder_beats"),
+                                           {"args": (run.__dict__.get("founders_solution"),
+                                                     run.__dict__.get("idea_films"),
+                                                     run.__dict__.get("first_question"))})
             (bundle / "report.md").write_text(written.read_text(encoding="utf-8"), encoding="utf-8")
             print(f"\nreport: {written}\nbundle: {bundle}")
     assert scan.get("clean") is not False, report.scan_line(scan)

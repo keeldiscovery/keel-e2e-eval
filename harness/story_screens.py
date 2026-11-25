@@ -100,14 +100,6 @@ def said_turns(script: dict) -> list[tuple[int, str]]:
     return out
 
 
-def said_idea(script: dict) -> list[tuple[int, str]]:
-    """keel-cloud 263 FR-9's two idea beats as said: the name (and the look), then how it solves the limitations."""
-    out = [(int(t["turn"]), str(t["heard"])) for t in _answers(script, "ideaTurns")]
-    if [n for n, _ in out] != [1, 2]:
-        raise ValueError(f"the fake readings' idea beats are not 1 and 2: {[n for n, _ in out]}")
-    return out
-
-
 def reading_of(script: dict, turn: int, heard: str | None = None, *, correction: bool = False) -> dict:
     """The scripted result for beat `turn` (the first, or the one heard as `heard`; a correction's where asked)."""
     for t in script.get("turns") or []:
@@ -115,14 +107,6 @@ def reading_of(script: dict, turn: int, heard: str | None = None, *, correction:
                 and (heard is None or t["heard"] == heard):
             return dict(t["result"])
     raise KeyError(f"no fake reading for beat {turn}{' (a correction)' if correction else ''}")
-
-
-def idea_reading_of(script: dict, turn: int, heard: str | None = None, *, correction: bool = False) -> dict:
-    for t in script.get("ideaTurns") or []:
-        if int(t["turn"]) == turn and bool(t.get("correction")) == correction \
-                and (heard is None or t["heard"] == heard):
-            return dict(t["result"])
-    raise KeyError(f"no fake idea reading for beat {turn}")
 
 
 def moment_beat(script: dict) -> int:
@@ -1576,85 +1560,490 @@ def rgb_of(hex_colour: str) -> str:
     return f"rgb({int(h[0:2], 16)}, {int(h[2:4], 16)}, {int(h[4:6], 16)})"
 
 
+# ------------------------------------------------------------------------------------ spec 162: the founder's solution
+# keel-cloud 271 (contract 88) / 273 (89) / 272 (90), keel-web 259 / 261: the problem's film opening the solution, the
+# brand typed, four long beats, the board's six rows, the film in five chapters behind the brand plate, the verdict
+# line and the pilot ask, then the ready page. Every fixed word here is keel-cloud's (`IdeaTurns`, `SolutionLink`) or
+# keel-web's (`translate.ts` IDEA), copied word for word; nothing is composed.
+
+#: Spec 162 FR-1 (keel-cloud 271 FR-3 to FR-6): the four beats -- 1 the workflow, 2 the setup, 3 the limitations in
+#: one breath, 4 the joy. Every one a long beat (keel-web 259 FR-3, `IDEA_LONG_BEATS`).
+IDEA_BEATS = (1, 2, 3, 4)
+WORKFLOW_BEAT, SETUP_BEAT, LIMITS_BEAT, JOY_BEAT = IDEA_BEATS
+IDEA_LONG_BEATS = IDEA_BEATS
+#: keel-cloud 271 `IdeaTurns.QUESTIONS`, verbatim (the placeholders keel-cloud's).
+IDEA_QUESTIONS = {
+    1: "Now I want to know how {name} does the same task. With {name} in their hands, how does {role} {task}, from the "
+       "first step to the last?",
+    2: "Before {role} can use {name} this way, is there anything they must do first? A setup, training, a security "
+       "review, data to send? Tell me, or say none.",
+    3: "Today they ran into {n} things: {the limitations}. Tell me how {name} solves them.",
+    4: "In the problem, the cost to them was {the pain}. Now, with {name}, what do they get instead? Tell me the "
+       "opposite of that cost.",
+}
+#: keel-cloud 271 `IdeaTurns.OPENING` -- said after the problem's film ({role} the story's people).
+IDEA_OPENING = ("Now we know what {role} are trying to do and how they do it today. We know where it falls short and "
+                "what it costs them. Now imagine how your product solves it. First, let us create the brand.")
+#: keel-cloud 271 `IdeaTurns`: the three asks, the cross, the readbacks' fixed words.
+STEP_ASK = "Start from the first thing they do. What happens first?"
+UNMATCHED_ASK = "I did not understand how {X} is solved. Can you think about it?"
+NOT_SOLVED = "I will show {X} as not solved."
+FEATURE_ASK = "That is what it does. What do they get back because of it?"
+NOTHING_TO_SET_UP = "Nothing to set up."
+#: keel-cloud 271 FR-11 (`IdeaTurns.PILOT_ASK`).
+PILOT_ASK = ("Now {name} is defined. Would you like to invite the people who finish the interview to try it as a "
+             "pilot?")
+#: keel-cloud 271 FR-8: the verdict on the default bins (`p_60_80` on the three).
+SOLUTION_VERDICT_LINE = ("I will call this real if at least six in ten say it fits how they work, six in ten say it is "
+                         "better, and six in ten say they could start without trouble.")
+#: keel-cloud 271 FR-9: the film's first line.
+FILM_OPENING = "This time, {name} is on the screen."
+#: keel-cloud 271 FR-9 (`IdeaScene.chapter`) and keel-web 261 (`STORY.chapters`): the five chapters, in order, and
+#: their band's words.
+IDEA_CHAPTERS = ("before", "task", "solves", "better", "joy")
+CHAPTER_WORDS = {"before": "Before", "task": "The task", "solves": "What it solves", "better": "Better",
+                 "joy": "What they get"}
+#: keel-cloud 271 FR-9: at most eleven scenes.
+IDEA_MAX_SCENES = 11
+#: keel-web 259 FR-6 (`PLATE_MS`): the plate alone before the film's first scene.
+PLATE_MS = 3_000
+#: Spec 162 FR-1 (keel-web 259 FR-4, `ideaBoardRows`): the board's six rows by `data-box`, in order.
+IDEA_BOARD_ROWS = ("product", "workflow", "setup", "statement", "limits", "joy")
+IDEA_BOARD = "[data-testid=idea-board]"
+#: keel-web 259 FR-2 (`IDEA.brandPage.logoLine`): the fixed line under the drop box, and a bad file's refusal.
+LOGO_LINE = ("A square PNG or SVG, 256 to 4,096 px a side, up to 1 MB. It is drawn small, so a simple mark reads "
+             "best.")
+#: keel-web 259 FR-7 (`IDEA.failed`): the failed build's line and the chapter as the sentence names it.
+FAILED_SAY = "Keel could not draw {part}. Say that part again?"
+FAILED_PARTS = {"before": "the setup", "task": "the task", "solves": "what it solves", "better": "what is better",
+                "joy": "what they get", "brand": "the brand"}
+#: keel-cloud 271 judgement call 9 (the beat a chapter reopens; keel-web `BEAT_OF_CHAPTER`).
+BEAT_OF_CHAPTER = {"before": 2, "task": 1, "solves": 3, "better": 3, "joy": 4}
+#: keel-web 259 `BRAND_SWATCHES`: the brand page's five; the walk picks the second.
+BRAND_SWATCHES = ("#2255aa", "#1f7a5a", "#b8432f", "#7a4fb0", "#c98a1b")
+#: The brand the walk types (spec 162 FR-1): the name is the one the cloud's fake script tells the beats with (keel-cloud
+#: 271 judgement call 21: an invented product, the payroll story's), a tagline of the walk's own (eight words at most).
+IDEA_NAME = "Runcheck"
+IDEA_TAGLINE = "Every changed line, seen before sign-off."
+IDEA_COLOUR = BRAND_SWATCHES[1]
+#: The pilot's answer said by voice (keel-web 259 FR-5: a yes writes `PUT idea/pilot {offer: true}`).
+PILOT_YES = "Yes, please."
+SOLUTION_READY_PATH = re.compile(r"/define/ready(?:/|$|[?#])")
+IDEA_START = "[data-testid=idea-start]"
+IDEA_BRAND_PAGE = "[data-testid=idea-brand-page]"
+
+
+def _idea_answers(script: dict, n: int) -> list[dict]:
+    return [t for t in _answers(script, "ideaTurns") if int(t["turn"]) == n]
+
+
+def said_idea(script: dict) -> list[tuple[int, str]]:
+    """Spec 162 FR-1 (keel-cloud 271 FR-3 to FR-6): the four beats as the founder says them -- each beat's first answer
+    in the script (beat 1 the workflow with who does each step, 2 the setup, 3 the limitations in one breath, 4 the joy);
+    the later answers of a beat are the special scripts (`idea_scripts`). Any other order is refused by name."""
+    firsts: list[tuple[int, str]] = []
+    seen: list[int] = []
+    for t in _answers(script, "ideaTurns"):
+        n = int(t["turn"])
+        if n not in seen:
+            seen.append(n)
+            firsts.append((n, str(t["heard"])))
+    if seen != list(IDEA_BEATS):
+        raise ValueError(f"the fake readings' idea beats are not keel-cloud 271's four (1, 2, 3, 4): {seen}")
+    return firsts
+
+
+def idea_reading_of(script: dict, turn: int, heard: str | None = None, *, correction: bool = False) -> dict:
+    """The scripted reading of idea beat `turn` (its first answer, or the one heard as `heard`; a correction's)."""
+    for t in script.get("ideaTurns") or []:
+        if int(t["turn"]) == turn and bool(t.get("correction")) == correction \
+                and (heard is None or t["heard"] == heard):
+            return dict(t["result"])
+    raise KeyError(f"no fake idea reading for beat {turn}{' (a correction)' if correction else ''}")
+
+
+def idea_scripts(script: dict) -> dict:
+    """Spec 162 FR-1: keel-cloud 271's special scripts on the fake readings, by what they walk --
+    `workflow` beat 1's three steps (an advantage held); `advantages_only` beat 1 answered with advantages alone and
+    `first_step` the answer after code's ask; `setup` beat 2 with rows and `setup_none` with none; `limits` beat 3's
+    long answer (one limitation left unmatched: code's ask), `match` the correction that matches it and `cross` the
+    one that leaves it a cross; `joy` beat 4's joy and `features` its feature answers (code's ask)."""
+    one = _idea_answers(script, 1)
+    stepped = [t for t in one if (t["result"].get("workflow") or [])]
+    bare = [t for t in one if not (t["result"].get("workflow") or [])]
+    two = _idea_answers(script, 2)
+    three = _idea_answers(script, 3)
+    fixes = [t for t in script.get("ideaTurns") or [] if int(t["turn"]) == 3 and t.get("correction")]
+    match = [t for t in fixes if all(a.get("solved") for a in t["result"].get("limit_answers") or [])]
+    cross = [t for t in fixes if not all(a.get("solved") for a in t["result"].get("limit_answers") or [])]
+    four = _idea_answers(script, 4)
+    joys = [t for t in four if not t["result"].get("is_feature")]
+    features = [t for t in four if t["result"].get("is_feature")]
+    pick = lambda rows: str(rows[0]["heard"]) if rows else None                       # noqa: E731
+    return {"workflow": pick([t for t in stepped if (t["result"].get("heard") or {}).get("advantage")] or stepped),
+            "advantages_only": pick(bare),
+            "first_step": pick([t for t in stepped if not (t["result"].get("heard") or {}).get("advantage")]),
+            "setup": pick([t for t in two if t["result"].get("setup")]),
+            "setup_none": pick([t for t in two if t["result"].get("setup_none")]),
+            "limits": pick(three), "match": pick(match), "cross": pick(cross),
+            "joy": pick(joys), "features": [str(t["heard"]) for t in features]}
+
+
+def idea_question(n: int, *, name: str, person: str | None = None, people: str | None = None, job: str | None = None,
+                  limits: list[str] | None = None, cost: str | None = None) -> str:
+    """keel-cloud 271 `IdeaTurns.question(n, ...)`: beat `n`'s question with every placeholder filled -- the brand's
+    name (else *it*), beat 1 the person with an indefinite article and the job, beat 2 the people, beat 3 the
+    limitations counted and joined, beat 4 the cost (its first letter lower-case)."""
+    said = name.strip() if name and name.strip() else "it"
+    q = IDEA_QUESTIONS[n].replace("{name}", said)
+    if n == 1:
+        return q.replace("{role}", _with_article(person or "someone")).replace("{task}", _bare_end(job or "do the task"))
+    if n == 2:
+        return q.replace("{role}", (people or "they").strip())
+    if n == 3:
+        rows = [_lower_first(x) for x in limits or []]
+        return q.replace("{n}", _count(len(rows))).replace("{the limitations}", _joined(rows))
+    return q.replace("{the pain}", _lower_first(_bare_end(cost or "what it cost them")))
+
+
+def idea_opening(people: str) -> str:
+    """keel-cloud 271 `IdeaTurns.opening`: the opening with the story's people."""
+    return IDEA_OPENING.replace("{role}", people.strip())
+
+
+def unmatched_line(template: str, limits: list[str]) -> str:
+    """keel-cloud 271 `IdeaTurns.unmatched`: the ask (or the cross) naming every unmatched limitation."""
+    return template.replace("{X}", _joined([_lower_first(x) for x in limits]))
+
+
+def pilot_ask(name: str) -> str:
+    return PILOT_ASK.replace("{name}", name.strip())
+
+
+def _bare_end(text: str) -> str:
+    return re.sub(r"[.!?;:,\s]+$", "", str(text or "").strip()).strip()
+
+
+def _lower_first(row: str) -> str:
+    if not row or len(row) < 2 or (row[0].isupper() and row[1].isupper()):
+        return row
+    return row[0].lower() + row[1:]
+
+
+_NUMBERS = ("no", "one", "two", "three", "four", "five", "six")
+
+
+def _count(n: int) -> str:
+    return _NUMBERS[n] if 0 <= n < len(_NUMBERS) else str(n)
+
+
+def _joined(rows: list[str]) -> str:
+    kept = [_bare_end(r) for r in rows if r and r.strip()]
+    if not kept:
+        return ""
+    return kept[0] if len(kept) == 1 else ", ".join(kept[:-1]) + " and " + kept[-1]
+
+
+def _with_article(person: str) -> str:
+    said = person.strip()
+    lower = said.lower()
+    if lower.startswith(("a ", "an ", "the ")) or lower in ("someone", "they"):
+        return said
+    return ("an " if lower[:1] in "aeiou" else "a ") + said
+
+
+def board_six_verdict(card: dict | None, idea: dict | None, *, name: str, tagline: str | None) -> dict:
+    """Spec 162 FR-1 (keel-web 259 FR-4): the board read by `data-box` -- the six rows in order (the setup row may be
+    *Nothing to set up*), each holding the served idea's words: the product the name and the tagline, the workflow each
+    step with its doer (`card-step-by`: *they* or the name), the setup its rows, the statement, the limitations each
+    with its tick or cross as `limitAnswers` says, the joy. `ok`, the order, what is missing."""
+    idea = idea or {}
+    rows = card_rows(card)
+    order = list(rows)
+    want_order = [k for k in IDEA_BOARD_ROWS if k in rows]
+    missing: dict = {}
+
+    def holds(key: str, words: list[str]) -> None:
+        drawn = _bare_words(rows.get(key))
+        gone = [w for w in words if w and _bare_words(w) not in drawn]
+        if key not in rows or gone:
+            missing[key] = gone or ["(no row)"]
+    holds("product", [name] + ([tagline] if tagline else []))
+    holds("workflow", [s.get("step") for s in idea.get("workflow") or []])
+    holds("setup", list(idea.get("setup") or []) or ([NOTHING_TO_SET_UP.rstrip(".")] if idea.get("setupNone") else []))
+    holds("statement", [idea.get("statement")] if idea.get("statement") else [])
+    holds("limits", [a.get("limit") for a in idea.get("limitAnswers") or []])
+    holds("joy", [idea.get("joy")] if idea.get("joy") else [])
+    marks = [i.get("mark") for i in card_items(card, "limits")]
+    want_marks = ["tick" if a.get("solved") else "cross" for a in idea.get("limitAnswers") or []]
+    if marks != want_marks:
+        missing["marks"] = {"drawn": marks, "want": want_marks}
+    return {"ok": order == list(IDEA_BOARD_ROWS) and not missing, "order": order, "in_order": order == want_order,
+            "missing": missing, "marks": marks}
+
+
+def _you(text: str | None) -> str:
+    """Words compared with the person turned: the film says *you* where the board says *they*."""
+    w = _bare_words(text)
+    for a, b in ((r"\bthey\b", "you"), (r"\bthem\b", "you"), (r"\btheir\b", "your")):
+        w = re.sub(a, b, w)
+    return w
+
+
+def idea_scenes_verdict(story: dict | None, idea: dict | None, *, name: str, tagline: str | None = None,
+                        pictures: bool = True) -> dict:
+    """Spec 162 FR-3 (keel-cloud 271 FR-9, 273 FR-3): the idea's film read against its board -- at most eleven scenes;
+    the opening line exactly *This time, {name} is on the screen.*; the chapters in order (`before`, `task`, `solves`,
+    `better`, `joy`, each on its first scene); the setup scene there if and only if the setup is non-empty; one scene per
+    workflow step; the limitations scene's marks the board's; the advantage's chapter there if and only if one was read;
+    the joy scene last (`joy: true`, its line the board's joy, the person turned); the brand on every screen scene; a
+    picture on every scene (contract 89; `pictures`); one clip a line (the ask line's too); the plate the brand with the
+    tagline. `ok` and every part by name."""
+    story, idea = story or {}, idea or {}
+    scenes = [s or {} for s in story.get("scenes") or []]
+    chapters = [(i, s.get("chapter")) for i, s in enumerate(scenes) if s.get("chapter")]
+    keys = [c for _, c in chapters]
+    at = {c: i for i, c in chapters}
+    ordered = keys == [c for c in IDEA_CHAPTERS if c in keys] and len(set(keys)) == len(keys)
+
+    def span(chapter: str) -> list[dict]:
+        if chapter not in at:
+            return []
+        start = at[chapter]
+        later = [i for i, c in chapters if i > start]
+        return scenes[start:(later[0] if later else len(scenes))]
+    setup = list(idea.get("setup") or [])
+    workflow = list(idea.get("workflow") or [])
+    want_marks = [{"limit": a.get("limit"), "mark": "tick" if a.get("solved") else "cross"}
+                  for a in idea.get("limitAnswers") or []]
+    solves = span("solves")
+    marks = [{"limit": m.get("limit"), "mark": m.get("mark")} for m in (solves[0].get("marks") if solves else []) or []]
+    last = scenes[-1] if scenes else {}
+    screens = [s for s in scenes if s.get("pictogramId") == "screen" or s.get("screen")]
+    plate = story.get("plate") or {}
+    clips = len(story.get("clipIds") or [])
+    parts = {
+        "at most eleven": 0 < len(scenes) <= IDEA_MAX_SCENES,
+        "the opening line": bool(scenes) and scenes[0].get("line") == FILM_OPENING.replace("{name}", name),
+        "the chapters in order": ordered and keys[:1] == ["before"] and keys[-1:] == ["joy"] and "task" in keys
+        and "solves" in keys,
+        "the setup scene iff a setup": len(span("before")) == (2 if setup else 1),
+        "one scene a step": len(span("task")) == len(workflow),
+        "the limitations' marks the board's": marks == want_marks,
+        "the advantage iff read": ("better" in keys) == bool(idea.get("advantage")),
+        "the joy last": last.get("joy") is True and last.get("chapter") == "joy"
+        and sum(1 for s in scenes if s.get("joy")) == 1
+        and (not idea.get("joy") or _you(idea.get("joy")) in _you(last.get("line"))),
+        "the brand on every screen": all(((s.get("screen") or {}).get("name") == name) for s in screens),
+        "a picture on every scene": not pictures or all(s.get("pictureAssetId") for s in scenes),
+        "one clip a line": clips in (len(scenes), len(scenes) + 1),
+        "the plate the brand": plate.get("name") == name and (tagline is None or plate.get("tagline") == tagline),
+    }
+    return {"ok": all(parts.values()), "parts": parts, "scenes": len(scenes), "chapters": keys,
+            "lines": [s.get("line") for s in scenes], "marks": marks, "want_marks": want_marks,
+            "clips": clips, "plate": plate}
+
+
+def failed_say(chapter: str) -> str:
+    """keel-web 259 FR-7: the failed build's line for its chapter."""
+    return FAILED_SAY.replace("{part}", FAILED_PARTS.get(chapter, "that part"))
+
+
+def png_bytes(width: int, height: int) -> bytes:
+    """A PNG of `width` x `height` (one grey row repeated), built here -- the brand page's refusal of a non-square
+    logo is walked with it (keel-web 259 FR-2: refused on the spot, nothing uploaded)."""
+    import struct                                                                   # noqa: PLC0415
+    import zlib                                                                     # noqa: PLC0415
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+    raw = b"".join(b"\x00" + b"\x80" * width for _ in range(height))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+
 class IdeaWalk(Conversation):
-    """keel-web 245's solution conversation on a solution project (FR-11): the film and the problem's boxes replayed
-    (closed by the quiet, never corrected), the two beats (the name with a colour said; how it solves the limitations,
-    one answer, its ticks and crosses), the idea's boxes by the quiet, the building screen, the day with the idea (the
-    name and the colour on it) by the quiet."""
+    """keel-web 259's founder's solution on a solution project (spec 162 FR-1 to FR-3): `define/idea/start` -- the
+    problem's film played, the opening said, `story/confirm` stamped with no words; `define/idea/brand` -- the brand
+    typed (no orb); the four long beats `define/idea/1..4`, each closed by the done word; the board's six rows by the
+    quiet; the building screen; the plate and the film in chapters by the quiet; the verdict line by the quiet; the
+    pilot ask answered *yes*; then the ready page."""
 
     def idea_writes(self, n: int) -> list[dict]:
         return self.writes_to(rf"/idea/turns/{n}$")
 
-    def replay(self, project_id: str) -> dict:
-        """`define/idea/start`: the opener or the begin screen, *Ready? Let us first go through the problem.*, the
-        problem's board narrated (no cost box), the turn line, then the quiet stamps "still the problem"."""
-        with self._b.step("the problem replayed: the card read, then the quiet -- still the problem") as h:
+    # ---------------------------------------------------------------------------------------- the film, the opening
+    def film_then_opening(self, project_id: str) -> dict:
+        """`define/idea/start`: the stage's opener (or the begin screen) passed, the problem's film played through the
+        one player (`idea-problem-film`), the opening said (`idea-start-said`), then `story/confirm` stamped with no body
+        and the brand page opened -- no board, no *still the problem*."""
+        with self._b.step("the problem's film, then the opening; the stamp with no words") as h:
             self.listen()
             self.begin()
-            self.page.get_by_test_id("idea-still").first.wait_for(state="visible", timeout=60_000)
-            woke = self.wake()
-            mark = len(self.orb_log())
-            try:
-                self.page.wait_for_function(
-                    "(w) => { const el = document.querySelector('[data-testid=story-check-said]'); "
-                    "return !!el && el.textContent.trim() === w; }", arg=SOLUTION_TURN, timeout=90_000)
-            except Exception:  # noqa: BLE001 - recorded
-                pass
-            seen = {"woke": woke, "screen": self.snapshot()}
-            h.add_screenshot(self._b.screenshot("idea-replay"))
+            self.page.locator(IDEA_START).first.wait_for(state="visible", timeout=60_000)
             with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0]
-                                           .endswith("/story/confirm"), timeout=150_000) as got:
-                self.silence()
-            seen["confirm"] = {"status": got.value.status, "body": _json(got.value)}
-            seen["lit"] = [row.get("lit") for row in self.orb_log()[mark:] if row.get("lit")]
-            self.page.locator(f"{IDEA_TURN}[data-turn='1']").first.wait_for(state="visible", timeout=60_000)
-            h.record_wire({"POST": "story/confirm (the quiet)"}, {"status": got.value.status, "url": self.page.url})
+                                           .endswith("/story/confirm"), timeout=180_000) as got:
+                woke = self.wake()
+                film = self.page.locator("[data-testid=idea-problem-film]")
+                seen: dict = {"woke": woke, "film": False, "said": None, "board": False, "still": False}
+                deadline = time.monotonic() + 150 * self.patience
+                while time.monotonic() < deadline:
+                    try:
+                        seen["film"] = seen["film"] or film.count() > 0
+                        said = _tc(self.page.locator("[data-testid=idea-start-said]"))
+                        if said:
+                            seen["said"] = said
+                        seen["board"] = seen["board"] or self.page.locator("[data-testid=story-boxes]").count() > 0
+                        seen["still"] = seen["still"] or self.page.locator("[data-testid=idea-still]").count() > 0
+                    except Exception:  # noqa: BLE001 - the page moved under the read
+                        pass
+                    if "/define/idea/brand" in self.page.url:
+                        break
+                    self.page.wait_for_timeout(150)
+            seen["confirm"] = {"status": got.value.status, "sent": got.value.request.post_data,
+                               "body": _json(got.value)}
+            seen["screen"] = self.snapshot()
+            self.wait_path(r"/define/idea/brand$")
+            h.add_screenshot(self._b.screenshot("idea-start"))
+            h.record_wire({"POST": "story/confirm (no words)"}, {k: seen[k] for k in ("said", "film", "confirm")})
             return seen
 
-    def beat(self, n: int, words: str) -> dict:
-        with self._b.step(f"idea beat {n}: {'the name and the look' if n == 1 else 'how it solves the limitations'}") as h:
+    # ---------------------------------------------------------------------------------------- the brand page
+    def brand_page(self, *, name: str = IDEA_NAME, tagline: str = IDEA_TAGLINE, colour: str = IDEA_COLOUR) -> dict:
+        """`define/idea/brand` (keel-web 259 FR-2): the one typed page -- the name, the tagline (its counter), a swatch,
+        the logo line read word for word, a non-square PNG refused on the spot with that same line and nothing uploaded,
+        then *Continue*: `PUT idea/brand {name, colour, tagline}` and the first beat opens."""
+        with self._b.step("the brand page: the name, a colour, a tagline; a non-square logo refused; Continue") as h:
+            root = self.page.locator(IDEA_BRAND_PAGE).first
+            root.wait_for(state="visible", timeout=60_000)
+            seen: dict = {"orb": self.page.locator(ORB).count(), "line": _tc(root.get_by_test_id("idea-logo-line"))}
+            root.get_by_test_id("idea-name").fill(name)
+            root.get_by_test_id("idea-tagline").fill(tagline)
+            seen["count"] = _tc(root.get_by_test_id("idea-tagline-count"))
+            swatch = root.locator(f"[data-testid=idea-swatch][aria-label*='{colour}' i]")
+            (swatch.first if swatch.count() else root.get_by_test_id("idea-swatch").nth(BRAND_SWATCHES.index(colour))
+             ).click()
+            uploads: list = []
+            watch = lambda r: uploads.append(r.url) if "/idea/icon" in r.url else None      # noqa: E731
+            self.page.on("request", watch)
+            try:
+                root.get_by_test_id("idea-icon-file").set_input_files(
+                    {"name": "wide-logo.png", "mimeType": "image/png", "buffer": png_bytes(400, 300)})
+                try:
+                    root.get_by_test_id("idea-icon-fault").wait_for(state="visible", timeout=10_000)
+                except Exception:  # noqa: BLE001 - recorded, judged by the leg
+                    pass
+                seen["fault"] = _tc(root.get_by_test_id("idea-icon-fault"))
+                self.page.wait_for_timeout(500)
+            finally:
+                self.page.remove_listener("request", watch)
+            seen["uploads"] = uploads
+            seen["preview"] = _tc(root.get_by_test_id("idea-brand-preview"))
+            h.add_screenshot(self._b.screenshot("idea-brand"))
+            with self.page.expect_response(lambda r: r.request.method == "PUT" and r.url.split("?")[0]
+                                           .endswith("/idea/brand"), timeout=30_000) as got:
+                root.get_by_test_id("idea-brand-continue").click()
+            seen["put"] = {"status": got.value.status, "sent": got.value.request.post_data_json,
+                           "body": _json(got.value)}
+            self.wait_path(r"/define/idea/1$")
+            h.record_wire({"PUT": "idea/brand"}, seen["put"])
+            return seen
+
+    # ---------------------------------------------------------------------------------------- one long beat
+    def beat(self, n: int, words: str, *, then: list[str] | None = None,
+             two_part: tuple[str, str] | None = None) -> dict:
+        """One long beat (keel-web 259 FR-3): Keel's question read, the words said with the done word as their last (a
+        long beat never closes on the quiet), the reading read back; where the answer is an `ask` (beat 1's first step,
+        beat 4's feature) or beat 3's readback asks (`done: false`), the next of `then` is said -- sent as the beat's
+        second answer, or with `correction: true` on beat 3 -- until the beat closes (`done: true`) and the page goes on.
+        `two_part`: the first part said, `TWO_PART_QUIET_S` of quiet read (nothing sent, *Take your time.*), then the
+        second with the done word. Returns what the screen drew and every write of the beat."""
+        then = list(then or [])
+        with self._b.step(f"idea beat {n}") as h:
             self.page.locator(f"{IDEA_TURN}[data-turn='{n}']").first.wait_for(state="visible", timeout=60_000)
             log = self.orb_log()
             mark = next((i for i, row in enumerate(log) if str(row.get("path") or "").endswith(f"/define/idea/{n}")),
                         len(log))
-            seen: dict = {"turn": n, "asked": self.snapshot()}
-            put = self.put_after(rf"/idea/turns/{n}$", lambda: self.voice.say(words))
-            seen["put"] = {"status": put["status"], "sent": put["sent"], "body": put["body"]}
-            if (put.get("status") or 500) >= 400:
-                raise AssertionError(f"idea beat {n} refused {put.get('status')}: {put.get('body')}")
-            if n == 2:
-                # keel-web 248: the ticks and crosses land one by one and stand ~3 s before the boxes, nothing said --
-                # read them on the beat's screen before it moves (the build before round 2 lands them with its readback)
-                want = len(((put["body"] or {}).get("idea") or {}).get("limitAnswers") or [])
-                try:
-                    self.page.wait_for_function("(n) => document.querySelectorAll('[data-testid=idea-card-limit]')"
-                                                ".length >= n", arg=want, timeout=10_000)
-                except Exception:  # noqa: BLE001 - recorded
-                    pass
-                seen["readback"] = self.snapshot()
-                h.add_screenshot(self._b.screenshot(f"idea-beat-{n}"))
-            seen["quiet"] = self.after_answer(n, mark, flow="idea")
-            seen["straight_on"] = bool(seen["quiet"].get("straight_on"))
-            if not seen["straight_on"]:
-                if n == 1 or not (seen.get("readback") or {}).get("marks"):
-                    seen["readback"] = self.snapshot()
-                    h.add_screenshot(self._b.screenshot(f"idea-beat-{n}"))
-                self.silence()
-            elif n == 1:
-                seen["readback"] = {"straight_on": True, "buttons": []}
-            self.wait_path(r"/define/idea/(2|check)$" if n == 1 else r"/define/idea/check$")
+            seen: dict = {"turn": n, "asked": self.snapshot(), "answers": [], "long": True}
+            try:
+                self.page.wait_for_function("() => { const el = document.querySelector('[data-testid=story-q]'); "
+                                            "return !!el && el.textContent.trim().length > 0; }", timeout=30_000)
+            except Exception:  # noqa: BLE001 - recorded
+                pass
+            seen["question"] = _tc(self.page.locator("[data-testid=story-q]"))
+            if two_part:
+                seen["two_part"] = self._two_parts(n, two_part)
+                put = self.idea_writes(n)[-1] if self.idea_writes(n) else {}
+            else:
+                put = self.put_after(rf"/idea/turns/{n}$", lambda: self.voice.say(with_done_word(words)))
+            while True:
+                body = put.get("body") or {}
+                seen["answers"].append({"status": put.get("status"), "sent": put.get("sent"), "ask": body.get("ask"),
+                                        "readback": body.get("readback"), "done": body.get("done"),
+                                        "next": body.get("next")})
+                if (put.get("status") or 500) >= 400:
+                    raise AssertionError(f"idea beat {n} refused {put.get('status')}: {body}")
+                if body.get("done"):
+                    break
+                if not then:
+                    raise AssertionError(f"idea beat {n} still open after {len(seen['answers'])} answer(s) and the walk "
+                                         f"has nothing more to say: {body.get('ask') or body.get('readback')}")
+                nxt = then.pop(0)
+                # the page says the ask (or the readback that asks) first; then the microphone opens again
+                mark2 = len(self.orb_log())
+                self.await_quiet(mark2, after=(), timeout_s=20)
+                seen.setdefault("said_back", []).append(self.snapshot())
+                put = self.put_after(rf"/idea/turns/{n}$", lambda w=nxt: self.voice.say(with_done_word(w)))
+            seen["understood"] = None
+            try:
+                self.page.locator("[data-testid=idea-understood]").first.wait_for(state="visible", timeout=5_000)
+                seen["understood"] = self.snapshot().get("understood")
+            except Exception:  # noqa: BLE001 - the page went on first
+                pass
+            h.add_screenshot(self._b.screenshot(f"idea-beat-{n}"))
+            self.wait_path(rf"/define/idea/(?!{n}$)(\d|check)$", timeout_s=60)
             seen["next"] = self.page.url.rstrip("/").split("/")[-1]
             seen["orb"] = orb_sequence(self.orb_log()[mark:])
-            h.record_wire({"beat": n, "said": words}, {k: seen[k] for k in ("put", "orb", "straight_on")})
+            h.record_wire({"beat": n, "said": words[:300]}, {k: seen[k] for k in ("answers", "next")})
             return seen
 
-    def beats(self, said: list[tuple[int, str]], *, name_words: str | None = None) -> dict:
-        """The two beats: the name (said with a colour where `name_words`), then the script's beat-2 words."""
-        by = dict(said)
-        return {1: self.beat(1, name_words or by[1]), 2: self.beat(2, by[2])}
+    def _two_parts(self, n: int, parts: tuple[str, str]) -> dict:
+        """A long beat in two parts (keel-web 257 FR-11 as 259 keeps it): the first, `TWO_PART_QUIET_S` of quiet (nothing
+        sent, the beat open, *Take your time.*), then the second and the done word."""
+        before = len(self.idea_writes(n))
+        self.voice.say(parts[0])
+        deadline = time.monotonic() + TWO_PART_QUIET_S
+        lines: list[str] = []
+        think = False
+        while time.monotonic() < deadline:
+            line = _tc(self.page.locator("[data-testid=story-state]"))
+            if line and line not in lines:
+                lines.append(line)
+            think = think or self.page.locator(f"{ORB}[data-think]").count() > 0
+            self.page.wait_for_timeout(250)
+        quiet = {"sent_in_the_quiet": len(self.idea_writes(n)) - before,
+                 "still_on_the_beat": bool(re.search(rf"/define/idea/{n}/?$", self.page.url)),
+                 "state_lines": lines, "orb_thinks": think, "think_line": any(THINK_LINE in x for x in lines),
+                 "listening": self.voice.listening()}
+        put = self.put_after(rf"/idea/turns/{n}$", lambda: self.voice.say(with_done_word(parts[1])))
+        quiet["sent"] = (put.get("sent") or {}).get("text")
+        quiet["joined"] = all(_bare_words(p) in _bare_words(quiet["sent"]) for p in parts)
+        return quiet
 
+    def beats(self, plan: dict[int, dict]) -> dict:
+        """The four beats in order, each `{words, then?, two_part?}` (`plan`)."""
+        out = {}
+        for n in IDEA_BEATS:
+            p = plan[n]
+            out[n] = self.beat(n, p["words"], then=p.get("then"), two_part=p.get("two_part"))
+        self.wait_path(r"/define/idea/check$")
+        return out
+
+    # ---------------------------------------------------------------------------------------- the board
     def boxes(self) -> dict:
-        with self._b.step("the idea's boxes narrated, Is that your idea?, the quiet confirms") as h:
+        """The board (`idea-board`): the six rows narrated and lit in turn, *Is that your idea?*, the quiet confirms
+        (`idea/confirm`)."""
+        with self._b.step("the board: six rows narrated, Is that your idea?, the quiet confirms") as h:
             self.page.get_by_test_id("idea-boxes-screen").first.wait_for(state="visible", timeout=60_000)
             try:
                 self.page.wait_for_function(
@@ -1662,58 +2051,132 @@ class IdeaWalk(Conversation):
                     "return !!el && el.textContent.trim() === w; }", arg=IDEA_BOXES_ASK, timeout=90_000)
             except Exception:  # noqa: BLE001 - recorded
                 pass
-            seen = {"screen": self.snapshot(),
-                    "board": _tc(self.page.locator("[data-testid=idea-boxes-screen] [data-testid=story-boxes]"))}
-            h.add_screenshot(self._b.screenshot("idea-boxes"))
+            board = self.page.evaluate(_SNAPSHOT.replace("card('[data-testid=story-boxes]')",
+                                                         "card('[data-testid=idea-board]')"))
+            seen = {"screen": board, "card": board.get("card"), "said": board.get("said")}
+            h.add_screenshot(self._b.screenshot("idea-board"))
             with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0]
                                            .endswith("/idea/confirm"), timeout=150_000) as got:
                 self.silence()
             seen["confirm"] = {"status": got.value.status, "body": _json(got.value)}
+            seen["lit"] = [row.get("lit") for row in self.since() if row.get("lit")
+                           and str(row.get("path") or "").rstrip("/").endswith("/define/idea/check")]
             h.record_wire({"POST": "idea/confirm (the quiet)"}, {"status": got.value.status})
             return seen
 
-    def building_then_story(self, name: str, *, timeout_s: float = 120) -> dict:
-        """The idea's building screen, then the day with the idea played, the brand's name read while it plays."""
-        with self._b.step("the idea's building screen, then the day with the idea") as h:
-            building = None
-            best: dict | None = None
+    # ---------------------------------------------------------------------------------------- the build, the film
+    def building_then_film(self, *, timeout_s: float = 150) -> dict:
+        """The building screen while the build builds, then (`data-state` story) the plate alone for about three seconds
+        (its time read on the page's clock), the film in its chapters (the band's words read while it plays), *Is that
+        how it goes with {name}?* -- or the failed build (`data-state` failed)."""
+        with self._b.step("the idea's building screen, the plate, then the film in chapters") as h:
+            building, state = None, None
             deadline = time.monotonic() + timeout_s * self.patience
-            state = None
             while time.monotonic() < deadline:
                 state = self.page.locator(IDEA_CHECK).first.get_attribute("data-state") \
                     if self.page.locator(IDEA_CHECK).count() else None
                 if state == "building" and building is None:
                     building = self.snapshot()
                     h.add_screenshot(self._b.screenshot("idea-building"))
-                if state in ("story", "failed"):
-                    break
-                self.page.wait_for_timeout(250)
-            # the story plays once: the name read through it, the clearest sample kept
-            until = time.monotonic() + 30 * self.patience
-            while state == "story" and time.monotonic() < until:
-                try:
-                    probe = self.page.evaluate(_BRAND_IN_STORY, name)
-                except Exception:  # noqa: BLE001 - re-rendered under the read
-                    probe = None
-                label = (probe or {}).get("label")
-                if label and (best is None or (label.get("opacity") or 0) > ((best.get("label") or {}).get("opacity")
-                                                                             or 0)):
-                    best = probe
-                if label and (label.get("opacity") or 0) >= 0.99:
+                if state in ("story", "failed") or not re.search(r"/define/idea/check", self.page.url):
                     break
                 self.page.wait_for_timeout(200)
-            seen = {"building": building, "state": state, "story": self.snapshot(), "brand": best}
-            h.add_screenshot(self._b.screenshot("idea-story"))
-            h.record_assert({"state": "story"}, seen)
+            seen: dict = {"building": building, "state": state, "plate": None, "chapters": [], "pictures": 0}
+            if state != "story":
+                seen["failed"] = self.failed_build()
+                return seen
+            t0 = time.monotonic()
+            plate_on = None
+            plate_text = None
+            until = time.monotonic() + 90 * self.patience
+            while time.monotonic() < until:
+                try:
+                    plate = self.page.locator(".idea-plate, [data-testid=idea-plate]")
+                    if plate.count() and plate.first.is_visible():
+                        plate_on = plate_on or (time.monotonic() - t0)
+                        plate_text = plate_text or _tc(plate.first)
+                        seen["plate_seen_s"] = time.monotonic() - t0
+                    chapter = _tc(self.page.locator("[data-testid=idea-story-player] [data-testid=story-chapter]"))
+                    if chapter and chapter not in seen["chapters"]:
+                        seen["chapters"].append(chapter)
+                    seen["pictures"] = max(seen["pictures"], self.page.locator(
+                        "[data-testid=idea-story-player] img[data-testid=story-picture]").count())
+                    said = _tc(self.page.locator("[data-testid=idea-story-said]"))
+                    if said:
+                        seen["ask"] = said
+                        break
+                except Exception:  # noqa: BLE001 - re-rendered under the read
+                    pass
+                self.page.wait_for_timeout(120)
+            seen["plate"] = {"text": plate_text, "first_seen_s": plate_on,
+                             "held_s": (seen.get("plate_seen_s") or 0) - (plate_on or 0) if plate_on is not None
+                             else None}
+            seen["story"] = self.snapshot()
+            h.add_screenshot(self._b.screenshot("idea-film"))
+            h.record_assert({"state": "story"}, {k: seen[k] for k in ("state", "plate", "chapters", "pictures")})
             return seen
 
-    def story_yes(self, lands: re.Pattern = COMPATIBILITY_PATH) -> dict:
-        with self._b.step("the idea's story's question, then the quiet goes on") as h:
-            self.silence(timeout_s=180)
-            said = self.snapshot()
-            landed = self.wait_path(lands, timeout_s=60)
+    def failed_build(self) -> dict:
+        """A failed build (keel-web 259 FR-7): *Keel could not draw {chapter}. Say that part again?* on the building
+        screen (`idea-building[data-failed-chapter]`), then the chapter's beat (or the brand page) opened again."""
+        root = self.page.locator("[data-testid=idea-building]")
+        out: dict = {"chapter": None, "said": None}
+        try:
+            root.first.wait_for(state="visible", timeout=15_000)
+            out["chapter"] = root.first.get_attribute("data-failed-chapter")
+            out["said"] = _tc(root.first.get_by_test_id("story-q"))
+        except Exception:  # noqa: BLE001 - recorded
+            pass
+        try:
+            self.wait_path(r"/define/idea/(\d|brand)$", timeout_s=60)
+        except AssertionError:
+            pass
+        out["reopened"] = self.page.url.rstrip("/").split("/")[-1]
+        return out
+
+    # ---------------------------------------------------------------------------------------- the verdict, the pilot
+    def film_yes_verdict_pilot(self, *, pilot: str = PILOT_YES) -> dict:
+        """After the film: the quiet says yes; the verdict card (`story-verdict`) read, the quiet goes on; the pilot ask
+        (`idea-pilot`) read and answered by voice; `PUT idea/pilot {offer}` on the wire; then the ready page."""
+        with self._b.step("the film's yes, the verdict, the pilot ask answered yes, the ready page") as h:
+            self.silence(timeout_s=120)
+            out: dict = {}
+            card = self.page.locator(VERDICT_CARD)
+            deadline = time.monotonic() + 60 * self.patience
+            while time.monotonic() < deadline and not card.count():
+                self.page.wait_for_timeout(150)
+            out["verdict"] = {"drawn": bool(card.count()), "words": _tc(card) if card.count() else None}
+            said: list[str] = []
+            ask_by = time.monotonic() + 30 * self.patience
+            while time.monotonic() < ask_by and card.count():
+                line = _tc(self.page.locator("[data-testid=idea-verdict-said]"))
+                if line and line not in said:
+                    said.append(line)
+                if VERDICT_ASK in " ".join(said):
+                    break
+                self.page.wait_for_timeout(150)
+            out["verdict"]["said"] = said
+            h.add_screenshot(self._b.screenshot("idea-verdict"))
+            self.silence(timeout_s=60)
+            pilot_card = self.page.locator("[data-testid=idea-pilot-card]")
+            pilot_card.first.wait_for(state="visible", timeout=60_000)
+            out["pilot"] = {"ask": _tc(pilot_card.first.locator(".ucard__verdict")),
+                            "options": _tc(self.page.locator("[data-testid=idea-pilot-options]"))}
+            put = self.put_after(r"/idea/pilot$", lambda: self.voice.say(pilot))
+            out["pilot"]["put"] = {"status": put["status"], "sent": put["sent"], "body": put["body"]}
+            h.add_screenshot(self._b.screenshot("idea-pilot"))
+            out["landed"] = self.wait_path(SOLUTION_READY_PATH, timeout_s=60)
+            h.record_wire({"PUT": "idea/pilot"}, out["pilot"]["put"])
+            return out
+
+    def film_yes_to_money(self) -> dict:
+        """On a money start's solution (keel-web 243 / 259 FR-8): the film's quiet goes back to the money start -- no
+        verdict, no pilot ask."""
+        with self._b.step("the film's yes, back to the money start") as h:
+            self.silence(timeout_s=120)
+            landed = self.wait_path(re.compile(r"start=money"), timeout_s=60)
             h.add_screenshot(self._b.screenshot("idea-landed"))
-            return {"landed": landed, "said": said.get("said")}
+            return {"landed": landed, "verdict": self.page.locator(VERDICT_CARD).count()}
 
 
 # ------------------------------------------------------------------------------------ the money front (245 FR-12)
@@ -2277,6 +2740,20 @@ def web_has_258(keel_web: Path) -> bool:
     flow = Path(keel_web) / TYPING_SOURCE
     return control.exists() and '"fixed_five"' in control.read_text(encoding="utf-8") and flow.exists() \
         and "fixed_five" in flow.read_text(encoding="utf-8")
+
+
+def web_has_260(keel_web: Path) -> bool:
+    """keel-web 260 is in the checkout (spec 162 FR-5, FR-6): the stranger's solution link -- `yes_no` drawn
+    (`Control.tsx`) and the plate's own step on the link (`kind: "plate"` in `aiInterviewFlow.ts`'s `stepsOf`)."""
+    control = Path(keel_web) / CONTROL_SOURCE
+    flow = Path(keel_web) / TYPING_SOURCE
+    return control.exists() and '"yes_no"' in control.read_text(encoding="utf-8") and flow.exists() \
+        and '"plate"' in flow.read_text(encoding="utf-8")
+
+
+def web_has_259(keel_web: Path) -> bool:
+    """keel-web 259 is in the checkout: the founder's solution spoken -- the brand page (`IdeaBrandPage.tsx`)."""
+    return (Path(keel_web) / "src/components/idea/IdeaBrandPage.tsx").exists()
 
 
 # ------------------------------------------------------------------------------------ spec 161: the film's seven scenes

@@ -199,4 +199,9 @@ def test_keel_webs_silence_hook_is_in_the_test_build():
 def test_the_fake_colours_hold_the_one_said():
     fake = _need(CLOUD / "src" / "main" / "java" / "com" / "keeldiscovery" / "cloud" / "application" / "story"
                  / "FakeStoryReadings.java").read_text(encoding="utf-8")
-    assert f'"{ss.SAID_COLOUR[0]}", "{ss.SAID_COLOUR[1]}"' in fake
+    if (CLOUD / "src/main/java/com/keeldiscovery/cloud/domain/story/IdeaTurns.java").exists() and \
+            "TAGLINE_MAX_WORDS" in (CLOUD / "src/main/java/com/keeldiscovery/cloud/domain/story/IdeaTurns.java").read_text():
+        # spec 162 (keel-cloud 271 FR-2): the brand is typed -- no colour is said, the fake's colour table is gone
+        assert f'"{ss.SAID_COLOUR[0]}", "{ss.SAID_COLOUR[1]}"' not in fake
+    else:
+        assert f'"{ss.SAID_COLOUR[0]}", "{ss.SAID_COLOUR[1]}"' in fake

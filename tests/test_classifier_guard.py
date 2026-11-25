@@ -14,9 +14,10 @@ from stack.config import load_config
 
 def test_the_cases_are_the_checks_170():
     """099's 152 and keel-cloud 100's 18 `readaloud` cases (spec 049 FR-1 / FR-8); spec 161: keel-cloud 266's and 268's
-    21 `letters` re-copied from the canon, and the eval's own ten Frequency cases on the five rows."""
-    assert (len(cases.CASES), len(cases.CONFIRM), len(guard.EVAL_CASES)) == (176, 15, 10)
-    assert len(guard.all_cases()) == 176 + 15 + 10
+    21 `letters` re-copied from the canon, and the eval's own ten Frequency cases on the five rows; spec 162 (keel-cloud
+    272 FR-8): the canon's five `yesno` cases on the solution's `yes_no` (*yes*, *no*, *A*, *B*, *si* unclear)."""
+    assert (len(cases.CASES), len(cases.CONFIRM), len(guard.EVAL_CASES)) == (181, 15, 10)
+    assert len(guard.all_cases()) == 181 + 15 + 10
     readaloud = [c for c in guard.all_cases() if c.group == "readaloud"]
     assert len(readaloud) == 18
     assert {c.item for c in readaloud} == {"gate", "better", "approval", "effort", "importance", "benefits", "cost",
@@ -183,14 +184,15 @@ def test_run_sends_each_case_once_and_counts():
         sent.append(body)
         return 200, _got(unclear=True, confidence="low")
 
-    every = len(guard.all_cases())                     # spec 161: the canon's 191 and the eval's ten Frequency cases
+    every = len(guard.all_cases())                     # spec 162: the canon's 196 and the eval's ten Frequency cases
     report = guard.run(post, served)
     unclear = [c for c in guard.all_cases() if guard.matches(guard.case_item(c.item), c.expected, _got(unclear=True))]
-    assert every == 201 and len(sent) == every and not report.wrong and not report.skipped
+    assert every == 206 and len(sent) == every and not report.wrong and not report.skipped
     assert (report.count("right"), report.count("safe")) == (len(unclear), every - len(unclear))
     groups = report.groups()
     assert groups["readaloud"]["asked"] == 18 and groups["confirm"]["asked"] == 15
     assert groups["letters"]["asked"] == 21 and groups["frequency"]["asked"] == 10
+    assert groups["yesno"]["asked"] == 5
     assert sum(g["asked"] for g in groups.values()) == every and not any(g["wrong"] for g in groups.values())
     assert all(set(b) <= {"itemId", "heard", "language", "previous", "ask"} for b in sent)
     assert sum(1 for b in sent if b.get("previous")) == 14            # the confirmation turn on days holds no option
@@ -205,8 +207,8 @@ def test_the_live_budget_holds_what_a_link_can_ask():
     calls = int(guard.LIVE_BUDGET_USD / guard.COST_PER_CALL_USD)
     # spec 161: the copy grew (266's and 268's letters, the eval's Frequency cases) -- 201 in all, 35 over one live
     # run's ceiling; a link carries a part of them and a plan past the ceiling is refused before the first call
-    assert calls == 166 and len(guard.all_cases()) - calls == 35
-    canon_170 = [c for c in guard.all_cases() if c.group not in ("letters", "frequency")]
+    assert calls == 166 and len(guard.all_cases()) - calls == 40       # spec 162: the five yesno cases, 206 in all
+    canon_170 = [c for c in guard.all_cases() if c.group not in ("letters", "frequency", "yesno")]
     assert len(canon_170) == 170 and len([c for c in canon_170 if c.group != "readaloud"]) * guard.COST_PER_CALL_USD \
         < guard.LIVE_BUDGET_USD
 

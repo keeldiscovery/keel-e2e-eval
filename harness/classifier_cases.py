@@ -4,6 +4,8 @@ e20d8aa, spec 100: 18 `readaloud` cases, 170 in all; the canon keeps the record,
 on). Read by harness/classifier_guard.py. Spec 161 FR-10 (keel-cloud 268 FR-8) re-copied it at keel-cloud-docs
 `bf5a5b7d`: the `letters` group (keel-cloud 266's badge letters and 268's *si* as C), word for word; the eval's own
 Frequency cases on the five rows (`fixed_five`, keel-cloud 269) are `classifier_guard.EVAL_CASES`, never in this copy.
+Spec 162 FR-6 (keel-cloud 272 FR-8) re-copied it at keel-cloud-docs `94051ba8`: the `yesno` item (`yes_no`, two rows, no
+escape) and its five cases -- *yes*, *no*, *A*, *B*, and *si* unclear on two rows -- word for word.
 The original docstring follows.
 """
 
@@ -33,6 +35,7 @@ ITEMS = {
     "effort": {"kind": "single", "escape": "I can't recall", "options": [
         "Caught everything, but it took a lot of effort", "Caught everything, with a little extra effort",
         "Got it right after one wrong guess", "It took a few tries to find it"]},
+    "yesno": {"kind": "single", "escape": None, "options": ["Yes", "No"]},
     "taxrules": {"kind": "multi", "pick": 2, "escape": "None of these", "options": [
         "Keeping tax and deduction rules up to date", "Working out holiday pay for part-timers",
         "Correcting a payslip after it has gone out", "Answering staff questions about their deductions",
@@ -162,6 +165,9 @@ CASES = [
     # spec 268 FR-8: speech-to-text writes the spoken C as "si" (the founder's audio test, 2026-11-23)
     ("letters", "better", "si", P(3)), ("letters", "better", "si, please", P(3)), ("letters", "better", "sí", P(3)),
     ("letters", "twoBenefits", "si", U),
+    # spec 272 FR-8: the solution's three are yes or no (yes_no) -- two rows, no escape; the spoken C ("si") is no row
+    ("yesno", "yesno", "yes", P(1)), ("yesno", "yesno", "no", P(2)), ("yesno", "yesno", "A", P(1)),
+    ("yesno", "yesno", "B", P(2)), ("yesno", "yesno", "si", U),
 ]
 
 # confirmation turns: (item, previous pick numbers, said, expected)

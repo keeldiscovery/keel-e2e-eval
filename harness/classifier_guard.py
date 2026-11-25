@@ -187,7 +187,12 @@ FREQUENCY_CONTROLS = ("fixed_five",)
 #: Frequency's controls before keel-cloud 269: 158's `segmented_1_to_n` (contract 46: a count from 1) and the number box,
 #: and `segmented_0_to_7`, which a run recorded before 46 served -- still read as a number where a recorded run serves one.
 RETIRED_FREQUENCY_CONTROLS = ("segmented_1_to_n", "segmented_0_to_7", "number_with_unit")
-_SINGLE = {"single_choice", "single_choice_5", "fixed_four", "fixed_three", "price_ladder", "scale_four"}
+#: Spec 162 FR-6 (keel-cloud 272 FR-1, contract 90): the solution's three on one control -- `yes_no`, two rows *Yes* ·
+#: *No*, code's, no escape, read as a single pick over them (*si* on two rows is unclear, never a row). It replaces the
+#: `fixed_four` / `scale_four` reads on the three; those stay for a run recorded before 272.
+SOLUTION_CONTROLS = ("yes_no",)
+RETIRED_SOLUTION_CONTROLS = ("fixed_four", "scale_four")
+_SINGLE = {"single_choice", "single_choice_5", "fixed_four", "fixed_three", "price_ladder", "scale_four", "yes_no"}
 
 
 def _range(item: dict) -> tuple[int | None, int | None]:
@@ -230,6 +235,9 @@ def served_items(interview: dict, market_currency: str | None = None) -> list[Se
                                       escape=(second.get("escape") or {}).get("label"), ask="second"))
             elif control in FREQUENCY_CONTROLS:
                 # spec 161 FR-6: the five rows, one pick, no escape
+                out.append(Served(**base, kind="single", options=options, escape=None))
+            elif control in SOLUTION_CONTROLS:
+                # spec 162 FR-6: Yes · No, one pick, no escape
                 out.append(Served(**base, kind="single", options=options, escape=None))
             elif control in RETIRED_FREQUENCY_CONTROLS:
                 low, high = _range(item)

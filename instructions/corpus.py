@@ -1840,6 +1840,9 @@ def _check_keys(entry: Entry, registry) -> None:
     # five rows' by one rule (`spec269_frequency`), never the registry's fixed codes
     retired = {k for k in RETIRED_269 if k not in registry_keys}
     through_269 = bool(retired)
+    # spec 162 FR-6 (keel-cloud 272): against registry 7 the solution's three are read through 272 -- each recorded row and
+    # pick read yes or no by one rule (`spec272_solution`), the founder's recorded list as the bin code writes
+    through_272 = through_272_on(registry)
 
     def outside(key) -> str:
         if key not in registry_keys:
@@ -1849,6 +1852,8 @@ def _check_keys(entry: Entry, registry) -> None:
     for key, value in entry.founder_calibration.items():
         if key not in registry_keys or (value or {}).get("unsure"):
             continue
+        if through_272 and key in SOLUTION_272:
+            continue                                 # the recorded list, read as the bin code writes (spec 162)
         dimension = registry.by_key(key)
         fixed = dimension.fixed_codes
         answer = (value or {}).get("answer")
@@ -1872,6 +1877,8 @@ def _check_keys(entry: Entry, registry) -> None:
             raise _refuse(entry.id, f"respondent_questions carries {key}, {outside(key)}", entry.path)
         if through_269 and key == FREQUENCY_KEY:
             continue                                 # the recorded count row, read on the five rows (spec 161)
+        if through_272 and key in SOLUTION_272:
+            continue                                 # the recorded row, read yes or no (spec 162)
         _check_row(entry, registry, key, row or {})
     for person in entry.answers:
         for key, pick in (person.get("picks") or {}).items():
@@ -1882,6 +1889,12 @@ def _check_keys(entry: Entry, registry) -> None:
                               entry.path)
             if through_269 and key == FREQUENCY_KEY:
                 continue                             # a recorded count, read on the five rows (spec 161)
+            if through_272 and key in SOLUTION_272:
+                read = spec272_solution(pick)
+                if read not in YES_NO_272 and not (isinstance(read, dict) and "chip" in read):
+                    raise _refuse(entry.id, f"{person.get('person')}'s {key} pick {pick!r} reads {read!r}, neither yes "
+                                            "nor no (spec 162; keel-cloud 272 `spec272Solution`)", entry.path)
+                continue
             _check_pick(entry, registry, person, key, pick)
     standings = set(entry.expected.get("standings") or {}) - retired
     for key in sorted(standings - keys):
@@ -2281,6 +2294,19 @@ def expected_269(entry_id: str, expected: dict | None) -> dict | None:
     verdict = SPEC_269_PROBLEM.get(str(entry_id))
     if verdict and isinstance(read.get("vector_verdicts"), dict):
         read["vector_verdicts"]["PROBLEM"] = {"verdict": verdict[0], "deciding": verdict[1]}
+    # spec 162 FR-6 (keel-cloud 272 `SPEC_272_MOVES`, `SPEC_272_SOLUTION`): the golden SOLUTION rows the yes-or-no reading
+    # moves -- status and drift only, n and the supporters the same counts
+    if isinstance(standings, dict):
+        for key, (status, drift) in (SPEC_272_MOVES.get(str(entry_id)) or {}).items():
+            if isinstance(standings.get(key), dict):
+                standings[key]["status"] = status
+                if drift is None:
+                    standings[key].pop("drift", None)
+                else:
+                    standings[key]["drift"] = drift
+    solution = SPEC_272_SOLUTION.get(str(entry_id))
+    if solution and isinstance(read.get("vector_verdicts"), dict):
+        read["vector_verdicts"]["SOLUTION"] = {"verdict": solution[0], "deciding": solution[1]}
     return read
 
 
@@ -2291,8 +2317,70 @@ def picks_269(picks: dict | None, of: int) -> dict:
     for key, value in (picks or {}).items():
         if key in RETIRED_269:
             continue
-        out[key] = spec269_frequency(value, of) if key == "problem.frequency" else value
+        out[key] = spec269_frequency(value, of) if key == "problem.frequency" else \
+            spec272_solution(value) if key in SOLUTION_272 else value
     return out
+
+
+# ------------------------------------------------------------------------------------ spec 162: read through keel-cloud 272
+
+#: Spec 162 FR-6 (keel-cloud 272 FR-1; its judgement call 17: "the revision that records the two is owed to keel-e2e-eval
+#: 162"): **the corpus read through keel-cloud 272** -- the solution's three on yes or no. The files are keel-cloud's canon
+#: and are never written here (spec 010's one place; spec 161 judgement call 6), so the revision this repository records is
+#: its read revision: `READ_REVISION_162` over the files' 23 / 25 -- 269's read and 272's, one rule each, exactly
+#: keel-cloud's `VectorCorpusFixture` (`spec272Solution`, `SPEC_272_MOVES`, `SPEC_272_SOLUTION`).
+READ_REVISION_162 = "r23+269+272"
+SOLUTION_272 = ("solution.compatibility", "solution.relative_advantage", "solution.adoption_friction")
+YES_NO_272 = ("yes", "no")
+#: keel-cloud 272 (`SolutionBeliefs.DEFAULT_BIN`): the bin code writes at the board's yes, the recorded list read as it.
+DEFAULT_BIN_272 = "p_60_80"
+#: keel-cloud `VectorCorpusFixture.spec272Solution`'s one rule: what the old registry counted for the founder is yes,
+#: what it counted against is no.
+SPEC_272_YES = ("yes", "yes_easily", "yes_with_steps", "a_lot_better", "a_little_better", "yes_if_worth_it")
+SPEC_272_NO = ("no", "only_with_help", "no_difference", "worse", "probably_not")
+#: keel-cloud `VectorCorpusFixture.SPEC_272_MOVES`: the golden SOLUTION rows the reading moves -- `(status, drift)`.
+SPEC_272_MOVES = {
+    "01-countly": {"solution.compatibility": ("HOLDING_UP", "stronger"),
+                   "solution.adoption_friction": ("HOLDING_UP", "stronger")},
+    "03-lullaby": {"solution.adoption_friction": ("HOLDING_UP", None)},
+    "04-linerly": {"solution.compatibility": ("HOLDING_UP", "stronger"),
+                   "solution.adoption_friction": ("HOLDING_UP", "stronger")},
+    "06-repeatline": {"solution.compatibility": ("HOLDING_UP", "stronger"),
+                      "solution.adoption_friction": ("HOLDING_UP", "stronger")},
+    "07-mulchrun": {"solution.adoption_friction": ("HOLDING_UP", "stronger")}}
+#: keel-cloud `VectorCorpusFixture.SPEC_272_SOLUTION`: the golden SOLUTION verdicts the reading moves.
+SPEC_272_SOLUTION = {"03-lullaby": ("HOLDING_UP", "solution.compatibility")}
+
+
+def spec272_solution(recorded):
+    """keel-cloud `VectorCorpusFixture.spec272Solution`: a recorded Compatibility, Relative advantage or Adoption friction
+    answer read yes or no -- the codes the old registry counted for are yes, those against no; an r9 to r18 scale answer
+    (`{answer, advantages}`) by `registry.from_three` first; a chip kept as a chip; anything else as recorded."""
+    from instructions import registry as registry_mod                     # noqa: PLC0415
+    if isinstance(recorded, dict) and "chip" in recorded:
+        return {"chip": recorded["chip"]}
+    if isinstance(recorded, dict):
+        recorded = registry_mod.from_three(recorded)
+    if recorded in SPEC_272_YES:
+        return "yes"
+    if recorded in SPEC_272_NO:
+        return "no"
+    return recorded
+
+
+def spec272_founder_bin(founder_calibration: dict | None, key: str):
+    """keel-cloud `VectorCorpusFixture.toInput` (spec 272 FR-1): the recorded list read as the bin code writes at the
+    board's yes (`p_60_80`); a left-out one stays left out (None)."""
+    recorded = (founder_calibration or {}).get(key) or {}
+    return None if recorded.get("unsure") else DEFAULT_BIN_272
+
+
+def through_272_on(registry) -> bool:
+    """Whether `registry` asks the solution's three yes or no (keel-cloud 272, `DimensionRegistry.VERSION` 7)."""
+    try:
+        return any(registry.by_key(k).respondent_control == "yes_no" for k in SOLUTION_272)
+    except Exception:  # noqa: BLE001 - a registry slice without the solution
+        return False
 
 
 def advantage_benefit(label) -> str:

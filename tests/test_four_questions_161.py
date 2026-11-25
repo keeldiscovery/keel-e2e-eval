@@ -176,7 +176,9 @@ def test_the_verdict_line_is_keel_clouds():
 def test_no_belief_page_on_a_spoken_problem_and_the_typed_path_unchanged():
     assert not vs_screens.calibrates("PROBLEM", "PROBLEM", spoken=True)
     assert vs_screens.calibrates("PROBLEM", "PROBLEM") and vs_screens.calibrates("PROBLEM", "ALL")
-    assert vs_screens.calibrates("SOLUTION", "SOLUTION", spoken=True)
+    # spec 162 FR-2 (keel-cloud 271 FR-8): a spoken SOLUTION's beliefs are written at the board's yes too
+    assert not vs_screens.calibrates("SOLUTION", "SOLUTION", spoken=True)
+    assert vs_screens.calibrates("SOLUTION", "SOLUTION") and vs_screens.calibrates("SOLUTION", "ALL")
     assert vs_screens.SCOPE_STEPS["PROBLEM"] == ("context", "problem", "ready")
     assert "problem.current_solution_satisfaction" not in vs_screens.REVIEWED_LISTS
     assert vs_screens.REVIEWED_LISTS == ("problem.importance", "solution.compatibility", "solution.relative_advantage")
@@ -471,7 +473,9 @@ def test_a_free_reading_that_moved_credits_is_named():
                                                                                    "EXPERIENCE_WAYS": 1}
     assert charge.free_reading_faults([{"action": "EXPERIENCE_WAYS", "credits": -5, "price_credits": 5}])
     table = _java("domain", "connect", "InferenceCharge.java")
-    assert int(re.search(r"public static final int VERSION = (\d+);", table).group(1)) == charge.PRICE_VERSION_270
+    # spec 162 FR-10: keel-cloud 273 moved the table to 22 (the pictures' two rows at 0); 270's rows unmoved
+    assert int(re.search(r"public static final int VERSION = (\d+);", table).group(1)) in (charge.PRICE_VERSION_270,
+                                                                                         charge.PRICE_VERSION_273)
     assert re.search(r"EXPERIENCE_WAYS\s*\(\s*0,", table) and re.search(r"STORY_TURN\s*\(\s*0,", table)
 
 
