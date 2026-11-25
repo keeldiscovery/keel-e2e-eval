@@ -298,7 +298,10 @@ def test_the_question_and_page_scores_sit_beside_the_film(tmp_path):
     scores = tmp_path / "scores"
     shutil.copytree(SCORES, scores)
     (scores / "entry-a").mkdir()
-    screens = [{"kind": "q-problem.prevalence", "audience": "founder", "r1": 2, "r2": 2, "r3": 2, "r4": 2, "r5": 2,
+    # spec 165 FR-3: §A is the strangers' screens of the film's link (a founder screen is never in it)
+    screens = [{"kind": "gate", "audience": "respondent", "r1": 2, "r2": 2, "r3": 2, "r4": 2, "r5": 2,
+                "r6": 2, "r7": None},
+               {"kind": "q-problem.prevalence", "audience": "founder", "r1": 0, "r2": 0, "r3": 0, "r4": 0, "r5": 0,
                 "r6": None, "r7": None},
                {"kind": "stage", "audience": "founder", "b1": 2, "b2": 1, "b3": 2, "b4": 2, "b5": 2, "b6": None}]
     (scores / "entry-a" / "x.json").write_text(json.dumps({"entry": "entry-a", "bundle": "bt-entry-a",
@@ -347,11 +350,11 @@ def test_the_paid_walk_refuses_without_its_keys_and_the_free_one_never_draws_a_p
     assert hard and "never draws a paid picture" in hard[0]
 
 
-def test_the_paid_walk_is_the_film_then_the_scenario_maker_then_the_readers(tmp_path):
+def test_the_paid_walk_is_the_film_leg_then_the_readers(tmp_path):
+    # spec 165 (163's judgement call 1 closed): no back-test step -- the film leg walks the people on its own project
     steps = film_walk.plan_steps(["e1"], door="keel", walk=tmp_path, people=7, typos=True)
-    assert [s["what"] for s in steps] == ["film", "backtest", "read"]
-    assert steps[0]["argv"][-3:] == ["ENTRY=e1", "DOOR=keel", f"OUT={tmp_path}"]
-    assert steps[1]["argv"][-6:] == ["backtest", "ENTRY=e1", "SCOPE=PROBLEM", "DOOR=keel", "PEOPLE=7", "TYPOS=1"]
+    assert [s["what"] for s in steps] == ["film", "read"]
+    assert steps[0]["argv"][-5:-2] == ["ENTRY=e1", "DOOR=keel", f"OUT={tmp_path}"]
     assert [s["what"] for s in film_walk.plan_steps(["e1"], door="fake", walk=tmp_path, people=7, typos=True)] == ["film"]
 
 

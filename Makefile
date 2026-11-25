@@ -304,9 +304,11 @@ quality-accept: venv
 # make film-walk (PAID on DOOR=keel, the default -- the founder's word): per entry, the film leg (its own stack with
 # the keys and KEEL_PICTURES=openai, the seven beats in the entry's words, the build with the real pictures, the film
 # captured: fourteen frames, the story, the pictures, the setting and the prompts) into runs/<stamp>-film-walk/film/
-# <entry>/, then `make backtest ENTRY= SCOPE=PROBLEM` as quality-walk runs it and `make read-screens` on its bundle.
-# DOOR=fake is the free local walk (keel-cloud's fakes, FakePictures; the film alone). ENTRIES=holdout walks
-# quality/cycle.toml [film] holdout (refused while empty). DRY=1 prints the plan.
+# <entry>/; spec 165: then, on THE SAME PROJECT, the lock, its link sent to the entry's seven people (cycle.toml's
+# `people`; PEOPLE= overrides) each answering the four questions on the film's link, and the founder's page read after
+# them -- no second, typed project -- and `make read-screens` on that project's bundle (paid). DOOR=fake is the free
+# local walk (keel-cloud's fakes, FakePictures: the film, the lock, the people and the founder's page; no read).
+# ENTRIES=holdout walks quality/cycle.toml [film] holdout (refused while empty). DRY=1 prints the plan.
 #   make film-walk ENTRIES=08-fresco DOOR=fake WHY="the local walk"
 #   KEEL_ANTHROPIC_API_KEY=... KEEL_OPENAI_API_KEY=... KEEL_PICTURES=openai make film-walk ENTRIES=holdout WHY="..."
 film-walk: venv
@@ -314,10 +316,12 @@ film-walk: venv
 	  $(if $(DRY),--dry-run,) $(if $(PEOPLE),--people "$(PEOPLE)",) $(if $(filter 0 off,$(TYPOS)),--typos off,) \
 	  $(if $(WHY),--why "$(WHY)",) $(if $(OUT),--out "$(OUT)",)
 
-# make film-leg (spec 163 FR-2) is one entry's film leg alone (evals/run_film.py); `make film-walk` runs it.
+# make film-leg (spec 163 FR-2, spec 165 FR-1) is one entry's film leg alone (evals/run_film.py): the film, then the
+# same project's lock, PEOPLE= people on its link (cycle.toml's seven when unsaid) and the founder's page after them;
+# TYPOS=1 types the founder's beats with typos on Keel's door. `make film-walk` runs it.
 film-leg:
 	@$(MAKE) --no-print-directory venv
-	KEEL_EVAL_PROFILE=eval KEEL_FILM_ENTRY=$(ENTRY) KEEL_FILM_DOOR=$(if $(DOOR),$(DOOR),keel) KEEL_FILM_OUT=$(OUT) $(PY) -m pytest evals/run_film.py -q -rs -l -s -p no:cacheprovider
+	KEEL_EVAL_PROFILE=eval KEEL_FILM_ENTRY=$(ENTRY) KEEL_FILM_DOOR=$(if $(DOOR),$(DOOR),keel) KEEL_FILM_OUT=$(OUT) $(if $(PEOPLE),KEEL_FILM_PEOPLE=$(PEOPLE) ,)$(if $(TYPOS),KEEL_FILM_TYPOS=$(TYPOS) ,)$(PY) -m pytest evals/run_film.py -q -rs -l -s -p no:cacheprovider
 
 # make read-films (PAID: about $0.30 a film at list price through the Anthropic API with vision, KEEL_ANTHROPIC_API_KEY
 # in the shell; the founder's beats on the founder's plan through the claude CLI) writes quality/scores/<bundle>-film-

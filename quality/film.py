@@ -1,24 +1,30 @@
-"""The film walk (spec 163 FR-2, FR-5): `make film-walk ENTRIES=<ids|holdout|default> WHY="<...>" [DOOR=keel|fake]
-[DRY=1] [PEOPLE=<n>] [TYPOS=0]`.
+"""The film walk (spec 163 FR-2, FR-5; spec 165): `make film-walk ENTRIES=<ids|holdout|default> WHY="<...>"
+[DOOR=keel|fake] [DRY=1] [PEOPLE=<n>] [TYPOS=0]`.
 
-**PAID on Keel's door** (the default, `DOOR=keel`; the founder's word): for each entry, in order --
+**One project an entry** (spec 165, closing 163's judgement call 1): the film's own project is the study the people
+answer -- no second, typed project is made. For each entry, in order --
 
-1. `make film-leg ENTRY=<id> DOOR=keel OUT=<walk>` (`evals/run_film.py`): its own stack booted from this shell with the
-   keys and `KEEL_PICTURES=openai`, a PROBLEM project, the seven beats told in the entry's words, the boxes' yes, the
-   build with the real pictures, and **the film captured before any stranger sees it** into `<walk>/film/<entry>/`
-   (fourteen frames, the story, the pictures, the setting and the prompts, the ledger's rows); the stack down after.
-2. `make backtest ENTRY=<id> SCOPE=PROBLEM DOOR=keel PEOPLE=<people> TYPOS=1` -- **the scenario-maker unchanged**, as
-   `make quality-walk` runs it: the entry typed as the founder, the people answering on the person's own link, the
-   founder's page after the answers (spec 109); its bundle named in the walk's record.
-3. `make read-screens RUN=<that bundle>` -- every respondent screen (§A, R6) and the founder's page after the answers
-   (§B), as the cycles read them.
+1. `make film-leg ENTRY=<id> DOOR=<door> OUT=<walk> PEOPLE=<people> TYPOS=<0|1>` (`evals/run_film.py`): a PROBLEM
+   project, the seven beats told (the entry's words on Keel's door, typed with typos on `TYPOS=1`; the fake script's on
+   the fakes), the boxes' yes, the build, **the film captured before any stranger sees it** into `<walk>/film/<entry>/`
+   (fourteen frames, the story, the pictures, the setting and the prompts, the ledger's rows); then on the same project
+   the lock (the window, the calibration, the credits, the ready page's lock, the questions READY -- a step that does
+   not hold fails the leg by name), its link sent to the entry's first `people` (`quality/cycle.toml`'s seven) of the
+   role the PROBLEM scope sends, each answering **the film's link** (the opening, the screener, the film, *Did this
+   happen to you?*, the experience, Frequency's five, Importance over the role's tasks, the whys where owed) with their
+   recorded answers mapped onto the four questions, then the founder's page read after the answers; the bundle
+   `make read-screens` reads is the leg's evidence folder (`backtest.json`, `kind: "film"`), named in `film.json`.
+2. On Keel's door only (PAID): `make read-screens RUN=<that folder>` -- the strangers' screens of the film's link (§A,
+   R6) and the founder's page after the seven answers (§B), as the cycles read them.
 
-The walk's bundle `runs/<stamp>-film-walk/` carries the three: the films (`film/<entry>/`), and in `walk.json` each
-entry's back-test bundle and its score file; `make read-films RUN=<walk>` reads the films, `make read-film-table
-RUN=<walk>` tables the three scores an entry. `walk.json` is rewritten after every step (the work protected).
+The walk's bundle `runs/<stamp>-film-walk/` carries the films (`film/<entry>/`) and in `walk.json` each entry's one
+project (`project_id`), its screens bundle and its score file; `make read-films RUN=<walk>` reads the films, `make
+read-film-table RUN=<walk>` tables the three scores an entry, all of that one project. `walk.json` is rewritten after
+every step (the work protected).
 
-**Free on the fakes** (`DOOR=fake`, FR-7's local walk): step 1 alone on the stack as it stands (or booted), keel-cloud's
-fakes answering (`FakeStoryReadings`, `FakePictures`); steps 2 and 3 are paid and are not run -- the walk says so.
+**Free on the fakes** (`DOOR=fake`, FR-4's local walk): step 1 whole on the stack as it stands (or booted), keel-cloud's
+fakes answering (`FakeStoryReadings`, `FakePictures`, the fake transcriber and readers) -- the film, the lock, the
+people on the film's link and the founder's page; step 2 is paid and is not run -- the walk says so.
 
 It refuses (one sentence, exit 2, nothing run) without ENTRIES; on `ENTRIES=holdout` while `quality/cycle.toml`
 `[film] holdout` is empty (the integrator writes the founder's nine first); without WHY on a paid walk; on DOOR=keel
@@ -36,7 +42,6 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 from quality import cycle as cyc
@@ -103,23 +108,38 @@ def preflight(entries: list[str], *, door: str, why: str | None, dry: bool, clou
 
 
 def plan_steps(entries: list[str], *, door: str, walk: Path, people: int | None, typos: bool) -> list[dict]:
+    """Spec 165: per entry the film leg -- the film, then the same project's lock, people and founder's page -- and on
+    Keel's door `make read-screens` on that leg's screens bundle; no back-test (no second, typed project)."""
     make = ["make", "-C", str(REPO), "--no-print-directory"]
     steps = []
     for entry in entries:
+        sends = ([f"PEOPLE={int(people)}"] if people else []) + [f"TYPOS={1 if typos else 0}"]
         steps.append({"entry": entry, "what": "film", "log": str(walk / "logs" / f"{entry}.film.log"),
-                      "argv": [*make, "film-leg", f"ENTRY={entry}", f"DOOR={door}", f"OUT={walk}"]})
+                      "argv": [*make, "film-leg", f"ENTRY={entry}", f"DOOR={door}", f"OUT={walk}", *sends]})
         if door == "keel":
-            sends = ([f"PEOPLE={int(people)}"] if people else []) + (["TYPOS=1"] if typos else [])
-            steps.append({"entry": entry, "what": "backtest", "log": str(walk / "logs" / f"{entry}.backtest.log"),
-                          "argv": [*make, "backtest", f"ENTRY={entry}", "SCOPE=PROBLEM", "DOOR=keel", *sends]})
             steps.append({"entry": entry, "what": "read", "log": str(walk / "logs" / f"{entry}.read.log"),
                           "argv": [*make, "read-screens", "RUN=<bundle>"]})
     return steps
 
 
-def newest_bundle(entry: str, since: float, runs_dir: Path | None = None) -> Path | None:
-    found = [p for p in Path(runs_dir or RUNS_DIR).glob(f"*-backtest-{entry}") if p.stat().st_mtime >= since - 1]
-    return max(found, key=lambda p: p.stat().st_mtime) if found else None
+def film_record(walk: Path, entry: str) -> dict:
+    """The film leg's own record (`film/<entry>/film.json`), or `{}` where the leg wrote none."""
+    path = Path(walk) / "film" / entry / "film.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def project_row(film: dict) -> dict:
+    """Spec 165 FR-2: what `walk.json` names of the entry's one project -- the project, the screens bundle read-screens
+    reads, the people sent and answered, the lock's refusal where it did not hold."""
+    strangers = film.get("strangers") or {}
+    row = {"project_id": film.get("project_id"), "screens_bundle": film.get("screens_bundle"),
+           "people": strangers.get("people"), "answered": strangers.get("answered")}
+    if film.get("refused"):
+        row["refused"] = film["refused"]
+    return {k: v for k, v in row.items() if v is not None}
 
 
 def score_file_of(log: Path) -> str | None:
@@ -180,11 +200,12 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which, stac
         for s in steps:
             print("  " + " ".join(s["argv"]))
         if args.door == "fake":
-            print("  (DOOR=fake: the back-test and read-screens are paid and are not run; the film alone)")
+            print("  (DOOR=fake: the film, the lock, the people on the film's link and the founder's page, free; "
+                  "read-screens is paid and is not run)")
         print(f"then: make read-films RUN={walk_dir}  and  make read-film-table RUN={walk_dir}")
         return 0
     walk_dir.mkdir(parents=True, exist_ok=True)
-    record = {"spec": "163", "why": args.why, "door": args.door, "started": stamp, "people": people,
+    record = {"spec": "163+165", "why": args.why, "door": args.door, "started": stamp, "people": people,
               "typos": args.typos != "off", "keel-cloud": cyc.git_sha(cloud, short=8),
               "keel-web": cyc.git_sha(web, short=8), "entries": []}
 
@@ -196,32 +217,37 @@ def walk(argv=None, *, runner=subprocess.run, env=None, which=shutil.which, stac
         row = by_entry.setdefault(step["entry"], {"entry": step["entry"], "film": f"film/{step['entry']}"})
         if row not in record["entries"]:
             record["entries"].append(row)
-        started = time.time()
-        argv = [a.replace("<bundle>", row.get("backtest_path") or "") for a in step["argv"]]
-        if step["what"] == "read" and not row.get("backtest_path"):
-            row["read"] = "not run: the back-test wrote no bundle"
+        argv = [a.replace("<bundle>", row.get("screens_bundle") or "") for a in step["argv"]]
+        if step["what"] == "read" and not row.get("screens_bundle"):
+            row["read"] = "not run: the film leg wrote no screens bundle (the film's project never had its people)"
             save()
             continue
         print(f"{step['entry']}: {step['what']} ...", flush=True)
         code = _run(argv, step["log"], runner)
         row[f"{step['what']}_exit"] = code
-        if step["what"] == "backtest":
-            bundle = newest_bundle(step["entry"], started)
-            row["backtest"] = bundle.name if bundle else None
-            row["backtest_path"] = str(bundle) if bundle else None
         if step["what"] == "read":
             row["score_file"] = score_file_of(Path(step["log"]))
         if step["what"] == "film":
-            row["captured"] = (walk_dir / "film" / step["entry"] / "film.json").is_file()
+            film = film_record(walk_dir, step["entry"])
+            row["captured"] = bool(film)
+            row.update(project_row(film))
+            if row.get("screens_bundle"):
+                row["screens"] = Path(row["screens_bundle"]).name
         save()
         print(f"{step['entry']}: {step['what']} exit {code} (log {step['log']})", flush=True)
     record["ended"] = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     if args.door == "fake":
-        record["note"] = "DOOR=fake: the film alone (the back-test and read-screens are paid and were not run)"
+        record["note"] = ("DOOR=fake: the film, the lock, the people on the film's link and the founder's page walked "
+                          "free; read-screens is paid and was not run")
     save()
     print(f"walk bundle: {walk_dir}")
+    for r in record["entries"]:
+        print(f"  {r['entry']}: the film's project {r.get('project_id')}, {r.get('answered')} of {r.get('people')} "
+              f"answered on its link, screens bundle {r.get('screens_bundle')}"
+              + (f" -- REFUSED: {r['refused']}" if r.get("refused") else ""))
     print(f"next: make read-films RUN={walk_dir}  then  make read-film-table RUN={walk_dir}")
-    return 0 if all(r.get("captured") for r in record["entries"]) else 1
+    return 0 if all(r.get("captured") and r.get("screens_bundle") and r.get("film_exit") == 0
+                    for r in record["entries"]) else 1
 
 
 def main(argv=None) -> int:

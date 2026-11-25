@@ -28,6 +28,11 @@ after the persona and before the screen; a screen with none (the name, the conte
 screener, the reveal, a follow-up, the stage page, the Insights screen) is sent no block. Each screen's score records
 the card it was sent (`dimension_card`, its key, or null); the dry run prints each card sent once and names it in place.
 
+**Spec 165 (the film's project)**: a bundle of `kind: "film"` (`harness/film_strangers.screens_bundle`, the film leg's
+`backtest.json`) is the film's own project after its people answered: its strangers' screens of the film link (§A, R6)
+and the founder's page after them (§B) are read as a back-test's are; it carries no founder screen (the founder's beats
+are read by `make read-films`, 163 FR-1) and asks no founder whole-flow question. Its score file names the project.
+
 **The door is the `claude` CLI, exactly as `instructions/judge.py` calls it** (`_ARGV`, `judge_env`), plus `--model`
 and `--effort` from `quality/readers.toml` (the coordinator's decision 1). No key is read, named or passed. A run
 refuses before its first screen when the binary is missing or `claude -p` cannot answer a one-word probe. The calls are
@@ -138,6 +143,10 @@ def fill(text: str, values: dict) -> str:
 
 # -------------------------------------------------------------------------------------------- the bundle
 
+#: Spec 165: the bundle the film leg writes for the film's own project (`harness/film_strangers.screens_bundle`).
+FILM_KIND = "film"
+
+
 def load_bundle(run: str | Path) -> tuple[Path, dict]:
     if not run:
         raise Refused("make read-screens refuses: no RUN -- name a back-test bundle, `make read-screens "
@@ -152,6 +161,13 @@ def load_bundle(run: str | Path) -> tuple[Path, dict]:
     bundle = json.loads(path.read_text(encoding="utf-8"))
     if not (bundle.get("entry") or {}).get("id"):
         raise Refused(f"make read-screens refuses: {path} names no entry")
+    if bundle.get("kind") == FILM_KIND:
+        # spec 165 FR-2: the film's project -- the strangers' screens of its link and the founder's page after them; the
+        # founder's beats are the film's (163 FR-1, `make read-films`' founder-reader), so no founder screen is owed
+        if not (bundle.get("respondents") or bundle.get("after_screens")):
+            raise Refused(f"make read-screens refuses: {path} is a film project's bundle with no stranger's screen and "
+                          "no screen after the answers (a walk that stopped before its people)")
+        return run_dir, bundle
     if not bundle.get("founder_screens"):
         raise Refused(f"make read-screens refuses: {path} carries no founder screen (a walk that stopped early)")
     return run_dir, bundle
@@ -1081,9 +1097,10 @@ def plan(bundle: dict, entry: dict, *, only: str | None = None, limit: int | Non
                                                  "rubric_r6": rubric_r6, "spoken_rules": guidelines["text"],
                                                  "earlier": earlier, "screen": screen.full})))
     if not (only or limit):
-        flows.append(("founder", None, fill(template("founder", "flow", readers_dir),
-                                            {"persona": founder_block,
-                                             "earlier": "\n".join(s.compact for s in founder)})))
+        if founder:                                  # spec 165: a film project's bundle has no founder screen
+            flows.append(("founder", None, fill(template("founder", "flow", readers_dir),
+                                                {"persona": founder_block,
+                                                 "earlier": "\n".join(s.compact for s in founder)})))
         for link, screens in links.items():
             if screens:
                 flows.append(("respondent", link, fill(template("respondent", "flow", readers_dir),
@@ -1242,6 +1259,8 @@ def run(argv=None) -> int:
         "entry": entry["id"],
         "scope": bundle_scope(bundle),
         "bundle": bundle.get("run") or run_dir.name,
+        # spec 165 FR-3: the project the screens were read on, where the bundle names one (the film's project)
+        **({"project_id": bundle["project_id"], "kind": bundle.get("kind")} if bundle.get("project_id") else {}),
         "cloud_sha": (bundle.get("stack") or {}).get("keel-cloud"),
         "web_sha": (bundle.get("stack") or {}).get("keel-web"),
         "routing_version": routing_version(run_dir),

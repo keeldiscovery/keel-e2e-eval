@@ -216,22 +216,28 @@ make film-walk ENTRIES=holdout WHY="<the founder's words>"     # the nine of [fi
 make read-films RUN=runs/<stamp>-film-walk                     # the film reader (API, vision) + the founder's beats (CLI)
 make read-film-table RUN=runs/<stamp>-film-walk [DRIFT=1]      # free: FILM-TABLE.md and quality/cycles/<record>-film.md
 make film-advise RUN=runs/<stamp>-film-walk [DRY=1]            # one claude CLI call per weak criterion, never applied
-make film-walk ENTRIES=08-fresco DOOR=fake WHY="local"         # free: the film alone on keel-cloud's fakes
+make film-walk ENTRIES=08-fresco DOOR=fake WHY="local"         # free: the film, the lock, the seven, the page, on the fakes
 ```
 
 - **The walk** (FR-2): per entry, the film leg (`evals/run_film.py`: its own stack with the keys, a PROBLEM project, the
   seven beats told in the entry's words on the wire, the boxes' yes, the build with the real pictures, then the film
   captured on the founder's player at `define/story/check` -- each scene held by parking the next line's clip, shot on
   a phone 390 x 844 and a laptop 1280 x 800 -- with the story, the pictures, the setting and the prompts and the
-  ledger's rows) into `<walk>/film/<entry>/`; then `make backtest ENTRY= SCOPE=PROBLEM` (the scenario-maker unchanged:
-  the seven people, the founder's page after the answers) and `make read-screens` on its bundle, named in
-  `<walk>/walk.json`. One walk bundle, three reads: the film, the questions (§A), the founder's page (§B).
+  ledger's rows) into `<walk>/film/<entry>/`. **Spec 165: then, on the same project** (no second, typed project), the
+  lock (the window, the calibration, the credits, the ready page's lock, the questions READY -- a step that does not
+  hold fails the leg by name), its link sent to the entry's seven people (`people`, the PROBLEM scope's own-link people
+  in corpus order), each answering the film's link on the orb with their recorded answers mapped onto the four
+  questions (the screener, the film, *Did this happen to you?*, the experience, Frequency's five, Importance, the whys
+  in their own words), then the founder's page read after them; the leg's evidence folder is the bundle `make
+  read-screens` reads (`backtest.json`, `kind: "film"`), named with the project in `<walk>/walk.json`. One walk bundle,
+  one project an entry, three reads: the film, the strangers' questions (§A), the founder's page (§B).
 - **The table** (FR-4): one row an entry -- F1..F8, `film_pct`, flagged, `founder_pct`, §A `score_pct`, §B `after_pct`,
   the dollars; the bar `[film] film_bar_pct` (80); an entry passes at the bar with no 0, a round when every entry does,
   and a tabled holdout entry short fails it whatever the five did. The record carries *The film, judged*: each entry's
   whys a line a criterion, its frames linked, the findings for `runs/DRIFT.md` (`DRIFT=1` appends them).
-- **What it costs** (estimates): the walk on Keel's door about $1 an entry (the back-test's ~$0.50 and the pictures'
-  ~$0.45 by keel-cloud 273's `STORY_PICTURES` estimate, plus the beats' readings); `read-screens` on the PROBLEM study
+- **What it costs** (estimates): the walk on Keel's door about $1 an entry (the pictures' ~$0.45 by keel-cloud 273's
+  `STORY_PICTURES` estimate, the beats' readings, and the seven interviews' readings on Keel's AI, about what the
+  back-test spent); `read-screens` on the PROBLEM study
   about $5 an entry on the founder's plan (the cycles' rate); `read-films` about $0.30 a film at list price (some 35,000
   tokens in with twenty-two images, ~3,000 out) and about $0.50 of the founder's plan for the eight beats. The record says
   what it actually cost.

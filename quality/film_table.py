@@ -8,6 +8,11 @@ rule); each entry's whys in one line a criterion and its frames linked (the repo
 findings a cloud or web spec owes (a picture with text, a caption clipped, a limitation with no scene, a setting that
 names a company, a scene served with no picture), in `runs/DRIFT.md`'s shape -- appended there with `DRIFT=1`.
 
+**Spec 165 FR-3: one project an entry.** The §A and §B columns come from the film's own project -- the score file of
+`make read-screens` on the screens bundle `walk.json` names for the entry (the film leg's), and where the score file
+names its project, that project; §A is the strangers' screens of the film's link (and §G), never a founder screen. A
+walk row that names only a back-test bundle (a 163 walk: the typed project) is never tabled: its columns read `--`.
+
 It writes `quality/FILM-TABLE.md` (rewritten) and the record `quality/cycles/<yyyymmdd>-<cloud7>-film.md`. An entry
 passes at `film_pct` >= the bar with no 0; a round passes when every entry does -- and a round whose holdout entries
 (`[film] holdout`) fall short fails whatever the others did (`quality/decisions.toml`'s rule, *rules not cases*).
@@ -94,35 +99,68 @@ def load_films(bundle: str, scores_dir: Path | None = None) -> list[dict]:
     return files
 
 
-def backtests_of(run: str | Path) -> dict:
-    """The walk's record (`walk.json`, `make film-walk`): each entry's back-test bundle, by entry -- `{}` where the
-    bundle has none (a free walk, or a bundle written by hand)."""
+def projects_of(run: str | Path) -> dict:
+    """Spec 165 FR-2 / FR-3: the walk's record (`walk.json`, `make film-walk`) -- each entry's one project, by entry:
+    `{bundle, project_id}`, the bundle being the film leg's screens bundle by name. A row naming only a `backtest` (a
+    163 walk's second, typed project) is left out: a typed project's scores are never tabled beside the film. `{}`
+    where the walk has no record (a bundle written by hand)."""
     path = Path(run) / "walk.json"
     if not path.is_file():
         return {}
     record = json.loads(path.read_text(encoding="utf-8"))
-    return {r["entry"]: r["backtest"] for r in record.get("entries") or [] if r.get("backtest")}
-
-
-def question_scores(bundle: str, scores_dir: Path | None = None, backtests: dict | None = None) -> dict:
-    """The same walk's `make read-screens` score files (`quality/scores/<entry>/*.json` whose `bundle` is the entry's
-    back-test bundle as `walk.json` names it, else this bundle), by entry: `qa_pct` -- the score over the §A screens
-    (every R, and the §G readings) -- and `after_pct` -- §B, the founder's page after the answers (spec 109) -- with the
-    file's path and dollars."""
     out = {}
-    wanted = set((backtests or {}).values()) | {bundle}
+    for r in record.get("entries") or []:
+        screens = r.get("screens") or (Path(r["screens_bundle"]).name if r.get("screens_bundle") else None)
+        if screens:
+            out[r["entry"]] = {"bundle": screens, "project_id": r.get("project_id")}
+    return out
+
+
+def typed_rows(run: str | Path) -> list[str]:
+    """The entries whose walk row names a back-test bundle and no film project's screens (163's walk): said in the
+    record, never tabled."""
+    path = Path(run) / "walk.json"
+    if not path.is_file():
+        return []
+    record = json.loads(path.read_text(encoding="utf-8"))
+    return [r["entry"] for r in record.get("entries") or [] if r.get("backtest") and not r.get("screens_bundle")]
+
+
+def _project(value) -> tuple[str | None, str | None]:
+    """A `projects_of` value (or, from a caller before spec 165, a bundle's name alone): `(bundle, project_id)`."""
+    if isinstance(value, dict):
+        return value.get("bundle"), value.get("project_id")
+    return (str(value) if value else None), None
+
+
+def question_scores(bundle: str, scores_dir: Path | None = None, projects: dict | None = None) -> dict:
+    """The same walk's `make read-screens` score files (`quality/scores/<entry>/*.json`) of each entry's one project
+    (spec 165 FR-3): the file's `bundle` is the screens bundle `walk.json` names for the entry and, where the file names
+    its project, the project is the one `walk.json` names; by entry: `qa_pct` -- §A, the strangers' screens of the
+    film's link (every R, R6) and the §G readings, never a founder screen -- and `after_pct` -- §B, the founder's page
+    after the answers (spec 109) -- with the file's path, project and dollars."""
+    out = {}
+    wanted = {e: _project(v) for e, v in (projects or {}).items()}
     for path in sorted(Path(scores_dir or SCORES_DIR).glob("*/*.json")):
         try:
             obj = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             continue
-        if obj.get("bundle") not in wanted or obj.get("partial"):
+        if obj.get("partial"):
+            continue
+        entry = obj.get("entry")
+        want_bundle, want_project = wanted.get(entry, (bundle, None))
+        if obj.get("bundle") != want_bundle:
+            continue
+        if want_project and obj.get("project_id") and obj["project_id"] != want_project:
             continue
         screens = obj.get("screens") or []
-        qa = rubric.summary([s for s in screens if not rubric.is_after(s.get("kind"))], obj.get("insights") or [])
+        qa = rubric.summary([s for s in screens if not rubric.is_after(s.get("kind"))
+                             and s.get("audience") != "founder"], obj.get("insights") or [])
         after = (obj.get("summary") or {}).get("overall", {}).get("after_pct")
-        out[obj.get("entry")] = {"qa_pct": qa.get("score_pct"), "after_pct": after, "path": str(path),
-                                 "cost_usd": obj.get("cost_usd"), "rubric_version": obj.get("rubric_version")}
+        out[entry] = {"qa_pct": qa.get("score_pct"), "after_pct": after, "path": str(path),
+                      "project_id": obj.get("project_id") or want_project,
+                      "cost_usd": obj.get("cost_usd"), "rubric_version": obj.get("rubric_version")}
     return out
 
 
@@ -135,7 +173,7 @@ def rows(files: list[dict], questions: dict, bar: float, holdout: list[str]) -> 
         q = questions.get(f["entry"]) or {}
         out.append({"entry": f["entry"], "kind": film["kind"], "scores": film["scores"], "film_pct": film["film_pct"],
                     "flagged": film["flagged"], "founder_pct": (f.get("founder") or {}).get("founder_pct"),
-                    "qa_pct": q.get("qa_pct"), "after_pct": q.get("after_pct"),
+                    "qa_pct": q.get("qa_pct"), "after_pct": q.get("after_pct"), "project_id": q.get("project_id"),
                     "usd": f.get("cost_usd"), "walk_usd": f.get("walk_usd"),
                     "passes": fr.passes(film, bar), "holdout": f["entry"] in holdout, "file": f["_path"],
                     "whys": film["whys"], "instead": film["instead"], "missing": film["missing"],
@@ -236,7 +274,7 @@ def next_drift_number(path: Path | None = None) -> int:
 # ------------------------------------------------------------------------------------------------ render
 
 def render(table: list[dict], files: list[dict], weak: list[dict], cfg: dict, *, bundle: str,
-           found: list[dict]) -> str:
+           found: list[dict], typed: list[str] | None = None) -> str:
     v = verdict(table, cfg["holdout"])
     kinds = sorted({r["kind"] for r in table}) or ["problem"]
     names = [c for k in kinds for c in fr.KINDS[k]]
@@ -275,10 +313,21 @@ def render(table: list[dict], files: list[dict], weak: list[dict], cfg: dict, *,
                      + f" | {_cell(r['film_pct'])} | {'yes' if r['flagged'] else 'no'} | {_cell(r['founder_pct'])} | "
                      f"{_cell(r['qa_pct'])} | {_cell(r['after_pct'])} | {_usd(r['usd'])} | "
                      f"{'yes' if r['passes'] else 'no'} |")
-    lines += ["", "§A and §B are `make read-screens` on the same bundle (RUBRIC.md: the respondent's and the founder's "
-                  "screens, and the founder's page after the answers -- the Overview's cards, the Insights tab, the "
-                  "brief); `--` where it has not been read. The solution film's column joins once the solution batch "
-                  "is walked.", "", "## Weak criteria", ""]
+    lines += ["", "§A and §B are `make read-screens` on **the film's project** (spec 165: the one project an entry -- "
+                  "the film told, locked, its link answered by the entry's people, its page read after them): §A the "
+                  "strangers' screens of the film's link (RUBRIC.md R1-R6, and §G), §B the founder's page after the "
+                  "answers (the Overview's cards, the Insights tab, the brief); `--` where it has not been read. No "
+                  "typed project's score is tabled here. The solution film's column joins once the solution batch is "
+                  "walked.", ""]
+    projects = [(r["entry"], r.get("project_id")) for r in table if r.get("project_id")]
+    if projects:
+        lines.append("The film's project: " + "; ".join(f"{e} `{p}`" for e, p in projects) + ".")
+        lines.append("")
+    if typed:
+        lines.append("Not tabled (a walk before spec 165, whose §A and §B were a second, typed project's): "
+                     + ", ".join(typed) + ".")
+        lines.append("")
+    lines += ["## Weak criteria", ""]
     if weak:
         for w in weak:
             lines.append(f"- **{w['criterion'].upper()}** ({w['kind']}): mean {w['mean']:.2f}, a 0 in {w['zeros']} "
@@ -343,11 +392,11 @@ def main(argv=None) -> int:
     except Refused as reason:
         print(str(reason), file=sys.stderr)
         return 2
-    table = rows(files, question_scores(bundle, Path(args.scores_dir), backtests_of(resolve_run(args.run))),
+    table = rows(files, question_scores(bundle, Path(args.scores_dir), projects_of(resolve_run(args.run))),
                  cfg["film_bar_pct"], cfg["holdout"])
     weak = fr.weak_criteria(files)
     found = findings(table)
-    text = render(table, files, weak, cfg, bundle=bundle, found=found)
+    text = render(table, files, weak, cfg, bundle=bundle, found=found, typed=typed_rows(resolve_run(args.run)))
     Path(args.table).write_text(text, encoding="utf-8")
     record = Path(args.cycles_dir) / record_name(files)
     record.parent.mkdir(parents=True, exist_ok=True)
