@@ -1,7 +1,8 @@
 """Spec 167: the mirrors of keel-web 263 and keel-cloud 275 -- the camera on the portrait stage and the laptop's words'
 column, the frame plan on the building screen, a frame left out, the failed build's reason, the stills' ratio, the
 reader told the layout. Local pages that lay out as keel-web 263's (one DOM at every width, the layout decided in CSS),
-no stack and no model (FR-5: nothing paid).
+no stack and no model (FR-5: nothing paid). FR-2b (keel-web 264, the coordinator's word): the card's why outside
+`followUp.notPicked`, the fake record's follow-up, the face's chip on the plate, DRIFT #121 / #122 answered.
 """
 
 from __future__ import annotations
