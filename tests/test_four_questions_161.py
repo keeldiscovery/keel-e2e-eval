@@ -234,7 +234,10 @@ def test_the_gate_words_and_the_follow_ups_are_the_registrys():
     if "problem.current_solution_satisfaction" in reg:
         pytest.skip("keel-cloud before 269")
     prevalence, frequency = reg["problem.prevalence"], reg["problem.frequency"]
-    assert prevalence["respondent"]["story_gate"] == ts.GATE_WORDS
+    gate = prevalence["respondent"]["story_gate"]
+    if gate == ts.GATE_WORDS_BEFORE_277:
+        pytest.skip("keel-cloud before 277")                      # spec 169: the old words match nowhere now
+    assert ts.is_gate_words(gate) and "{window}" in gate         # keel-cloud 277: *In {window}, have you ...?*
     assert (prevalence["follow_up"]["text"], prevalence["follow_up"]["heading"]) == (ts.PREVALENCE_WHY,
                                                                                     ts.PREVALENCE_HEADING)
     assert prevalence["follow_up"]["against"] == ["NO"]
@@ -266,7 +269,7 @@ def test_the_roster_is_owed_every_why_up_to_two():
 
 
 def _interview() -> dict:
-    return {"gate": {"itemId": "g", "dimension": ts.PREVALENCE, "question": ts.GATE_WORDS, "noLabel": "No",
+    return {"gate": {"itemId": "g", "dimension": ts.PREVALENCE, "question": ts.GATE_EXAMPLE, "noLabel": "No",
                      "condition": {"question": "Do you work at a company with more than 50 employees?"}},
             "story": {"scenes": []},
             "followUps": [{"dimension": ts.PREVALENCE, "itemId": "f", "spoken": ts.PREVALENCE_WHY},
@@ -382,7 +385,7 @@ def test_one_script_on_three_surfaces_and_where_one_parts():
     iv = _interview()
     orb = ts.served_record(iv)
     assert [s["step"] for s in orb] == ["screener", "gate", ts.FREQUENCY, ts.IMPORTANCE]
-    assert ts.gate_words(orb) == ts.GATE_WORDS
+    assert ts.gate_words(orb) == ts.GATE_EXAMPLE
     same = ts.same_script({"orb": orb, "face": ts.served_record(iv), "card": ts.card_record(_card(iv))})
     assert same["same"] is True and same["steps"] == 4
     framed = ts.same_script({"orb": orb, "face": orb, "card": ts.card_record(_card(iv, gate="In the last 7 nights, "
@@ -398,7 +401,7 @@ def test_one_script_on_three_surfaces_and_where_one_parts():
 
 
 def test_a_walked_record_folds_each_why_onto_its_question():
-    rows = [{"screen": "question", "key": "gate", "question": ts.GATE_WORDS, "options": []},
+    rows = [{"screen": "question", "key": "gate", "question": ts.GATE_EXAMPLE, "options": []},
             {"screen": "question", "step": "story", "question": "Tell me about it."},
             {"screen": "question", "step": "followUp", "follow_up": {"dimension": ts.PREVALENCE},
              "question": ts.PREVALENCE_WHY},

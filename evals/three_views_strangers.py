@@ -49,8 +49,9 @@ from harness import story_screens as ss
 
 #: keel-cloud 259 FR-8: the gate's (and the anchor's) wording on a story link -- until keel-cloud 269.
 STORY_GATE = "In your last {window}, did this happen to you?"
-#: Spec 161 FR-4 (keel-cloud 269 FR-1): the gate's fixed words after the film, on every surface.
-GATE_WORDS = "Did this happen to you?"
+#: Spec 169 FR-1 (keel-cloud 277 FR-1): the gate after the film, on every surface, found by its words --
+#: `three_surfaces.GATE_WORDS`, a match on *have you encountered this issue?* with any window before it.
+from harness.three_surfaces import GATE_WORDS, gate_answer, gate_found, is_gate_words  # noqa: E402,F401
 #: The face the avatar legs record (the preselected one, keel-cloud 143).
 FACE = fake.PRESELECTED
 
@@ -195,9 +196,9 @@ def wire_checks(run, leg, study: str, interview: dict, view: str, *, speaker: st
               screen="GET /v2/i/{token}/interview", view=w, detail={"carrying": carrying})
     gate = interview.get("gate") or {}
     if study in ("problem", "solution"):
-        want = GATE_WORDS
-        leg.check(run, f"the {'anchor' if study == 'solution' else 'gate'} asks exactly *{want}* after the film -- no "
-                       "window phrase (keel-cloud 269 FR-1)", gate.get("question") == want, screen="the gate card",
+        leg.check(run, f"the {'anchor' if study == 'solution' else 'gate'} after the film is found by its words -- "
+                       "*have you encountered this issue?* with its window (keel-cloud 277 FR-1, spec 169)",
+                  is_gate_words(gate.get("question")), screen="the gate card",
                   view=w, detail={"question": gate.get("question"), "readInstead": story.get("readInstead")})
         scenes = ss.scenes_verdict(story)
         leg.check(run, "the link's film: seven scenes, the seventh the pain (`pain: true`, its picture), `costLine` its "
@@ -475,9 +476,10 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
         elif condition and q == condition:
             row["key"] = "screener"
             yes_no("no" if (plan or {}).get("screener") == "no" or no_on == "screener" else "yes")
-        elif gate and q == gate.get("question"):
+        elif gate and gate_found(q, interview):
+            # spec 169 FR-1: the gate found by its words on a film link (keel-cloud 277), answered by `recency`
             row["key"] = "gate"
-            yes_no("no" if (no_on == "gate" or (plan is not None and not plan.get("gate"))) else "yes")
+            yes_no(gate_answer(q, interview, plan, no_on=no_on))
         elif check and q == check:
             yes_no("no" if no_on == "check" else "yes")
         elif step == "story" or (gate and q == gate.get("storyPrompt")):
@@ -2140,8 +2142,9 @@ def four_questions_served(run, leg, interview: dict, *, view: str, other_tasks: 
     solution item."""
     from harness import three_surfaces as ts    # noqa: PLC0415
     gate = interview.get("gate") or {}
-    leg.check(run, f"the gate on a film link asks exactly *{ts.GATE_WORDS}* (no window phrase; keel-cloud 269 FR-1)",
-              gate.get("question") == ts.GATE_WORDS and bool(interview.get("story")), screen="the gate", view=view,
+    leg.check(run, "the gate on a film link is found by its words -- *have you encountered this issue?* with its "
+                   "window (keel-cloud 277 FR-1, spec 169)",
+              ts.is_gate_words(gate.get("question")) and bool(interview.get("story")), screen="the gate", view=view,
               detail={"question": gate.get("question"), "noLabel": gate.get("noLabel")}, stop=False)
     freq = ts.item_of(interview, ts.FREQUENCY)
     leg.check(run, "Frequency is `fixed_five` -- *Every time*, *Most times*, *About half the time*, *Now and then*, "
@@ -2522,10 +2525,11 @@ def three_surfaces_check(run, leg, study: str) -> dict:
                   detail={"verdict": verdict, "sources": {k: v["source"] for k, v in by.items()},
                           "gate": {k: ts.gate_words(v) for k, v in records.items()}}, stop=False)
         if study in ("problem", "solution") and not missing:
-            gates = {k: ts.gate_words(v) for k, v in records.items()}
-            leg.check(run, f"the gate's words are *{ts.GATE_WORDS}* on the orb, the face and the Copilot card "
-                           f"({'as served' if kind == 'wire' else 'as walked'}; keel-cloud 269 FR-1, D12)",
-                      all(g == ts.GATE_WORDS for g in gates.values()), screen="the gate (three surfaces)",
+            gates = ts.same_gate({k: ts.gate_words(v) for k, v in records.items()})
+            leg.check(run, "the gate's words are the same on the orb, the face and the Copilot card, and found by its "
+                           f"words ({'as served' if kind == 'wire' else 'as walked'}; keel-cloud 277 FR-1, 269 FR-8, "
+                           "spec 169)",
+                      gates["same"], screen="the gate (three surfaces)",
                       view=f"three surfaces ({kind})", detail=gates, stop=False)
     run.__dict__.setdefault("surface_verdicts", {})[study] = verdicts
     return verdicts
@@ -2571,10 +2575,11 @@ def solution_wire_checks(run, leg, interview: dict, *, view: str) -> dict:
     founder = str(interview.get("founderFirstName") or "")
     faults = sol.link_faults(interview, founder=founder, name=f["name"], tagline=f["tagline"], pilot=f["pilot"])
     leg.check(run, "the solution link's words (keel-cloud 272 FR-3, FR-4): the opening with the founder's first name "
-                   "and *First, one question.*, the bridge *Let us see it.*, the check *Did this happen to you?*, both "
-                   "films, the plate (the name, the tagline) with *Now {founder} has built {name}.* and *and believes it "
-                   "solves this. Let us see.*, no idea card, *Would you try {name} for real?*; every sentence within 20 "
-                   "words", not faults, screen="GET /v2/i/{token}/interview", view=f"{view} (wire)",
+                   "and *First, one question.*, the bridge *Let us see it.*, the check *... have you encountered "
+                   "this issue?*, both films, the plate (the name, the tagline) with *Now {founder} has built {name}.* "
+                   "and *and believes it solves this. Let us see.*, no idea card, *Would you try {name} for real?*; "
+                   "every sentence within 20 words", not faults, screen="GET /v2/i/{token}/interview",
+              view=f"{view} (wire)",
               detail={"faults": faults, "passages": interview.get("passages"), "plate": interview.get("plate"),
                       "pilot": interview.get("pilot"), "reveal": bool(interview.get("reveal"))}, stop=False)
     faults = sol.question_faults(interview, name=f["name"], setup=f["setup"])

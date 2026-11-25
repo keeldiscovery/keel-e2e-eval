@@ -767,6 +767,12 @@ def test_the_solution_studys_people_answer_yes_or_no_in_their_recorded_words():
     assert fs.solution_watched(plans) == "Ben"
     assert fs.solution_walk_plan(by["Ben"]) == {"who": "Ben", "screener": "yes", "gate": True,
                                                 "picks": by["Ben"]["picks"], "why": "It would not fit our week."}
+    # spec 169 FR-1: the check on the solution link found by the gate's new words, answered by `recency`
+    from harness import three_surfaces as ts
+    link = {"gate": {"question": ts.GATE_EXAMPLE}, "story": {"scenes": [{}]}, "ideaStory": {"scenes": [{}]}}
+    assert [ts.gate_answer("In the last 7 days, have you encountered this issue?", link,
+                           fs.solution_walk_plan(by[n])) for n in ("Ben", "Di")] == ["yes", "no"]
+    assert ts.gate_answer(ts.GATE_WORDS_BEFORE_277, link, fs.solution_walk_plan(by["Ben"])) is None
 
 
 def test_the_solutions_lock_reads_its_own_calibration_and_stores_no_window():

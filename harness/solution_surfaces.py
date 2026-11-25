@@ -128,7 +128,8 @@ def link_faults(interview: dict | None, *, founder: str, name: str, tagline: str
                 pilot: bool = True) -> list[dict]:
     """Spec 162 FR-5 on the wire (keel-cloud 272 FR-3, FR-4): the solution link's words -- `passages.opening` the
     founder's first name and the problem (one sentence, or two past the cap) and *First, one question.* where the
-    screener follows; `passages.toTheFilm` *Let us see it.*; the check *Did this happen to you?*; the problem's film and
+    screener follows; `passages.toTheFilm` *Let us see it.*; the check found by its words (*In {window}, have you
+    encountered this issue?*, keel-cloud 277 FR-1, `three_surfaces.is_gate_words`); the problem's film and
     the idea's film both served; `plate` the brand (the name, the tagline) with `before` *Now {founder} has built
     {name}.* and `after` *and believes it solves this. Let us see.*; the idea card's three lines nowhere (`reveal`
     absent); the pilot ask *Would you try {name} for real?* where the founder offered one; every sentence within the
@@ -144,7 +145,7 @@ def link_faults(interview: dict | None, *, founder: str, name: str, tagline: str
         faults.append({"opening": opening, "founder": founder, "screener": screener})
     if passages.get("toTheFilm") != TO_THE_FILM:
         faults.append({"toTheFilm": passages.get("toTheFilm")})
-    if gate.get("question") != ts.GATE_WORDS:
+    if not ts.is_gate_words(gate.get("question")):                      # spec 169 FR-1: by its words
         faults.append({"check": gate.get("question")})
     if not (iv.get("story") or {}).get("scenes") or not (iv.get("ideaStory") or {}).get("scenes"):
         faults.append({"films": {"story": bool(iv.get("story")), "ideaStory": bool(iv.get("ideaStory"))}})

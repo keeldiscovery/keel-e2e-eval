@@ -42,7 +42,7 @@ IMPORTANCE_ITEM = {"itemId": "i3", "dimension": ts.IMPORTANCE, "control": "pick_
                    "options": [{"optionId": "o1", "label": "Keeping the day's list"},
                                {"optionId": "o2", "label": "Ordering the stock"},
                                {"optionId": "o3", "label": "Answering the phone"}]}
-INTERVIEW = {"gate": {"question": ts.GATE_WORDS, "dimension": ts.PREVALENCE,
+INTERVIEW = {"gate": {"question": ts.GATE_EXAMPLE, "dimension": ts.PREVALENCE,
                       "condition": {"question": "Do you work in a team of five or fewer?"}},
              "parts": [{"part": 1, "items": [
                  {"itemId": "i2", "dimension": ts.FREQUENCY, "control": "fixed_five", "question": "How often?",
@@ -256,7 +256,7 @@ ROWS = [
     {"screen": "question", "key": "screener", "question": "Do you work in a team of five or fewer?", "where": "Before",
      "options": ["Yes", "No"], "said": "yes"},
     {"screen": "film", "kind": "problem", "first": True},
-    {"screen": "question", "key": "gate", "question": ts.GATE_WORDS, "where": "Question 1", "options": ["Yes", "No"],
+    {"screen": "question", "key": "gate", "question": ts.GATE_EXAMPLE, "where": "Question 1", "options": ["Yes", "No"],
      "chips": [], "said": "yes"},
     {"screen": "question", "step": "story", "story": "said", "question": "Tell me about the last time.",
      "where": "Question 1", "chips": ["I can't recall one"], "said": "It happened on the last day."},
@@ -474,3 +474,70 @@ def test_the_free_walk_hands_its_runtime_the_groupings_of_what_was_said():
     assert fs.ways_script(stories, "they write it on paper")["result"]["ways"] == [
         {"label": "they write it on paper", "answerIds": ["inv1"]}]
     assert fs.ways_script(stories, None)["result"]["ways"][0]["label"] == ts.ON_THEIR_OWN
+
+
+# ---------------------------------------------------------------------------------- spec 169: the gate's new words
+
+@pytest.mark.parametrize("words", [
+    "In the last month, have you encountered this issue?",               # keel-cloud 277's acceptance
+    "In the last 7 days, have you encountered this issue?",
+    "In the last 3 months, have you encountered this issue",              # the question mark optional
+    "in the last month, HAVE YOU ENCOUNTERED THIS ISSUE?",                # case-insensitive
+    "In the last month have you encountered this issue?",
+    "  In the last month,  have you\nencountered this issue? ",          # spaces folded
+    "In {window}, have you encountered this issue?",                      # the registry's own template
+    "Have you encountered this issue?",                                   # no window: still the words
+])
+def test_the_gate_is_found_by_its_new_words_with_any_window(words):
+    assert ts.is_gate_words(words)
+
+
+@pytest.mark.parametrize("words", [
+    "Did this happen to you?",                                            # 269's words: no longer matched
+    ts.GATE_WORDS_BEFORE_277,
+    "In your last month, did this happen to you?",                        # 259's story gate
+    "In the last month, did you check the rota?",                         # the framed clause of a link with no film
+    "In the last month, have you encountered this issue? Tell me more.",
+    "Before we start: have you encountered this issue?",
+    "", None,
+])
+def test_the_old_words_and_others_are_not_the_gate(words):
+    assert not ts.is_gate_words(words)
+
+
+def test_the_gate_on_the_films_link_is_found_and_answered_by_recency():
+    film_link = dict(INTERVIEW, gate=dict(INTERVIEW["gate"], question=ts.GATE_EXAMPLE), story={"scenes": [{}]})
+    yes, no = fs.people_plans([person("A"), person("D", recency=False)])
+    said = {p["person"]: ts.gate_answer("In the last month, have you encountered this issue?", film_link,
+                                        fs.walk_plan(p, film_link, own_label=OWN, other_tasks=TASKS))
+            for p in (yes, no)}
+    assert said == {"A": "yes", "D": "no"}                                  # `recency`, as before
+    assert ts.gate_answer(ts.GATE_EXAMPLE, film_link, None, no_on="gate") == "no"
+    # the old words are not the gate on a film link -- not even where the link served them
+    old = dict(film_link, gate=dict(film_link["gate"], question=ts.GATE_WORDS_BEFORE_277))
+    assert ts.gate_answer(ts.GATE_WORDS_BEFORE_277, old, yes) is None
+    assert ts.gate_answer("Do you work in a team of five or fewer?", film_link, yes) is None
+    # a link with no film keeps its framed clause, found as served
+    framed = dict(INTERVIEW, gate=dict(INTERVIEW["gate"], question="In the last month, did you keep the list?"))
+    assert ts.gate_answer("In the last month, did you keep the list?", framed, yes) == "yes"
+    assert ts.gate_answer(ts.GATE_EXAMPLE, framed, yes) is None
+    assert not ts.gate_found(ts.GATE_EXAMPLE, {"story": {"scenes": [{}]}})   # no gate served, none found
+
+
+def test_the_one_script_check_holds_the_three_surfaces_gate_to_each_other():
+    same = ts.same_gate({"orb": ts.GATE_EXAMPLE, "face": ts.GATE_EXAMPLE, "card": " " + ts.GATE_EXAMPLE})
+    assert same["same"] is True
+    other = ts.same_gate({"orb": ts.GATE_EXAMPLE, "face": ts.GATE_EXAMPLE,
+                          "card": "In the last 7 days, have you encountered this issue?"})
+    assert other["same"] is False and all(other["found"].values())         # each the gate, not the same words
+    old = ts.same_gate({k: ts.GATE_WORDS_BEFORE_277 for k in ("orb", "face", "card")})
+    assert old["same"] is False and not any(old["found"].values())         # one script, but not the gate's words
+    assert ts.same_gate({"orb": ts.GATE_EXAMPLE, "face": None, "card": ts.GATE_EXAMPLE})["same"] is False
+
+
+def test_every_reader_finds_the_gate_by_the_one_match():
+    from evals import three_views_strangers as tvs                          # noqa: PLC0415
+    from harness import interviewer_screens as ivs                          # noqa: PLC0415
+    assert ivs.GATE_WORDS is ts.GATE_WORDS and tvs.GATE_WORDS is ts.GATE_WORDS
+    orb = ts.served_record(dict(INTERVIEW, gate=dict(INTERVIEW["gate"], question=ts.GATE_EXAMPLE)))
+    assert ts.is_gate_words(ts.gate_words(orb))

@@ -91,11 +91,13 @@ import time
 from playwright.sync_api import Page
 
 from harness import interviews_screens as _iv
+from harness import three_surfaces as _ts
 from harness.browser import _BrowserStep, _safe_text
 
 # ---- spec 161 (keel-cloud 269 / 270, contract 87; keel-web 258): the four questions' words, one script on every surface
-#: The gate's fixed words after the film (keel-cloud 269 FR-1) -- the orb, the face and the Copilot card alike.
-GATE_WORDS = "Did this happen to you?"
+#: The gate after the film -- the orb, the face and the Copilot card alike -- found by its words (spec 169 FR-1,
+#: keel-cloud 277: *In {window}, have you encountered this issue?*): `three_surfaces.GATE_WORDS`, one match.
+GATE_WORDS = _ts.GATE_WORDS
 #: keel-cloud 269 FR-3: Frequency's five rows, in order, letters A-E.
 FREQUENCY_LABELS = ("Every time", "Most times", "About half the time", "Now and then", "Never")
 #: Spec 161 FR-4 (keel-web 258 FR-2b): the order on a film link -- the opening passage, the screener (its own counted

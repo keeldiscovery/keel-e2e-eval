@@ -10,10 +10,11 @@ answer -- no second, typed project is made. For each entry, in order --
    (fourteen frames, the story, the pictures, the setting and the prompts, the ledger's rows); then on the same project
    the lock (the window, the calibration, the credits, the ready page's lock, the questions READY -- a step that does
    not hold fails the leg by name), its link sent to the entry's first `people` (`quality/cycle.toml`'s seven) of the
-   role the PROBLEM scope sends, each answering **the film's link** (the opening, the screener, the film, *Did this
-   happen to you?*, the experience, Frequency's five, Importance over the role's tasks, the whys where owed) with their
-   recorded answers mapped onto the four questions, then the founder's page read after the answers; the bundle
-   `make read-screens` reads is the leg's evidence folder (`backtest.json`, `kind: "film"`), named in `film.json`.
+   role the PROBLEM scope sends, each answering **the film's link** (the opening, the screener, the film, *In {window},
+   have you encountered this issue?* (keel-cloud 277), the experience, Frequency's five, Importance over the role's
+   tasks, the whys where owed) with their recorded answers mapped onto the four questions, then the founder's page
+   read after the answers; the bundle `make read-screens` reads is the leg's evidence folder (`backtest.json`, `kind:
+   "film"`), named in `film.json`.
 2. On Keel's door only (PAID): `make read-screens RUN=<that folder>` -- the strangers' screens of the film's link (§A,
    R6) and the founder's page after the seven answers (§B), as the cycles read them.
 
