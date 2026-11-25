@@ -2337,7 +2337,9 @@ _MEASURE_STORY = r"""(args) => {
     drawn_by: pictureMode ? 'pictures' : tagged.length ? 'data-draw' : 'top-level g', drawn: live.length, texts: texts.length,
     mode: pictureMode ? 'pictures' : 'sticks', chapter: (root.querySelector('[data-testid=story-chapter]') || {}).textContent || null,
     line: line ? { text: line.text, rows, line_height: lh, font, box: line.box } : null, state,
-    fit: { frame: inside(frame), line: inside(line && line.box), state: inside(state),
+    // spec 162: a caption with no words between two scenes (a film in pictures) has no box -- not read as outside
+    fit: { frame: inside(frame), line: line && line.text && line.box.w > 0 && line.box.h > 0 ? inside(line.box) : null,
+           state: inside(state),
            page_scrolls: doc.scrollHeight > window.innerHeight + 1, doc: { scroll: doc.scrollHeight, view: window.innerHeight },
            content_below: low > bottom + 1 ? Math.round(low) : null, lowest: low > bottom + 1 ? lowest : null, scroller },
     overlaps, player: root.getAttribute('data-state'),
