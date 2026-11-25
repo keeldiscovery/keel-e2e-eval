@@ -848,6 +848,10 @@ stays the status line's *Writing it down…*) between the pause and the words, n
 `INTERVIEWER_MARKS_VERSION` 16 -> 17. The selector pin accepts a test id built as an expression or a `testId` prop.
 `make unit` 4,294 / 0 / 56 (master `cd03a7e` 4,255 / 1 / 56); `make eval K=s005` at keel-web 143 and the paid s012
 re-run are the coordinator's and the founder's.
+Spec 170 (keel-web 266, 2026-11-25): the entry screen passes on sound -- *Test your mic* -> the wave and *Say anything.*
+(`ai-mic-say`) -> *Your mic works.* (`ai-mic-heard`) -> **Begin** (`ai-start`); no writing state, no *Heard: hello*, the
+held stop no longer used by `mic_test`; IM17 v19 reads that; 256's words on a screen are a DRIFT capture note
+(`interviewer_screens.entry_drift`, `film_strangers.entry_faults`).
 
 **The context walker turns two pages** (spec `097-the-context-walker-turns-two-pages`, 2026-10-30; keel-web 141,
 keel-web `1d83a28`). Where a gate is served step 1 is two screens on one route: `Corridor.context` types the four fields

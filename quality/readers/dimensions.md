@@ -91,7 +91,8 @@ How many of the people you are studying had the problem in the period you chose.
   must name the window and the problem as one act the person did or met, so a person without the problem can truly say
   No and a person with it Yes. A Yes opens the story; a No goes on to Importance, the story and Frequency skipped
   (keel-cloud 269), and the person is still counted. Where the problem's film is shown first, the gate is the fixed
-  words *Did this happen to you?* (keel-cloud 269), the clause read instead.
+  words *In {window}, have you encountered this issue?* (keel-cloud 277), the clause read instead; on that study the
+  clause is noted, never refused, and may be dropped (keel-cloud 277).
 - **One clause (keel-cloud 212).** The strangers' event is the founder's clause, by code: the gate carries the
   founder's Prevalence event (keel-cloud 269: Frequency no longer does), turned to the second person by code, never a
   second writer's. The founder's

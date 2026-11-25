@@ -245,9 +245,12 @@ KEEL_FILM_PROBE=portrait make film-walk ENTRIES=08-fresco DOOR=fake WHY="local" 
   263, keel-cloud 275)**: the stage takes the picture's ratio (2:3 on a 275 build); the camera reads the DRAWN caption and
   pill (over the stage on a phone, beside it in the words' column on a laptop around a portrait stage) and records on
   every frame the layout (`over` / `column`), the stage's ratio and size; a frame left out (`pictureMissing`) is recorded,
-  never a fault; each film's building screen is watched while it builds (the frame plan read and held to its tally;
+  never a fault; each film's building screen is watched while it builds (the frame plan read and held to its rules --
+  since spec 170 keel-web 270's: each row's look, chip word and mark from its status, the bar's legend from the rows;
   `replayed` on the served view where the fakes are ready first); the reader's frame labels name the viewport and the
-  layout. FakePictures is 48 x 32, so a free walk plays landscape; `KEEL_FILM_PROBE=portrait` (`DOOR=fake` alone) shoots
+  layout. **Spec 170 (keel-web 266, 268, 269)**: the strangers' entry screen is *Test your mic* -> *Your mic works.* ->
+  **Begin** (256's words on it a capture note); the founder's transcript ends on the film's one question (*Does this film
+  show the problem accurately?* / *Does this film show {name} accurately?*), the verdict line no longer said. FakePictures is 48 x 32, so a free walk plays landscape; `KEEL_FILM_PROBE=portrait` (`DOOR=fake` alone) shoots
   each film once more with portrait pictures in the browser (`probe/`, never read) to see the laptop column on the fakes.
 - **The table** (FR-4): one row an entry -- F1..F8, `film_pct`, flagged, `founder_pct`, §A `score_pct`, §B `after_pct`,
   the dollars; the bar `[film] film_bar_pct` (80); an entry passes at the bar with no 0, a round when every entry does,

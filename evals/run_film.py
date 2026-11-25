@@ -376,6 +376,8 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
     if state == "ready":
         strangers, refused = strangers_leg(stack, browser, recorder, context, page, run_dir, founder, entry,
                                            entry_path, project_id, versions, stamp, typed, own_ai=own_ai, held=held)
+        # spec 170 FR-1: an entry screen still showing keel-web 256's words is a capture note, never the walk's fault
+        faults += fs.entry_faults((strangers or {}).get("walks"))
     film = {
         "spec": "163", "entry": {"id": ENTRY, "path": str(entry_path), "sha256": entry["sha256"]},
         "door": DOOR, "telling": telling, "project_id": project_id,
@@ -389,6 +391,8 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
         "missing": ff.missing_scenes(story), "stage": ff.stage_summary(frames), "building": building,
         **({"probe": probed} if probed else {}),
         "beats": ff.beats_record(told, dict(beats)), "verdict_line": story.get("verdictLine"),
+        # spec 170 FR-3 (keel-web 268, 269): after the film Keel asks its one question; the verdict line is served, unsaid
+        "film_ask": ss.STORY_ASK,
         "ledger": spent, "dollars": spent.get("usd"),
         "measures": {"faults": faults, "frames": len(frames), "pictures": sum(1 for p in pictures if p.get("path")),
                      "lock_retried": lock_retried(held.get("lock"))},
@@ -595,13 +599,14 @@ def idea_beats_record(told: list[dict], said: dict[int, str], asked: dict[int, s
 
 
 def building_read(building: dict) -> dict:
-    """Spec 167: what the building screen's watch read, for the transcript -- the tallies seen live, the replay's."""
+    """Spec 167: what the building screen's watch read, for the transcript -- the bar's legends seen live (spec 170
+    FR-2c, keel-web 270: the frames are the progress), the replay's."""
     replayed = building.get("replayed") or {}
     return {**{k: building.get(k) for k in ("opened_while", "state", "drawn", "served", "error")},
-            "tallies": [r.get("tally") for r in building.get("reads") or []],
-            **({"replayed": {"tally": (replayed.get("plan") or {}).get("tally"),
+            "legends": [r.get("legend") for r in building.get("reads") or []],
+            **({"replayed": {"legend": (replayed.get("plan") or {}).get("legend"),
                              "rows": len((replayed.get("plan") or {}).get("rows") or []),
-                             "tally_holds": replayed.get("tally_holds"), "rows_match": replayed.get("rows_match"),
+                             "legend_holds": replayed.get("legend_holds"), "rows_match": replayed.get("rows_match"),
                              "error": replayed.get("error")}} if replayed else {})}
 
 
@@ -700,6 +705,7 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
         strangers, refused = solution_strangers_leg(stack, browser, recorder, context, page, run_dir, founder, entry,
                                                     entry_path, solution, problem_id, versions, stamp, words["typed"],
                                                     own_ai=own_ai, held=held)
+        faults += fs.entry_faults((strangers or {}).get("walks"))           # spec 170 FR-1 (a capture note)
     said = dict(words["beats"])
     film = {
         "spec": "166", "kind": "solution", "entry": {"id": ENTRY, "path": str(entry_path), "sha256": entry["sha256"]},
@@ -722,6 +728,7 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
                   "reused": bool(solution_sheet) and solution_sheet == problem_sheet},
         "beats": idea_beats_record(told, said, idea_questions(entry, problem_story, brand["name"])),
         "verdict_line": final.get("verdictLine"), "pilot_ask": final.get("pilotAsk"),
+        "film_ask": ss.film_ask_idea(brand.get("name")),                   # spec 170 FR-3 (keel-web 269 FR-5)
         "pilot": {"sent": (pilot or {}).get("sent"), "status": (pilot or {}).get("status"), "now": final.get("pilot")},
         "ledger": spent, "dollars": spent.get("usd"),
         "measures": {"faults": faults, "frames": len(frames), "pictures": sum(1 for p in pictures if p.get("path")),

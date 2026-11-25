@@ -122,17 +122,19 @@ def test_the_walk_helpers():
     assert strangers.opening_clip(interview) == "o1"
     assert strangers.item_clip(interview, "Which comes closest?") == "c1"
     assert strangers.item_clip(interview, "Something else") is None
-    line = strangers.block_line({"refused": {"block": {"line": ivs.MIC_BLOCK, "how": ivs.MIC_BLOCK_HOW},
+    line = strangers.block_line({"refused": {"block": {"line": ivs.MIC_BLOCK},
                                              "at": {"buttons": ["ai-mic-test"]}, "stage_shown": False},
-                                 "allowed": {"after": {"buttons": ["ai-start"], "mic_heard": "Heard: hello"}}})
-    assert ivs.MIC_BLOCK in line and "['ai-start'], Heard: hello" in line
+                                 "allowed": {"after": {"buttons": ["ai-start"], "mic_heard": ivs.MIC_WORKS}}})
+    assert ivs.MIC_BLOCK in line and "['ai-start'], Your mic works." in line
 
 
 def test_the_words_the_walk_holds():
-    assert ivs.ai_intro_spoken("Keel") == "A spoken interview with Keel, an AI interviewer, not a person."
-    assert ivs.ai_intro_asks("Robin").startswith("Robin asks each question aloud")
-    assert ivs.ai_intro_chips(7) == ["About 7 minutes", "Microphone needed", "Sound on"]
-    assert ivs.ai_intro_chips(None) == ["Microphone needed", "Sound on"]
+    # spec 170 (keel-web 266 FR-1): the one line under the name line; 256's sub-line, asks line and chips are gone
+    assert ivs.ai_intro_line("Keel") == "Keel asks them aloud and listens, so your mic has to be on."
+    assert ivs.ai_intro_line("Robin", 7, 4) == ("Robin asks them aloud and listens, about seven minutes, so your mic has "
+                                                "to be on.")
+    for gone in ("ai_intro_spoken", "ai_intro_asks", "ai_intro_chips", "ORB_NOT_A_PERSON"):
+        assert not hasattr(ivs, gone), gone
     assert ivs.face_mark("Robin") == "Robin · AI interviewer"
     assert ivs.face_mark("Robin", try_run=True) == "Robin · AI interviewer · try run"
     assert ivs.ai_done_title("Robin") == "Done. Your answers have gone to Robin."
@@ -240,22 +242,31 @@ def test_the_film_is_read_whole(browser, tmp_path):
     assert box["drawn"] and box["id"] == "ai-orb" and box["size"] == "large" and box["covered"] is True
 
 
-_INTRO_256 = """<main data-testid="ai-intro" data-intro="AI_INTERVIEWER" data-speaker="ORB">
+#: keel-web 266's intro (spec 170 FR-1) with the block for a refused microphone.
+_INTRO_266 = """<main data-testid="ai-intro" data-intro="AI_INTERVIEWER" data-speaker="ORB">
   <div class="ivhello"><span data-testid="intro-orb"><span data-testid="story-orb"></span></span>
     <div><h1>Robin has 3 questions for you.</h1>
-      <p class="iv-note">A spoken interview with Keel, an AI interviewer, not a person.</p></div></div>
-  <p data-testid="ai-intro-study">About what closing the month is like for bookkeepers.</p>
-  <p data-testid="ai-intro-asks">Keel asks each question aloud and listens to your answer, so you will need your
-    microphone and the sound on.</p>
-  <ul data-testid="ai-intro-chips"><li>About 4 minutes</li><li>Microphone needed</li><li>Sound on</li></ul>
+      <p class="iv-note" data-testid="ai-intro-line">Keel asks them aloud and listens, about four minutes, so your mic
+        has to be on.</p></div></div>
   <section data-testid="ai-mic" data-state="fallback"><div data-testid="ai-mic-block">
-    <p class="aiv-mic__block-line">This interview needs your microphone.</p>
-    <p class="aiv-mic__block-how">Allow the microphone for this page in your browser, then test your mic again.</p>
+    <p class="aiv-mic__block-line">This interview needs your microphone. Allow it for this page in your browser, then try
+      again.</p>
   </div></section>
+  <div class="aiv-intro__go"><button data-testid="ai-mic-test">Test your mic</button></div>
   <details data-testid="ai-intro-answers"><summary>What happens to your answers</summary>
     <p data-testid="ai-intro-mic-line">Your microphone is used only while you answer, and only your answers are kept.</p>
     <p data-testid="ai-intro-transcribed">Keel's transcription provider writes your answer down and keeps nothing.</p>
     <p data-testid="ai-intro-consent">Your words may be quoted.</p></details>
+</main>"""
+
+#: keel-web 256's intro, the words and ids spec 170 names as DRIFT where a screen still draws them.
+_INTRO_256 = """<main data-testid="ai-intro" data-intro="AI_INTERVIEWER" data-speaker="ORB">
+  <div class="ivhello"><span data-testid="intro-orb"><span data-testid="story-orb"></span></span>
+    <div><h1>Robin has 3 questions for you.</h1>
+      <p class="iv-note">A spoken interview with Keel, an AI interviewer, not a person.</p></div></div>
+  <ul data-testid="ai-intro-chips"><li>About 4 minutes</li><li>Microphone needed</li><li>Sound on</li></ul>
+  <section data-testid="ai-mic" data-state="idle"><p>Say hello, so we know your mic works. The interview starts after.</p>
+  </section>
   <div class="aiv-intro__go"><button data-testid="ai-mic-test">Test your mic</button></div>
 </main>"""
 
@@ -263,17 +274,21 @@ _INTRO_256 = """<main data-testid="ai-intro" data-intro="AI_INTERVIEWER" data-sp
 def test_the_intro_is_read_with_its_one_button_and_its_block(browser, tmp_path):
     page = browser.new_page()
     try:
-        page.set_content(_INTRO_256)
+        page.set_content(_INTRO_266)
         intro = ivs.Player(page, Recorder(tmp_path)).intro()
+        page.set_content(_INTRO_256)
+        old = ivs.Player(page, Recorder(tmp_path)).intro()
     finally:
         page.close()
-    assert intro["heading"] == ivs.ai_intro_heading("Robin", 3) and intro["spoken"] == ivs.ORB_NOT_A_PERSON
-    assert intro["asks"] == ivs.ai_intro_asks(ivs.ORB_NAME) and intro["chips"] == ivs.ai_intro_chips(4)
+    assert intro["heading"] == ivs.ai_intro_heading("Robin", 3) and intro["line"] == ivs.ai_intro_line(ivs.ORB_NAME, 4, 3)
     assert intro["answers"] == {"drawn": True, "open": False, "summary": ivs.CONSENT_HEADING,
                                 "lines": [ivs.AI_INTRO_MIC_LINE, ivs.INTRO_TRANSCRIBED, "Your words may be quoted."]}
     assert intro["buttons"] == ["ai-mic-test"] and intro["start_enabled"] is False and intro["mic_state"] == "fallback"
-    assert intro["block"] == {"drawn": True, "line": ivs.MIC_BLOCK, "how": ivs.MIC_BLOCK_HOW}
-    assert intro["fallback"] == 0 and intro["orb"] == 1
+    assert intro["block"] == {"drawn": True, "line": ivs.MIC_BLOCK} and intro["retired"] == []
+    assert intro["fallback"] == 0 and intro["orb"] == 1 and ivs.entry_drift(intro) == []
+    # spec 170 FR-1: 256's screen is read the same way, its words and chips named (a DRIFT capture note)
+    assert old["buttons"] == ["ai-mic-test"] and old["line"] == "" and old["retired"] == ["ai-intro-chips"]
+    assert ivs.entry_drift(old) == ["Say hello, so we know your mic works.", "ai-intro-chips"]
 
 
 def test_the_refused_microphone_is_allowed_again(browser, tmp_path):
@@ -295,17 +310,18 @@ def test_keel_webs_intro_words_are_the_walks():
     translate = _web("src/lib/translate.ts")
     if "aiIntroHeadline" not in translate:
         pytest.skip("keel-web before 256")
+    if "aiIntroLine" not in translate:
+        pytest.skip("keel-web before 266 (the entry screen)")
     assert '`${founder} has ${questions} question${questions === 1 ? "" : "s"} for you.`' in translate
-    assert '`A spoken interview with ${name}, an AI interviewer, not a person.`' in translate
-    assert ('`${name} asks each question aloud and listens to your answer, so you will need your microphone and the '
-            'sound on.`') in translate
-    assert '`About ${minutes} minutes`' in translate
-    for name, words in (("AI_INTRO_MIC_NEEDED", ivs.AI_INTRO_MIC_NEEDED), ("AI_INTRO_SOUND_ON", ivs.AI_INTRO_SOUND_ON),
-                        ("AI_MIC_BLOCK", ivs.MIC_BLOCK), ("AI_MIC_LABEL", ivs.MIC_LABEL),
+    # spec 170 (keel-web 266 FR-1): the one line; 256's sub-line, asks line, chips and mic label are gone
+    assert "`${name} asks ${them} aloud and listens, so your mic has to be on.`" in translate
+    for gone in ("aiIntroSpoken", "AI_INTRO_MIC_NEEDED", "AI_INTRO_SOUND_ON", "AI_MIC_LABEL", "AI_SAY_HELLO"):
+        assert f"export const {gone}" not in translate, gone
+    for name, words in (("AI_MIC_NOT_HEARD", ivs.MIC_NOT_HEARD), ("AI_BEGIN", ivs.BEGIN),
                         ("AI_REPLAY_LABEL", ivs.REPLAY_LABEL), ("ORB_INTRO_NAME", ivs.ORB_NAME),
                         ("INTERVIEW_CONSENT_HEADING", ivs.CONSENT_HEADING)):
         assert re.search(rf'export const {name} = "{re.escape(words)}";', translate), name
-    assert f'"{ivs.MIC_BLOCK_HOW}"' in translate and f'"{ivs.AI_INTRO_MIC_LINE}"' in translate
+    assert f'"{ivs.MIC_BLOCK}"' in translate and f'"{ivs.AI_INTRO_MIC_LINE}"' in translate
     assert '`Done. Your answers have gone to ${founder}.`' in translate
     assert '`${name} · AI interviewer`' in translate
     for key, words in (("pause", ivs.FILM_PAUSE_LABEL), ("resume", ivs.FILM_RESUME_LABEL),

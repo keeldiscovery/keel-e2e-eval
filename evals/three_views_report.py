@@ -264,13 +264,14 @@ def surfaces_markdown(rows: list[dict] | None) -> list[str]:
 
 def founder_beats_markdown(founder: list[dict] | None) -> list[str]:
     """Spec 161 FR-12: *The founder's seven beats* -- one block a story told: how it was told, the beats answered, the
-    board's seven rows as served, the verdict line served and heard, the film's seven scenes."""
+    board's seven rows as served, the verdict line served, the film's question heard (spec 170), the film's seven
+    scenes."""
     if not founder:
         return []
     out = ["## The founder's seven beats (spec 161; keel-cloud 268-269, keel-web 257)", ""]
     for f in founder:
         board = f.get("board") or {}
-        heard = f.get("verdict_heard") or {}
+        heard = f.get("film_heard") or {}
         scenes = f.get("scenes") or {}
         out += [f"### {f.get('label')} -- `{str(f.get('project') or '')[:8]}` ({'on the wire' if f.get('wire') else 'on the screens'})",
                 "", f"- beats: {', '.join(str(b) for b in f.get('beats') or [])}" +
@@ -279,9 +280,9 @@ def founder_beats_markdown(founder: list[dict] | None) -> list[str]:
             value = board.get(row)
             out.append(f"- {row}: {_cell('; '.join(value) if isinstance(value, list) else value, 160) or '-'}")
         out.append(f"- verdict line served: {_cell(f.get('verdictLine'), 200) or '-'}")
-        out.append("- verdict line heard: " + (f"*{_cell(heard.get('words'), 200)}*" if heard.get("drawn")
-                                                else "not on the screens (keel-web 257 not in the checkout)"
-                                                if f.get("wire") else "**no card drawn**"))
+        out.append("- the film's question heard: " + (f"*{_cell(heard.get('asked'), 200)}*, answered {heard.get('answered')}"
+                                                      if heard.get("asked") else "not on the screens"
+                                                      if f.get("wire") else "**not drawn**"))
         if scenes:
             out.append(f"- the film: {scenes.get('scenes')} scenes, the pain at {scenes.get('pain_at')}, costLine "
                        f"{'= the seventh line' if (scenes.get('parts') or {}).get('costLine is its line') else '**differs**'}, "
@@ -312,8 +313,8 @@ def founders_solution_markdown(solution: dict | None, films: list[dict] | None =
                                                    for a in idea.get("limitAnswers") or []), 240),
                 f"- what they get: {_cell(idea.get('joy'), 120) or '-'}",
                 f"- verdict line served: {_cell(idea.get('verdictLine'), 200) or '-'}",
-                "- verdict line heard: " + (f"*{_cell((after.get('verdict') or {}).get('words'), 200)}*"
-                                            if (after.get("verdict") or {}).get("drawn") else "**no card drawn**"),
+                "- the film's question heard: " + (f"*{_cell((after.get('film') or {}).get('asked'), 200)}*"
+                                                   if (after.get("film") or {}).get("asked") else "**not drawn**"),
                 f"- pilot ask heard: *{_cell((after.get('pilot') or {}).get('ask'), 160) or '-'}* -- answered yes, "
                 f"`PUT idea/pilot` {((after.get('pilot') or {}).get('put') or {}).get('status')}, pilot now "
                 f"{idea.get('pilot')}", ""]

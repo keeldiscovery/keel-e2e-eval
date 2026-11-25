@@ -25,9 +25,12 @@ CARDS_PATH = Path(__file__).resolve().parent / "readers" / "dimensions.md"
 #: Spec 162 (keel-cloud 272 judgement call 16: "the cards for the three are owed to keel-e2e-eval 162"): the cards'
 #: digest since this spec re-cut the solution's three on yes or no (and Frequency's registry line and its example's
 #: *What breaks it:*, the card keel-cloud 269 re-cut) -- keel-cloud's own copy (`dimension-cards.md`, `CARDS_SHA256`)
-#: is the cloud's to vendor from here.
-CARDS_SHA256 = "dbcb2196638915e48a5aefa055b856f27c84657921c1edb7a1a7e109dcf87c39"
-#: The cards spec 162 moved; until keel-cloud vendors them its copy differs from this one in these alone.
+#: is the cloud's to vendor from here. Spec 170 FR-2b: re-pinned after Prevalence's gate sentence was re-cut to keel-cloud
+#: 277's vendored card (*In {window}, have you encountered this issue?*, the clause noted, never refused); spec 162's
+#: digest was dbcb2196...
+CARDS_SHA256 = "aec2abb958764456e0c159830fd4ef0542a9ab4c73e65192cfb887e41ba950b1"
+#: The cards spec 162 moved; until keel-cloud vendors them its copy differs from this one in these alone. Spec 170 FR-2b:
+#: unchanged -- Prevalence (which keel-cloud 277 re-cut) now reads as the cloud's, so it never joins them.
 CARDS_MOVED_162 = ("problem.frequency", "solution.compatibility", "solution.relative_advantage",
                    "solution.adoption_friction")
 
