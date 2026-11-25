@@ -213,7 +213,7 @@ document.querySelector('[data-testid=story-orb]').addEventListener('click', asyn
   await new Promise((r) => setTimeout(r, 900));        // the plate alone, then the film
   plate.remove();
   const stage = document.querySelector('[data-testid=story-stage]');
-  let mark = null;
+  let mark = null, last = null;
   for (let i = 0; i <= S.scenes.length; i++) {
     await fetch('/v2/clips/' + S.clipIds[i]);
     const scene = S.scenes[i];
@@ -221,7 +221,12 @@ document.querySelector('[data-testid=story-orb]').addEventListener('click', asyn
     if (scene && scene.chapter) mark = scene.chapter;
     document.querySelector('[data-testid=story-chapter]').textContent = scene ? words[mark] : '';
     document.querySelector('[data-testid=story-line]').innerHTML = '<span class="sty-pcap__words">' + (scene ? scene.line : S.askLine) + '</span>';
-    document.querySelectorAll('img[data-asset]').forEach((im) => im.getAttribute('data-asset') === (scene || {}).pictureAssetId ? im.setAttribute('data-on', '') : im.removeAttribute('data-on'));
+    // keel-web 263 FR-9: a frame left out holds the picture before, still (`data-held`)
+    const own = scene ? scene.pictureAssetId : null, shown = scene ? (own || last) : null;
+    if (own) last = own;
+    document.querySelectorAll('img[data-asset]').forEach((im) => { const on = im.getAttribute('data-asset') === shown;
+      on ? im.setAttribute('data-on', '') : im.removeAttribute('data-on');
+      on && !own ? im.setAttribute('data-held', '') : im.removeAttribute('data-held'); });
     await new Promise((r) => setTimeout(r, 120));
   }
 });
@@ -266,7 +271,8 @@ def test_the_solution_film_is_captured_with_its_plate_and_its_chapters(browser, 
     by = {(f["scene"], f["viewport"]): f for f in frames}
     assert by[(2, "phone")]["chapter"] == "The task" and by[(4, "laptop")]["chapter"] == "What it solves"
     assert by[(6, "phone")]["chapter"] == "What they get" and by[(6, "phone")]["caption"] == IDEA_LINES[5]
-    assert by[(3, "laptop")]["shown"] is None                       # the dropped frame: no picture on the stage
+    # the dropped frame (spec 167, keel-web 263 FR-9): the picture before held still, recorded `missing`, no fault
+    assert by[(3, "laptop")]["shown"] == "i2" and by[(3, "laptop")]["held"] and by[(3, "laptop")]["missing"]
     assert all((tmp_path / f["path"]).is_file() for f in frames)
     assert asked.count("k1") == 2 and asked.count("k7") == 2
 

@@ -23,6 +23,18 @@ and `measures.faults` -- what the capture itself held false (a scene served with
 stage or over three rows on the phone, a page that scrolls sideways on the phone, a chapter key off keel-cloud 273's
 places): each a DRIFT candidate (`quality/film_table.findings`), never patched around.
 
+**Spec 167 (keel-web 263, keel-cloud 275): the portrait stage.** The stage takes the picture's ratio (2:3 on a 275 build,
+1024 x 1536; 3:2 on a film drawn before it and on FakePictures' 48 x 32). On a phone the caption and the chapter pill
+are drawn over the stage (`story-line`, `story-chapter`); on a laptop around a portrait stage `story-film` is a grid
+and they are drawn in the words' column beside it (`story-side-line`, `story-side-chapter`; the stage's own in the DOM,
+not drawn). The camera reads the DRAWN caption and pill, records on every frame the layout (`over` | `column`, off
+`getComputedStyle(story-film).display`), the stage's ratio and measured size, and holds each layout to its own rule
+(`frame_faults`: inside the stage over the picture; beside it, whole in the window, no word clipped in the column). A
+frame left out (`pictureMissing`, keel-cloud 275 FR-4) is recorded on its frame (`missing`, the picture before `held`
+or the `ground`), never a fault; each picture's size is recorded (`picture_drawn`), both sizes accepted. The founder's
+building screen is watched while the build runs (`watch_building`: keel-web 263's frame plan read, its tally held to
+its rows, the failed build's line with the served reason).
+
 **The founder's words** (`entry_beats`): on Keel's door the seven beats are told on the wire (`StoryWire`, as keel-web
 257's page sends them) in the entry's own words -- built by one rule for every entry from its `context`, today's way
 (`current_solution.today`), its problem statement and its Importance rows (the role's other tasks); no trade is named
@@ -52,6 +64,21 @@ SCENES = 7
 CHAPTER_AT = {1: "who", 2: "task", 3: "today", 4: "shortfall", 7: "cost"}
 STAGE = "[data-testid=story-stage]"
 LINE = f"{STAGE} [data-testid=story-line]"
+#: Spec 167 FR-1 (keel-web 263 FR-3): the film's frame (`story-film`) -- a grid above 720 px on a portrait film (the
+#: stage on the left, the words' column `story-side` beside it: the pill `story-side-chapter`, the caption
+#: `story-side-line`; the stage's own pill and caption in the DOM but not drawn), `display: contents` on a phone and
+#: around a landscape film (the caption drawn over the stage's bottom third, as 261). One DOM at every width.
+FILM = "[data-testid=story-film]"
+SIDE_LINE = "[data-testid=story-side-line]"
+SIDE_CHAPTER = "[data-testid=story-side-chapter]"
+#: The two layouts the camera records (`layout` on every frame): the caption over the picture's lower third, or beside
+#: the picture in the words' column.
+LAYOUT_OVER = "over"
+LAYOUT_COLUMN = "column"
+#: keel-cloud 275 FR-7: every picture drawn portrait 1024 x 1536; a film drawn before 275 (273) is 1536 x 1024. Both
+#: accepted, the size recorded (`drawn` on every picture); FakePictures' 48 x 32 is neither and is no fault either.
+PORTRAIT_275 = (1024, 1536)
+LANDSCAPE_273 = (1536, 1024)
 #: keel-web 261 FR-2: the caption is at most three rows on a phone.
 PHONE_ROWS_MAX = 3
 SETTLE_MS = 400
@@ -73,31 +100,69 @@ IDEA_CHAPTERS = ss.IDEA_CHAPTERS
 PLATE = "[data-testid=idea-plate]"
 PLATE_TIMEOUT_MS = 30_000
 
-#: One read of the stage at a held scene: the step, the caption and its rows, the chapter mark, the shown picture,
-#: whether the caption sits wholly inside the stage, the pictures drawn, and whether the page scrolls sideways.
+#: One read of the stage at a held scene: the step, the DRAWN caption and its rows, the drawn chapter mark, the shown
+#: picture, the pictures drawn, whether the page scrolls sideways -- and (spec 167 FR-1, keel-web 263) the layout as
+#: CSS drew it (`getComputedStyle(story-film).display`: `grid` the column, else the caption over the stage), the stage's
+#: ratio (`data-ratio`) and measured size, whether the caption sits wholly inside the stage (the over layout), or beside
+#: it, whole inside the window and not clipped (the column), and a frame left out (`data-held` on the picture before,
+#: `data-ground` where there is none).
 _READ_STAGE = r"""() => {
   const stage = document.querySelector('[data-testid=story-stage]');
   if (!stage) return null;
-  const cap = stage.querySelector('[data-testid=story-line]');
+  const film = stage.closest('[data-testid=story-film]');
+  const display = film ? getComputedStyle(film).display : null;
+  const ask = stage.hasAttribute('data-ask');
+  const column = display === 'grid' && !ask;
+  const cap = column ? film.querySelector('[data-testid=story-side-line]') : stage.querySelector('[data-testid=story-line]');
+  const chapter = column ? film.querySelector('[data-testid=story-side-chapter]') : stage.querySelector('[data-testid=story-chapter]');
   const words = cap ? cap.querySelector('.sty-pcap__words') : null;
   const s = stage.getBoundingClientRect();
-  const c = cap ? cap.getBoundingClientRect() : null;
+  const c = cap && cap.getClientRects().length ? cap.getBoundingClientRect() : null;
   const lh = words ? parseFloat(getComputedStyle(words).lineHeight) : NaN;
-  const chapter = stage.querySelector('[data-testid=story-chapter]');
   const on = stage.querySelector('img[data-testid=story-picture][data-on]');
   const imgs = [...stage.querySelectorAll('img[data-asset]')];
+  let clipped = !!cap && (cap.scrollWidth > cap.clientWidth + 1 || cap.scrollHeight > cap.clientHeight + 1);
+  if (c) {
+    for (let el = cap.parentElement; el && el !== document.body; el = el.parentElement) {
+      const st = getComputedStyle(el);
+      if ([st.overflow, st.overflowX, st.overflowY].some((o) => o && o !== 'visible')) {
+        const r = el.getBoundingClientRect();
+        if (c.left < r.left - 0.5 || c.right > r.right + 0.5 || c.top < r.top - 0.5 || c.bottom > r.bottom + 0.5) clipped = true;
+      }
+    }
+  }
+  const overlaps = !!c && c.left < s.right - 0.5 && c.right > s.left + 0.5 && c.top < s.bottom - 0.5 && c.bottom > s.top + 0.5;
   return {
-    step: stage.getAttribute('data-step'), ask: stage.hasAttribute('data-ask'),
+    step: stage.getAttribute('data-step'), ask,
     caption: words ? words.textContent.replace(/\s+/g, ' ').trim() : '',
     rows: words && lh > 0 ? Math.round(words.getBoundingClientRect().height / lh) : null,
     inside: !!c && c.left >= s.left - 0.5 && c.right <= s.right + 0.5 && c.top >= s.top - 0.5 && c.bottom <= s.bottom + 0.5,
+    beside: !!c && !overlaps,
+    in_window: !!c && c.left >= -0.5 && c.top >= -0.5 && c.right <= window.innerWidth + 0.5 && c.bottom <= window.innerHeight + 0.5,
+    clipped,
+    caption_box: c ? { x: Math.round(c.left), y: Math.round(c.top), w: Math.round(c.width), h: Math.round(c.height) } : null,
     chapter: chapter ? chapter.textContent.replace(/\s+/g, ' ').trim() : null,
     shown: on ? on.getAttribute('data-asset') : null,
+    held: !!(on && on.hasAttribute('data-held')), ground: stage.hasAttribute('data-ground'),
     pictures_drawn: imgs.filter((i) => i.complete && i.naturalWidth > 0).length, pictures: imgs.length,
     stage: { w: Math.round(s.width), h: Math.round(s.height) },
+    stage_ratio: s.width > 0 ? Math.round((s.height / s.width) * 1000) / 1000 : null,
+    ratio: stage.getAttribute('data-ratio'),
+    film_display: display, layout: column ? 'column' : 'over', side: column,
     sideways: document.documentElement.scrollWidth > window.innerWidth,
     mode: (stage.closest('[data-mode]') || {}).getAttribute ? stage.closest('[data-mode]').getAttribute('data-mode') : null,
   };
+}"""
+
+#: Spec 167 FR-1: a scene stands once its DRAWN caption says its line -- the stage's own on a phone (and around a
+#: landscape film), the words' column's beside a portrait stage on a laptop (the stage's own is not drawn there).
+_SCENE_STANDS = r"""(step) => {
+  const stage = document.querySelector('[data-testid=story-stage][data-step="' + step + '"]');
+  if (!stage) return false;
+  const film = stage.closest('[data-testid=story-film]');
+  const column = !!film && getComputedStyle(film).display === 'grid' && !stage.hasAttribute('data-ask');
+  const cap = column ? film.querySelector('[data-testid=story-side-line]') : stage.querySelector('[data-testid=story-line]');
+  return !!cap && cap.getClientRects().length > 0 && (cap.textContent || '').trim() !== '';
 }"""
 
 
@@ -360,9 +425,21 @@ def png_size(data: bytes) -> tuple[int, int] | None:
     return struct.unpack(">II", data[16:24])
 
 
+def picture_drawn(size) -> dict:
+    """Spec 167 FR-1: a picture's size named -- its ratio (`portrait`, `landscape`, `square`) and which build drew it:
+    `275` (1024 x 1536, portrait), `before 275` (1536 x 1024), else `other` (FakePictures' 48 x 32). Never a fault."""
+    if not size:
+        return {"ratio": None, "drawn": None}
+    w, h = int(size[0]), int(size[1])
+    ratio = "portrait" if h > w else "landscape" if w > h else "square"
+    drawn_by = "275" if (w, h) == PORTRAIT_275 else "before 275" if (w, h) == LANDSCAPE_273 else "other"
+    return {"ratio": ratio, "drawn": drawn_by}
+
+
 def chapter_faults(story: dict) -> list[dict]:
     """keel-cloud 273 FR-6: `who` on scene 1, `task` on 2, `today` on 3, `shortfall` on the first limitation's (4),
-    `cost` on the pain's (7), none elsewhere; and a picture on every scene."""
+    `cost` on the pain's (7), none elsewhere; and a picture on every scene -- but one served `pictureMissing` (keel-cloud
+    275 FR-4: a frame left out on its own, the film still ready; recorded, never a fault -- spec 167 FR-1)."""
     out = []
     for n, scene in enumerate(scenes(story), 1):
         want = CHAPTER_AT.get(n)
@@ -370,8 +447,9 @@ def chapter_faults(story: dict) -> list[dict]:
             out.append({"what": f"scene {n}'s chapter mark is {scene.get('chapter')!r}, keel-cloud 273 FR-6 puts "
                                 f"{want!r} there", "owed": "keel-cloud 273 (`StoryScene.chapter`)",
                         "detail": scene.get("line") or "", "frame": f"{FRAMES_DIR}/scene-{n}-laptop.png"})
-        if not scene.get("pictureAssetId"):
-            out.append({"what": f"scene {n} is served with no picture (`pictureAssetId` absent on a 273 build)",
+        if not scene.get("pictureAssetId") and not scene.get("pictureMissing"):
+            out.append({"what": f"scene {n} is served with no picture and no `pictureMissing` (`pictureAssetId` "
+                                "absent on a 273 build)",
                         "owed": "keel-cloud 273 FR-3 (no stick fallback)", "detail": scene.get("line") or "",
                         "frame": f"{FRAMES_DIR}/scene-{n}-laptop.png"})
     if len(scenes(story)) != SCENES:
@@ -426,6 +504,56 @@ def idea_chapter_faults(view: dict) -> list[dict]:
 
 
 # ------------------------------------------------------------------------------------------- the camera
+
+#: What the camera keeps of each scene's read on its frame (spec 167 FR-1: the layout, the stage's ratio and size, the
+#: caption's place, a frame left out).
+FRAME_KEYS = ("step", "caption", "rows", "inside", "beside", "in_window", "clipped", "caption_box", "chapter", "shown",
+              "held", "ground", "pictures", "pictures_drawn", "stage", "stage_ratio", "ratio", "film_display",
+              "layout", "sideways", "mode")
+
+
+def frame_faults(frame: dict, viewport: str) -> list[dict]:
+    """Spec 167 FR-1: what one held frame holds false. Over the picture (the phone, and a laptop around a landscape film
+    as 261 drew it) the caption sits wholly inside the stage; in the column (a laptop, a portrait film, keel-web 263
+    FR-3) it stands beside the stage, whole inside the window, no word clipped. On the phone: at most three rows, no
+    sideways scroll. A frame left out (`missing`) shows the picture before held still or the plain ground (263 FR-9)."""
+    n, rel, caption = frame.get("scene"), frame.get("path"), frame.get("caption") or ""
+    out = []
+    if frame.get("layout") == LAYOUT_COLUMN:
+        if not (frame.get("beside") and frame.get("in_window") and not frame.get("clipped")):
+            out.append({"what": f"scene {n}'s caption is not whole beside the stage on the {viewport} (beside "
+                                f"{frame.get('beside')}, in the window {frame.get('in_window')}, clipped "
+                                f"{frame.get('clipped')})", "owed": "keel-web 263 FR-3 / FR-6 (the words' column)",
+                        "detail": caption, "frame": rel})
+    elif frame.get("inside") is False:
+        out.append({"what": f"scene {n}'s caption is not wholly inside the stage on the {viewport}",
+                    "owed": "keel-web 261 FR-2 / 263 FR-2 (the caption band)", "detail": caption, "frame": rel})
+    if viewport == "phone" and (frame.get("rows") or 0) > PHONE_ROWS_MAX:
+        out.append({"what": f"scene {n}'s caption runs to {frame.get('rows')} rows on the phone (at most "
+                            f"{PHONE_ROWS_MAX})", "owed": "keel-web 261 FR-2", "detail": caption, "frame": rel})
+    if viewport == "phone" and frame.get("sideways"):
+        out.append({"what": f"the page scrolls sideways on the phone at scene {n}", "owed": "keel-web 261 FR-9",
+                    "detail": "", "frame": rel})
+    if frame.get("missing") and not (frame.get("held") or frame.get("ground")):
+        out.append({"what": f"scene {n} was left out (`pictureMissing`) but its frame on the {viewport} shows neither "
+                            "the picture before held still nor the plain ground", "owed": "keel-web 263 FR-9",
+                    "detail": f"shown {frame.get('shown')}", "frame": rel})
+    return out
+
+
+def stage_summary(frames: list[dict]) -> dict:
+    """Spec 167 FR-1: per viewport, the layouts, the stage's ratios and sizes the camera recorded (`film.json`)."""
+    out: dict = {}
+    for f in frames:
+        if f.get("scene") == "plate":
+            continue
+        v = out.setdefault(f["viewport"], {"layouts": [], "ratios": [], "stages": []})
+        for key, value in (("layouts", f.get("layout")), ("ratios", f.get("ratio")),
+                           ("stages", "x".join(str((f.get("stage") or {}).get(k)) for k in ("w", "h")))):
+            if value not in v[key]:
+                v[key].append(value)
+    return out
+
 
 class FilmCamera:
     """The founder's player at `define/story/check` on one viewport at a time, each scene held (the next clip parked)
@@ -482,6 +610,7 @@ class FilmCamera:
 
     def _one(self, name: str, viewport: dict, project_id: str, story: dict) -> tuple[list[dict], list[dict]]:
         clips = clip_ids(story)
+        missing = set(missing_scenes(story))
         held: dict[str, list] = {}
         released: set[str] = {clips[0]} if clips else set()
 
@@ -524,8 +653,7 @@ class FilmCamera:
                 n = step + 1
                 rel = f"{FRAMES_DIR}/scene-{n}-{name}.png"
                 try:
-                    page.locator(f"{STAGE}[data-step='{step}'] [data-testid=story-line]:not(:empty)").first.wait_for(
-                        state="visible", timeout=SCENE_TIMEOUT_MS)
+                    page.wait_for_function(_SCENE_STANDS, arg=step, timeout=SCENE_TIMEOUT_MS)
                     page.wait_for_function(
                         "() => [...document.querySelectorAll('img[data-asset]')]"
                         ".every((i) => i.complete && i.naturalWidth > 0)", timeout=30_000)
@@ -543,21 +671,11 @@ class FilmCamera:
                 read = page.evaluate(_READ_STAGE) or {}
                 page.screenshot(path=str(self.out / rel), animations="disabled")
                 frame = {"scene": n, "viewport": name, "size": f"{viewport['width']}x{viewport['height']}",
-                         "path": rel, **{k: read.get(k) for k in ("step", "caption", "rows", "inside", "chapter",
-                                                                  "shown", "pictures", "pictures_drawn", "stage",
-                                                                  "sideways", "mode")}}
+                         "path": rel, **{k: read.get(k) for k in FRAME_KEYS}}
+                if n in missing:
+                    frame["missing"] = True     # keel-cloud 275 FR-4: a frame left out -- recorded, never a fault
                 frames.append(frame)
-                if read.get("inside") is False:
-                    faults.append({"what": f"scene {n}'s caption is not wholly inside the stage on the {name}",
-                                   "owed": "keel-web 261 FR-2 (the caption band)", "detail": read.get("caption") or "",
-                                   "frame": rel})
-                if name == "phone" and (read.get("rows") or 0) > PHONE_ROWS_MAX:
-                    faults.append({"what": f"scene {n}'s caption runs to {read.get('rows')} rows on the phone (at "
-                                           f"most {PHONE_ROWS_MAX})", "owed": "keel-web 261 FR-2",
-                                   "detail": read.get("caption") or "", "frame": rel})
-                if name == "phone" and read.get("sideways"):
-                    faults.append({"what": f"the page scrolls sideways on the phone at scene {n}",
-                                   "owed": "keel-web 261 FR-9", "detail": "", "frame": rel})
+                faults += frame_faults(frame, name)
                 release(clips[n] if n < len(clips) else None)
             for clip in list(held):
                 release(clip)
@@ -587,7 +705,7 @@ def fetch_pictures(get_bytes, story: dict, out: Path) -> list[dict]:
             (Path(out) / rel).write_bytes(data)
         pictures.append({"scene": scene, "asset": asset, "path": rel if status < 400 and data else None,
                          "status": status, "bytes": len(data or b""), "content_type": kind,
-                         "png": list(size) if size else None})
+                         "png": list(size) if size else None, **picture_drawn(size)})
     return sorted(pictures + dropped, key=lambda p: (1, 0) if p["scene"] == "sheet" else (0, p["scene"]))
 
 
@@ -703,6 +821,157 @@ def lines_of(story: dict) -> list[dict]:
         rows.append({"scene": "ask", "line": drawn(story)["askLine"], "chapter": None, "pain": False,
                      "pictureAssetId": None, "clipId": None})
     return rows
+
+
+BUILDING = "[data-testid=story-building], [data-testid=idea-building]"
+
+
+def watch_building(browser, storage_state: dict, web_base: str, project_id: str, read_view, *, kind: str = "problem",
+                   timeout_s: float = 300, poll_ms: int = 400, inits: tuple[str, ...] = (),
+                   routes: tuple = ()) -> tuple[dict, dict]:
+    """Spec 167 FR-2 / FR-4 (keel-web 263 FR-8, FR-10): the founder's building screen of the film (`CHECK_PATH[kind]`, on
+    the laptop) watched while the build runs -- every frame plan it draws (`story_screens.read_plan`: the tally, each
+    row's scene, status, word, reason, kept mark) kept where it moved, each held to keel-web's tally rule against its own
+    rows (`plan_tally`), and the plan the wire serves (`build.pictures.plan` / `kept`) polled beside it -- until the wire
+    says `ready` or `failed`; on a failed build the plan that stays and the line Keel says (`story-q`). Returns
+    `(the served view at the end, the record)`; the build is never touched (the page is closed at `ready`, before the
+    film plays). A build ready before the screen drew its plan is recorded as such (no fault: the fakes are quick)."""
+    reads: list[dict] = []
+    served: list[list] = []
+    view = read_view()
+    record: dict = {"path": CHECK_PATH[kind], "opened_while": (view.get("build") or {}).get("state"), "reads": [],
+                    "served": [], "failed_said": None, "failed_plan": None, "error": None}
+    context = browser.new_context(viewport=LAPTOP, storage_state=storage_state, reduced_motion="reduce")
+    for script in inits or (ivs.SPEECH_SEAM, ss.ORB_WATCH):
+        context.add_init_script(script)
+    for pattern, handler in routes:
+        context.route(pattern, handler)
+    page = context.new_page()
+    deadline = time.monotonic() + timeout_s
+    try:
+        page.goto(f"{web_base.rstrip('/')}/p/{project_id}/{CHECK_PATH[kind]}", wait_until="load")
+        try:
+            ss.wake(page, settle_s=0.5, timeout_s=10)
+        except Exception:  # noqa: BLE001 - the plan is read whether the voice began or not
+            pass
+        while True:
+            plan = ss.read_plan(page)
+            if plan and plan.get("rows") and (not reads or reads[-1] != plan):
+                reads.append(plan)
+            view = read_view()
+            build = view.get("build") or {}
+            rows = [(r.get("scene"), r.get("status")) for r in ((build.get("pictures") or {}).get("plan") or [])]
+            if rows and (not served or served[-1] != rows):
+                served.append(rows)
+            if build.get("state") in ("ready", "failed") or time.monotonic() > deadline:
+                break
+            page.wait_for_timeout(poll_ms)
+        if (view.get("build") or {}).get("state") == "failed":
+            try:
+                page.locator("[data-testid=story-q]").first.wait_for(state="visible", timeout=10_000)
+            except Exception:  # noqa: BLE001 - recorded as read
+                pass
+            page.wait_for_timeout(800)
+            record["failed_plan"] = ss.read_plan(page)
+            record["failed_said"] = ss._tc(page.locator("[data-testid=story-q]"))
+    except Exception as e:  # noqa: BLE001 - the watch is a record; the wire's wait follows
+        record["error"] = f"{type(e).__name__}: {str(e)[:200]}"
+    finally:
+        context.close()
+    kept = ((view.get("build") or {}).get("pictures") or {}).get("kept") or 0
+    record["reads"] = [{**r, "tally_rule": ss.plan_tally(r["rows"], kept), "tally_holds": r.get("tally") ==
+                        ss.plan_tally(r["rows"], kept)} for r in reads]
+    record["served"] = [[f"{scene}:{status}" for scene, status in rows] for rows in served]
+    record["state"] = (view.get("build") or {}).get("state")
+    record["kept"] = kept
+    record["drawn"] = bool(reads)
+    plan = ((view.get("build") or {}).get("pictures") or {}).get("plan") or []
+    if not reads and record["state"] == "ready" and plan:
+        # the build was ready before the screen drew its plan (the fakes draw at once): keel-web's building screen is
+        # shown the build's own served view with its state read as `building` -- every row as keel-cloud served it --
+        # so the plan's ids are still read on keel-web's own component (judgement call: `replayed`, never a live read)
+        record["replayed"] = replay_plan(browser, storage_state, web_base, project_id, kind=kind, inits=inits,
+                                         routes=routes)
+        if record["replayed"].get("plan"):
+            got = record["replayed"]["plan"]
+            record["replayed"]["tally_rule"] = ss.plan_tally(got.get("rows") or [], kept)
+            record["replayed"]["tally_holds"] = got.get("tally") == record["replayed"]["tally_rule"]
+            served_rows = [(str(r.get("scene")), r.get("status")) for r in plan]
+            drawn_rows = [(str(r.get("scene")), r.get("status")) for r in got.get("rows") or []]
+            record["replayed"]["rows_match"] = served_rows == drawn_rows
+    return view, record
+
+
+def _view_path(project_id: str, kind: str) -> str:
+    return f"/v2/projects/{project_id}/{'idea/spoken' if kind == 'solution' else 'story'}"
+
+
+def replay_plan(browser, storage_state: dict, web_base: str, project_id: str, *, kind: str = "problem",
+                inits: tuple[str, ...] = (), routes: tuple = (), timeout_ms: int = 20_000) -> dict:
+    """Spec 167 FR-2 / FR-4: the founder's building screen shown the build's own served view (`GET story` / `GET
+    idea/spoken`, fetched from keel-cloud as served) with `build.state` read as `building`, so keel-web's `FramePlan`
+    draws keel-cloud's served plan and its ids are read (`story_screens.read_plan`). Nothing is written; the page is
+    closed once the plan is read."""
+    path = _view_path(project_id, kind)
+    out: dict = {"path": CHECK_PATH[kind], "view": path, "plan": None, "error": None}
+
+    def building(route):
+        try:
+            response = route.fetch()
+            body = response.json()
+            if isinstance(body, dict) and isinstance(body.get("build"), dict):
+                body = {**body, "build": {**body["build"], "state": "building"}}
+            route.fulfill(response=response, json=body)
+        except Exception:  # noqa: BLE001 - the page reads what keel-cloud served
+            route.fallback()
+
+    context = browser.new_context(viewport=LAPTOP, storage_state=storage_state, reduced_motion="reduce")
+    for script in inits or (ivs.SPEECH_SEAM, ss.ORB_WATCH):
+        context.add_init_script(script)
+    for pattern, handler in routes:
+        context.route(pattern, handler)
+    context.route(lambda url: url.split("?")[0].endswith(path), building)
+    page = context.new_page()
+    try:
+        page.goto(f"{web_base.rstrip('/')}/p/{project_id}/{CHECK_PATH[kind]}", wait_until="load")
+        try:
+            ss.wake(page, settle_s=0.5, timeout_s=10)
+        except Exception:  # noqa: BLE001 - the plan is read whether the voice began or not
+            pass
+        page.wait_for_selector("[data-testid=story-plan-row]", timeout=timeout_ms)
+        out["plan"] = ss.read_plan(page)
+    except Exception as e:  # noqa: BLE001 - recorded
+        out["error"] = f"{type(e).__name__}: {str(e)[:200]}"
+    finally:
+        context.close()
+    return out
+
+
+def building_faults(record: dict, view: dict) -> list[dict]:
+    """Spec 167 FR-2: what the building screen held false -- a tally that is not keel-web 263's rule over its own rows;
+    a failed build whose line is not 263 FR-10's (with the served reason where there is one)."""
+    out = []
+    for r in record.get("reads") or []:
+        if not r.get("tally_holds"):
+            out.append({"what": f"the frame plan's tally reads {r.get('tally')!r}, its rows make {r.get('tally_rule')!r}",
+                        "owed": "keel-web 263 FR-8 (the tally)", "detail": json.dumps(r.get("rows"))[:300],
+                        "frame": None})
+    replayed = record.get("replayed") or {}
+    if replayed.get("plan") and not (replayed.get("tally_holds") and replayed.get("rows_match")):
+        out.append({"what": f"the frame plan keel-web drew from the served plan does not hold (tally "
+                            f"{replayed['plan'].get('tally')!r}, its rule {replayed.get('tally_rule')!r}; the rows as "
+                            f"served {replayed.get('rows_match')})", "owed": "keel-web 263 FR-8",
+                    "detail": json.dumps(replayed["plan"].get("rows"))[:300], "frame": None})
+    build = view.get("build") or {}
+    if build.get("state") == "failed" and record.get("failed_said") is not None and not record.get("error"):
+        reason = build.get("failedReason")
+        chapter = build.get("failedChapter")
+        want = (ss.failed_say(chapter, reason) if chapter else ss.picture_failed_say(reason))
+        # a picture's failure (`failedScene`) or a chapter's (`failedChapter`) -- a draft that failed says 261's line
+        if (chapter or build.get("failedScene") is not None) and record["failed_said"] and record["failed_said"] != want:
+            out.append({"what": f"the failed build says {record['failed_said']!r}, keel-web 263 FR-10 says {want!r}",
+                        "owed": "keel-web 263 FR-10", "detail": reason or "", "frame": None})
+    return out
 
 
 def wait_built(read_story, *, timeout_s: float = 300) -> dict:

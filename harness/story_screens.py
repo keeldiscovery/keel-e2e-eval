@@ -939,6 +939,14 @@ class Conversation:
         since `begin()`: the opener mounts as the project's first screen draws)."""
         return [r for r in self._log("__sheetLog") if f"/p/{project_id}/" in str(r.get("path") or "")]
 
+    def _plan_seen(self, plans: list[dict]) -> list[dict]:
+        """Spec 167 FR-2: the frame plan read now, kept where its tally moved since the last read."""
+        plan = read_plan(self.page)
+        if plan and plan.get("rows") and (not plans or plans[-1].get("tally") != plan.get("tally")
+                                          or plans[-1].get("rows") != plan.get("rows")):
+            return plans + [plan]
+        return plans
+
     def snapshot(self) -> dict:
         try:
             return self.page.evaluate(_SNAPSHOT)
@@ -1274,6 +1282,7 @@ class StoryWalk(Conversation):
         """The building screen while the build builds, then the story played through once."""
         with self._b.step("the building screen, then the story played") as h:
             building = None
+            plans: list[dict] = []
             deadline = time.monotonic() + timeout_s * self.patience
             while time.monotonic() < deadline:
                 state = self.page.locator(STORY_CHECK).first.get_attribute("data-state") \
@@ -1283,12 +1292,20 @@ class StoryWalk(Conversation):
                     building["steps"] = [{"step": li.get_attribute("data-step"), "state": li.get_attribute("data-state")}
                                          for li in self.page.locator(".story-build-steps li").all()]
                     h.add_screenshot(self._b.screenshot("story-building"))
+                if state == "building":
+                    plans = self._plan_seen(plans)
                 if state in ("story", "failed"):
                     break
                 self.page.wait_for_timeout(250)
             state = self.page.locator(STORY_CHECK).first.get_attribute("data-state") \
                 if self.page.locator(STORY_CHECK).count() else None
+            if state == "failed":
+                plans = self._plan_seen(plans)
             seen = {"building": building, "state": state, "story": self.snapshot(),
+                    # spec 167 FR-2 (keel-web 263 FR-8, FR-10): the frame plan as drawn while it built (each tally
+                    # seen, the last read) and a failed build's line (with the served reason where there is one)
+                    "plan": {"tallies": [p["tally"] for p in plans], "last": plans[-1] if plans else None},
+                    "failed_said": _tc(self.page.locator("[data-testid=story-q]")) if state == "failed" else None,
                     "player": self.page.locator("[data-testid=story-readback] [data-testid=story-player], "
                                                 "[data-testid=story-readback] .sty-player").count()}
             h.add_screenshot(self._b.screenshot("story-readback"))
@@ -1552,7 +1569,10 @@ class SolutionStart:
         for row in root.get_by_test_id("solution-candidate").all():
             rows.append({"project": row.get_attribute("data-project"), "picked": row.get_attribute("data-picked") is not None,
                          "words": _tc(row), "press": _tc(row.get_by_test_id("solution-pick")),
-                         "frame": row.get_by_test_id("solution-candidate-frame").count()})
+                         "frame": row.get_by_test_id("solution-candidate-frame").count(),
+                         # spec 167 FR-2 (keel-web 263 FR-4): the row's still takes its first picture's ratio
+                         "frame_ratio": row.get_by_test_id("solution-candidate-frame").first.get_attribute("data-ratio")
+                         if row.get_by_test_id("solution-candidate-frame").count() else None})
         return {"say": _tc(root.get_by_test_id("solution-start-say")), "title": _tc(root.locator("h2").first),
                 "rows": rows, "none": _tc(root.get_by_test_id("solution-start-none")) or None,
                 "create": _tc(root.get_by_test_id("solution-create-problem")),
@@ -1691,6 +1711,29 @@ LOGO_LINE = ("A square PNG or SVG, 256 to 4,096 px a side, up to 1 MB. It is dra
              "best.")
 #: keel-web 259 FR-7 (`IDEA.failed`): the failed build's line and the chapter as the sentence names it.
 FAILED_SAY = "Keel could not draw {part}. Say that part again?"
+#: keel-web 263 FR-10 (`IDEA.failed.sayWithReason`, `STORY.pictureFailed`): the lines with the served `failedReason`
+#: (keel-cloud 275 FR-2), and 261's picture line without one.
+FAILED_SAY_REASON = "Keel could not draw {part}: {reason}. Say that part again?"
+PICTURE_FAILED_SAY = "Keel could not draw that part. Say it again?"
+PICTURE_FAILED_SAY_REASON = "Keel could not draw that part: {reason}. Say it again?"
+#: keel-cloud 275 FR-0 / keel-web 263 FR-8: a frame's status on the plan.
+PLAN_STATUSES = ("planned", "drawn", "passed", "failed", "dropped")
+#: keel-web 263 FR-8 (`FramePlan`): the plan read in one evaluate -- the tally, the rows by `data-scene` /
+#: `data-status` / `data-kept`, the status word, the reason beside a failed or dropped row.
+PLAN_JS = r"""() => {
+  const plan = document.querySelector('[data-testid=story-plan]');
+  if (!plan) return null;
+  const t = (el) => (el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : null);
+  return {
+    tally: t(plan.querySelector('[data-testid=story-plan-tally]')),
+    rows: [...plan.querySelectorAll('[data-testid=story-plan-row]')].map((r) => ({
+      scene: r.getAttribute('data-scene'), status: r.getAttribute('data-status'), kept: r.hasAttribute('data-kept'),
+      word: t(r.querySelector('[data-testid=story-plan-word]')),
+      reason: t(r.querySelector('[data-testid=story-plan-reason]')),
+      mark: (r.querySelector('[data-testid=story-plan-mark]') || { getAttribute: () => null }).getAttribute('aria-label'),
+    })),
+  };
+}"""
 FAILED_PARTS = {"before": "the setup", "task": "the task", "solves": "what it solves", "better": "what is better",
                 "joy": "what they get", "brand": "the brand"}
 #: keel-cloud 271 judgement call 9 (the beat a chapter reopens; keel-web `BEAT_OF_CHAPTER`).
@@ -1914,7 +1957,9 @@ def idea_scenes_verdict(story: dict | None, idea: dict | None, *, name: str, tag
         and sum(1 for s in scenes if s.get("joy")) == 1
         and (not idea.get("joy") or _you(idea.get("joy")) in _you(last.get("line"))),
         "the brand on every screen": all(((s.get("screen") or {}).get("name") == name) for s in screens),
-        "a picture on every scene": not pictures or all(s.get("pictureAssetId") for s in scenes),
+        # keel-cloud 275 FR-4: a frame left out (`pictureMissing`) is no missing picture (spec 167 FR-1)
+        "a picture on every scene": not pictures or all(s.get("pictureAssetId") or s.get("pictureMissing")
+                                                        for s in scenes),
         "one clip a line": clips in (len(scenes), len(scenes) + 1),
         "the plate the brand": plate.get("name") == name and (tagline is None or plate.get("tagline") == tagline),
     }
@@ -1923,9 +1968,49 @@ def idea_scenes_verdict(story: dict | None, idea: dict | None, *, name: str, tag
             "clips": clips, "plate": plate}
 
 
-def failed_say(chapter: str) -> str:
-    """keel-web 259 FR-7: the failed build's line for its chapter."""
-    return FAILED_SAY.replace("{part}", FAILED_PARTS.get(chapter, "that part"))
+def failed_say(chapter: str, reason: str | None = None) -> str:
+    """keel-web 259 FR-7: the failed build's line for its chapter; spec 167 FR-2 (keel-web 263 FR-10, judgement call 7):
+    with the served `failedReason` where there is one -- *Keel could not draw {part}: {reason}. Say that part again?*"""
+    part = FAILED_PARTS.get(chapter, "that part")
+    if str(reason or "").strip():
+        return FAILED_SAY_REASON.replace("{part}", part).replace("{reason}", bare_reason(reason))
+    return FAILED_SAY.replace("{part}", part)
+
+
+def bare_reason(reason: str | None) -> str:
+    """keel-web 263 `bareReason`: the reason as served, trimmed of its own closing stop (Keel's sentence ends once)."""
+    return re.sub(r"[.!?\s]+$", "", str(reason or "").strip())
+
+
+def picture_failed_say(reason: str | None = None) -> str:
+    """keel-web 261 FR-5 / 263 FR-10: a build failed by a picture -- *Keel could not draw that part: {reason}. Say it
+    again?* where `failedReason` is served, 261's line where it is null, blank or absent (a build before 275)."""
+    if str(reason or "").strip():
+        return PICTURE_FAILED_SAY_REASON.replace("{reason}", bare_reason(reason))
+    return PICTURE_FAILED_SAY
+
+
+def plan_tally(rows: list[dict], kept: int = 0) -> str:
+    """keel-web 263 FR-8 (`planTally`): *{n} frames planned · {p} passed · {c} checking · {f} drawing again · {d} left
+    out*, every part with a zero count left out; *{k} of {n} pictures kept ·* first on a rebuild that kept pictures."""
+    n = len(rows)
+    count = {st: sum(1 for r in rows if r.get("status") == st) for st in PLAN_STATUSES}
+    parts = [f"{kept} of {n} pictures kept"] if kept and kept > 0 else []
+    parts.append(f"{n} {'frame' if n == 1 else 'frames'} planned")
+    for status, words in (("passed", "passed"), ("drawn", "checking"), ("failed", "drawing again"),
+                          ("dropped", "left out")):
+        if count[status]:
+            parts.append(f"{count[status]} {words}")
+    return " · ".join(parts)
+
+
+def read_plan(page) -> dict | None:
+    """Spec 167 FR-2 (keel-web 263 FR-8): the frame plan as the building screen draws it (`story-plan`): the tally, and
+    one row per frame -- its scene, status, kept mark, status word and reason -- or None where none is drawn."""
+    try:
+        return page.evaluate(PLAN_JS)
+    except Exception:  # noqa: BLE001 - a navigation in flight
+        return None
 
 
 def png_bytes(width: int, height: int) -> bytes:
@@ -2150,6 +2235,7 @@ class IdeaWalk(Conversation):
         how it goes with {name}?* -- or the failed build (`data-state` failed)."""
         with self._b.step("the idea's building screen, the plate, then the film in chapters") as h:
             building, state = None, None
+            plans: list[dict] = []
             deadline = time.monotonic() + timeout_s * self.patience
             while time.monotonic() < deadline:
                 state = self.page.locator(IDEA_CHECK).first.get_attribute("data-state") \
@@ -2157,10 +2243,13 @@ class IdeaWalk(Conversation):
                 if state == "building" and building is None:
                     building = self.snapshot()
                     h.add_screenshot(self._b.screenshot("idea-building"))
+                if state == "building":
+                    plans = self._plan_seen(plans)
                 if state in ("story", "failed") or not re.search(r"/define/idea/check", self.page.url):
                     break
                 self.page.wait_for_timeout(200)
-            seen: dict = {"building": building, "state": state, "plate": None, "chapters": [], "pictures": 0}
+            seen: dict = {"building": building, "state": state, "plate": None, "chapters": [], "pictures": 0,
+                          "plan": {"tallies": [p["tally"] for p in plans], "last": plans[-1] if plans else None}}
             if state != "story":
                 seen["failed"] = self.failed_build()
                 return seen
@@ -2204,6 +2293,7 @@ class IdeaWalk(Conversation):
             root.first.wait_for(state="visible", timeout=15_000)
             out["chapter"] = root.first.get_attribute("data-failed-chapter")
             out["said"] = _tc(root.first.get_by_test_id("story-q"))
+            out["plan"] = read_plan(self.page)          # spec 167 FR-2: the plan stays above the reason on a failed build
         except Exception:  # noqa: BLE001 - recorded
             pass
         try:

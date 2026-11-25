@@ -255,7 +255,8 @@ def lines_block(story: dict) -> str:
         if scene.get("ask"):
             tags.append("the ask, on the wiped board, no picture")
         elif scene.get("pictureMissing"):
-            tags.append("NO PICTURE: the frame was dropped (pictureMissing), the caption over a plain stage")
+            tags.append("NO PICTURE: the frame was left out (pictureMissing); the player holds the picture before, "
+                        "or the plain ground where it is the first scene")
         elif not scene.get("pictureAssetId"):
             tags.append("NO PICTURE SERVED")
         rows.append(f"{i}. {scene.get('line') or ''}" + (f"  [{'; '.join(tags)}]" if tags else ""))
@@ -290,6 +291,29 @@ def prompts_block(prompts: dict) -> str:
     return "\n".join(rows) or "(no prompt on the build)"
 
 
+#: Spec 167 FR-3 (keel-web 263 FR-2, FR-3): the layout each frame was held in, in the reader's words -- the caption over
+#: the picture's lower third (a phone; a laptop around a landscape film, as 261 drew it), or beside the picture in the
+#: words' column (a laptop, a portrait film).
+LAYOUT_WORDS = {"over": "the caption over the picture's lower third", "column": "the caption beside the picture"}
+
+
+def frame_label(frame: dict) -> str:
+    """Spec 167 FR-3: a scene frame's label names the viewport AND the layout (so legibility, F8 / S9, and the line
+    matching its picture, F6 / S7, are read right), the stage's shape, and a frame left out. A frame captured before 167
+    carries no layout: it was 261's, the caption over the picture on both viewports."""
+    layout = frame.get("layout") or "over"
+    stage = frame.get("stage") or {}
+    shape = {"portrait": "a tall stage", "landscape": "a wide stage"}.get(frame.get("ratio") or "")
+    size = f" {stage.get('w')} x {stage.get('h')}" if shape and stage.get("w") and stage.get("h") else ""
+    label = (f"Frame -- scene {frame['scene']} on the {frame['viewport']} ({frame.get('size', '')}), "
+             f"{LAYOUT_WORDS.get(layout, LAYOUT_WORDS['over'])}" + (f", {shape}{size}" if shape else ""))
+    if frame.get("missing"):
+        label += (", this scene's own picture left out (the picture before held still)" if frame.get("held") else
+                  ", this scene's own picture left out (the plain ground)" if frame.get("ground") else
+                  ", this scene's own picture left out")
+    return label + ", as the founder's player held it"
+
+
 def images(folder: Path, film: dict) -> list[dict]:
     """The images in the order they are handed (FR-3): the fourteen frames (scene by scene, phone then laptop), then the
     pictures (scene by scene), then the character sheet. Each `{label, path}`; a frame or picture the capture did not
@@ -300,9 +324,7 @@ def images(folder: Path, film: dict) -> list[dict]:
             out.append({"label": f"Frame -- the brand plate on the {frame['viewport']} ({frame.get('size', '')}), alone "
                                  "before scene 1", "path": folder / frame["path"], "viewport": frame["viewport"]})
             continue
-        out.append({"label": f"Frame -- scene {frame['scene']} on the {frame['viewport']} "
-                             f"({frame.get('size', '')}), as the founder's player held it", "path": folder / frame["path"],
-                    "viewport": frame["viewport"]})
+        out.append({"label": frame_label(frame), "path": folder / frame["path"], "viewport": frame["viewport"]})
     for pic in film.get("pictures") or []:
         what = "the character sheet" if pic.get("scene") == "sheet" else f"the picture of scene {pic['scene']}"
         out.append({"label": f"Picture -- {what}, as keel-cloud stored it", "path": folder / pic["path"]})

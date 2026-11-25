@@ -327,13 +327,20 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
         told = wire.tell(beats)
         h.record_wire({"beats": [n for n, _ in beats]}, {"next": [b.get("next") for b in told]})
     confirmed = wire.confirm()
+    with recorder.step("spec 167: the founder's building screen watched while the build runs (the frame plan)",
+                       party="founder") as h:
+        _, building = ff.watch_building(browser, context.storage_state(), stack.web_base_url, project_id, wire.story,
+                                        kind="problem", timeout_s=600 if DOOR == "keel" else 180)
+        h.record_wire({"watched": building["path"]}, {k: building[k] for k in ("opened_while", "state", "drawn",
+                                                                               "served", "error")})
     with recorder.step("spec 163: the boxes' yes, then the build (the pictures, the clips)", party="founder",
                        kind="assert") as h:
         story = ff.wait_built(wire.story, timeout_s=600 if DOOR == "keel" else 180)
         state = (story.get("build") or {}).get("state")
         h.record_assert({"confirm": 200, "build": "ready"}, {"confirm": confirmed.get("status"), "build": state,
                                                              "failedScene": (story.get("build") or {}).get("failedScene")})
-    faults = ff.chapter_faults(story) if state == "ready" else [
+    faults = ff.building_faults(building, story)
+    faults += ff.chapter_faults(story) if state == "ready" else [
         {"what": f"the build ended {state!r} (failedScene {(story.get('build') or {}).get('failedScene')}: "
                  f"{(story.get('build') or {}).get('failedLine')})", "owed": "keel-cloud 273 FR-3",
          "detail": json.dumps((story.get("build") or {}).get("checked"))[:300], "frame": None}]
@@ -366,6 +373,8 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
         "captured_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "evidence": str(run_dir),
         "build_state": state, "lines": ff.lines_of(story), "frames": frames,
         "pictures": [p for p in pictures if p.get("path")], "pictures_served": pictures,
+        # spec 167: the frames left out, the stage as drawn on each viewport, the building screen's frame plan
+        "missing": ff.missing_scenes(story), "stage": ff.stage_summary(frames), "building": building,
         "beats": ff.beats_record(told, dict(beats)), "verdict_line": story.get("verdictLine"),
         "ledger": spent, "dollars": spent.get("usd"),
         "measures": {"faults": faults, "frames": len(frames), "pictures": sum(1 for p in pictures if p.get("path"))},
@@ -596,6 +605,12 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
                        "asks": {b["turn"]: [a.get("ask") or a.get("readback") for a in b["answers"][:-1]]
                                 for b in told}})
     confirmed = wire.confirm()
+    with recorder.step("spec 167: the founder's building screen watched while the solution builds (the frame plan)",
+                       party="founder") as h:
+        _, building = ff.watch_building(browser, context.storage_state(), stack.web_base_url, solution, wire.idea,
+                                        kind="solution", timeout_s=900 if DOOR == "keel" else 240)
+        h.record_wire({"watched": building["path"]}, {k: building[k] for k in ("opened_while", "state", "drawn",
+                                                                               "served", "error")})
     with recorder.step("spec 166: the board's yes, then the build (the plate, the pictures on the problem's sheet, the "
                        "clips)", party="founder", kind="assert") as h:
         view = wire.built(timeout_s=900 if DOOR == "keel" else 240)
@@ -605,7 +620,8 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
                         {"confirm": confirmed.get("status"), "build": state,
                          **{k: build.get(k) for k in ("failedChapter", "failedScene", "failedReason")}})
     to_film_s = round(time.monotonic() - began, 1)
-    faults = ff.idea_chapter_faults(view) if state == "ready" else [
+    faults = ff.building_faults(building, view)
+    faults += ff.idea_chapter_faults(view) if state == "ready" else [
         {"what": f"the solution's build ended {state!r} (failedChapter {build.get('failedChapter')}, failedScene "
                  f"{build.get('failedScene')}: {build.get('failedReason') or build.get('failedLine')})",
          "owed": "keel-cloud 271 FR-10 / 273 FR-3 / 275 FR-2", "detail": json.dumps(build.get("checked"))[:300],
@@ -650,7 +666,7 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
         "lines": ff.lines_of(view), "chapters": [s.get("chapter") for s in ff.scenes(view)],
         "plate": ff.drawn(view).get("plate"), "frames": frames,
         "pictures": [p for p in pictures if p.get("path")], "pictures_served": pictures,
-        "missing": ff.missing_scenes(view),
+        "missing": ff.missing_scenes(view), "stage": ff.stage_summary(frames), "building": building,
         "sheet": {"asset": solution_sheet, "problem": problem_sheet,
                   "reused": bool(solution_sheet) and solution_sheet == problem_sheet},
         "beats": idea_beats_record(told, said, idea_questions(entry, problem_story, brand["name"])),

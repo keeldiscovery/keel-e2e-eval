@@ -17,7 +17,11 @@ parts, in this order: the text between the two `before-images` markers, then the
 - `{{prompts}}` -- the build's `pictures.prompts[]` (the sheet's and each scene's, every attempt), cut to the scene part.
 - The images -- each preceded by a one-line label: the fourteen frames (seven scenes, each on the phone 390 x 844 and
   the laptop 1280 x 800, as the founder's player held it, the caption settled), then the seven pictures as keel-cloud
-  stored them (`GET /v2/assets/{id}`), then the character sheet where the build has one.
+  stored them (`GET /v2/assets/{id}`), then the character sheet where the build has one. Spec 167 FR-3: a frame's
+  label names the viewport AND the layout keel-web 263 drew -- *the caption over the picture's lower third* (the
+  phone; a laptop around a landscape film) or *the caption beside the picture* (the laptop's words' column beside a
+  portrait stage) -- the stage's shape (tall or wide, its size), and a frame left out (`pictureMissing`: the picture
+  before held still, or the plain ground).
 - `{{rubric}}` -- `quality/FILM-RUBRIC.md` between its `film-problem` markers (or `film-solution` on a solution film):
   the one source of the criteria.
 - `{{criteria}}` -- the criterion keys of the kind, for the answer's shape (`f1`..`f8` or `s1`..`s9`).
@@ -37,7 +41,7 @@ this task, what they wear, what is around them, when in the day it happens. The 
 
 {{persona}}
 
-## The film's lines, in order (each is spoken and shown as the caption over its scene)
+## The film's lines, in order (each is spoken and shown as its scene's caption)
 
 {{lines}}
 
@@ -59,8 +63,8 @@ this task, what they wear, what is around them, when in the day it happens. The 
 
 ## Your answer
 
-Read the frames for what a stranger sees and reads (the caption on the picture, the chapter mark, the ask), on the phone
-and on the laptop; read the pictures for what is drawn (and for any letter, digit, sign or logo inside a picture, which
+Read the frames for what a stranger sees and reads (the caption on the picture or beside it, as each frame's label
+says; the chapter mark; the ask), on the phone and on the laptop; read the pictures for what is drawn (and for any letter, digit, sign or logo inside a picture, which
 is a fault). Reply with ONE JSON object and nothing else -- no prose before or after it, no code fence. Every criterion
 is scored (`{{criteria}}`); `instead` carries one line for each criterion scored under 2 and none for a 2:
 
@@ -112,7 +116,7 @@ Judge the film from inside the person below, and from what you yourself know of 
 
 {{board}}
 
-## The film's lines, in order (each is spoken and shown as the caption over its scene)
+## The film's lines, in order (each is spoken and shown as its scene's caption)
 
 {{lines}}
 
@@ -142,8 +146,8 @@ Judge the film from inside the person below, and from what you yourself know of 
 
 ## Your answer
 
-Read the frames for what a stranger sees and reads (the plate, the caption on the picture, the chapter mark, the
-ticks and crosses), on the phone and on the laptop; read the pictures for what is drawn (the same person as the
+Read the frames for what a stranger sees and reads (the plate; the caption on the picture or beside it, as each frame's
+label says; the chapter mark; the ticks and crosses), on the phone and on the laptop; read the pictures for what is drawn (the same person as the
 character sheet, the brand on the screen, and any letter, digit, sign or logo inside a picture, which is a fault).
 Reply with ONE JSON object and nothing else -- no prose before or after it, no code fence. Every criterion is scored
 (`{{criteria}}`); `instead` carries one line for each criterion scored under 2 and none for a 2:

@@ -1023,6 +1023,16 @@ FILM_JS = r"""() => {
   // spec 162 (keel-web 261's eval mirrors): a film in pictures plays on `story-stage` in the board's place, its caption
   // (`story-line`) inside the stage, one <img> a scene (the shown one `data-on`)
   const stage = story.querySelector('[data-testid=story-stage]');
+  // spec 167 FR-2 (keel-web 263 FR-3): above 720 px a portrait film's frame (`story-film`) is a grid and the caption and
+  // the pill are drawn in the words' column beside the stage (`story-side-line`, `story-side-chapter`; the stage's own
+  // not drawn); on a phone, and around a landscape film, `display: contents` and the stage's own are drawn
+  const film = story.querySelector('[data-testid=story-film]');
+  const display = film ? getComputedStyle(film).display : null;
+  const column = display === 'grid' && !!stage && !stage.hasAttribute('data-ask');
+  const capEl = column ? film.querySelector('[data-testid=story-side-line]')
+    : (stage ? stage.querySelector('[data-testid=story-line]') : null);
+  const chapEl = column ? film.querySelector('[data-testid=story-side-chapter]')
+    : story.querySelector('[data-testid=story-chapter]');
   const pause = story.querySelector('[data-testid=ai-film-pause]');
   const tap = story.querySelector('[data-testid=ai-film-board]');
   const read = story.querySelector('[data-testid=story-read]');
@@ -1051,11 +1061,15 @@ FILM_JS = r"""() => {
                    line: t(story.querySelector('[data-testid=story-line]')) }
       : stage ? { on: stage.querySelectorAll('img[data-testid=story-picture][data-on]').length,
                   off: stage.querySelectorAll('img[data-testid=story-picture]:not([data-on])').length, gone: 0,
-                  line: t(stage.querySelector('[data-testid=story-line]')),
+                  line: t(capEl),
                   shown: (stage.querySelector('img[data-testid=story-picture][data-on]') || { getAttribute: () => null })
                     .getAttribute('data-asset') } : null,
     mode: stage ? 'pictures' : board ? 'sticks' : null,
-    chapter: t(story.querySelector('[data-testid=story-chapter]')),
+    chapter: t(chapEl),
+    layout: stage ? (column ? 'column' : 'over') : null, filmDisplay: display,
+    ratio: stage ? stage.getAttribute('data-ratio') : null,
+    stageBox: stage ? (() => { const r = stage.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; })() : null,
+    captionFrom: stage ? (column ? 'story-side-line' : 'story-line') : null,
     inside: { orb: story.querySelectorAll('[data-testid=story-orb], [data-testid=ai-story-orb], [data-testid=ai-orb]').length,
               face: story.querySelectorAll('[data-testid=ai-face], [data-testid=ai-facecol]').length,
               video: story.querySelectorAll('video').length },

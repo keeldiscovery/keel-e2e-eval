@@ -1333,7 +1333,7 @@ def failed_build_walk(run: Run, leg: Leg) -> None:
     build = ((run.get(f"/v2/projects/{solution}/idea/spoken") or {}).get("build")) or {}
     failed = film.get("failed") or {}
     chapter = build.get("failedChapter")
-    want = ss.failed_say(chapter or "")
+    want = ss.failed_say(chapter or "", build.get("failedReason"))      # spec 167 FR-2: with 275's reason
     reopened = str(failed.get("reopened") or "")
     beat = build.get("failedBeat") or ss.BEAT_OF_CHAPTER.get(str(chapter))
     leg.check(run, f"a failed build (the brand *{failing}*, reviewed no twice): `build.state` failed with its chapter "

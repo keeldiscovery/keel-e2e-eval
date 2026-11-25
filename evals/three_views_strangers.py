@@ -1732,6 +1732,21 @@ def avatar_view(run, leg, study: str, project_id: str) -> None:
 
 # ------------------------------------------------------------------------------------------------ copilot
 
+def still_of(page) -> dict:
+    """Spec 167 FR-2 (keel-web 263 FR-4, judgement call 9): the strip's still as drawn -- its ratio (`data-ratio`, read
+    off its picture: `portrait` 80 x 120 on a 275 build, `landscape` on a film before 275 or FakePictures' 48 x 32) and
+    its box; none where the strip carries no still (a line whose scene was left out has no frame)."""
+    try:
+        return page.evaluate("""() => {
+          const el = document.querySelector('[data-testid=copilot-still]');
+          if (!el) return { still_ratio: null, still_box: null };
+          const r = el.getBoundingClientRect();
+          return { still_ratio: el.getAttribute('data-ratio'), still_box: [Math.round(r.width), Math.round(r.height)] };
+        }""")
+    except Exception:  # noqa: BLE001 - a read under a re-render
+        return {"still_ratio": None, "still_box": None}
+
+
 def copilot_walk(run, page, call: dict, *, no_on: str | None = None, script: dict | None = None,
                  check: str | None = None, picks: dict | None = None) -> dict:
     """The copilot card headless (spec 154's fake sources): the set-up steps by their own buttons (the Meet ticked, the
@@ -1803,7 +1818,7 @@ def copilot_walk(run, page, call: dict, *, no_on: str | None = None, script: dic
         if phase in ("story", "follow-up"):
             strips.append({"phase": phase, "head": ss._tc(page.locator("[data-testid=head]")),
                            "read": ss._tc(page.locator("[data-testid=read]"))[:200],
-                           "still": page.get_by_test_id("copilot-still").count()})
+                           "still": page.get_by_test_id("copilot-still").count(), **still_of(page)})
             if enabled("stop") is not None:
                 enabled("stop").click()
             elif enabled("next") is not None:
@@ -1831,7 +1846,7 @@ def copilot_walk(run, page, call: dict, *, no_on: str | None = None, script: dic
         strip = {"phase": phase, "head": head, "read": read[:200],
                  # the question's anchor, drawn apart above its stem (`.cpl-anchor`): the card says both
                  "anchor": ss._tc(card_root.locator(".cpl-anchor")) or None,
-                 "still": page.get_by_test_id("copilot-still").count(),
+                 "still": page.get_by_test_id("copilot-still").count(), **still_of(page),
                  "show_story": page.get_by_test_id("show-story").count(),
                  "story_again": page.get_by_test_id("story-again").count(),
                  "idea_story": page.get_by_test_id("show-idea-story").count(),
@@ -1995,6 +2010,10 @@ def copilot_view(run, leg, study: str, project_id: str) -> None:
     leg.check(run, "every question strip carries the step's still beside the question", not stills,
               screen="the strips", view="copilot", detail={"without a still": [(s["head"], s["read"][:60])
                                                                               for s in stills]}, stop=False)
+    # spec 167 FR-2 (keel-web 263 FR-4): the still takes its picture's ratio -- portrait 80 x 120 on a 275 build,
+    # landscape on a film before 275 or FakePictures' 48 x 32: recorded, the picture decides
+    leg.notes.append(f"the copilot's stills as drawn: ratios {sorted({str(s.get('still_ratio')) for s in problem_strips})}"
+                     f", boxes {sorted({tuple(s.get('still_box') or ()) for s in problem_strips})}")
     leg.check(run, "the call ends and its recording is sent (the card done)", walked["phase"] in ("done", "sent"),
               screen="End -> the upload", view="copilot", detail={"phase": walked["phase"], "end": walked["end_phase"]})
     no = results["no"]
