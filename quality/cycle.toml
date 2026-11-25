@@ -81,9 +81,10 @@ days = 7
 # ([gallery] entry_mean_pct), the founder's to move: an entry passes at film_pct >= the bar with no 0; a round passes
 # when every entry does.
 film_bar_pct = 80.0
-# The study the film is walked on: the problem film (keel-cloud 268 / 273). The solution film (keel-cloud 271 / 273,
-# S1-S9) is read once the solution batch is walked.
-scopes = ["PROBLEM"]
+# The studies the film walk walks (spec 166 FR-7): the problem film (keel-cloud 268 / 273, F1-F8), then the solution
+# film on a SOLUTION project made from the problem's (keel-cloud 271 / 273 / 275, S1-S9). `make film-walk SCOPES=PROBLEM`
+# walks the problem alone.
+scopes = ["PROBLEM", "SOLUTION"]
 # FR-5: the nine entries the founder named as the holdout (2026-11-04, *rules not cases*; quality/decisions.toml's rule:
 # if the five pass and the nine fall short, the round fails). LEFT EMPTY ON PURPOSE: the integrator writes the
 # founder's nine here, from his list, before the paid run -- `make film-walk ENTRIES=holdout` refuses an empty list.

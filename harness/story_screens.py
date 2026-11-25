@@ -1414,6 +1414,81 @@ class StoryWire:
         return self._w("PUT", "context/window", {"recallWindow": dict(recall_window)})
 
 
+class IdeaWire:
+    """Spec 166 FR-1 (keel-cloud 271, contract 88-91): the founder's solution told on the wire, the requests keel-web 259's
+    page sends in its order -- the film's end stamped with no words (`POST story/confirm`), the brand (`PUT idea/brand`),
+    the four beats whole (`PUT idea/turns/{n}`; an ask or beat 3's unmatched readback answered with the next words,
+    beat 3's as a correction), the board's yes (`POST idea/confirm`), the build waited for, the pilot ask answered (`PUT
+    idea/pilot {offer}`). The film walk's door (the problem's beats are told the same way, `StoryWire`): on Keel's door
+    the recording a page sends would be read by the real transcriber, so the founder's words go as the page sends them
+    once written down. `call` is the founder's signed-in call."""
+
+    def __init__(self, call, project_id: str):
+        self.call = call
+        self.base = f"/v2/projects/{project_id}"
+        self.writes: list[dict] = []
+
+    def _w(self, method: str, path: str, body: dict | None) -> dict:
+        status, answer = self.call(method, f"{self.base}/{path}", body)
+        row = {"method": method, "path": path, "status": status, "sent": body,
+               "body": answer if isinstance(answer, dict) else None}
+        self.writes.append(row)
+        return row
+
+    def stamp(self) -> dict:
+        """keel-cloud 271 FR-1: the problem's film played to its end on the solution -- `story/confirm` with no words."""
+        return self._w("POST", "story/confirm", None)
+
+    def brand(self, *, name: str, colour: str | None, tagline: str | None) -> dict:
+        return self._w("PUT", "idea/brand", {"name": name, "colour": colour, "tagline": tagline})
+
+    def beat(self, n: int, words: str, *, then: list[str] | None = None) -> dict:
+        """One beat: the words sent whole; while the beat is not closed (`done: false` -- beat 1's step ask, beat 3's
+        unmatched limitation, beat 4's feature) the next of `then` is sent (on beat 3 as `correction: true`). A beat
+        refused, or still open with nothing left to say, raises naming it."""
+        then = list(then or [])
+        put = self._w("PUT", f"idea/turns/{n}", {"text": words})
+        seen: dict = {"turn": n, "asked": {"question": None}, "answers": []}
+        while True:
+            body = put.get("body") or {}
+            seen["answers"].append({"status": put.get("status"), "sent": put.get("sent"), "ask": body.get("ask"),
+                                    "readback": body.get("readback"), "done": body.get("done"),
+                                    "next": body.get("next")})
+            if (put.get("status") or 500) >= 400:
+                raise AssertionError(f"idea beat {n} refused on the wire {put.get('status')}: {put.get('body')}")
+            if body.get("done") is not False:
+                break
+            if not then:
+                raise AssertionError(f"idea beat {n} still open after {len(seen['answers'])} answer(s), nothing more to "
+                                     f"say: {body.get('ask') or body.get('readback')}")
+            nxt = then.pop(0)
+            put = self._w("PUT", f"idea/turns/{n}", {"text": nxt, **({"correction": True} if n == 3 and not
+                                                                     body.get("ask") else {})})
+        seen["next"] = str((seen["answers"][-1] or {}).get("next") or "")
+        return seen
+
+    def tell(self, beats: list[tuple[int, str]], then: dict[int, list[str]] | None = None) -> list[dict]:
+        return [self.beat(n, words, then=(then or {}).get(n)) for n, words in beats]
+
+    def confirm(self) -> dict:
+        return self._w("POST", "idea/confirm", None)
+
+    def idea(self) -> dict:
+        status, body = self.call("GET", f"{self.base}/idea/spoken", None)
+        return body if status < 400 and isinstance(body, dict) else {}
+
+    def built(self, *, timeout_s: float = 300) -> dict:
+        deadline = time.monotonic() + timeout_s
+        view = self.idea()
+        while time.monotonic() < deadline and ((view.get("build") or {}).get("state") not in ("ready", "failed")):
+            time.sleep(2)
+            view = self.idea()
+        return view
+
+    def pilot(self, offer: bool = True) -> dict:
+        return self._w("PUT", "idea/pilot", {"offer": bool(offer)})
+
+
 def _json(response) -> dict | None:
     try:
         body = response.json()

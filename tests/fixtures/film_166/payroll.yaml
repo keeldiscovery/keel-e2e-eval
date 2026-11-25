@@ -1,0 +1,24 @@
+# Spec 166's unit fixture: an invented payroll study (the payroll story is the other allowed example -- keel-cloud's
+# fake script tells it), with no Adoption-friction rows (the setup-none case) and no Relative-advantage rows (the joy
+# drawn from the problem's cost). No company, product or title names.
+id: 98-payroll
+title: Runsure — a pay run checked before sign-off
+idea_name: Runsure
+market: {country: US, region: null, language: en-US}
+statements:
+  problem: Payroll practitioners pull the hours from two systems that do not agree, nobody tells them when a rate changes, and the mistakes are found after the money has gone.
+  solution: A checker that reads every line of the pay run and flags each one that changed since last period. It runs before sign-off.
+interpretations:
+  offer_name: a pay run checked line by line before it goes out to everyone
+solution_mechanism:
+  actor: the practitioner
+  trigger: when the run is ready to be signed off
+  mechanism: opens the checker, which reads the run and compares every line with last period
+  output: every line that changed, flagged before sign-off
+  not_assumed: [the mistakes stop for good]
+  short_name: a checked pay run
+context:
+  actor: payroll practitioner
+  actor_plural: payroll practitioners
+  job: run payroll
+  circumstance: the pay run is due

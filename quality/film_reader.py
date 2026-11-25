@@ -26,6 +26,17 @@ A full run writes `quality/scores/<bundle>-film-<entry>.json` (committed) with t
 `FILM_RUBRIC_VERSION`; every prompt and answer is recorded under `runs/<stamp>-read-films-<bundle>/calls/` (the images
 by path, never inlined). `DRY=1` writes the prompts (the images named in place) and calls nothing.
 
+**Spec 166 FR-4: both films.** Every film folder of the walk is read with its kind: `film/<entry>/` as the problem's
+(F1-F8), `film/<entry>/solution/` as the solution's (S1-S9, `film.json` `kind: "solution"`); `KIND=` reads one kind
+alone. The solution's request (`film-reader.md` between its `solution-*` markers) carries the persona card, **the
+problem's limitations and cost** (the problem film's `story.json`), **the founder's idea board** (`idea.json`), the
+lines with their chapter marks, the plate's words, the setting and the frame plan, the prompts, then the plate frame,
+every scene's frames, the pictures and the character sheet, then `prompt_solution()`. Its score file is
+`quality/scores/<bundle>-film-<entry>-solution.json` (`kind: "solution"`); the founder's beats on the solution (the four
+beats, the verdict line and the pilot ask) are read into the same file. **The size rule**: a request whose images pass
+`MAX_REQUEST_BYTES` drops the laptop frames first (then the phone frames of the pictures already handed, never the
+pictures) and says so -- in the request and in the score file (`dropped`).
+
 Never in `make eval`, `make unit`, the matrix, a checker or a schedule; PAID (about $0.30 a film at list price, plus the
 founder's beats on the founder's plan), run on the founder's word.
 """
@@ -73,6 +84,9 @@ MAX_REQUEST_BYTES = 30 * 1024 * 1024
 CHAPTER_WORDS = {"who": "Who", "task": "The task", "today": "Today", "shortfall": "Where it falls short",
                  "cost": "What it costs them", "before": "Before", "solves": "What it solves", "better": "Better",
                  "joy": "What they get"}
+#: Spec 166: the two films, and where the solution's folder sits beside the problem's.
+KINDS = ("problem", "solution")
+SOLUTION_DIR = "solution"
 
 
 class Refused(RuntimeError):
@@ -130,13 +144,32 @@ def template(path: Path, part: str) -> str:
 
 # --------------------------------------------------------------------------------------------- the bundle
 
-def film_folders(run_dir: Path, only: str | None = None) -> list[Path]:
-    """Every `film/<entry>/` of a bundle that carries its capture's record (`film.json`), in entry order."""
+def film_folders(run_dir: Path, only: str | None = None, kind: str | None = None) -> list[Path]:
+    """Every film folder of a bundle that carries its capture's record (`film.json`), in entry order: the problem's
+    `film/<entry>/`, then (spec 166) the solution's `film/<entry>/solution/`. `only` an entry; `kind` one kind."""
     root = Path(run_dir) / FILM_DIR
-    folders = sorted(p for p in root.glob("*") if (p / "film.json").is_file()) if root.is_dir() else []
-    if only:
-        folders = [p for p in folders if p.name == only]
+    folders = []
+    for entry in (sorted(p for p in root.glob("*") if p.is_dir()) if root.is_dir() else []):
+        if only and entry.name != only:
+            continue
+        for folder in (entry, entry / SOLUTION_DIR):
+            if (folder / "film.json").is_file() and (kind is None or film_kind(folder) == kind):
+                folders.append(folder)
     return folders
+
+
+def film_kind(folder: Path) -> str:
+    """A film folder's kind: `film.json`'s `kind`, else the folder's place (`solution/` beside the problem's)."""
+    try:
+        said = json.loads((Path(folder) / "film.json").read_text(encoding="utf-8")).get("kind")
+    except (OSError, json.JSONDecodeError):
+        said = None
+    return said if said in KINDS else ("solution" if Path(folder).name == SOLUTION_DIR else "problem")
+
+
+def entry_of(folder: Path) -> str:
+    folder = Path(folder)
+    return folder.parent.name if folder.name == SOLUTION_DIR else folder.name
 
 
 def resolve_run(run: str | Path) -> Path:
@@ -202,7 +235,8 @@ def chapters(scenes: list[dict]) -> list[str | None]:
 
 
 def lines_block(story: dict) -> str:
-    """The film's lines in order with their chapter marks (the build's scenes)."""
+    """The film's lines in order with their chapter marks (the build's scenes); on the idea film (spec 166) the
+    limitations' ticks and crosses, the joy scene, the brand on the screen and a frame dropped (`pictureMissing`)."""
     scenes = list(((story.get("build") or {}).get("story") or {}).get("scenes") or [])
     rows = []
     for i, (scene, mark) in enumerate(zip(scenes, chapters(scenes)), 1):
@@ -211,8 +245,17 @@ def lines_block(story: dict) -> str:
             tags.append(f"chapter: {CHAPTER_WORDS.get(mark, mark)}")
         if scene.get("pain"):
             tags.append("the pain scene")
+        if scene.get("joy"):
+            tags.append("the joy scene")
+        if scene.get("marks"):
+            tags.append("marks: " + "; ".join(f"{m.get('limit')} {'(tick)' if m.get('mark') == 'tick' else '(cross)'}"
+                                              for m in scene["marks"]))
+        if (scene.get("screen") or {}).get("name"):
+            tags.append(f"the brand on the screen: {scene['screen']['name']}")
         if scene.get("ask"):
             tags.append("the ask, on the wiped board, no picture")
+        elif scene.get("pictureMissing"):
+            tags.append("NO PICTURE: the frame was dropped (pictureMissing), the caption over a plain stage")
         elif not scene.get("pictureAssetId"):
             tags.append("NO PICTURE SERVED")
         rows.append(f"{i}. {scene.get('line') or ''}" + (f"  [{'; '.join(tags)}]" if tags else ""))
@@ -250,28 +293,124 @@ def prompts_block(prompts: dict) -> str:
 def images(folder: Path, film: dict) -> list[dict]:
     """The images in the order they are handed (FR-3): the fourteen frames (scene by scene, phone then laptop), then the
     pictures (scene by scene), then the character sheet. Each `{label, path}`; a frame or picture the capture did not
-    write is named and left out (the reader is told it is missing)."""
+    write is named and left out (the reader is told it is missing). Spec 166: the solution's plate frames first."""
     out = []
     for frame in film.get("frames") or []:
+        if frame.get("scene") == "plate":
+            out.append({"label": f"Frame -- the brand plate on the {frame['viewport']} ({frame.get('size', '')}), alone "
+                                 "before scene 1", "path": folder / frame["path"], "viewport": frame["viewport"]})
+            continue
         out.append({"label": f"Frame -- scene {frame['scene']} on the {frame['viewport']} "
-                             f"({frame.get('size', '')}), as the founder's player held it", "path": folder / frame["path"]})
+                             f"({frame.get('size', '')}), as the founder's player held it", "path": folder / frame["path"],
+                    "viewport": frame["viewport"]})
     for pic in film.get("pictures") or []:
         what = "the character sheet" if pic.get("scene") == "sheet" else f"the picture of scene {pic['scene']}"
         out.append({"label": f"Picture -- {what}, as keel-cloud stored it", "path": folder / pic["path"]})
     return [i for i in out if Path(i["path"]).is_file()]
 
 
+def _b64_size(path: Path) -> int:
+    return 4 * ((Path(path).stat().st_size + 2) // 3)
+
+
+def fit(handed: list[dict], ceiling: int = MAX_REQUEST_BYTES) -> tuple[list[dict], list[str]]:
+    """Spec 166 FR-4, the size rule: the images that fit under the request's ceiling (base64), and what was left out --
+    the laptop frames first (from the last scene back), then the phone frames; the pictures and the sheet never."""
+    kept = list(handed)
+    dropped: list[str] = []
+    total = sum(_b64_size(i["path"]) for i in kept)
+    for viewport in ("laptop", "phone"):
+        for image in [i for i in reversed(kept) if i.get("viewport") == viewport]:
+            if total <= ceiling:
+                break
+            kept.remove(image)
+            total -= _b64_size(image["path"])
+            dropped.append(image["label"])
+    return kept, dropped
+
+
+def problem_block(problem_story: dict | None) -> str:
+    """Spec 166 FR-4: the problem's limitations and cost, from the problem film's served story (`story.json`)."""
+    story = problem_story or {}
+    person = story.get("person") or {}
+    limits = [x for x in story.get("limits") or [] if x]
+    lines = [f"  who: {person.get('who') or '(not served)'}", f"  the task: {person.get('job') or '(not served)'}"]
+    if story.get("act"):
+        lines.append(f"  today's way: {story['act']}")
+    lines.append("  the limitations, in order:" if limits else "  the limitations: (none served)")
+    lines += [f"    {i}. {x}" for i, x in enumerate(limits, 1)]
+    lines.append(f"  what it costs them: {story.get('cost') or '(not served)'}")
+    return "\n".join(lines)
+
+
+def board_block(idea: dict | None) -> str:
+    """Spec 166 FR-4: the founder's idea board (`idea.json`, the served `IdeaView`'s rows)."""
+    idea = idea or {}
+    brand = idea.get("brand") or {}
+    rows = [f"  the product: {brand.get('name') or '(no name)'}"
+            + (f" -- {brand['tagline']}" if brand.get("tagline") else "")
+            + (f" (colour {brand['colour']})" if brand.get("colour") else "")]
+    if idea.get("whatItIs"):
+        rows.append(f"  what it is: {idea['whatItIs']}")
+    setup = idea.get("setup") or []
+    rows.append("  before that (the setup): " + ("; ".join(setup) if setup else
+                                                  "nothing to set up" if idea.get("setupNone") else "(not said)"))
+    steps = idea.get("workflow") or []
+    rows.append("  with it (the steps):" if steps else "  with it (the steps): (none read)")
+    rows += [f"    {i}. {s.get('step')} ({'the person' if s.get('by') == 'PERSON' else 'the product'})"
+             for i, s in enumerate(steps, 1)]
+    if idea.get("statement"):
+        rows.append(f"  what it does: {idea['statement']}")
+    answers = idea.get("limitAnswers") or []
+    rows.append("  in the way (each limitation, its mark):" if answers else "  in the way: (none read)")
+    rows += [f"    - {a.get('limit')}: {'tick -- ' + str(a.get('how') or '') if a.get('solved') else 'cross (not solved)'}"
+             for a in answers]
+    rows.append(f"  better: {idea.get('advantage') or '(nothing beyond the limitations)'}")
+    rows.append(f"  what they get: {idea.get('joy') or '(not read)'}" + (" -- said as a feature"
+                                                                          if idea.get("joyIsFeature") else ""))
+    return "\n".join(rows)
+
+
+def plate_block(story: dict) -> str:
+    plate = (((story.get("build") or {}).get("story") or {}).get("plate")) or {}
+    if not plate:
+        return "(no plate on the build)"
+    return (f"  {plate.get('name') or ''}" + (f" -- {plate['tagline']}" if plate.get("tagline") else "")
+            + (f" (colour {plate['colour']})" if plate.get("colour") else ""))
+
+
+def plan_block(prompts: dict) -> str:
+    plan = prompts.get("plan") or []
+    if not plan:
+        return "(no frame plan on the build)"
+    rows = ["The frame plan (what each frame was to contain, and how its check went):"]
+    for r in plan:
+        rows.append(f"  - scene {r.get('scene')} ({CHAPTER_WORDS.get(r.get('chapter'), r.get('chapter') or '--')}): "
+                    f"{r.get('contains')} [{r.get('status')}" + (f": {r['reason']}" if r.get("reason") else "") + "]")
+    return "\n".join(rows)
+
+
 def build_request(folder: Path, film: dict, story: dict, prompts: dict, entry: dict, cfg: dict, *,
-                  kind: str = "problem") -> dict:
+                  kind: str = "problem", problem_story: dict | None = None, idea: dict | None = None,
+                  ceiling: int = MAX_REQUEST_BYTES) -> dict:
     """The one Messages API request for one film: the body, and the prompt text with every image named in place (what
-    the calls folder records)."""
+    the calls folder records). Spec 166: a solution film with the problem's story and the idea board; the size rule."""
+    handed, dropped = fit(images(folder, film), ceiling)
+    said_dropped = ("Left out to keep this request under its size (the laptop frames first): "
+                    + "; ".join(dropped) + ".") if dropped else ""
     values = {"persona": persona_card(entry["yaml"]), "lines": lines_block(story), "setting": setting_block(prompts),
               "prompts": prompts_block(prompts), "rubric": fr.prompt_of(kind),
               "criteria": ", ".join(fr.KINDS[kind])}
-    before = readers.fill(template(PROMPT_PATH, "before-images"), values)
-    after = readers.fill(template(PROMPT_PATH, "after-images"), values)
+    if kind == "solution":
+        values |= {"problem": problem_block(problem_story), "board": board_block(idea), "plate": plate_block(story),
+                   "plan": plan_block(prompts), "dropped": said_dropped}
+    part = "solution-" if kind == "solution" else ""
+    before = readers.fill(template(PROMPT_PATH, f"{part}before-images"), values)
+    after = readers.fill(template(PROMPT_PATH, f"{part}after-images"), values)
+    if dropped and kind != "solution":
+        before += "\n" + said_dropped + "\n"
     content, named, size = [{"type": "text", "text": before}], [before], 0
-    for image in images(folder, film):
+    for image in handed:
         data = Path(image["path"]).read_bytes()
         b64 = base64.b64encode(data).decode("ascii")
         size += len(b64)
@@ -280,15 +419,15 @@ def build_request(folder: Path, film: dict, story: dict, prompts: dict, entry: d
         named.append(f"{image['label']}\n[image: {Path(image['path']).relative_to(folder)}, {len(data)} bytes]")
     content.append({"type": "text", "text": after})
     named.append(after)
-    if size > MAX_REQUEST_BYTES:
-        raise Refused(f"make read-films refuses {folder.name}: its images are {size // (1024 * 1024)} MB in base64, over "
-                      f"the request's {MAX_REQUEST_BYTES // (1024 * 1024)} MB -- the pictures are larger than keel-cloud "
-                      "273's 2 MB each")
+    if size > ceiling:
+        raise Refused(f"make read-films refuses {folder.name}: its images are {size // (1024 * 1024)} MB in base64 with "
+                      f"every frame left out, over the request's {ceiling // (1024 * 1024)} MB -- the pictures are "
+                      "larger than keel-cloud 273's 2 MB each")
     body = {"model": cfg["model"], "max_tokens": int(cfg["max_tokens"]),
             "output_config": {"effort": cfg["effort"]}, "thinking": {"type": "adaptive"},
             "fallbacks": "default", "messages": [{"role": "user", "content": content}]}
     return {"body": body, "text": "\n\n".join(named), "images": sum(1 for c in content if c["type"] == "image"),
-            "image_b64_bytes": size}
+            "image_b64_bytes": size, "dropped": dropped}
 
 
 # --------------------------------------------------------------------------------------------- the door
@@ -394,6 +533,9 @@ def founder_lines(film: dict) -> list[dict]:
         out.append({"beat": f"beat {beat.get('turn')}", "said": "\n".join(said)})
     if film.get("verdict_line"):
         out.append({"beat": "the verdict line", "said": f"After the film, Keel says: {film['verdict_line']}"})
+    if film.get("pilot_ask"):
+        # spec 166 FR-4 (163 FR-1: the solution's four beats and the pilot ask)
+        out.append({"beat": "the pilot ask", "said": f"Then Keel asks: {film['pilot_ask']}"})
     return out
 
 
@@ -411,9 +553,16 @@ def founder_prompts(film: dict, entry: dict) -> list[tuple[dict, str]]:
 
 # ------------------------------------------------------------------------------------------------ the run
 
-def score_path(scores_dir: Path, bundle: str, entry: str) -> Path:
-    """FR-3: `quality/scores/<bundle>-film-<entry>.json`."""
-    return Path(scores_dir) / f"{bundle}-film-{entry}.json"
+def _json_or_empty(path: Path) -> dict:
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def score_path(scores_dir: Path, bundle: str, entry: str, kind: str = "problem") -> Path:
+    """FR-3: `quality/scores/<bundle>-film-<entry>.json`; spec 166 FR-4: the solution's `...-film-<entry>-solution.json`."""
+    return Path(scores_dir) / f"{bundle}-film-{entry}{'-solution' if kind == 'solution' else ''}.json"
 
 
 def bundle_name(run_dir: Path) -> str:
@@ -426,7 +575,7 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
     parser.add_argument("--entry", default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--no-founder", action="store_true")
-    parser.add_argument("--kind", default="problem", choices=sorted(fr.KINDS))
+    parser.add_argument("--kind", default=None, choices=sorted(fr.KINDS))
     parser.add_argument("--out", default=None)
     parser.add_argument("--scores-dir", default=str(SCORES_DIR))
     args = parser.parse_args(argv)
@@ -434,9 +583,10 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
     try:
         run_dir = resolve_run(args.run)
         cfg = load_film_reader()
-        folders = film_folders(run_dir, args.entry)
+        folders = film_folders(run_dir, args.entry, args.kind)
         if not folders:
-            raise Refused(f"make read-films refuses: no film/{args.entry}/film.json in {run_dir}")
+            raise Refused(f"make read-films refuses: no film/{args.entry or '<entry>'}/"
+                          f"{'solution/' if args.kind == 'solution' else ''}film.json in {run_dir}")
         if not args.dry_run:
             said = key_refusal(env)
             if said:
@@ -463,27 +613,33 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
         story = json.loads((folder / "story.json").read_text(encoding="utf-8")) if (folder / "story.json").is_file() else {}
         prompts = json.loads((folder / "prompts.json").read_text(encoding="utf-8")) \
             if (folder / "prompts.json").is_file() else {}
+        kind = film_kind(folder)
+        problem_story, idea = None, None
+        if kind == "solution":
+            problem_story = _json_or_empty(folder.parent / "story.json")
+            idea = _json_or_empty(folder / "idea.json")
         try:
             entry = load_entry_card(film, readers.entries_dir())
-            request = build_request(folder, film, story, prompts, entry, cfg, kind=args.kind)
+            request = build_request(folder, film, story, prompts, entry, cfg, kind=kind, problem_story=problem_story,
+                                    idea=idea)
         except Refused as reason:
             print(str(reason), file=sys.stderr)
             return 2
-        label = f"film-{folder.name}"
+        label = f"film-{entry_of(folder)}{'-solution' if kind == 'solution' else ''}"
         if args.dry_run:
             (out / f"{label}.prompt.txt").write_text(request["text"], encoding="utf-8")
             beats = founder_prompts(film, entry) if not args.no_founder else []
             for i, (line, prompt) in enumerate(beats, 1):
                 (out / f"{label}-founder-{i:02d}.prompt.txt").write_text(prompt, encoding="utf-8")
-            print(f"dry run: {folder.name} -- one film call ({request['images']} images, "
+            print(f"dry run: {entry_of(folder)} ({kind}) -- one film call ({request['images']} images, "
                   f"{request['image_b64_bytes'] // 1024} KB in base64) and {len(beats)} founder's beats written to "
                   f"{out}; no call made, no score written")
             continue
         started = time.monotonic()
         try:
-            score, again = read_film(door, label, request, args.kind)
+            score, again = read_film(door, label, request, kind)
         except fr.FilmRubricError as reason:
-            print(f"  {folder.name}: the film unread -- {reason}", file=sys.stderr)
+            print(f"  {entry_of(folder)} ({kind}): the film unread -- {reason}", file=sys.stderr)
             continue
         founder = None
         founder_cost = 0.0
@@ -492,7 +648,8 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
             for line, prompt in founder_prompts(film, entry):
                 parse = (lambda raw, b=line["beat"], s=line["said"]: fr.parse_founder_beat(raw, beat=b, said=s))
                 try:
-                    row, _ = readers.ask_twice(cli, f"{folder.name}-{line['beat'].replace(' ', '-')}", prompt, parse)
+                    row, _ = readers.ask_twice(cli, f"{label.removeprefix('film-')}-{line['beat'].replace(' ', '-')}",
+                                               prompt, parse)
                     rows.append(row)
                 except Exception as reason:                              # noqa: BLE001 - the beat unread, named
                     unread.append({"beat": line["beat"], "error": str(reason)[:300]})
@@ -502,7 +659,7 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
             founder_cost = round(sum(c["cost_usd"] for c in cli.calls if not c["cached"]), 4)
         film_calls = [c for c in door.calls if c["label"].startswith(label)]
         record = {
-            "entry": entry["id"], "bundle": bundle_name(run_dir),
+            "entry": entry["id"], "kind": kind, "bundle": bundle_name(run_dir),
             "cloud_sha": (film.get("stack") or {}).get("keel-cloud"), "web_sha": (film.get("stack") or {}).get("keel-web"),
             "film_rubric_version": fr.FILM_RUBRIC_VERSION,
             "reader": {k: cfg[k] for k in ("model", "effort", "vendor", "door")} | {
@@ -521,13 +678,17 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
                        "pictures": [p["path"] for p in film.get("pictures") or []],
                        "folder": str(folder.relative_to(REPO) if REPO in folder.parents else folder)},
             "measures": film.get("measures"),
+            # spec 166 FR-4: what the size rule left out (the laptop frames first), said
+            "dropped": request.get("dropped") or [],
+            **({"project_id": film.get("project_id"), "problem_project_id": film.get("problem_project_id")}
+               if kind == "solution" else {}),
         }
         fr.validate_file(record, name=label)
-        path = score_path(Path(args.scores_dir), bundle_name(run_dir), entry["id"])
+        path = score_path(Path(args.scores_dir), bundle_name(run_dir), entry["id"], kind)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         written.append(path)
-        print(f"{entry['id']}: film_pct {score['film_pct']}{' FLAGGED' if score['flagged'] else ''}, founder_pct "
+        print(f"{entry['id']} ({kind}): film_pct {score['film_pct']}{' FLAGGED' if score['flagged'] else ''}, founder_pct "
               f"{(founder or {}).get('founder_pct')}, ${record['cost_usd']} in {record['seconds']} s -> {path}")
     if not args.dry_run:
         print(f"{len(written)} film score file(s) written; calls recorded under {out / 'calls'}")

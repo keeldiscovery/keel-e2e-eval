@@ -43,6 +43,10 @@ from typing import Any, Callable
 LINK = "PRIMARY"
 #: The scope the film's project is created with (keel-cloud 133).
 SCOPE = "PROBLEM"
+#: Spec 166: the solution's project (keel-cloud 271: a SOLUTION project made on the problem's, `parentProjectId`).
+SOLUTION_SCOPE = "SOLUTION"
+#: Spec 166 FR-3: the solution's bundle kind (`make read-screens` reads it as the film's, `quality/readers.FILM_KINDS`).
+SOLUTION_KIND = "film-solution"
 #: The window stored where the entry records none (`three_views.STORY_WINDOW`'s shape).
 DEFAULT_WINDOW = {"count": 7, "unit": "NIGHTS"}
 #: How long the lock's waits stand (seconds).
@@ -153,12 +157,103 @@ def walk_plan(plan: dict, interview: dict, *, own_label: str | None, other_tasks
             "why": plan.get("why")}
 
 
+# ------------------------------------------------------------------------------------------------ spec 166: the solution
+
+def solution_plans(people: list) -> list[dict]:
+    """Spec 166 FR-3: one plan a person of the SOLUTION study (`vectors_script.person_inputs` under SOLUTION, the first
+    `people` own-link people in corpus order), their recorded answers read on the link spec 162 walks: the screener by
+    `in_segment`, the check *Did this happen to you?* by `recency` (a No leaves before the plate), the three yes-or-no
+    questions by the person's recorded pick read through keel-cloud 272 (`corpus.spec272_solution`: what the old
+    registry counted for is yes, against is no); a pick the link cannot carry (a chip -- `yes_no` has no escape -- or
+    none recorded) is answered *No* and named (`remapped`, spec 064 FR-7's rule); every why in the person's own recorded
+    words where the file has them (else spec 162's line for the rung)."""
+    from harness import solution_surfaces as sol                                    # noqa: PLC0415
+    from instructions import corpus as corpus_reader                                # noqa: PLC0415
+    out = []
+    for p in people:
+        if getattr(p, "link", LINK) != LINK:
+            continue
+        picks, remapped = {}, []
+        for key in sol.SOLUTION_DIMENSIONS:
+            codes = _codes(p, key)
+            read = corpus_reader.spec272_solution(codes[0]) if codes else None
+            if read in sol.YES_NO_CODES:
+                picks[key] = read
+            else:
+                picks[key] = "no"
+                remapped.append({"dimension": key, "recorded": codes[0] if codes else None, "sent": "no"})
+        out.append({"person": p.person, "screener": "yes" if getattr(p, "in_segment", True) else "no",
+                    "gate": bool(p.recency), "picks": picks, "why": getattr(p, "follow_up", None) or None,
+                    **({"remapped": remapped} if remapped else {})})
+    return out
+
+
+def solution_walk_plan(plan: dict) -> dict:
+    """The plan `three_views_strangers.link_walk` walks on a solution link (spec 162's `picks`, plus `why`)."""
+    return {"who": plan["person"], "screener": plan["screener"], "gate": plan["gate"],
+            "picks": dict(plan.get("picks") or {}), "why": plan.get("why")}
+
+
+def owed_whys(plan: dict) -> list[str]:
+    """The whys a person of the solution study is owed (keel-cloud 272 FR-2): every No in the order asked, at most two
+    -- none where the screener or the check sent them away."""
+    from harness import solution_surfaces as sol                                    # noqa: PLC0415
+    if plan.get("screener") == "no" or not plan.get("gate"):
+        return []
+    return sol.owed(plan.get("picks") or {})[0]
+
+
+def walk_solution_people(run: "FilmRun", project_id: str, plans: list[dict], *, out: dict) -> list[dict]:
+    """Spec 166 FR-3: one TEXT link a person on the solution's project, each walked on the solution link (the opening,
+    the screener, the problem's film, the check, the plate, the solution's film, the three questions, the whys, the
+    pilot ask) with their plan; every walk kept, a walk that stops recorded and the next walked."""
+    from evals import three_views_strangers as tvs                                   # noqa: PLC0415
+    links = tvs.make_links(run, project_id, [p["person"] for p in plans])
+    out.update(links=links)
+    summaries = []
+    for i, (plan, link) in enumerate(zip(plans, links), 1):
+        interview, walked, error = {}, None, None
+        try:
+            interview, _ = tvs.read_served(run, link["url"])
+            walked = tvs.walk_link(run, link["url"], interview, shot=f"film-166-person-{i}",
+                                   plan=solution_walk_plan(plan))
+        except Exception as stopped:  # noqa: BLE001 - one person's stop is recorded; the others still walk
+            error = f"{type(stopped).__name__}: {str(stopped)[:600]}"
+        out.setdefault("walked", {})[plan["person"]] = walked
+        out.setdefault("interviews", {})[plan["person"]] = interview
+        summary = walk_summary(plan, link, walked, error=error)
+        summary["plan"] = {k: plan.get(k) for k in ("screener", "gate", "picks", "remapped")}
+        summary["owed"] = owed_whys(plan)
+        summaries.append(summary)
+    return summaries
+
+
+def solution_watched(plans: list[dict]) -> str | None:
+    """The one person whose screens the respondent-reader reads on the solution link: the first inside the segment who
+    passed the check and is owed a why (the most screens drawn), else the first who passed, else the first."""
+    inside = [p for p in plans if p["screener"] == "yes" and p["gate"]]
+    owed = [p for p in inside if owed_whys(p)]
+    pick = (owed or inside or plans or [None])[0]
+    return pick["person"] if pick else None
+
+
 # ------------------------------------------------------------------------------------------------ the lock
 
-def lock_project(call: Callable[[str, str, dict | None], tuple[int, Any]], project_id: str, *, window: dict,
+def calibration_ready(view: Any, scope: str = SCOPE) -> bool:
+    """The scope's calibration with nothing owed: READY -- or on a spoken SOLUTION project (keel-cloud 271 FR-8: the
+    three beliefs written at the board's yes) its three questions answered (spec 162's `solution_calibration_answered`)."""
+    if not isinstance(view, dict):
+        return False
+    if view.get("state") == "READY":
+        return True
+    return scope == SOLUTION_SCOPE and view.get("total") == 3 and int(view.get("answered") or 0) >= 3
+
+
+def lock_project(call: Callable[[str, str, dict | None], tuple[int, Any]], project_id: str, *, window: dict | None,
                  press: Callable[[], tuple[int, Any]], need: int, top_up: Callable[[], Any] | None = None,
                  sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic,
-                 calibration_wait_s: float = CALIBRATION_WAIT_S, questions_wait_s: float = QUESTIONS_WAIT_S) -> dict:
+                 calibration_wait_s: float = CALIBRATION_WAIT_S, questions_wait_s: float = QUESTIONS_WAIT_S,
+                 scope: str = SCOPE) -> dict:
     """FR-1: the film's project locked, step by step; `LockFailed` names the first step that does not hold.
 
     1 the window (`PUT context/window` 200); 2 the PROBLEM calibration READY (answered at the boxes' yes); 3 the
@@ -167,22 +262,25 @@ def lock_project(call: Callable[[str, str, dict | None], tuple[int, Any]], proje
     ready page's button, 200 or 201); 5 the questions READY (`GET overview` `questionsState`; FAILED retried once on
     `POST questionnaire/retry`)."""
     base = f"/v2/projects/{project_id}"
-    record: dict = {"project_id": project_id, "window": dict(window)}
-    status, body = call("PUT", f"{base}/context/window", {"recallWindow": dict(window)})
-    record["window_status"] = status
-    if status != 200:
-        raise LockFailed("the window (PUT context/window)", {"status": status, "body": body})
+    record: dict = {"project_id": project_id, "scope": scope, "window": dict(window) if window else None}
+    if window:
+        status, body = call("PUT", f"{base}/context/window", {"recallWindow": dict(window)})
+        record["window_status"] = status
+        if status != 200:
+            raise LockFailed("the window (PUT context/window)", {"status": status, "body": body})
     deadline = clock() + calibration_wait_s
-    state = None
+    state, view = None, None
     while True:
-        status, view = call("GET", f"{base}/calibration/{SCOPE}", None)
+        status, view = call("GET", f"{base}/calibration/{scope}", None)
         state = (view or {}).get("state") if isinstance(view, dict) else None
-        if state in ("READY", "FAILED") or clock() >= deadline:
+        if calibration_ready(view, scope) or state == "FAILED" or clock() >= deadline:
             break
         sleep(1)
     record["calibration"] = state
-    if state != "READY":
-        raise LockFailed(f"the {SCOPE} calibration (GET calibration/{SCOPE})", {"state": state})
+    if not calibration_ready(view, scope):
+        raise LockFailed(f"the {scope} calibration (GET calibration/{scope})",
+                         {"state": state, **({k: view.get(k) for k in ("total", "answered")}
+                                             if isinstance(view, dict) else {})})
     status, me = call("GET", "/v2/me", None)
     credits = (me or {}).get("creditsAvailable") if isinstance(me, dict) else None
     record["credits_before"] = credits
@@ -318,11 +416,15 @@ def respondents_record(person: str | None, interview: dict | None, walked: dict 
 def screens_bundle(*, entry: dict, project_id: str, door: str, stack: dict, people: int, lock: dict,
                    plans: list[dict], walks: list[dict], respondents: dict, after_screens: list[dict],
                    answers_leg: dict | None, brief: dict | None, themes_settled: dict | None,
-                   founder_page: dict | None, run: str, typos: list | None = None) -> dict:
-    """FR-2: the one bundle `make read-screens` reads on the film's project (`backtest.json`, `kind: "film"`)."""
-    return {"kind": "film", "spec": "165", "run": run,
+                   founder_page: dict | None, run: str, typos: list | None = None, scope: str = SCOPE,
+                   parent: str | None = None) -> dict:
+    """FR-2: the one bundle `make read-screens` reads on the film's project (`backtest.json`, `kind: "film"`); spec 166
+    FR-3: on the solution's project `kind: "film-solution"`, `scope` SOLUTION, the problem's project named (`parent`)."""
+    solution = scope == SOLUTION_SCOPE
+    return {"kind": SOLUTION_KIND if solution else "film", "spec": "166" if solution else "165", "run": run,
             "entry": {k: entry.get(k) for k in ("id", "title", "path", "sha256")},
-            "scope": SCOPE, "project_id": project_id, "door": door, "people": people,
+            **({"problem_project_id": parent} if parent else {}),
+            "scope": scope, "project_id": project_id, "door": door, "people": people,
             "stack": dict(stack), "founder": {"project": project_id},
             "lock": lock, "plans": plans, "walks": walks,
             "founder_screens": [],
@@ -474,8 +576,41 @@ def press_on_the_ready_page(run: FilmRun, project_id: str) -> Callable[[], tuple
             if not pressed:
                 run.page.keyboard.press("Escape")
             run.page.wait_for_timeout(500)
+        # Spec 166's local walk (keel-web 1ca065b3): a guide sheet can mount after the loop above found none, and its
+        # scrim then takes the lock's click for the click's whole timeout -- the page is let stand clear of any sheet
+        # for two seconds first (each one met passed by its Skip, or Escape), and a click a scrim took is tried again
+        clear_for_s(run.page, 2.0)
+        for attempt in range(3):
+            try:
+                return tv.press_lock(run)
+            except Exception as taken:  # noqa: BLE001 - a scrim over the button: passed by, then pressed again
+                if "intercepts pointer events" not in str(taken) or attempt == 2:
+                    raise
+                clear_for_s(run.page, 2.0)
         return tv.press_lock(run)
     return press
+
+
+def clear_for_s(page, seconds: float, *, timeout_s: float = 45) -> bool:
+    """The page held clear of any guide sheet for `seconds` running -- a sheet that mounts meanwhile passed by (its Skip,
+    else Escape) and the count started again. True once clear; False at the time out."""
+    from harness import story_screens as ss                                     # noqa: PLC0415
+    deadline = time.monotonic() + timeout_s
+    clear_since = time.monotonic()
+    while time.monotonic() < deadline:
+        up = False
+        try:
+            up = bool(page.locator(".gw-scrim").count())
+        except Exception:  # noqa: BLE001 - a navigation in flight
+            up = True
+        if up:
+            if ss._skip_sheet(page) is None:
+                page.keyboard.press("Escape")
+            clear_since = time.monotonic()
+        elif time.monotonic() - clear_since >= seconds:
+            return True
+        page.wait_for_timeout(250)
+    return False
 
 
 def walk_people(run: FilmRun, project_id: str, plans: list[dict], *, out: dict) -> list[dict]:
@@ -518,7 +653,8 @@ def settle(run: FilmRun, project_id: str, *, timeout_s: float = SETTLE_WAIT_S) -
 
 
 def founder_page_after(run: FilmRun, project_id: str, run_dir: Path,
-                       before_settle: Callable[[], Any] | None = None) -> dict:
+                       before_settle: Callable[[], Any] | None = None, *, scope: str = SCOPE,
+                       picks: list[dict] | None = None) -> dict:
     """FR-2: the founder's page after the seven answers -- the back-test's answers leg (§B's screens: the stage page,
     every card opened, the Insights screen and its folds) and spec 164's reads of the page as drawn (the ways panel,
     Frequency's card, the Insights boxes, the brief's breakdown), each a check kept, never a stop."""
@@ -534,16 +670,42 @@ def founder_page_after(run: FilmRun, project_id: str, run_dir: Path,
     cam = backtest.Camera(run_dir=run_dir, page=run.page, watched={})
     j = types.SimpleNamespace(page=run.page, web_base=run.web, project_id=project_id, recorder=run.recorder)
     try:
-        done = backtest.answers_leg(j, cam, stages=[SCOPE])
+        done = backtest.answers_leg(j, cam, stages=[scope])
     except Exception as missed:  # noqa: BLE001 - the leg is evidence; recorded
         done = {"errors": [{"at": "the answers leg", "error": repr(missed)[:300]}]}
     leg = tv.Leg("FR-2 the founder's page", "the founder's page after the seven answers (spec 165)")
     overview = run.get(f"/v2/projects/{project_id}/overview") or {}
     try:
-        tvs.founder_page_on_screen(run, leg, project_id, overview, standings)
+        if scope == SOLUTION_SCOPE:
+            solution_page_checks(run, leg, project_id, standings, picks or [])
+        else:
+            tvs.founder_page_on_screen(run, leg, project_id, overview, standings)
     except Exception as missed:  # noqa: BLE001 - recorded
         leg.notes.append(f"the page's reads stopped: {str(missed)[:300]}")
     return {"after_screens": backtest.after_screens(cam), "answers_leg": done,
             "brief": backtest.brief(standings), "themes_settled": settled,
             "founder_page": {"checks": [{"name": c.name, "ok": c.ok, "screen": c.screen} for c in leg.checks],
                              "notes": leg.notes, "ways": overview.get("ways")}}
+
+
+def solution_page_checks(run, leg, project_id: str, standings: dict, picks: list[dict]) -> None:
+    """Spec 166 FR-3 (spec 162 FR-8's reads, kept as checks): the solution's Overview cards as share bars counted from
+    the people's picks, the So lines evidence only, the Insights cards as spec 119's, the brief's solution rows; on a
+    keel-web with 260 the stage page's three cards as drawn."""
+    from evals import three_views_strangers as tvs                                   # noqa: PLC0415
+    from harness import solution_surfaces as sol                                    # noqa: PLC0415
+    from harness import story_screens as ss                                         # noqa: PLC0415
+    leg.check(run, "the three Overview cards are share bars (keel-cloud 272 FR-6), counted from the people's picks",
+              not sol.share_faults(standings, picks), screen="the Overview", view="founder (wire)",
+              detail={"faults": sol.share_faults(standings, picks)}, stop=False)
+    leg.check(run, "the So lines are evidence only (no *should*, *next*, *try*)", not sol.so_line_faults(standings),
+              screen="the Overview · the So lines", view="founder (wire)",
+              detail={"faults": sol.so_line_faults(standings)}, stop=False)
+    leg.check(run, "the Insights cards as spec 119's on the solution's three", not sol.insights_faults(standings),
+              screen="Insights", view="founder (wire)", detail={"faults": sol.insights_faults(standings)}, stop=False)
+    leg.check(run, "the brief's solution rows on `{yes, n, share, founderBand}`",
+              not sol.brief_faults(standings.get("facts") or {}, picks), screen="the brief's facts",
+              view="founder (wire)", detail={"faults": sol.brief_faults(standings.get("facts") or {}, picks)},
+              stop=False)
+    if ss.web_has_260(run.stack.keel_web):
+        tvs.solution_page_on_screen(run, leg, project_id, standings)

@@ -278,9 +278,12 @@ def test_the_table_on_three_fixture_scores(tmp_path):
     weak = {w["criterion"] for w in fr.weak_criteria(files)}
     assert weak == {"f4", "f8"}
     text = (tmp_path / "FILM-TABLE.md").read_text()
-    assert "| entry-b | 2 | 2 | 2 | 0 | 2 | 2 | 2 | 1 | 81.2 | yes |" in text
+    # spec 166 FR-5: both films an entry, ranked -- a problem film alone is marked, its S columns `--`
+    assert "| 3 | entry-b (problem film alone) | 2 | 2 | 2 | 0 | 2 | 2 | 2 | 1 | 81.2 | " + " | ".join(["--"] * 10) \
+        + " | 81.2 | problem |" in text
     assert "**F4** (problem)" in text and "**F8** (problem)" in text and "the round **fails**" in text
-    assert "The holdout (`[film] holdout`) is not written yet" in text
+    # the integrator wrote the founder's nine into [film] holdout (2026-11-25): none of them is in the fixture bundle
+    assert "No holdout entry is in this bundle: this is not the round of record." in text
     assert "- F4 0: Two limitations share one scene" in text and "fixture-walk/film/entry-b/frames/scene-1-phone.png" in text
     assert (tmp_path / "cycles" / "20261124-b48e1f4-film.md").read_text() == text
     appended = drift.read_text()
@@ -322,7 +325,9 @@ def test_two_film_rubric_versions_are_never_tabled_together(tmp_path):
 
 def test_the_bar_and_the_holdout_live_in_cycle_toml():
     cfg = ft.load_film_config()
-    assert cfg["film_bar_pct"] == 80.0 and cfg["holdout"] == []
+    # the integrator wrote the founder's nine (2026-11-25, the trial on two); spec 166 walks both halves
+    assert cfg["film_bar_pct"] == 80.0 and len(cfg["holdout"]) == 9 and all(isinstance(e, str) for e in cfg["holdout"])
+    assert cfg["scopes"] == ["PROBLEM", "SOLUTION"]
     with (REPO / "quality" / "cycle.toml").open("rb") as handle:
         assert tomllib.load(handle)["gallery"]["entry_mean_pct"] == cfg["film_bar_pct"]
 

@@ -309,32 +309,42 @@ quality-accept: venv
 # them -- no second, typed project -- and `make read-screens` on that project's bundle (paid). DOOR=fake is the free
 # local walk (keel-cloud's fakes, FakePictures: the film, the lock, the people and the founder's page; no read).
 # ENTRIES=holdout walks quality/cycle.toml [film] holdout (refused while empty). DRY=1 prints the plan.
+# Spec 166: with quality/cycle.toml [film] scopes = ["PROBLEM", "SOLUTION"] the leg then walks the solution half on a
+# SOLUTION project made from the problem's (the entry's solution told, the solution film captured into film/<entry>/
+# solution/, the lock, the entry's people on its link, the founder's page after them; read-screens on both bundles).
+# SCOPES=PROBLEM walks the problem alone; ONLY=solution ENTRIES=<id> RUN=<walk> the solution half again on that walk's
+# recorded problem (on the stack that still holds it); KEEP=1 (one entry) leaves a stack the leg booted standing.
 #   make film-walk ENTRIES=08-fresco DOOR=fake WHY="the local walk"
 #   KEEL_ANTHROPIC_API_KEY=... KEEL_OPENAI_API_KEY=... KEEL_PICTURES=openai make film-walk ENTRIES=holdout WHY="..."
 film-walk: venv
 	PYTHONPATH=. $(PY) -m quality.film walk --entries "$(ENTRIES)" $(if $(DOOR),--door "$(DOOR)",) \
 	  $(if $(DRY),--dry-run,) $(if $(PEOPLE),--people "$(PEOPLE)",) $(if $(filter 0 off,$(TYPOS)),--typos off,) \
-	  $(if $(WHY),--why "$(WHY)",) $(if $(OUT),--out "$(OUT)",)
+	  $(if $(WHY),--why "$(WHY)",) $(if $(OUT),--out "$(OUT)",) $(if $(SCOPES),--scopes "$(SCOPES)",) \
+	  $(if $(ONLY),--only "$(ONLY)",) $(if $(RUN),--run "$(RUN)",) $(if $(filter 1 on,$(KEEP)),--keep,)
 
 # make film-leg (spec 163 FR-2, spec 165 FR-1) is one entry's film leg alone (evals/run_film.py): the film, then the
 # same project's lock, PEOPLE= people on its link (cycle.toml's seven when unsaid) and the founder's page after them;
 # TYPOS=1 types the founder's beats with typos on Keel's door. `make film-walk` runs it.
 film-leg:
 	@$(MAKE) --no-print-directory venv
-	KEEL_EVAL_PROFILE=eval KEEL_FILM_ENTRY=$(ENTRY) KEEL_FILM_DOOR=$(if $(DOOR),$(DOOR),keel) KEEL_FILM_OUT=$(OUT) $(if $(PEOPLE),KEEL_FILM_PEOPLE=$(PEOPLE) ,)$(if $(TYPOS),KEEL_FILM_TYPOS=$(TYPOS) ,)$(PY) -m pytest evals/run_film.py -q -rs -l -s -p no:cacheprovider
+	KEEL_EVAL_PROFILE=eval KEEL_FILM_ENTRY=$(ENTRY) KEEL_FILM_DOOR=$(if $(DOOR),$(DOOR),keel) KEEL_FILM_OUT=$(OUT) $(if $(PEOPLE),KEEL_FILM_PEOPLE=$(PEOPLE) ,)$(if $(TYPOS),KEEL_FILM_TYPOS=$(TYPOS) ,)$(if $(SCOPES),KEEL_FILM_SCOPES=$(SCOPES) ,)$(if $(ONLY),KEEL_FILM_ONLY=$(ONLY) ,)$(if $(KEEP),KEEL_FILM_KEEP=$(KEEP) ,)$(PY) -m pytest evals/run_film.py -q -rs -l -s -p no:cacheprovider
 
 # make read-films (PAID: about $0.30 a film at list price through the Anthropic API with vision, KEEL_ANTHROPIC_API_KEY
 # in the shell; the founder's beats on the founder's plan through the claude CLI) writes quality/scores/<bundle>-film-
 # <entry>.json. The claude CLI door is refused for the film reader. FOUNDER=0 skips the beats; DRY=1 writes the prompts.
+# Spec 166: every film folder of the walk is read with its kind -- the problem's (F1-F8) and the solution's (S1-S9, its
+# score file <bundle>-film-<entry>-solution.json); KIND=problem|solution reads one kind alone.
 read-films: venv
 	PYTHONPATH=. $(PY) -m quality.film_reader --run "$(RUN)" $(if $(DRY),--dry-run,) $(if $(ENTRY),--entry "$(ENTRY)",) \
 	  $(if $(filter 0 off,$(FOUNDER)),--no-founder,) $(if $(KIND),--kind "$(KIND)",)
 
 # make read-film-table (FREE): quality/FILM-TABLE.md and quality/cycles/<yyyymmdd>-<cloud7>-film.md -- one row an
 # entry (F1..F8, film_pct, flagged, founder_pct, §A, §B, the dollars), the bar ([film] film_bar_pct), the weak
-# criteria, each entry's whys and frames, the findings for DRIFT (DRIFT=1 appends them to runs/DRIFT.md).
+# criteria, each entry's whys and frames, the findings for DRIFT (DRIFT=1 appends them to runs/DRIFT.md). Spec 166: both
+# films an entry, ranked by the mean of the two films' film_pct; BASELINE=<earlier walk or bundle> adds *Compared with*
+# (each criterion's move, the entries added or missing, the round's means before and after).
 read-film-table: venv
-	PYTHONPATH=. $(PY) -m quality.film_table --run "$(RUN)" $(if $(DRIFT),--drift,)
+	PYTHONPATH=. $(PY) -m quality.film_table --run "$(RUN)" $(if $(DRIFT),--drift,) $(if $(BASELINE),--baseline "$(BASELINE)",)
 
 # make film-advise (PAID, one claude CLI call per weak criterion): a rule for picture-setting.md, PicturePrompts or
 # story-draft.md, never a case; quality/cycles/<record>-film-advice.md, never applied. DRY=1 writes the prompts.

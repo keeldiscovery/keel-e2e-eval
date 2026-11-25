@@ -145,6 +145,8 @@ def fill(text: str, values: dict) -> str:
 
 #: Spec 165: the bundle the film leg writes for the film's own project (`harness/film_strangers.screens_bundle`).
 FILM_KIND = "film"
+#: Spec 166 FR-3: and the solution's project's (`kind: "film-solution"`, the SOLUTION scope), read the same way.
+FILM_KINDS = (FILM_KIND, "film-solution")
 
 
 def load_bundle(run: str | Path) -> tuple[Path, dict]:
@@ -161,7 +163,7 @@ def load_bundle(run: str | Path) -> tuple[Path, dict]:
     bundle = json.loads(path.read_text(encoding="utf-8"))
     if not (bundle.get("entry") or {}).get("id"):
         raise Refused(f"make read-screens refuses: {path} names no entry")
-    if bundle.get("kind") == FILM_KIND:
+    if bundle.get("kind") in FILM_KINDS:
         # spec 165 FR-2: the film's project -- the strangers' screens of its link and the founder's page after them; the
         # founder's beats are the film's (163 FR-1, `make read-films`' founder-reader), so no founder screen is owed
         if not (bundle.get("respondents") or bundle.get("after_screens")):

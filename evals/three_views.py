@@ -246,9 +246,10 @@ class Run:
         self.runtime_scope = key if (consumed or extra) else scope
 
     # ------------------------------------------------------------------------------------- set up
-    def open(self) -> None:
+    def open(self, founder=None) -> None:
         """A fresh founder (a stub identity of this run), her own AI through the code story, the runtime on the
-        problem's script; the founder's context carries the speech seam."""
+        problem's script; the founder's context carries the speech seam. Spec 166 FR-7 (`ONLY=solution`): `founder`, one
+        already registered on this stack (a `StubFounder`), signs in again instead."""
         exported = contract_mod.export(self.stack.keel_cloud, self.run_dir / "export")
         # spec 161 FR-12: the contract the stack's keel-cloud serves, read on `x-keel-contract` (contract 87)
         self.contract_read = contract_version(self.stack.keel_cloud)
@@ -257,8 +258,8 @@ class Run:
         self.keys_path.write_text(json.dumps(vs.context_keys_for(exported.context_keys), indent=2) + "\n",
                                   encoding="utf-8")
         label = f"{stack_remote.cell_name()} · e2e-157 · {time.strftime('%Y-%m-%d', time.gmtime())}"
-        self.founder = stack_remote.register_cell_identity(self.stack, label,
-                                                           name=f"Founder {self.stamp}")
+        self.founder = founder or stack_remote.register_cell_identity(self.stack, label,
+                                                                      name=f"Founder {self.stamp}")
         self.context = self.browser.new_context()
         self.context.add_init_script(ivs.SPEECH_SEAM)
         self.context.add_init_script(ss.ORB_WATCH)          # spec 158 FR-2: the orb's states, logged

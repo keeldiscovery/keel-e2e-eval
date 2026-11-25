@@ -1,0 +1,35 @@
+# Spec 166's unit fixture: the Lullaby study's solution fields, as keel-cloud's golden corpus records them
+# (canon/designs/measured-beliefs/corpus/03-lullaby.yaml -- one of the two allowed examples; no back-test entry is
+# copied into a test). `idea_name` is null there: the brand's name is the title's.
+id: 03-lullaby
+title: Lullaby — what the cry means
+idea_name: null
+market: {country: US, region: null, language: en-US}
+statements:
+  problem: "Parents of babies under six months are woken three or more times a night and can't tell what the cry means — they try feeding, changing and rocking in turn, taking about twenty minutes to settle the baby each time, because nothing tells them which need it is; based on the founder's own first year with twins."
+  solution: "A phone app that listens to the cry and says which need it most likely is — hunger, a diaper, gas, temperature — so the parent reaches for the right thing first."
+interpretations:
+  offer_name: something that helps at night
+solution_mechanism:
+  actor: the parent
+  trigger: when the baby is crying at night and the reason is unclear
+  mechanism: holds the phone near the cot for about ten seconds while it listens
+  output: a short card naming what the baby most likely needs, and the next most likely
+  not_assumed: [stops the guessing, settles the baby faster]
+  short_name: a suggested reason for crying
+context:
+  actor: parent
+  actor_plural: parents of babies under six months
+  job: work out what the baby needs and settle them
+  circumstance: the baby cries in the night
+founder_calibration:
+  solution.relative_advantage:
+    answer:
+      items:
+      - {code: fewer_attempts, label: Fewer tries before the baby settles}
+  solution.adoption_friction:
+    answer:
+      items:
+      - {code: hold_phone_near_cot, label: Hold the phone near the cot for ten seconds}
+      - {code: allow_microphone, label: Let the app use the microphone at night}
+      picked: 0

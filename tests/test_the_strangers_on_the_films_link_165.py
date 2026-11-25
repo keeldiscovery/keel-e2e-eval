@@ -297,11 +297,13 @@ def test_walk_json_names_the_one_project_and_its_screens_bundle(tmp_path):
     walk = tmp_path / "w"
     runner, seen = stub_runner(walk, screens=tmp_path / "runs" / "x-film-e1")
     env = {"KEEL_ANTHROPIC_API_KEY": "k", "KEEL_OPENAI_API_KEY": "k", "KEEL_PICTURES": "openai"}
-    code = film_walk.walk(["--entries", "08-fresco", "--why", "w", "--door", "keel", "--out", str(walk)],
+    # spec 166: SCOPES=PROBLEM is this spec's walk (the problem alone); the record's spec names all three
+    code = film_walk.walk(["--entries", "08-fresco", "--why", "w", "--door", "keel", "--out", str(walk),
+                           "--scopes", "PROBLEM"],
                           runner=runner, env=env, which=lambda b: "/bin/x", stack_up=lambda: False)
     record = json.loads((walk / "walk.json").read_text())
     row = record["entries"][0]
-    assert code == 0 and record["spec"] == "163+165"
+    assert code == 0 and record["spec"] == "163+165+166" and "solution" not in row
     assert (row["project_id"], row["screens"], row["people"], row["answered"]) == ("p1", "x-film-e1", 7, 7)
     assert seen[1][-1] == f"RUN={tmp_path / 'runs' / 'x-film-e1'}" and row["score_file"] == "quality/scores/e1/x.json"
     assert "backtest" not in row
