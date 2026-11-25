@@ -5967,6 +5967,8 @@ one-script check fails by name at step 4 (`problem.importance`, `follow_ups`) on
 machine check (`three_surfaces.card_follow_ups`) holds -- the card does what its script says. **For keel-cloud**: list
 every Importance option but the founder's own row in the card's `against` (read the option as a one-pick `Codes`, or
 special-case Importance in `CallScriptComposer`).
+**Status (spec 162, 2026-11-24)**: the cloud's side is answered by keel-cloud 272 (contract 90, `followUp.notPicked` on
+Importance); the card still opens nothing because keel-web's machine does not read it -- **#121**.
 
 ## 117. Observation (keel-cloud, the Copilot card's script): on a solution study the card's gate carries Prevalence's follow-up, so the card's No goes on where the orb's and the face's No end the interview
 
@@ -6014,3 +6016,32 @@ with a dock, passed every review first time (film_pct 68.8). **What the harness 
 the founder's view (`build.pictures.reviews`) so the founder's *Keel could not draw that part* names the reason; (2) the
 scene prompt where money, screens, documents or notes are in the picture: *drawn blank, no digits, no currency marks,
 no symbols* (a rule, not a case); (3) consider a third attempt with the fault named before the build fails.
+
+## 120. Observation (keel-cloud 271, the fakes): the fake idea draft cuts the statement at twenty words into a scene of one word, and says the joy to *they* while every other line says *you*
+
+Found by spec 162's walk of the founder's solution (FR-1b, FR-1c) on keel-cloud-docs `94051ba8`, keel-web `7c98d472`,
+the local eval stack, nothing paid (`runs/157/94051ba8-7c98d472/20261125T021052Z`). Where the board's statement runs past
+twenty words, code's plan gives it two scenes (keel-cloud 271 FR-9) and `FakeStoryReadings.ideaDraft` fills them by
+cutting the statement's words at the twentieth: the film the founder and every stranger see on the stack reads
+*Runcheck reads the hours from both systems and every rate before sign-off, and flags each difference and every rate
+that.* then a scene of its own, *Changed.* (FR-1c: *... caught before the money.* / *Goes.*). The joy scene says the
+board's joy as written, *A pay run they can sign off calmly.*, where the task's scenes say *You open Runcheck ...* and the
+contract's own example says *A pay run you can sign off calmly.* **Severity: low** -- the fakes only (the real
+IDEA_DRAFT is the model's, unscreened); but every local walk and every stranger's film on the fakes carries the cut line,
+and the film judge (spec 163) reads these films. **What the harness does**: nothing hides it; `idea_scenes_verdict`
+compares the joy with the person turned (*they* read as *you*) and holds the film's other parts. **For keel-cloud**: cut
+the statement at a clause (a comma or *and*) where it takes two scenes, never leaving a scene of one word, and turn the
+joy to the second person as the task's lines are.
+
+## 121. Observation (keel-web, the Copilot card's machine): the card does not read `followUp.notPicked` (contract 90), so it still never asks Importance's why where the orb and the face do
+
+Found by spec 162's run on keel-cloud-docs `94051ba8` (contract 90) with keel-web `7c98d472`, the local eval stack
+(`runs/157/94051ba8-7c98d472/20261125T021052Z`, FR-2 problem · copilot). keel-cloud 272 answered DRIFT #116 at the root:
+Importance's passage now carries `followUp.notPicked` -- the own row's option id: the why is owed where the person's
+picks hold none of it -- and `against` stays the option ids one pick owes it on (none on Importance). keel-web's card
+machine (`src/lib/copilot/machine.ts`, `afterItemFiling`) reads `against` and `also.on` alone, never `notPicked`, on
+master and on the 260 branch (`f1ef43cf`): the problem link's yes walk picks a row that is not the founder's own, the orb
+and the face ask *You picked ... Why did that matter more to you?*, the card opens nothing. **What the harness does**:
+the walked one-script check fails by name at step 4 (`problem.importance`, `follow_ups`) on the card (`stop=False`).
+**For keel-web**: open Importance's why on the card where every pick filed is outside `followUp.notPicked` (the own
+row), as the link and the orb ask it.

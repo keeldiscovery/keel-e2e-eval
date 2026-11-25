@@ -285,6 +285,15 @@ def test_the_links_words_are_keel_clouds():
         assert words.split("{")[0] in flat, words
 
 
+def test_the_opening_said_is_the_interviewers_introduction_then_the_passage():
+    """keel-cloud 272 judgement call 3: the opening clip says the interviewer's introduction and how to answer, then
+    `passages.opening` -- the words `served_record` holds the card's intro to."""
+    rel = "application/interviewer/PassageComposer.java"
+    _need(JAVA / rel)
+    assert _java_string(rel, "INTRODUCED") == sol.INTRODUCED and _java_string(rel, "HOW_TO_ANSWER") == sol.HOW_TO_ANSWER
+    assert sol.served_record(_interview())[0]["words"].startswith(f"{sol.INTRODUCED} {sol.HOW_TO_ANSWER} Ada believes")
+
+
 def _interview(*, setup: bool = True, pilot: bool = True) -> dict:
     name, founder = "Runcheck", "Ada"
     af = (sol.ADOPTION_SETUP_Q.replace("{name}", name).replace("{the setup}", "to connect the two hour systems")
@@ -434,7 +443,8 @@ def test_the_founders_page_reads_share_bars_evidence_and_the_brief():
 def _script() -> dict:
     iv = _interview()
     return {"passages": [
-        {"kind": "intro", "text": {"third": iv["passages"]["opening"], "first": "I believe payroll ..."}},
+        {"kind": "intro", "text": {"third": f"{sol.INTRODUCED} {sol.HOW_TO_ANSWER} {iv['passages']['opening']}",
+                                   "first": "I believe payroll ..."}},
         {"kind": "gate", "condition": {"question": "Do you run payroll?"}, "bridge": sol.TO_THE_FILM,
          "lines": iv["story"]["readInstead"], "stem": ts.GATE_WORDS,
          "options": [{"optionId": "YES", "label": "Yes"}, {"optionId": "NO", "label": "No"}]},
