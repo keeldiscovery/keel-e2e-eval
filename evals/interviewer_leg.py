@@ -29,7 +29,7 @@ and the founder's word are read from the recording keel-cloud stored (`stack/led
 three paths of the project's document).
 
 **Since spec 048 (keel-cloud 099 + keel-web 072, contract 18; 19 since 051) the stranger's walk is the answer path**: the intro's
-*Test your mic* ("hello" -> *Heard: hello*), no *That's my answer* anywhere, every spoken answer read by the cloud's
+*Test your mic* (a sound -> *Your mic works.*, spec 170), no *That's my answer* anywhere, every spoken answer read by the cloud's
 classifier -- the stack's FakeClassifier, left real behind the page (judgement call 1) -- a confident read **held** and
 gone on by itself, a correction and one word two labels carry asked *Is that right?*, a word of protest in a hold, Back
 from the next question with the answer changed by a tap; before the link is answered the classifier guard sends the
@@ -1300,7 +1300,8 @@ def _dry_run(j, wire: _Wire, record: dict) -> None:
         assert ivs.TRY_NOTHING_STORED in drawn["done"]["text"] and not stores, drawn
         assert drawn["first"]["question"] and drawn["videos"] == 1, drawn
         # keel-web 072 on the dry run: the mic tested, the answer read by the founder's own classify route and held
-        assert drawn["mic"]["after"]["mic_heard"] == ivs.mic_heard("hello"), drawn["mic"]
+        # spec 170 (keel-web 266 FR-2): the mic passes on sound -- *Your mic works.*, never the hello's words
+        assert drawn["mic"]["after"]["mic_heard"] == ivs.MIC_WORKS, drawn["mic"]
         assert ivs.HELD in drawn["hold"]["status"] and drawn["hold"]["went_on"], drawn["hold"]
         # keel-web 075 FR-4: End's screen says the microphone is off, and nothing listens
         assert drawn["mic_off"]["shown"] and drawn["mic_off"]["text"] == ivs.MIC_OFF, drawn["mic_off"]
@@ -2990,8 +2991,8 @@ def _pilot_after_end(j, ended: dict, starts: dict) -> None:
 
 def _answer_ai_on_screen(j, wire: _Wire, record: dict, made: dict, interview: dict) -> None:
     """keel-web 069 FR-008 and 072's answer path on the stranger's own page, through the speech seam (`vite --mode
-    test`) with the classifier left real (the stack's FakeClassifier): the intro, *Test your mic* ("hello" -> *Heard:
-    hello*), *Start the interview*, then every question as `_Walk` answers it -- no *That's my answer* anywhere, a
+    test`) with the classifier left real (the stack's FakeClassifier): the intro, *Test your mic* (a sound -> *Your mic
+    works.*, spec 170), **Begin**, then every question as `_Walk` answers it -- no *That's my answer* anywhere, a
     confident read held and gone on by itself, "Is that right?" for a correction and for one word two labels carry,
     Back once, a word of protest once -- the pilot ask "yes" and *Finish*; then the one `POST response` keel-web sends:
     `format` AI_INTERVIEWER, `how` and `heard` on every answer as it was given, exactly the person's own answers (the

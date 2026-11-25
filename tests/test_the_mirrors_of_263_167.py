@@ -241,13 +241,28 @@ def test_the_problem_films_frame_left_out_is_no_fault():
 
 # ----------------------------------------------------------------------------------------------- FR-2 the founder's screens
 
-def test_the_tally_and_the_failed_lines_are_keel_webs():
+def test_the_legend_the_looks_and_the_failed_lines_are_keel_webs():
+    """Spec 170 FR-2c (keel-web 270 FR-2, FR-3): 263's tally is gone; the bar counts frames done and each row's look,
+    chip word and mark follow its status."""
     rows = [{"status": "passed"}, {"status": "passed"}, {"status": "drawn"}, {"status": "failed"}, {"status": "planned"},
-            {"status": "dropped"}, {"status": "planned"}]
-    assert ss.plan_tally(rows) == "7 frames planned · 2 passed · 1 checking · 1 drawing again · 1 left out"
-    assert ss.plan_tally(rows, 5) == "5 of 7 pictures kept · 7 frames planned · 2 passed · 1 checking · 1 drawing " \
-                                     "again · 1 left out"
-    assert ss.plan_tally([{"status": "planned"}]) == "1 frame planned"
+            {"status": "dropped"}, {"status": "planned", "kept": True}]
+    assert [ss.plan_look(r) for r in rows] == ["done", "done", "drawing", "drawing", "waiting", "dropped", "done"]
+    assert [ss.plan_word(r) for r in rows] == [None, None, "drawing", "drawing again", None, "no picture", None]
+    assert ss.plan_legend(rows) == ["3 of 7 frames done"]
+    assert ss.plan_legend([]) == ["planning the frames"]
+    settled = [{"status": "passed"}, {"status": "dropped"}]
+    assert ss.plan_legend(settled) == ["voicing the lines", "1 of 2 frames done"]
+    assert ss.plan_legend(settled, voiced=False) == ["voicing the lines"]
+    assert ss.plan_legend(settled, voiced=True) == ["1 of 2 frames done"]
+    assert ss.frames_done(1, 1) == "1 of 1 frame done"
+    good = [{"scene": "1", "status": "failed", "look": "drawing", "word": "drawing again", "mark": "Being drawn",
+             "thumb": False},
+            {"scene": "2", "status": "passed", "look": "done", "word": None, "mark": "Done", "thumb": True}]
+    assert ss.plan_row_faults(good) == []
+    orange = [{**good[0], "word": "drawing"}, {**good[1], "look": "waiting"}, {"scene": "3", "status": "planned",
+                                                                                "look": "waiting", "word": None,
+                                                                                "mark": "Waiting", "thumb": True}]
+    assert [f["scene"] for f in ss.plan_row_faults(orange)] == ["1", "2", "3"]
     assert ss.picture_failed_say(None) == "Keel could not draw that part. Say it again?"
     assert ss.picture_failed_say("  ") == "Keel could not draw that part. Say it again?"
     assert ss.picture_failed_say("The film shows a screen with words on it.") == (
@@ -266,33 +281,49 @@ def test_the_words_mirror_keel_web_263():
     assert "`Keel could not draw that part: ${bareReason(reason)}. Say it again?`" in text
     assert "`Keel could not draw ${part}: ${bareReason(reason)}. Say that part again?`" in text
     assert 'say: "Keel could not draw that part. Say it again?"' in text
-    for words in ("frames\"} planned", "passed`", "checking`", "drawing again`", "left out`", "pictures kept`"):
-        assert words in text, words
     source = plan.read_text(encoding="utf-8")
-    for testid in ("story-plan", "story-plan-tally", "story-plan-row", "story-plan-reason", "story-plan-word"):
-        assert f'data-testid="{testid}"' in source
+    if 'data-testid="story-bar-legend"' not in source:
+        pytest.skip("keel-web before 270 (the frames are the progress)")
+    # spec 170 FR-2c (keel-web 270): the chip words, the marks' labels, the bar's legends; 263's tally gone
+    for words in ('drawing: "drawing"', 'drawingAgain: "drawing again"', 'noPicture: "no picture"',
+                  'voicing: "voicing the lines"', 'planning: "planning the frames"',
+                  '`${done} of ${n} ${n === 1 ? "frame" : "frames"} done`'):
+        assert words in text, words
+    for look, label in ss.PLAN_LOOK_LABEL.items():
+        assert f'{look}: "{label}"' in text, look
+    assert f'drawing: "{ss.DRAWING_SAY}"' in text and f'say: "{ss.DRAWING_SAY}"' in text
+    for testid in ("story-plan", "story-plan-row", "story-plan-reason", "story-plan-word", "story-plan-mark",
+                   "story-plan-thumb", "story-bar-legend"):
+        assert f'data-testid="{testid}"' in source, testid
+    assert 'data-testid="story-plan-tally"' not in source and "data-look={look}" in source
     player = (WEB / "src" / "lib" / "story" / "StoryPlayer.tsx").read_text(encoding="utf-8")
     for testid in ("story-film", "story-side", "story-side-line", "story-side-chapter"):
         assert f'"{testid}"' in player, testid
 
 
+#: keel-web 270's building screen, as a page: the bar's legend outside the plan, the rows with their looks, chip words and
+#: marks, a thumbnail on a done row -- *planning the frames*, then the frames drawn, then all settled.
 PLAN_PAGE = """<!doctype html><html><head><meta charset="utf-8"></head><body><div class="vstage" data-voice="on"></div>
-<div data-testid="story-building"><section data-testid="story-plan"><p data-testid="story-plan-tally"></p><ol></ol>
-</section><h1 data-testid="story-q">Keel is drawing your story</h1></div>
+<div data-testid="story-building"><div data-testid="story-bar-wrap"><div data-testid="story-bar" aria-valuenow="0"
+aria-valuemax="1"></div><p data-testid="story-bar-legend">planning the frames</p></div>
+<section data-testid="story-plan"><ol></ol></section></div>
 <script>
 const steps = [["planned", "planned"], ["passed", "drawn"], ["passed", "dropped"]];
+const looks = {planned: 'waiting', drawn: 'drawing', failed: 'drawing', passed: 'done', dropped: 'dropped'};
+const labels = {waiting: 'Waiting', drawing: 'Being drawn', done: 'Done', dropped: 'No picture'};
+const words = {drawn: 'drawing', failed: 'drawing again', dropped: 'no picture'};
 let at = 0;
 function draw() {
   const rows = steps[Math.min(at, steps.length - 1)];
-  const words = {drawn: 'checking', failed: 'drawing again', dropped: 'left out'};
-  const count = (s) => rows.filter((r) => r === s).length;
-  const parts = [rows.length + ' frames planned'];
-  [['passed', 'passed'], ['drawn', 'checking'], ['failed', 'drawing again'], ['dropped', 'left out']]
-    .forEach(([s, w]) => { if (count(s)) parts.push(count(s) + ' ' + w); });
-  document.querySelector('[data-testid=story-plan-tally]').textContent = parts.join(' · ');
+  const done = rows.filter((s) => s === 'passed').length;
+  const settled = done + rows.filter((s) => s === 'dropped').length;
+  document.querySelector('[data-testid=story-bar-legend]').textContent =
+    settled < rows.length ? done + ' of ' + rows.length + ' frames done' : 'voicing the lines';
   document.querySelector('ol').innerHTML = rows.map((s, i) => '<li data-testid="story-plan-row" data-scene="' + (i + 1)
-    + '" data-status="' + s + '"><span data-testid="story-plan-mark" aria-label="' + s + '"></span>'
-    + (words[s] ? '<span data-testid="story-plan-word">' + words[s] + '</span>' : '')
+    + '" data-status="' + s + '" data-look="' + looks[s] + '"><span data-testid="story-plan-mark" aria-label="'
+    + labels[looks[s]] + '"></span><span data-testid="story-plan-chip">The task'
+    + (words[s] ? '<span data-testid="story-plan-word"> · ' + words[s] + '</span>' : '') + '</span>'
+    + (s === 'passed' ? '<img data-testid="story-plan-thumb" alt="">' : '')
     + (s === 'dropped' ? '<span data-testid="story-plan-reason">Text was seen in the picture.</span>' : '') + '</li>').join('');
   at += 1;
   if (at < steps.length) setTimeout(draw, 300);
@@ -316,13 +347,17 @@ def test_the_building_screens_plan_is_read_and_held_to_its_rule(browser):
     assert record["error"] is None and record["drawn"] is True and record["state"] == "ready"
     assert record["path"] == "define/story/check" and record["opened_while"] == "building"
     last = record["reads"][-1]
-    assert last["tally"] == "2 frames planned · 1 passed · 1 left out" and all(r["tally_holds"] for r in record["reads"])
-    assert last["rows"][1] == {"scene": "2", "status": "dropped", "kept": False, "word": "left out",
-                               "reason": "Text was seen in the picture.", "mark": "dropped"}
+    assert last["legend"] == "voicing the lines" and all(r["legend_holds"] for r in record["reads"]), record["reads"]
+    assert last["tally"] is None and last["row_faults"] == []
+    assert last["rows"][1] == {"scene": "2", "status": "dropped", "look": "dropped", "kept": False, "word": "no picture",
+                               "reason": "Text was seen in the picture.", "mark": "No picture", "thumb": False}
+    assert last["rows"][0]["thumb"] is True and last["rows"][0]["word"] is None
     assert record["served"] == [["1:passed", "2:dropped"]]
     assert ff.building_faults(record, view) == []
-    wrong = {**record, "reads": [{**last, "tally": "2 frames planned", "tally_holds": False}]}
-    assert "263 FR-8" in ff.building_faults(wrong, view)[0]["owed"]
+    wrong = {**record, "reads": [ff.plan_held({**last, "legend": "2 frames planned"})]}
+    assert "270 FR-2 / FR-3" in ff.building_faults(wrong, view)[0]["owed"]
+    old = {**record, "reads": [ff.plan_held({**last, "tally": "2 frames planned · 1 passed · 1 left out"})]}
+    assert "263's tally still drawn" in ff.building_faults(old, view)[0]["what"]
 
 
 def test_a_failed_builds_line_is_held_with_and_without_its_reason():
@@ -411,10 +446,10 @@ def test_the_watch_is_said_in_the_transcript():
     from evals import run_film                                                  # noqa: PLC0415
     said = run_film.building_read({"opened_while": "building", "state": "ready", "drawn": False, "served": [["1:passed"]],
                                    "error": None, "reads": [],
-                                   "replayed": {"plan": {"tally": "1 frame planned · 1 passed", "rows": [{}]},
-                                                "tally_holds": True, "rows_match": True, "error": None}})
-    assert said["tallies"] == [] and said["replayed"] == {"tally": "1 frame planned · 1 passed", "rows": 1,
-                                                          "tally_holds": True, "rows_match": True, "error": None}
+                                   "replayed": {"plan": {"legend": "1 of 1 frame done", "rows": [{}]},
+                                                "legend_holds": True, "rows_match": True, "error": None}})
+    assert said["legends"] == [] and said["replayed"] == {"legend": "1 of 1 frame done", "rows": 1,
+                                                          "legend_holds": True, "rows_match": True, "error": None}
 
 
 # ----------------------------------------------------------------------------------------------- FR-2b keel-web 264

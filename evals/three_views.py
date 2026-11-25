@@ -468,7 +468,7 @@ SCREEN_CHECKS_257 = ["the seven questions asked (`story-q`)", "no button but the
                      "the long beats closed by *That's it.* and sent without it",
                      "beat 3 in two parts across 7 s of quiet, *Take your time.*",
                      "the board's seven rows lit in turn (`story-boxes`, the tasks row)",
-                     "a correction on the tasks row redrawn", "the verdict line on `story-verdict`",
+                     "a correction on the tasks row redrawn", "the film's question answered yes (no verdict card)",
                      "the film held longer on the pain scene", "no belief page after the window page"]
 
 
@@ -598,14 +598,15 @@ def scenes_checks(run: Run, leg: Leg, label: str, drawn: dict, cost: str | None,
 def keep_founder(run: Run, label: str, project_id: str, story: dict, *, wire: bool, beats: dict, telling: str,
                  heard: dict | None = None) -> None:
     """Spec 161 FR-12: what the report's *The founder's seven beats* keeps of one story -- the beats answered, the board's
-    seven rows as served, the verdict line served (and heard on the screens), the film's scenes."""
+    seven rows as served, the verdict line served (on the wire alone since keel-web 268), the film's question as heard on
+    the screens (spec 170), the film's scenes."""
     person = story.get("person") or {}
     run.__dict__.setdefault("founder_beats", []).append({
         "label": label, "project": project_id, "wire": wire, "telling": telling, "beats": sorted(beats),
         "board": {"who": person.get("who"), "job": person.get("job"), "when": person.get("when"),
                   "today": story.get("act") or story.get("steps"), "limits": story.get("limits"),
                   "cost": story.get("cost"), "otherTasks": story.get("otherTasks")},
-        "verdictLine": story.get("verdictLine"), "verdict_heard": heard,
+        "verdictLine": story.get("verdictLine"), "film_heard": heard,
         "scenes": ss.scenes_verdict(((story.get("build") or {}).get("story")) or {}, cost=story.get("cost"))})
 
 
@@ -861,26 +862,33 @@ def tell_on_screen(run: Run, leg: Leg, project_id: str, label: str, *, telling: 
               detail={"screen": built.get("state"), "build": {k: build.get(k) for k in ("state", "checked")},
                       "room": drawn.get("roomId"), "scenes": len(drawn.get("scenes") or [])})
     scenes_checks(run, leg, label, drawn, story.get("cost"), view="wire", where="define/story/check (story)")
+    building = built.get("building") or {}
+    if building:
+        leg.check(run, f"{label}: while it builds one line under the orb, *{ss.DRAWING_SAY}*, no heading (`story-q`) and "
+                       "no steps list; the frames are the progress (keel-web 270 FR-1, FR-4)",
+                  ss.DRAWING_SAY in (building.get("line") or building.get("state") or "") and not building.get("question")
+                  and not building.get("steps_list"), screen="define/story/check (building)",
+                  detail={k: building.get(k) for k in ("line", "state", "question", "steps_list")}, stop=False)
     lands = {"solution": r"/\?start=solution", "money": r"/\?start=money"}.get(back_to or "", r"/define/context")
-    yes = walk.story_yes(lands=re.compile(lands), verdict=True)
-    heard_verdict = yes.get("verdict") or {}
-    leg.check(run, f"{label}: after the film's yes Keel says the verdict line on its card (`story-verdict`), word for "
-                   "word the served `verdictLine`, then *Say yes, or just tell me if you want a different bar.*; the "
-                   "quiet goes on (keel-web 257 FR-4)",
-              heard_verdict.get("drawn") is True and _bare(story.get("verdictLine") or ss.VERDICT_LINE)
-              in _bare(heard_verdict.get("words"))
-              and any(ss.VERDICT_ASK in x for x in heard_verdict.get("said") or []),
-              screen="define/story/check (the verdict)", detail={"heard": heard_verdict,
-                                                                 "verdictLine": story.get("verdictLine")}, stop=False)
+    yes = walk.story_yes(lands=re.compile(lands))
+    film = yes.get("film") or {}
+    leg.check(run, f"{label}: at the film's end one question, *{ss.STORY_ASK}*, with Yes and No under the frame; *yes* "
+                   "said aloud, the sheet that fixes a frame never opened; no verdict card -- the page goes on "
+                   "(keel-web 268, 269 FR-2)",
+              film.get("asked") == ss.STORY_ASK and film.get("buttons") is True and film.get("answered") == ss.FILM_YES
+              and not film.get("fix_opened") and not yes.get("verdict_seen"),
+              screen="define/story/check (the film's question)",
+              detail={"film": film, "landed": yes.get("landed"),
+                      "drift": "(capture) keel-web 268: a verdict card still drawn" if yes.get("verdict_seen")
+                      else None}, stop=False)
     verdict_wire_checks(run, leg, label, project_id, story, view="wire")
     keep_founder(run, label, project_id, run.get(f"/v2/projects/{project_id}/story") or story, wire=False, beats=beats,
-                 telling=telling, heard=heard_verdict)
+                 telling=telling, heard=film)
     if back_to == "solution":
-        said_then = [yes.get("said")] + list((yes.get("verdict") or {}).get("said") or [])
-        leg.check(run, f"{label}: the quiet after the verdict goes back to the solution (the which-problem page, the "
-                       "problem picked)", "start=solution" in str(yes.get("landed") or "")
-                  and (yes.get("said") in (ss.BACK_TO_SOLUTION, ss.STORY_ASK) or (yes.get("verdict") or {}).get("drawn")),
-                  screen="define/story/check (story)", detail={"yes": yes, "said": said_then}, stop=False)
+        leg.check(run, f"{label}: the film's yes goes back to the solution (the which-problem page, the problem picked)",
+                  "start=solution" in str(yes.get("landed") or "")
+                  and yes.get("said") in (ss.BACK_TO_SOLUTION, ss.STORY_ASK),
+                  screen="define/story/check (story)", detail={"yes": yes}, stop=False)
     read = walk.turn_read()
     hand_over_checks(run, leg, label, read, "define/story/*", beat_path=r"/define/story/\d$")
     heard = ss.heard_verdict(read["heard"], said, lambda n: f"/define/story/{n}")
@@ -1250,18 +1258,22 @@ def idea_leg(run: Run, leg: Leg, solution: str, label: str, *, telling: str = "p
         before_yes()
     if back_to_money:
         landed = idea.film_yes_to_money()
-        leg.check(run, f"{label}: the film's quiet goes back to the money start (no verdict, no pilot ask there)",
+        leg.check(run, f"{label}: the film's yes goes back to the money start (no verdict, no pilot ask there)",
                   "start=money" in landed["landed"] and not landed["verdict"], screen="define/idea/check -> money",
                   detail=landed, stop=False)
         return {"name": name, "landed": landed["landed"], "plan": plan, "idea": spoken}
-    after = idea.film_yes_verdict_pilot()
+    after = idea.film_yes_pilot()
     final = run.get(f"/v2/projects/{solution}/idea/spoken") or {}
-    leg.check(run, f"{label}: after the film's yes the verdict line on its card (`story-verdict`), word for word the "
-                   f"served `verdictLine` (*{ss.SOLUTION_VERDICT_LINE[:40]}...*), then *{ss.VERDICT_ASK}*; the quiet "
-                   "goes on", after["verdict"]["drawn"] and _norm_words(after["verdict"]["words"]).endswith(
-                       _norm_words(final.get("verdictLine"))) and final.get("verdictLine") == ss.SOLUTION_VERDICT_LINE
-              and any(ss.VERDICT_ASK in x for x in after["verdict"]["said"]), screen="define/idea/check (the verdict)",
-              detail={"verdict": after["verdict"], "served": final.get("verdictLine")}, stop=False)
+    film = after.get("film") or {}
+    leg.check(run, f"{label}: at the film's end one question, *{ss.film_ask_idea(name)}*, with Yes and No; *yes* said "
+                   "aloud, the sheet never opened; no verdict card -- on to the pilot ask (keel-web 268, 269 FR-5); the "
+                   f"served `verdictLine` still the default on the wire (*{ss.SOLUTION_VERDICT_LINE[:40]}...*)",
+              film.get("asked") == ss.film_ask_idea(name) and film.get("buttons") is True
+              and film.get("answered") == ss.FILM_YES and not film.get("fix_opened") and not after.get("verdict_seen")
+              and final.get("verdictLine") == ss.SOLUTION_VERDICT_LINE, screen="define/idea/check (the film's question)",
+              detail={"film": film, "verdict_seen": after.get("verdict_seen"), "served": final.get("verdictLine"),
+                      "drift": "(capture) keel-web 268: a verdict card still drawn" if after.get("verdict_seen")
+                      else None}, stop=False)
     put = after["pilot"]["put"]
     leg.check(run, f"{label}: the pilot ask heard word for word (*{ss.pilot_ask(name)}*, the served `pilotAsk`), a yes "
                    "said; `PUT idea/pilot {offer: true}` on the wire (200), the idea's `pilot` true",

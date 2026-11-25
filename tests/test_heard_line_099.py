@@ -6,6 +6,10 @@ FR-1: the words restated (`evals/interviewer_marks.py`, `harness/interviewer_scr
 `translate.ts`; the screens walker samples the heard line (`FLOW_TIMELINE`'s `__keelHeard`, `Player.heard_lines`) and
 IM19 reads every recorded window off it (`heard_windows`). FR-2: IM17 reads the wave and the writing state
 (`Player.mic_test` holds the recorder's stop to catch it). FR-3: `INTERVIEWER_MARKS_VERSION` 16 -> 17 with its note.
+
+Spec 170 (keel-web 266): *Test your mic* passes on sound -- no writing state, no *Heard: hello*; IM17 (v19) reads the
+wave with *Say anything.* in the button's place, then *Your mic works.* above **Begin**. The sheet's heard line (IM19)
+is unchanged.
 """
 
 from __future__ import annotations
@@ -76,15 +80,18 @@ def test_the_heard_line_carries_its_state_in_keel_web():
 
 
 def test_test_your_mics_ids_are_keel_webs_own():
+    """Spec 099 FR-2 as keel-web 266 left it (spec 170): the block's state and wave, *Say anything.* (`ai-mic-say`) in
+    the button's place while it listens, *Your mic works.* (`ai-mic-heard`); 143's writing state is gone."""
     intro = _web_143("src/components/interview/ai/AiIntro.tsx")
+    if 'data-testid="ai-mic-say"' not in intro:
+        pytest.skip("keel-web before 266 (the entry screen)")
     for built in ('data-testid="ai-mic" data-state={state}', 'data-testid="ai-mic-level"', 'testId="ai-mic-wave"',
-                  'data-testid="ai-mic-writing-line"', "{AI_HEARD_WRITING_DOWN}", "{AI_SAY_HELLO}"):
+                  'data-testid="ai-mic-say"', "{AI_SAY_ANYTHING}", 'data-testid="ai-mic-heard"', "{AI_MIC_WORKS}"):
         assert built in intro, built
-    assert 'state === "listening" || state === "writing"' in intro          # Say hello and the wave stay while writing
+    assert 'data-testid="ai-mic-writing-line"' not in intro and "AI_SAY_HELLO" not in intro
     check = _web_143("src/lib/micCheck.ts")
-    assert '"idle" | "asking" | "listening" | "writing" | "passed" | "fallback"' in check
-    # the writing state is drawn before the recorder's stop, so a held stop keeps it on the screen
-    assert check.index('this.state = "writing";') < check.index("await recorder.stop()")
+    assert '"idle" | "asking" | "listening" | "passed" | "fallback"' in check      # no writing state: sound passes
+    assert "loudMs >= MIC_HEARD_MS" in check
     wave = _web_143("src/components/interview/ai/MicWave.tsx")
     assert 'data-testid={writing ? "ai-mic-writing" : (testId ?? "ai-mic-on")}' in wave
     assert 'data-state={writing ? "writing" : "listening"}' in wave and "data-level={bucket}" in wave
@@ -93,6 +100,11 @@ def test_test_your_mics_ids_are_keel_webs_own():
     # the meter is gone (a comment may still name it; no element is classed with it)
     assert not re.search(r'className=[^>]*\baiv__level\b', "".join(
         p.read_text(encoding="utf-8") for p in (load_config(validate=False).keel_web / "src").rglob("*.tsx")))
+    translate = _web_143("src/lib/translate.ts")
+    for name, word in (("AI_SAY_ANYTHING", marks.SAY_ANYTHING), ("AI_MIC_WORKS", marks.MIC_WORKS),
+                       ("AI_BEGIN", marks.BEGIN)):
+        assert f'export const {name} = "{word}";' in translate, name
+    assert (marks.SAY_ANYTHING, marks.MIC_WORKS, marks.BEGIN) == (ivs.SAY_ANYTHING, ivs.MIC_WORKS, ivs.BEGIN)
 
 
 # -------------------------------------------------------------------------- FR-1: the recorded windows (IM19)
@@ -189,82 +201,83 @@ def test_the_leg_keeps_the_heard_line_on_hear_out():
 
 # --------------------------------------------------------------------------- FR-2: Test your mic's wave (IM17)
 
-#: keel-web 143's `MicBlock`, as a page: *Test your mic* -> listening (the wave in `ai-mic-level`) -> the hello's
-#: silence -> writing (the wave held, the writing line) -> the recorder's stop -> *Heard: hello*, and (keel-web 256 FR-2)
-#: the one button *Start the interview* in *Test your mic*'s place (not drawn before: `start_enabled` False). The
-#: harness's own seam (`SPEECH_SEAM`) is the recorder; its stop is what `Player.mic_test` holds.
+#: keel-web 266's `MicLine`, as a page (spec 170): *Test your mic* -> listening (the wave in `ai-mic-level`, *Say
+#: anything.* in the button's place, the button not drawn) -> 300 ms of sound (three of the seam's ticks above the
+#: threshold) -> *Your mic works.* (`ai-mic-heard`) and the one button **Begin** (`ai-start`) in *Test your mic*'s place
+#: (not drawn before: `start_enabled` False). The recording runs on and is never read back. The harness's own seam
+#: (`SPEECH_SEAM`) is the recorder.
 _INTRO = """<main data-testid="ai-intro" data-intro="AI_INTERVIEWER"><h1>Robin has 5 questions for you.</h1>
+<p data-testid="ai-intro-line">Keel asks them aloud and listens, so your mic has to be on.</p>
 <section data-testid="ai-mic" data-state="idle"></section>
 <div class="aiv-intro__go"><button data-testid="ai-mic-test">Test your mic</button></div></main>
 <script>
 (() => {
   const block = document.querySelector('[data-testid=ai-mic]');
-  const wave = (writing) => '<span class="aiv__wave" data-testid="' + (writing ? 'ai-mic-writing' : 'ai-mic-wave')
-    + '" data-state="' + (writing ? 'writing' : 'listening') + '" data-level="2">' + '<i></i>'.repeat(5) + '</span>';
-  const draw = (state, heard) => {
+  const go = document.querySelector('.aiv-intro__go');
+  const draw = (state) => {
     block.setAttribute('data-state', state);
-    if (state === 'passed') { block.innerHTML = '<p data-testid="ai-mic-heard">Heard: ' + heard + '</p>'; return; }
-    block.innerHTML = '<div><p class="aiv-mic__say">Say hello</p><div data-testid="ai-mic-level">'
-      + wave(state === 'writing') + '</div>'
-      + (state === 'writing' ? '<p data-testid="ai-mic-writing-line">Writing down what you said…</p>' : '') + '</div>';
+    if (state === 'passed') {
+      block.innerHTML = '<p class="aiv-mic__heard" data-testid="ai-mic-heard">Your mic works.</p>';
+      go.innerHTML = '<button data-testid="ai-start">Begin</button>';
+      return;
+    }
+    go.innerHTML = '';
+    block.innerHTML = '<div><div data-testid="ai-mic-level"><span class="aiv__wave" data-testid="ai-mic-wave"'
+      + ' data-state="listening" data-level="2">' + '<i></i>'.repeat(5) + '</span></div>'
+      + '<p class="aiv-mic__say" data-testid="ai-mic-say">Say anything.</p></div>';
   };
   document.querySelector('[data-testid=ai-mic-test]').addEventListener('click', async () => {
     const recorder = window.__keelSpeech.recorder;
     draw('listening');
-    let silence;
-    const finish = async () => {
-      draw('writing');
-      const { audio } = await recorder.stop();
-      const bytes = Uint8Array.from(atob(audio), (c) => c.charCodeAt(0));
-      const text = new TextDecoder().decode(bytes).replace(/\\0+$/, '');
-      draw('passed', text);
-      // keel-web 256 FR-2: the one button becomes *Start the interview* in the same place
-      document.querySelector('.aiv-intro__go').innerHTML = '<button data-testid="ai-start">Start the interview</button>';
-    };
+    let loud = 0;
     await recorder.start((rms) => {
-      if (rms > 0.02) { clearTimeout(silence); silence = setTimeout(finish, 300); }
+      if (rms > 0.02) { loud += 100; if (loud >= 300 && block.getAttribute('data-state') === 'listening') draw('passed'); }
     });
   });
 })();
 </script>"""
 
 
-def test_the_mic_test_reads_the_wave_then_the_writing_state_it_held(tmp_path, browser):
+def test_the_mic_test_reads_the_wave_then_passes_on_sound(tmp_path, browser):
     page = browser.new_page()
     try:
         page.set_content(f"<script>{ivs.SPEECH_SEAM}</script>{_INTRO}")
-        mic = ivs.Player(page, Recorder(tmp_path)).mic_test("hello", timeout_s=10)
-        stops = page.evaluate("() => (window.__recordStops || []).length")
+        mic = ivs.Player(page, Recorder(tmp_path)).mic_test(timeout_s=10)
     finally:
         page.close()
     assert mic["listening"] == {"state": "listening", "wave": "ai-mic-wave", "wave_state": "listening", "bars": 5,
-                                "level": "2", "meter": 0, "mic_on": 0, "writing_line": None, "say": "Say hello",
+                                "level": "2", "meter": 0, "mic_on": 0, "say": ivs.SAY_ANYTHING, "test_button": 0,
                                 "mic_heard": None, "start_enabled": False}
-    assert mic["writing"] == {"state": "writing", "wave": "ai-mic-writing", "wave_state": "writing", "bars": 5,
-                              "level": "2", "meter": 0, "mic_on": 0, "writing_line": marks.HEARD_WRITING_DOWN,
-                              "say": "Say hello", "mic_heard": None, "start_enabled": False}
-    assert mic["after"]["mic_heard"] == "Heard: hello" and mic["after"]["start_enabled"] is True and stops == 1
+    assert "writing" not in mic and mic["before"]["buttons"] == ["ai-mic-test"]
+    assert mic["after"]["mic_heard"] == ivs.MIC_WORKS and mic["after"]["start_enabled"] is True
+    assert mic["after"]["buttons"] == ["ai-start"] and mic["after"]["start_words"] == ivs.BEGIN
+    assert mic["after"]["line"] == ivs.ai_intro_line("Keel") and ivs.entry_drift(mic["before"], mic["after"]) == []
     record = good()
     record["mic_test"] = mic
     assert _check(record, "IM17").ok, _check(record, "IM17").detail
 
 
-def test_im17_owes_the_wave_and_the_writing_state():
+def test_im17_owes_the_wave_and_keel_web_266s_words():
     record = good()
     assert _check(record, "IM17").ok
-    for key in ("listening", "writing"):
-        old = copy.deepcopy(record)
-        del old["mic_test"][key]                                                       # a v16 record
-        assert not _check(old, "IM17").ok, key
+    old = copy.deepcopy(record)
+    del old["mic_test"]["listening"]                                                    # never read
+    assert not _check(old, "IM17").ok
     record["mic_test"]["listening"]["wave"] = None                                     # the meter, not the wave
     record["mic_test"]["listening"]["meter"] = 1
     assert not _check(record, "IM17").ok
+    v18 = good()                                                                        # a v18 record: 143's words
+    v18["mic_test"]["listening"]["say"] = "Say hello"
+    v18["mic_test"]["after"]["mic_heard"] = "Heard: hello"
+    assert not _check(v18, "IM17").ok
+    assert "writing" not in good()["mic_test"]                                          # no longer owed
 
 
 # ------------------------------------------------------------------------------------------ FR-3: the version
 
 def test_the_version_moved_with_its_note():
-    assert marks.INTERVIEWER_MARKS_VERSION == 18
+    assert marks.INTERVIEWER_MARKS_VERSION == 19                                         # spec 170: IM17 on 266
     source = inspect.getsource(marks)
     assert "#: v17 (spec 099 FR-1 / FR-2, keel-web 143" in source and "#: v16 (spec 094 FR-1" in source
+    assert "#: v19 (spec 170 FR-1, keel-web 266" in source
     assert "make eval-live K=s012" in source                                           # the paid re-run is the founder's

@@ -302,9 +302,10 @@ def test_the_orbs_words_are_keel_webs():
     if "ORB_INTERVIEWER" not in translate:
         pytest.skip("keel-web before 253")
     assert 'ORB_INTERVIEWER = { name: "Keel AI", subject: "It", object: "it", isAre: "is" }' in translate
-    # spec 160 (keel-web 256 FR-1): the intro names the orb *Keel* (`ORB_INTRO_NAME`) in `aiIntroSpoken`
+    # spec 160 (keel-web 256 FR-1): the intro names the orb *Keel* (`ORB_INTRO_NAME`); spec 170 (keel-web 266 FR-1) in
+    # its one line (`aiIntroLine`)
     assert f'ORB_INTRO_NAME = "{ivs.ORB_NAME}"' in translate and ivs.ORB_STAGE_NAME == "Keel AI"
-    assert ivs.ORB_NOT_A_PERSON == "A spoken interview with Keel, an AI interviewer, not a person."
+    assert ivs.ai_intro_line(ivs.ORB_NAME).startswith("Keel asks them aloud")
     assert f'AI_STAGE_LABEL_ORB = "{ivs.ORB_STAGE_LABEL}"' in translate
     assert f'TEXT_FORMAT_NAME = "{iv.KEELS_VOICE}"' in translate
     assert f'"{ivs.RECORDING_MEANWHILE}"' in translate and f'"{ivs.KEELS_VOICE_LINE}"' in translate

@@ -14,6 +14,7 @@ import pytest
 
 from evals import three_views as tv
 from evals import three_views_report as report
+from harness import interviewer_screens as ivs
 from harness import story_screens as ss
 from harness import three_surfaces as ts
 from stack.config import load_config
@@ -240,9 +241,14 @@ WEB_SELECTORS = {
     "src/components/idea/IdeaTurn.tsx": ("idea-turn", "idea-understood"),
     "src/components/idea/LogoDrop.tsx": ("idea-drop", "idea-icon-file", "idea-logo-line", "idea-icon-fault"),
     "src/components/idea/IdeaBoxes.tsx": ("idea-check", "idea-boxes-screen", "idea-board", "idea-boxes-said",
-                                          "idea-readback-story", "idea-story-player", "idea-verdict-screen",
-                                          "idea-verdict-said", "idea-pilot", "idea-pilot-card", "idea-pilot-options",
-                                          "idea-building", "idea-story-said"),
+                                          "idea-readback-story", "idea-story-player", "idea-pilot", "idea-pilot-card",
+                                          "idea-pilot-options", "idea-building", "idea-story-said"),
+    # spec 170 (keel-web 268: the verdict step retired; 269: the film's one question, Yes / No, the sheet; 270: the
+    # frames are the progress, the bar's legend)
+    "src/components/story/FilmReview.tsx": ("film-ask", "film-yes", "film-no", "film-fix"),
+    "src/components/story/FramePlan.tsx": ("story-plan", "story-plan-row", "story-plan-word", "story-plan-mark",
+                                           "story-plan-reason", "story-plan-thumb", "story-bar", "story-bar-wrap",
+                                           "story-bar-legend"),
     "src/components/money/MoneyStart.tsx": ("money-start", "money-problem", "money-pick-problem", "money-create-problem",
                                             "money-solution", "money-use-solution", "money-create-solution",
                                             "money-offer-name", "money-use-name"),
@@ -254,10 +260,11 @@ WEB_SELECTORS = {
     "src/components/interview/ai/AiInterviewPlayer.tsx": ("ai-player", "ai-stage", "ai-orb", "ai-orb-state", "ai-story",
                                                           "ai-film-begin", "ai-face", "ai-facecol", "ai-caption",
                                                           "ai-face-state", "ai-done", "ai-done-tick"),
+    # spec 170 (keel-web 266): the one line (`ai-intro-line`) and *Say anything.* (`ai-mic-say`); 256's study line,
+    # asks line and chips are gone
     "src/components/interview/ai/AiIntro.tsx": ("ai-intro", "intro-orb", "ai-start", "ai-mic-test", "ai-mic-heard",
-                                                "ai-mic-block", "ai-intro-answers", "ai-intro-chips", "ai-intro-asks",
-                                                "ai-intro-study", "ai-intro-mic-line", "ai-intro-transcribed",
-                                                "ai-intro-consent"),
+                                                "ai-mic-say", "ai-mic-block", "ai-intro-answers", "ai-intro-line",
+                                                "ai-intro-mic-line", "ai-intro-transcribed", "ai-intro-consent"),
     "src/components/interview/ai/Sheet.tsx": ("ai-sheet", "ai-options", "ai-back", "ai-skip", "ai-yes", "ai-save",
                                               "ai-field", "ai-replay"),
     "src/lib/story/StoryPlayer.tsx": ("story-player", "story-board", "story-line", "story-read", "ai-film-pause",
@@ -306,6 +313,22 @@ def test_every_selector_the_walk_presses_is_in_keel_web(path):
     source = _need(WEB / path).read_text(encoding="utf-8")
     missing = [t for t in WEB_SELECTORS[path] if f'"{t}"' not in source and f"'{t}'" not in source]
     assert not missing, (path, missing)
+
+
+def test_the_retired_screens_are_gone_from_keel_web():
+    """Spec 170 FR-1 / FR-2 (keel-web 266, 268, 270): the verdict cards, 256's intro lines and 263's tally and steps list
+    are drawn nowhere -- the walk never waits on them (their ids are kept only to name a screen that still draws one)."""
+    _need(WEB / "src" / "components" / "story" / "FilmReview.tsx")
+    sources = "".join(p.read_text(encoding="utf-8") for p in (WEB / "src").rglob("*.tsx"))
+    for testid in ss.VERDICT_IDS_BEFORE_268 + ivs.ENTRY_IDS_BEFORE_266 + ("story-plan-tally", "story-build-steps"):
+        assert f'data-testid="{testid}"' not in sources, testid
+    translate = (WEB / "src" / "lib" / "translate.ts").read_text(encoding="utf-8")
+    assert f'"{ss.STORY_ASK_BEFORE_269}"' not in translate                 # a comment may still name it
+    assert f'filmAsk: "{ss.STORY_ASK}"' in translate
+    assert "filmAskIdea: (name: string): string => `Does this film show ${name} accurately?`" in translate
+    assert ss.film_ask_idea("Runcheck") == "Does this film show Runcheck accurately?"
+    assert ss.film_ask_idea("") == ss.STORY_ASK
+    assert '"Say yes, or just tell me if you want a different bar."' not in translate
 
 
 def test_the_story_lines_are_keel_webs():

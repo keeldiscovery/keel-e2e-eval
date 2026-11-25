@@ -542,7 +542,8 @@ def read_film(door: FilmDoor, label: str, request: dict, kind: str) -> tuple[dic
 
 def founder_lines(film: dict) -> list[dict]:
     """Keel's lines to the founder on the walk, in order (FR-1): each beat's question as asked, with the readback or the
-    ask that followed it where the wire served one, then the verdict line."""
+    ask that followed it where the wire served one, then the film's one question (spec 170, keel-web 268 / 269: the
+    verdict step retired; a record made before it, with no `film_ask`, keeps the verdict line it was said)."""
     out = []
     for beat in film.get("beats") or []:
         said = [f"Keel asks: {beat.get('asked') or ''}".strip()]
@@ -553,7 +554,9 @@ def founder_lines(film: dict) -> list[dict]:
         if beat.get("readback"):
             said.append(f"Keel reads back: {beat['readback']}")
         out.append({"beat": f"beat {beat.get('turn')}", "said": "\n".join(said)})
-    if film.get("verdict_line"):
+    if film.get("film_ask"):
+        out.append({"beat": "the film's question", "said": f"After the film, Keel asks: {film['film_ask']}"})
+    elif film.get("verdict_line"):
         out.append({"beat": "the verdict line", "said": f"After the film, Keel says: {film['verdict_line']}"})
     if film.get("pilot_ask"):
         # spec 166 FR-4 (163 FR-1: the solution's four beats and the pilot ask)

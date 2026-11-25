@@ -344,14 +344,13 @@ def good() -> dict:
                  "lit_on_return": ["Agency B"], "said_first": "Agency B", "changed_to": "Agency A", "forward": "Next?",
                  "sent": ["Agency A"], "sent_how": "TAPPED"},
         "mic_test": {"before": {"mic_test": True, "start_enabled": False, "mic_heard": None},
-                     # spec 099 (keel-web 143 FR-3): the wave while it listens, then the writing state held
+                     # spec 099 (keel-web 143 FR-3): the wave while it listens; spec 170 (keel-web 266 FR-2): *Say
+                     # anything.* in the button's place, then *Your mic works.* above Begin -- no writing state
                      "listening": {"state": "listening", "wave": "ai-mic-wave", "wave_state": "listening", "bars": 5,
-                                   "level": "2", "meter": 0, "mic_on": 0, "writing_line": None, "say": "Say hello",
+                                   "level": "2", "meter": 0, "mic_on": 0, "say": "Say anything.", "test_button": 0,
                                    "mic_heard": None, "start_enabled": False},
-                     "writing": {"state": "writing", "wave": "ai-mic-writing", "wave_state": "writing", "bars": 5,
-                                 "level": "2", "meter": 0, "mic_on": 0, "writing_line": "Writing down what you said…",
-                                 "say": "Say hello", "mic_heard": None, "start_enabled": False},
-                     "after": {"mic_test": True, "start_enabled": True, "mic_heard": "Heard: hello"}},
+                     "after": {"mic_test": False, "start_enabled": True, "mic_heard": "Your mic works.",
+                               "start_words": "Begin"}},
         "recorded": {"silence": {"status": 200, "heard": "", "unclear": True, "reason": "silence"},
                      "status": 201, "body": {"answers": [{"itemId": "a", "how": "RECORDED", "heard": "the first"}]},
                      "register_row": {"status": "ANSWERED", "formatUsed": "AI_INTERVIEWER"}},
@@ -407,7 +406,7 @@ def test_a_good_record_meets_every_mark():
     card = marks.scorecard(good())
     # spec 154: 27 measured (IM10, IM11, IM30 retired, never measured)
     assert (card["measured"], card["met"], card["unmeasured"]) == (27, 27, ["IM10", "IM11", "IM30"])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 18      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19; 154: v18
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 19      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19; 154: v18; 170: IM17 (v19)
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -584,13 +583,13 @@ SEEDED = [
     ("IM17", ["mic_test", "listening", "mic_on"], 1),                                    # the sheet's id on the intro
     ("IM17", ["mic_test", "listening", "bars"], 3),
     ("IM17", ["mic_test", "listening", "level"], "7"),
-    ("IM17", ["mic_test", "writing"], None),                                             # straight to Heard: hello
-    ("IM17", ["mic_test", "writing", "writing_line"], None),                             # no writing line
-    ("IM17", ["mic_test", "writing", "writing_line"], "Writing it down…"),               # the status line's words
-    ("IM17", ["mic_test", "writing", "wave"], None),                                     # the wave gone while written
-    ("IM17", ["mic_test", "writing", "say"], None),                                      # Say hello dropped
-    ("IM17", ["mic_test", "writing", "start_enabled"], True),                            # Start before the words
-    ("IM17", ["mic_test", "writing", "mic_heard"], "Heard: hello"),
+    # spec 170 (keel-web 266 FR-2): *Say anything.* in the button's place, *Your mic works.*, **Begin**
+    ("IM17", ["mic_test", "listening", "say"], "Say hello"),                             # 256's line
+    ("IM17", ["mic_test", "listening", "say"], None),
+    ("IM17", ["mic_test", "listening", "test_button"], 1),                               # the button kept while it listens
+    ("IM17", ["mic_test", "listening", "start_enabled"], True),                          # Begin before a sound
+    ("IM17", ["mic_test", "after", "mic_heard"], "Heard: hello"),                        # the hello's words read back
+    ("IM17", ["mic_test", "after", "start_words"], "Start the interview"),
     ("IM18", ["recorded", "silence", "reason"], "vendor"),                               # silence sent on
     ("IM18", ["recorded", "silence", "heard"], "you"),                                   # Whisper's ghost
     ("IM18", ["recorded", "status"], 422),                                               # RECORDED refused

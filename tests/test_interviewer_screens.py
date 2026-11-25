@@ -236,7 +236,8 @@ def _web_072() -> Path:
     return root
 
 
-@pytest.mark.parametrize("testid", ["ai-yes", "ai-back", "ai-mic-test", "ai-mic-heard", "ai-status"])
+@pytest.mark.parametrize("testid", ["ai-yes", "ai-back", "ai-mic-test", "ai-mic-heard", "ai-status", "ai-mic-say",
+                                    "ai-intro-line"])
 def test_the_answer_paths_selectors_are_in_keel_web(testid):
     root = _web_072() / "src"
     hits = [p for p in root.rglob("*.tsx") if f'data-testid="{testid}"' in p.read_text(encoding="utf-8")]
@@ -252,9 +253,7 @@ def test_thats_my_answer_is_gone_from_keel_web():
         encoding="utf-8"))]
 
 
-@pytest.mark.parametrize("word", [ivs.START_THE_INTERVIEW, ivs.MIC_TEST, ivs.SAY_HELLO, ivs.MIC_BLOCK,
-                                  ivs.MIC_BLOCK_HOW, ivs.MIC_LABEL,
-                                  ivs.INTRO_TRANSCRIBED, ivs.GOT_THAT, ivs.WRITING_DOWN, ivs.HELD, ivs.IS_THAT_RIGHT,
+@pytest.mark.parametrize("word", [ivs.MIC_TEST, ivs.INTRO_TRANSCRIBED, ivs.GOT_THAT, ivs.WRITING_DOWN, ivs.HELD, ivs.IS_THAT_RIGHT,
                                   ivs.YES_THATS_IT, ivs.SAVE_AND_NEXT, ivs.FINISH])
 def test_the_answer_paths_words_are_keel_webs_own(word):
     assert f'"{word}"' in (_web_072() / "src/lib/translate.ts").read_text(encoding="utf-8"), word
@@ -262,8 +261,60 @@ def test_the_answer_paths_words_are_keel_webs_own(word):
 
 def test_the_answer_paths_templates_are_keel_webs_own():
     translate = (_web_072() / "src/lib/translate.ts").read_text(encoding="utf-8")
-    assert "`Heard: ${text}`" in translate and ivs.mic_heard("hello") == "Heard: hello"
     assert "`‹ Back to question ${n}`" in translate and ivs.back_to(4) == "‹ Back to question 4"
+
+
+# ------------------------------------------------------------------ spec 170: keel-web 266's entry screen
+
+def _web_266() -> str:
+    translate = (_web_072() / "src/lib/translate.ts").read_text(encoding="utf-8")
+    if "AI_SAY_ANYTHING" not in translate:
+        pytest.skip("keel-web before 266 (the entry screen)")
+    return translate
+
+
+@pytest.mark.parametrize("name, word", [("AI_BEGIN", ivs.BEGIN), ("AI_MIC_TEST", ivs.MIC_TEST),
+                                        ("AI_SAY_ANYTHING", ivs.SAY_ANYTHING), ("AI_MIC_WORKS", ivs.MIC_WORKS),
+                                        ("AI_MIC_NOT_HEARD", ivs.MIC_NOT_HEARD)])
+def test_the_entry_screens_words_are_keel_webs_266(name, word):
+    """Spec 170 FR-1 (keel-web 266 FR-2): the one button's three states and the block's line for silence."""
+    assert f'export const {name} = "{word}";' in _web_266(), name
+
+
+def test_the_block_line_and_the_intro_line_are_keel_webs_266():
+    translate = _web_266()
+    assert f'export const AI_MIC_BLOCK =\n  "{ivs.MIC_BLOCK}";' in translate
+    # `aiIntroLine` (266 FR-1): the minutes in words up to ten, digits past; *it* on a one-question link
+    assert ('`${name} asks ${them} aloud and listens, about ${listSizeWord(minutes)} minute${minutes === 1 ? "" : "s"}, '
+            'so your mic has to be on.`') in translate
+    assert "`${name} asks ${them} aloud and listens, so your mic has to be on.`" in translate
+    assert ivs.ai_intro_line("Keel") == "Keel asks them aloud and listens, so your mic has to be on."
+    assert ivs.ai_intro_line("Keel", 4, 5) == "Keel asks them aloud and listens, about four minutes, so your mic has to be on."
+    assert ivs.ai_intro_line("Robin", 1, 1) == "Robin asks it aloud and listens, about one minute, so your mic has to be on."
+    assert ivs.ai_intro_line("Keel", 12) == "Keel asks them aloud and listens, about 12 minutes, so your mic has to be on."
+
+
+def test_256s_entry_words_are_gone_from_keel_web_and_named_as_drift():
+    """Spec 170 FR-1: *Say hello*, the mic label, *Heard: {text}*, *Start the interview* and 256's how line are gone
+    from keel-web 266; on a screen they are a DRIFT capture note (`entry_drift`), and 266's screen has none."""
+    translate = _web_266()
+    for gone in ("AI_SAY_HELLO", "AI_MIC_LABEL", "`Heard: ${text}`", '"Start the interview"', "AI_MIC_BLOCK_HOW"):
+        assert gone not in translate, gone
+    intro = (_web_072() / "src/components/interview/ai/AiIntro.tsx").read_text(encoding="utf-8")
+    for testid in ivs.ENTRY_IDS_BEFORE_266:
+        assert f'data-testid="{testid}"' not in intro, testid
+    assert 'data-testid="ai-mic-say"' in intro and 'data-testid="ai-intro-line"' in intro
+    assert 'data-testid="ai-mic-writing-line"' not in intro
+    for name in ("START_THE_INTERVIEW", "SAY_HELLO", "MIC_LABEL", "MIC_BLOCK_HOW", "mic_heard"):
+        assert not hasattr(ivs, name), name
+    new = {"text": "Robin has 3 questions for you. Keel asks them aloud and listens, so your mic has to be on. Your mic "
+                   "works. Begin", "retired": []}
+    assert ivs.entry_drift(new) == []
+    old = {"text": "Robin has 3 questions for you. Say hello, so we know your mic works. The interview starts after. "
+                   "Heard: hello Start the interview", "retired": ["ai-intro-chips"]}
+    assert ivs.entry_drift(old) == ["Say hello, so we know your mic works.", "Heard: ", "Start the interview",
+                                    "ai-intro-chips"]
+    assert ivs.entry_drift(None, {}) == []
 
 
 def test_the_seam_grants_the_mic_and_leaves_the_reads_real():

@@ -16,10 +16,14 @@ place, the film first, speak or tap, nothing typed):
 
 Spec 160 (keel-web 256, the player pared down; the founder: "test for both the interviewers and ensure that it is in
 sync"): the intro's one button and its block (FR-1, FR-2: the microphone refused ends at `ai-mic-block`, allowed again
--> *Start the interview*, one link a study on each speaker); the orb's voice link and the face's link walked alike --
+-> *Start the interview* -- **Begin** since keel-web 266 --, one link a study on each speaker); the orb's voice link and the face's link walked alike --
 the same ways, the film's controls, the replay mark on the first item -- and held equal step for step (FR-3,
 `story_screens.walk_steps` / `same_walk`); the film's two icons, its board and *Begin the interview* (FR-4); the replay
 mark (FR-5); the last page's tick (FR-6). The taps-only walk of 159 FR-3 is gone with the refused path.
+
+Spec 170 (keel-web 266): the intro is the name line and one sentence (`ai-intro-line`); *Test your mic* -> *Say
+anything.* -> *Your mic works.* -> **Begin**; the block one line; 256's words on an intro a DRIFT capture note
+(`interviewer_screens.entry_drift`), never what stops the walk.
 * **copilot** (241 FR-9, 242 FR-4; untouched by 159): a call planned on the project, the card opened headless on the
   fake sources (spec 154's way), the strips in order, *Show the story* / *Story again* growing the window (under half
   the viewport, the card still drawn) and its return, the recorded answer uploaded at End.
@@ -837,41 +841,47 @@ def question_count(interview: dict) -> int:
 
 def intro_checks(run, leg, walked: dict, interview: dict, *, view: str, label: str, speaker: str,
                  name: str | None = None) -> None:
-    """Spec 160 FR-1 (keel-web 256 FR-1, FR-2): the pared-down first screen on either speaker -- the orb (or her face)
-    beside *{founder} has {n} questions for you.*, *A spoken interview with Keel (her name), an AI interviewer, not a
-    person.* under it, the one sentence, the chips, *What happens to your answers* closed with the microphone line, the
-    transcriber line and the consent inside it, and one button: *Test your mic* before the hello, *Start the interview*
-    in its place after, never both."""
+    """Spec 160 FR-1 / spec 170 FR-1 (keel-web 256, 266 FR-1, FR-2): the entry screen on either speaker -- the orb (or
+    her face) beside *{founder} has {n} questions for you.*, one sentence under it (`aiIntroLine`: *{Keel or her name}
+    asks them aloud and listens, ..., so your mic has to be on.*), *What happens to your answers* closed with the
+    microphone line, the transcriber line and the consent inside it, and one button: *Test your mic* before a sound,
+    **Begin** in its place once *Your mic works.*, never both. 256's study line, asks line, chips and words still drawn
+    are a DRIFT capture note (not stopping the walk)."""
     from harness import interviewer_screens as ivs    # noqa: PLC0415
     intro = walked.get("intro") or {}
     after = (walked.get("mic") or {}).get("after") or {}
     who = ivs.ORB_NAME if speaker == ivs.SPEAKER_ORB else (name or "")
     founder = ivs.intro_founder(interview)
-    heading = ivs.ai_intro_heading(founder, question_count(interview))
+    count = question_count(interview)
+    heading = ivs.ai_intro_heading(founder, count)
+    line = ivs.ai_intro_line(who, interview.get("minutes"), count)
     answers = intro.get("answers") or {}
     lines = answers.get("lines") or []
-    leg.check(run, f"{label}: the intro's headline *{heading}* and *{ivs.ai_intro_spoken(who)}* under it "
+    leg.check(run, f"{label}: the intro's headline *{heading}* and the one sentence *{line}* under it "
                    f"({'the orb' if speaker == ivs.SPEAKER_ORB else 'her portrait'} beside them)",
-              intro.get("speaker") == speaker and intro.get("heading") == heading
-              and intro.get("spoken") == ivs.ai_intro_spoken(who)
+              intro.get("speaker") == speaker and intro.get("heading") == heading and intro.get("line") == line
               and (intro.get("orb", 0) >= 1 if speaker == ivs.SPEAKER_ORB else not intro.get("orb")),
               screen="the AI intro", view=view,
-              detail={k: intro.get(k) for k in ("speaker", "orb", "heading", "spoken", "study")} | {"want": heading})
-    chips = ivs.ai_intro_chips(interview.get("minutes"))
-    leg.check(run, f"{label}: one sentence (*{ivs.ai_intro_asks(who)[:40]}...*), the chips {chips}, and *What happens to "
-                   "your answers* closed, holding the microphone line, the transcriber line and the consent",
-              intro.get("asks") == ivs.ai_intro_asks(who) and intro.get("chips") == chips
-              and answers.get("drawn") and not answers.get("open") and answers.get("summary") == ivs.CONSENT_HEADING
+              detail={k: intro.get(k) for k in ("speaker", "orb", "heading", "line")} | {"want": [heading, line]})
+    leg.check(run, f"{label}: *What happens to your answers* closed, holding the microphone line, the transcriber line "
+                   "and the consent",
+              answers.get("drawn") and not answers.get("open") and answers.get("summary") == ivs.CONSENT_HEADING
               and lines[:2] == [ivs.AI_INTRO_MIC_LINE, ivs.INTRO_TRANSCRIBED]
               and len(lines) == 3 and lines[2] == " ".join(str(interview.get("consentText") or "").split()),
-              screen="the AI intro", view=view, detail={"asks": intro.get("asks"), "chips": intro.get("chips"),
-                                                        "want chips": chips, "answers": answers})
-    leg.check(run, f"{label}: one button -- *{ivs.MIC_TEST}* before the hello, *{ivs.START_THE_INTERVIEW}* in its place "
-                   "once *Heard: hello* (`ai-mic-test` -> `ai-start`, never both)",
+              screen="the AI intro", view=view, detail={"answers": answers})
+    leg.check(run, f"{label}: one button -- *{ivs.MIC_TEST}* before a sound, **{ivs.BEGIN}** in its place under "
+                   f"*{ivs.MIC_WORKS}* (`ai-mic-test` -> `ai-start`, never both)",
               intro.get("buttons") == ["ai-mic-test"] and after.get("buttons") == ["ai-start"]
-              and after.get("mic_heard") == ivs.mic_heard("hello") and not intro.get("fallback"),
+              and after.get("mic_heard") == ivs.MIC_WORKS and after.get("start_words") == ivs.BEGIN
+              and not intro.get("fallback"),
               screen="the AI intro", view=view,
-              detail={"before": intro.get("buttons"), "after": after.get("buttons"), "heard": after.get("mic_heard")})
+              detail={"before": intro.get("buttons"), "after": after.get("buttons"), "heard": after.get("mic_heard"),
+                      "begin": after.get("start_words")})
+    drift = ivs.entry_drift(intro, after)
+    leg.check(run, f"{label}: the entry screen is keel-web 266's -- none of 256's study line, asks line, chips, *Say "
+                   "hello*, *Heard:* or *Start the interview* (a DRIFT capture note where drawn)",
+              not drift, screen="the AI intro", view=view,
+              detail={"drift": "(capture) keel-web 266 FR-1 / FR-2" if drift else None, "found": drift}, stop=False)
 
 
 def orb_screen_checks(run, leg, walked: dict, interview: dict, *, view: str, label: str) -> None:
@@ -1050,7 +1060,7 @@ def last_page_checks(run, leg, walked: dict, interview: dict, *, view: str) -> N
 def blocked_walk(run, url: str, *, shot: str) -> dict:
     """Spec 160 FR-2 (keel-web 256 FR-2): a stranger's browser with the microphone refused -- *Test your mic* ends at
     the block and nothing starts; then the microphone allowed (`Player.allow_mic`) and *Test your mic* pressed again:
-    *Heard: hello* and *Start the interview* (not pressed: the link is left unanswered)."""
+    *Your mic works.* and **Begin** (spec 170, keel-web 266; not pressed: the link is left unanswered)."""
     from harness import interviewer_screens as ivs    # noqa: PLC0415
     stranger = run.browser.new_context()
     try:
@@ -1076,21 +1086,21 @@ def block_line(blocked: dict) -> str:
     """What the report keeps of a refused link: the block's words, the buttons at it, the buttons once allowed."""
     r = blocked.get("refused") or {}
     after = (blocked.get("allowed") or {}).get("after") or {}
-    return (f"refused: {(r.get('block') or {}).get('line')} / {(r.get('block') or {}).get('how')}; buttons "
+    return (f"refused: {(r.get('block') or {}).get('line')}; buttons "
             f"{(r.get('at') or {}).get('buttons')}; stage shown {r.get('stage_shown')}; allowed again: buttons "
             f"{after.get('buttons')}, {after.get('mic_heard')}")
 
 
 def blocked_checks(run, leg, blocked: dict, *, view: str) -> None:
-    """Spec 160 FR-2: the block, no Start, no stage, no question; the microphone allowed again -> *Start the
-    interview*."""
+    """Spec 160 FR-2: the block, no Begin, no stage, no question; the microphone allowed again -> **Begin** (spec 170:
+    keel-web 266's one block line and *Your mic works.*)."""
     from harness import interviewer_screens as ivs    # noqa: PLC0415
     r = blocked.get("refused") or {}
     at, later = r.get("at") or {}, r.get("after") or {}
     log = blocked.get("log") or []
-    leg.check(run, f"the microphone refused: the block (*{ivs.MIC_BLOCK}* and how to allow it), the button still "
-                   f"*{ivs.MIC_TEST}*, no *{ivs.START_THE_INTERVIEW}*",
-              (r.get("block") or {}).get("line") == ivs.MIC_BLOCK and (r.get("block") or {}).get("how") == ivs.MIC_BLOCK_HOW
+    leg.check(run, f"the microphone refused: the block (*{ivs.MIC_BLOCK}*), the button still *{ivs.MIC_TEST}*, no "
+                   f"**{ivs.BEGIN}**",
+              (r.get("block") or {}).get("line") == ivs.MIC_BLOCK
               and at.get("buttons") == ["ai-mic-test"] and later.get("buttons") == ["ai-mic-test"]
               and at.get("mic_test_words") == ivs.MIC_TEST and not at.get("fallback"),
               screen="the AI intro · refused", view=view,
@@ -1103,8 +1113,8 @@ def blocked_checks(run, leg, blocked: dict, *, view: str) -> None:
                       "on stage": sum(1 for r_ in log if r_.get("onStage"))})
     allowed = blocked.get("allowed") or {}
     after = allowed.get("after") or {}
-    leg.check(run, f"the microphone allowed again: *{ivs.MIC_TEST}* once more -> *Heard: hello* and *{ivs.START_THE_INTERVIEW}*",
-              after.get("buttons") == ["ai-start"] and after.get("mic_heard") == ivs.mic_heard("hello")
+    leg.check(run, f"the microphone allowed again: *{ivs.MIC_TEST}* once more -> *{ivs.MIC_WORKS}* and **{ivs.BEGIN}**",
+              after.get("buttons") == ["ai-start"] and after.get("mic_heard") == ivs.MIC_WORKS
               and not (after.get("block") or {}).get("drawn"), screen="the AI intro · allowed", view=view,
               detail={"buttons": after.get("buttons"), "heard": after.get("mic_heard"), "block": after.get("block"),
                       "stuck": allowed.get("stuck")})

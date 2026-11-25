@@ -429,8 +429,34 @@ def walk_summary(plan: dict, link: dict, walked: dict | None, *, error: str | No
             "film": [{k: f.get(k) for k in ("kind", "first", "stuck")} for f in films],
             "whys": [r["follow_up"].get("dimension") for r in rows if r.get("follow_up")],
             "response": response_shape(walked), "done": bool((walked or {}).get("done")),
+            "entry": entry_shape(walked),
             **({"chip_remapped": remapped} if (remapped := chip_remapped(plan, rows)) else {}),
             **({"error": error} if error else {})}
+
+
+def entry_shape(walked: dict | None) -> dict:
+    """Spec 170 FR-1 (keel-web 266): the person's entry screen as walked -- the button before and after the mic test,
+    the tick line, the button's words, and what of keel-web 256's screen was still drawn (`drift`: its words or ids;
+    [] on 266's screen). The hello's words are never kept."""
+    from harness import interviewer_screens as ivs    # noqa: PLC0415
+    intro = (walked or {}).get("intro") or {}
+    after = ((walked or {}).get("mic") or {}).get("after") or {}
+    return {"before": intro.get("buttons"), "after": after.get("buttons"), "heard": after.get("mic_heard"),
+            "begin": after.get("start_words"), "drift": ivs.entry_drift(intro, after) if (intro or after) else []}
+
+
+def entry_faults(walks: list[dict] | None) -> list[dict]:
+    """Spec 170 FR-1: a stranger's entry screen still showing keel-web 256's words is a DRIFT capture note (the film's
+    `measures.faults`, read into `runs/DRIFT.md` by `quality.film_table`), one for the walks that met it -- never a fault
+    of the walk, which presses the same ids on either screen."""
+    seen = [(w.get("person"), (w.get("entry") or {}).get("drift")) for w in walks or [] if (w.get("entry") or {}).get("drift")]
+    if not seen:
+        return []
+    found = sorted({x for _, drift in seen for x in drift})
+    return [{"what": "the strangers' entry screen still shows keel-web 256's words or ids (" + ", ".join(found) + ")",
+             "owed": "keel-web 266 FR-1 / FR-2 (the entry screen: one line, *Test your mic* -> *Your mic works.* -> "
+                     "**Begin**)", "detail": f"{len(seen)} of {len(walks or [])} walks: " + ", ".join(
+                         str(p) for p, _ in seen)[:240], "frame": None}]
 
 
 def chip_remapped(plan: dict, rows: list[dict]) -> dict | None:

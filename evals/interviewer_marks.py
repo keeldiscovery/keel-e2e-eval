@@ -111,7 +111,15 @@ from harness import interviewer_fake as fake
 #: `start_enabled` and the fallback as before. The status line's *Writing it down…* (`WRITING_DOWN`) is another string
 #: and unchanged. No mark born or dropped; the tiers, the hold, the browser path's marks and the classifier guard read
 #: as v16. Live `make eval-live K=s012` re-scoring is the founder's call (paid).
-INTERVIEWER_MARKS_VERSION = 18   # spec 154: IM2 on 247 / 250's screens; IM10, IM11, IM30 retired
+#: v19 (spec 170 FR-1, keel-web 266: the entry screen -- one line, one button, the mic passes on sound alone): re-pinned
+#: -- IM17 reads keel-web 266's *Test your mic*: before it *Test your mic* and no Start; while it listens the wave
+#: (`ai-mic-level` holding `ai-mic-wave`, five bars, a level 0-4, no meter, no `ai-mic-on`) with *Say anything.*
+#: (`ai-mic-say`) in the button's place (`ai-mic-test` not drawn) and no Begin; then *Your mic works.* (`ai-mic-heard`,
+#: no words of the hello) above **Begin** (`ai-start`), enabled. 143's `writing` state (the held stop, *Writing down
+#: what you said…* on `ai-mic-writing-line`, *Say hello*) and *Heard: hello* are no longer owed: keel-web 266 sends the
+#: recording in the background and reads nothing back. No mark born or dropped; IM19's heard line on the sheet is
+#: unchanged. Live `make eval-live K=s012` re-scoring stays the founder's call (paid).
+INTERVIEWER_MARKS_VERSION = 19   # spec 170: IM17 on keel-web 266's entry screen (154's v18: IM2 on 247 / 250's screens)
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -133,6 +141,11 @@ HEARD_WRITING_DOWN = "Writing down what you said…"
 HEARD_NOTHING = "Heard so far: nothing yet"
 #: keel-web 143 FR-3: *Test your mic*'s wave is `MicWave`'s five bars, its level bucketed 0-4.
 MIC_WAVE_BARS = 5
+#: Spec 170 (keel-web 266 FR-2, `AI_SAY_ANYTHING`, `AI_MIC_WORKS`, `AI_BEGIN`): the line under the wave, the tick line,
+#: the one button once a sound is heard.
+SAY_ANYTHING = "Say anything."
+MIC_WORKS = "Your mic works."
+BEGIN = "Begin"
 MIC_WAVE_LEVELS = {"0", "1", "2", "3", "4"}
 #: keel-web 115 FR-1 (spec 074, IM9 v9): the page's one way to take a spoken answer.
 SPOKEN_HOW = "RECORDED"
@@ -612,35 +625,29 @@ def went_back(r: dict) -> tuple[bool, Any]:
 
 
 def _mic_listening_ok(v: dict) -> bool:
-    """keel-web 143 FR-3: *Say hello* over the sheet's wave -- `ai-mic-level` holds `ai-mic-wave` (five bars, a level
-    bucket 0-4) where the meter (`.aiv__level`) was, and no `ai-mic-on` on the intro."""
+    """keel-web 143 FR-3 / 266 FR-2: while *Test your mic* listens, `ai-mic-level` holds `ai-mic-wave` (five bars, a
+    level bucket 0-4) where the meter (`.aiv__level`) was, no `ai-mic-on` on the intro; *Say anything.* (`ai-mic-say`)
+    stands in the button's place (`ai-mic-test` not drawn) and Begin is not drawn yet."""
     return (v.get("state") == "listening" and v.get("wave") == "ai-mic-wave" and v.get("wave_state") == "listening"
             and v.get("bars") == MIC_WAVE_BARS and str(v.get("level")) in MIC_WAVE_LEVELS and v.get("meter") == 0
-            and v.get("mic_on") == 0 and v.get("start_enabled") is False)
-
-
-def _mic_writing_ok(v: dict) -> bool:
-    """keel-web 143 FR-3: the hello sent, not yet back -- the block `writing`, the wave held (`ai-mic-writing`, its
-    bars kept), *Writing down what you said…* under it, *Say hello* kept, nothing heard yet and Start still disabled."""
-    return (v.get("state") == "writing" and v.get("wave") == "ai-mic-writing" and v.get("wave_state") == "writing"
-            and v.get("bars") == MIC_WAVE_BARS and v.get("meter") == 0 and v.get("mic_on") == 0
-            and v.get("writing_line") == HEARD_WRITING_DOWN and v.get("say") == "Say hello"
-            and not v.get("mic_heard") and v.get("start_enabled") is False)
+            and v.get("mic_on") == 0 and v.get("start_enabled") is False and v.get("say") == SAY_ANYTHING
+            and v.get("test_button") == 0)
 
 
 def mic_tested(r: dict) -> tuple[bool, Any]:
-    """IM17 (FR-7): the AI link's intro asks *Test your mic* before Start; "hello" said reads *Heard: hello*, and
-    *Start the interview* is enabled by it. v17 (spec 099 FR-2, keel-web 143): while it listens the block draws the
-    sheet's wave in the meter's place, and between the hello and *Heard: hello* its `writing` state."""
+    """IM17 (FR-7): the AI link's intro asks *Test your mic* before Start. v19 (spec 170, keel-web 266 FR-2, FR-3): while
+    it listens the wave and *Say anything.* in the button's place; a sound heard reads *Your mic works.* (no words of
+    the hello) and **Begin** is drawn, enabled. 143's writing state is no longer owed (the mic passes on sound)."""
     x = r["mic_test"]
     before, after = x.get("before") or {}, x.get("after") or {}
-    listening, writing = x.get("listening") or {}, x.get("writing") or {}
+    listening = x.get("listening") or {}
     ok = (before.get("mic_test") is True and before.get("start_enabled") is False
-          and _mic_listening_ok(listening) and _mic_writing_ok(writing)
-          and after.get("mic_heard") == "Heard: hello" and after.get("start_enabled") is True)
+          and _mic_listening_ok(listening)
+          and after.get("mic_heard") == MIC_WORKS and after.get("start_enabled") is True
+          and after.get("start_words") in (None, BEGIN))
     return ok, {"before": {k: before.get(k) for k in ("mic_test", "start_enabled", "mic_heard")},
-                "listening": listening or None, "writing": writing or None,
-                "after": {k: after.get(k) for k in ("mic_test", "start_enabled", "mic_heard")}}
+                "listening": listening or None,
+                "after": {k: after.get(k) for k in ("mic_test", "start_enabled", "mic_heard", "start_words")}}
 
 
 def recorded_accepted(r: dict) -> tuple[bool, Any]:

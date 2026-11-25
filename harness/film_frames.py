@@ -32,8 +32,9 @@ not drawn). The camera reads the DRAWN caption and pill, records on every frame 
 (`frame_faults`: inside the stage over the picture; beside it, whole in the window, no word clipped in the column). A
 frame left out (`pictureMissing`, keel-cloud 275 FR-4) is recorded on its frame (`missing`, the picture before `held`
 or the `ground`), never a fault; each picture's size is recorded (`picture_drawn`), both sizes accepted. The founder's
-building screen is watched while the build runs (`watch_building`: keel-web 263's frame plan read, its tally held to
-its rows, the failed build's line with the served reason).
+building screen is watched while the build runs (`watch_building`: keel-web 263's frame plan read -- since spec 170
+FR-2c keel-web 270's: each row's look, chip word and mark held to its status, the bar's legend held to the rows --, the
+failed build's line with the served reason).
 
 **The founder's words** (`entry_beats`): on Keel's door the seven beats are told on the wire (`StoryWire`, as keel-web
 257's page sends them) in the entry's own words -- built by one rule for every entry from its `context`, today's way
@@ -878,9 +879,9 @@ def watch_building(browser, storage_state: dict, web_base: str, project_id: str,
                    timeout_s: float = 300, poll_ms: int = 400, inits: tuple[str, ...] = (),
                    routes: tuple = ()) -> tuple[dict, dict]:
     """Spec 167 FR-2 / FR-4 (keel-web 263 FR-8, FR-10): the founder's building screen of the film (`CHECK_PATH[kind]`, on
-    the laptop) watched while the build runs -- every frame plan it draws (`story_screens.read_plan`: the tally, each
-    row's scene, status, word, reason, kept mark) kept where it moved, each held to keel-web's tally rule against its own
-    rows (`plan_tally`), and the plan the wire serves (`build.pictures.plan` / `kept`) polled beside it -- until the wire
+    the laptop) watched while the build runs -- every frame plan it draws (`story_screens.read_plan`: the bar's legend,
+    each row's scene, status, look, word, mark, reason, kept mark) kept where it moved, each held to keel-web 270's rules
+    against its own rows (spec 170 FR-2c: `plan_legend`, `plan_row_faults`), and the plan the wire serves (`build.pictures.plan` / `kept`) polled beside it -- until the wire
     says `ready` or `failed`; on a failed build the plan that stays and the line Keel says (`story-q`). Returns
     `(the served view at the end, the record)`; the build is never touched (the page is closed at `ready`, before the
     film plays). A build ready before the screen drew its plan is recorded as such (no fault: the fakes are quick)."""
@@ -927,8 +928,7 @@ def watch_building(browser, storage_state: dict, web_base: str, project_id: str,
     finally:
         context.close()
     kept = ((view.get("build") or {}).get("pictures") or {}).get("kept") or 0
-    record["reads"] = [{**r, "tally_rule": ss.plan_tally(r["rows"], kept), "tally_holds": r.get("tally") ==
-                        ss.plan_tally(r["rows"], kept)} for r in reads]
+    record["reads"] = [plan_held(r) for r in reads]
     record["served"] = [[f"{scene}:{status}" for scene, status in rows] for rows in served]
     record["state"] = (view.get("build") or {}).get("state")
     record["kept"] = kept
@@ -941,13 +941,26 @@ def watch_building(browser, storage_state: dict, web_base: str, project_id: str,
         record["replayed"] = replay_plan(browser, storage_state, web_base, project_id, kind=kind, inits=inits,
                                          routes=routes)
         if record["replayed"].get("plan"):
-            got = record["replayed"]["plan"]
-            record["replayed"]["tally_rule"] = ss.plan_tally(got.get("rows") or [], kept)
-            record["replayed"]["tally_holds"] = got.get("tally") == record["replayed"]["tally_rule"]
+            got = plan_held(record["replayed"]["plan"])
+            record["replayed"]["plan"] = got
+            record["replayed"]["legend_rule"] = got["legend_rule"]
+            record["replayed"]["legend_holds"] = got["legend_holds"]
             served_rows = [(str(r.get("scene")), r.get("status")) for r in plan]
             drawn_rows = [(str(r.get("scene")), r.get("status")) for r in got.get("rows") or []]
             record["replayed"]["rows_match"] = served_rows == drawn_rows
     return view, record
+
+
+def plan_held(plan: dict) -> dict:
+    """Spec 170 FR-2c (keel-web 270 FR-2, FR-3): one plan read, held to its rules -- the bar's legend one its rows allow
+    (`legend_rule`, `legend_holds`; the voice lines unknown to the page's read, so *voicing the lines* is allowed once
+    every frame is settled), each row's look, chip word and mark from its status (`row_faults`), and 263's tally no
+    longer drawn (`tally` None)."""
+    rows = plan.get("rows") or []
+    rule = ss.plan_legend(rows)
+    row_faults = ss.plan_row_faults(rows)
+    return {**plan, "legend_rule": rule, "row_faults": row_faults,
+            "legend_holds": plan.get("legend") in rule and not row_faults and not plan.get("tally")}
 
 
 def _view_path(project_id: str, kind: str) -> str:
@@ -996,19 +1009,23 @@ def replay_plan(browser, storage_state: dict, web_base: str, project_id: str, *,
 
 
 def building_faults(record: dict, view: dict) -> list[dict]:
-    """Spec 167 FR-2: what the building screen held false -- a tally that is not keel-web 263's rule over its own rows;
-    a failed build whose line is not 263 FR-10's (with the served reason where there is one)."""
+    """Spec 167 FR-2 / spec 170 FR-2c: what the building screen held false -- a bar legend its rows do not allow, a row
+    whose look, chip word or mark is not its status's, or 263's tally still drawn (keel-web 270 FR-2, FR-3); a failed
+    build whose line is not 263 FR-10's (with the served reason where there is one)."""
     out = []
     for r in record.get("reads") or []:
-        if not r.get("tally_holds"):
-            out.append({"what": f"the frame plan's tally reads {r.get('tally')!r}, its rows make {r.get('tally_rule')!r}",
-                        "owed": "keel-web 263 FR-8 (the tally)", "detail": json.dumps(r.get("rows"))[:300],
-                        "frame": None})
+        if not r.get("legend_holds"):
+            out.append({"what": f"the frame plan's bar reads {r.get('legend')!r}, its rows allow {r.get('legend_rule')!r}"
+                                + (f"; rows off their look: {[f.get('scene') for f in r.get('row_faults') or []]}"
+                                   if r.get("row_faults") else "")
+                                + (f"; 263's tally still drawn ({r.get('tally')!r})" if r.get("tally") else ""),
+                        "owed": "keel-web 270 FR-2 / FR-3 (the frames are the progress)",
+                        "detail": json.dumps(r.get("rows"))[:300], "frame": None})
     replayed = record.get("replayed") or {}
-    if replayed.get("plan") and not (replayed.get("tally_holds") and replayed.get("rows_match")):
-        out.append({"what": f"the frame plan keel-web drew from the served plan does not hold (tally "
-                            f"{replayed['plan'].get('tally')!r}, its rule {replayed.get('tally_rule')!r}; the rows as "
-                            f"served {replayed.get('rows_match')})", "owed": "keel-web 263 FR-8",
+    if replayed.get("plan") and not (replayed.get("legend_holds") and replayed.get("rows_match")):
+        out.append({"what": f"the frame plan keel-web drew from the served plan does not hold (bar "
+                            f"{replayed['plan'].get('legend')!r}, its rule {replayed.get('legend_rule')!r}; the rows as "
+                            f"served {replayed.get('rows_match')})", "owed": "keel-web 270 FR-2 / FR-3",
                     "detail": json.dumps(replayed["plan"].get("rows"))[:300], "frame": None})
     build = view.get("build") or {}
     if build.get("state") == "failed" and record.get("failed_said") is not None and not record.get("error"):

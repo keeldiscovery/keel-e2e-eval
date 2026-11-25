@@ -28,8 +28,10 @@ Every write the page makes is read off the response keel-web received, so the le
 some; 6 the when, only where beat 2 named no moment; 7 two or three other tasks of the role. Beats 3, 4 and 7 are the
 long beats (keel-web 257 FR-11, `LONG_BEATS`): they never close on quiet -- the walk ends each by saying a done word
 (*That's it.*) as its last words, and the words sent carry none. The board reads seven rows (who, job, when, today,
-falls short, costs, other tasks); after the film's yes Keel says the served `verdictLine` (`story-verdict`) and, on a
-spoken PROBLEM project, no belief page is drawn. The film's seventh scene is the pain (`pain: true`, `costLine` its
+falls short, costs, other tasks); on a spoken PROBLEM project no belief page is drawn. Spec 170 (keel-web 268, 269,
+270): the building screen's one line and its frames (no steps list); the film's one question (*Does this film show the
+problem accurately?*, Yes / No) answered *yes* aloud by the stub founder, the sheet that fixes a frame (`film-fix`) never
+opened; the verdict card gone -- the yes lands on the window page (the solution's on the pilot ask). The film's seventh scene is the pain (`pain: true`, `costLine` its
 line). `limits_only_beat_3` / `way_answer` are the one telling whose beat 3 names no way, so code's one ask (*And how do
 they do it today?*) is walked; `two_part_beat_3` is beat 3 said in two parts across seven seconds of quiet.
 """
@@ -413,12 +415,12 @@ STORY_QUESTIONS_263 = {1: "Who has this problem?",
                        3: "While doing that, what limitations do they run into today? Tell me all of them.",
                        4: "Does it happen to all of them, or just to some?",
                        5: "When does that come up?"}
-#: keel-web 257 FR-4: after the film's yes, the verdict -- the card (`story-verdict`) with the served `verdictLine`, Keel
-#: saying it, then the fixed line; other words than a yes are answered with the second line and the walk goes on.
-VERDICT_CARD = "[data-testid=story-verdict]"
-VERDICT_ASK = "Say yes, or just tell me if you want a different bar."
-VERDICT_LATER = "You can change that later on the review page."
-#: keel-cloud 269 FR-6 (`StoryView.verdictLine`): the three defaults said in one breath.
+#: Spec 170 FR-2 (keel-web 268): the verdict step is retired -- after the film's yes the window page (the problem) or the
+#: pilot ask (the solution); keel-web 257's card (`story-verdict`) and 259's (`idea-verdict-screen`) are never waited
+#: for. Their ids are kept only to say a screen still draws one (a DRIFT capture note, passed by the quiet as before).
+VERDICT_IDS_BEFORE_268 = ("story-verdict", "idea-verdict-screen", "idea-verdict-said")
+#: keel-cloud 269 FR-6 (`StoryView.verdictLine`): the three defaults said in one breath -- still served on the wire, read
+#: by no screen since keel-web 268.
 VERDICT_LINE = ("I will call this real if at least six in ten say it happened, most of those say most times or every "
                 "time, and most put it in their top two.")
 STORY_READY = "Ready? I am ready when you are. Let us start with the problem."
@@ -427,9 +429,24 @@ SOLUTION_TURN = "This is the problem. Now let us talk about the solution. How wi
 #: keel-web 245 `translate.ts` STORY: the begin screen, the boxes' and the stories' questions, the return line.
 BEGIN_TITLE = "Tap me to begin."
 BOXES_ASK = "Is that right?"
-STORY_ASK = "Is that how it goes for them?"
+#: Spec 170 FR-3 (keel-web 269 FR-2, `STORY.drawing.filmAsk` / `filmAskIdea`): the film's one question at its end, with
+#: **Yes** (`film-yes`) and **No** (`film-no`) under the frame; the stub founder says *yes* aloud (`FILM_YES`) and never
+#: opens the sheet that fixes a frame (`film-fix`: the pictures are the judge's to read, not to fix). 245's question
+#: (*Is that how it goes for them?*) is `STORY_ASK_BEFORE_269`.
+STORY_ASK = "Does this film show the problem accurately?"
+STORY_ASK_BEFORE_269 = "Is that how it goes for them?"
+FILM_YES = "yes"
+FILM_YES_ID = "film-yes"
+FILM_NO_ID = "film-no"
+FILM_FIX_ID = "film-fix"
 IDEA_BOXES_ASK = "Is that your idea?"
 BACK_TO_SOLUTION = "That is the problem. Taking you back to your solution."
+
+
+def film_ask_idea(name: str | None) -> str:
+    """keel-web 269 FR-5 (`STORY.drawing.filmAskIdea`): the solution film's question -- the brand's name, the problem's
+    words where none is served."""
+    return f"Does this film show {name} accurately?" if str(name or "").strip() else STORY_ASK
 #: keel-web 249 FR-2 (`translate.ts` STORY.orb.state): the state line's first line at the hand-over -- on a beat, and on
 #: the readback screens (the boxes, the replays, the story) -- and while Keel speaks.
 TURN_LISTENING = "Your turn. I am listening."
@@ -941,9 +958,10 @@ class Conversation:
         return [r for r in self._log("__sheetLog") if f"/p/{project_id}/" in str(r.get("path") or "")]
 
     def _plan_seen(self, plans: list[dict]) -> list[dict]:
-        """Spec 167 FR-2: the frame plan read now, kept where its tally moved since the last read."""
+        """Spec 167 FR-2: the frame plan read now, kept where its bar's legend (spec 170 FR-2c: keel-web 270) or its
+        rows moved since the last read."""
         plan = read_plan(self.page)
-        if plan and plan.get("rows") and (not plans or plans[-1].get("tally") != plan.get("tally")
+        if plan and plan.get("rows") and (not plans or plans[-1].get("legend") != plan.get("legend")
                                           or plans[-1].get("rows") != plan.get("rows")):
             return plans + [plan]
         return plans
@@ -980,6 +998,53 @@ class Conversation:
                 pass
             self.page.wait_for_timeout(200)
         raise AssertionError(f"no quiet wait stood on {self.page.url} within {timeout_s} s (245 FR-8 `__keelSilence`)")
+
+    def film_question(self, said_id: str, *, landed: re.Pattern | None = None, timeout_s: float = 180) -> dict:
+        """Spec 170 FR-3 (keel-web 269 FR-2): the film's end -- **Yes** (`film-yes`) and **No** (`film-no`) under the
+        frame, Keel's question on `said_id` -- read, then *yes* said aloud through the seam (the stub founder's answer,
+        spoken as before; `film-fix` is never opened). Where no Yes is drawn within `timeout_s` (a keel-web before 269)
+        the quiet answers as it did (`silence`), recorded as `buttons` false. `landed`: the page went on already."""
+        yes, no = self.page.get_by_test_id(FILM_YES_ID), self.page.get_by_test_id(FILM_NO_ID)
+        said = self.page.get_by_test_id(said_id)
+        deadline = time.monotonic() + timeout_s * self.patience
+        while time.monotonic() < deadline and not yes.count():
+            if landed is not None and landed.search(self.page.url):
+                return {"asked": None, "buttons": False, "answered": None, "fix_opened": False, "went_on": True}
+            _skip_sheet(self.page)
+            self.page.wait_for_timeout(200)
+        out = {"buttons": bool(yes.count() and no.count()), "fix_opened": False, "went_on": False}
+        if not yes.count():
+            out["asked"] = _tc(said) or None
+            self.silence(timeout_s=60, landed=landed)
+            out["answered"] = "the quiet"
+            return out
+        ask_by = time.monotonic() + 20 * self.patience
+        asked = _tc(said)
+        while time.monotonic() < ask_by and not asked:
+            self.page.wait_for_timeout(150)
+            asked = _tc(said)
+        out["asked"] = asked or None
+        self.voice.say(FILM_YES)
+        out["answered"] = FILM_YES
+        out["fix_opened"] = bool(self.page.get_by_test_id(FILM_FIX_ID).count())
+        return out
+
+    def land_past_verdict(self, landing: re.Pattern, *, timeout_s: float = 60) -> bool:
+        """Spec 170 FR-2 (keel-web 268): the page goes on to `landing` with no verdict step. A retired verdict card met
+        on the way (a keel-web before 268) is passed by the quiet, as the walk did before, and reported (True): a DRIFT
+        capture note, never waited for."""
+        sel = ", ".join(f"[data-testid={t}]" for t in VERDICT_IDS_BEFORE_268)
+        seen = False
+        deadline = time.monotonic() + timeout_s * self.patience
+        while time.monotonic() < deadline and not landing.search(self.page.url):
+            if self.page.locator(sel).count():
+                seen = True
+                try:
+                    self.silence(timeout_s=30, landed=landing)
+                except AssertionError:
+                    pass
+            self.page.wait_for_timeout(200)
+        return seen
 
     def orb_since(self, mark: int, path_end: str | None = None) -> list[str]:
         """The orb's states since `mark`, on the screens whose path ends `path_end` where given."""
@@ -1290,8 +1355,10 @@ class StoryWalk(Conversation):
                     if self.page.locator(STORY_CHECK).count() else None
                 if state == "building" and building is None:
                     building = self.snapshot()
-                    building["steps"] = [{"step": li.get_attribute("data-step"), "state": li.get_attribute("data-state")}
-                                         for li in self.page.locator(".story-build-steps li").all()]
+                    # spec 170 FR-2c (keel-web 270 FR-1, FR-4): one line under the orb (*Drawing your story.*), no
+                    # heading (`story-q` absent while it builds), no steps list -- read so a screen still drawing them
+                    # is named
+                    building["steps_list"] = self.page.locator(".story-build-steps, [data-testid=story-build-steps]").count()
                     h.add_screenshot(self._b.screenshot("story-building"))
                 if state == "building":
                     plans = self._plan_seen(plans)
@@ -1303,9 +1370,10 @@ class StoryWalk(Conversation):
             if state == "failed":
                 plans = self._plan_seen(plans)
             seen = {"building": building, "state": state, "story": self.snapshot(),
-                    # spec 167 FR-2 (keel-web 263 FR-8, FR-10): the frame plan as drawn while it built (each tally
-                    # seen, the last read) and a failed build's line (with the served reason where there is one)
-                    "plan": {"tallies": [p["tally"] for p in plans], "last": plans[-1] if plans else None},
+                    # spec 167 FR-2 (keel-web 263 FR-8, FR-10): the frame plan as drawn while it built (each bar legend
+                    # seen -- spec 170 FR-2c, keel-web 270 -- the last read) and a failed build's line (with the served
+                    # reason where there is one)
+                    "plan": {"legends": [p.get("legend") for p in plans], "last": plans[-1] if plans else None},
                     "failed_said": _tc(self.page.locator("[data-testid=story-q]")) if state == "failed" else None,
                     "player": self.page.locator("[data-testid=story-readback] [data-testid=story-player], "
                                                 "[data-testid=story-readback] .sty-player").count()}
@@ -1313,45 +1381,19 @@ class StoryWalk(Conversation):
             h.record_assert({"state": "story"}, seen)
             return seen
 
-    def story_yes(self, *, lands: re.Pattern | str = WINDOW_PATH, verdict: bool = False) -> dict:
-        """The story played through, *Is that how it goes for them?*, then the quiet goes on (244's window, or the
-        return trip). Spec 161 FR-2 (keel-web 257 FR-4, `verdict`): after the film's yes Keel says the verdict line on
-        its card (`story-verdict`) and the fixed ask; the walk answers nothing and the quiet goes on."""
-        with self._b.step("the story's question, then the quiet goes on") as h:
+    def story_yes(self, *, lands: re.Pattern | str = WINDOW_PATH) -> dict:
+        """Spec 170 FR-2 / FR-3 (keel-web 268, 269): the film played through, its one question (*Does this film show the
+        problem accurately?*, Yes / No) read and answered *yes* aloud, then the page goes on (244's window, or the
+        return trip) -- no verdict card waited for. `said` is the question as written on the screen."""
+        with self._b.step("the film's question, yes said aloud, then the page goes on") as h:
             landing = re.compile(lands) if isinstance(lands, str) else lands
-            self.silence(timeout_s=180, landed=landing)
-            said = self.snapshot()
-            heard = self.hear_verdict(landing) if verdict else None
+            asked = self.film_question("story-check-said", landed=landing)
+            h.add_screenshot(self._b.screenshot("story-film-question"))
+            retired = self.land_past_verdict(landing)
             landed = self.wait_path(lands, timeout_s=60)
-            h.record_wire({"quiet": "after the story"}, {"url": landed, "said": said.get("said"), "verdict": heard})
+            h.record_wire({"said": FILM_YES}, {"url": landed, "asked": asked.get("asked"), "retired": retired})
             h.add_screenshot(self._b.screenshot("story-landed"))
-            return {"landed": landed, "said": said.get("said"), "verdict": heard}
-
-    def hear_verdict(self, landing: re.Pattern, *, timeout_s: float = 30) -> dict:
-        """Spec 161 FR-2 (keel-web 257 FR-4): the verdict card read -- its words, what Keel said beside it -- then the
-        quiet (a yes or four seconds of silence goes on). Where no card stands (`drawn` false) the page went on without
-        it."""
-        card = self.page.locator(VERDICT_CARD)
-        deadline = time.monotonic() + timeout_s * self.patience
-        while time.monotonic() < deadline and not card.count() and not landing.search(self.page.url):
-            self.page.wait_for_timeout(200)
-        if not card.count():
-            return {"drawn": False, "url": self.page.url}
-        words = _tc(card)
-        said: list[str] = []
-        ask_by = time.monotonic() + 20 * self.patience
-        while time.monotonic() < ask_by and card.count():
-            line = _tc(self.page.locator("[data-testid=story-check-said]")) or _tc(self.page.locator(
-                "[data-testid=story-state]"))
-            if line and line not in said:
-                said.append(line)
-            if VERDICT_ASK in " ".join(said):
-                break
-            self.page.wait_for_timeout(200)
-        h_shot = self._b.screenshot("story-verdict")
-        if not landing.search(self.page.url):
-            self.silence(timeout_s=60, landed=landing)
-        return {"drawn": True, "words": words, "said": said, "shot": h_shot}
+            return {"landed": landed, "said": asked.get("asked"), "film": asked, "verdict_seen": retired}
 
 
 class StoryWire:
@@ -1719,19 +1761,43 @@ PICTURE_FAILED_SAY = "Keel could not draw that part. Say it again?"
 PICTURE_FAILED_SAY_REASON = "Keel could not draw that part: {reason}. Say it again?"
 #: keel-cloud 275 FR-0 / keel-web 263 FR-8: a frame's status on the plan.
 PLAN_STATUSES = ("planned", "drawn", "passed", "failed", "dropped")
-#: keel-web 263 FR-8 (`FramePlan`): the plan read in one evaluate -- the tally, the rows by `data-scene` /
-#: `data-status` / `data-kept`, the status word, the reason beside a failed or dropped row.
+#: Spec 170 FR-2c (keel-web 270 FR-2, `lookOf`, `STORY.plan`): a frame's look from its served status -- waiting
+#: (`planned`), being drawn (`drawn`, and `failed` while it is drawn again), done (`passed`, or `kept` from the build
+#: before), dropped -- the mark's label, and the word after the chapter in the chip.
+PLAN_LOOKS = ("waiting", "drawing", "done", "dropped")
+PLAN_LOOK_LABEL = {"waiting": "Waiting", "drawing": "Being drawn", "done": "Done", "dropped": "No picture"}
+PLAN_DRAWING = "drawing"
+PLAN_DRAWING_AGAIN = "drawing again"
+PLAN_NO_PICTURE = "no picture"
+#: keel-web 270 FR-3 (`buildProgress`): the bar's legend -- *planning the frames* before the plan, *{done} of {n} frames
+#: done* while the frames are drawn, *voicing the lines* once every frame is settled and the clips are not done.
+BAR_PLANNING = "planning the frames"
+BAR_VOICING = "voicing the lines"
+#: keel-web 270 FR-1 (`STORY.drawing.say`, `STORY.orb.state.drawing`): the building screen's one line, said once.
+DRAWING_SAY = "Drawing your story."
+#: keel-web 263 FR-8 / 270 FR-2, FR-3 (`FramePlan`, `BuildBar`): the plan read in one evaluate -- the bar's legend
+#: (`story-bar-legend`, outside the plan) and its value, max and phase, and the rows by `data-scene` / `data-status` /
+#: `data-look` / `data-kept`, the chip's word (*drawing*, *drawing again*, *no picture*, its leading *·* dropped), the
+#: mark's label, the reason beside a failed or dropped row, and whether a thumbnail is drawn. 263's tally
+#: (`story-plan-tally`) is gone.
 PLAN_JS = r"""() => {
   const plan = document.querySelector('[data-testid=story-plan]');
   if (!plan) return null;
   const t = (el) => (el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : null);
+  const bar = document.querySelector('[data-testid=story-bar]');
+  const wrap = document.querySelector('[data-testid=story-bar-wrap]');
   return {
+    legend: t(document.querySelector('[data-testid=story-bar-legend]')),
+    bar: bar ? { value: bar.getAttribute('aria-valuenow'), max: bar.getAttribute('aria-valuemax'),
+                 phase: wrap ? wrap.getAttribute('data-phase') : null } : null,
     tally: t(plan.querySelector('[data-testid=story-plan-tally]')),
     rows: [...plan.querySelectorAll('[data-testid=story-plan-row]')].map((r) => ({
-      scene: r.getAttribute('data-scene'), status: r.getAttribute('data-status'), kept: r.hasAttribute('data-kept'),
-      word: t(r.querySelector('[data-testid=story-plan-word]')),
+      scene: r.getAttribute('data-scene'), status: r.getAttribute('data-status'), look: r.getAttribute('data-look'),
+      kept: r.hasAttribute('data-kept'),
+      word: (t(r.querySelector('[data-testid=story-plan-word]')) || '').replace(/^·\s*/, '') || null,
       reason: t(r.querySelector('[data-testid=story-plan-reason]')),
       mark: (r.querySelector('[data-testid=story-plan-mark]') || { getAttribute: () => null }).getAttribute('aria-label'),
+      thumb: !!r.querySelector('[data-testid=story-plan-thumb]'),
     })),
   };
 }"""
@@ -1991,23 +2057,65 @@ def picture_failed_say(reason: str | None = None) -> str:
     return PICTURE_FAILED_SAY
 
 
-def plan_tally(rows: list[dict], kept: int = 0) -> str:
-    """keel-web 263 FR-8 (`planTally`): *{n} frames planned · {p} passed · {c} checking · {f} drawing again · {d} left
-    out*, every part with a zero count left out; *{k} of {n} pictures kept ·* first on a rebuild that kept pictures."""
-    n = len(rows)
-    count = {st: sum(1 for r in rows if r.get("status") == st) for st in PLAN_STATUSES}
-    parts = [f"{kept} of {n} pictures kept"] if kept and kept > 0 else []
-    parts.append(f"{n} {'frame' if n == 1 else 'frames'} planned")
-    for status, words in (("passed", "passed"), ("drawn", "checking"), ("failed", "drawing again"),
-                          ("dropped", "left out")):
-        if count[status]:
-            parts.append(f"{count[status]} {words}")
-    return " · ".join(parts)
+def plan_look(row: dict) -> str:
+    """keel-web 270 FR-2 (`lookOf`): a row's look from its status and `kept`."""
+    if row.get("kept") or row.get("status") == "passed":
+        return "done"
+    if row.get("status") in ("drawn", "failed"):
+        return "drawing"
+    if row.get("status") == "dropped":
+        return "dropped"
+    return "waiting"
+
+
+def plan_word(row: dict) -> str | None:
+    """keel-web 270 FR-2 (`chipWordOf`): the chip's word after the chapter -- *drawing* (*drawing again* on a failed
+    row), *no picture* on a dropped row, none on a waiting or done row."""
+    look = plan_look(row)
+    if look == "drawing":
+        return PLAN_DRAWING_AGAIN if row.get("status") == "failed" else PLAN_DRAWING
+    return PLAN_NO_PICTURE if look == "dropped" else None
+
+
+def frames_done(done: int, n: int) -> str:
+    """keel-web 270 FR-3 (`STORY.plan.framesDone`): *{done} of {n} frames done*."""
+    return f"{done} of {n} {'frame' if n == 1 else 'frames'} done"
+
+
+def plan_legend(rows: list[dict], voiced: bool | None = None) -> list[str]:
+    """keel-web 270 FR-3 (`buildProgress`): the bar's legends its rows allow -- *planning the frames* with no rows,
+    *{done} of {n} frames done* while a frame is unsettled; once every frame is done or dropped, *voicing the lines*
+    until the clips are done, then the frames' legend again (`voiced`: None where the walk cannot tell, both allowed)."""
+    if not rows:
+        return [BAR_PLANNING]
+    looks = [plan_look(r) for r in rows]
+    done = looks.count("done")
+    frames = frames_done(done, len(rows))
+    if done + looks.count("dropped") < len(rows):
+        return [frames]
+    if voiced is None:
+        return [BAR_VOICING, frames]
+    return [frames] if voiced else [BAR_VOICING]
+
+
+def plan_row_faults(rows: list[dict]) -> list[dict]:
+    """Spec 170 FR-2c (keel-web 270 FR-2): each drawn row held to its look -- `data-look`, the chip's word and the mark's
+    label from its status (and `kept`); a thumbnail on a done row only. [] where every row holds."""
+    out = []
+    for r in rows or []:
+        look = plan_look(r)
+        want = {"look": look, "word": plan_word(r), "mark": PLAN_LOOK_LABEL[look]}
+        got = {"look": r.get("look"), "word": r.get("word"), "mark": r.get("mark")}
+        if got != want or (r.get("thumb") and look != "done"):
+            out.append({"scene": r.get("scene"), "status": r.get("status"), "got": got, "want": want,
+                        "thumb": r.get("thumb")})
+    return out
 
 
 def read_plan(page) -> dict | None:
-    """Spec 167 FR-2 (keel-web 263 FR-8): the frame plan as the building screen draws it (`story-plan`): the tally, and
-    one row per frame -- its scene, status, kept mark, status word and reason -- or None where none is drawn."""
+    """Spec 167 FR-2 (keel-web 263 FR-8, 270 FR-2, FR-3): the frame plan as the building screen draws it (`story-plan`):
+    the bar's legend, and one row per frame -- its scene, status, look, kept mark, chip word, mark label, reason and
+    thumbnail -- or None where none is drawn."""
     try:
         return page.evaluate(PLAN_JS)
     except Exception:  # noqa: BLE001 - a navigation in flight
@@ -2232,8 +2340,8 @@ class IdeaWalk(Conversation):
     # ---------------------------------------------------------------------------------------- the build, the film
     def building_then_film(self, *, timeout_s: float = 150) -> dict:
         """The building screen while the build builds, then (`data-state` story) the plate alone for about three seconds
-        (its time read on the page's clock), the film in its chapters (the band's words read while it plays), *Is that
-        how it goes with {name}?* -- or the failed build (`data-state` failed)."""
+        (its time read on the page's clock), the film in its chapters (the band's words read while it plays), its
+        question (*Does this film show {name} accurately?*, keel-web 269) -- or the failed build (`data-state` failed)."""
         with self._b.step("the idea's building screen, the plate, then the film in chapters") as h:
             building, state = None, None
             plans: list[dict] = []
@@ -2250,7 +2358,7 @@ class IdeaWalk(Conversation):
                     break
                 self.page.wait_for_timeout(200)
             seen: dict = {"building": building, "state": state, "plate": None, "chapters": [], "pictures": 0,
-                          "plan": {"tallies": [p["tally"] for p in plans], "last": plans[-1] if plans else None}}
+                          "plan": {"legends": [p.get("legend") for p in plans], "last": plans[-1] if plans else None}}
             if state != "story":
                 seen["failed"] = self.failed_build()
                 return seen
@@ -2304,31 +2412,27 @@ class IdeaWalk(Conversation):
         out["reopened"] = self.page.url.rstrip("/").split("/")[-1]
         return out
 
-    # ---------------------------------------------------------------------------------------- the verdict, the pilot
-    def film_yes_verdict_pilot(self, *, pilot: str = PILOT_YES) -> dict:
-        """After the film: the quiet says yes; the verdict card (`story-verdict`) read, the quiet goes on; the pilot ask
-        (`idea-pilot`) read and answered by voice; `PUT idea/pilot {offer}` on the wire; then the ready page."""
-        with self._b.step("the film's yes, the verdict, the pilot ask answered yes, the ready page") as h:
-            self.silence(timeout_s=120)
-            out: dict = {}
-            card = self.page.locator(VERDICT_CARD)
-            deadline = time.monotonic() + 60 * self.patience
-            while time.monotonic() < deadline and not card.count():
-                self.page.wait_for_timeout(150)
-            out["verdict"] = {"drawn": bool(card.count()), "words": _tc(card) if card.count() else None}
-            said: list[str] = []
-            ask_by = time.monotonic() + 30 * self.patience
-            while time.monotonic() < ask_by and card.count():
-                line = _tc(self.page.locator("[data-testid=idea-verdict-said]"))
-                if line and line not in said:
-                    said.append(line)
-                if VERDICT_ASK in " ".join(said):
-                    break
-                self.page.wait_for_timeout(150)
-            out["verdict"]["said"] = said
-            h.add_screenshot(self._b.screenshot("idea-verdict"))
-            self.silence(timeout_s=60)
+    # ------------------------------------------------------------------------------------- the film's yes, the pilot
+    def film_yes_pilot(self, *, pilot: str = PILOT_YES) -> dict:
+        """Spec 170 FR-2 / FR-3 (keel-web 268, 269 FR-5): after the film its one question (*Does this film show {name}
+        accurately?*, Yes / No) read and answered *yes* aloud; no verdict card (a retired one met on the way is passed by
+        the quiet and reported); the pilot ask (`idea-pilot`) read and answered by voice; `PUT idea/pilot {offer}` on the
+        wire; then the ready page."""
+        with self._b.step("the film's question, yes said aloud, the pilot ask answered yes, the ready page") as h:
+            out: dict = {"film": self.film_question("idea-story-said")}
+            h.add_screenshot(self._b.screenshot("idea-film-question"))
             pilot_card = self.page.locator("[data-testid=idea-pilot-card]")
+            sel = ", ".join(f"[data-testid={t}]" for t in VERDICT_IDS_BEFORE_268)
+            out["verdict_seen"] = False
+            deadline = time.monotonic() + 60 * self.patience
+            while time.monotonic() < deadline and not pilot_card.count():
+                if self.page.locator(sel).count():
+                    out["verdict_seen"] = True
+                    try:
+                        self.silence(timeout_s=30)
+                    except AssertionError:
+                        pass
+                self.page.wait_for_timeout(150)
             pilot_card.first.wait_for(state="visible", timeout=60_000)
             out["pilot"] = {"ask": _tc(pilot_card.first.locator(".ucard__verdict")),
                             "options": _tc(self.page.locator("[data-testid=idea-pilot-options]"))}
@@ -2340,13 +2444,15 @@ class IdeaWalk(Conversation):
             return out
 
     def film_yes_to_money(self) -> dict:
-        """On a money start's solution (keel-web 243 / 259 FR-8): the film's quiet goes back to the money start -- no
-        verdict, no pilot ask."""
+        """On a money start's solution (keel-web 243 / 259 FR-8): the film's question answered *yes* aloud (spec 170),
+        then back to the money start -- no verdict, no pilot ask."""
         with self._b.step("the film's yes, back to the money start") as h:
-            self.silence(timeout_s=120)
-            landed = self.wait_path(re.compile(r"start=money"), timeout_s=60)
+            landing = re.compile(r"start=money")
+            film = self.film_question("idea-story-said", landed=landing, timeout_s=120)
+            landed = self.wait_path(landing, timeout_s=60)
             h.add_screenshot(self._b.screenshot("idea-landed"))
-            return {"landed": landed, "verdict": self.page.locator(VERDICT_CARD).count()}
+            sel = ", ".join(f"[data-testid={t}]" for t in VERDICT_IDS_BEFORE_268)
+            return {"landed": landed, "film": film, "verdict": self.page.locator(sel).count()}
 
 
 # ------------------------------------------------------------------------------------ the money front (245 FR-12)
@@ -3101,8 +3207,10 @@ def served_items(interview: dict) -> list[dict]:
 #: (`filmOrb`: `ai-story-orb`; `again`: `ai-again`; `goOn`: `ai-story-go-on`; `fallback`: `ai-mic-fallback`). Every
 #: `play()` on a media element is stamped on `window.__ivPlays` (`[t, src, video, data-clip]`: the one player swaps
 #: blob sources and names the clip in `data-clip`) -- what played, and when.
-WALK_IDS = ("ai-intro", "ai-intro-study", "ai-intro-asks", "ai-intro-chips", "ai-intro-answers", "ai-mic-test",
-            "ai-mic-heard", "ai-mic-block", "ai-start", "ai-story", "ai-film-pause", "ai-film-again", "ai-film-board",
+#: Spec 170 (keel-web 266): the intro's one line (`ai-intro-line`) and *Say anything.* (`ai-mic-say`) are read beside
+#: 256's study line, asks line and chips (kept: a screen still drawing them is named, never walked differently).
+WALK_IDS = ("ai-intro", "ai-intro-line", "ai-intro-study", "ai-intro-asks", "ai-intro-chips", "ai-intro-answers",
+            "ai-mic-test", "ai-mic-say", "ai-mic-heard", "ai-mic-block", "ai-start", "ai-story", "ai-film-pause", "ai-film-again", "ai-film-board",
             "ai-film-begin", "story-read", "speaker", "ai-words", "ship-mark", "ai-where", "ai-state", "ai-end",
             "ai-sheet", "ai-options", "ai-field", "ai-replay", "ai-back", "ai-skip", "ai-yes", "ai-save", "ai-finish",
             "ai-tap-to-hear", "ai-done", "ai-done-tick", "ai-mic-off", "ai-ended")
