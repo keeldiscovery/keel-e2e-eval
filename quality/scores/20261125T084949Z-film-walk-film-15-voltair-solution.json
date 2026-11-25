@@ -1,0 +1,225 @@
+{
+  "entry": "15-voltair",
+  "kind": "solution",
+  "bundle": "20261125T084949Z-film-walk",
+  "cloud_sha": "c7079b59",
+  "web_sha": "336eb477",
+  "film_rubric_version": 1,
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "anthropic api",
+    "served_by": "claude-opus-5-5",
+    "fallback": []
+  },
+  "founder_reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 5.5361,
+  "film_cost_usd": 0.2574,
+  "founder_cost_usd": 5.2787,
+  "walk_usd": 1.1153,
+  "seconds": 81.9,
+  "scored_at": "2026-11-25T10:09:32+00:00",
+  "asked_again": false,
+  "entry_yaml": {
+    "sha256": "9cc350c2f18d77aff733945a98576ed6081e1e3df14154ec88a706d3ff7e33f6",
+    "matches_bundle": true
+  },
+  "persona_card": "The person (the entry's context, in the founder's words):\n  actor: lineman\n  actor_plural: linemen who inspect poles at US power utilities\n  job: confirm every pole and line is sound before it fails\n  circumstance: the poles on a circuit are due for inspection and have to be checked one by one from the ground\n  segment: linemen and line inspectors at US electric utilities and rural electric cooperatives\n  window: the last 3 months\n  where: US\n  role: Utility linemen -- a lineman or line inspector who patrols a utility's poles and lines and checks them from the ground\n  today's way: Linemen drive out on foot patrols with a clipboard or an iPad and check each pole with binoculars.\n\nThe founder's problem statement, whole (every limitation it names, and what it costs them):\n  The US has 7M miles of aging power lines, and most utilities inspect them with foot patrols: linemen drive out with a clipboard or an iPad and check each pole with binoculars. A lineman can inspect about 50-150 poles a day, yet even a small rural co-op of about 20 employees has about 50,000 poles, so a given pole is inspected about every 10 years. Helicopters cost $25k to get off the ground, and drone-in-a-box stations cost $250,000 a box and only reach about 15 miles.",
+  "film": {
+    "kind": "solution",
+    "scores": {
+      "s1": 1,
+      "s2": 1,
+      "s3": 1,
+      "s4": 1,
+      "s5": 0,
+      "s6": 1,
+      "s7": 0,
+      "s8": 1,
+      "s9": 2
+    },
+    "whys": {
+      "s1": "The lineman matches the character sheet on the same rural roadside, and the tablets carry the #2255aa panel and round badge, but the drone, which is the product itself, is grey and unbranded in scenes 8 and 9.",
+      "s2": "Scene 2 shows the lineman holding a blank blue tablet over the old clipboard, hammer and binoculars, so neither flagged poles nor a defect list is shown, and the setup is barely visible.",
+      "s3": "Picking the circuit, the drone hopping and sending a crew are drawn, but scene 4 has no pads, scene 5 shows no drone imaging anything (just a speech bubble), and scene 6 shows no pad or data link, only a tablet of ticks.",
+      "s4": "All four limitations carry blue ticks in scene 8, but the ticks sit on the old paper clipboard, and blue ticks appear on clipboards in nearly every frame, so a lineman would read them as a manual checklist rather than four problems solved.",
+      "s5": "No advantage beyond the limitations is said anywhere, and the storm and outage use from 'what it does' never appears.",
+      "s6": "The last frame shows the same neutral face standing on the roadside beside the hammer, binoculars and clipboard, which contradicts 'without walking the line' and is not visibly at ease.",
+      "s7": "Line 8, 'About 50-150 poles a day, a pole every 10 years: Voltair takes care of that', reads as if Voltair does 50-150 poles a day; line 1 'Voltair is on the screen' undersells a drone product; and lines 5 and 6 are off their pictures.",
+      "s8": "There is no Better chapter, and the Before chapter shows a person with a blank tablet rather than a setup, so the arc is incomplete.",
+      "s9": "The captions read cleanly on both phone and laptop, and no letters or digits appear inside the pictures (the clock has ticks only)."
+    },
+    "missing": [
+      "the charging pads along the line in the hopping step (scene 4)",
+      "the drone imaging poles and spans (scene 5)",
+      "the data going back through a pad (scene 6)",
+      "the defect list of drone-flagged poles in the setup (scene 2)",
+      "the Better chapter / any advantage beyond the limitations",
+      "the storm or outage trigger from 'what it does'",
+      "the drone in the brand colour in scenes 8 and 9"
+    ],
+    "instead": {
+      "s1": "Draw the drone in #2255aa with the round badge in every scene where it flies or rests, not only on the tablet.",
+      "s2": "Show the lineman at the truck scrolling a short list of flagged poles, each with a drone photo thumbnail, on the blue tablet, with the binoculars put away.",
+      "s3": "Scene 4: the blue drone lifting off one roadside pad toward the next. Scene 5: the drone hovering at a crossarm with a camera cone over the pole. Scene 6: the drone docked on a pad with a signal arc running to the lineman's tablet.",
+      "s4": "Put the four blue ticks in a row beside the lineman, apart from any clipboard, and drop the ticked clipboards from the other frames.",
+      "s5": "Add one Better line, e.g. 'After a storm or an outage, the drones fly the circuit the same day, before anyone drives out.'",
+      "s6": "End on the lineman relaxed at the truck or the office with coffee, the tablet showing the whole circuit checked, and the hammer and binoculars stowed.",
+      "s7": "Say 'A lineman checks 50-150 poles a day, so a pole waits about 10 years: drones image every pole on the circuit,' and keep each caption on the picture that shows it.",
+      "s8": "Insert a Better chapter between What it solves and What they get, and make the Before chapter show a real setup."
+    },
+    "film_pct": 44.4,
+    "flagged": true
+  },
+  "founder": {
+    "beats": [
+      {
+        "beat": "beat 1",
+        "said": "Keel asks: Now I want to know how Voltair does the same task. With Voltair in their hands, how does a lineman confirm every pole and line is sound before it fails, from the first step to the last?\nYou said: Weatherized, long-range fixed-wing drones that live outsde for months and recharge on cehap charging pads along the lies, hopping from pad to pad to ispect every pole and span with high-resolution phoos, LiDAR and thermal, and sending the data back thruogh the pad. When a circuit is due for inpsection, or after a storm or an outage, long-range drones that recharge on pads along the lines fly the circuit and image every pole. What coes out is photos, LiDAR and thermal readings of each pole and span, with the defects to send a crew to.\nKeel reads back: They pick the circuit that is due; Voltair flies the circuit, hopping from pad to pad; Voltair images every pole and span; Voltair sends the data back through the pad; they send a crew to the defects.",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Asking how my drones do the job is the right question, but as Keel's opening line it says 'the same task' and 'Now' before the lineman's own patrol has been told, so it lands abruptly.",
+        "why2": "I can answer it, but 'with Voltair in their hands' is wrong for my trade: the lineman never holds the drone, it flies the circuit from pad to pad on its own, and 'the same task' points at nothing said yet.",
+        "why3": "How the drones fly, recharge, image and hand back defects is exactly what I know best.",
+        "why5": "The pad-to-pad hops, every pole and span, the data through the pad and the crew to the defects are kept, but it drops the storm and outage flights and the LiDAR and thermal, and never says that defects are flagged before a crew rolls.",
+        "instead": "When a circuit is due for inspection, or after a storm, how does Voltair get every pole on it checked, from the drone taking off to the crew going out to a defect?"
+      },
+      {
+        "beat": "beat 2",
+        "said": "Keel asks: Before linemen and line inspectors can use Voltair this way, is there anything they must do first? A setup, training, a security review, data to send? Tell me, or say none.\nYou said: Before they can start, they need to review the poles a drone flags before sending cerws and work from a defect list instead of patorlling.\nKeel reads back: Before they can start: review the poles a drone flags before sending crews and work from a defect list instead of patrolling.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Right after I said how a lineman inspects with Voltair, it is obvious to ask what the lineman has to change or do before working that way.",
+        "why2": "Plain enough on first hearing; the examples (setup, training, a review, data) are generic, but I could answer at once in my own words.",
+        "why3": "I know what my customers have to change: review the drone's flags before rolling crews and work from a defect list instead of a patrol.",
+        "why5": "The readback keeps my words exactly and only fixes my typos ('crews', 'patrolling').",
+        "instead": ""
+      },
+      {
+        "beat": "beat 3",
+        "said": "Keel asks: Today they ran into four things: a lineman inspects only about 50-150 poles a day, a given pole is inspected about every 10 years, helicopters cost $25k to get off the ground and drone-in-a-box reaches only about 15 miles. Tell me how Voltair solves them.\nYou said: Voltair solves them like this. When a circuit is due for insepction, or after a storm or an outage, long-range drones that rceharge on pads along the lins fly the circuit and image every pole. What commes out is photos, LiDAR and thermal readings of each pole and span, with the defects to send a crew to. A linemman ispects only about 50-150 poles a day: Voltair takes care of that. A gien pole is inspected abot every 10 years: Voltair takes care of that. Helicopters cost $25k to get off the ground: Voltair takes care of that. Drone-in-a-box reaches only about 15 miles: Voltair takess care of that.\nKeel reads back: When a circuit is due for inspection, or after a storm or an outage, long-range drones that recharge on pads along the lines fly the circuit and image every pole.",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Asking how Voltair beats today's limits makes sense after the mechanism, but it comes after the setup question, which feels backwards, and it mostly re-asks beat 1's how-it-works.",
+        "why2": "It bundles four things into one question, and two of them (the $25k helicopter and drone-in-a-box range) are other ways utilities inspect, not things a lineman 'ran into' on patrol.",
+        "why3": "I know exactly how the range, the pads, and the pole-top imagery answer each of these.",
+        "why5": "The readback keeps the flight sentence but drops what comes out (photos, LiDAR, thermal, and the defect list for crews), and nothing on the board says how each of the four is answered.",
+        "instead": "A lineman gets through 50-150 poles a day, so most poles go about 10 years between looks; helicopters and drone-in-a-box cost too much or can't reach far enough. What does Voltair do that they can't?"
+      },
+      {
+        "beat": "beat 4",
+        "said": "Keel asks: In the problem, the cost to them was most poles go years between inspections. Now, with Voltair, what do they get instead? Tell me the opposite of that cost.\nYou said: Instead of most poles go years between inspections, they get every pole checked without walkinng the line.\nKeel reads back: What they get: every pole checked without walking the line.",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Asking what they get in place of the cost belongs right after the mechanism, but beat 3 already had me answer the 'pole inspected about every 10 years' point, so this half-repeats it.",
+        "why2": "I get it on first hearing, but calling 'poles go years between inspections' a 'cost' and asking for 'the opposite of that cost' is form language, not how a utility person talks.",
+        "why3": "How often a pole gets looked at with drones flying the feeder is exactly what I know and sell on.",
+        "why5": "The readback keeps my words, every pole checked without walking the line, and only fixes my typo.",
+        "instead": "With Voltair flying the circuit, how often does each pole get looked at now, instead of once every ten years or so?"
+      },
+      {
+        "beat": "the verdict line",
+        "said": "After the film, Keel says: I will call this real if at least six in ten say it fits how they work, six in ten say it is better, and six in ten say they could start without trouble.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "After walking through how Voltair works, what they must do first and what they get instead, it makes sense for Keel to close by saying how it will judge whether linemen take to it.",
+        "why2": "It is clear on first hearing, but 'six in ten' of whom is left unsaid; I would want it to say linemen, and 'fits how they work' is vaguer than my own terms like pole tops clear of trees, a pad spot, and findings into the work order system.",
+        "why3": "I can weigh a six-in-ten bar for fit, better, and easy start against what I know of linemen and utilities, though I'd expect the timber-line crews to drag fit down.",
+        "why5": "It doesn't misstate anything I said; the three tests line up with fit, advantage and adoption as I framed them, even if it doesn't repeat my specifics.",
+        "instead": "I will call this real if at least six in ten linemen say it fits how they patrol, six in ten say it beats walking the circuit, and six in ten say they could start working from the drone's flags without trouble."
+      },
+      {
+        "beat": "the pilot ask",
+        "said": "Then Keel asks: Now Voltair is defined. Would you like to invite the people who finish the interview to try it as a pilot?",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "A closing offer after the verdict is reasonable, but it skips over who decides: the linemen in the interview cannot sign up a utility for a pilot, and my pilots go through the inspection manager.",
+        "why2": "\"Voltair is defined\" is not how I would put it, and \"try it\" is unclear for a drone and pad network that a lineman cannot just pick up and use.",
+        "why3": "I know whether I want pilot leads from this, since I'm already booking paid pilots with utilities.",
+        "why5": "Nothing I said is read back, so nothing drifts.",
+        "instead": "That's Voltair as you described it. Want me to ask the people who finish whether their utility would run a pilot on one feeder, and who there would sign off on it?"
+      }
+    ],
+    "means": {
+      "r1": 1.333,
+      "r2": 1.167,
+      "r3": 2.0,
+      "r5": 1.667
+    },
+    "zeros": {
+      "r1": 0,
+      "r2": 0,
+      "r3": 0,
+      "r5": 0
+    },
+    "founder_pct": 77.1,
+    "unread": []
+  },
+  "frames": {
+    "frames": [
+      "frames/plate-phone.png",
+      "frames/plate-laptop.png",
+      "frames/scene-1-phone.png",
+      "frames/scene-1-laptop.png",
+      "frames/scene-2-phone.png",
+      "frames/scene-2-laptop.png",
+      "frames/scene-3-phone.png",
+      "frames/scene-3-laptop.png",
+      "frames/scene-4-phone.png",
+      "frames/scene-4-laptop.png",
+      "frames/scene-5-phone.png",
+      "frames/scene-5-laptop.png",
+      "frames/scene-6-phone.png",
+      "frames/scene-6-laptop.png",
+      "frames/scene-7-phone.png",
+      "frames/scene-7-laptop.png",
+      "frames/scene-8-phone.png",
+      "frames/scene-8-laptop.png",
+      "frames/scene-9-phone.png",
+      "frames/scene-9-laptop.png",
+      "frames/scene-10-phone.png",
+      "frames/scene-10-laptop.png"
+    ],
+    "pictures": [
+      "pictures/scene-1.png",
+      "pictures/scene-2.png",
+      "pictures/scene-3.png",
+      "pictures/scene-4.png",
+      "pictures/scene-5.png",
+      "pictures/scene-6.png",
+      "pictures/scene-7.png",
+      "pictures/scene-8.png",
+      "pictures/scene-9.png",
+      "pictures/scene-10.png",
+      "pictures/sheet.png"
+    ],
+    "folder": "runs/20261125T084949Z-film-walk/film/15-voltair/solution"
+  },
+  "measures": {
+    "faults": [],
+    "frames": 22,
+    "pictures": 11,
+    "missing": []
+  },
+  "dropped": [],
+  "project_id": "796bfce7-a206-4035-b01d-029bc7d25854",
+  "problem_project_id": "b280254a-6a88-4a69-a33d-067dd32cd19e"
+}

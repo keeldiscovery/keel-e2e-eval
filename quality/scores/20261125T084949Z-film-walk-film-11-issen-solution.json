@@ -1,0 +1,208 @@
+{
+  "entry": "11-issen",
+  "kind": "solution",
+  "bundle": "20261125T084949Z-film-walk",
+  "cloud_sha": "c7079b59",
+  "web_sha": "336eb477",
+  "film_rubric_version": 1,
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "anthropic api",
+    "served_by": "claude-opus-5-5",
+    "fallback": []
+  },
+  "founder_reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 2.052,
+  "film_cost_usd": 0.0342,
+  "founder_cost_usd": 2.0178,
+  "walk_usd": 0.1544,
+  "seconds": 60.0,
+  "scored_at": "2026-11-25T10:09:32+00:00",
+  "asked_again": false,
+  "entry_yaml": {
+    "sha256": "553f8090c7f957bd0f8a1a896aa1623a1a5d915388cc771592766d58b94b6166",
+    "matches_bundle": true
+  },
+  "persona_card": "The person (the entry's context, in the founder's words):\n  actor: language learner\n  actor_plural: intermediate and advanced learners of a foreign language\n  job: become able to hold a real conversation in the language\n  circumstance: they want to practise speaking the language\n  segment: adults in the US learning a foreign language at intermediate level or above, not starting from zero\n  window: the last 7 days\n  where: US\n  role: Language learners -- an adult learning a foreign language at intermediate level or above who wants to speak it\n  today's way: They book a tutor at about $20 an hour when they can schedule one, and otherwise practise alone in apps that reward streaks.\n\nThe founder's problem statement, whole (every limitation it names, and what it costs them):\n  Intermediate and advanced learners of a foreign language struggle to get enough speaking practice: a tutor costs about $20 an hour, is hard to schedule, and it often takes a few tries to find a tutor you like, so most practice happens alone in apps that reward streaks rather than conversation; based on our own years of learning Japanese and French.",
+  "film": {
+    "kind": "solution",
+    "scores": {
+      "s1": 0,
+      "s2": 0,
+      "s3": 0,
+      "s4": 0,
+      "s5": 0,
+      "s6": 0,
+      "s7": 0,
+      "s8": 0,
+      "s9": 0
+    },
+    "whys": {
+      "s1": "The build served no scene and no plate, so no person and no Issen green (#1f7a5a) or mark appears anywhere.",
+      "s2": "The founder named a setup (a short intro talk before lessons start), but no frame shows it.",
+      "s3": "The learner is never shown opening the app or speaking with the AI tutor, so the task is not done with the product.",
+      "s4": "None of the three limitations (scheduling, finding a tutor, streak-rewarding apps) carries a tick on screen.",
+      "s5": "The board names no advantage beyond the limitations, but with no lines and no frames the film says nothing, so nothing can be credited.",
+      "s6": "'Speaking practice any time' is never shown, and the learner is never seen upright and speaking freely.",
+      "s7": "There are no lines at all, so a stranger reads nothing and would not know what Issen is.",
+      "s8": "With no chapters, a stranger cannot tell what the product does for them.",
+      "s9": "No frame was rendered on phone or laptop, so there is nothing legible to read."
+    },
+    "missing": [
+      "A tutor is hard to schedule (tick)",
+      "It takes a few tries to find a tutor (tick)",
+      "Apps reward streaks rather than conversation (tick)",
+      "the product: Issen, Speaking practice on demand, with its colour #1f7a5a and mark",
+      "the setup: a short intro talk before lessons start",
+      "step 1: open the app",
+      "step 2: holds a spoken conversation with the learner",
+      "step 3: adapts to their level, goals and interests",
+      "step 4: turns the new words into spaced-repetition flashcards",
+      "what they get: Speaking practice any time",
+      "the brand plate"
+    ],
+    "instead": {
+      "s1": "Show the same intermediate US adult learner from the problem film, in the same setting, with the Issen green and mark on every phone screen.",
+      "s2": "Open with the learner doing a short intro talk with Issen before lessons start.",
+      "s3": "Show the learner opening Issen, speaking aloud with the AI tutor, the tutor adapting to their level and interests, and new words becoming flashcards.",
+      "s4": "Tick each limitation in turn: no scheduling needed, no hunting for a tutor, and conversation rather than streaks.",
+      "s5": "Since the board names nothing beyond the limitations, leave out a separate claim, but render the Better chapter so the film runs end to end.",
+      "s6": "End on the learner confidently speaking the language whenever they like: speaking practice any time.",
+      "s7": "Write one short, plain caption per scene, spoken and shown, for example 'Open Issen and just start talking.'",
+      "s8": "Lay the film out as Before, The task, What it solves, Better, What they get, with the ticks placed in What it solves.",
+      "s9": "Render the plate and every frame on phone and laptop with clean captions, uncut, and no text inside the pictures."
+    },
+    "film_pct": 0.0,
+    "flagged": true
+  },
+  "founder": {
+    "beats": [
+      {
+        "beat": "beat 1",
+        "said": "Keel asks: Now I want to know how Issen does the same task. With Issen in their hands, how does a language learner hold a real conversation in the language, from the first step to the last?\nYou said: An app with a real-time AI voice tutor that holds full spoken conversations in the language, adapts to the learner's leevl, goasl and interests, builds a custom curriculum, and turnss the new words from each converation into spaced-repetition flashcards; it is not for someone starting a language from zero. When they want to practise speaking the language, the learner oppens the app and holds a spoken conversation with an AI tutor that adapts to their level, goalss and interestts. What comes out is a full conversation in the language, with corrections and fashcards of the new words.\nKeel reads back: They open the app; Issen holds a spoken conversation with the learner; Issen adapts to their level, goals and interests; Issen turns the new words into spaced-repetition flashcards.",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "As the very first line it is abrupt: 'Now' and 'the same task' point back to a question about how they cope today that I was never asked, though asking how Issen works is a fair place to start my story.",
+        "why2": "I can answer it, but 'hold a real conversation from the first step to the last' muddles the job: Issen is where they practise speaking toward real conversations, not where they hold them, so I needed a second hearing.",
+        "why3": "How a learner uses Issen is exactly what I know best, since it is my product.",
+        "why5": "The steps are mine, but the readback drops the corrections during the conversation, the custom curriculum, and my line that it is not for someone starting from zero.",
+        "instead": "Walk me through a practice session with Issen: what does an intermediate learner do, from opening the app to the end of the conversation, and what do they come away with?"
+      },
+      {
+        "beat": "beat 2",
+        "said": "Keel asks: Before intermediate and advanced learners of a foreign language can use Issen this way, is there anything they must do first? A setup, training, a security review, data to send? Tell me, or say none.\nYou said: Before they can strt, they need to do a short intro talk before lessons start.\nKeel reads back: Before they can start: do a short intro talk before lessons start.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Right after describing how Issen does the conversation, it makes sense to ask what a learner must do before the first real session.",
+        "why2": "I can answer it at once, but 'a security review' and 'data to send' are business-software words; for a learner on a phone app they sound foreign.",
+        "why3": "I know exactly what comes first: the intro conversation, after which the curriculum is generated.",
+        "why5": "The readback keeps what I said, the short intro talk before lessons start, and only fixes my typo.",
+        "instead": "Before a learner can use Issen this way, is there anything they must do first, like an intro chat, a level test, or setting goals? Tell me, or say none."
+      },
+      {
+        "beat": "beat 3",
+        "said": "Keel asks: Today they ran into three things: a tutor is hard to schedule, it takes a few tries to find a tutor and apps reward streaks rather than conversation. Tell me how Issen solves them.\nYou said: Issen solves them like this. When they want to prractise speaking the language, the learner opens the app and holds a spoken conversation with an AI tutor that adapts to their levl, goasl and itnerests. What comes out is a full conversaion in the language, with corrrections and flashcards of the new words. A tutor is hard to schedule: Issen takes care of that. It takes a few tries to find a tutor: Issen takes care of that. Apps reward streaks rather than conversation: Issen taks care of that.\nKeel reads back: The learner opens the app and holds a spoken conversation with an AI tutor that adapts to their level, goals and interests, and gets corrections and flashcards of the new words.",
+        "r1": 1,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Asking how Issen answers the three pains I named is fair, but it comes right after the setup question and mostly re-asks the 'how does Issen do it' of beat 1, so I end up repeating my mechanism.",
+        "why2": "Scheduling, cycling through tutors and streak-chasing apps are my own words from the launch post, and I can answer on first hearing.",
+        "why3": "I know exactly how Issen meets each one: the AI tutor is there any time, there is no tutor to shop for, and every session is a real spoken conversation, not a streak.",
+        "why5": "The readback keeps the mechanism but drops the 'full conversation' outcome and says nothing about the three problems, so the per-problem answer the question asked for never reaches the board.",
+        "instead": "You named three things: tutors are hard to book, you go through a few before one fits, and apps reward streaks, not talking. For each, what does Issen do differently: practice any time with no booking, no tutor to shop for, and every session a real conversation?"
+      },
+      {
+        "beat": "beat 4",
+        "said": "Keel asks: In the problem, the cost to them was they rarely get to speak the language. Now, with Issen, what do they get instead? Tell me the opposite of that cost.\nYou said: Instead of they rarelly get to speak the language, they get speaking practice any time.\nKeel reads back: What they get: speaking practice any time.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Right after I said how Issen fixes the scheduling and the tutor hunt, it makes sense to ask what my learner gets in place of rarely speaking, and that cost is the one I named.",
+        "why2": "I can answer it on first hearing: 'they rarely get to speak' is my own phrase, and 'the opposite of that cost' is clear, if a little mechanical.",
+        "why3": "What my learner gets instead is the core of my pitch, so I can say it without guessing.",
+        "why5": "The readback 'speaking practice any time' is exactly what I said, and it matches my own advantage label.",
+        "instead": "In the problem, they rarely got to speak the language. With Issen, what do they get instead?"
+      },
+      {
+        "beat": "the verdict line",
+        "said": "After the film, Keel says: I will call this real if at least six in ten say it fits how they work, six in ten say it is better, and six in ten say they could start without trouble.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Closing on how Keel will judge the answers is exactly what belongs after the film, once the story of how Issen does the job is told.",
+        "why2": "'Fits how they work' is a workplace word for learners who practise rather than work, and 'better' does not say better than what (a tutor, ChatGPT voice, or not speaking at all).",
+        "why3": "I can judge whether six in ten is a fair bar for intermediate learners trying Issen, since it is a statement of the test, not a question I must guess at.",
+        "why5": "It drops my own terms: practising speaking, speaking more than with a booked tutor, and holding a whole spoken conversation with an AI tutor become generic 'work', 'better' and 'start'.",
+        "instead": "I will call this real if at least six in ten say it fits how they practise speaking, six in ten say it beats how they practise today, and six in ten say they could hold a whole conversation with an AI tutor without trouble."
+      },
+      {
+        "beat": "the pilot ask",
+        "said": "Then Keel asks: Now Issen is defined. Would you like to invite the people who finish the interview to try it as a pilot?",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Once the verdict is set and Issen is described, asking whether to let the people who finish the interview try it is the natural closing step.",
+        "why2": "It is answerable on first hearing, but 'pilot' is a B2B word; for a consumer app with a 20-minute free trial I would say 'free trial'.",
+        "why3": "Whether to offer my own product to respondents is my call and I know the answer.",
+        "why5": "There is no readback of content here, and 'Issen is defined' does not change anything I said.",
+        "instead": "Now Issen is defined. Would you like to offer the people who finish the interview Issen's free trial?"
+      }
+    ],
+    "means": {
+      "r1": 1.667,
+      "r2": 1.333,
+      "r3": 2.0,
+      "r5": 1.5
+    },
+    "zeros": {
+      "r1": 0,
+      "r2": 0,
+      "r3": 0,
+      "r5": 0
+    },
+    "founder_pct": 81.2,
+    "unread": []
+  },
+  "frames": {
+    "frames": [],
+    "pictures": [],
+    "folder": "runs/20261125T084949Z-film-walk/film/11-issen/solution"
+  },
+  "measures": {
+    "faults": [
+      {
+        "what": "the failed build says 'Today they ran into three things: a tutor is hard to schedule, it takes a few tries to find a tutor and apps reward streaks rather than conversation. Tell me how Issen solves them.', keel-web 263 FR-10 says 'Keel could not draw what it solves: Scenes 7-8 carry three ticks but never name the three limitations (scheduling, finding a tutor, streak apps) or say how each is solved; they just restate the workflow. Say that part again?'",
+        "owed": "keel-web 263 FR-10",
+        "detail": "Scenes 7-8 carry three ticks but never name the three limitations (scheduling, finding a tutor, streak apps) or say how each is solved; they just restate the workflow.",
+        "frame": null
+      },
+      {
+        "what": "the solution's build ended 'failed' (failedChapter solves, failedScene None: Scenes 7-8 carry three ticks but never name the three limitations (scheduling, finding a tutor, streak apps) or say how each is solved; they just restate the workflow.)",
+        "owed": "keel-cloud 271 FR-10 / 273 FR-3 / 275 FR-2",
+        "detail": "{\"pass\": false, \"rung\": \"claude-opus-5-5@medium\", \"failures\": [\"Scenes 7-8: the limitations (a tutor is hard to schedule, finding a tutor takes tries, apps reward streaks over conversation) are not named, so how each is solved is not shown; the ticks sit on a repeat of the workflow.\", \"Scene 7-8: th",
+        "frame": null
+      }
+    ],
+    "frames": 0,
+    "pictures": 0,
+    "missing": []
+  },
+  "dropped": [],
+  "project_id": "b2317654-3e66-48ed-84d3-df5d0f4c3a13",
+  "problem_project_id": "373f07da-1006-414a-8fbd-86faf9b96a70"
+}

@@ -1,0 +1,208 @@
+{
+  "entry": "14-code-four",
+  "kind": "solution",
+  "bundle": "20261125T084949Z-film-walk",
+  "cloud_sha": "c7079b59",
+  "web_sha": "336eb477",
+  "film_rubric_version": 1,
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "anthropic api",
+    "served_by": "claude-opus-5-5",
+    "fallback": []
+  },
+  "founder_reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 4.2127,
+  "film_cost_usd": 0.0383,
+  "founder_cost_usd": 4.1744,
+  "walk_usd": 0.1649,
+  "seconds": 61.5,
+  "scored_at": "2026-11-25T10:09:32+00:00",
+  "asked_again": false,
+  "entry_yaml": {
+    "sha256": "4ae06ffd7c618ec64293651bc72bddf1a32fd0d6f97e93c96ded6b27b58d34cb",
+    "matches_bundle": true
+  },
+  "persona_card": "The person (the entry's context, in the founder's words):\n  actor: patrol officer\n  actor_plural: patrol officers at small and mid-sized police departments\n  job: get every call written up as an accurate report\n  circumstance: a call is over and its body-cam footage still has to be turned into a written report\n  segment: patrol officers at US police, sheriff, transit and university departments of 10 to 200 officers\n  window: the last 7 days\n  where: US\n  role: Patrol officers -- a patrol officer or deputy who answers calls and writes the incident reports from them\n  today's way: Officers transcribe body-cam footage, fill in forms and find clips across 8 to 10 tools that do not talk to each other.\n\nThe founder's problem statement, whole (every limitation it names, and what it costs them):\n  Patrol officers lose about 40% of a typical shift to paperwork: transcribing body-cam footage, filling forms and finding clips across 8 to 10 tools that do not talk to each other. Reports pile up, officers fall behind and sit in the station instead of on the road; we have seen it on ride-alongs and in record rooms and in the hundreds of videos we have processed.",
+  "film": {
+    "kind": "solution",
+    "scores": {
+      "s1": 0,
+      "s2": 0,
+      "s3": 0,
+      "s4": 0,
+      "s5": 0,
+      "s6": 0,
+      "s7": 0,
+      "s8": 0,
+      "s9": 0
+    },
+    "whys": {
+      "s1": "The build served no scene, plate or frame, so no patrol officer and no Code Four amber (#c98a1b) or mark appears anywhere.",
+      "s2": "The founder named a setup (finding and deleting the check words in each draft), and no film exists to show it.",
+      "s3": "No step is shown: not the upload, not Code Four reading the video and audio, not the draft in the records format, not the review or the signing.",
+      "s4": "Neither limitation gets its tick, neither the 8 to 10 tools that do not talk nor the 40% of a shift lost to paperwork.",
+      "s5": "Nothing is said, so even the board's one real edge goes unsaid: each fact linked to its clip, in the department's own format.",
+      "s6": "The officer getting the report done in minutes instead of an hour, and back on the road instead of stuck in the station, is never shown.",
+      "s7": "There are no lines at all, so a stranger has nothing to read and cannot tell what the product is.",
+      "s8": "None of the five chapters exists, so a stranger could not tell what Code Four does for a patrol officer.",
+      "s9": "There is no caption, plate or frame to read on either the phone or the laptop."
+    },
+    "missing": [
+      "the 8 to 10 tools do not talk (tick)",
+      "paperwork takes about 40% of a typical shift (tick)",
+      "the product: Code Four, with its colour #c98a1b and its mark",
+      "the setup: find and delete the check words in each draft",
+      "step 1: upload the body-cam footage from a call",
+      "step 2: Code Four reads the video and the audio",
+      "step 3: Code Four drafts the narrative report in the department's records format",
+      "step 4: review the draft and remove the check words",
+      "step 5: sign the report",
+      "what it does: each fact linked to its clip",
+      "what they get: the report done in minutes, not an hour"
+    ],
+    "instead": {
+      "s1": "Show the same patrol officer from the problem film, in the same cruiser or station, with the Code Four amber and mark on every screen where the product appears.",
+      "s2": "Before the task, briefly show the officer learning that each draft carries check words that must be found and deleted before signing.",
+      "s3": "Show the officer uploading the call's body-cam footage, Code Four reading it, the draft appearing in the records format, the officer removing the check words, and the officer signing.",
+      "s4": "Mark the 8 to 10 tools that do not talk with a tick (one place instead of many), and mark the 40% of a shift lost to paperwork with a tick.",
+      "s5": "Say once, plainly, that every fact in the draft links back to its own clip.",
+      "s6": "End with the officer done in minutes, upright and back out on patrol, instead of hunched over reports in the station.",
+      "s7": "Write one short, plain caption per scene that a stranger reads at a glance, matched to its picture.",
+      "s8": "Build all five chapters in order: Before, The task, What it solves, Better, What they get, with the ticks in What it solves.",
+      "s9": "Render clear captions outside the pictures, uncut on both phone and laptop, with no lettering drawn inside the art."
+    },
+    "film_pct": 0.0,
+    "flagged": true
+  },
+  "founder": {
+    "beats": [
+      {
+        "beat": "beat 1",
+        "said": "Keel asks: Now I want to know how Code Four does the same task. With Code Four in their hands, how does a patrol officer get every call written up as an accurate report, from the first step to the last?\nYou said: The officer uploads the body-cam footage from a call and Code Four drafts the narrattive report from the vdieo and the audio, in the department's own records format, with evvery fact tied to the clip it came from and ceck wods the officer must catch, so the officer reveiws and signs instead of writing from scratch. After a call, when the body-cam footage from it is uploaded, the software reads the video and the audio and drafts the narrative report. What comes out is a draft in the department's records foramt, each fact linked to its clip, with check wrds to remove beffore it can be signed.\nKeel reads back: They upload the body-cam footage from a call; Code Four reads the video and the audio; Code Four drafts the narrative report in the department's records format; they review the draft and remove the check words; they sign the report.",
+        "r1": 1,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Asking how Code Four does the job is fair, but as the very first line, with 'Now' and 'the same task' pointing back to nothing said yet, it is abrupt before I have told it how officers write reports today.",
+        "why2": "It is put in my own words (patrol officer, every call written up as an accurate report), so I can answer it on first hearing.",
+        "why3": "How the product works, from footage in to a signed report, is exactly what I know best.",
+        "why5": "The steps are kept, but it drops that every fact links to its clip, which is half of how the officer checks the draft, and 'they' never says it is the officer.",
+        "instead": "First, tell me how Code Four works: once a call is over, how does a patrol officer go from the body-cam footage to a signed report, step by step?"
+      },
+      {
+        "beat": "beat 2",
+        "said": "Keel asks: Before patrol officers at small and mid-sized police departments can use Code Four this way, is there anything they must do first? A setup, training, a security review, data to send? Tell me, or say none.\nYou said: Before they can start, they need to find and delete the check words in each draftt.\nKeel reads back: Before they can start: find and delete the check words in each draft.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Right after asking how an officer writes a report with Code Four, it makes sense to ask what has to happen before they can start, such as our 48-hour setup or getting footage uploaded.",
+        "why2": "Setup, training, a security review and data to send are plain words in a police department, where a CJIS review is routine.",
+        "why3": "I know what onboarding takes: we fly out, set up within 48 hours, and connect the body-cam footage and the records system format.",
+        "why5": "The readback keeps my words and only fixes my typo.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 3",
+        "said": "Keel asks: Today they ran into two things: the 8 to 10 tools do not talk and paperwork takes about 40% of a typical shift. Tell me how Code Four solves them.\nYou said: Code Four solves them like this. After a call, when the body-cam footage from it is upladed, the software reads the video and the audio and draftts the narrative reoprt. What cmes out is a draft in the department's records foramt, each fact linked to its clip, with check worsd to remove before it can be signed. The 8 to 10 tools do not talk: Code Four takes care of that. Paperwork takkes about 40% of a typical shift: Code Four takes care of that.\nKeel reads back: After a call, when the body-cam footage is uploaded, Code Four reads the video and audio and drafts the narrative report in the department's records format, each fact linked to its clip, with check words to remove before signing.",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Tying the solution to the two problems I named makes sense, but it comes right after the setup question and mostly asks again for the mechanism I gave in beat 1, so I end up repeating the same drafting story.",
+        "why2": "I can answer it, but it bundles two different problems into one question, and 'the tools do not talk' is looser than how I'd say it, which is siloed systems where clips are hard to find.",
+        "why3": "How the footage becomes a draft, and how that cuts desk time and the hunt across systems, is exactly what I know about my product.",
+        "why5": "The readback keeps the mechanism word for word, but it drops which problem each part solves, so the board never shows how the siloed tools or the 40% of the shift are dealt with.",
+        "instead": "Beat 1 gave me the drafting; which part of it gets back the 40% of the shift, and which part ends the hunt for clips across the 8 to 10 systems?"
+      },
+      {
+        "beat": "beat 4",
+        "said": "Keel asks: In the problem, the cost to them was reports pile up and officers stay. Now, with Code Four, what do they get instead? Tell me the opposite of that cost.\nYou said: Instead of reports pile up and offices stay, they get the repot done in minutes, not an hour.\nKeel reads back: What they get: the report done in minutes, not an hour.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Right after I've said how Code Four works and what it solves, asking what officers get in place of the old cost is the natural next beat.",
+        "why2": "'reports pile up and officers stay' is clipped (stay where? past end of shift), so I have to hear it twice to know which cost Keel means.",
+        "why3": "I know what officers get: a report reviewed in minutes instead of written over an hour, and getting home on time.",
+        "why5": "The readback keeps my words, 'the report done in minutes, not an hour', and only fixes my typo.",
+        "instead": "Before, reports piled up and officers stayed past end of shift to write them; with Code Four, what do they get instead?"
+      },
+      {
+        "beat": "the verdict line",
+        "said": "After the film, Keel says: I will call this real if at least six in ten say it fits how they work, six in ten say it is better, and six in ten say they could start without trouble.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "After the film and the solution beats, saying how Keel will judge the officers' answers is the natural close, and it is what I expect at this point.",
+        "why2": "The thresholds are plain, but 'call this real' is vague (real what: the problem, or Code Four as the fix?), and 'they' never names patrol officers.",
+        "why3": "There is nothing for me to answer; it is a statement of the bar, and I can judge whether six in ten is the right bar for my officers.",
+        "why5": "The three tests (fits how they work, better, start without trouble) match the solution story I told: footage in, a draft to review instead of writing from scratch, and a pilot with no strings attached.",
+        "instead": "I will call Code Four a fit if at least six in ten patrol officers say it fits how they write up their calls, six in ten say it beats how they write reports today, and six in ten say they could start using it without trouble."
+      },
+      {
+        "beat": "the pilot ask",
+        "said": "Then Keel asks: Now Code Four is defined. Would you like to invite the people who finish the interview to try it as a pilot?",
+        "r1": 1,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Offering a free pilot fits how I sell, but it comes after Keel has already said how it will judge, so it lands as an afterthought rather than the close of the story.",
+        "why2": "Pilot is my own word and the question is a plain yes or no.",
+        "why3": "I know I want to offer free pilots, since I set agencies up in 48 hours with no strings attached.",
+        "why5": "Nothing I said is read back wrong; 'Code Four is defined' just marks the end of what I gave.",
+        "instead": "Before you tell me how you will judge, would you like to offer the officers who finish the interview a free pilot, set up through their chief?"
+      }
+    ],
+    "means": {
+      "r1": 1.5,
+      "r2": 1.5,
+      "r3": 2.0,
+      "r5": 1.667
+    },
+    "zeros": {
+      "r1": 0,
+      "r2": 0,
+      "r3": 0,
+      "r5": 0
+    },
+    "founder_pct": 83.3,
+    "unread": []
+  },
+  "frames": {
+    "frames": [],
+    "pictures": [],
+    "folder": "runs/20261125T084949Z-film-walk/film/14-code-four/solution"
+  },
+  "measures": {
+    "faults": [
+      {
+        "what": "the failed build says 'Give me a moment. I am drawing the day with Code Four in it.', keel-web 263 FR-10 says \"Keel could not draw what it solves: The two 'solves' scenes (8-9) restate how the product works with ticks. They never name the 8-10 tools not talking or the 40% of the shift, and give no explanation of how each is solved. Say that part again?\"",
+        "owed": "keel-web 263 FR-10",
+        "detail": "The two 'solves' scenes (8-9) restate how the product works with ticks. They never name the 8-10 tools not talking or the 40% of the shift, and give no explanation of how each is solved.",
+        "frame": null
+      },
+      {
+        "what": "the solution's build ended 'failed' (failedChapter solves, failedScene None: The two 'solves' scenes (8-9) restate how the product works with ticks. They never name the 8-10 tools not talking or the 40% of the shift, and give no explanation of how each is solved.)",
+        "owed": "keel-cloud 271 FR-10 / 273 FR-3 / 275 FR-2",
+        "detail": "{\"pass\": false, \"rung\": \"claude-opus-5-5@medium\", \"failures\": [\"limitations (scenes 8-9): the film never names the limits (the 8 to 10 tools not talking, paperwork taking about 40% of a shift) or shows how each is solved; it only repeats the product's steps.\", \"questions (scenes 8-9): the limitation",
+        "frame": null
+      }
+    ],
+    "frames": 0,
+    "pictures": 0,
+    "missing": []
+  },
+  "dropped": [],
+  "project_id": "70974189-6e4f-4feb-9856-dc6c756931ad",
+  "problem_project_id": "c0c5b7b1-cd75-4cfe-816d-74fffd87645a"
+}

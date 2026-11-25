@@ -1,0 +1,214 @@
+{
+  "entry": "09-karsa",
+  "kind": "problem",
+  "bundle": "20261125T084949Z-film-walk",
+  "cloud_sha": "c7079b59",
+  "web_sha": "336eb477",
+  "film_rubric_version": 1,
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "anthropic api",
+    "served_by": "claude-opus-5-5",
+    "fallback": []
+  },
+  "founder_reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 0.7877,
+  "film_cost_usd": 0.178,
+  "founder_cost_usd": 0.6097,
+  "walk_usd": 0.7893,
+  "seconds": 82.4,
+  "scored_at": "2026-11-25T10:09:32+00:00",
+  "asked_again": false,
+  "entry_yaml": {
+    "sha256": "7968f63b7c67bed0fa416c6a262951fac646f2233af4abd296375d4dc5ecef19",
+    "matches_bundle": true
+  },
+  "persona_card": "The person (the entry's context, in the founder's words):\n  actor: saver\n  actor_plural: people in Pakistan who earn in rupees and save\n  job: keep their savings from losing value\n  circumstance: they have rupees left over and want to turn them into dollars\n  segment: people in Pakistan who earn in rupees and have no foreign currency account\n  window: the last 3 months\n  where: US\n  role: Rupee savers -- a person in Pakistan who earns in rupees and tries to keep their savings in dollars\n  today's way: They buy dollars from exchange companies that ration them, or use Binance like a dollar account and pay a premium on every dollar.\n\nThe founder's problem statement, whole (every limitation it names, and what it costs them):\n  People in Pakistan who earn in rupees watch their savings lose 20-30% a year to inflation and cannot easily hold dollars — banks will not open a foreign currency account for most of them, exchange companies ration dollars, and the ones who manage it use Binance almost like a dollar checking account, paying a premium on every dollar; based on the founder's own family in Pakistan.",
+  "film": {
+    "kind": "problem",
+    "scores": {
+      "f1": 2,
+      "f2": 2,
+      "f3": 1,
+      "f4": 1,
+      "f5": 2,
+      "f6": 1,
+      "f7": 2,
+      "f8": 0
+    },
+    "whys": {
+      "f1": "A young man in a white shalwar kameez and grey waistcoat stands at a glass-windowed exchange counter in a busy bazaar with a mosque behind, and the clock reads late afternoon; this is recognisably a Pakistani rupee saver at a money changer, though he wears shoes rather than sandals.",
+      "f2": "Scene 2 shows him setting his rupee bundle (marked in the accent colour) on the counter to change it, and the line says he wants to turn it into dollars to keep his savings' value.",
+      "f3": "The exchange-company purchase is shown, but Binance used as a dollar account is only named; no phone or app ever appears.",
+      "f4": "Rationing and the bank refusal each get a scene, but the bank refusal is drawn at the exchange counter rather than a bank, the rationing is a faint dashed gap while the hand-over goes smoothly, and the Binance premium is merged with 'cannot easily hold dollars' into a leaning stack of dollars at the exchange counter that shows no premium.",
+      "f5": "Scene 7 has him slumped on a stool, head in hand, with a value crossed out and a lower one beneath it, and the line says his savings shrink with inflation.",
+      "f6": "Line 6 says two things (cannot hold dollars, and the Binance premium), and its picture shows neither Binance nor a premium being paid.",
+      "f7": "The lines run in order through who, task, today, three shortfalls, cost and ask, with chapter marks in place, so a stranger could tell what is being asked.",
+      "f8": "Dollar-sign symbols are drawn on the banknote stacks in scenes 1, 3 and 6, and a crescent-and-star mark is on the rupee bundle in scene 3, which puts text-like marks inside the pictures."
+    },
+    "missing": [
+      "Binance used as a dollar account (today's way) is never shown",
+      "the premium paid on every dollar through Binance is not shown in a scene of its own",
+      "the bank refusing a foreign currency account is shown at an exchange counter, not at a bank"
+    ],
+    "instead": {
+      "f3": "Split scene 3: one half at the exchange counter, the other with him at home on his phone, a plain lit screen holding his dollars, and the line 'Today you buy dollars from exchange companies, or keep them on Binance like a dollar account.'",
+      "f4": "Draw the bank refusal at a bank desk where the officer pushes his form back; draw the rationing as the changer handing back only a thin few notes from his large bundle; and give the Binance premium its own scene, with him on his phone watching a bigger pile of rupees go out for a small pile of dollars, under the line 'Binance charges a premium on every dollar.'",
+      "f6": "Split line 6 into 'You cannot easily hold dollars.' and 'Binance charges a premium on every dollar.', each over its own picture showing exactly that.",
+      "f8": "Draw every banknote as a plain rectangle with no dollar sign, crescent or star on it."
+    },
+    "film_pct": 68.8,
+    "flagged": true
+  },
+  "founder": {
+    "beats": [
+      {
+        "beat": "beat 1",
+        "said": "Keel asks: Who has this problem?\nYou said: People in Pakistan who earn in rupees and save, peopple in Pakistan who earn in rupees and have no foriegn currency account.\nKeel reads back: So it's people in Pakistan who earn in rupees, save, and have no foreign currency account.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Who has the problem is the natural first question when I start telling Keel about my customer.",
+        "why2": "Four plain words I can answer straight away in my own terms.",
+        "why3": "I know exactly who my savers are: people in Pakistan earning in rupees with no way into a dollar account.",
+        "why5": "The readback merges my two phrasings into one without losing rupee earnings, saving, or the missing foreign currency account, and drops my typos cleanly.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 2",
+        "said": "Keel asks: What are they trying to get done, and when does that happen?\nYou said: They need to keep thier savings from losing vlaue, when they have rupees left over and want to turn them into dollars.\nKeel reads back: They keep their savings from losing value, when they have rupees left over and want to turn them into dollars.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Right after who has the problem, asking what they are trying to do and when is the obvious next step in telling it.",
+        "why2": "It is two questions in one, the job and the moment; I could answer both in one breath, but it is double-barrelled.",
+        "why3": "I know exactly what my savers are after and when it bites: payday, rupees left over, wanting dollars.",
+        "why5": "Dropping 'need to' turns 'they need to keep their savings from losing value' into 'they keep their savings from losing value', which says they already manage it when the whole point is that they can't.",
+        "instead": "What are they trying to get done? And when does that come up for them?"
+      },
+      {
+        "beat": "beat 3",
+        "said": "Keel asks: How do they do it today, and where does that fall short? Tell me all of it.\nYou said: Today: They buy dollars from exchnage companies that ratino them, or use Binance like a dollar account and pay a prmeium on every dollar. People in Pakistan who earn in rupees watch their savings lose 20-30% a year to inflation and cannt easily hold dollars — banks will not open a foreign currncy account for most of them, exchange companies rationn dollars, and the ones who manage it use Binance almost like a dollar cecking account, paying a prmeium on every dollar; based on the founder's own family in Pakistan.\nKeel reads back: Today they buy dollars from exchange companies or use Binance; I heard three limitations: banks won't open foreign currency accounts; exchange companies ration dollars; Binance charges a premium on every dollar. Anything else?",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Right after who and what they're trying to do, asking how they get dollars today and where that fails is the obvious next question for my story.",
+        "why2": "It's two linked halves, but I can answer it at once in my own words: exchange companies, Binance, the premium, no dollar account.",
+        "why3": "I know exactly how my uncle and people like him get dollars today and what goes wrong, from family and from the launch thread.",
+        "why5": "The three limits are mine, but 'Binance charges a premium' drifts: Binance doesn't charge it, the P2P sellers price over the rate, and I said they pay a premium on every dollar.",
+        "instead": "Today they buy dollars from exchange companies or use Binance P2P like a dollar account; I heard three limits: banks won't open them a foreign currency account, exchange companies ration dollars, and on Binance they pay a premium over the rate on every dollar. Anything else?"
+      },
+      {
+        "beat": "beat 4",
+        "said": "Keel asks: And what does that cost them? What happens to them because of it?\nYou said: What it costs them: People in Pakistan who earn in rupees see their savings shrinnk with inflation and cannot get or keep dollars easiyl, so they ration what they can buy from exchange companies or daelers, or pay a premium to stranegrs on Binance.\nKeel reads back: I heard three: savings shrink with inflation; ration what they can buy; pay a premium to strangers on Binance. Which one should the strangers be asked about?",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Asking what the shortfall costs them is the obvious next beat after how they do it today and where it falls short.",
+        "why2": "I can answer what it costs my savers on first hearing: their savings shrink, they ration dollars, they pay a premium.",
+        "why3": "I know what inflation and the premium cost people in Pakistan who earn in rupees, so this is squarely what I know.",
+        "why5": "The three pieces mostly keep my words, but 'ration what they can buy' drops 'from exchange companies or dealers', and asking which one 'the strangers' should be asked about clashes with my 'strangers on Binance', so I can't tell whether it means my respondents or the Binance sellers.",
+        "instead": "I heard three: savings shrink with inflation; they ration the dollars they can buy from exchange companies or dealers; they pay a premium to strangers on Binance. Which one should the savers you ask be asked about?"
+      },
+      {
+        "beat": "beat 5",
+        "said": "Keel asks: Does it happen to all of them, or just to some?\nYou said: Some of them: people in Pakistan who earn in rupees and have no foriegn currency account.\nKeel reads back: People in Pakistan who earn in rupees and save, and have no foreign currency account, want to keep their savings from losing value when they have rupees left over and want to turn them into dollars. Right?",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Once I've said what it costs them, it makes sense to ask whether every rupee saver hits this or only the ones shut out of dollars; that's my comparable group.",
+        "why2": "'All of them, or just some' is plain, and I answered it at once with the people who have no foreign currency account.",
+        "why3": "I know who is structurally cut off from dollars in Pakistan and who isn't; that's the heart of why Karsa exists.",
+        "why5": "It kept my narrowing to those with no foreign currency account and fixed my typo; the 'want... want' is clunky but the meaning is mine.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 7",
+        "said": "Keel asks: Besides this, what else do they have to do in their role? Name two or three.\nYou said: Their other tasks: Deciding how much to keep back for bills; Getting the leftover rupees to earn sometthing; Making a payent abroad from Pakistan; Keeping cash at home safe.\nKeel reads back: Besides this, they decide how much to keep back for bills, make leftover rupees earn, pay abroad, and keep cash at home safe.",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Asking for the other money jobs that compete with this one makes sense once the problem is told, but it jumps from 'does it happen to all of them' with no bridge back to the savers' money.",
+        "why2": "I can answer it, but 'in their role' is a work word; my savers aren't in a role, they're people managing their household money.",
+        "why3": "I know what else my savers juggle with their rupees: bills, making the leftover earn, paying abroad, keeping cash safe.",
+        "why5": "It kept all four and fixed my typos, but 'make leftover rupees earn' loses 'something', and 'pay abroad' drops 'from Pakistan'.",
+        "instead": "Besides getting their savings into dollars, what else do they have to sort out with their money? Name two or three."
+      },
+      {
+        "beat": "the verdict line",
+        "said": "After the film, Keel says: I will call this real if at least six in ten say it happened, most of those say most times or every time, and most put it in their top two.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "At the end, after the film, it makes sense for Keel to tell me how it will judge the answers.",
+        "why2": "The six-in-ten and most-times parts are clear, but on first hearing I would ask top two of what, since it does not say top two among the things they have to do.",
+        "why3": "It asks nothing of me, and I can check the bar against what I know of savers in Pakistan.",
+        "why5": "It says 'this' instead of naming my problem, so it keeps none of my words about getting leftover rupees into dollars without a foreign currency account.",
+        "instead": "I will call this real if at least six in ten say that in the last 3 months they had rupees left over and tried to turn them into dollars, most of those say it happened most times or every time, and most put it in their top two of the things they have to do."
+      }
+    ],
+    "means": {
+      "r1": 1.857,
+      "r2": 1.571,
+      "r3": 2.0,
+      "r5": 1.286
+    },
+    "zeros": {
+      "r1": 0,
+      "r2": 0,
+      "r3": 0,
+      "r5": 0
+    },
+    "founder_pct": 83.9,
+    "unread": []
+  },
+  "frames": {
+    "frames": [
+      "frames/scene-1-phone.png",
+      "frames/scene-1-laptop.png",
+      "frames/scene-2-phone.png",
+      "frames/scene-2-laptop.png",
+      "frames/scene-3-phone.png",
+      "frames/scene-3-laptop.png",
+      "frames/scene-4-phone.png",
+      "frames/scene-4-laptop.png",
+      "frames/scene-5-phone.png",
+      "frames/scene-5-laptop.png",
+      "frames/scene-6-phone.png",
+      "frames/scene-6-laptop.png",
+      "frames/scene-7-phone.png",
+      "frames/scene-7-laptop.png"
+    ],
+    "pictures": [
+      "pictures/scene-1.png",
+      "pictures/scene-2.png",
+      "pictures/scene-3.png",
+      "pictures/scene-4.png",
+      "pictures/scene-5.png",
+      "pictures/scene-6.png",
+      "pictures/scene-7.png",
+      "pictures/sheet.png"
+    ],
+    "folder": "runs/20261125T084949Z-film-walk/film/09-karsa"
+  },
+  "measures": {
+    "faults": [],
+    "frames": 14,
+    "pictures": 8
+  },
+  "dropped": []
+}

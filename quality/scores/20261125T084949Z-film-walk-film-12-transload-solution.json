@@ -1,0 +1,217 @@
+{
+  "entry": "12-transload",
+  "kind": "solution",
+  "bundle": "20261125T084949Z-film-walk",
+  "cloud_sha": "c7079b59",
+  "web_sha": "336eb477",
+  "film_rubric_version": 1,
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "anthropic api",
+    "served_by": "claude-opus-5-5",
+    "fallback": []
+  },
+  "founder_reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 3.3117,
+  "film_cost_usd": 0.2259,
+  "founder_cost_usd": 3.0858,
+  "walk_usd": 0.9638,
+  "seconds": 78.0,
+  "scored_at": "2026-11-25T10:09:32+00:00",
+  "asked_again": false,
+  "entry_yaml": {
+    "sha256": "3374ea378d949f6782cf8a591df57f2f6e0c325d33fb8fee8cc6d316a5f54480",
+    "matches_bundle": true
+  },
+  "persona_card": "The person (the entry's context, in the founder's words):\n  actor: dock supervisor\n  actor_plural: dock supervisors at LTL cross-dock terminals\n  job: get every shipment billed at its true size without slowing the dock\n  circumstance: freight crosses the dock faster than it can be measured\n  segment: dock supervisors at LTL carriers' cross-dock terminals in the US\n  window: the last 5 working_days\n  where: US\n  role: Dock supervisors -- the supervisor who runs a shift on an LTL carrier's cross-dock and decides which freight gets measured\n  today's way: The terminal sends only a sample of shipments through the dimensioning station and bills the rest by the size on the paperwork.\n\nThe founder's problem statement, whole (every limitation it names, and what it costs them):\n  LTL carriers bill by the size the shipper writes on the paperwork, and roughly 10% of the shipments we check are bigger than declared, so the carrier undercharges and still gives up the trailer space. Busy cross-dock terminals only measure a sample, because sending freight through a dimensioning station adds forklift travel and dock congestion; based on talking to more than 50 trucking companies and Jago's family's LTL and cross-docking business.",
+  "film": {
+    "kind": "solution",
+    "scores": {
+      "s1": 2,
+      "s2": 1,
+      "s3": 1,
+      "s4": 2,
+      "s5": 2,
+      "s6": 2,
+      "s7": 1,
+      "s8": 1,
+      "s9": 2
+    },
+    "whys": {
+      "s1": "The same hard-hatted, hi-vis supervisor from the character sheet stands on the same cross-dock floor in every frame, and every product screen carries the #b8432f colour and round badge.",
+      "s2": "The founder named a setup (review flagged shipments, keep freight clear of the door cameras), but its own picture was dropped, so the caption plays over scene 1's frozen picture and the setup is only said, never shown.",
+      "s3": "Scan, link, 3D box and flag each get their own scene, but the security cameras that do the measuring never appear, and the 'flag' in scene 6 is drawn as green-light ticks beside a video icon, so it reads as an approval rather than an oversize warning.",
+      "s4": "All four limitations get a tick in #b8432f, in order, in a row beside the person.",
+      "s5": "The advantage, measuring every shipment in the background with no change to the dock workflow, is said once, plainly, in the Better scene.",
+      "s6": "The last scene shows the person upright, hand on hip, holding a list of ticks, with a line that is the opposite of the cost ('every undercharged shipment caught, not just a sample').",
+      "s7": "'The rest billed by the size' drops 'on the paperwork', so a stranger loses the point. The setup line sits over the wrong picture, 'This time, Transload is on the screen' is stiff, and the closing line lacks a full stop.",
+      "s8": "All five chapters run in order with the marks in place, but the Before chapter is thin because it has no picture of its own.",
+      "s9": "Captions are clear and uncut on both phone and laptop, and the pictures hold no letters or digits; barcodes and tape ticks are plain stripes."
+    },
+    "missing": [
+      "the setup picture: reviewing a flagged shipment and keeping freight from blocking the door cameras",
+      "the terminal's existing security cameras watching the freight, which is how Transload measures"
+    ],
+    "instead": {
+      "s2": "Draw the supervisor at a door, waving a pallet clear of a ceiling camera, with a flagged shipment open on the red screen in hand.",
+      "s3": "Show a ceiling security camera over the dock door catching the pallet as it is scanned, and in scene 6 mark the oversize shipment with a red flag or warning beside the video clip, not ticks.",
+      "s7": "Say 'The rest billed by the size on the paperwork.', open with 'Now Transload is on the dock with you.', and end the last line with a full stop.",
+      "s8": "Give Before its own picture of the setup so the first chapter stands as firmly as the others."
+    },
+    "film_pct": 77.8,
+    "flagged": false
+  },
+  "founder": {
+    "beats": [
+      {
+        "beat": "beat 1",
+        "said": "Keel asks: Now I want to know how Transload does the same task. With Transload in their hands, how does a dock supervisor get every shipment billed at its true size without slowing the dock, from the first step to the last?\nYou said: Software that measures every shipment in the backgroundd with the security camers already in the terminal: it links each barcode scan to the right freight in the video, fits a 3D box to it, and flags shipments bigger than thier paperwork with the viedo as evidence, with no cahnge to the dock workflow. When a dock wrker scans a shipment as it crosses the dock, its existingg security camreas link the scan to the freight in the video and fit a 3D box around it. What coms out is the shipment's length, width and height, with any shipment bigger than its paperwork flagged with video evidence.\nKeel reads back: They scan a shipment as it crosses the dock; Transload links each barcode scan to the right freight; Transload fits a 3D box around the freight; Transload flags shipments bigger than their paperwork with video evidence.",
+        "r1": 1,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Asking how my product does the job is the right thing to ask me, but as the very first line 'the same task' points back to a question about today's way that I was never asked, so it lands abruptly.",
+        "why2": "It is long because it repeats my job wording, but I can answer it on first hearing in my own words.",
+        "why3": "How Transload works on the dock, from the scan to the flag, is exactly what I know best.",
+        "why5": "The steps are mine, but the readback drops the terminal's existing security cameras, the length-width-height that comes out, and 'no change to the dock workflow', which are the heart of my pitch, and its 'They' blurs the dock worker who scans with the supervisor.",
+        "instead": "Before we get to how it's done today, walk me through how a dock supervisor gets every shipment billed at its true size with Transload, from the first scan to the flagged shipment."
+      },
+      {
+        "beat": "beat 2",
+        "said": "Keel asks: Before dock supervisors at LTL carriers' cross-dock terminals can use Transload this way, is there anything they must do first? A setup, training, a security review, data to send? Tell me, or say none.\nYou said: Before they can start, they need to review each shipment the system flas and keep freight from blokcing the door cameras.\nKeel reads back: Before they can start: review each shipment the system flags and keep freight from blocking the door cameras.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Right after asking how a dock supervisor uses Transload, it is natural to ask what they have to do before it works on their dock.",
+        "why2": "Setup, training, a security review and data to send are all plain words on a terminal, and I can answer on first hearing.",
+        "why3": "I know what our rollout asks of the dock: freight kept clear of the cameras over the doors, and someone acting on each flag.",
+        "why5": "The readback keeps both things I said, reviewing each flagged shipment and keeping freight from blocking the door cameras, and only fixes my typos.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 3",
+        "said": "Keel asks: Today they ran into four things: only a sample of shipments gets measured, sending freight through the station adds forklift travel, sending freight through the station adds dock congestion and the rest is billed by the size. Tell me how Transload solves them.\nYou said: Transload solves them like this. When a dock workerr scans a shipment as it crosses the dock, its exxisting security cammeras link the scan to the freight in the video and fit a 3D box around it. What comes out is the shipment's length, width and height, with any shipment biggger than its paperwork flagged with video evvidence. Only a sample of shipments gets measured: Transload takes care of that. Sending freight through the statino adds forklift travel: Transload takes care of that. Sending freight throuhg the statin adds dock congestion: Transload takes care of that. The rest is blled by the size: Transload takes care of that.\nKeel reads back: When a dock worker scans a shipment as it crosses the dock, Transload uses the existing security cameras to link the scan to the freight in the video, fit a 3D box, and flag shipments bigger than their paperwork.",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Asking how Transload answers today's problems fits after the mechanism and setup, but beat 1 already asked how it works, so it partly asks what I just said.",
+        "why2": "'The station' is not my word (I'd say the dimensioner), forklift travel and congestion are one problem split into two, and 'the rest is billed by the size' turns the real problem around: the rest is billed at the size the shipper wrote down.",
+        "why3": "How camera measurement removes sampling and the trip to the dimensioner is exactly what I know about my product.",
+        "why5": "The readback keeps the scan, the cameras, the 3D box and the flag, but drops the length, width and height output and the video evidence, and it never says which problem each part solves.",
+        "instead": "Today only a sample gets measured, the rest is billed at the size the shipper wrote down, and sending freight to the dimensioner adds forklift travel and dock congestion. How does Transload deal with that?"
+      },
+      {
+        "beat": "beat 4",
+        "said": "Keel asks: In the problem, the cost to them was oversized shipments are billed short. Now, with Transload, what do they get instead? Tell me the opposite of that cost.\nYou said: Instead of ovrsized shipments are billed short, they get every undercharged shipment caught, not just a sample.\nKeel reads back: What they get: every undercharged shipment caught, not just a sample.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "After asking how Transload solves the dock's problems, asking what the carrier gets in place of the billing loss is the obvious next step toward the value claim.",
+        "why2": "'The cost to them was oversized shipments are billed short' is broken grammar, and 'the opposite of that cost' makes me stop and translate before I answer.",
+        "why3": "I know exactly what they get: undercharged freight caught and rebilled, about $50k a site a month by our numbers.",
+        "why5": "The readback keeps my words exactly, 'every undercharged shipment caught, not just a sample', and fixes my typo without changing the meaning.",
+        "instead": "In the problem, freight bigger than its paperwork went out billed short. With Transload, what does the carrier get instead?"
+      },
+      {
+        "beat": "the verdict line",
+        "said": "After the film, Keel says: I will call this real if at least six in ten say it fits how they work, six in ten say it is better, and six in ten say they could start without trouble.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "After the film it is natural for Keel to say how it will judge the solution, and the three tests match what I just told it about fit, advantage and setup.",
+        "why2": "Six in ten, fits how they work, better, start without trouble: I hear it once and get it.",
+        "why3": "It is a statement of the bar, not a question, and I can see whether my dock supervisors would clear it.",
+        "why5": "It drops my words: better than what (measuring only a sample), fits how they work (cameras already over the doors, crew already scanning), and start without trouble (camera access and footage sign-off) all go generic.",
+        "instead": "I will call this real if six in ten say their cameras already cover the doors where the crew scans, six in ten say catching every undercharged shipment beats measuring a sample, and six in ten say they could get the camera footage cleared without trouble."
+      },
+      {
+        "beat": "the pilot ask",
+        "said": "Then Keel asks: Now Transload is defined. Would you like to invite the people who finish the interview to try it as a pilot?",
+        "r1": 1,
+        "r2": 1,
+        "r3": 1,
+        "r5": 2,
+        "why1": "A pilot offer is a sensible next step after the verdict, but it lands abruptly, with no readback of what I said before Keel says Transload is defined.",
+        "why2": "'Pilot' is my word, but 'Now Transload is defined' is Keel's own talk, and 'the people who finish the interview' leaves me unsure whether it means dock supervisors or managers.",
+        "why3": "I know I want pilots, but a dock supervisor can't put Transload on their terminal's cameras; the terminal manager decides, head office agrees, and IT has to review camera access, so I'd be guessing whether inviting supervisors gets a pilot started.",
+        "why5": "No readback here alters anything I said; it just names Transload as I described it.",
+        "instead": "Do you want Keel to offer a pilot at their terminal to the supervisors who say it fits, so you can take it to their terminal manager?"
+      }
+    ],
+    "means": {
+      "r1": 1.5,
+      "r2": 1.5,
+      "r3": 1.833,
+      "r5": 1.5
+    },
+    "zeros": {
+      "r1": 0,
+      "r2": 0,
+      "r3": 0,
+      "r5": 0
+    },
+    "founder_pct": 79.2,
+    "unread": []
+  },
+  "frames": {
+    "frames": [
+      "frames/plate-phone.png",
+      "frames/plate-laptop.png",
+      "frames/scene-1-phone.png",
+      "frames/scene-1-laptop.png",
+      "frames/scene-2-phone.png",
+      "frames/scene-2-laptop.png",
+      "frames/scene-3-phone.png",
+      "frames/scene-3-laptop.png",
+      "frames/scene-4-phone.png",
+      "frames/scene-4-laptop.png",
+      "frames/scene-5-phone.png",
+      "frames/scene-5-laptop.png",
+      "frames/scene-6-phone.png",
+      "frames/scene-6-laptop.png",
+      "frames/scene-7-phone.png",
+      "frames/scene-7-laptop.png",
+      "frames/scene-8-phone.png",
+      "frames/scene-8-laptop.png",
+      "frames/scene-9-phone.png",
+      "frames/scene-9-laptop.png",
+      "frames/scene-10-phone.png",
+      "frames/scene-10-laptop.png"
+    ],
+    "pictures": [
+      "pictures/scene-1.png",
+      "pictures/scene-3.png",
+      "pictures/scene-4.png",
+      "pictures/scene-5.png",
+      "pictures/scene-6.png",
+      "pictures/scene-7.png",
+      "pictures/scene-8.png",
+      "pictures/scene-9.png",
+      "pictures/scene-10.png",
+      "pictures/sheet.png"
+    ],
+    "folder": "runs/20261125T084949Z-film-walk/film/12-transload/solution"
+  },
+  "measures": {
+    "faults": [],
+    "frames": 22,
+    "pictures": 10,
+    "missing": [
+      2
+    ]
+  },
+  "dropped": [],
+  "project_id": "6bd66f9c-9db8-4544-be88-620300ad33b0",
+  "problem_project_id": "7dfe85ca-0bfc-4b88-8389-4f70a9ab0f2d"
+}

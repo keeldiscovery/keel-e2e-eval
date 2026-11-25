@@ -1,0 +1,222 @@
+{
+  "entry": "09-karsa",
+  "kind": "solution",
+  "bundle": "20261125T084949Z-film-walk",
+  "cloud_sha": "c7079b59",
+  "web_sha": "336eb477",
+  "film_rubric_version": 1,
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "anthropic api",
+    "served_by": "claude-opus-5-5",
+    "fallback": []
+  },
+  "founder_reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 1.3438,
+  "film_cost_usd": 0.2652,
+  "founder_cost_usd": 1.0786,
+  "walk_usd": 1.0292,
+  "seconds": 89.9,
+  "scored_at": "2026-11-25T10:09:32+00:00",
+  "asked_again": false,
+  "entry_yaml": {
+    "sha256": "7968f63b7c67bed0fa416c6a262951fac646f2233af4abd296375d4dc5ecef19",
+    "matches_bundle": true
+  },
+  "persona_card": "The person (the entry's context, in the founder's words):\n  actor: saver\n  actor_plural: people in Pakistan who earn in rupees and save\n  job: keep their savings from losing value\n  circumstance: they have rupees left over and want to turn them into dollars\n  segment: people in Pakistan who earn in rupees and have no foreign currency account\n  window: the last 3 months\n  where: US\n  role: Rupee savers -- a person in Pakistan who earns in rupees and tries to keep their savings in dollars\n  today's way: They buy dollars from exchange companies that ration them, or use Binance like a dollar account and pay a premium on every dollar.\n\nThe founder's problem statement, whole (every limitation it names, and what it costs them):\n  People in Pakistan who earn in rupees watch their savings lose 20-30% a year to inflation and cannot easily hold dollars — banks will not open a foreign currency account for most of them, exchange companies ration dollars, and the ones who manage it use Binance almost like a dollar checking account, paying a premium on every dollar; based on the founder's own family in Pakistan.",
+  "film": {
+    "kind": "solution",
+    "scores": {
+      "s1": 1,
+      "s2": 1,
+      "s3": 1,
+      "s4": 2,
+      "s5": 1,
+      "s6": 1,
+      "s7": 0,
+      "s8": 1,
+      "s9": 1
+    },
+    "whys": {
+      "s1": "The saver matches the character sheet at the same market exchange counter, and the amber screen appears wherever the product does, but in scenes 1 and 8 Karsa sits on the dealer's monitor, which makes it look like the exchange company's own app, and in scene 9 his hair drifts curlier.",
+      "s2": "The setup line comes first as the board asks, but the picture shows him tapping a checklist on his phone, with no photo and no payment, so nothing is uploaded.",
+      "s3": "All four steps get a scene and the escrow lock and wallet screens read well, but 'pay a verified local seller' is drawn as handing a cash bundle through the exchange window, not a bank transfer to a seller, and he hands over cash again in scenes 6, 8 and 9.",
+      "s4": "Scene 7 shows four amber ticks in board order for the four limitations, though they float unlabelled on the wall beside the dealer, so a stranger cannot tell which tick answers which limitation.",
+      "s5": "'At the market price' is said at the end of line 8 and again as all of line 9, and it never names what it beats (the Binance premium or the exchange-company rate).",
+      "s6": "He stands upright and smiling, but he holds a bundle of paper dollars, which contradicts the stablecoin wallet, and 'Dollars at a fair price' restates the price feature instead of the pain's opposite: savings that stop shrinking.",
+      "s7": "Line 2's 'Before that: you upload a photo of each payment' follows 'Karsa is on the screen' with no referent and reads as a one-time chore before starting, when it is proof sent with every payment; lines 7 and 8 also repeat steps 3-6, and 'stablecoins in escrow' is jargon a market saver may not parse.",
+      "s8": "All five chapters appear in order with the ticks in place, but because every picture keeps him paying cash at the exchange-company counter, a stranger may think Karsa is the dealer's app and not a way around the dealer.",
+      "s9": "The captions read cleanly on phone and laptop, but currency marks are drawn inside the pictures: '$' on the notes in scenes 1 and 5 and on the product screen in scene 5, and a crescent-and-star rupee note in scene 3."
+    },
+    "missing": [
+      "the bank transfer to a verified local seller (drawn as cash handed to the exchange dealer instead)",
+      "the photo of the payment being uploaded",
+      "the dollar stablecoins landing in a wallet in the saver's name as what he keeps (the ending shows paper dollars)",
+      "which tick answers which limitation (the four ticks carry no labels)"
+    ],
+    "instead": {
+      "s1": "Keep Karsa on the saver's own phone in every scene, never on the dealer's monitor, and hold the sheet's hair in scene 9.",
+      "s2": "Show him photographing a bank-transfer receipt with his phone and the amber screen accepting it, and say it as part of each payment, not as a one-time 'before'.",
+      "s3": "Draw step 4 as him sending a bank transfer from his phone to a seller marked verified, with no cash crossing the counter, and keep his hands empty of notes in scenes 6, 8 and 9.",
+      "s5": "Say the advantage once and against the old way, e.g. 'You pay the market price, not Binance's premium,' and drop it from line 8.",
+      "s6": "End on him at ease with the phone showing his dollar balance holding its value: 'Your savings keep their value.'",
+      "s7": "Drop 'Before that' and say 'With each payment, you send a photo of the transfer'; cut lines 7-8 down to one line per tick, in plain words such as 'digital dollars held safely until you pay'.",
+      "s8": "Move the saver away from the exchange window after scene 1 (home or a market bench, phone in hand) so the film shows Karsa replacing the counter.",
+      "s9": "Draw banknotes and the escrow lock as plain shapes with no '$' or crescent-and-star mark."
+    },
+    "film_pct": 50.0,
+    "flagged": true
+  },
+  "founder": {
+    "beats": [
+      {
+        "beat": "beat 1",
+        "said": "Keel asks: Now I want to know how Karsa does the same task. With Karsa in their hands, how does a saver keep their savings from losing value, from the first step to the last?\nYou said: An app that looks like a currency exchange: the saver chooses an ammount, pays a verified local seller by bank transfer or mobile walelt, and Karsa holds the seller's dollar stableocins in escrow and releases them to a wallet in the saver's name, with no jargon. When they have rupees to put into dollars, the saver choses an ammount and pays a verified local seller by bank transfer, whhile the app hollds the seller's dollar stablecoins in escrow. What comes out is dollar stablecoins released to a wallet in the saver's name, at the market prcie.\nKeel reads back: They choose an amount; they pay a verified local seller; Karsa holds the seller's dollar stablecoins in escrow; Karsa releases them to a wallet in the saver's name.",
+        "r1": 1,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Asking how Karsa works is fair, but as the very first question \"the same task\" points back to a telling of how savers do it today that we never had, so it lands abruptly.",
+        "why2": "Choosing an amount, paying a seller and getting dollars into a wallet is how I describe Karsa anyway, so I can answer it straight off.",
+        "why3": "This is my own product's flow, from escrow to release, and I know it end to end.",
+        "why5": "The four steps are kept, but it drops how they pay (bank transfer or mobile wallet) and that they buy at the market price, which is half of why it beats the dealers' premium.",
+        "instead": "Let's start with Karsa: when a saver has rupees left over, how do they get them into dollars with Karsa, from the first step to the last?"
+      },
+      {
+        "beat": "beat 2",
+        "said": "Keel asks: Before people in Pakistan who earn in rupees and save can use Karsa this way, is there anything they must do first? A setup, training, a security review, data to send? Tell me, or say none.\nYou said: Before they can start, they need to upload a phhoto of each payment.\nKeel reads back: Before they can start: upload a photo of each payment.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Right after I walked through how a saver uses Karsa, asking what they must do before the first purchase is the natural next step, and it's where KYC and setup come up.",
+        "why2": "I can answer it at once, but 'training' and 'a security review' are business-software words; my savers sign up with an ID card and link a bank or wallet.",
+        "why3": "I know exactly what a buyer must do before buying: we do KYC, they need a phone, and they need a bank account or payment app to send rupees to a seller.",
+        "why5": "The readback keeps my words, with only my typo fixed, so 'upload a photo of each payment' stands as I said it.",
+        "instead": "Before a saver can buy dollars on Karsa, is there anything they must do first, like sign up with their ID card or link a bank account or mobile wallet? Tell me, or say none."
+      },
+      {
+        "beat": "beat 3",
+        "said": "Keel asks: Today they ran into four things: banks will not open foreign currency accounts for most, exchange companies ration dollars, cannot easily hold dollars and binance charges a premium on every dollar. Tell me how Karsa solves them.\nYou said: Karsa solves them like this. When they have rupees to put into dollars, the saver chooes an amout and pays a verifeid local seller by bank transfer, while the app holds the seller's dollar stableccoins in escrow. What comes out is dollar stablecoins released to a wallet in the saver's name, at the marekt price. Banks will not open foriegn currency accounts for most: Karsa takes care of that. Exchange companeis ration dollars: Karsa takes care of that. Cannot easily hold dollars: Karsa takes care of that. Binance charges a premium on eery dollar: Karsa takes care of that.\nKeel asks again: The saver chooses an amount and pays a verified local seller by bank transfer, while Karsa holds the seller's dollar stablecoins in escrow and releases dollar stablecoins to a wallet in the saver's name, at the market price. I did not understand how banks will not open foreign currency accounts for most, exchange companies ration dollars, cannot easily hold dollars and binance charges a premium on every dollar is solved. Can you think about it?\nKeel reads back: The saver chooses an amount and pays a verified local seller by bank transfer, while Karsa holds the seller's dollar stablecoins in escrow and releases them to a wallet in the saver's name, at the market price.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "After the mechanism, it makes sense to ask how Karsa gets around the walls my savers hit today, and pushing back on four empty 'takes care of that' answers is fair.",
+        "why2": "Four obstacles in one breath is a lot, and the re-ask's 'I did not understand how banks will not open ... is solved' is garbled; also the premium is paid to P2P dealers over the official rate, not a 'binance' charge.",
+        "why3": "I can answer each one: no foreign currency account is needed because the stablecoins sit in a wallet we create, supply comes from a network of P2P sellers rather than rationed exchange companies, and sellers price near market for a 1% fee instead of a big premium.",
+        "why5": "The readback keeps my mechanism as I said it (amount, verified local seller, bank transfer, escrow, wallet in their name, market price) and rightly drops the empty 'takes care of that' lines.",
+        "instead": "You named four walls: no dollar account at the bank, exchange companies short of dollars, nowhere safe to hold them, and a big premium over the official rate. Take them one at a time: what does Karsa do about the bank account?"
+      },
+      {
+        "beat": "beat 4",
+        "said": "Keel asks: In the problem, the cost to them was savings shrink with inflation. Now, with Karsa, what do they get instead? Tell me the opposite of that cost.\nYou said: Instead of savings shrink with inflation, they get dollars at a fair prce.\nKeel reads back: What they get: dollars at a fair price.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "After how Karsa solves the four blockers, asking what they get in place of the cost is a natural next step for me.",
+        "why2": "\"Tell me the opposite of that cost\" is an odd frame: the true opposite of shrinking savings is savings that hold their value, but I answered with the fair price, so the wording pulled me sideways.",
+        "why3": "I know exactly what my savers get with Karsa: dollars at the market price that keep their value.",
+        "why5": "The readback keeps my words, \"dollars at a fair price\", with only my typo fixed.",
+        "instead": "Their savings were shrinking with inflation; with Karsa, what happens to those savings instead?"
+      },
+      {
+        "beat": "the verdict line",
+        "said": "After the film, Keel says: I will call this real if at least six in ten say it fits how they work, six in ten say it is better, and six in ten say they could start without trouble.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Right after the film and the solution beats, Keel says how it will judge, which is what I expect at the end.",
+        "why2": "It is easy to follow, but 'fits how they work' is a workplace phrase; my savers are saving rupees and buying dollars, not working, and 'better' does not say better than what.",
+        "why3": "It is a statement of the bar rather than a question, and I can check six in ten against what I know of my savers.",
+        "why5": "My words are gone: no Karsa, no savings, no dollars, and nothing of the bank, the rationing exchange companies or the Binance premium that 'better' should be measured against.",
+        "instead": "I will call this real if at least six in ten say Karsa fits how they save today, six in ten say it beats how they get dollars now, and six in ten say they could buy their first dollars through Karsa without trouble."
+      },
+      {
+        "beat": "the pilot ask",
+        "said": "Then Keel asks: Now Karsa is defined. Would you like to invite the people who finish the interview to try it as a pilot?",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Offering the finishers a way to try Karsa is a sensible close after the verdict, but 'Now Karsa is defined' lands abruptly and treats a live app as something still being specified.",
+        "why2": "It is a clear yes/no I can answer at once, but 'pilot' is a business-software word; for savers in Pakistan I would say 'try the app' or 'sign up and buy a first few dollars'.",
+        "why3": "Whether to invite people who finish the interview to try Karsa is my call and I know the answer.",
+        "why5": "There is no readback here, and nothing I said is changed; it only names Karsa as the thing to try.",
+        "instead": "That's Karsa as you told it. Would you like the people who finish the interview to get a link to try Karsa and buy a small first amount of dollars?"
+      }
+    ],
+    "means": {
+      "r1": 1.667,
+      "r2": 1.167,
+      "r3": 2.0,
+      "r5": 1.667
+    },
+    "zeros": {
+      "r1": 0,
+      "r2": 0,
+      "r3": 0,
+      "r5": 0
+    },
+    "founder_pct": 81.2,
+    "unread": []
+  },
+  "frames": {
+    "frames": [
+      "frames/plate-phone.png",
+      "frames/plate-laptop.png",
+      "frames/scene-1-phone.png",
+      "frames/scene-1-laptop.png",
+      "frames/scene-2-phone.png",
+      "frames/scene-2-laptop.png",
+      "frames/scene-3-phone.png",
+      "frames/scene-3-laptop.png",
+      "frames/scene-4-phone.png",
+      "frames/scene-4-laptop.png",
+      "frames/scene-5-phone.png",
+      "frames/scene-5-laptop.png",
+      "frames/scene-6-phone.png",
+      "frames/scene-6-laptop.png",
+      "frames/scene-7-phone.png",
+      "frames/scene-7-laptop.png",
+      "frames/scene-8-phone.png",
+      "frames/scene-8-laptop.png",
+      "frames/scene-9-phone.png",
+      "frames/scene-9-laptop.png",
+      "frames/scene-10-phone.png",
+      "frames/scene-10-laptop.png"
+    ],
+    "pictures": [
+      "pictures/scene-1.png",
+      "pictures/scene-2.png",
+      "pictures/scene-3.png",
+      "pictures/scene-4.png",
+      "pictures/scene-5.png",
+      "pictures/scene-6.png",
+      "pictures/scene-7.png",
+      "pictures/scene-8.png",
+      "pictures/scene-9.png",
+      "pictures/scene-10.png",
+      "pictures/sheet.png"
+    ],
+    "folder": "runs/20261125T084949Z-film-walk/film/09-karsa/solution"
+  },
+  "measures": {
+    "faults": [],
+    "frames": 22,
+    "pictures": 11,
+    "missing": []
+  },
+  "dropped": [],
+  "project_id": "2d44722d-d37a-4709-a9fa-4667c8f11e6d",
+  "problem_project_id": "e0e104b9-5153-40c8-855b-3138212b3bd9"
+}

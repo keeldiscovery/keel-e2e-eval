@@ -1,0 +1,216 @@
+{
+  "entry": "15-voltair",
+  "kind": "problem",
+  "bundle": "20261125T084949Z-film-walk",
+  "cloud_sha": "c7079b59",
+  "web_sha": "336eb477",
+  "film_rubric_version": 1,
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "anthropic api",
+    "served_by": "claude-opus-5-5",
+    "fallback": []
+  },
+  "founder_reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 4.9443,
+  "film_cost_usd": 0.181,
+  "founder_cost_usd": 4.7633,
+  "walk_usd": 0.6039,
+  "seconds": 81.8,
+  "scored_at": "2026-11-25T10:09:32+00:00",
+  "asked_again": false,
+  "entry_yaml": {
+    "sha256": "9cc350c2f18d77aff733945a98576ed6081e1e3df14154ec88a706d3ff7e33f6",
+    "matches_bundle": true
+  },
+  "persona_card": "The person (the entry's context, in the founder's words):\n  actor: lineman\n  actor_plural: linemen who inspect poles at US power utilities\n  job: confirm every pole and line is sound before it fails\n  circumstance: the poles on a circuit are due for inspection and have to be checked one by one from the ground\n  segment: linemen and line inspectors at US electric utilities and rural electric cooperatives\n  window: the last 3 months\n  where: US\n  role: Utility linemen -- a lineman or line inspector who patrols a utility's poles and lines and checks them from the ground\n  today's way: Linemen drive out on foot patrols with a clipboard or an iPad and check each pole with binoculars.\n\nThe founder's problem statement, whole (every limitation it names, and what it costs them):\n  The US has 7M miles of aging power lines, and most utilities inspect them with foot patrols: linemen drive out with a clipboard or an iPad and check each pole with binoculars. A lineman can inspect about 50-150 poles a day, yet even a small rural co-op of about 20 employees has about 50,000 poles, so a given pole is inspected about every 10 years. Helicopters cost $25k to get off the ground, and drone-in-a-box stations cost $250,000 a box and only reach about 15 miles.",
+  "film": {
+    "kind": "problem",
+    "scores": {
+      "f1": 2,
+      "f2": 1,
+      "f3": 2,
+      "f4": 0,
+      "f5": 2,
+      "f6": 1,
+      "f7": 1,
+      "f8": 2
+    },
+    "whys": {
+      "f1": "A lineman in a hard hat and hi-vis vest on a rural roadside, with wooden poles, a pickup on the verge, a sounding hammer, a clipboard, a tablet and binoculars under a mid-morning sun, reads as this person in this place.",
+      "f2": "The line names the task, but the picture is a lineman at a desk with a generic stack of papers landing, not the circuit's poles coming due for checking one by one.",
+      "f3": "Scene 3 shows the lineman on foot at the roadside checking a pole through binoculars, with the truck, clipboard and tablet nearby, and the line says it.",
+      "f4": "The 50-150 poles a day is shown as a single leaning pole rather than a slow pace, the 50,000 poles of a small co-op is missing, and helicopter and drone are merged into one coin-with-a-cross scene that drops the $250,000-a-box cost and never shows the 15-mile reach.",
+      "f5": "Scene 7 has its own picture of the lineman slumped with head in hands beside a pole and a crossed-off calendar, and the line says most poles go years without anyone confirming they are sound.",
+      "f6": "Line 6 packs two limitations into one caption, and line 4's leaning pole and line 5's weeks-calendar do not match a per-day count or a ten-year gap.",
+      "f7": "The beats run in order with the chapter marks in place, but without the 50,000-pole fleet the jump from 50-150 a day to once every 10 years is thin for a stranger.",
+      "f8": "Captions and chapter marks are fully readable on both the phone and the laptop, and the pictures carry no letters, digits or logos, only checkboxes and crosses."
+    },
+    "missing": [
+      "a small rural co-op of about 20 employees has about 50,000 poles",
+      "drone-in-a-box stations cost $250,000 a box",
+      "drone-in-a-box reaching only about 15 miles is said but not shown",
+      "only 50-150 poles a day is said but not shown as a pace against a long line of poles",
+      "helicopters costing $25k to get off the ground has no scene of its own"
+    ],
+    "instead": {
+      "f2": "Show the lineman at the truck receiving a circuit map of a long row of poles all marked due: \"A circuit's poles are due, and you must confirm every one is sound before it fails.\"",
+      "f4": "Give each limitation its own scene: the lineman a few poles in with dozens still ahead (\"You can check about 50-150 poles a day\"); a tiny co-op crew facing a vast field of poles (\"Even a 20-person co-op has about 50,000 poles\"); a grounded helicopter (\"Helicopters cost $25k to get off the ground\"); and a drone box whose reach circle covers only a few poles (\"Drone-in-a-box costs $250,000 a box and only reaches about 15 miles\").",
+      "f6": "Split line 6 into two captions, one per picture, and redraw line 4 as a pace (a few poles checked, a long row still waiting) and line 5 as years passing on one pole.",
+      "f7": "Add the beat \"A 20-person co-op has about 50,000 poles\" between the daily rate and \"So a given pole is inspected about every 10 years.\""
+    },
+    "film_pct": 68.8,
+    "flagged": true
+  },
+  "founder": {
+    "beats": [
+      {
+        "beat": "beat 1",
+        "said": "Keel asks: Who has this problem?\nYou said: Linemen who isnpect poles at US power utilities, linemen and line inspectors at US electric utilities and rural electtric cooperatives.\nKeel reads back: Got it: linemen and line inspectors at US electric utilities and rural electric cooperatives.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Who has the problem is the natural first thing to ask when I start telling Keel about my customer, before the job or the patrol.",
+        "why2": "Plain question, and I answered it at once in my own trade's words: linemen and line inspectors.",
+        "why3": "I know exactly who walks the poles: the linemen and inspectors at utilities and co-ops.",
+        "why5": "The readback keeps my segment word for word, linemen and line inspectors at US electric utilities and rural electric cooperatives, and drops only my repeated first phrasing and typos.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 2",
+        "said": "Keel asks: What are they trying to get done, and when does that happen?\nYou said: They need to conirm every pole and line is sound before it fails, when the poles on a cricuit are due for inspecction and have to be checked one by one from the ground.\nKeel reads back: You need to confirm every pole and line is sound before it fails, when a circuit's poles are due for inspection.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Right after who has the problem, asking what linemen are trying to get done and when is the natural next beat.",
+        "why2": "It's two parts, but they belong together, and I answered both on first hearing in my own words.",
+        "why3": "I know exactly what linemen are doing on a patrol and when the circuit comes due.",
+        "why5": "The readback drops 'checked one by one from the ground', which is the whole pain of the foot patrol, and it says 'You' when I meant the linemen.",
+        "instead": "They need to confirm every pole and line is sound before it fails, when a circuit's poles are due for inspection and have to be checked one by one from the ground."
+      },
+      {
+        "beat": "beat 3",
+        "said": "Keel asks: How do they do it today, and where does that fall short? Tell me all of it.\nYou said: Today: Linemen drive out on foot parols with a clipboard or an iPad and check each pole with binocluars. The US has 7M miles of aging power linnes, and most utilities inspect them with foot patrolss: linemen drive out with a clipborad or an iPad and chek each pole with binoculars. A lineman can inspect about 50-150 poles a day, yet even a samll rural co-op of about 20 employees has about 50,000 poles, so a given pole is inspected about every 10 years. Helicopters cost $25k to get off the groundd, and drone-in-a-box stations cost $250,000 a box and only reach aobut 15 miles.\nKeel reads back: Today they drive out on foot patrols and check each pole with binoculars; I heard four limitations: 50-150 poles a day, a pole inspected every 10 years, helicopters cost $25k, drone boxes reach 15 miles. Anything else?",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Once I've said who and what job, asking how they do it today and where it falls short is the obvious next step.",
+        "why2": "I can answer 'how do they do it today and where does that fall short' at once in my own words: foot patrols, binoculars, too many poles.",
+        "why3": "The foot patrol, the poles-per-day math, and the helicopter and drone-box costs are exactly what I know cold.",
+        "why5": "The readback drops the clipboard or iPad and the 50,000 poles a 20-person co-op carries, which is the real shortfall behind '50-150 poles a day'; it also loses the $250,000-a-box cost and calls everything 'limitations', a word I didn't use.",
+        "instead": "Today they drive out on foot patrols with a clipboard or iPad and binoculars; a lineman gets through 50-150 poles a day against 50,000 at even a small co-op, so a pole waits about 10 years; helicopters cost $25k a flight, and drone boxes cost $250,000 and reach only 15 miles. Anything else?"
+      },
+      {
+        "beat": "beat 4",
+        "said": "Keel asks: And what does that cost them? What happens to them because of it?\nYou said: What it costs them: Linemen at US utiliteis inspect poles on foot patrols with binouclars and a cehcklist and can cover only a few dozen to about a hundred and fifty poles a day, so most poles go years between inspections.\nKeel reads back: Most poles go years between inspections, because linemen can cover only a few dozen to about a hundred and fifty poles a day.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 1,
+        "r5": 2,
+        "why1": "Asking for the consequence right after how they do it today and where it falls short is the obvious next step in telling the problem.",
+        "why2": "It is two questions in one breath, and 'what happens to them' points at the linemen, when the real cost lands on the utility: rotted poles, dropped conductors, wildfires.",
+        "why3": "I can speak to the utility's cost (helicopters at $25k a flight, wildfires like Palisades), but what it costs the lineman personally I would only be guessing at.",
+        "why5": "The readback keeps my words: a few dozen to about 150 poles a day, so most poles go years between inspections.",
+        "instead": "And when a pole goes years without a proper look, what does that end up costing the utility?"
+      },
+      {
+        "beat": "beat 5",
+        "said": "Keel asks: Does it happen to all of them, or just to some?\nYou said: Some of them: linemen and line inspectors at US electric utilities and rural electric cooeratives.\nKeel reads back: Linemen and line inspectors at US electric utilities and rural electric cooperatives confirm every pole and line is sound before it fails, when a circuit's poles are due for inspection. Right?",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Narrowing down who has it makes sense after the cost, but it comes close to repeating beat 1's 'Who has this problem?', so it lands a little abruptly.",
+        "why2": "'All of them' leaves me to work out whether it means all linemen, all utilities or all poles, so I need a second hearing to know what I'm splitting.",
+        "why3": "I know the split: the linemen put on inspection patrols have it, while storm and construction crews mostly don't.",
+        "why5": "The readback keeps my segment words but drops the 'some' I said and turns it into the job sentence, so which ones have it is lost.",
+        "instead": "Is it every lineman, or only the ones put on inspection patrols this quarter, and not storm or construction crews?"
+      },
+      {
+        "beat": "beat 7",
+        "said": "Keel asks: Besides this, what else do they have to do in their role? Name two or three.\nYou said: Their oher tasks: Patrolling a feeder that tripped in a storm; Answering trouble calls whlie on patrol; Splitting the circuit among the crew on hand; Spotting trees growwing into the lines.\nKeel reads back: Besides this, they patrol tripped feeders, answer trouble calls, split circuits among the crew, and spot trees growing into lines.",
+        "r1": 1,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Asking what else competes for a lineman's day is fair before I say how much this matters, but it comes right after 'all of them or just some' with no bridge, so the turn is a bit sudden.",
+        "why2": "Plain question; I can name a lineman's other work straight off in our own words.",
+        "why3": "I know what else my linemen get pulled onto: storm patrols, trouble calls, short crews, trees in the lines.",
+        "why5": "The readback drops 'in a storm' and 'while on patrol', which carry my point that these pull them off inspection, and 'split circuits among the crew' reads like sectionalizing a circuit rather than dividing the patrol among the crew on hand.",
+        "instead": "Besides this, they patrol feeders that tripped in a storm, answer trouble calls while on patrol, split the circuit among the crew on hand, and spot trees growing into the lines."
+      },
+      {
+        "beat": "the verdict line",
+        "said": "After the film, Keel says: I will call this real if at least six in ten say it happened, most of those say most times or every time, and most put it in their top two.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "At the end, after the film, it makes sense for Keel to say how it will judge the answers, and the bar follows from my 'most of them' and the patrol coming round most months.",
+        "why2": "'it happened' and 'top two' need a second hearing, since I have to work out that 'it' is poles going unchecked on a patrol and that 'top two' means among the duties I named in beat 7.",
+        "why3": "I can judge this bar from what I know: most linemen get put on patrol in a quarter, the shortfall comes up on most patrols, and I know whether they rank it above storm work and trouble calls.",
+        "why5": "The six in ten and 'most times' match what I said, but my problem shrinks to 'it', so I can't hear my own words (poles due on a circuit that don't get checked properly) in the bar.",
+        "instead": "I will call this real if at least six in ten linemen say poles on their patrol went unchecked properly in the last 3 months, most of those say it happens most patrols or every patrol, and most rank it in their top two next to storm work, trouble calls and tree trimming."
+      }
+    ],
+    "means": {
+      "r1": 1.714,
+      "r2": 1.571,
+      "r3": 1.857,
+      "r5": 1.286
+    },
+    "zeros": {
+      "r1": 0,
+      "r2": 0,
+      "r3": 0,
+      "r5": 0
+    },
+    "founder_pct": 80.4,
+    "unread": []
+  },
+  "frames": {
+    "frames": [
+      "frames/scene-1-phone.png",
+      "frames/scene-1-laptop.png",
+      "frames/scene-2-phone.png",
+      "frames/scene-2-laptop.png",
+      "frames/scene-3-phone.png",
+      "frames/scene-3-laptop.png",
+      "frames/scene-4-phone.png",
+      "frames/scene-4-laptop.png",
+      "frames/scene-5-phone.png",
+      "frames/scene-5-laptop.png",
+      "frames/scene-6-phone.png",
+      "frames/scene-6-laptop.png",
+      "frames/scene-7-phone.png",
+      "frames/scene-7-laptop.png"
+    ],
+    "pictures": [
+      "pictures/scene-1.png",
+      "pictures/scene-2.png",
+      "pictures/scene-3.png",
+      "pictures/scene-4.png",
+      "pictures/scene-5.png",
+      "pictures/scene-6.png",
+      "pictures/scene-7.png",
+      "pictures/sheet.png"
+    ],
+    "folder": "runs/20261125T084949Z-film-walk/film/15-voltair"
+  },
+  "measures": {
+    "faults": [],
+    "frames": 14,
+    "pictures": 8
+  },
+  "dropped": []
+}

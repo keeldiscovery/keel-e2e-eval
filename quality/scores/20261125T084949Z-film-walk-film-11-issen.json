@@ -1,0 +1,210 @@
+{
+  "entry": "11-issen",
+  "kind": "problem",
+  "bundle": "20261125T084949Z-film-walk",
+  "cloud_sha": "c7079b59",
+  "web_sha": "336eb477",
+  "film_rubric_version": 1,
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "anthropic api",
+    "served_by": "claude-opus-5-5",
+    "fallback": []
+  },
+  "founder_reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 1.7522,
+  "film_cost_usd": 0.1751,
+  "founder_cost_usd": 1.5771,
+  "walk_usd": 0.6798,
+  "seconds": 73.3,
+  "scored_at": "2026-11-25T10:09:32+00:00",
+  "asked_again": false,
+  "entry_yaml": {
+    "sha256": "553f8090c7f957bd0f8a1a896aa1623a1a5d915388cc771592766d58b94b6166",
+    "matches_bundle": true
+  },
+  "persona_card": "The person (the entry's context, in the founder's words):\n  actor: language learner\n  actor_plural: intermediate and advanced learners of a foreign language\n  job: become able to hold a real conversation in the language\n  circumstance: they want to practise speaking the language\n  segment: adults in the US learning a foreign language at intermediate level or above, not starting from zero\n  window: the last 7 days\n  where: US\n  role: Language learners -- an adult learning a foreign language at intermediate level or above who wants to speak it\n  today's way: They book a tutor at about $20 an hour when they can schedule one, and otherwise practise alone in apps that reward streaks.\n\nThe founder's problem statement, whole (every limitation it names, and what it costs them):\n  Intermediate and advanced learners of a foreign language struggle to get enough speaking practice: a tutor costs about $20 an hour, is hard to schedule, and it often takes a few tries to find a tutor you like, so most practice happens alone in apps that reward streaks rather than conversation; based on our own years of learning Japanese and French.",
+  "film": {
+    "kind": "problem",
+    "scores": {
+      "f1": 2,
+      "f2": 2,
+      "f3": 2,
+      "f4": 1,
+      "f5": 2,
+      "f6": 1,
+      "f7": 2,
+      "f8": 2
+    },
+    "whys": {
+      "f1": "The learner sits at an evening home desk in a sweater and over-ear headphones, with a laptop video call, a vocabulary notebook, tea, a lamp and a dictionary, which is exactly where such a learner practises speaking.",
+      "f2": "Scene 2 drops orange speech bubbles on the desk as the line names the goal of holding a real conversation, so the task is both shown and said.",
+      "f3": "Scene 3's thought bubbles show a tutor on a video call on one side and a streak-flame app on the other, while the line names both ways of practising today.",
+      "f4": "Scheduling, finding a tutor and streak apps each get their own scene, but the founder's first limitation, that a tutor costs about $20 an hour, has no scene at all.",
+      "f5": "Scene 7 shows the learner slumped with head in hands and says they rarely get to speak, though the tutor sitting live on the laptop screen softens the sense that no conversation happens.",
+      "f6": "Line 5 drops 'you like', so it reads as if any tutor is hard to find rather than a good fit, and scene 6 puts a live tutor call next to the streak flames, which muddies 'rather than conversation'.",
+      "f7": "The lines run who, task, today, three shortfalls, cost and ask, with chapter marks in the right places, so a stranger could answer whether this happened to them.",
+      "f8": "Captions and chapter marks read cleanly on both the phone and the laptop, and the pictures carry no letters, digits or logos, only plain icon glyphs (question marks, a phone handset)."
+    },
+    "missing": [
+      "A tutor costs about $20 an hour (no scene shows or says the price)"
+    ],
+    "instead": {
+      "f4": "Add a scene before scheduling: the learner looks at a booking screen with an orange stack of plain banknotes beside it, with the line 'A tutor costs about $20 an hour.'",
+      "f6": "Say 'It takes a few tries to find a tutor you like.' and draw scene 6 with only the app's streak flames on the laptop, no tutor on screen, beside the dashed, empty conversation page."
+    },
+    "film_pct": 87.5,
+    "flagged": false
+  },
+  "founder": {
+    "beats": [
+      {
+        "beat": "beat 1",
+        "said": "Keel asks: Who has this problem?\nYou said: Intermediate and advanced learners of a foreign language, adults in the US learning a foriegn language at intermediate level or abovve, not starting from zero.\nKeel reads back: So it's intermediate and advanced learners of a foreign language, adults in the US, not starting from zero.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "The first thing to pin down is who has the problem, so opening with it is the obvious start.",
+        "why2": "A plain four-word question I can answer at once in my own words.",
+        "why3": "I know exactly who Issen is for: B1+ learners, not beginners, which I've said publicly.",
+        "why5": "The readback keeps intermediate and advanced, adults, US, and not starting from zero, and only drops the repeated 'intermediate level or above', which the first phrase already says.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 2",
+        "said": "Keel asks: What are they trying to get done, and when does that happen?\nYou said: They need to become able to hold a real conversation in the langugae, when they want to practise speaking the lagnuage.\nKeel reads back: They want to hold a real conversation in the language, and it comes up when they want to practise speaking it.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Right after who has the problem, asking what they are trying to get done is the obvious next step in telling the story.",
+        "why2": "It asks two things in one breath, the job and when it comes up, so I answered both but had to split it in my head first.",
+        "why3": "I know exactly what my learners are after and when they reach for practice; it is the reason we built Issen.",
+        "why5": "The readback says they 'want to hold a real conversation', which drops 'become able to'; the job is getting to fluency, not having one conversation, though the 'when' is kept.",
+        "instead": "Keel asks: What are they trying to get done? (and when it comes up as its own question), reading back: They want to become able to hold a real conversation in the language."
+      },
+      {
+        "beat": "beat 3",
+        "said": "Keel asks: How do they do it today, and where does that fall short? Tell me all of it.\nYou said: Today: They book a tutor at about $20 an hour when they can schedue one, and otherwise practise allone in apps that reward strreaks. Intermediate and avanced learners of a foreign language struggle to get enough speaking practice: a tutor costss about $20 an hour, is hard to schedule, and it offten takes a few tries to find a tutor you like, so most practice happns alone in apps that reward streaks rather than conversation; based on our own years of learning Japanese and French.\nKeel reads back: Today they book a tutor or practise alone in apps; I heard three limitations: a tutor is hard to schedule; it takes a few tries to find one you like; apps reward streaks, not conversation. Anything else?",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "After who and what/when, asking how they manage today and where that falls short is the obvious next beat in telling the story.",
+        "why2": "It is two parts, but they belong together; I answered both in one breath in my own words, with no second hearing needed.",
+        "why3": "Tutors, scheduling, cycling through tutors and streak apps are things I know from my own years learning Japanese and French and from our learners.",
+        "why5": "The readback keeps the scheduling, the few tries to find a tutor and the streaks, but it drops the cost, the $20 an hour I named first, which is the main reason a learner books so few lessons.",
+        "instead": "Today they book a tutor at about $20 an hour when they can, or practise alone in streak apps; I heard four limitations: a tutor costs about $20 an hour, is hard to schedule, takes a few tries to find one you like, and the apps reward streaks, not conversation. Anything else?"
+      },
+      {
+        "beat": "beat 4",
+        "said": "Keel asks: And what does that cost them? What happens to them because of it?\nYou said: What it cots them: Intermediate and advanced learners of a foriegn language want to speak it but rarely get to: a tutor is paid by the hour and hard to schedule, so practice falls back on solo apps that keep strekas without building convrsation.\nKeel reads back: They want to speak the language but rarely get to; practice falls back on solo apps that keep streaks without building conversation.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Right after I describe how they practise today and where it falls short, asking what that shortfall costs them is the obvious next step.",
+        "why2": "Both halves ask the same thing, the cost and its consequence, in plain words I'd use about my learners.",
+        "why3": "I know it: tutors run $80 to $160 a month at about $20 an hour, and without that, learners keep streaks but never get to hold a real conversation.",
+        "why5": "The readback drops 'a tutor is paid by the hour and hard to schedule', which is the money and scheduling cost I was naming, and keeps only the fallback to solo apps.",
+        "instead": "Read back: They want to speak the language but rarely get to; a tutor is paid by the hour and hard to schedule, so practice falls back on solo apps that keep streaks without building conversation."
+      },
+      {
+        "beat": "beat 5",
+        "said": "Keel asks: Does it happen to all of them, or just to some?\nYou said: Some of them: adults in the US learning a foriegn language at intermediate levvel or above, not starting from zero.\nKeel reads back: Adults in the US learning a foreign language at intermediate level or above, not starting from zero, hold a real conversation in the language when they want to practise speaking it. Right?",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 0,
+        "why1": "Asking how widespread the problem is makes sense after the cost, but coming right after 'who has this problem' it sounds like Keel is asking for the segment again, which is why I answered with the segment.",
+        "why2": "'It' is vague after four beats: I can't tell whether it means wanting to practise, not finding anyone to speak with, or the cost, so I'd need to hear it again.",
+        "why3": "I know that most of my intermediate learners who want to speak can't get enough speaking practice, so I can answer this.",
+        "why5": "The readback turns the job into something they already do ('hold a real conversation when they want to practise'), which is the opposite of the problem, and it drops my 'some of them', so it answers nothing about how many.",
+        "instead": "Of those intermediate learners who want to practise speaking, does it happen to most of them that they can't get enough speaking practice, or only to a few?"
+      },
+      {
+        "beat": "beat 7",
+        "said": "Keel asks: Besides this, what else do they have to do in their role? Name two or three.\nYou said: Their other tasks: Remembering the new words; Understanding native speakers at full seed; Getting the garmmar right; Fitting a practice session into the day.\nKeel reads back: Besides this, they are remembering new words, understanding native speakers at full speed, getting the grammar right, and fitting practice into the day.",
+        "r1": 1,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Asking what else competes for a learner's effort makes sense once I've said who it hits, but the jump from 'does it happen to all of them' to 'besides this' is abrupt, and 'this' isn't tied back to speaking practice.",
+        "why2": "'In their role' is a job-and-workplace phrase; a language learner doesn't have a role, so I had to translate it to 'what else do they have to work on in learning the language' before answering.",
+        "why3": "Yes, I know the other things my learners struggle with (vocabulary, keeping up with natives, grammar, finding time) from my own learning and from the people I've talked to.",
+        "why5": "The readback keeps all four of my items, fixes my typos ('seed', 'garmmar') without changing the meaning, and 'fitting practice into the day' is still my point.",
+        "instead": "Besides speaking practice, what else do they have to work on to learn the language? Name two or three."
+      },
+      {
+        "beat": "the verdict line",
+        "said": "After the film, Keel says: I will call this real if at least six in ten say it happened, most of those say most times or every time, and most put it in their top two.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Closing the interview by saying how the answers will be judged is exactly where this belongs, after the story and the other things they juggle have been told.",
+        "why2": "I follow it, but 'it happened' and 'top two' make me pause: top two of what, and which 'it', the wanting to practise or the not finding anyone to speak with?",
+        "why3": "I can judge these bars from what I know: most of my intermediate learners want to speak most days, and the scheduling and cost pain ranks high next to vocabulary and grammar.",
+        "why5": "Six in ten matches my 'most' and the frequency fits, but the readback drops my words, so it never says it is practising speaking or finding someone to speak with when it suits.",
+        "instead": "I will call this real if at least six in ten say they wanted to practise speaking in the last 7 days, most of those on most days, and most put finding someone to speak with when it suits in their top two, ahead of vocabulary, grammar or keeping up with natives."
+      }
+    ],
+    "means": {
+      "r1": 1.714,
+      "r2": 1.429,
+      "r3": 2.0,
+      "r5": 1.143
+    },
+    "zeros": {
+      "r1": 0,
+      "r2": 0,
+      "r3": 0,
+      "r5": 1
+    },
+    "founder_pct": 78.6,
+    "unread": []
+  },
+  "frames": {
+    "frames": [
+      "frames/scene-1-phone.png",
+      "frames/scene-1-laptop.png",
+      "frames/scene-2-phone.png",
+      "frames/scene-2-laptop.png",
+      "frames/scene-3-phone.png",
+      "frames/scene-3-laptop.png",
+      "frames/scene-4-phone.png",
+      "frames/scene-4-laptop.png",
+      "frames/scene-5-phone.png",
+      "frames/scene-5-laptop.png",
+      "frames/scene-6-phone.png",
+      "frames/scene-6-laptop.png",
+      "frames/scene-7-phone.png",
+      "frames/scene-7-laptop.png"
+    ],
+    "pictures": [
+      "pictures/scene-1.png",
+      "pictures/scene-2.png",
+      "pictures/scene-3.png",
+      "pictures/scene-4.png",
+      "pictures/scene-5.png",
+      "pictures/scene-6.png",
+      "pictures/scene-7.png",
+      "pictures/sheet.png"
+    ],
+    "folder": "runs/20261125T084949Z-film-walk/film/11-issen"
+  },
+  "measures": {
+    "faults": [],
+    "frames": 14,
+    "pictures": 8
+  },
+  "dropped": []
+}

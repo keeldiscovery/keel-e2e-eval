@@ -1,0 +1,216 @@
+{
+  "entry": "14-code-four",
+  "kind": "problem",
+  "bundle": "20261125T084949Z-film-walk",
+  "cloud_sha": "c7079b59",
+  "web_sha": "336eb477",
+  "film_rubric_version": 1,
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "anthropic api",
+    "served_by": "claude-opus-5-5",
+    "fallback": []
+  },
+  "founder_reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 3.8462,
+  "film_cost_usd": 0.1903,
+  "founder_cost_usd": 3.6559,
+  "walk_usd": 0.9304,
+  "seconds": 68.4,
+  "scored_at": "2026-11-25T10:09:32+00:00",
+  "asked_again": false,
+  "entry_yaml": {
+    "sha256": "4ae06ffd7c618ec64293651bc72bddf1a32fd0d6f97e93c96ded6b27b58d34cb",
+    "matches_bundle": true
+  },
+  "persona_card": "The person (the entry's context, in the founder's words):\n  actor: patrol officer\n  actor_plural: patrol officers at small and mid-sized police departments\n  job: get every call written up as an accurate report\n  circumstance: a call is over and its body-cam footage still has to be turned into a written report\n  segment: patrol officers at US police, sheriff, transit and university departments of 10 to 200 officers\n  window: the last 7 days\n  where: US\n  role: Patrol officers -- a patrol officer or deputy who answers calls and writes the incident reports from them\n  today's way: Officers transcribe body-cam footage, fill in forms and find clips across 8 to 10 tools that do not talk to each other.\n\nThe founder's problem statement, whole (every limitation it names, and what it costs them):\n  Patrol officers lose about 40% of a typical shift to paperwork: transcribing body-cam footage, filling forms and finding clips across 8 to 10 tools that do not talk to each other. Reports pile up, officers fall behind and sit in the station instead of on the road; we have seen it on ride-alongs and in record rooms and in the hundreds of videos we have processed.",
+  "film": {
+    "kind": "problem",
+    "scores": {
+      "f1": 1,
+      "f2": 2,
+      "f3": 1,
+      "f4": 1,
+      "f5": 1,
+      "f6": 1,
+      "f7": 1,
+      "f8": 2
+    },
+    "whys": {
+      "f1": "A patrol officer in vest, body cam and shoulder radio at a dash-mounted laptop in a cruiser at night is right, but the steering wheel sits on the wrong side for a US car, and a wall clock floats inside the cab in scenes 3 and 6, which an officer would notice.",
+      "f2": "Scene 2 shows the laptop with a page and a footage strip arriving, and the line says a report must come from the body-cam footage, right after the call.",
+      "f3": "The line names transcribing, forms and clips across 8 to 10 tools, but the picture only shows the officer typing at a blank screen beside a clipboard, with no footage being transcribed, no clips searched and no pile of separate tools.",
+      "f4": "The tools-do-not-talk limitation gets a clear scene. But the 40% of the shift is drawn as a paper stack with no time shown. Scene 6 spends a 'falls short' slot on a ringing phone and a clock that the founder never named. Falling behind on the road is not its own beat.",
+      "f5": "Scene 7 shows the officer drooping and tired beside a towering stack, but 'you stay' is not the founder's cost, which is falling behind and sitting in the station instead of on the road. The picture keeps him in the car.",
+      "f6": "Most lines are short and plain, but 'Reports pile up, and you stay' leaves a stranger asking stay where. Line 6 repeats line 3 over a ringing-phone picture it does not match.",
+      "f7": "The order runs who, task, today, short, cost, ask, and a stranger can answer. But scene 6 is a filler beat under 'where it falls short', and the cost beat is thin.",
+      "f8": "Captions and chapter marks read cleanly on both frames, and no letters, digits or logos appear inside any picture."
+    },
+    "missing": [
+      "paperwork eating about 40% of the shift shown as time lost (a shift clock with most of it gone), not just a stack",
+      "officers sitting in the station instead of on the road",
+      "transcribing body-cam footage and hunting clips shown on screen, across many separate tools"
+    ],
+    "instead": {
+      "f1": "Put the officer in the driver's seat on the left with the wheel in front of him, laptop on the mount to his right, and drop the floating wall clock from the cruiser cab.",
+      "f3": "Scene 3: the laptop shows a playing body-cam clip beside a half-typed report, with several separate app windows open. Line: 'You transcribe the body-cam footage, fill in forms, and find clips across 8 to 10 tools.'",
+      "f4": "Scene 5: a shift clock with nearly half its face in the accent colour while he types. Line: 'Paperwork takes about 40% of a typical shift.' Replace scene 6 with him at a station desk while the cruiser sits empty outside. Line: 'You fall behind and sit in the station, not on the road.'",
+      "f5": "Scene 7: the officer slumped at a station desk behind a leaning pile of unwritten reports, the radio calling the shift out without him. Line: 'Reports pile up, you fall behind, and you sit in the station instead of on the road.'",
+      "f6": "Change line 7 to 'Reports pile up, and you sit in the station instead of on the road', and give line 6 its own limitation instead of repeating line 3.",
+      "f7": "Cut the ringing-phone beat and give the slot to the station-instead-of-road cost, so each 'where it falls short' mark holds a limitation the founder named."
+    },
+    "film_pct": 62.5,
+    "flagged": false
+  },
+  "founder": {
+    "beats": [
+      {
+        "beat": "beat 1",
+        "said": "Keel asks: Who has this problem?\nYou said: Patrol officers at small and mid-sized police depatments, patrol officrs at US police, sheriff, transit and university departments of 10 to 200 officers.\nKeel reads back: Got it: patrol officers at US police, sheriff, transit and university departments of 10 to 200 officers.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Who has the problem is the natural first question when I start telling Keel about my customer.",
+        "why2": "Plain and short; I answer it in my own words straight away.",
+        "why3": "I know exactly who my customers are: patrol officers at departments of 10 to 200 officers.",
+        "why5": "The readback keeps the segment I said but drops 'small and mid-sized', which was the first half of my answer, so it drifted a little.",
+        "instead": "Got it: patrol officers at small and mid-sized US police, sheriff, transit and university departments, 10 to 200 officers."
+      },
+      {
+        "beat": "beat 2",
+        "said": "Keel asks: What are they trying to get done, and when does that happen?\nYou said: They need to get evvery call written up as an accurate report, when a call is over and its body-cam footage still has to be tunred into a written repotr.\nKeel reads back: They need every call written up as an accurate report, once the call is over and its body-cam footage still has to become a written report.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Right after Keel learns who has the problem, asking what they are trying to get done and when is the obvious next step in telling the story.",
+        "why2": "The job and the moment come together naturally for a patrol officer (the report gets written after the call), so I could answer both in one breath in my own words.",
+        "why3": "I know exactly what my officers are trying to get done and when, because writing the report after the call is the whole reason Code Four exists.",
+        "why5": "The readback keeps my job and my moment almost word for word; it only fixes my typos and swaps 'turned into' for 'become', which still says what I meant.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 3",
+        "said": "Keel asks: How do they do it today, and where does that fall short? Tell me all of it.\nYou said: Today: Officers transcribe body-cam footage, fill in forms and find clips across 8 to 10 tools that do not talk to each other. Patrol offcers lose abotu 40% of a typical shitf to paperwwork: transcribing body-cam footage, filling forms and finding clips across 8 to 10 tools that do not talk to each othre. Reports pile up, officers fall behinnd and sit in the station instead of on the road; we have seen it on ride-alongs and in record rooms and in the hundrds of videos we have processed.\nKeel reads back: Today they transcribe body-cam footage, fill in forms and find clips across 8 to 10 tools; I heard two limitations: the tools do not talk to each other; about 40% of a shift goes to paperwork. Anything else?",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Right after who and what, asking how officers handle it today and where that breaks is the obvious next step in my story.",
+        "why2": "It's two parts, but they belong together and I answered both at once in my own words: transcribing, forms, clips, reports piling up.",
+        "why3": "I know this cold from ride-alongs, record rooms and the hundreds of videos we've processed.",
+        "why5": "The tools and the 40% are kept, but the shortfall that matters most is dropped: reports pile up, officers fall behind, and they sit at the station instead of on the road.",
+        "instead": "Today they transcribe body-cam footage, fill in forms and hunt for clips across 8 to 10 tools that don't talk to each other; I heard it eats about 40% of a shift, reports pile up, and officers fall behind and sit in the station instead of on the road. Anything else?"
+      },
+      {
+        "beat": "beat 4",
+        "said": "Keel asks: And what does that cost them? What happens to them because of it?\nYou said: What it costs them: Patrol officers at small and mid-sized departmenst spennd a large part of each shift watching back body-cam footage and tpying the reports from it, so reports pile up and officers stay at the desk instead of on patol.\nKeel reads back: Reports pile up and officers stay at the desk instead of on patrol.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Right after I've said how officers write reports today and where it falls short, asking what that costs them is the natural next step.",
+        "why2": "Both halves ask the same thing in plain words, and I can answer at once in my own terms: shift time, report backlog, time off patrol.",
+        "why3": "I know this cold: officers lose up to a third to 40% of a shift to footage and forms, and reports pile up while they sit at the desk.",
+        "why5": "The readback keeps the consequences (reports piling up, desk instead of patrol) but drops the cost itself, the large share of every shift spent watching footage and typing.",
+        "instead": "Keel reads back: They spend a large part of each shift watching body-cam footage and typing reports, so reports pile up and they're at the desk instead of on patrol."
+      },
+      {
+        "beat": "beat 5",
+        "said": "Keel asks: Does it happen to all of them, or just to some?\nYou said: Some of them: patrol officers at US policce, sheriff, transit and univrsity departments of 10 to 200 officers.\nKeel reads back: Patrol officers at US police, sheriff, transit and university departments of 10 to 200 officers get every call written up as an accurate report after a call ends, with body-cam footage. Right?",
+        "r1": 1,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Narrowing who has it is a fair next step after the cost, but beat 1 already asked who, so it half-repeats and comes a little abruptly after 'what does it cost them'.",
+        "why2": "All or some is plain, and I answer it at once in my own words: departments of 10 to 200 officers.",
+        "why3": "I know exactly which departments I sell to; it is my design-partner band.",
+        "why5": "My segment is kept word for word and the typos are fixed, but the readback glues it onto the job as if they already get every call written up, which loses the problem, and it drops my 'some of them'.",
+        "instead": "Keel reads back: So it's some of them: patrol officers at US police, sheriff, transit and university departments of 10 to 200 officers, the ones still turning each call's body-cam footage into a report themselves. Right?"
+      },
+      {
+        "beat": "beat 7",
+        "said": "Keel asks: Besides this, what else do they have to do in their role? Name two or three.\nYou said: Their other tasks: Getting back on the road for the next call; Taking extra clls when the shift is shotr; Pulling evidencce for an upcoming court date; Logging the evidence from the call.\nKeel reads back: Besides the reports, they also get back on the road, take extra calls, pull evidence for court, and log evidence.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "After who, the job, today's way, the cost and how many, asking what else fills an officer's shift is the natural next step to see where report writing ranks against the rest of the job.",
+        "why2": "Plain words; I can name an officer's other duties on first hearing without thinking twice.",
+        "why3": "I know what patrol officers do besides reports: answering calls, covering short shifts, court prep, booking evidence.",
+        "why5": "The readback keeps all four of my items (my typos aside) in the same order, only shortened, and 'besides the reports' rightly ties them back to the job.",
+        "instead": ""
+      },
+      {
+        "beat": "the verdict line",
+        "said": "After the film, Keel says: I will call this real if at least six in ten say it happened, most of those say most times or every time, and most put it in their top two.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Closing with how Keel will judge the answers is exactly what I expect at the end, after I've told the whole story and named their other duties.",
+        "why2": "I follow it, but 'six in ten say it happened' plus two nested 'most' thresholds packs three tests into one breath, and I'd want to hear it again to be sure which 'most' is of whom.",
+        "why3": "It's a statement of the bar rather than a question, and I can judge it from what I know: paperwork eats 40% of a typical shift, so I'd expect officers to clear all three.",
+        "why5": "It doesn't say what 'this' is, so I can't tell it kept my words; it should name the report from body-cam footage, written up after the call, that steals desk time from the shift.",
+        "instead": "I'll call this real if at least six in ten patrol officers say a call's body-cam footage still had to be written up as a report in the last 7 days, most of them say that's most shifts or every shift, and most rank it in their top two next to their other duties."
+      }
+    ],
+    "means": {
+      "r1": 1.857,
+      "r2": 1.857,
+      "r3": 2.0,
+      "r5": 1.286
+    },
+    "zeros": {
+      "r1": 0,
+      "r2": 0,
+      "r3": 0,
+      "r5": 0
+    },
+    "founder_pct": 87.5,
+    "unread": []
+  },
+  "frames": {
+    "frames": [
+      "frames/scene-1-phone.png",
+      "frames/scene-1-laptop.png",
+      "frames/scene-2-phone.png",
+      "frames/scene-2-laptop.png",
+      "frames/scene-3-phone.png",
+      "frames/scene-3-laptop.png",
+      "frames/scene-4-phone.png",
+      "frames/scene-4-laptop.png",
+      "frames/scene-5-phone.png",
+      "frames/scene-5-laptop.png",
+      "frames/scene-6-phone.png",
+      "frames/scene-6-laptop.png",
+      "frames/scene-7-phone.png",
+      "frames/scene-7-laptop.png"
+    ],
+    "pictures": [
+      "pictures/scene-1.png",
+      "pictures/scene-2.png",
+      "pictures/scene-3.png",
+      "pictures/scene-4.png",
+      "pictures/scene-5.png",
+      "pictures/scene-6.png",
+      "pictures/scene-7.png",
+      "pictures/sheet.png"
+    ],
+    "folder": "runs/20261125T084949Z-film-walk/film/14-code-four"
+  },
+  "measures": {
+    "faults": [],
+    "frames": 14,
+    "pictures": 8
+  },
+  "dropped": []
+}
