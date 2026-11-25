@@ -343,8 +343,7 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
                        party="founder") as h:
         _, building = ff.watch_building(browser, context.storage_state(), stack.web_base_url, project_id, wire.story,
                                         kind="problem", timeout_s=600 if DOOR == "keel" else 180)
-        h.record_wire({"watched": building["path"]}, {k: building[k] for k in ("opened_while", "state", "drawn",
-                                                                               "served", "error")})
+        h.record_wire({"watched": building["path"]}, building_read(building))
     with recorder.step("spec 163: the boxes' yes, then the build (the pictures, the clips)", party="founder",
                        kind="assert") as h:
         story = ff.wait_built(wire.story, timeout_s=600 if DOOR == "keel" else 180)
@@ -582,6 +581,17 @@ def idea_beats_record(told: list[dict], said: dict[int, str], asked: dict[int, s
     return out
 
 
+def building_read(building: dict) -> dict:
+    """Spec 167: what the building screen's watch read, for the transcript -- the tallies seen live, the replay's."""
+    replayed = building.get("replayed") or {}
+    return {**{k: building.get(k) for k in ("opened_while", "state", "drawn", "served", "error")},
+            "tallies": [r.get("tally") for r in building.get("reads") or []],
+            **({"replayed": {"tally": (replayed.get("plan") or {}).get("tally"),
+                             "rows": len((replayed.get("plan") or {}).get("rows") or []),
+                             "tally_holds": replayed.get("tally_holds"), "rows_match": replayed.get("rows_match"),
+                             "error": replayed.get("error")}} if replayed else {})}
+
+
 def shoot_probe(recorder, camera, project_id: str, story: dict) -> dict | None:
     """Spec 167: the portrait probe where it is asked (`probe()`), its own step; its faults are recorded apart."""
     if not probe():
@@ -636,8 +646,7 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
                        party="founder") as h:
         _, building = ff.watch_building(browser, context.storage_state(), stack.web_base_url, solution, wire.idea,
                                         kind="solution", timeout_s=900 if DOOR == "keel" else 240)
-        h.record_wire({"watched": building["path"]}, {k: building[k] for k in ("opened_while", "state", "drawn",
-                                                                               "served", "error")})
+        h.record_wire({"watched": building["path"]}, building_read(building))
     with recorder.step("spec 166: the board's yes, then the build (the plate, the pictures on the problem's sheet, the "
                        "clips)", party="founder", kind="assert") as h:
         view = wire.built(timeout_s=900 if DOOR == "keel" else 240)
