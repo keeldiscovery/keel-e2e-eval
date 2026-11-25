@@ -1,0 +1,212 @@
+{
+  "entry": "12-transload",
+  "bundle": "20261125T010642Z-film-walk",
+  "cloud_sha": "b48e1f49",
+  "web_sha": "7c98d472",
+  "film_rubric_version": 1,
+  "reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "anthropic api",
+    "served_by": "claude-opus-5-5",
+    "fallback": []
+  },
+  "founder_reader": {
+    "model": "claude-opus-5-5",
+    "effort": "medium",
+    "vendor": "anthropic",
+    "door": "claude CLI"
+  },
+  "cost_usd": 0.7039,
+  "film_cost_usd": 0.1896,
+  "founder_cost_usd": 0.5143,
+  "walk_usd": 0.6013,
+  "seconds": 90.1,
+  "scored_at": "2026-11-25T01:21:04+00:00",
+  "asked_again": false,
+  "entry_yaml": {
+    "sha256": "3374ea378d949f6782cf8a591df57f2f6e0c325d33fb8fee8cc6d316a5f54480",
+    "matches_bundle": true
+  },
+  "persona_card": "The person (the entry's context, in the founder's words):\n  actor: dock supervisor\n  actor_plural: dock supervisors at LTL cross-dock terminals\n  job: get every shipment billed at its true size without slowing the dock\n  circumstance: freight crosses the dock faster than it can be measured\n  segment: dock supervisors at LTL carriers' cross-dock terminals in the US\n  window: the last 5 working_days\n  where: US\n  role: Dock supervisors -- the supervisor who runs a shift on an LTL carrier's cross-dock and decides which freight gets measured\n  today's way: The terminal sends only a sample of shipments through the dimensioning station and bills the rest by the size on the paperwork.\n\nThe founder's problem statement, whole (every limitation it names, and what it costs them):\n  LTL carriers bill by the size the shipper writes on the paperwork, and roughly 10% of the shipments we check are bigger than declared, so the carrier undercharges and still gives up the trailer space. Busy cross-dock terminals only measure a sample, because sending freight through a dimensioning station adds forklift travel and dock congestion; based on talking to more than 50 trucking companies and Jago's family's LTL and cross-docking business.",
+  "film": {
+    "kind": "problem",
+    "scores": {
+      "f1": 1,
+      "f2": 1,
+      "f3": 2,
+      "f4": 1,
+      "f5": 1,
+      "f6": 1,
+      "f7": 2,
+      "f8": 2
+    },
+    "whys": {
+      "f1": "The supervisor in hard hat, hi-vis vest and boots with pallets, forklift and trailers at late-afternoon light is recognisable, but the dock is drawn as an open-air asphalt yard under the sky with pallets staged outdoors, where a real LTL cross-dock floor is an indoor raised dock with trailers backed into the doors.",
+      "f2": "The line says the task plainly, but the picture is a generic hand sliding a clipboard onto a desk beside a clock, which does not show the moment a shipment needs billing at its true size while the dock is moving.",
+      "f3": "Scene 3 shows a pallet under the dimensioning gantry while the supervisor writes up paperwork at the table, and the line says sample-through-the-station and bill-the-rest-by-paperwork.",
+      "f4": "Three limitations are handled unevenly: the giving-up-trailer-space limitation has no scene at all, the 10%-oversize and forklift-travel/congestion limitations are merged into scene 6, and scene 5 (billed by the shipper's paperwork) is a hand pointing at a clipboard that shows nothing going wrong.",
+      "f5": "Scene 7 shows the supervisor slumped on a pallet beside a crossed coin, but the line says only 'billed short' and drops the founder's other cost, that the carrier still gives up the trailer space.",
+      "f6": "Line 6 says two separate things (10% are bigger than declared, and measuring everything adds forklift travel and congestion), and line 5's picture of a pointing hand does not match being billed by the shipper's numbers.",
+      "f7": "The lines run who, task, today, shortfalls, cost and ask in order with correct chapter marks, so a stranger could tell what the film asks about.",
+      "f8": "Captions and chapter marks are fully readable on both the phone and laptop frames, nothing is clipped, and the pictures contain no letters, digits or logos (the tape measure and clock carry tick marks only)."
+    },
+    "missing": [
+      "The carrier still gives up the trailer space: oversized freight cubes out the trailer but is paid at the declared size",
+      "The task shown at its moment: a shipment crossing the dock that needs a true size before it is billed and loaded"
+    ],
+    "instead": {
+      "f1": "Draw the supervisor inside the terminal on the raised dock floor, with trailer noses backed into the dock doors and staged pallet lanes under the roof lights, and late-afternoon light coming through the open doors.",
+      "f2": "Show a forklift bringing a pallet across the dock toward an outbound trailer while the supervisor looks from the pallet to the line of trailers waiting to be loaded: 'Every shipment has to be billed at its true size, without slowing the dock.'",
+      "f4": "Give each limitation its own scene. Scene 5: a pallet skips the dimensioner and goes straight to the trailer while the supervisor glances at the paperwork's small box. Next: the measured pallet towering over its declared outline, 'About 1 in 10 we check is bigger than the paperwork says.' Next: a forklift queue backed up at the dimensioner, 'Measuring everything adds forklift travel and jams the dock.' Next: a trailer filled full by oversized pallets, 'And the carrier still gives up the trailer space.'",
+      "f5": "Keep the slumped supervisor, but beside a full trailer and the crossed coin, and say: 'So the carrier undercharges, and still gives up the trailer space.'",
+      "f6": "Split line 6 into 'Roughly 10% of the shipments we check are bigger than declared.' and 'Measuring everything adds forklift travel and congestion.', each over its own picture, and redraw scene 5 to show unmeasured pallets loading on the paperwork's size."
+    },
+    "film_pct": 68.8,
+    "flagged": false
+  },
+  "founder": {
+    "beats": [
+      {
+        "beat": "beat 1",
+        "said": "Keel asks: Who has this problem?\nYou said: Dock supervisors at LTL cross-dock terminals, dock superrvisors at LTL carriers' cross-dock terminals in the US.\nKeel reads back: So it's dock supervisors at LTL carriers' cross-dock terminals in the US.",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Opening by asking who has the problem is the obvious first beat when telling a customer's story.",
+        "why2": "Short, single-barrelled and plain; I answer it at once with dock supervisors.",
+        "why3": "I chose the dock supervisor deliberately and know exactly which terminals they run.",
+        "why5": "The readback keeps my fuller phrasing (LTL carriers' cross-dock terminals in the US), drops my repeat and typo, and adds nothing I didn't say.",
+        "instead": ""
+      },
+      {
+        "beat": "beat 2",
+        "said": "Keel asks: What are they trying to get done, and when does that happen?\nYou said: They need to get every shipment billde at its true size without slwoing the dock, when freight crosses the dock faster than it can be measured.\nKeel reads back: They need to get every shipment billed at its true size without slowing the dock, when freight crosses faster than it can be measured.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Right after who has the problem, asking what they are trying to get done and when is the obvious next step in telling it.",
+        "why2": "It asks two things in one breath, and 'when does that happen' asks for a time when my answer is really a situation on the dock, though I could still answer it in one go.",
+        "why3": "I know my dock supervisors' job and the busy-shift moment it bites, straight from the 50+ carriers we talked to.",
+        "why5": "It fixed my typos and kept the job word for word, but trimmed 'crosses the dock' to 'crosses', which drops where it happens, a small drift.",
+        "instead": "What are they trying to get done, and what's happening on the dock when it gets hard?"
+      },
+      {
+        "beat": "beat 3",
+        "said": "Keel asks: How do they do it today, and where does that fall short? Tell me all of it.\nYou said: Today: The terminal sends only a sample of shipments through the dimensioning station and bills the rest by the size on the paperwork. LTL carriers bill by the size the shipper writes on the paperwork, and roguhly 10% of the shipments we check are bigger than decalred, so the carrier undercharges and still gives up the trailer spae. Busy cross-dock terminals only measure a samle, because sendign freight through a dimensioning station adds forrklift travl and dock congetsion; based on talking to more than 50 trucking companies and Jago's family's LTL and cross-docking business.\nKeel reads back: Today they measure a sample and bill the rest by paperwork; I heard four limitations: only a sample measured; paperwork size billed; about 10% bigger than declared; measuring adds congestion. Anything else?",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "After who and what/when, asking how dock supervisors handle it today and where that falls short is the obvious next step in telling the story.",
+        "why2": "It is plain and I can answer it straight away in my own words: sample through the dimensioner, bill the rest off the paperwork.",
+        "why3": "It asks about the sampling and dimensioner congestion I heard from more than 50 carriers and from Jago's family's business, so I know this.",
+        "why5": "The readback keeps 'sample' and 'paperwork', but it lists 'paperwork size billed' and '10% bigger' as limitations. It drops the real cost, which is undercharging while still giving up the trailer space, and it drops the forklift travel.",
+        "instead": "Today they put a sample through the dimensioner and bill the rest off the paperwork; where it falls short: about 10% of checked freight is bigger than declared, so it's undercharged but still takes the trailer space, and measuring more adds forklift travel and dock congestion. Anything else?"
+      },
+      {
+        "beat": "beat 4",
+        "said": "Keel asks: And what does that cost them? What happens to them because of it?\nYou said: What it costs them: Dock supervisors at LTL cross-dock terimnals can only send a sample of frieght through the dimensioning station on a busy shit, so most shipments cross on the size the shipper declared and the overssized ones are billed short.\nKeel reads back: Got it: the oversized shipments are billed short.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 2,
+        "why1": "Right after I've said they only measure a sample, asking what that costs is the obvious next step toward the underbilling story.",
+        "why2": "It asks two things at once, and 'cost them' made me stop, because the money is lost by the carrier, not the dock supervisor, whose cost is the shift and the re-measuring.",
+        "why3": "I know it cold: oversized freight is billed on the declared size, so the carrier gives up trailer space it isn't paid for, about $50k a site a month by our count.",
+        "why5": "'The oversized shipments are billed short' is the consequence I gave, in my own words, without the restated sampling part, which belonged to the previous beat.",
+        "instead": "And what does that cost the carrier, and what does it leave the dock supervisor dealing with on the shift?"
+      },
+      {
+        "beat": "beat 5",
+        "said": "Keel asks: Does it happen to all of them, or just to some?\nYou said: Some of them: dock supervisors at LTL carriers' cross-dock trminals in the US.\nKeel reads back: Dock supervisors at LTL carriers' cross-dock terminals in the US get every shipment billed at its true size without slowing the dock, when freight crosses the dock faster than it can be measured. Right?",
+        "r1": 2,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Narrowing from everyone with the problem to the ones it actually bites is the natural next step after the cost, and it is where my segment belongs.",
+        "why2": "All or some is plain; I answered it at once in my own trade's words.",
+        "why3": "I know which supervisors this hits: the ones at LTL cross-docks in the US where only a sample gets measured.",
+        "why5": "It keeps my segment word for word (and fixes my typo), but drops the 'some' I said, and 'get every shipment billed... when freight crosses faster' reads as if they already manage it, not as what they are trying and failing to do.",
+        "instead": "Readback: So it's some of them, dock supervisors at LTL carriers' cross-dock terminals in the US, the ones trying to get every shipment billed at its true size when freight crosses the dock faster than it can be measured. Right?"
+      },
+      {
+        "beat": "beat 7",
+        "said": "Keel asks: Besides this, what else do they have to do in their role? Name two or three.\nYou said: Their other tsks: Getting trailers loaded and out on time; Covering the doors with the crew on hand; Handling dmaaged freight on the dock; Finding freight sittng at the wrong door.\nKeel reads back: Besides this, they get trailers loaded and out on time, cover the doors, handle damaged freight, and find misplaced freight.",
+        "r1": 1,
+        "r2": 2,
+        "r3": 2,
+        "r5": 1,
+        "why1": "Asking what else fills a dock supervisor's shift makes sense before weighing how much measuring matters, but coming straight after 'all of them or some' it jumps topics without saying why.",
+        "why2": "'What else do they have to do in their role' is plain, and I can name a supervisor's other jobs at once.",
+        "why3": "I know what fills a dock supervisor's shift on a cross-dock: trailers out, doors covered, damage, lost freight.",
+        "why5": "The readback kept all four tasks, but 'cover the doors' dropped 'with the crew on hand', which was the point (too few people for the doors), and 'misplaced freight' loses 'sitting at the wrong door'.",
+        "instead": "Besides this, they get trailers loaded and out on time, cover the doors with the crew on hand, handle damaged freight on the dock, and find freight sitting at the wrong door."
+      },
+      {
+        "beat": "the verdict line",
+        "said": "After the film, Keel says: I will call this real if at least six in ten say it happened, most of those say most times or every time, and most put it in their top two.",
+        "r1": 2,
+        "r2": 1,
+        "r3": 2,
+        "r5": 1,
+        "why1": "At the close, after the film, it is the obvious place for Keel to tell me the bar it will hold my dock supervisors' answers to.",
+        "why2": "I follow it, but 'it happened' and 'top two' leave me filling in what 'it' is (freight crossing unmeasured on a shift) and top two of what (the other things they handle on the dock), and my people talk in shifts, not 'times'.",
+        "why3": "I can judge the bar from what I know: on a busy cross-dock this happens nearly every shift, so six in ten and 'most times or every time' fit my belief of 4 to 5 days out of 5.",
+        "why5": "Nothing is wrong, but the line drops my words: no dock shift, no last 5 working days, no unmeasured freight, so it reads as anyone's problem rather than mine.",
+        "instead": "I'll call this real if at least six in ten dock supervisors say freight crossed the dock unmeasured on a shift in the last 5 working days, most of them say it happens most shifts or every shift, and most rank it in their top two next to covering the doors and handling damaged freight."
+      }
+    ],
+    "means": {
+      "r1": 1.857,
+      "r2": 1.571,
+      "r3": 2.0,
+      "r5": 1.286
+    },
+    "zeros": {
+      "r1": 0,
+      "r2": 0,
+      "r3": 0,
+      "r5": 0
+    },
+    "founder_pct": 83.9,
+    "unread": []
+  },
+  "frames": {
+    "frames": [
+      "frames/scene-1-phone.png",
+      "frames/scene-1-laptop.png",
+      "frames/scene-2-phone.png",
+      "frames/scene-2-laptop.png",
+      "frames/scene-3-phone.png",
+      "frames/scene-3-laptop.png",
+      "frames/scene-4-phone.png",
+      "frames/scene-4-laptop.png",
+      "frames/scene-5-phone.png",
+      "frames/scene-5-laptop.png",
+      "frames/scene-6-phone.png",
+      "frames/scene-6-laptop.png",
+      "frames/scene-7-phone.png",
+      "frames/scene-7-laptop.png"
+    ],
+    "pictures": [
+      "pictures/scene-1.png",
+      "pictures/scene-2.png",
+      "pictures/scene-3.png",
+      "pictures/scene-4.png",
+      "pictures/scene-5.png",
+      "pictures/scene-6.png",
+      "pictures/scene-7.png",
+      "pictures/sheet.png"
+    ],
+    "folder": "runs/20261125T010642Z-film-walk/film/12-transload"
+  },
+  "measures": {
+    "faults": [],
+    "frames": 14,
+    "pictures": 8
+  }
+}
