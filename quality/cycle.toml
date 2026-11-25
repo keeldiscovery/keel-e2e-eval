@@ -87,7 +87,7 @@ scopes = ["PROBLEM"]
 # FR-5: the nine entries the founder named as the holdout (2026-11-04, *rules not cases*; quality/decisions.toml's rule:
 # if the five pass and the nine fall short, the round fails). LEFT EMPTY ON PURPOSE: the integrator writes the
 # founder's nine here, from his list, before the paid run -- `make film-walk ENTRIES=holdout` refuses an empty list.
-holdout = []
+holdout = ["09-karsa", "11-issen", "12-transload", "14-code-four", "15-voltair", "16-pairio", "18-careforce", "19-veles", "20-lemma"]
 # FR-6: the film adviser -- one bounded call per weak criterion through the claude CLI, as quality-advise.
 adviser_model = "claude-opus-5-5"
 adviser_effort = "medium"
