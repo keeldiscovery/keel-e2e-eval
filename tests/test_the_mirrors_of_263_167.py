@@ -404,3 +404,13 @@ def test_no_respondent_question_instruction_is_touched_here():
     # that generates a respondent's question (the AI-avatar spoken-form guidelines untouched)
     for module in (ff, ss, ivs, fread, tvs):
         assert "respondent-questions" not in Path(module.__file__).read_text(encoding="utf-8")
+
+
+def test_the_watch_is_said_in_the_transcript():
+    from evals import run_film                                                  # noqa: PLC0415
+    said = run_film.building_read({"opened_while": "building", "state": "ready", "drawn": False, "served": [["1:passed"]],
+                                   "error": None, "reads": [],
+                                   "replayed": {"plan": {"tally": "1 frame planned · 1 passed", "rows": [{}]},
+                                                "tally_holds": True, "rows_match": True, "error": None}})
+    assert said["tallies"] == [] and said["replayed"] == {"tally": "1 frame planned · 1 passed", "rows": 1,
+                                                          "tally_holds": True, "rows_match": True, "error": None}
