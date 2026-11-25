@@ -3154,8 +3154,11 @@ ORB_INTERVIEW_WATCH = r"""(() => {
       size: onStage && !story && (orb || col) ? (orb || col).getAttribute('data-size') : null,
       ids,
       chip: mark ? t(mark) : null,
+      // keel-web 264 FR-2 (spec 167 FR-2b): on the face's link the plate's frame carries her chip -- the same `ship-mark`
+      // inside `ai-chip` (the plate stage) -- read as the chip, not `other`
       chipIn: mark ? (mark.closest('[data-testid=ai-caption]') ? 'caption'
-        : mark.closest('[data-testid=ai-facecol]') ? 'facecol' : mark.closest('[data-testid=ai-orb]') ? 'orb' : 'other')
+        : mark.closest('[data-testid=ai-facecol]') ? 'facecol' : mark.closest('[data-testid=ai-orb]') ? 'orb'
+        : mark.closest('[data-testid=ai-chip]') ? 'chip' : 'other')
         : null,
       words: words ? t(words) : null,
       lit: words ? words.querySelectorAll('[data-lit=true]').length : 0,

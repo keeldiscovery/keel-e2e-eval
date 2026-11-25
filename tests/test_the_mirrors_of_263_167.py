@@ -414,3 +414,84 @@ def test_the_watch_is_said_in_the_transcript():
                                                 "tally_holds": True, "rows_match": True, "error": None}})
     assert said["tallies"] == [] and said["replayed"] == {"tally": "1 frame planned · 1 passed", "rows": 1,
                                                           "tally_holds": True, "rows_match": True, "error": None}
+
+
+# ----------------------------------------------------------------------------------------------- FR-2b keel-web 264
+
+IMP_WHY = "You picked that. Why did that matter more to you?"
+
+
+def _imp_script(not_picked=("own",), against=()) -> dict:
+    rung = {"against": list(against), "hint": {"first": IMP_WHY, "third": IMP_WHY}}
+    if not_picked is not None:
+        rung["notPicked"] = list(not_picked)
+    imp = {"kind": "item", "itemId": "imp", "dimension": "problem.importance", "control": "choice", "picks": 2,
+           "stem": "Which of these mattered most?", "spoken": {"stem": "Which of these mattered most?"},
+           "options": [{"optionId": x, "label": f"Row {x}"} for x in ("own", "b", "c")], "followUp": rung}
+    return {"passages": [{"kind": "intro"}, imp]}
+
+
+def test_the_card_opens_importances_why_outside_not_picked():
+    from harness import three_surfaces as ts                                    # noqa: PLC0415
+    passages = ts.card_passages(_imp_script())
+    why = [{"itemId": "imp", "hint": IMP_WHY}]
+    assert ts.card_follow_ups(passages, [("imp", ["b"])]) == why                 # one pick of another row
+    assert ts.card_follow_ups(passages, [("imp", ["own"])]) == []                # the own row
+    assert ts.card_follow_ups(passages, [("imp", ["b", "own"])]) == []           # the own row among two picks
+    assert ts.card_follow_ups(passages, [("imp", ["own", "c"])]) == []
+    assert ts.card_follow_ups(passages, [("imp", ["b", "c"])]) == why            # two picks, neither the own row
+    assert ts.card_follow_ups(passages, [("imp", [])]) == why                    # *None of these*
+    # `notPicked` absent: as before -- `against` alone, an escape opens nothing
+    before = ts.card_passages(_imp_script(not_picked=None, against=("b",)))
+    assert ts.card_follow_ups(before, [("imp", ["b"])]) == why
+    assert ts.card_follow_ups(before, [("imp", ["c"])]) == [] and ts.card_follow_ups(before, [("imp", [])]) == []
+    # the cap holds: two a call
+    assert len(ts.card_follow_ups(passages, [("imp", ["b"]), ("imp", ["c"]), ("imp", [])])) == ts.CARD_MAX_FOLLOW_UPS
+
+
+def test_the_fake_record_files_its_follow_up_outside_not_picked():
+    from evals import call_record as cr                                         # noqa: PLC0415
+    imp = _imp_script()["passages"][1]
+    assert cr._first_option(imp, prefer_against=True)["optionId"] == "b"
+    assert cr._first_option(imp)["optionId"] == "own"
+    assert cr.owes_follow_up(imp, "b") and not cr.owes_follow_up(imp, "own")
+    no_rung = {**imp, "followUp": {"against": ["c"], "hint": {"first": IMP_WHY}}}
+    assert cr.owes_follow_up(no_rung, "c") and not cr.owes_follow_up(no_rung, "b")
+    assert cr._first_option(no_rung, prefer_against=True)["optionId"] == "c"
+
+
+def test_the_face_chip_on_the_plate_is_read_as_the_chip(browser):
+    page = browser.new_page()
+    page.set_content('<div data-testid="ai-stage" data-phase="plate"><div data-testid="ai-plate-stage">'
+                     '<div data-testid="ai-chip"><span data-testid="ship-mark">Ada · AI interviewer</span></div>'
+                     '</div></div>')
+    chip_in = page.evaluate("""() => { const mark = document.querySelector('[data-testid=ship-mark]');
+      return mark.closest('[data-testid=ai-chip]') ? 'chip' : 'other'; }""")
+    page.close()
+    assert chip_in == "chip"
+    source = Path(ss.__file__).read_text(encoding="utf-8")
+    assert "mark.closest('[data-testid=ai-chip]') ? 'chip'" in source
+
+
+def test_the_faces_chip_checks_take_the_plate():
+    rows = [{"onStage": True, "film": None, "chip": "Ada · AI interviewer", "size": "large", "chipIn": "caption",
+             "phase": "ask"},
+            {"onStage": True, "film": None, "chip": "Ada · AI interviewer", "size": "large", "chipIn": "chip",
+             "phase": "plate"}]
+    checked = []
+
+    class Leg:
+        def check(self, run, what, ok, **kw):
+            checked.append(ok)
+    tvs.chip_checks(None, Leg(), {"log": rows}, view="avatar", speaker=ivs.SPEAKER_AVATAR, name="Ada")
+    stray = [{**rows[1], "phase": "ask"}]
+    tvs.chip_checks(None, Leg(), {"log": stray}, view="avatar", speaker=ivs.SPEAKER_AVATAR, name="Ada")
+    assert checked == [True, False]
+
+
+def test_drift_121_and_122_are_answered_not_closed():
+    drift = (REPO / "runs" / "DRIFT.md").read_text(encoding="utf-8")
+    for n in (121, 122):
+        entry = drift.split(f"## {n}. ", 1)[1].split("\n## ", 1)[0]
+        assert "answered by keel-web 264 (`70147567`, `6da4c9ae`), to be confirmed by the next run of record" in entry
+        assert "resolved" not in entry.lower()

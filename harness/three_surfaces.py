@@ -292,7 +292,12 @@ def card_follow_ups(passages: list[dict], filings: list[tuple[str, list[str]]]) 
     card opens for these filings (`(itemId, optionIds)`, in the order filed), each `{itemId, hint}` -- a gate No where the
     gate carries `followUp` (Prevalence's, against NO) opens its hint at once; an item whose every pick is in its rung's
     `against` opens the rung's hint, or, every pick in `also.on` (Frequency's *Never* after a yes), the second stem's;
-    at most two a call. A gate No with no `followUp` opens none (the screener's card)."""
+    at most two a call. A gate No with no `followUp` opens none (the screener's card).
+
+    keel-web 264 FR-1 (spec 167 FR-2b; keel-cloud 272's `followUp.notPicked`, contract 90): a rung that carries
+    `notPicked` (Importance's own row) owes its hint where every option id filed is outside it -- one pick of another
+    row, two picks neither the own row, or *None of these* (the escape: no option id, `[]`); a pick of the own row (alone
+    or among two) owes nothing. A rung without `notPicked` as before (an escape opens nothing)."""
     by_id = {p.get("itemId"): p for p in passages}
     out: list[dict] = []
     for item_id, ids in filings:
@@ -300,7 +305,8 @@ def card_follow_ups(passages: list[dict], filings: list[tuple[str, list[str]]]) 
             break
         p = by_id.get(item_id) or {}
         rung = p.get("followUp")
-        if not rung or not ids:
+        not_picked = (rung or {}).get("notPicked")
+        if not rung or (not ids and not (p.get("kind") == "item" and not_picked is not None)):
             continue
         if p.get("kind") == "gate":
             options = p.get("options") or []
@@ -311,10 +317,11 @@ def card_follow_ups(passages: list[dict], filings: list[tuple[str, list[str]]]) 
             continue
         if p.get("kind") != "item":
             continue
-        against = all(i in (rung.get("against") or []) for i in ids)
+        against = bool(ids) and all(i in (rung.get("against") or []) for i in ids)
         also = rung.get("also") or None
-        on_also = bool(also) and all(i in (also.get("on") or []) for i in ids)
-        if against or on_also:
+        on_also = bool(also) and bool(ids) and all(i in (also.get("on") or []) for i in ids)
+        outside = not_picked is not None and all(i not in not_picked for i in ids)
+        if against or on_also or outside:
             hint = (also.get("hint") or {}).get("first") if (on_also and not against) else (rung.get("hint") or {}).get("first")
             out.append({"itemId": item_id, "hint": hint})
     return out

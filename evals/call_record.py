@@ -68,7 +68,26 @@ def _first_option(item: dict, *, prefer_against: bool = False) -> dict | None:
         for option in options:
             if option["optionId"] in against:
                 return option
+        # keel-web 264 FR-1 (spec 167 FR-2b): a rung with `notPicked` (Importance's own row) owes its why on any option
+        # outside it -- the first such option
+        not_picked = (item.get("followUp") or {}).get("notPicked")
+        if not_picked is not None:
+            for option in options:
+                if option["optionId"] not in not_picked:
+                    return option
     return options[0] if options else None
+
+
+def owes_follow_up(item: dict, option_id: str | None) -> bool:
+    """Whether the card opens the item's follow-up on this one filed option (keel-web 258 `afterItemFiling`, 264 FR-1):
+    the option is in the rung's `against`, or the rung carries `notPicked` and the option is outside it."""
+    rung = item.get("followUp") or {}
+    if not rung or option_id is None:
+        return False
+    if option_id in set(rung.get("against") or []):
+        return True
+    not_picked = rung.get("notPicked")
+    return not_picked is not None and option_id not in not_picked
 
 
 def build_key_log(script: dict, client_id: str = "c-eval-154") -> dict:
@@ -97,7 +116,8 @@ def build_key_log(script: dict, client_id: str = "c-eval-154") -> dict:
     undos: list[dict] = []
     for n, (item, at) in enumerate(zip(items, TIMES["items"])):
         control = item.get("control")
-        want_against = n > 0 and not follow_up_done and bool((item.get("followUp") or {}).get("against"))
+        rung = item.get("followUp") or {}
+        want_against = n > 0 and not follow_up_done and (bool(rung.get("against")) or rung.get("notPicked") is not None)
         if control == "number":
             filing = {"at": at, "itemId": item["itemId"], "value": 3}
             label = f"3 {item.get('unit') or ''}".strip()
@@ -116,7 +136,7 @@ def build_key_log(script: dict, client_id: str = "c-eval-154") -> dict:
         plan["items"].append({"itemId": item["itemId"], "dimension": item.get("dimension"),
                               "filed": option["optionId"] if option else None, "label": label,
                               "control": control, "options": [o.get("label") for o in item.get("options") or []]})
-        if want_against and option is not None and option["optionId"] in set((item.get("followUp") or {}).get("against") or []):
+        if want_against and option is not None and owes_follow_up(item, option["optionId"]):
             stretches.append({"kind": "FOLLOW_UP", "from": at, "to": at + TIMES["follow_up_to"], "itemId": item["itemId"]})
             plan["follow_up_item"] = item["itemId"]
             follow_up_done = True

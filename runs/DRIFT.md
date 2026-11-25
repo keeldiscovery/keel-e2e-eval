@@ -6046,6 +6046,8 @@ the walked one-script check fails by name at step 4 (`problem.importance`, `foll
 **For keel-web**: open Importance's why on the card where every pick filed is outside `followUp.notPicked` (the own
 row), as the link and the orb ask it.
 
+**Status (spec 167, 2026-11-25)**: answered by keel-web 264 (`70147567`, `6da4c9ae`), to be confirmed by the next run of record (keel-web branch `264-the-cards-why-and-the-faces-chip`, not yet on master; the eval's mirrors moved in spec 167 FR-2b: `three_surfaces.card_follow_ups` and `call_record` read `notPicked`). Open.
+
 ## 122. Observation (keel-web 260, the face's plate): on the AI interviewer's link the brand plate's frame draws no ship mark -- the orb's draws *Keel · AI interviewer*
 
 Found by spec 162's run on keel-cloud-docs `94051ba8` (contract 90) with keel-web master `a7d805b3` (260 merged), the
@@ -6058,3 +6060,5 @@ neither stands on the plate's frame). Spec 069's rule (the founder's) is Keel's 
 also says she is an AI. **Severity: low** (three seconds a link). **What the harness does**: the same-walk check fails by
 name at the plate's step, `ids` (`stop=False`). **For keel-web**: keep the face's chip on the plate's frame
 (`AiInterviewPlayer`, phase `plate`), as the orb keeps Keel's.
+
+**Status (spec 167, 2026-11-25)**: answered by keel-web 264 (`70147567`, `6da4c9ae`), to be confirmed by the next run of record (keel-web branch `264-the-cards-why-and-the-faces-chip`, not yet on master; the eval's mirrors moved in spec 167 FR-2b: `chipIn` reads her chip inside `ai-chip` on the plate as `chip`). Open.

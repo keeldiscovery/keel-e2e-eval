@@ -1017,8 +1017,10 @@ def chip_checks(run, leg, walked: dict, *, view: str, speaker: str, name: str | 
         places = sorted({str(r.get("chipIn")) for r in rows})
         ok = bool(rows) and words == [want] and places == ["orb"]
     else:
+        # keel-web 264 FR-2 (spec 167 FR-2b): on the plate's frame her chip stands inside `ai-chip`
         wrong = [(r.get("size"), r.get("chipIn")) for r in rows
-                 if (r.get("size"), r.get("chipIn")) not in (("large", "caption"), ("small", "facecol"))]
+                 if (r.get("size"), r.get("chipIn")) not in (("large", "caption"), ("small", "facecol"))
+                 and not (r.get("phase") == "plate" and r.get("chipIn") == "chip")]
         places = sorted({f"{r.get('size')}:{r.get('chipIn')}" for r in rows})
         ok = bool(rows) and words == [want] and not wrong
     leg.check(run, f"the chip *{want}* -- " + ("with the orb" if speaker == ivs.SPEAKER_ORB else

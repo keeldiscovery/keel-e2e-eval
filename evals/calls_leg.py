@@ -20,7 +20,8 @@ Start posts `start` (ON_CALL on the wire, the row's status); the script is walke
 intro, the gate's Yes (the STORY stretch, stopped), six filings with one undo (Z on the newest, filed again), the
 follow-up stretch where a filing is in `against` (since keel-web 258 FR-5, spec 164 mirror 7: up to two a call, a filing
 in a rung's `also` -- Frequency's *Never* -- opening its second stem's hint, and a gate passage that carries `followUp`
-opening its stretch on the gate's item at once on a No, then Importance alone; `three_surfaces.card_follow_ups` is the
+opening its stretch on the gate's item at once on a No, then Importance alone; since keel-web 264 FR-1, spec 167 FR-2b:
+also where the rung carries `notPicked` -- Importance's own row -- and every pick, or *None of these*, is outside it; `three_surfaces.card_follow_ups` is the
 machine's mirror), the reveal, the pilot; the two closing stretches (OWN_QUESTIONS,
 THEIR_QUESTIONS) opened and stopped; End -> the upload hits `POST calls/{id}/record` as one multipart with three parts
 named `founder`, `them` and `keys` (the request is kept off the wire by the harness). **Since keel-cloud 249** (the second pass): the
