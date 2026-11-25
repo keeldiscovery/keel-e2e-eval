@@ -25,6 +25,12 @@ its own project's screens bundle, `walk.json`'s `solution`), the dollars of each
 entry with one film (its solution leg failed or was not walked) ranks on that film alone, marked. The verdict names
 every entry under the bar on either film; the weak criteria and the findings are of both kinds.
 
+**Spec 171: the told card.** The problem film's `told` block (T1-T4 of the Insights tab's *On your problem* view
+against the strangers' stories) is the `told` column after `founder_pct` (`told_pct`; *absent* where the card scored
+nothing), its whys under the problem film, T1-T4 under the weak rule and in the comparison's moves; never in
+`film_pct` or the bar. A T1 or T2 at 0 is a DRIFT finding a person or a row, with the truth and Keel's reading side
+by side; an absent card on a problem project where a story was told is a capture note *(capture): no told card*.
+
 **Spec 166 FR-6: compared with the previous run.** `BASELINE=<earlier walk or bundle>` adds *Compared with <the
 baseline's record>*: per entry in both, each criterion's move (F1-F8, S1-S9, founder, §A, §B, the dollars) as
 `before -> after (+/-)`, the entries added and missing, and the round's means before and after -- the baseline's film
@@ -53,6 +59,11 @@ CYCLES_DIR = QUALITY / "cycles"
 CYCLE_TOML = QUALITY / "cycle.toml"
 DRIFT_PATH = REPO / "runs" / "DRIFT.md"
 SPEC = "163-the-film-judged"
+FILM_DOES = "the film's score carries it (a 0 flags the film; nothing is patched around)"
+#: Spec 171: the told card's findings name their spec, and what the harness does with them.
+TOLD_SPEC = "171-the-judge-reads-the-told-card"
+TOLD_DOES = ("the told card's score carries it (T1-T4 and told_pct under `told`, never in film_pct; the product's "
+             "reading is the fault, nothing is patched around)")
 
 
 class Refused(RuntimeError):
@@ -206,6 +217,8 @@ def rows(files: list[dict], questions: dict, bar: float, holdout: list[str],
         q = ((solution_questions or {}) if film["kind"] == "solution" else questions).get(f["entry"]) or {}
         out.append({"entry": f["entry"], "kind": film["kind"], "scores": film["scores"], "film_pct": film["film_pct"],
                     "flagged": film["flagged"], "founder_pct": (f.get("founder") or {}).get("founder_pct"),
+                    # spec 171: the told card (the problem film's), beside founder_pct, never in film_pct
+                    "told": f.get("told"), "told_pct": (f.get("told") or {}).get("told_pct"),
                     "founder_beats": list((f.get("founder") or {}).get("beats") or []),
                     "qa_pct": q.get("qa_pct"), "after_pct": q.get("after_pct"), "project_id": q.get("project_id"),
                     "screens_usd": q.get("cost_usd"),
@@ -248,6 +261,8 @@ def entry_rows(table: list[dict]) -> list[dict]:
         beats = [b for f in films for b in f.get("founder_beats") or []]
         row["founder_pct"] = fr.founder_summary(beats)["founder_pct"] if beats else \
             _mean([f.get("founder_pct") for f in films])
+        row["told"] = (row["problem"] or {}).get("told")
+        row["told_pct"] = (row["told"] or {}).get("told_pct")
         row["passes"] = bool(films) and all(f["passes"] for f in films)
         row["under"] = [f["kind"] for f in films if not f["passes"]]
         row["flagged"] = [f["kind"] for f in films if f["flagged"]]
@@ -306,6 +321,11 @@ def _measures(row: dict) -> dict:
             out[c.upper()] = (film.get("scores") or {}).get(c) if film else None
         out[f"{kind} film_pct"] = film.get("film_pct") if film else None
     out["founder_pct"] = row.get("founder_pct")
+    # spec 171: the told card's four and told_pct
+    told_scores = (row.get("told") or {}).get("scores") or {}
+    for c in fr.T_CRITERIA:
+        out[c.upper()] = told_scores.get(c)
+    out["told_pct"] = row.get("told_pct")
     for kind in ("problem", "solution"):
         film = row.get(kind) or {}
         out[f"§A {kind}"] = film.get("qa_pct") if film else None
@@ -373,6 +393,28 @@ def _cell(value) -> str:
     if value is None:
         return "--"
     return f"{value:.1f}" if isinstance(value, float) else str(value)
+
+
+def told_cell(told: dict | None) -> str:
+    """Spec 171: the table's `told` cell -- `told_pct`, *absent* where the card scored nothing, `--` where unread."""
+    if not told:
+        return "--"
+    if told.get("absent"):
+        return "absent"
+    return _cell(told.get("told_pct")) + (" (0)" if told.get("flagged") else "")
+
+
+def told_lines(told: dict | None) -> list[str]:
+    """Spec 171: the told card's whys under the problem film (T1-T4, the instead lines), or its absence."""
+    if not told:
+        return []
+    if told.get("absent"):
+        return [f"- the told card: absent -- {_flat(told['absent'])}"]
+    out = [f"- the told card, told_pct {_cell(told.get('told_pct'))}:"]
+    for c in fr.T_CRITERIA:
+        extra = f" -- *instead*: {_flat(told['instead'][c])}" if c in (told.get("instead") or {}) else ""
+        out.append(f"  - {c.upper()} {told['scores'][c]}: {_flat((told.get('whys') or {}).get(c))}{extra}")
+    return out
 
 
 def _usd(value) -> str:
@@ -448,6 +490,15 @@ def findings(table: list[dict]) -> list[dict]:
                         "owed": LOCK_RETRIED_OWED, "why": lock_retried_why(r["kind"]), "instead": "", "missing": [],
                         "frames": [f"{folder}/{p}" for p in frames[:2]], "cloud": r["cloud_sha"],
                         "web": r["web_sha"]})
+        if r["kind"] == "problem" and r.get("told"):
+            # spec 171 FR-3 / FR-4: an absent card (a capture note), a T1 / T2 at 0 (one a person or a row, both
+            # readings side by side)
+            from harness import film_told                                          # noqa: PLC0415
+            for t in film_told.drift_items(r["told"]):
+                out.append({"entry": r["entry"], "kind": r["kind"], "criterion": t["criterion"], "what": t["what"],
+                            "owed": t["owed"], "why": t["detail"], "instead": "", "missing": [], "frames": [],
+                            "cloud": r["cloud_sha"], "web": r["web_sha"], "spec": TOLD_SPEC,
+                            "does": TOLD_DOES})
         for m in (r.get("measures") or {}).get("faults") or []:
             out.append({"entry": r["entry"], "kind": r["kind"], "criterion": "capture", "what": m.get("what", ""),
                         "owed": m.get("owed", ""),
@@ -465,10 +516,13 @@ def drift_text(found: list[dict], *, start: int, bundle: str) -> str:
         film = "the solution film" if f.get("kind") == "solution" else "the film"
         blocks.append(
             f"## {i}. Observation ({film}, {f['entry']}): {f['what']}\n\n"
-            f"Found by spec `{SPEC}` (`make read-film-table`, {f['criterion']}) on keel-cloud-docs `{f['cloud']}` with "
-            f"keel-web `{f['web']}`, bundle `{bundle}`; the frames: {frames}. The reader: *{_flat(f['why'])}*"
+            f"Found by spec `{f.get('spec') or SPEC}` (`make read-film-table`, {f['criterion']}) on keel-cloud-docs "
+            f"`{f['cloud']}` with "
+            f"keel-web `{f['web']}`, bundle `{bundle}`; the frames: {frames}. "
+            f"{'Both readings' if f['criterion'] in ('T1', 'T2') else 'The reader'}: *{_flat(f['why'])}*"
             + (f" -- instead: *{_flat(f['instead'])}*" if f["instead"] else "") + f".{missing} **What the harness "
-            f"does**: the film's score carries it (a 0 flags the film; nothing is patched around). **For** {f['owed']}.\n")
+            f"does**: {f.get('does') or FILM_DOES}. "
+            f"**For** {f['owed']}.\n")
     return "\n".join(blocks)
 
 
@@ -517,7 +571,7 @@ def render(table: list[dict], files: list[dict], weak: list[dict], cfg: dict, *,
         "alone, marked. An entry passes at the bar on each of its films with no 0.",
         "",
         "| rank | entry | " + " | ".join(c.upper() for c in fr.F_CRITERIA) + " | problem film_pct | "
-        + " | ".join(c.upper() for c in fr.S_CRITERIA) + " | solution film_pct | mean | flagged | founder_pct | "
+        + " | ".join(c.upper() for c in fr.S_CRITERIA) + " | solution film_pct | mean | flagged | founder_pct | told | "
         "§A problem | §B problem | §A solution | §B solution | $ problem | $ solution | passes |",
         "|---|---|" + "---|" * (len(fr.F_CRITERIA) + len(fr.S_CRITERIA) + 13),
     ]
@@ -529,7 +583,8 @@ def render(table: list[dict], files: list[dict], weak: list[dict], cfg: dict, *,
         lines.append(f"| {e['rank']} | {e['entry']}{' (holdout)' if e['holdout'] else ''}{mark} | "
                      + " | ".join(f_cells) + f" | {_cell(p.get('film_pct'))} | " + " | ".join(s_cells)
                      + f" | {_cell(sol.get('film_pct'))} | {_cell(e['rank_pct'])} | "
-                     f"{', '.join(e['flagged']) or 'no'} | {_cell(e['founder_pct'])} | {_cell(p.get('qa_pct'))} | "
+                     f"{', '.join(e['flagged']) or 'no'} | {_cell(e['founder_pct'])} | {told_cell(e.get('told'))} | "
+                     f"{_cell(p.get('qa_pct'))} | "
                      f"{_cell(p.get('after_pct'))} | {_cell(sol.get('qa_pct'))} | {_cell(sol.get('after_pct'))} | "
                      f"{_usd(_leg_usd(p) if p else None)} | {_usd(_leg_usd(sol) if sol else None)} | "
                      f"{'yes' if e['passes'] else 'no'} |")
@@ -538,7 +593,9 @@ def render(table: list[dict], files: list[dict], weak: list[dict], cfg: dict, *,
                   "for the solution, on the solution's own project made from the problem's (spec 166): §A the "
                   "strangers' screens of each film's link (RUBRIC.md R1-R6, and §G), §B the founder's page after the "
                   "answers (the Overview's cards, the Insights tab, the brief); `--` where it has not been read. No "
-                  "typed project's score is tabled here. founder_pct is over both studies' beats. The dollars of a leg "
+                  "typed project's score is tabled here. founder_pct is over both studies' beats. `told` is the problem "
+                  "study's told card (spec 171: the Insights tab's *On your problem* view against what the strangers "
+                  "told, T1-T4), never in film_pct; *absent* where the card was not there. The dollars of a leg "
                   "are its film's reading, its walk and its screens' reading, where known.", ""]
     projects = [(r["entry"], r["kind"], r.get("project_id")) for r in table if r.get("project_id")]
     if projects:
@@ -575,6 +632,7 @@ def render(table: list[dict], files: list[dict], weak: list[dict], cfg: dict, *,
                 lines.append(f"- {c.upper()} {r['scores'][c]}: {_flat(r['whys'].get(c))}{extra}")
             if r["missing"]:
                 lines.append(f"- missing: {'; '.join(_flat(m) for m in r['missing'])}")
+            lines += told_lines(r.get("told")) if r["kind"] == "problem" else []
             if frames:
                 base = folder if Path(folder).is_absolute() else f"../{folder}"      # the table lives in quality/
                 lines.append("- frames: " + ", ".join(f"[{Path(x).name}]({base}/{x})" for x in frames))

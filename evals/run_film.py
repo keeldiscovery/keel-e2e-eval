@@ -516,9 +516,11 @@ def strangers_leg(stack, browser, recorder, context, page, run_dir: Path, founde
                     "EXPERIENCE_WAYS": [fs.ways_script(fs.stories_told(walks, kept.get("walked") or {}),
                                                        (own_ai.get(f"/v2/projects/{project_id}/story") or {}).get("act"))],
                     "INTERPRET": [ts.ANCHORED] * max(12, 2 * len(plans))})
-        after = fs.founder_page_after(run, project_id, run_dir, before_settle=handed)
-        h.record_wire({"after": "the answers leg and spec 164's reads"},
-                      {"screens": len(after["after_screens"]), "checks": after["founder_page"]["checks"]})
+        # spec 171 FR-2: the told card read too, three people's popups among the walks
+        after = fs.founder_page_after(run, project_id, run_dir, before_settle=handed, walks=walks)
+        h.record_wire({"after": "the answers leg, spec 164's reads and the told card (spec 171)"},
+                      {"screens": len(after["after_screens"]), "checks": after["founder_page"]["checks"],
+                       "told": {k: ((after.get("told") or {}).get("card") or {}).get(k) for k in ("drawn", "error")}})
     who = fs.watched(plans)
     respondents = fs.respondents_record(who, (kept.get("interviews") or {}).get(who),
                                         (kept.get("walked") or {}).get(who))
@@ -534,7 +536,9 @@ def strangers_leg(stack, browser, recorder, context, page, run_dir: Path, founde
     return {"project_id": project_id, "people": len(plans), "watched": who,
             "answered": sum(1 for w in walks if w["response"]["status"] == 201 and w["done"]),
             "walks": walks, "lock": lock, "after_screens": [s.get("screen") for s in after["after_screens"]],
-            "founder_page": after["founder_page"]["checks"]}, None
+            "founder_page": after["founder_page"]["checks"],
+            # spec 171 FR-2: the told card as served and drawn, the three popups (read by `make read-films`)
+            "told": after.get("told")}, None
 
 
 # ------------------------------------------------------------------------------------------------ spec 166: the solution

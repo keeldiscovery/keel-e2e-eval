@@ -13,7 +13,9 @@ a solution film, `prompt_founder()` the `film-founder` part into the founder-rea
 **One film score** is one JSON object a film (`film_score`): `kind` (`problem` | `solution`), the criteria (`f1`..`f8` or
 `s1`..`s9`, each 0-2), `whys` (one sentence a criterion), `missing` (a list), `instead` (one line per criterion under 2),
 `film_pct` (code's, never the reader's), `flagged` (a 0 anywhere). **The founder's beats** are a list of rows (`beat`,
-`said`, `r1` `r2` `r3` `r5`, their whys, `instead`) and `founder_pct` beside -- never folded into `film_pct`.
+`said`, `r1` `r2` `r3` `r5`, their whys, `instead`) and `founder_pct` beside -- never folded into `film_pct`. **The told
+card** (spec 171) is the problem film's `told` block: `t1`..`t4` (0-2), their whys, `instead`, `told_pct`, `flagged`,
+`version` (`TOLD_VERSION`) -- or `absent` (the reason) with nothing scored; never folded into `film_pct`.
 
 A **score file** (`quality/scores/<bundle>-film-<entry>.json`) is the header (`FILE_KEYS`: the entry, the bundle, the
 shas, the version, the reader block, the founder-reader block, the cost and the seconds), the film's score under
@@ -37,7 +39,11 @@ FILM_RUBRIC_PATH = QUALITY_DIR / "FILM-RUBRIC.md"
 F_CRITERIA = ("f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8")
 S_CRITERIA = ("s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9")
 KINDS = {"problem": F_CRITERIA, "solution": S_CRITERIA}
-_MARKERS = {"problem": "film-problem", "solution": "film-solution", "founder": "film-founder"}
+_MARKERS = {"problem": "film-problem", "solution": "film-solution", "founder": "film-founder", "told": "film-told"}
+#: Spec 171: the told card's four criteria (the Insights tab's *On your problem* view against the strangers' stories),
+#: recorded under `told` in the problem film's score file with their own version (`TOLD_VERSION`) -- never in film_pct.
+T_CRITERIA = ("t1", "t2", "t3", "t4")
+TOLD_VERSION = 1
 #: The founder's beats: four of the question-quality rubric's criteria (FR-1, *the founder's questions*).
 FOUNDER_CRITERIA = ("r1", "r2", "r3", "r5")
 FOUNDER_WHYS = ("why1", "why2", "why3", "why5")
@@ -101,6 +107,11 @@ def prompt_founder(text: str | None = None) -> str:
     return _part(_MARKERS["founder"], text)
 
 
+def prompt_told(text: str | None = None) -> str:
+    """Spec 171: the told card's part the told-reader's card call is sent: everything between the `film-told` markers."""
+    return _part(_MARKERS["told"], text)
+
+
 def prompt_of(kind: str, text: str | None = None) -> str:
     if kind not in KINDS:
         raise FilmRubricError(f"film kind {kind!r} -- one of {', '.join(KINDS)}")
@@ -110,10 +121,10 @@ def prompt_of(kind: str, text: str | None = None) -> str:
 def criteria(kind: str, text: str | None = None) -> list[dict]:
     """A table's criteria with their anchors, in order: `problem` (F1-F8), `solution` (S1-S9) or `founder` (R1, R2, R3,
     R5)."""
-    want = FOUNDER_CRITERIA if kind == "founder" else KINDS.get(kind)
+    want = FOUNDER_CRITERIA if kind == "founder" else (T_CRITERIA if kind == "told" else KINDS.get(kind))
     if want is None:
         raise FilmRubricError(f"criteria kind {kind!r}")
-    pattern = r"R[1235]" if kind == "founder" else (r"F[1-8]" if kind == "problem" else r"S[1-9]")
+    pattern = {"founder": r"R[1235]", "told": r"T[1-4]", "problem": r"F[1-8]"}.get(kind, r"S[1-9]")
     rows = []
     for line in _part(_MARKERS[kind], text).splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
@@ -244,6 +255,7 @@ def validate_file(obj: dict, *, name: str | None = None) -> dict:
         raise FilmRubricError(f"{label}: film_pct {film['film_pct']} is not the mean of its criteria")
     if film["flagged"] != any(film["scores"][c] == 0 for c in names):
         raise FilmRubricError(f"{label}: flagged disagrees with its scores")
+    validate_told(obj.get("told"), label)
     founder = obj["founder"]
     if founder is not None:
         for row in founder.get("beats") or []:
@@ -253,6 +265,32 @@ def validate_file(obj: dict, *, name: str | None = None) -> dict:
             for crit in FOUNDER_CRITERIA:
                 _mark(row[crit], crit, nullable=False)
     return obj
+
+
+def told_pct(scores: dict) -> float | None:
+    """Spec 171: the sum of T1-T4 over 2 x 4 x 100 -- None unless all four are scored."""
+    values = [scores.get(c) for c in T_CRITERIA]
+    return _pct(values) if all(isinstance(v, int) for v in values) else None
+
+
+def validate_told(told: dict | None, label: str = "a film score file") -> None:
+    """Spec 171: a score file's `told` block (absent on a file before it): an absent card scores nothing; else T1-T4
+    each 0-2, each with a why, `told_pct` their mean, `flagged` on a 0."""
+    if told is None:
+        return
+    if told.get("absent"):
+        if told.get("scores") or told.get("told_pct") is not None:
+            raise FilmRubricError(f"{label}: an absent told card scores nothing")
+        return
+    scores = told.get("scores") or {}
+    for crit in T_CRITERIA:
+        _mark(scores.get(crit), crit, nullable=False)
+        if not str((told.get("whys") or {}).get(crit) or "").strip():
+            raise FilmRubricError(f"{label}: told {crit} has no why")
+    if told.get("told_pct") != told_pct(scores):
+        raise FilmRubricError(f"{label}: told_pct {told.get('told_pct')} is not the mean of T1-T4")
+    if bool(told.get("flagged")) != any(scores[c] == 0 for c in T_CRITERIA):
+        raise FilmRubricError(f"{label}: told's flagged disagrees with its scores")
 
 
 def aggregate(files: list[dict]) -> list[dict]:
@@ -280,6 +318,17 @@ def weak_criteria(files: list[dict]) -> list[dict]:
             if len(zeros) >= FILM_WEAK["zero_entries"] or mean < FILM_WEAK["mean_under"]:
                 rows.append({"kind": kind, "criterion": crit, "mean": mean, "zeros": len(zeros),
                              "zero_entries": zeros, "entries": [e for e, _ in given]})
+    # spec 171: the told card's T1-T4 over the entries whose problem film carries them scored
+    told_files = [f for f in files if ((f.get("told") or {}).get("scores"))]
+    for crit in T_CRITERIA:
+        given = [(f["entry"], f["told"]["scores"][crit]) for f in told_files]
+        if not given:
+            continue
+        zeros = [e for e, v in given if v == 0]
+        mean = round(sum(v for _, v in given) / len(given), 3)
+        if len(zeros) >= FILM_WEAK["zero_entries"] or mean < FILM_WEAK["mean_under"]:
+            rows.append({"kind": "told", "criterion": crit, "mean": mean, "zeros": len(zeros),
+                         "zero_entries": zeros, "entries": [e for e, _ in given]})
     for crit in FOUNDER_CRITERIA:
         given = []
         for f in files:

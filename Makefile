@@ -333,10 +333,12 @@ film-leg:
 # in the shell; the founder's beats on the founder's plan through the claude CLI) writes quality/scores/<bundle>-film-
 # <entry>.json. The claude CLI door is refused for the film reader. FOUNDER=0 skips the beats; DRY=1 writes the prompts.
 # Spec 166: every film folder of the walk is read with its kind -- the problem's (F1-F8) and the solution's (S1-S9, its
-# score file <bundle>-film-<entry>-solution.json); KIND=problem|solution reads one kind alone.
+# score file <bundle>-film-<entry>-solution.json); KIND=problem|solution reads one kind alone. Spec 171: on the problem
+# film the told card too (the truth's told_truth.json, one call a story, then one call on the card: T1-T4, told_pct);
+# TOLD=0 skips it.
 read-films: venv
 	PYTHONPATH=. $(PY) -m quality.film_reader --run "$(RUN)" $(if $(DRY),--dry-run,) $(if $(ENTRY),--entry "$(ENTRY)",) \
-	  $(if $(filter 0 off,$(FOUNDER)),--no-founder,) $(if $(KIND),--kind "$(KIND)",)
+	  $(if $(filter 0 off,$(FOUNDER)),--no-founder,) $(if $(filter 0 off,$(TOLD)),--no-told,) $(if $(KIND),--kind "$(KIND)",)
 
 # make read-film-table (FREE): quality/FILM-TABLE.md and quality/cycles/<yyyymmdd>-<cloud7>-film.md -- one row an
 # entry (F1..F8, film_pct, flagged, founder_pct, §A, §B, the dollars), the bar ([film] film_bar_pct), the weak
