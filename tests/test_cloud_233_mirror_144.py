@@ -53,6 +53,9 @@ def test_the_reader_digest_is_233s_cards():
 def test_compatibility_says_the_review_may_change_a_condition():
     """FR-4 (233 FR-5): Compatibility §2 -- the review may change a condition that breaks the card, the permission
     example, the founder's words behind Put back, a settled row put aside (the note stands with the review off)."""
+    if cards.solution_cards_at_272():
+        pytest.skip("spec 162 re-cut the solution's cards on yes or no (keel-cloud 272): the list and scale words this "
+                    "pin read are retired with them")
     text = " ".join(cards.CARDS_PATH.read_text(encoding="utf-8").split())
     assert "**The review may change a condition that breaks this card** (keel-cloud 233, the review switch on)" in text \
         or "**The review may change a condition that breaks this card** (keel-cloud 233, 236, the review switch on)" in text

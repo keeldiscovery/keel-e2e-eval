@@ -72,6 +72,9 @@ def test_importance_suggests_a_row_in_place_of_each_put_aside():
 def test_relative_advantage_and_compatibility_suggest_in_place():
     """FR-1 (243 FR-5): Relative advantage §2 and Compatibility §2 -- a benefit / a condition in place of each put aside;
     the record names whose row each entry was."""
+    if cards.solution_cards_at_272():
+        pytest.skip("spec 162 re-cut the solution's cards on yes or no (keel-cloud 272): the list and scale words this "
+                    "pin read are retired with them")
     text = _cards()
     assert "**In place of each benefit put aside, Keel suggests one** (keel-cloud 243)" in text
     assert ("*Keel put one benefit aside and suggested one in its place, so what is left is what only your idea would "

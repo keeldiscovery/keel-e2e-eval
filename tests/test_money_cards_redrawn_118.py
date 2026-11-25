@@ -261,6 +261,9 @@ def test_a_fact_is_three_by_codes_reading_and_four_on_one_is_refused(tmp_path, r
     """keel-cloud 185 FR-1 (`ItemFrames.conditionKind`): the eval's `spoken.condition_kind` agrees with the cloud's on
     every entry -- the 13 facts serve three, the others (abilities, Pairio's and Paidly's permissions) four -- and a fact
     recorded on the four is refused."""
+    if registry.by_key("solution.compatibility").respondent_control == "yes_no":
+        pytest.skip("spec 162 (keel-cloud 272): Compatibility is yes or no -- a recorded fact's three or four rows are "
+                    "read yes or no by one rule (`corpus.spec272_solution`), never refused")
     for directory, backtest in ((corpus_mod.corpus_dir(KEEL_CLOUD), False), (corpus_mod.backtest_dir(KEEL_CLOUD), True)):
         for path in sorted(directory.glob("*.yaml")):
             entry = corpus_mod.load_file(path, registry=registry, backtest=backtest)

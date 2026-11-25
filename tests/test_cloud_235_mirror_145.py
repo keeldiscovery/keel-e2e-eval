@@ -83,6 +83,8 @@ def test_the_two_amended_sections_say_one_scale_and_put_aside():
     """FR-1 (235 FR-6): Current solution §2 -- the five rewritten as one scale on the first rung's measure, never a
     condition, held whole, one more turn, the band's new line; Importance §2 -- a part, a cause or a means put aside,
     never reworded."""
+    if "problem.current_solution_satisfaction" not in cards.keys():
+        pytest.skip("spec 162: the cards follow keel-cloud 269 -- Current solution's card is retired with its section")
     text = " ".join(cards.CARDS_PATH.read_text(encoding="utf-8").split())
     assert "**The review rewrites the five as one scale** (specs 232, 235)" in text
     assert "never a condition or the reason it went that way" in text

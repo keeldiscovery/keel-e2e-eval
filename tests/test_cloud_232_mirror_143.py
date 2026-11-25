@@ -65,6 +65,8 @@ def test_the_reader_digest_is_232s_cards():
 def test_the_two_amended_sections_say_the_review_may_change_a_row():
     """FR-4 (232 FR-6): Importance §2 and Current solution §2 say the review may change a row that breaks the card, the
     Check says so in one line, the founder's words behind Put back; *never rewritten* / *Never a rewrite* are cut."""
+    if "problem.current_solution_satisfaction" not in cards.keys():
+        pytest.skip("spec 162: the cards follow keel-cloud 269 -- Current solution's card is retired with its section")
     text = " ".join(cards.CARDS_PATH.read_text(encoding="utf-8").split())
     # eval spec 145 (keel-cloud 235 FR-6): the rival's heading names 235 beside 232; the rung's is the five as one scale
     assert ("**The review may change such a rival** (keel-cloud 232)" in text
