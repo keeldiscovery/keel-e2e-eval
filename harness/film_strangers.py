@@ -59,11 +59,13 @@ RIVAL_PREFIX = "rival_"
 
 
 class LockFailed(AssertionError):
-    """The film's project did not lock: the step that did not hold, named (FR-4)."""
+    """The film's project did not lock: the step that did not hold, named (FR-4). `record` is what the lock had
+    recorded up to that step (spec 168 FR-2: `calibration_retried` among it), for `lock_record`."""
 
-    def __init__(self, step: str, detail: Any = None):
+    def __init__(self, step: str, detail: Any = None, record: dict | None = None):
         self.step = step
         self.detail = detail
+        self.record = dict(record or {})
         super().__init__(lock_refusal(step, detail))
 
 
@@ -241,6 +243,35 @@ def solution_watched(plans: list[dict]) -> str | None:
 
 # ------------------------------------------------------------------------------------------------ the lock
 
+#: keel-cloud spec 230: the retry refused because the calibration is no longer FAILED (it moved on by itself) -- the
+#: wait goes on (spec 168 FR-1).
+RETRY_NOT_FAILED = "QUESTIONS_NOT_FAILED"
+
+
+def calibration_seen(view: Any) -> dict:
+    """What `GET calibration/{scope}` answered, by shape: its state and how many questions were written and answered."""
+    if not isinstance(view, dict):
+        return {"state": None}
+    return {"state": view.get("state"), **{k: view.get(k) for k in ("total", "answered") if k in view}}
+
+
+def lock_record(lock: dict | None = None, failed: LockFailed | None = None) -> dict | None:
+    """Spec 168 FR-2: the lock as `film.json` carries it (both films) -- locked or the step it stopped at, the
+    calibration's state, whether the founder's retry was pressed on it (`calibration_retried`) and what the first
+    attempt read, the questions' retry. `None` where no lock was tried."""
+    if lock is None and failed is None:
+        return None
+    rec = dict(lock if lock is not None else failed.record)
+    out = {"locked": failed is None, "calibration": rec.get("calibration"),
+           "calibration_retried": bool(rec.get("calibration_retried")),
+           **{k: rec[k] for k in ("calibration_first", "calibration_retry", "questions", "questions_retried")
+              if k in rec}}
+    if failed is not None:
+        out["step"] = failed.step
+        out["detail"] = failed.detail
+    return out
+
+
 def calibration_ready(view: Any, scope: str = SCOPE) -> bool:
     """The scope's calibration with nothing owed: READY -- or on a spoken SOLUTION project (keel-cloud 271 FR-8: the
     three beliefs written at the board's yes) its three questions answered (spec 162's `solution_calibration_answered`)."""
@@ -258,47 +289,70 @@ def lock_project(call: Callable[[str, str, dict | None], tuple[int, Any]], proje
                  scope: str = SCOPE) -> dict:
     """FR-1: the film's project locked, step by step; `LockFailed` names the first step that does not hold.
 
-    1 the window (`PUT context/window` 200); 2 the PROBLEM calibration READY (answered at the boxes' yes); 3 the
+    1 the window (`PUT context/window` 200); 2 the PROBLEM calibration READY (answered at the boxes' yes; spec 168
+    FR-1: a FAILED calibration retried once on `POST calibration/{scope}/retry` -- FounderVoice's retry, as a founder on
+    that screen presses it -- and waited for again; `calibration_retried`); 3 the
     credits (`GET /v2/me` `creditsAvailable` >= `need`, else `top_up` once and read again; only read where `need`
     is 0 -- the free walk's lock is bought by a stand-in inside `press`); 4 the lock (`press`: the
     ready page's button, 200 or 201); 5 the questions READY (`GET overview` `questionsState`; FAILED retried once on
     `POST questionnaire/retry`)."""
     base = f"/v2/projects/{project_id}"
     record: dict = {"project_id": project_id, "scope": scope, "window": dict(window) if window else None}
+
+    def refuse(step: str, detail: Any) -> LockFailed:
+        return LockFailed(step, detail, record)
+
     if window:
         status, body = call("PUT", f"{base}/context/window", {"recallWindow": dict(window)})
         record["window_status"] = status
         if status != 200:
-            raise LockFailed("the window (PUT context/window)", {"status": status, "body": body})
+            raise refuse("the window (PUT context/window)", {"status": status, "body": body})
+    calibration_step = f"the {scope} calibration (GET calibration/{scope})"
     deadline = clock() + calibration_wait_s
     state, view = None, None
+    record["calibration_retried"] = False
     while True:
         status, view = call("GET", f"{base}/calibration/{scope}", None)
         state = (view or {}).get("state") if isinstance(view, dict) else None
-        if calibration_ready(view, scope) or state == "FAILED" or clock() >= deadline:
+        if calibration_ready(view, scope):
+            break
+        if state == "FAILED":
+            if record["calibration_retried"]:
+                break
+            # spec 168 FR-1: the founder's retry (FounderVoice, keel-cloud spec 230), pressed once; the wait again
+            record["calibration_retried"] = True
+            record["calibration_first"] = calibration_seen(view)
+            r_status, r_body = call("POST", f"{base}/calibration/{scope}/retry", None)
+            code = r_body.get("code") if isinstance(r_body, dict) else None
+            record["calibration_retry"] = {"status": r_status, **({"code": code} if code else {})}
+            if not (isinstance(r_status, int) and 200 <= r_status < 300) and code != RETRY_NOT_FAILED:
+                record["calibration"] = state
+                raise refuse(calibration_step, {**calibration_seen(view), "retried": True,
+                                                "retry": record["calibration_retry"]})
+            deadline = clock() + calibration_wait_s
+            continue
+        if clock() >= deadline:
             break
         sleep(1)
     record["calibration"] = state
     if not calibration_ready(view, scope):
-        raise LockFailed(f"the {scope} calibration (GET calibration/{scope})",
-                         {"state": state, **({k: view.get(k) for k in ("total", "answered")}
-                                             if isinstance(view, dict) else {})})
+        raise refuse(calibration_step, {**calibration_seen(view), "retried": record["calibration_retried"]})
     status, me = call("GET", "/v2/me", None)
     credits = (me or {}).get("creditsAvailable") if isinstance(me, dict) else None
     record["credits_before"] = credits
     if need > 0 and (not isinstance(credits, (int, float)) or credits < need):
         if top_up is None:
-            raise LockFailed("the credits (GET /v2/me)", {"creditsAvailable": credits, "need": need})
+            raise refuse("the credits (GET /v2/me)", {"creditsAvailable": credits, "need": need})
         record["topped_up"] = top_up()
         status, me = call("GET", "/v2/me", None)
         credits = (me or {}).get("creditsAvailable") if isinstance(me, dict) else None
         record["credits_topped"] = credits
         if not isinstance(credits, (int, float)) or credits < need:
-            raise LockFailed("the credits (GET /v2/me, after the top-up)", {"creditsAvailable": credits, "need": need})
+            raise refuse("the credits (GET /v2/me, after the top-up)", {"creditsAvailable": credits, "need": need})
     status, body = press()
     record["lock_status"] = status
     if status not in (200, 201):
-        raise LockFailed("the lock (the ready page's button, POST lock)", {"status": status, "body": body})
+        raise refuse("the lock (the ready page's button, POST lock)", {"status": status, "body": body})
     deadline = clock() + questions_wait_s
     retried = False
     while True:
@@ -315,7 +369,7 @@ def lock_project(call: Callable[[str, str, dict | None], tuple[int, Any]], proje
     record["questions"] = state
     record["questions_retried"] = retried
     if state != "READY":
-        raise LockFailed("the questions (GET overview questionsState)", {"questionsState": state})
+        raise refuse("the questions (GET overview questionsState)", {"questionsState": state})
     return record
 
 

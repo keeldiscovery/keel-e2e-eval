@@ -582,6 +582,17 @@ def _json_or_empty(path: Path) -> dict:
         return {}
 
 
+def film_measures(film: dict) -> dict:
+    """The film's `measures` as the score file carries them, with spec 168 FR-2's `lock_retried` (true|false): the
+    founder's retry pressed on the lock's calibration -- `film.json`'s `measures.lock_retried`, else its `lock`, else
+    the strangers' lock record (`strangers.lock`)."""
+    measures = dict(film.get("measures") or {})
+    if not isinstance(measures.get("lock_retried"), bool):
+        lock = film.get("lock") or ((film.get("strangers") or {}).get("lock")) or {}
+        measures["lock_retried"] = bool(lock.get("calibration_retried"))
+    return measures
+
+
 def score_path(scores_dir: Path, bundle: str, entry: str, kind: str = "problem") -> Path:
     """FR-3: `quality/scores/<bundle>-film-<entry>.json`; spec 166 FR-4: the solution's `...-film-<entry>-solution.json`."""
     return Path(scores_dir) / f"{bundle}-film-{entry}{'-solution' if kind == 'solution' else ''}.json"
@@ -699,7 +710,9 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
             "frames": {"frames": [f["path"] for f in film.get("frames") or []],
                        "pictures": [p["path"] for p in film.get("pictures") or []],
                        "folder": str(folder.relative_to(REPO) if REPO in folder.parents else folder)},
-            "measures": film.get("measures"),
+            # spec 168 FR-2: `lock_retried` always there (true|false), read from the film's lock where an older
+            # film.json's measures do not carry it
+            "measures": film_measures(film),
             # spec 166 FR-4: what the size rule left out (the laptop frames first), said
             "dropped": request.get("dropped") or [],
             **({"project_id": film.get("project_id"), "problem_project_id": film.get("problem_project_id")}
