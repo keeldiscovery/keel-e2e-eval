@@ -5995,3 +5995,22 @@ keel-cloud 183 FR-1). The call's script lists that option in `followUp.also.on` 
 you have to do?* -- words the person never said. **What the harness does**: the walked one-script check fails by name
 at `solution.compatibility` (`follow_ups`) on the card (`stop=False`); the card's machine check holds. **For
 keel-cloud**: hold the card's `also.on` to `saysItsSteps` as the route does.
+
+## 119. Observation (keel-cloud 273, the film's pictures): a consumer entry's pain scene failed its picture check twice and the whole build failed, the reason never surfaced
+
+Found by the film judge's trial (specs 163/165, the founder's word 2026-11-24) on keel-cloud-docs `b48e1f49`, keel-web
+`7c98d472`, the local eval stack with `KEEL_PICTURES=openai` (`runs/20261125T012454Z-film-walk`, entry 09-karsa, project
+`4679d5d7`). The sheet and the seven scenes were drawn (`vendor_cost pictures` eight times, about $0.56); the vision review
+passed six scenes and failed scene 7, the pain; the re-draw (one more scene call, a second review at twice the input) failed
+again and `StoryBuilder` ended the build: *story pictures failed: scene=7 faults=1* then *story build failed ... a picture
+failed its check twice* (273 FR-3: no stick fallback). Nothing says WHY: the review's `reason` is not logged at INFO and the
+film leg found the build `failed` with no picture on any scene, so the film reader scored the entry 37.5 with F1 and F6
+at 0 (*no picture was served for any scene*). The entry is a saver in Pakistan whose cost is savings losing value: the
+pain scene asked for money (rupee notes, a shrinking stack) -- the likeliest fault is `text_seen` (digits or currency
+marks drawn on the notes), which the style rule forbids but the model draws by habit. 12-transload, a business entry
+with a dock, passed every review first time (film_pct 68.8). **What the harness does**: the film leg fails by name
+(*the build ended failed*) and the reader reads the lines alone. **For keel-cloud**: (1) log every picture review's
+`{character, scene, text_seen, reason}` and the re-draw's appended reasons at INFO beside `vendor_cost`, and serve them on
+the founder's view (`build.pictures.reviews`) so the founder's *Keel could not draw that part* names the reason; (2) the
+scene prompt where money, screens, documents or notes are in the picture: *drawn blank, no digits, no currency marks,
+no symbols* (a rule, not a case); (3) consider a third attempt with the fault named before the build fails.
