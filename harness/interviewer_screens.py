@@ -1020,6 +1020,9 @@ FILM_JS = r"""() => {
   const t = (el) => (el ? (el.textContent || '').replace(/\s+/g, ' ').trim() : null);
   const player = story.querySelector('[data-testid=story-player], [data-testid=idea-story-player]');
   const board = story.querySelector('[data-testid=story-board]');
+  // spec 162 (keel-web 261's eval mirrors): a film in pictures plays on `story-stage` in the board's place, its caption
+  // (`story-line`) inside the stage, one <img> a scene (the shown one `data-on`)
+  const stage = story.querySelector('[data-testid=story-stage]');
   const pause = story.querySelector('[data-testid=ai-film-pause]');
   const tap = story.querySelector('[data-testid=ai-film-board]');
   const read = story.querySelector('[data-testid=story-read]');
@@ -1045,7 +1048,14 @@ FILM_JS = r"""() => {
     worded: [...story.querySelectorAll('button')].map(t).filter(Boolean),
     sig: board ? { on: board.querySelectorAll('.on').length, off: board.querySelectorAll('.off').length,
                    gone: board.querySelectorAll('.gone').length,
-                   line: t(story.querySelector('[data-testid=story-line]')) } : null,
+                   line: t(story.querySelector('[data-testid=story-line]')) }
+      : stage ? { on: stage.querySelectorAll('img[data-testid=story-picture][data-on]').length,
+                  off: stage.querySelectorAll('img[data-testid=story-picture]:not([data-on])').length, gone: 0,
+                  line: t(stage.querySelector('[data-testid=story-line]')),
+                  shown: (stage.querySelector('img[data-testid=story-picture][data-on]') || { getAttribute: () => null })
+                    .getAttribute('data-asset') } : null,
+    mode: stage ? 'pictures' : board ? 'sticks' : null,
+    chapter: t(story.querySelector('[data-testid=story-chapter]')),
     inside: { orb: story.querySelectorAll('[data-testid=story-orb], [data-testid=ai-story-orb], [data-testid=ai-orb]').length,
               face: story.querySelectorAll('[data-testid=ai-face], [data-testid=ai-facecol]').length,
               video: story.querySelectorAll('video').length },

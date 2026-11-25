@@ -48,6 +48,11 @@ TO_THE_FILM = "Let us see it."
 PLATE_BEFORE = "Now {founder} has built {name}."
 PLATE_AFTER = "and believes it solves this. Let us see."
 PILOT = "Would you try {name} for real?"
+#: keel-cloud 267 / 272 (`PassageComposer.INTRODUCED`, `HOW_TO_ANSWER`; 272 judgement call 3): the opening clip the orb and
+#: the face say is the interviewer's introduction and how to answer, then `passages.opening` -- the card's intro reads
+#: the same three sentences (its `third` form).
+INTRODUCED = "I'm Keel's interviewer. I'm an AI, not a person."
+HOW_TO_ANSWER = "Say the answer that fits, or tap it."
 #: keel-cloud 272 FR-5 (`CallScriptComposer.Plate`): the card's first-person plate line.
 PLATE_BEFORE_FIRST = "Now I have built {name}."
 #: The spoken-form cap (keel-cloud `SpokenForm.STEM_MAX_WORDS`): every sentence at most 20 words.
@@ -348,7 +353,8 @@ def served_record(interview: dict | None) -> list[dict]:
     passages = iv.get("passages") or {}
     plate = iv.get("plate") or {}
     films = films_lines(iv)
-    out = [ts.step("opening", passages.get("opening"))]
+    said = passages.get("opening")
+    out = [ts.step("opening", f"{INTRODUCED} {HOW_TO_ANSWER} {said}" if said else said)]
     gate = iv.get("gate") or {}
     condition = (gate.get("condition") or iv.get("condition") or {}).get("question")
     if condition:

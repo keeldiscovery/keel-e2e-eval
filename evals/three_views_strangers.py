@@ -259,7 +259,8 @@ HAND_OVER = {"problem": "Let me show you what ", "idea": "Let me show you how "}
 #: keel-web's one-pick controls (`PICK_CONTROLS` less the price ladder's two steps): where a letter, words or a tap
 #: picks one row and the hold goes on by itself.
 ONE_PICK = ("single_choice", "single_choice_5", "fixed_four", "fixed_three", "scale_four", "duration_bands",
-            "fixed_five")                         # spec 161 FR-6 (keel-web 258 FR-3): Frequency's five, one pick
+            "fixed_five",                         # spec 161 FR-6 (keel-web 258 FR-3): Frequency's five, one pick
+            "yes_no")                             # spec 162 FR-6 (keel-web 260 FR-2): the solution's yes or no
 #: Spec 159 FR-3: the three ways an item is answered on the orb link, in order -- the second row by its letter, the
 #: first row by its words, the first row by tap.
 SPEAK_OR_TAP = ("letter", "words", "tap")
@@ -317,9 +318,14 @@ def _lit_after(p, before_q: str, *, timeout_s: float = 12) -> dict:
 
 
 def _why_of(question: str | None) -> dict:
-    """Spec 161 FR-7: which why a follow-up sheet asks, by its words (the registry's three; else Importance's)."""
+    """Spec 161 FR-7: which why a follow-up sheet asks, by its words (the registry's three; else Importance's). Spec 162
+    FR-7: the solution's three whys (keel-cloud 272 FR-2) by theirs."""
+    from harness import solution_surfaces as sol    # noqa: PLC0415
     from harness import three_surfaces as ts    # noqa: PLC0415
     q = ts._bare(question)
+    for dimension, (words, _) in sol.WHYS.items():
+        if q == ts._bare(words):
+            return {"dimension": dimension, "text": words}
     for dimension, words in ((ts.PREVALENCE, ts.PREVALENCE_WHY), (ts.FREQUENCY, ts.DIFFERENCE_WHY),
                              (ts.FREQUENCY, ts.NEVER_WHY)):
         if q == ts._bare(words):
@@ -360,6 +366,7 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
     intro = p.intro()
     mic = p.mic_test()
     p.start()
+    started_at = time.monotonic()            # spec 162 FR-5: each row's time from Start (the time to the first question)
     last_q = None
     said_at = 0.0
     again: dict = {}
@@ -386,9 +393,14 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
     for _ in range(160):
         if page.get_by_test_id("ai-done").count() or page.get_by_test_id("ai-ended").count():
             break
+        if page.get_by_test_id("ai-plate-stage").count() and not any(r.get("screen") == "plate" for r in rows):
+            # spec 162 FR-5 (keel-web 260 FR-1): the brand plate between the check and the solution's film
+            rows.append(dict(watch_plate(p, page), t=round(time.monotonic() - started_at, 1)))
+            continue
         film = page.get_by_test_id("ai-story")
         if film.count():
-            rows.append(watch_film(run, p, page, interview, checks=film_checks))
+            rows.append(dict(watch_film(run, p, page, interview, checks=film_checks),
+                             t=round(time.monotonic() - started_at, 1)))
             continue
         phase = p.phase()
         if phase == "confirming":
@@ -435,7 +447,7 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                "back": page.get_by_test_id("ai-back").count(), "type_instead": page.get_by_test_id("ai-type").count(),
                "options": options, "chips": sheet.get("chips") or [], "banner": sheet.get("banner"),
                "bubbles": page.locator("[data-testid=ai-sheet] .aiv__bubble").count(),
-               "speaker": p.speaker(), "typed": p.typed_boxes()}
+               "speaker": p.speaker(), "typed": p.typed_boxes(), "t": round(time.monotonic() - started_at, 1)}
         rows.append(row)
         last_q = q
         if replay and not replayed and step == "item":
@@ -450,9 +462,12 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
         if step == "followUp" or where == ivs.FOLLOW_UP_KICKER:
             row["follow_up"] = _why_of(q)
             if plan is not None:
+                from harness import solution_surfaces as sol    # noqa: PLC0415
                 from harness import three_surfaces as ts    # noqa: PLC0415
-                # spec 165: a person's own recorded words where the plan carries them (the film's strangers)
-                row["said"] = plan.get("why") or ts.why_said(row["follow_up"])
+                # spec 165: a person's own recorded words where the plan carries them (the film's strangers); spec 162:
+                # the solution's whys answered in the solution roster's words
+                row["said"] = plan.get("why") or sol.WHY_SAID.get(str(row["follow_up"].get("dimension"))) \
+                    or ts.why_said(row["follow_up"])
                 p.say(row["said"])
             else:
                 row["said"] = "skip"
@@ -483,7 +498,14 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
             item = item_of(items, q)
             row["control"] = item.get("control")
             row["key"] = item.get("dimension")
-            if plan is not None and item.get("control") == "fixed_five" and plan.get("frequency"):
+            if plan is not None and item.get("control") == "yes_no" and item.get("dimension") in (plan.get("picks") or {}):
+                # spec 162 FR-6: the solution's three answered *Yes* or *No* -- by the option's words, or by its letter
+                pick = plan["picks"][item["dimension"]]
+                by = (plan.get("by") or {}).get(item["dimension"], "words")
+                row["said"] = ("A" if pick == "yes" else "B") if by == "letter" else ("Yes" if pick == "yes" else "No")
+                p.say(row["said"])
+                row["read"] = _lit_after(p, q)
+            elif plan is not None and item.get("control") == "fixed_five" and plan.get("frequency"):
                 # spec 161 FR-6: Frequency answered by its row's words
                 from harness import three_surfaces as ts    # noqa: PLC0415
                 row["said"] = ts.FREQUENCY_LABELS[ts.FREQUENCY_CODES.index(plan["frequency"])]
@@ -569,11 +591,19 @@ def film_controls(p, page, *, timeout_s: float = 60) -> dict:
     out: dict = {"first": p.film(), "speaker": p.speaker_box()}
     deadline = time.monotonic() + timeout_s
     f = out["first"]
+    # spec 162 (keel-web 261's eval mirrors): a film in pictures shows one picture at a time -- it plays once the shown
+    # picture is past the first scene's (the pause holds it, *Start over* brings the first back)
+    first_shown = (f.get("sig") or {}).get("shown")
     while time.monotonic() < deadline:
         f = p.film()
-        if not f.get("drawn") or f.get("begin") or ((f.get("sig") or {}).get("on") or 0) >= 3:
+        sig = f.get("sig") or {}
+        if f.get("mode") == "pictures" and first_shown is None:
+            first_shown = sig.get("shown")
+        if not f.get("drawn") or f.get("begin") or (sig.get("on") or 0) >= 3 \
+                or (f.get("mode") == "pictures" and sig.get("shown") and first_shown and sig.get("shown") != first_shown):
             break
         page.wait_for_timeout(150)
+    out["first_shown"] = first_shown
     out["playing"] = f
     if not f.get("drawn") or f.get("begin"):
         out["missed"] = "the film ended (or went) before three strokes were drawn"
@@ -644,6 +674,33 @@ def watch_film(run, p, page, interview: dict, *, checks: bool = False, timeout_s
     row["after"] = {"plays": _plays_after(page, pressed_at)[:4], "phase": p.phase(), "speaker": p.speaker_box(),
                     "opening": gate_clip(interview)}
     row["returned"] = returned(p, page)
+    return row
+
+
+def watch_plate(p, page, *, timeout_s: float = 60) -> dict:
+    """Spec 162 FR-5 (keel-web 260 FR-1): the brand plate on the stage -- `plate.before` said, the plate alone about three
+    seconds, `plate.after` said over its fade (written under it, `ai-plate-said`), then the solution's film. Read every
+    150 ms: the plate's words, its moments (`data-plate`: on, fading), the lines said, how long it stood."""
+    stage = page.get_by_test_id("ai-plate-stage")
+    row: dict = {"screen": "plate", "moments": [], "said": [], "plate": None}
+    t0 = time.monotonic()
+    deadline = t0 + timeout_s * p.patience
+    while time.monotonic() < deadline and stage.count():
+        try:
+            moment = stage.first.get_attribute("data-plate")
+            if moment and moment not in [m for m, _ in row["moments"]]:
+                row["moments"].append((moment, round(time.monotonic() - t0, 2)))
+            row["plate"] = row["plate"] or ss._tc(page.get_by_test_id("ai-plate"))
+            said = ss._tc(page.get_by_test_id("ai-plate-said"))
+            if said and said not in row["said"]:
+                row["said"].append(said)
+        except Exception:  # noqa: BLE001 - the stage went under the read
+            pass
+        page.wait_for_timeout(150)
+    row["seconds"] = round(time.monotonic() - t0, 2)
+    on = next((t for m, t in row["moments"] if m == "on"), None)
+    fading = next((t for m, t in row["moments"] if m == "fading"), None)
+    row["alone_s"] = round(fading - on, 2) if on is not None and fading is not None else None
     return row
 
 
@@ -860,7 +917,9 @@ def film_checks(run, leg, walked: dict, interview: dict, *, view: str) -> None:
     leg.check(run, f"the film: resumed (*{ivs.FILM_PAUSE_LABEL}* again), then *Start over* draws it from the start",
               resumed.get("state") == "playing" and resumed.get("pauseLabel") == ivs.FILM_PAUSE_LABEL
               and (again.get("after") or {}).get("state") == "playing"
-              and (before.get("on") or 0) > (after.get("on") or 0), screen="the film · start over", view=view,
+              and ((before.get("on") or 0) > (after.get("on") or 0) if (again.get("after") or {}).get("mode") != "pictures"
+                   else before.get("shown") != after.get("shown") and after.get("shown") == c.get("first_shown")),
+              screen="the film · start over", view=view,
               detail={"resumed": {k: resumed.get(k) for k in ("state", "pauseLabel", "sig")}, "before": before,
                       "after": after}, stop=False)
     shown, hidden = c.get("shown") or {}, c.get("hidden") or {}
@@ -1188,7 +1247,8 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
                       "answers": len((sent.get("sent") or {}).get("answers") or []), "done": walked["done"]})
     keep_surface(run, study, "orb", ts.walked_record(walked["rows"]), source="the orb's walk (keel-web 258)")
     said: dict = {"rows": []}
-    if study != "money":                                   # the decision-maker's link has no gate and no story
+    if study != "money" and not interview.get("plate"):
+        # the decision-maker's link has no gate and no story; spec 162: nor is a story asked on the plated solution link
         story_rows = [r for r in walked["rows"] if r.get("story")]
         if story_rows:
             chips = (story_rows[0] if story_rows else {}).get("chips") or []
@@ -2599,6 +2659,9 @@ def solution_founder_page(run, leg, project_id: str, roster: dict) -> None:
                                                                               "against", "asked", "capped", "state")}
                                                      for i in standings.get("insights") or []
                                                      if i.get("dimension") in sol.WHYS]}, stop=False)
+    from harness import story_screens as ss_    # noqa: PLC0415
+    if ss_.web_has_260(run.stack.keel_web):
+        solution_page_on_screen(run, leg, project_id, standings)
     faults = sol.brief_faults(standings.get("facts") or {}, roster["picks"])
     leg.check(run, "the brief's solution rows on `{yes, n, share, founderBand}`, no benefit scale (keel-cloud 272 FR-6)",
               not faults, screen="the brief's facts", view="founder (wire)",
@@ -2636,6 +2699,7 @@ def solution_view(run, leg, view: str, project_id: str) -> None:
     260's: where the checkout lacks it they are named pending (`SCREEN_CHECKS_260`)."""
     from harness import interview_charge as charge    # noqa: PLC0415
     from harness import interviewer_screens as ivs    # noqa: PLC0415
+    from evals import calls_leg as calls_leg_mod    # noqa: PLC0415
     from harness import solution_surfaces as sol    # noqa: PLC0415
     from stack import ledger    # noqa: PLC0415
     names = people(run, "PROBLEM")
@@ -2651,6 +2715,9 @@ def solution_view(run, leg, view: str, project_id: str) -> None:
         keep_surface(run, "solution", "orb", sol.served_record(interview), source="the link as served (the wire)")
         roster = solution_roster_on_the_wire(run, leg, project_id)
         solution_founder_page(run, leg, project_id, roster)
+        from harness import story_screens as ss_    # noqa: PLC0415
+        if ss_.web_has_260(run.stack.keel_web):
+            solution_roster_on_screen(run, leg, project_id, speaker=ivs.SPEAKER_ORB)
         if not run.remote and run.account_id:
             rows = [r for r in ledger.rows(run.stack, run.account_id, since=run.ledger_since)
                     if not str(r.get("idempotency_key") or "").startswith(ledger.STAND_IN_PREFIX)]
@@ -2682,6 +2749,10 @@ def solution_view(run, leg, view: str, project_id: str) -> None:
                       detail={"clips": sorted(clips)}, stop=False)
             solution_wire_checks(run, leg, interview, view="avatar")
             keep_surface(run, "solution", "face", sol.served_record(interview), source="the link as served (the wire)")
+            from harness import story_screens as ss_    # noqa: PLC0415
+            if ss_.web_has_260(run.stack.keel_web):
+                solution_roster_on_screen(run, leg, project_id, speaker=ivs.SPEAKER_AVATAR, fmt="AI_INTERVIEWER",
+                                          only=("three Nos",))
         finally:
             ledger.restore_own_door(run.stack, run.account_id, f"solution-avatar-restore-{run.stamp}",
                                     spec=tv.STAND_IN_SPEC)
@@ -2705,11 +2776,20 @@ def solution_view(run, leg, view: str, project_id: str) -> None:
                        "two forms, the idea film's lines as text (the link's, in order) and its pictures; no reveal "
                        "passage", "plate" in kinds_ and "reveal" not in kinds_ and plate.get("name") == f["name"]
                   and (not lines["idea"] or list(plate.get("lines") or []) == lines["idea"])
-                  and len(plate.get("pictures") or []) == len(plate.get("lines") or []),
+                  # a picture a scene; the last line is the film's ask, which has none
+                  and len(plate.get("pictures") or []) in (len(plate.get("lines") or []),
+                                                           len(plate.get("lines") or []) - 1),
                   screen="GET .../calls/{callId}/script", view="copilot (wire)",
                   detail={"kinds": kinds_, "plate": {k: plate.get(k) for k in ("name", "tagline", "before", "after",
                                                                                 "lines")},
                           "pictures": len(plate.get("pictures") or [])}, stop=False)
+        words = calls_leg_mod.plate_words(script, form="third")
+        leg.check(run, "the card's plate passage reads the plate's two lines around the idea film's lines, as the link "
+                       "says them (`calls_leg.plate_words`, the link's form)",
+                  bool(words) and words[0] == (run.orb_wires.get("solution") or {}).get("interview", {}).get(
+                      "plate", {}).get("before") and words[1:-1] == lines["idea"]
+                  and words[-1] == sol.PLATE_AFTER, screen="the card's plate passage", view="copilot (wire)",
+                  detail={"card": words, "link": lines["idea"]}, stop=False)
         faults = sol.first_person_faults(script, name=f["name"])
         leg.check(run, "the card's first-person forms: *I believe ...* on the opening, *Now I have built {name}.* and "
                        "*and I believe it solves this. Let us see.* on the plate (keel-cloud 272 FR-5)", not faults,
@@ -2719,3 +2799,161 @@ def solution_view(run, leg, view: str, project_id: str) -> None:
     from harness import story_screens as ss_    # noqa: PLC0415
     if not ss_.web_has_260(run.stack.keel_web):
         tv.pending_web(run, leg, "260", f"the solution study ({view})", SCREEN_CHECKS_260, screen="the solution link")
+
+
+# ------------------------------------------------------------------------------------------------ spec 162 on screen
+# keel-web 260's screens: the solution link's order walked on the orb and the face, the plate, `yes_no` by letter and by
+# words, every why in words, the check's No before the plate; the card's plate passage. Run where the checkout carries
+# keel-web 260 (`story_screens.web_has_260`).
+
+#: The order of a plated link's steps as a walk reads them (`solution_order`).
+SOLUTION_ORDER = ["screener", "film:problem", "check", "plate", "film:idea", "solution.compatibility",
+                  "solution.relative_advantage", "solution.adoption_friction"]
+
+
+def solution_order(rows: list[dict]) -> list[str]:
+    """A walk's rows as the solution link's steps, in order: the screener, the problem's film, the check, the plate, the
+    idea's film, the three questions (a why folded away), the pilot ask."""
+    out: list[str] = []
+    for r in rows:
+        if r.get("screen") == "film":
+            key = "film:idea" if r.get("kind") == "idea" else "film:problem"
+        elif r.get("screen") == "plate":
+            key = "plate"
+        elif r.get("key") == "gate":
+            key = "check"
+        elif r.get("follow_up"):
+            continue
+        else:
+            key = r.get("key")
+        if key and (not out or out[-1] != key):
+            out.append(key)
+    return out
+
+
+def solution_walk_checks(run, leg, walked: dict, interview: dict, *, view: str, label: str) -> None:
+    """Spec 162 FR-5, FR-6 on keel-web 260's screens: the order, the plate (its words, its two lines, about three seconds
+    alone), the three questions answered as said, the idea card nowhere, the time to the first question recorded."""
+    from harness import solution_surfaces as sol    # noqa: PLC0415
+    rows = walked.get("rows") or []
+    order = [k for k in solution_order(rows) if k in SOLUTION_ORDER]
+    leg.check(run, f"{label}: the link's order on screen -- the screener, the problem's film, the check, the plate, the "
+                   "idea's film, then the three questions (keel-web 260 FR-1)", order == SOLUTION_ORDER,
+              screen="the solution link's order", view=view, detail={"order": order, "want": SOLUTION_ORDER},
+              stop=False)
+    plate = next((r for r in rows if r.get("screen") == "plate"), {})
+    want_plate = interview.get("plate") or {}
+    leg.check(run, f"{label}: the plate -- the brand and its tagline on the stage, *{sol.PLATE_AFTER}* said over its fade "
+                   "into the idea's film, the plate alone a while before it",
+              bool(plate) and ts_bare(want_plate.get("name")) in ts_bare(plate.get("plate"))
+              and any(ts_bare(sol.PLATE_AFTER) in ts_bare(x) for x in plate.get("said") or [])
+              and (plate.get("alone_s") or 0) >= 1.0, screen="the plate", view=view,
+              detail={"plate": plate, "served": want_plate}, stop=False)
+    asked = [r for r in rows if r.get("key") in sol.SOLUTION_DIMENSIONS]
+    leg.check(run, f"{label}: the three questions drawn as two rows, *Yes* and *No*, and answered as said (lit as said)",
+              len(asked) == 3 and all([ts_bare(o) for o in r.get("options") or []] == ["yes", "no"] for r in asked),
+              screen="the three questions", view=view,
+              detail=[{k: r.get(k) for k in ("key", "question", "options", "said", "read")} for r in asked],
+              stop=False)
+    words = " ".join(str(r.get("question") or "") for r in rows)
+    leg.check(run, f"{label}: the idea card's lines nowhere on the plated link (no *Imagine ...*, no reveal step)",
+              "Imagine " not in words and not any(r.get("step") == "reveal" for r in rows), screen="every step",
+              view=view, detail={"questions": [r.get("question") for r in rows if r.get("question")]}, stop=False)
+    first = next((r.get("t") for r in rows if r.get("key") in sol.SOLUTION_DIMENSIONS and r.get("t") is not None), None)
+    if first is not None:
+        run.__dict__.setdefault("first_question", {})[f"{view} (walked)"] = {
+            "seconds": first, "parts": "the walk's own clock, from Start to the first question's window (FakeSpeech "
+                                       "clips: the films play at the fake's pace)", "minutes served": interview.get("minutes")}
+
+
+def ts_bare(text) -> str:
+    from harness import three_surfaces as ts    # noqa: PLC0415
+    return ts._bare(text)
+
+
+def solution_roster_on_screen(run, leg, project_id: str, *, speaker: str, fmt: str = "TEXT",
+                              only: tuple[str, ...] | None = None) -> dict:
+    """Spec 162 FR-7 on keel-web 260's screens: the solution study's people walked on the speaker -- each answer said
+    (one by its letter), every why answered in words, the response taken -- then (the orb's) the check's No leaving
+    before the plate and the screener's No before the film. `only`: the people by `who` (the face's three Nos)."""
+    from harness import solution_surfaces as sol    # noqa: PLC0415
+    view = "orb" if speaker == "ORB" else "avatar"
+    people_ = [p for p in sol.SOLUTION_ROSTER if not only or p["who"] in only]
+    extra = 0 if only else 2
+    names = [f"Stranger {run.stamp} solution {view} {i}" for i in range(1, len(people_) + extra + 1)]
+    links = make_links(run, project_id, names, fmt=fmt)
+    out: dict = {"people": [], "walks": []}
+    for n, (person, link) in enumerate(zip(people_, links)):
+        plan = {"gate": True, "picks": person["picks"],
+                "by": {sol.SOLUTION_DIMENSIONS[n % 3]: "letter"}}
+        interview, _ = read_served(run, link["url"])
+        walked = walk_link(run, link["url"], interview, shot=f"{view}-162-{n}", plan=plan)
+        sent = first_response(walked)
+        body = sent.get("sent") or {}
+        whys = [r["follow_up"]["dimension"] for r in walked["rows"] if r.get("follow_up")]
+        leg.check(run, f"{person['who']} on the {view}: owed {', '.join(person['owed']) or 'nothing'} -- each why asked "
+                       f"({', '.join(whys) or 'none'}) and answered in words, the response taken (201)",
+                  whys == person["owed"] and sent.get("status") == 201
+                  and [f.get("dimension") for f in body.get("followUps") or []] == person["owed"],
+                  screen="the three questions", view=view,
+                  detail={"whys": whys, "status": sent.get("status"),
+                          "rows": [(r.get("key"), r.get("question"), r.get("said")) for r in walked["rows"]
+                                   if r.get("screen") == "question"]}, stop=False)
+        out["people"].append({"who": person["who"], "whys": whys, "status": sent.get("status")})
+        out["walks"].append({"url": link["url"], "interview": interview, "sent": body, "rows": walked["rows"]})
+        if n == 0:
+            solution_walk_checks(run, leg, walked, interview, view=view, label=f"{person['who']} on the {view}")
+            keep_surface(run, "solution", "orb" if view == "orb" else "face", __import__(
+                "harness.three_surfaces", fromlist=["walked_record"]).walked_record(walked["rows"]),
+                source=f"the {view}'s walk (keel-web 260)")
+    if extra:
+        no_link = links[len(people_)]
+        interview, _ = read_served(run, no_link["url"])
+        walked = walk_link(run, no_link["url"], interview, shot=f"{view}-162-no", no_on="gate")
+        body = first_response(walked).get("sent") or {}
+        leg.check(run, f"a No on the check leaves with the thanks before the plate ({view}): no plate, no idea film, the "
+                       "response `recency: false` with no answers",
+                  not any(r.get("screen") == "plate" or (r.get("screen") == "film" and r.get("kind") == "idea")
+                          for r in walked["rows"]) and body.get("recency") is False and not body.get("answers")
+                  and bool(walked.get("done")), screen="the check's No", view=view,
+                  detail={"order": solution_order(walked["rows"]), "sent": body, "done": walked.get("done")},
+                  stop=False)
+        screened = links[len(people_) + 1]
+        interview, _ = read_served(run, screened["url"])
+        walked = walk_link(run, screened["url"], interview, shot=f"{view}-162-screened",
+                           plan={"screener": "no", "gate": True})
+        body = first_response(walked).get("sent") or {}
+        leg.check(run, f"the screener's No leaves before the film ({view}): no film, `outsideSegment: true`",
+                  not [r for r in walked["rows"] if r.get("screen") == "film"] and body.get("outsideSegment") is True,
+                  screen="the screener's No", view=view, detail={"sent": body}, stop=False)
+    run.__dict__.setdefault("roster", {})[f"solution-{view}"] = out
+    return out
+
+
+def solution_page_on_screen(run, leg, project_id: str, standings: dict) -> None:
+    """Spec 162 FR-8 on keel-web 260's screens: the solution's stage page -- each of the three cards drawn as the share
+    bar (`data-chart="share"`, keel-web 260 FR-6), the founder's band shaded; no benefit scale drawn."""
+    from evals import backtest    # noqa: PLC0415
+    from harness import solution_surfaces as sol    # noqa: PLC0415
+    page = run.page
+    drawn: dict = {}
+    try:
+        page.goto(f"{run.web}/p/{project_id}/s/SOLUTION", wait_until="load")
+        for key in sol.SOLUTION_DIMENSIONS:
+            page.wait_for_selector(backtest.card_selector(key), state="visible", timeout=30_000)
+            body = backtest.card_selector(key, backtest.CARD_BODY)
+            if not page.evaluate("(sel) => !!document.querySelector(sel)", body):
+                page.click(backtest.card_selector(key, backtest.CARD_OPEN))
+            page.wait_for_selector(body, state="visible", timeout=10_000)
+            drawn[key] = (page.evaluate(backtest.CARD_JS, key) or {}).get("chart") or {}
+        ss._BrowserStep(run.recorder, page, "founder").screenshot("stage-solution-shares")
+        bands = page.locator(".achart__shareband").count()
+    except Exception as missed:  # noqa: BLE001 - the read named
+        drawn["error"] = str(missed)[:300]
+        bands = 0
+    leg.check(run, "the solution's three cards drawn as share bars (`data-chart=\"share\"`, the founder's band shaded; "
+                   "keel-web 260 FR-6), no benefit scale", "error" not in drawn and all(
+                       (drawn.get(k) or {}).get("chart") == "share" for k in sol.SOLUTION_DIMENSIONS) and bands >= 3,
+              screen="the stage page · the solution's three", view="founder (screen)", stop=False,
+              detail={"drawn": {k: {f: (v or {}).get(f) for f in ("chart",)} if isinstance(v, dict) else v
+                                for k, v in drawn.items()}, "bands": bands})

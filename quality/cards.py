@@ -200,3 +200,11 @@ def differing_cards(theirs: str, ours: str | None = None) -> list[str]:
     if outside(theirs) != outside(ours):
         out.append("(outside the cards)")
     return out
+
+
+def solution_cards_at_272(text: str | None = None) -> bool:
+    """Spec 162: the solution's three cards are keel-cloud 272's (`yes_no`, `share_yes`) -- the earlier specs' pins on
+    their list-and-scale words (233 to 245) skip by name once this holds."""
+    text = text if text is not None else cards_text()
+    return all("stranger `yes_no`" in registry_line(card(k, text)) for k in
+               ("solution.compatibility", "solution.relative_advantage", "solution.adoption_friction"))

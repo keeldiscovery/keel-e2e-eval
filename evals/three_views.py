@@ -74,8 +74,9 @@ INSUFFICIENT = "INSUFFICIENT_CREDITS_FOR_NEW_PROJECT"
 #: The legs, in the report's order: FR-1 (a)-(d), then FR-2's nine.
 FOUNDER_LEGS = (("FR-1a", "the problem by voice, twice (the script's words; the long telling and a correction), to the "
                           "window page and Prevalence"),
-                ("FR-1b", "the solution from nothing: the which-problem page, the replay, the two idea beats, the day "
-                          "with the idea, Compatibility with Relative advantage pre-filled"),
+                ("FR-1b", "the solution from nothing: the which-problem page, the problem's film and the opening, the "
+                          "brand typed, four long beats, the board, the film in chapters, the verdict and the pilot "
+                          "ask, the ready page (spec 162); a failed build walked once"),
                 ("FR-1c", "the money from nothing: the pages, the orb moment, the persona pre-filled, one lock charge, "
                           "the link; then a money study with only a name, to the persona step"),
                 ("FR-1d", "the defined problem project from the list: resumed, calibrated, refused on a drained grant, "

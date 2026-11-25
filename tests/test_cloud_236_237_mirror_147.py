@@ -73,6 +73,8 @@ def test_the_reader_digest_is_237s_cards():
 def test_compatibility_reads_every_row_and_moves_the_suggestion():
     """FR-1 (236 FR-6): Compatibility §2 -- every row read, Keel's included; a rewrite faces the settled test; two rows
     about one thing are one; the suggestion moves when put aside; the permission stem is the passive."""
+    if cards.solution_cards_at_272():
+        pytest.skip("spec 162 re-cut Compatibility's card on yes or no (keel-cloud 272): 236's conditions retired")
     text = " ".join(cards.CARDS_PATH.read_text(encoding="utf-8").split())
     assert "(keel-cloud 233, 236, the review switch on)" in text
     assert "**every row is read, Keel's included** (its drafted rows and its suggestion, as the founder's)" in text
@@ -90,6 +92,9 @@ def test_relative_advantage_reads_the_benefits_back_and_names_the_job():
     question names the job (the at-stake anchor keeps *done that better*); §5's stranger line as code serves it; §6's
     pitfalls of cycles 15 to 17."""
     text = " ".join(cards.CARDS_PATH.read_text(encoding="utf-8").split())
+    if "stranger `yes_no`" in cards.registry_line(cards.card("solution.relative_advantage")):
+        pytest.skip("spec 162 re-cut Relative advantage's card on yes or no (keel-cloud 272): 237's benefits and hard "
+                    "case retired with the scale (`tests/test_the_solution_walked_162.py` holds the new card)")
     assert "**The review may put a benefit aside** (keel-cloud 237, the review switch on)" in text
     assert "**The review may rewrite the hard case** (keel-cloud 237, the review switch on)" in text
     assert "*Think of {hard_case}. Would {Name}, {what it is}, have helped you {job} better, or not?*" in text

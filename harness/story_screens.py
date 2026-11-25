@@ -585,7 +585,8 @@ ORB_WATCH = r"""(() => {
   const read = () => {
     const orb = """ + _ORB_JS + r""";
     const stage = document.querySelector('.vstage');
-    const board = document.querySelector('[data-testid=story-boxes]');
+    // spec 162 (keel-web 259 FR-4): the idea's board (`idea-board`) lights its rows the same way
+    const board = document.querySelector('[data-testid=story-boxes]') || document.querySelector('[data-testid=idea-board]');
     const lineEl = document.querySelector('[data-testid=story-state] .vstage__state-line');
     const row = { state: orb ? orb.getAttribute('data-state') : null, voice: stage ? stage.getAttribute('data-voice') : null,
                   lit: board ? board.getAttribute('data-lit') : null, path: location.pathname,
@@ -1825,9 +1826,12 @@ def idea_scenes_verdict(story: dict | None, idea: dict | None, *, name: str, tag
     parts = {
         "at most eleven": 0 < len(scenes) <= IDEA_MAX_SCENES,
         "the opening line": bool(scenes) and scenes[0].get("line") == FILM_OPENING.replace("{name}", name),
-        "the chapters in order": ordered and keys[:1] == ["before"] and keys[-1:] == ["joy"] and "task" in keys
-        and "solves" in keys,
-        "the setup scene iff a setup": len(span("before")) == (2 if setup else 1),
+        # keel-cloud 271 FR-9 as built: the opening is the film's first scene, `before` the setup's chapter (on the setup
+        # scene, there iff a setup), then the task, what it solves, better (iff an advantage), the joy last
+        "the chapters in order": ordered and keys[-1:] == ["joy"] and "task" in keys and "solves" in keys
+        and (("before" in keys) == bool(setup) or keys[:1] == ["before"] and at.get("before") == 0),
+        # the scenes before the task's chapter: the opening, and the setup's one scene where a setup was named
+        "the setup scene iff a setup": at.get("task", -1) == (2 if setup else 1),
         "one scene a step": len(span("task")) == len(workflow),
         "the limitations' marks the board's": marks == want_marks,
         "the advantage iff read": ("better" in keys) == bool(idea.get("advantage")),
@@ -2227,8 +2231,13 @@ DRAW_KINDS_NOT_DRAWN = ("caption",)
 _MEASURE_STORY = r"""(args) => {
   const root = document.querySelector(args.root);
   if (!root) return null;
-  const board = root.querySelector('[data-testid=story-board], [data-testid=idea-story-board], .sty-board');
-  const svg = board ? board.querySelector('svg') : null;
+  // spec 162 (keel-web 261's eval mirrors, keel-cloud 273): a film in pictures plays on `story-stage` (3:2, an <img> a
+  // scene, the shown one `data-on`), its caption over the picture's bottom third -- no SVG, no `data-draw`
+  const stage = root.querySelector('[data-testid=story-stage]');
+  const pictureMode = !!(stage && stage.querySelector('img[data-testid=story-picture]'));
+  const board = pictureMode ? stage
+    : root.querySelector('[data-testid=story-board], [data-testid=idea-story-board], .sty-board');
+  const svg = board && !pictureMode ? board.querySelector('svg') : null;
   const R = (el) => { const r = el.getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }; };
   const seen = (el) => { let o = 1; for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
       const s = getComputedStyle(n); if (s.display === 'none' || s.visibility === 'hidden') return 0; o *= parseFloat(s.opacity || '1'); }
@@ -2246,17 +2255,23 @@ _MEASURE_STORY = r"""(args) => {
     const x = Math.min(...on.map((b) => b.x)); const y = Math.min(...on.map((b) => b.y));
     return { x, y, w: Math.max(...on.map((b) => b.x + b.w)) - x, h: Math.max(...on.map((b) => b.y + b.h)) - y };
   };
-  const drawn = drawnEls.map((e) => ({ id: e.getAttribute('data-id') || e.getAttribute('class') || 'g', kind: e.getAttribute('data-draw') || 'g',
+  const drawn = pictureMode
+    ? [...stage.querySelectorAll('img[data-testid=story-picture][data-on]')].map((e) => ({
+        id: e.getAttribute('data-asset') || 'picture', kind: 'picture', box: R(e), seen: seen(e) }))
+      .filter((d) => d.box.w > 0 && d.box.h > 0)
+    : drawnEls.map((e) => ({ id: e.getAttribute('data-id') || e.getAttribute('class') || 'g', kind: e.getAttribute('data-draw') || 'g',
       box: inkedBox(e), seen: seen(e) }))
     .filter((d) => !args.notDrawn.includes(d.kind) && d.box && d.box.w > 0 && d.box.h > 0);
   // the wipes (`.sty-wipe.on`, the board's own colour over the drawing between scenes) cover what is under them
   const wipes = board ? [...board.querySelectorAll('.sty-wipe.on')].map(R).filter((b) => b.w > 0 && b.h > 0) : [];
   const under = (x, y) => wipes.some((w) => x >= w.x - 1 && x <= w.x + w.w + 1 && y >= w.y - 1 && y <= w.y + w.h + 1);
-  const labels = board ? [...board.querySelectorAll('.lb')].map((el) => {
+  const labels = board && !pictureMode ? [...board.querySelectorAll('.lb')].map((el) => {
       const spans = [...el.querySelectorAll('span')];
       const o = spans.length ? Math.max(...spans.map(seen)) : seen(el);
       return { text: words(el), id: el.getAttribute('data-id') || '', box: R(el), seen: o }; }).filter((t) => t.text) : [];
-  const lineEl = root.querySelector('[data-testid=story-line]');
+  const lineEl = pictureMode
+    ? (stage.querySelector('[data-testid=story-line] .sty-pcap__words') || stage.querySelector('[data-testid=story-line]'))
+    : root.querySelector('[data-testid=story-line]');
   const line = lineEl ? { text: words(lineEl), id: 'the spoken line', box: R(lineEl), seen: seen(lineEl) } : null;
   let rows = 0; let lh = null; let font = null;
   if (lineEl && line.text) {
@@ -2273,7 +2288,15 @@ _MEASURE_STORY = r"""(args) => {
     return [[x0, y0], [x1, y0], [x0, y1], [x1, y1], [(x0 + x1) / 2, (y0 + y1) / 2]].every(([x, y]) => under(x, y));
   };
   const overlaps = [];
-  for (const t of texts) for (const d of live) if (hit(t.box, d.box) && !covered(t.box, d.box)) overlaps.push({ text: t.text.slice(0, 80), text_id: t.id, text_box: t.box, drawn: d.id, kind: d.kind, drawn_box: d.box });
+  if (pictureMode) {
+    // the caption is meant to be over the picture: a fault only where it leaves the stage
+    const sb = R(stage);
+    for (const t of texts) if (t.box.x < sb.x - 1 || t.box.y < sb.y - 1 || t.box.x + t.box.w > sb.x + sb.w + 1
+        || t.box.y + t.box.h > sb.y + sb.h + 1) overlaps.push({ text: t.text.slice(0, 80), text_id: t.id, text_box: t.box,
+                                                               drawn: 'outside the stage', kind: 'stage', drawn_box: sb });
+  } else {
+    for (const t of texts) for (const d of live) if (hit(t.box, d.box) && !covered(t.box, d.box)) overlaps.push({ text: t.text.slice(0, 80), text_id: t.id, text_box: t.box, drawn: d.id, kind: d.kind, drawn_box: d.box });
+  }
   const frame = board ? R(board) : null;
   const person = drawn.filter((d) => d.kind === 'person' || /^(walkin|m-|man|person|walker)/.test(d.id));
   const pictos = drawn.filter((d) => d.kind === 'pictogram' || /^p\d+$/.test(d.id));
@@ -2311,7 +2334,8 @@ _MEASURE_STORY = r"""(args) => {
     frame, person_ratio: person.length && frame ? +(Math.max(...person.map((p) => p.box.h)) / frame.h).toFixed(3) : null,
     person: person.map((p) => ({ id: p.id, w: p.box.w, h: p.box.h })),
     pictograms: pictos.map((p) => ({ id: p.id, w: p.box.w, h: p.box.h, seen: +p.seen.toFixed(2) })),
-    drawn_by: tagged.length ? 'data-draw' : 'top-level g', drawn: live.length, texts: texts.length,
+    drawn_by: pictureMode ? 'pictures' : tagged.length ? 'data-draw' : 'top-level g', drawn: live.length, texts: texts.length,
+    mode: pictureMode ? 'pictures' : 'sticks', chapter: (root.querySelector('[data-testid=story-chapter]') || {}).textContent || null,
     line: line ? { text: line.text, rows, line_height: lh, font, box: line.box } : null, state,
     fit: { frame: inside(frame), line: inside(line && line.box), state: inside(state),
            page_scrolls: doc.scrollHeight > window.innerHeight + 1, doc: { scroll: doc.scrollHeight, view: window.innerHeight },
@@ -2372,8 +2396,8 @@ def measure_story(page, root: str, *, state: str | None = None, play: bool = Fal
                                      "doc": fit.get("doc"), "scroller": fit.get("scroller")})
             if read["drawn"] + read["texts"] > best:
                 best = read["drawn"] + read["texts"]
-                out["numbers"] = {k: read[k] for k in ("viewport", "band", "frame", "person_ratio", "person",
-                                                       "pictograms", "drawn_by", "drawn", "texts", "state")}
+                out["numbers"] = {k: read.get(k) for k in ("viewport", "band", "frame", "person_ratio", "person",
+                                                           "pictograms", "drawn_by", "drawn", "texts", "state", "mode")}
             if read.get("player") == "playing":
                 started = True
             if started and read.get("player") in ("ended", "idle") or (not started and out["samples"] > 160):
@@ -2399,6 +2423,8 @@ def fit_verdicts(measured: dict, *, phone: bool) -> dict:
     inside the band at every read, nothing scrolling. Each `(ok, detail)`; a player never read holds none of them."""
     numbers = measured.get("numbers") or {}
     read = bool(measured.get("samples")) and bool(numbers.get("drawn"))
+    # spec 162 (keel-web 261's eval mirrors): in picture mode `drawn` is the caption kept inside the stage (it is meant to
+    # sit on the picture); *no word inside the picture* is the film judge's vision reading (spec 163)
     lines = measured.get("lines") or {}
     rows = {text: (line or {}).get("rows") or 0 for text, line in lines.items()}
     long = {text[:80]: n for text, n in rows.items() if n > LINE_ROWS_MAX}
@@ -2775,13 +2801,18 @@ def scenes_verdict(story: dict | None, *, cost: str | None = None) -> dict:
     parts = {
         "seven": len(scenes) == SCENES,
         "the seventh alone is the pain": pains == [6],
-        "a picture": bool(seventh.get("pictogramId")),
+        # spec 162 (keel-web 261's eval mirrors, keel-cloud 273): a build in pictures carries `pictureAssetId` on every
+        # scene (the pictogram id is only a cue); a build before 273 draws the library's pictogram
+        "a picture": bool(seventh.get("pictureAssetId")) if any((sc or {}).get("pictureAssetId") for sc in scenes)
+        else bool(seventh.get("pictogramId")),
         "costLine is its line": bool(line) and story.get("costLine") == line,
         "eight clips": len(story.get("clipIds") or []) == CLIPS,
         "the cost said": cost is None or _bare_words(cost) in _bare_words(line),
     }
     return {"ok": all(parts.values()), "parts": parts, "scenes": len(scenes), "pain_at": pains,
-            "seventh": {"line": line, "pictogramId": seventh.get("pictogramId")}, "costLine": story.get("costLine"),
+            "seventh": {"line": line, "pictogramId": seventh.get("pictogramId"),
+                        "pictureAssetId": seventh.get("pictureAssetId")},
+            "pictures": sum(1 for sc in scenes if (sc or {}).get("pictureAssetId")), "costLine": story.get("costLine"),
             "clips": len(story.get("clipIds") or [])}
 
 
@@ -2804,7 +2835,13 @@ def held_longer(holds: dict | None) -> bool:
         pain, scene = float(holds.get("pain") or 0), float(holds.get("scene") or 0)
     except (TypeError, ValueError):
         return False
-    return pain >= HOLD_PAIN_MS and scene > 0 and pain >= scene + (HOLD_PAIN_MS - HOLD_MS)
+    # spec 162 (keel-web 261, the film in pictures): the page's clock on a picture film reads a scene's time to within a
+    # frame or two (the crossfade's), so the added hold is held to within `HOLD_SLACK_MS`
+    return pain >= HOLD_PAIN_MS and scene > 0 and pain >= scene + (HOLD_PAIN_MS - HOLD_MS) - HOLD_SLACK_MS
+
+
+#: Spec 162: the page clock's slack on the pain scene's added hold (a frame or two at 60 Hz, the crossfade's).
+HOLD_SLACK_MS = 40
 
 
 def board_rows_verdict(card: dict | None, want: dict[str, str | list | None]) -> dict:

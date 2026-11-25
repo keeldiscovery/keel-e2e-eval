@@ -528,6 +528,28 @@ class Card:
         return self._b.screenshot(name)
 
 
+#: Spec 162 FR-9 (keel-cloud 272 FR-5, contract 90; keel-web 260 FR-5): on a solution study whose two films are served
+#: the call's script carries a `plate` passage in the reveal's place -- the brand, its two lines in two forms, the idea
+#: film's lines as text (and its pictures) -- which the card draws and walks by *Next*, one line at a time.
+PLATE_KIND = "plate"
+
+
+def plate_passage(script: dict | None) -> dict | None:
+    """The call's `plate` passage, or None (a problem or money study, or a link with a typed idea)."""
+    return next((p for p in (script or {}).get("passages") or [] if p.get("kind") == PLATE_KIND), None)
+
+
+def plate_words(script: dict | None, *, form: str = "first") -> list[str]:
+    """What the card reads on the plate passage, in order: `before` (the founder's own form, `first`, as the card reads
+    it; `third` the link's), then the idea film's lines as text, then `after` -- the plate's words and the solution
+    film's lines as the card says them (spec 162 FR-9: compared with the orb's and the face's)."""
+    plate = plate_passage(script)
+    if not plate:
+        return []
+    said = lambda f: (f or {}).get(form) or (f or {}).get("third") if isinstance(f, dict) else f   # noqa: E731
+    return [x for x in [said(plate.get("before"))] + list(plate.get("lines") or []) + [said(plate.get("after"))] if x]
+
+
 def _script_passages(j, call_id: str) -> dict:
     return j.get(j.project(f"/calls/{call_id}/script")) or {}
 

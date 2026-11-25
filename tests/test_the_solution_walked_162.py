@@ -257,6 +257,10 @@ def test_a_full_film_holds_every_part_and_a_broken_one_names_it():
     assert v["ok"], v
     no_setup = dict(IDEA, setup=[], setupNone=True)
     assert not ss.idea_scenes_verdict(story, no_setup, name=name)["parts"]["the setup scene iff a setup"]
+    # as keel-cloud builds it with nothing to set up: the opening unmarked, the task's chapter next (no `before`)
+    bare = dict(story, scenes=[dict(story["scenes"][0], chapter=None)] + story["scenes"][2:],
+                clipIds=["c"] * 7)
+    assert ss.idea_scenes_verdict(bare, no_setup, name=name, tagline="T")["ok"]
     no_adv = dict(IDEA, advantage=None)
     assert not ss.idea_scenes_verdict(story, no_adv, name=name)["parts"]["the advantage iff read"]
     unpictured = dict(story, scenes=[dict(s, pictureAssetId=None) for s in story["scenes"]])
@@ -514,3 +518,31 @@ def test_the_cards_digest_is_the_one_spec_162_moved():
     for key in ("solution.compatibility", "solution.relative_advantage", "solution.adoption_friction"):
         body = cards.card(key)
         assert "stranger `yes_no`" in cards.registry_line(body) and "compare `share_yes`" in cards.registry_line(body)
+
+
+def test_the_cards_plate_passage_reads_the_plate_around_the_films_lines():
+    """FR-9 (`calls_leg.plate_words`): the card reads `before`, the idea film's lines as text, then `after` -- the
+    founder's own form on the card, the link's form beside it for the comparison."""
+    from evals import calls_leg                                                 # noqa: PLC0415
+    script = _script()
+    assert calls_leg.plate_passage(script)["kind"] == calls_leg.PLATE_KIND
+    iv = _interview()
+    assert calls_leg.plate_words(script, form="third") == [iv["plate"]["before"], *iv["ideaStory"]["readInstead"],
+                                                           sol.PLATE_AFTER]
+    assert calls_leg.plate_words(script)[0] == "Now I have built Runcheck."
+    assert calls_leg.plate_words({"passages": [{"kind": "reveal"}]}) == []
+
+
+def test_a_walk_reads_as_the_solution_links_order():
+    """FR-5 on keel-web 260's screens (`three_views_strangers.solution_order`): the screener, the problem's film, the
+    check, the plate, the idea's film, the three questions -- a why folded away, a film read once."""
+    from evals import three_views_strangers as strangers                       # noqa: PLC0415
+    rows = [{"screen": "question", "key": "screener"}, {"screen": "film", "kind": "problem"},
+            {"screen": "question", "key": "gate"}, {"screen": "plate"}, {"screen": "film", "kind": "idea"},
+            {"screen": "question", "key": sol.COMPATIBILITY}, {"screen": "question", "follow_up": {"dimension": "x"}},
+            {"screen": "question", "key": sol.RELATIVE_ADVANTAGE}, {"screen": "question", "key": sol.ADOPTION_FRICTION},
+            {"screen": "question", "key": None, "question": "Would you try Runcheck for real?"}]
+    assert strangers.solution_order(rows) == strangers.SOLUTION_ORDER
+    assert "yes_no" in strangers.ONE_PICK
+    assert strangers._why_of(sol.WHYS[sol.ADOPTION_FRICTION][0]) == {"dimension": sol.ADOPTION_FRICTION,
+                                                                     "text": sol.WHYS[sol.ADOPTION_FRICTION][0]}
