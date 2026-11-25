@@ -11,8 +11,8 @@ criteria for that dimension, including the option?"*; and at 08:50 ET: *"spend a
 dimension would look like, and how the options should look like, how much of them should be for and how much should be
 against, and ensure that that's foolproof."*
 
-**What a card is.** One card per dimension of keel-cloud's registry, thirteen, in the registry's order (four of the
-problem, three of the solution, six of the money). Each card says, in plain words and for the founder's screens and the
+**What a card is.** One card per dimension of keel-cloud's registry, twelve, in the registry's order (three of the
+problem since keel-cloud 269 retired Current solution, three of the solution, six of the money). Each card says, in plain words and for the founder's screens and the
 stranger's item of that dimension alike, in this order: what the dimension measures; the shape its options must have;
 which answers count for the belief the screen tests, which against, and which count for nobody; the escape; a good and a
 bad example; the pitfalls the readers have already seen. Where the registry and a spec disagree, or the sources leave a
@@ -47,7 +47,8 @@ moves, the card moves in the same commit.
 - *For* and *against*: for or against **the founder's belief** -- never "for the product", never "for today's way". A
   conditional yes is a yes: it counts for, drawn lighter and split in the count line (spec 180: there is no neutral).
 - *Neither*: counted for nobody -- the item's escape (always apart, but for Importance's *None of these*, which counts
-  against); a guess (an answer with no story behind it); a person never asked (a No at the gate answers nothing more; on
+  against); a guess (an answer with no story behind it); a person never asked (a No at the gate answers nothing more but
+  Importance, keel-cloud 269; on
   Ability to pay, everyone below the founder's price); and the whole dimension when the founder chose *I'm not sure*:
   left out, asked of nobody, and the brief says it is untested.
 - *The floor*: 5 counted people (Prevalence: 5 gate answers). Fewer is *Too few to call*.
@@ -88,9 +89,12 @@ How many of the people you are studying had the problem in the period you chose.
 - **The stranger's gate**: *In {window}, did you {the founder's problem, said to them}?* -- the problem the founder
   counted, never the circumstance; never names the idea. **Fixed answers, in order:** `yes` *Yes* · `no` *No*. The stem
   must name the window and the problem as one act the person did or met, so a person without the problem can truly say
-  No and a person with it Yes. A Yes opens the story; a No ends the interview, and the person is still counted.
-- **One clause (keel-cloud 212).** The strangers' event is the founder's clause, by code: the gate and the Frequency
-  item carry the founder's Prevalence event, turned to the second person by code, never a second writer's. The founder's
+  No and a person with it Yes. A Yes opens the story; a No goes on to Importance, the story and Frequency skipped
+  (keel-cloud 269), and the person is still counted. Where the problem's film is shown first, the gate is the fixed
+  words *Did this happen to you?* (keel-cloud 269), the clause read instead.
+- **One clause (keel-cloud 212).** The strangers' event is the founder's clause, by code: the gate carries the
+  founder's Prevalence event (keel-cloud 269: Frequency no longer does), turned to the second person by code, never a
+  second writer's. The founder's
   writer writes it from `went_wrong` (the one part of the problem a person with it had to do or put up with), beside
   `routine` (what every one of the people does whether or not the problem struck): the act that hurts, at most 9 words,
   8 on a working-days window: 20 spoken words minus the strangers' frame -- never the routine, a lasting state, a
@@ -177,88 +181,58 @@ is never offered).
 <!-- card:problem.frequency:begin -->
 ### Frequency · `problem.frequency`
 
-**Registry:** PROBLEM, order 2 · founder `numeric_interval` (*I'm not sure* allowed) · stranger `segmented_1_to_n` (part
-1) · compare `interval_contains_median`, supporting side `more` · escape `cant_recall` · floor 5.
+**Registry:** PROBLEM, order 2 · founder `single_choice` (*I'm not sure* allowed) · stranger `fixed_five` (part 1) ·
+compare `share_most_or_every`, supporting side `more` · supports `every_time`, `most_times` · escape none ·
+floor 5.
 **Screens:** the founder's question (q) · the stranger's item · the card after the answers.
 
 #### 1. What it measures
 
-How often someone who has the problem runs into it.
+How often someone who has the problem runs into it, when they do the task.
 
 #### 2. The options' shape
 
-- **The founder's question** is code's: *On how many of {window} did a typical {actor} {event}?* -- the window
-  first, then one act that happened on a given unit or did not, in the simple past (no state, cause or result, nothing
-  the person does not see), named as the people name it; the question last. **No options:** a two-handle range from 0
-  to the window's count, in whole units of the window (*4 to 7 nights out of 7*; *2 to 3 months out of 3*). The belief:
-  *{actor_plural} face this on {value}.*
-- **The stranger's item** is code's: *On how many of {window} did you {event}?* -- the count of units it happened on,
-  not the number of times; the unit said once, in the window phrase (keel-cloud 216: never *on how many did you*, never
-  the unit said again, *in the last 3 months, in how many months*). **One measure: units of the window.**
-  **The options:** one button per unit, *1* first, the window's count last (*1 · 2 · 3 · 4 · 5 · 6 · 7*) when the count
-  is at most 7; a number box of at least 1 for a longer window. Never a 0 (a Yes at the gate means at least one), never
-  the founder's range, never bands. Spoken past five steps: *Say a number from 1 to {N}.* Then the one escape.
-- **One clause (keel-cloud 212).** The strangers' event is the founder's clause, by code: the founder's Frequency
-  question and the stranger's item ask the founder's Prevalence event, the stranger's turned to the second person by
-  code -- the same act, so a count of the strangers' units reads against the founder's range; the clause is at most 9
-  words, 8 on a working-days window: 20 spoken words minus the strangers' frame.
-
-- **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point): the
-  founder's question screen carries belief_template as it stands ('{actor_plural} face this on {value}.'); the card
-  after the answers names the question's own clause, never 'face this' (spec 184 FR-2; code, on the card only). The
-  event the question asks is Prevalence's clause (WindowFrame.frequencyFounder), so the event's rules live in
-  Prevalence's guidance. Nothing here moves.
+- **The founder's question** is code's (keel-cloud 269): *Out of 10 {actor_plural} who have it, how many face it most
+  times or every time?* **Exactly five options, code's, Prevalence's bins:** *Fewer than 2 in 10* (`p_0_20`) · *2 or 3
+  in 10* (`p_20_40`) · *4 or 5 in 10* (`p_40_60`) · *6 or 7 in 10* (`p_60_80`) · *8 or more in 10* (`p_80_100`). Code
+  writes *6 or 7 in 10* at the boxes' yes; the founder may change it. The belief: *Of these {actor_plural} who have it,
+  {value} face it most times or every time.*
+- **The stranger's item** is code's whole, asked only after a Yes at the gate: *When you {job}, how often does it
+  happen?* -- the story's job, said to them, at most 20 words; never a window, a count or the founder's band. **One
+  measure: how often, when they do the task.** **Fixed answers, in order:** `every_time` *Every time* · `most_times`
+  *Most times* · `about_half` *About half the time* · `now_and_then` *Now and then* · `never` *Never*. Letters A to E.
 
 #### 3. For, against, neither
 
-- **For:** a count at the founder's low or above -- inside the founder's range, or above it (*more often than you
-  think*).
-- **Against:** a count below the founder's low.
-- **Neither:** `cant_recall` *I can't recall* (apart); a guess; anyone who said No at the gate (never asked); a story
-  chip that ended the interview.
-- **The bar:** at least 2 in 3 at the founder's low or above holds; 1 in 3 or fewer fails; between, people disagree. The
-  middle answer is reported. Floor 5.
-- **Balance:** the founder's low splits the buttons -- *1* up to one under the low count against, the low up to the
-  window's count for. With *4 to 7 nights out of 7*: 1, 2, 3 against; 4, 5, 6, 7 for.
-- **Healthy:** the founder's low is at least 2, so at least one button can count against. A range that starts at 0 or 1
-  makes every button count for: the belief can never be refuted -- every option counts one way, R7 0 by FR-1c. The
-  question says the unit once, in the window phrase: *On how many of the last 3 months did you ...?*, never *In the
-  last 3 months, in how many months ...* -- a word shorter than that, so the event keeps its 9 words (8 on working
-  days) under the 20-word cap.
+- **For:** `every_time` *Every time* and `most_times` *Most times*.
+- **Against:** `about_half` *About half the time*, `now_and_then` *Now and then* and `never` *Never*.
+- **Neither:** a guess; a No at the gate (never asked); a story chip that ended the interview.
+- **The bar:** the share of the yes-sayers on *Every time* or *Most times*, placed against the founder's bin as
+  Prevalence's share is: in the bin or above holds, the bin just below is people disagree, lower fails. Floor 5.
+- **Balance:** two answers for, three against, so the belief can be supported and refuted.
+- **Healthy:** the five fixed answers, in order, on the item.
 
 #### 4. The escape
 
-**Escape:** `cant_recall` *I can't recall*, apart -- must be on the item, and only it. Never a *0* or *None* button in
-its place: a person past a Yes at the gate has at least one. The founder's side: *I'm not sure* is allowed and leaves
-the dimension out (asked of nobody; the brief says untested).
+**Escape:** none -- *Never* is the floor. The founder's side: *I'm not sure* is allowed and leaves the dimension out
+(asked of nobody; the brief says untested).
 
 #### 5. A good example and a bad example
 
-- **Good (R7 2)** -- Lullaby. Founder: *On how many of the last 7 nights did a typical parent have to work out why
-  their baby was crying?* -- range *4 to 7 nights out of 7*; belief *Parents of babies under six months face this on 4
-  to 7 nights out of 7.* Stranger: *On how many of the last 7 nights did you have to work out why your baby was
-  crying?* *1 · 2 · 3 · 4 · 5 · 6 · 7 · I can't recall.* For: 4 to 7; against: 1 to 3.
-- **Bad (R7 0)** -- Palus, cycle 4 (spec 174 FR-5): *In the last 3 months, on how many did you leave raised cash sitting
-  in your bank's money market fund?* *1 · 2 · 3 · I can't recall.* **What breaks it:** *on how many did you* drops the
-  unit, so *1*, *2* and *3* measure nothing the founder's *2 to 3 months out of 3* can be read against; and *leave ...
-  sitting* is a standing state, not an act that happened on a given month.
+- **Good (R7 2)** -- Lullaby. Founder: *Out of 10 parents of babies under six months who have it, how many face it most
+  times or every time?* -- *6 or 7 in 10*. Stranger: *When you work out what the baby needs and settle them, how often
+  does it happen?* *Every time · Most times · About half the time · Now and then · Never.* For: the first two.
+- **Bad (R7 0)** -- a count over the window (*On how many of the last 3 months did you ...?*, keel-cloud 158 to 268):
+  **What breaks it:** the unit, the window and the event had to agree, and a lasting state could not be counted by month.
 
 #### 6. Pitfalls the readers have seen
 
-- The window's unit said twice (*in the last 3 months, in how many months*) or dropped past the spoken cap (*on how many
-  did you*) (cycle 8, proposal 47; spec 174 FR-5).
-- A lasting state (money left sitting, an agent failing) counted by day or month, so the person cannot tell what counts;
-  the thing named in words other than the trade's (cycle 8, 47).
-- The founder's question packing two conditions, a cause or a result into the event, or asking about an outcome the
-  person never sees (*guests booking elsewhere*) (cycle 8, 39).
+- The window's unit said twice, or dropped past the spoken cap; a lasting state counted by day or month (cycles 4 and
+  8) -- gone with the count (keel-cloud 269).
 
 #### Open
 
-- **Spec 131 vs registry.** FR-1a sketches Frequency's options as *the window's units as bands*; the registry serves one
-  button per unit from 1 to the window's count (a number box past 7) and the founder a range -- there are no bands. The
-  card follows the registry.
-- **Not settled.** The registry's option rule lets the founder set a range from 0; this card scores a range starting
-  at 0 or 1 R7 0 by FR-1c's own words, but whether the founder's question should refuse such a range is not settled.
+- **Spec 270** gives the three answers against their follow-up question.
 <!-- card:problem.frequency:end -->
 
 ---
@@ -276,6 +250,12 @@ How much they want this problem made easier, next to the other things that are h
 
 #### 2. The options' shape
 
+- **Keel-cloud 269: the rows are the role's tasks, from the founder's story.** Code writes the list at the boxes'
+  yes: the own row is the story's job said as a task (*Checking the payroll before it goes out*), locked, first; then
+  the other tasks the founder named on the story's seventh beat, two to four, in their words. The belief: *Of the
+  things {actor_plural} have to do, {value} is one of the two they would most like made easier.* The stranger is
+  asked *Of the things you do as a {actor}, which would you most like made easier?*, then *And one more?*, over the
+  rows shuffled, the own row never first. The rules below are a list saved before 269's.
 - **The founder's list** (code `own` first, then `rival_1` to `rival_4`): the founder's own difficulty -- the problem
   itself, locked, **first** -- then the other difficulties the founder named, **one to four, in their words; Keel adds
   none but a row in place of one the review puts aside** (keel-cloud 243). Save needs three in all (the own item and two), because the stranger picks two.
@@ -332,7 +312,8 @@ How much they want this problem made easier, next to the other things that are h
   picking it first counts too (the first pick alone, counted as one pick).
 - **Against:** two other rows picked and the own item left out; one other row and then *Nothing else*;
   `none_of_these` *None of these* -- the one escape on any card that counts against.
-- **Neither:** a guess; a No at the gate (never asked); a story chip that ended the interview.
+- **Neither:** a guess; a story chip that ended the interview. A No at the gate goes on to this item and its picks
+  count (keel-cloud 269).
 - **The bar:** holds if at least 2 in 3 put it in their two. Floor 5.
 - **Balance:** each person is for or against; the own item is one row among three to five, so most picks can land
   either way.
@@ -347,7 +328,9 @@ the first ask and must not be at the second. The founder's side: *I'm not sure* 
 
 #### 5. A good example and a bad example
 
-- **Good (R7 2)** -- Lullaby. Founder's list: *Knowing what the cry means* (own, first, locked) · *Getting the baby back
+- **Good (R7 2)** -- Lullaby since keel-cloud 269: own row *Working out what the baby needs and settling them* ·
+  *Feeding the baby* · *Changing nappies* · *Getting the baby to nap in the day*; stranger *Of the things you do as a
+  parent, which would you most like made easier?*. Before 269 -- Founder's list: *Knowing what the cry means* (own, first, locked) · *Getting the baby back
   down after a feed* · *Getting back to sleep yourself* · *Keeping track of the night's feeds*; belief *Parents of
   babies under six months have four things that are hard when the baby cries in the night. Knowing what the cry means is
   one of the two they would most like made easier.* Stranger: *Think of your last night. Which one of these would you
@@ -373,147 +356,13 @@ the first ask and must not be at the second. The founder's side: *I'm not sure* 
 
 ---
 
-<!-- card:problem.current_solution_satisfaction:begin -->
-### Current solution · `problem.current_solution_satisfaction`
-
-**Registry:** PROBLEM, order 4 · founder `scale_lines` (saves exactly 5, 9 words, a phrase; *I'm not sure* allowed) ·
-stranger `single_choice_5` (part 1) · compare `below_line` · escape `someone_else_checks` (or `cant_recall`, by the act),
-apart · floor 5.
-**Screens:** the founder's Answer (two boxes) and Check · the stranger's item · the card after the answers.
-
-#### 1. What it measures
-
-How well the way they handle it today gets the job done.
-
-#### 2. The options' shape
-
-- **The founder's Answer** has two boxes, each at most 25 words: the first, what they do today (the act and its means:
-  tools, habits, workarounds); the second, how it goes (the founder's own rungs, and where *good enough* ends).
-- **The Check screen:** the act as a bare gerund phrase in the people's own words (*working out what the baby needed*;
-  never opening on *your way of*, never a bare *it*), and **exactly five outcomes, best to worst** (codes `outcome_1` to
-  `outcome_5`), each at most 9 words (a founder's rung too, said in fewer of their words), parallel, one clause saying
-  how it turned out.
-- **One measure:** every rung is a step on the one scale of the cost the founder's Answer names -- time, money, how
-  often, quality -- never a stand-in (when the log was finished, yield alone). **Keel's rungs stay on the founder's
-  measure** (spec 226): each is the founder's act going worse on it, never another place, another act or an outcome in
-  place of the measure (*The cash sat in checking earning nothing* under four rungs of yield after fees; *Failed
-  partway and had to be resubmitted* under three of idle reservation; *Calls that rang out were simply lost* under four
-  of who was called back). A rung is the outcome alone, never the outcome and its cost at once (*It settled my doubt
-  but took substantial effort*), unless the founder's measure is that cost. Code reads Keel's rungs (`W-rung`, one
-  repair turn, then noted): no noun after *the* or a possessive that the founder's rungs and the act do not say; every
-  word the founder's three or more rungs all share; no *but* / *though* clause naming effort, time or money where the
-  founder's rungs grade none.
-- **The first rung is today's way getting the job done** -- the founder's where the Answer names one; else Keel's,
-  written above theirs and tagged as Keel's until the founder saves; never a less bad shortfall (spec 203). **The last
-  rung is today's way failing outright** (it never got done). Between: the founder's own rungs word for word in the
-  order typed, then Keel's worse ones to five. Each shortfall named has its own worse rung; one rung is the usual case;
-  no rung joins two states with *and* or *or*; no two overlap; no true answer left out.
-- **The line** sits under the last founder rung the Answer calls acceptable (under the first by default; after 2 where
-  the Answer types none) and **always under a working rung**: never above the first rung (the Save refuses it), never
-  under a shortfall rung (code raises it). So 1 to 4 rungs sit above it. **The founder places it** (spec 226): the Check
-  carries the line as a control, drawn where the draft put it, movable to under the first to the fourth rung -- under
-  the last rung that still counts as today's way working (`lineAfter`, 0 to 3); a line placed under a shortfall rung is
-  refused with the reason. The bar names the rung just above the line by its exact words on the final list: *Holds if at
-  least 2 in 3 land below '{rung}'.* -- and the card after the answers and the brief name the rung the founder chose.
-  The founder rewords and moves the line; the order is fixed.
-- **The notes** (spec 226): on Save, the review reads the five rungs back for one measure and may draw one sentence
-  under a rung that grades something else (*this rung grades whether the job ran, not how much it held*). **The review
-  rewrites the five as one scale** (specs 232, 235): the measure is the first rung's; where any other rung grades
-  something else, every rung that must move is rewritten so the five are one ladder on that measure, best to worst,
-  each rung a distinct step on it (a time, an amount, a share, a count) -- never a condition or the reason it went that
-  way (*Called back once other calls cleared* says why a call waited, not when it was called back) -- at most 9 words,
-  the last today's way failing outright on it (*Never called back*, never *simply lost*). Code holds the ladder whole or
-  not at all (`W-rung`, the rules above, no condition clause, distinct from both neighbours); on code's refusal the
-  review is asked once more for the whole ladder, inside the Save's hold, else the rungs stay the founder's with the
-  notes alone. The first rung, the order, the five and the line never move. The Check says *Keel rewrote the scale so
-  every answer is a step in {measure}.* (the measure in the people's words; else what Keel changed in one line), the
-  founder's words stay under the rung behind **Put back**.
-- The belief: *For most {actor_plural}, {value} still falls short.* -- {value} the act.
-- **The stranger's item:** *Think of the last {occasion}. How did {the act} go?* -- one act, the step that hurts, on that
-  one occasion (it may ask what it cost: how long, how much). The options are the five saved rungs **in order**, the
-  working one first, each answering that exact question, no method, no two both true; the true answer of anyone who did
-  it is always one of the five. Then the one escape. Never names the idea.
-
-#### 3. For, against, neither
-
-The belief tested is *today's way still falls short*. So:
-
-- **For the belief:** every rung **below** the line -- today's way fell short (`outcome_3` to `outcome_5` on a line
-  after 2).
-- **Against the belief:** every rung **above** the line -- the first, and any other above it: today's way did the job
-  (`outcome_1` and `outcome_2` on a line after 2). In today's way's own terms these are the answers *for today's way*.
-- **Neither:** the escape (`someone_else_checks` *Someone else did it*, or `cant_recall` *I can't recall*), apart; a
-  guess; a No at the gate; a story chip that ended the interview.
-- **The bar:** holds if at least 2 in 3 land below the rung just above the line. Floor 5.
-- **Balance:** 1 to 4 rungs against (above the line), the rest for (below it) -- most often 1 or 2 against, 3 or 4 for.
-- **Healthy:** at least one rung above the line reads as today's way working, and at least one below it falls short.
-  A scale of five shortfalls is R7 0 wherever its line sits: the rung above the line is a shortfall counted as if
-  today's way had worked, nothing can truly count for today's way, a person whose last time went fine has no answer, and
-  the belief is tested against nothing. Code reads a rung as a shortfall by its words -- *inconsistent*, *uneven*,
-  *unsupported*, *too weak*, *never enough*, *not enough*, *fail* / *fails* / *failed* / *failing* / *failure*, *fell* /
-  *falls short*, *not good enough*, *didn't work* / *did not work*, *doesn't work*, *never worked*, *cost them money* --
-  unless the word before it negates it
-  (*nothing*, *no*, *none*, *never*, *without*, *nobody*). A shortfall in other words (*took three tries*) is not seen by
-  code: the reader must see it.
-
-#### 4. The escape
-
-**Escape:** exactly one, apart. `someone_else_checks` *Someone else did it* (code writes it to the occasion: *Someone
-else did it that night*) where the act could have been handed off; `cant_recall` *I can't recall* where it could not
-(following a conversation, sizing a job you submit yourself) -- the list writer's `handed_off`, *Someone else did it*
-where unwritten. Must be there; never both. The founder's side: *I'm not sure* leaves the dimension out.
-
-#### 5. A good example and a bad example
-
-- **Bad (R7 0)** -- the angel-group screening study on staging, 2026-11-03 (spec 203). The act: *screening startup decks
-  before the committee meets.* The five: *Inconsistent* · ┄ line ┄ · *Too uneven* · *Unsupported* · *Too weak* · *Never
-  enough*; the bar *Holds if at least 2 in 3 land below 'Inconsistent'*; the stranger's item serves the same five, then
-  *Someone else did it*. **What breaks it:** *Inconsistent*, *too uneven*, *unsupported*, *too weak*, *never enough* --
-  every rung is a shortfall, no rung where today's way works; *Inconsistent*, above the line, is counted against the
-  belief as if it had worked, so nothing can truly count for today's way and *still falls short* is tested against
-  nothing. (keel-cloud's `TheScaleHasAWorkingRungTest` rebuilds the same shape in full rungs: *Inconsistent evidence
-  across the decks · Unsupported claims reached the committee · Evidence too weak to decide on · Never enough evidence
-  to decide · The screening failed outright*, the line under the first.)
-- **Good (R7 2)** -- the same study redrawn as spec 203 has it: *Evidence was clear enough to decide* (Keel's, tagged
-  until saved) · ┄ line ┄ · *Inconsistent evidence across the decks* · *Unsupported claims reached the committee* ·
-  *Evidence too weak to decide on* · *Never enough evidence to decide*; the bar *Holds if at least 2 in 3 land below
-  'Evidence was clear enough to decide'*. For: rungs 2 to 5; against: rung 1. Lullaby's scale passes as it is: *Knew
-  what the baby needed straight away · Got it right after one wrong guess* · ┄ line ┄ · *It took a few tries to find it
-  · Tried everything before anything worked · Nothing worked; the baby settled alone* -- for 3 to 5, against 1 and 2.
-
-#### 6. Pitfalls the readers have seen
-
-- **No rung where today's way works** -- five shortfalls, the first counted against the belief as if it worked. On
-  cycle 8 all fourteen Check screens scored R4 1 or 2 for overlap and coverage, and no reader named it (spec 131's
-  reason; keel-cloud 203).
-- The bar naming a rung that is not on the final list (ten of fourteen in cycle 8); rungs grading a stand-in (when the
-  log was finished, yield alone) instead of the cost the Answer names; joined *or* / *and* rungs; the usual case, or a
-  common true answer (someone else did it, another tool), missing (cycle 7, proposal 35; cycle 8, 36).
-- On the item, a stem asking one act and options measuring another -- 08-fresco: the stem asked how the photo upload
-  went, the options were about the log (R4 0); a stem pasting two acts, a tool list or a segment label (cycle 7, 43;
-  cycle 8, 46).
-
-#### Open
-
-- **Spec 131 vs registry.** FR-1a's sketch, *for: the first rung and the ones above the founder's line; against: every
-  rung below it*, counts for and against **today's way**. The registry's rule (`below_line`) and its belief (*{value}
-  still falls short*) count the rungs below the line **for the founder's belief** and the rungs above it against. The
-  card states both and the test reads the registry's.
-- **Spec 203 FR-3 vs code.** FR-3 says the served card never counts a shortfall rung as for today's way; a list saved
-  before 203 whose first rung is a shortfall keeps its line under that rung (`SavedList.lineAfter` is never above the
-  first; 203's tasks.md, *not done as written*), so on such a list the shortfall still counts against the belief. Re-
-  saving it is refused until the first rung is reworded.
-<!-- card:problem.current_solution_satisfaction:end -->
-
----
-
 <!-- card:solution.compatibility:begin -->
 ### Compatibility · `solution.compatibility`
 
-**Registry:** SOLUTION, order 1 · founder `item_list` (saves 2 to 4, 16 words, picked, with `asked`; *I'm not sure*
-allowed) · stranger `fixed_four` (part 2, after the reveal) · compare `fixed_last_two_against` · supports `yes_easily`,
-`yes_with_steps` · escape `cant_tell` · floor 5.
-**Screens:** the founder's Answer, Check and Choose · the stranger's item · the card after the answers.
+**Registry:** SOLUTION, order 1 · founder `single_choice` (Prevalence's five bins, written by code at the board's yes;
+*I'm not sure* allowed) · stranger `yes_no` (part 2, after the idea's film) · compare `share_yes`, supporting side
+`more` · supports `yes` · escape none · floor 5.
+**Screens:** the founder's review row · the stranger's item · the card after the answers.
 
 #### 1. What it measures
 
@@ -521,97 +370,57 @@ How well your idea fits the way they already work: their tools, their routines, 
 
 #### 2. The options' shape
 
-- **The founder's list:** 2 to 4 conditions the idea must meet, each at most 16 words, a verb phrase with no subject of
-  its own (it reads whole after *Most {actor_plural}*). The draft carries no stranger's clause: Keel writes each row's
-  (`asked`: second person, framed by code to at most 20 words, no question mark) when the founder saves, on the rows as
-  read back (keel-cloud 245), and Choose shows the question each will be asked. Each is one whole act with one thing to weigh -- a clear yes or no for
-  every usual way of doing the job (two things joined are two conditions); none already true of everyone the study is
-  about, by the founder's segment or by the usual way of doing the job; none narrower than the part of the mechanism it
-  tests; the step the idea depends on most never missing; no two about the same thing; no number the founder did not
-  write. Keel marks one suggested (the one most likely missing, the one that costs the stranger most) with why; on
-  Choose (*Which of these is most likely to be missing?*) the founder picks the one to test. Belief: *Most
-  {actor_plural} {value}.*
-  **Each row's kind** (spec 225): the writer writes `kind` on every row -- **ability** (the person could do it
-  themselves), **fact** (true of them or not) or **permission** (someone else allows it or sets it up for them) --
-  from the row's words and the context, beside `settled_by`; code holds it: a row whose words name an allower or a
-  sign-off is a permission; a row opening on *could* with no allower is an ability unless the writer says why not; a
-  row with no kind (saved before, or reworded since) takes the word test. **The suggestion is never settled:** Keel's
-  suggested row is held to the same `settled_by` test as the founder's -- settled, it is refused once and then dropped,
-  and no other is suggested in its place. **The review may change a condition that breaks this card** (keel-cloud
-  233, 236, the review switch on): on Save of the Check, before the pick, it reads the conditions back -- **every row
-  is read, Keel's included** (its drafted rows and its suggestion, as the founder's) -- a permission someone else
-  holds, typed as an ability, is rewritten so the words say so, with a permission code reads (*could forward
-  unanswered calls to another number* -> *were allowed to have unanswered calls forwarded to another number*), the kind
-  following the words; a line that is no condition (a wish, a benefit, a feature or a step of the idea) is rewritten
-  into the condition behind it, else put aside. **A rewrite faces the settled test too:** where all but every one of
-  them has what it says, the row is put aside instead. **Two rows about one thing are one, by meaning:** two rows about
-  the same integration, tool or step -- the narrower is put aside, its why naming the row that covers it. Code holds
-  every change to the rules above (16 words, the kind by its words, no two alike, never the idea's name), never under
-  two rows. The Check says what Keel changed in one line, the words it changed stay under the row behind **Put back**
-  (Keel's as served), nothing is lost; a change code refuses is the note alone. **The suggestion moves when put
-  aside:** where the review puts the suggested row aside, or no suggested row is kept, it may suggest the step of the
-  mechanism no kept row tests, in row shape, with its why; code adds it at the end as the suggested row, held to the
-  rules above against every kept row, never beside a kept suggestion nor past four rows, and Choose offers it as
-  Keel's suggestion. **A condition in place of each put aside** (keel-cloud 243): beside every row it puts aside, Keel's
-  or the founder's, the review suggests one -- the step of the mechanism no kept row tests, never one all but every
-  one of the segment already has -- added where the row put aside stood as Keel's suggestion with its why, held to the
-  rules above, the floor of two met by it; the suggestion moving when put aside is one case of it, and only with
-  nothing put aside is it added at the end. The record says whose row each entry was (*yours* or *Keel's draft*). **A settled row is put aside, not noted:** a condition all but every one of the segment already has is put aside, its why saying what
-  settles it (*Most of your segment already has this ...*), behind **Put back**; with the review off, a row the writer
-  marks settled carries that sentence as a note under it, never a refusal, and the founder may pick it.
-- **The stranger's item:** *On your last {occasion},* the picked condition asked as a question (*could you have ...?*,
-  *was ...?*). **Fixed answers, in order** (`yes_easily` · `yes_with_steps` · `only_with_help` · `no`), worded by the
-  row's kind, the codes fixed:
-  - a **permission** (allowed, approval, sign-off, or an act someone else does for them): *Yes, easily · Yes, with some
-    steps · Only with help or approval · No*; **the permission stem is the passive whichever way the row is written**:
-    where the act is done for the person -- a could-row (*could you have forwarded ...*) or an allowed-to row (*were you
-    allowed to have unanswered calls forwarded ...*) alike -- the stem is in the passive, by code from the asked face
-    (*Think of your last booking call. Could unanswered calls have been forwarded to another number?*); a permission
-    the person would exercise themselves (*were allowed to upload the data to an outside tool*) keeps the face as
-    written;
-  - an **ability** (could, able): *Yes, easily · Yes, most of the time · Only sometimes · No*;
-  - a **fact** (where something is, what they have): **three** -- *Yes · Yes, with some steps · No*; `only_with_help`
-    is never served on a fact.
-  Then *I can't tell*. **One measure:** could they have, on that occasion.
+- **The founder's side** (keel-cloud 271, 272; the spoken walk): never asked. Code writes a share bin at the board's
+  yes -- *6 or 7 in 10* (`p_60_80`) -- and the founder may change it on the review page. **Exactly five options,
+  code's, Prevalence's bins:** *Fewer than 2 in 10* · *2 or 3 in 10* · *4 or 5 in 10* · *6 or 7 in 10* · *8 or more
+  in 10*. The workflow beat's steps are the condition. The belief: *At least {value} would find doing {task} this way,
+  with {name}, fits how they work.* -- `{value}` the bin's low edge in words (*six in ten*; *some* for the lowest),
+  `doing {task}` the job's -ing form, never *doing check the payroll*.
+- **The stranger's item** is code's whole, asked after the idea's film: *Would {task_ing} this way, with {name}, fit
+  into how you work?* -- the story's job as the person does it, in the -ing form and the second person, the brand's
+  name always said; a job that takes the sentence past 20 words gives way to *Would doing it this way, with {name},
+  fit into how you work?*. One wording, text and spoken the same, no option read into it, no number. **Fixed answers,
+  in order, code's:** `yes` *Yes* · `no` *No* -- letters A and B, one tap, no escape. **One measure:** would it fit how
+  they work.
 
 #### 3. For, against, neither
 
-- **For:** `yes_easily` (*Yes, easily* / *Yes*) and `yes_with_steps` (*Yes, with some steps* / *Yes, most of the
-  time*) -- the conditional yes counts for, drawn lighter, split in the count line.
-- **Against:** `only_with_help` (*Only with help or approval* / *Only sometimes*) and `no` (*No*).
-- **Neither:** `cant_tell` *I can't tell* (apart); a guess; a No at the gate.
-- **The bar:** holds if no more than 1 in 3 answer the last two (at least 2 in 3 for); past it *Did not hold*. Floor 5.
-- **Balance:** 2 for, 2 against (a fact: 2 for, 1 against).
-- **Healthy:** the asked condition is true for some of these people and false for others. A condition the segment
-  already settles (everyone says Yes) can never be refuted: R7 0. A clause that is not one whole act leaves the options
-  no true answer.
+- **For:** `yes` *Yes*.
+- **Against:** `no` *No* -- a why follows on the spot (*What would get in the way?*, heading *What would get in the
+  way*), up to two whys an interview.
+- **Neither:** a person never asked (a No at the check leaves before the plate, a screener's No before the film); the
+  whole dimension where the founder chose *I'm not sure* (left out).
+- **The bar:** the share of yes against the founder's bin: at or above its low edge holds (above its high edge
+  *stronger*); one bin below, people disagree; two bins below or more, *Not holding up*. The So line is evidence only:
+  *{k} of {n} said yes.*, or *{against} of {n} said no, past your bar of {limit}. Their reasons are on the Insights
+  tab.* Floor 5.
+- **Balance:** 1 for, 1 against.
+- **Healthy:** the question names the job these people do and the brand they have just seen; a job everyone already
+  does this way, or a product they already use, would make every answer *Yes*: the belief could never be refuted, R7 0.
 
 #### 4. The escape
 
-**Escape:** `cant_tell` *I can't tell*, apart -- must be on the item, and only it. The founder's side: *I'm not sure*
-leaves the dimension out.
+**Escape:** none -- *Yes* or *No* (keel-cloud 272 D4). The founder's side: *I'm not sure* leaves the dimension out of
+the study.
 
 #### 5. A good example and a bad example
 
-- **Good (R7 2)** -- Fresco, an ability: belief *Most construction superintendents on commercial jobs could talk over
-  the noise on site.* Stranger: *On your last site walk, could you have spoken into your phone over the noise?* *Yes,
-  easily · Yes, most of the time · Only sometimes · No · I can't tell.* For: the first two; against: the last two.
-- **Bad (R7 0)** -- Fresco, the condition the segment already settles: *The job kept its logs in Procore or ACC*, for a
-  segment of *superintendents at US general contractors whose jobs run on Procore or ACC*. Stranger: *On your last site
-  walk, was your job already keeping its daily logs in Procore or ACC?* *Yes · Yes, with some steps · No · I can't
-  tell.* **What breaks it:** *Procore or ACC* is true of everyone the study is about -- every answer is Yes, nothing can
-  count against, and the condition the pitch rests on (stopping to film and talk) is not tested.
+- **Good (R7 2)** -- Lullaby: belief *At least six in ten would find working out what the baby needs and settling the
+  baby this way, with Lullaby, fits how they work.* Stranger, after the film: *Would working out what the baby needs and
+  settling the baby this way, with Lullaby, fit into how you work?* *Yes · No.* For: *Yes*; against: *No*, its why
+  after it.
+- **Bad (R7 0)** -- the question that asks what everyone already has: *Would keeping your daily logs in the tool your
+  job already uses fit into how you work?* *Yes · No.* **What breaks it:** the tool is already how every one of these
+  people works -- every answer is *Yes*, nothing can count against, and the way the brand changes the job is never
+  asked.
 
 #### 6. Pitfalls the readers have seen
 
-- Rows the segment already settles (*Procore or ACC*, *SLURM or Kubernetes*) taking a slot while the condition the pitch
-  rests on (stopping to film and narrate; keeping the current bank) is missing; a row narrower than the mechanism
-  (cycle 7, proposal 58; cycle 8, 60).
-- A fact offered *Only with help or approval* (AirCaps, Expanse, cycle 4: *nonsense for my own phone*), or a could-you
-  label turned into a did-you act so the graded options have no true answer; clipped or vague clauses (*the way things
-  were set up*), qualifiers dropped (*two days* for *one to two business days*) (cycle 7, 67; cycle 8, 70; spec 185).
-- The belief's doubled subject (*For most superintendents, they could ...*) and a hint pasting the whole segment
-  (cycle 7, 57; cycle 8, 59).
+- The four rows of the conditional ladder (*Yes, easily* · *Yes, with some steps* · *Only with help or approval* ·
+  *No*) before keel-cloud 272: a fact offered *Only with help or approval*, a condition the segment already settles
+  taking the item (cycles 4 to 8) -- gone with the four rows; the workflow beat's steps are the condition now.
+- *doing {task}* filled with the job's base form (*doing check the payroll*); the brand's name dropped from the
+  question so the person cannot tell which way of working is meant (keel-cloud 271 judgement call 6).
 <!-- card:solution.compatibility:end -->
 
 ---
@@ -619,10 +428,10 @@ leaves the dimension out.
 <!-- card:solution.relative_advantage:begin -->
 ### Relative advantage · `solution.relative_advantage`
 
-**Registry:** SOLUTION, order 2 · founder `benefit_list` (saves 1 to 4, 9 words; *I'm not sure* allowed) · stranger
-`scale_four` (part 2, after the reveal) · compare `fixed_last_two_against` · supports `a_lot_better`, `a_little_better`
-· escape `cant_tell` · floor 5.
-**Screens:** the founder's Answer and Check · the stranger's item · the card after the answers.
+**Registry:** SOLUTION, order 2 · founder `single_choice` (Prevalence's five bins, written by code at the board's yes;
+*I'm not sure* allowed) · stranger `yes_no` (part 2, after Compatibility) · compare `share_yes`, supporting side
+`more` · supports `yes` · escape none · floor 5.
+**Screens:** the founder's review row · the stranger's item · the card after the answers.
 
 #### 1. What it measures
 
@@ -630,84 +439,52 @@ What your idea must do better than their way today before they would bother to s
 
 #### 2. The options' shape
 
-- **The founder's list:** 1 to 4 benefits, all equal, each at most 9 words, a noun phrase naming what changes compared
-  with today's way (written against the founder's own Current solution list); one benefit a row, none overlapping; the
-  one the founder leads with always a row; a benefit today's way already delivers flagged for the founder to keep or
-  drop (the review off); no number the founder did not write. The belief carries every kept benefit, in the order
-  typed, joined with *and*: *For most, with it, {hard_case_theirs} would have given them {value}.* -- the moment it
-  cost them, the study's problem clause in the founder's words (*their last daily log where they lost site notes*),
-  never any last occasion; *their last {occasion}* only where the study holds none. **The review may put a benefit
-  aside** (keel-cloud 237, the review switch on): on Save of the Check it reads the benefits back beside the founder's
-  Current solution list and the study's hard case -- a benefit today's way already gives (the rungs above the
-  founder's line say so), one not true of the hard case, or the second of two rows about one gain (its why naming the
-  first) is put aside, never reworded; the one the founder leads with is never put aside, and one row always stays.
-  **In place of each benefit put aside, Keel suggests one** (keel-cloud 243): a gain only the idea would have given
-  them in the hard case, never one today's way already gives, held by code to the rules for the rows where the one put
-  aside stood (*Keel put one benefit aside and suggested one in its place, so what is left is what only your idea would
-  have given them.*).
-  The Check says so in one line (*Keel put one benefit aside so what is left is what only your idea would have given
-  them.*), the founder's words stay behind **Put back**, nothing is lost; the belief carries the rows left.
-- **The stranger's item:** *Think of {hard_case}. Would {Name}, {what it is}, have helped you {job} better, or
-  not?* -- the hard case the advantage is for, as the study's problem clause says it to them (*the last job that ran
-  out of memory*; *the last time ...* is said *the most recent time ...*), never any occasion; where the study holds
-  none, *Think of the last {occasion} when {circumstance}.*; then the question names the job the idea is for (the
-  context's, said to them), never *that* with nothing before it to point at; only the at-stake anchor (*Think of the
-  last {occasion} when you had to {job}.*, where neither fits) keeps *have done that better for you, or not?*, its
-  *that* the job it names. One thing asked, how much better or not; no benefit of the founder's named in the question
-  or the options. The clause is written once per study -- by the founder's Prevalence writer, or by the problem
-  card's where the study has no problem questions -- and held by code (H1 the hurt, never the routine; H2 *the last*,
-  the occasion once; H3 no idea, product, benefit or number; H4 the spoken cap). **The review may rewrite the hard
-  case** (keel-cloud 237, the review switch on): the same read-back reads it against the clause's own went-wrong
-  words -- where it is not one moment and the moment it cost them (the routine, the job again, a standing state, an
-  absence), it is rewritten from the went-wrong words in both shapes, or written where the study holds none; code
-  holds the pair by H1-H4 as the writer's, the clause standing where it fails; the Check says so in one line (*Keel
-  changed the moment the question asks about so it is the one that went wrong.*) and the belief reads the new
-  moment. **Fixed answers, in
-  order and in these words, code's:** `a_lot_better` *A lot better* · `a_little_better` *A little better* ·
-  `no_difference` *No difference* · `worse` *Worse*; then *I can't tell*. **One measure:** better or not, and how much.
+- **The founder's side** (keel-cloud 271, 272; the spoken walk): never asked. Code writes a share bin at the board's
+  yes -- *6 or 7 in 10* (`p_60_80`) -- and the founder may change it on the review page. **Exactly five options,
+  code's, Prevalence's bins:** *Fewer than 2 in 10* · *2 or 3 in 10* · *4 or 5 in 10* · *6 or 7 in 10* · *8 or more
+  in 10*. The solution statement and what it says beyond the limitations are the claim. The belief: *At least {value}
+  would find {name} better than the way they {task} today.*
+- **The stranger's item** is code's whole, asked after Compatibility: *Compared with the way you {task} today, would
+  {name} be better?* -- the story's job in its base form, in the second person; the limitations are not restated (they
+  are the founder's claim, shown in the film; the comparison is the person's own); a job that takes the sentence past
+  20 words gives way to *Compared with the way you do it today, would {name} be better?*. **Fixed answers, in order,
+  code's:** `yes` *Yes* · `no` *No* -- letters A and B, one tap, no escape. **One measure:** better than their way
+  today, or not.
 
 #### 3. For, against, neither
 
-- **For:** `a_lot_better`, `a_little_better`.
-- **Against:** `no_difference`, `worse`.
-- **Neither:** `cant_tell` *I can't tell* (apart); a guess; a No at the gate.
-- **The bar:** holds if no more than 1 in 3 say no difference or worse; past it *Did not hold*. The card says how many
-  of the for said a lot. Floor 5.
-- **Balance:** 2 for, 2 against, always the same four.
-- **Healthy:** the four, with *No difference* and *Worse* on it. Options that are the founder's benefits (*which of
-  these would have made it better?*) leave no answer that says it would not have helped: R7 0.
+- **For:** `yes` *Yes*.
+- **Against:** `no` *No* -- a why follows on the spot (*What would it have to do better?*, heading *What it would have
+  to do better*), up to two whys an interview.
+- **Neither:** a person never asked (a No at the check, a screener's No); the whole dimension where the founder chose
+  *I'm not sure* (left out).
+- **The bar:** the share of yes against the founder's bin, as Compatibility's; the So line is evidence only. Floor 5.
+- **Balance:** 1 for, 1 against.
+- **Healthy:** the person compares the brand with their own way today, never with the founder's list of benefits;
+  options that are the founder's benefits (*which of these would have made it better?*) leave no answer that says it
+  would not be better: R7 0.
 
 #### 4. The escape
 
-**Escape:** `cant_tell` *I can't tell*, apart -- must be on the item, and only it. The founder's side: *I'm not sure*
-leaves the dimension out.
+**Escape:** none -- *Yes* or *No* (keel-cloud 272 D4). The founder's side: *I'm not sure* leaves the dimension out of
+the study.
 
 #### 5. A good example and a bad example
 
-- **Good (R7 2)** -- Lullaby: benefit *Fewer tries before the baby settles*; belief *For most, with it, their last night
-  the baby would not settle would have given them fewer tries before the baby settles.* Stranger: *Think of the last
-  night your baby would not settle. Would Lullaby, a phone app, have helped you work out what the baby needs better,
-  or not?* *A lot better · A little better · No difference · Worse · I can't tell.* -- the night the baby would not
-  settle, never *their last night*, which a parent whose last night went fine answers *No difference*; the job named,
-  so *better* says at what (what it is gives way to its head before the job leaves the question).
-- **Bad (R7 0)** -- the founder's benefits served as the options (the shape before spec 159): *Which of these would have
-  made your last night better? Fewer tries before the baby settles · Knowing why the baby cried · Getting back to sleep
-  sooner · I can't tell.* **What breaks it:** every option is a benefit -- there is no *No difference* or *Worse*, so
-  every answer counts for and the belief can never be refuted; and the founder's benefits are shown to the stranger.
+- **Good (R7 2)** -- Lullaby: belief *At least six in ten would find Lullaby better than the way they work out what the
+  baby needs and settle the baby today.* Stranger: *Compared with the way you work out what the baby needs and settle
+  the baby today, would Lullaby be better?* *Yes · No.* For: *Yes*; against: *No*, its why after it.
+- **Bad (R7 0)** -- the founder's benefits served as the options: *Which of these would make your nights better?
+  Fewer tries before the baby settles · Knowing why the baby cried · Getting back to sleep sooner.* **What breaks it:**
+  every option is a benefit -- there is no *No*, so every answer counts for and the belief can never be refuted; and the
+  founder's benefits are shown to the stranger.
 
 #### 6. Pitfalls the readers have seen
 
-- The belief keeping only the first benefit the founder typed (eleven of twelve failures in cycle 8), or rows bundling
-  two gains, splitting one, or dropping the one the founder leads with (cycle 7, proposals 60 and 61; cycle 8, 62 and
-  63).
-- The stranger's occasion any last one, not one where the job was at stake (*a call they handled fine*), or an
-  ambiguous word (*your last pole*, *cash decision*); *go better* leaving which better unclear (cycle 7, 68; cycle 8,
-  71).
-- The occasion narrowed to a single item no benefit can be true of (*their last shipment*) (cycle 8, 62 and 63).
-- The stranger asked about an ordinary day -- the job or a standing state (*the most recent time you had to get each
-  job to run to the end*, *had no time to manage the cash*), not the moment it went wrong; a benefit today's way
-  already gives kept as the advantage; *done that better* pointing at nothing once the hard case came first (cycles 15
-  to 17).
+- The scale of four (*A lot better* · *A little better* · *No difference* · *Worse*) and its hard-case clause before
+  keel-cloud 272: the occasion any last one, an ordinary day in place of the moment it went wrong (cycles 7 to 17) --
+  gone with the scale; the film carries the claim, the question names the job.
+- The limitations restated inside the question, so the person answers the founder's claim and not their own way.
 <!-- card:solution.relative_advantage:end -->
 
 ---
@@ -715,10 +492,10 @@ leaves the dimension out.
 <!-- card:solution.adoption_friction:begin -->
 ### Adoption friction · `solution.adoption_friction`
 
-**Registry:** SOLUTION, order 3 · founder `item_list` (saves 1 to 4, 9 words, picked, with `asked`; *I'm not sure*
-allowed) · stranger `fixed_four` (part 2, after the reveal) · compare `fixed_last_two_against` · supports `yes`,
-`yes_if_worth_it` · conditional `yes_if_worth_it` · escape `cant_tell` · floor 5.
-**Screens:** the founder's Answer, Check and Choose · the stranger's item · the card after the answers.
+**Registry:** SOLUTION, order 3 · founder `single_choice` (Prevalence's five bins, written by code at the board's yes;
+*I'm not sure* allowed) · stranger `yes_no` (part 2, after Relative advantage) · compare `share_yes`, supporting side
+`more` · supports `yes` · escape none · floor 5.
+**Screens:** the founder's review row · the stranger's item · the card after the answers.
 
 #### 1. What it measures
 
@@ -726,65 +503,61 @@ The extra effort it asks of them to start using it: setting it up, learning it, 
 
 #### 2. The options' shape
 
-- **The founder's list:** 1 to 4 efforts, the founder's own, in their order, each one effort of at most 9 words, a
-  base-form verb phrase in one voice (*their*, never *your*), each a step these people take **themselves** -- never
-  another role's sign-off, a setup the founder's team or the product does. The draft carries no stranger's clause: Keel
-  writes each row's (`asked`, at most 10 words, *it* for the idea), framed by code to at most 20, when the founder saves
-  (keel-cloud 245). Keel may add **at most one** suggested step -- a
-  one-time step before first use, or the new habit first use asks -- last, with its why, outside the 1 to 4, never the
-  belief unless the founder picks it. No two the same step; none a condition another screen already tests (fitting what
-  they use now is Compatibility, getting it bought Purchase friction); only the founder's numbers. The founder picks one.
-  Belief: *Most would {value}.*
-- **The stranger's item:** *To use {Name}, you'd {asked}. Would you do that, or not?* **Fixed answers, in order:**
-  `yes` *Yes* · `yes_if_worth_it` *Only if {condition}* -- the stranger's own condition, written beside the clause:
-  the assurance that would make them say Yes, what it has to do or promise in their work (*Only if it hands me the hard
-  calls*), never the danger they fear (*Only if they risk my job failing*: keel-cloud 216, `K12`), never one
-  true of every step; *Yes, if it was clearly worth it* where the item carries none · `probably_not` *Probably not* · `no` *No*; then *I can't tell*. **One measure:**
-  would they take this effort.
+- **The founder's side** (keel-cloud 271, 272; the spoken walk): never asked. Code writes a share bin at the board's
+  yes -- *6 or 7 in 10* (`p_60_80`) -- and the founder may change it on the review page. **Exactly five options,
+  code's, Prevalence's bins:** *Fewer than 2 in 10* · *2 or 3 in 10* · *4 or 5 in 10* · *6 or 7 in 10* · *8 or more
+  in 10*. The effort is the setup beat's rows, then the person's own steps of the workflow, else *start using {name}
+  for {task}* (keel-cloud 271, `IdeaView.effort`). The belief: *At least {value} could start with {name} without much
+  trouble.*
+- **The stranger's item** is code's whole, always asked, in one of two forms by the setup: with a setup named, *Before
+  you could use {name} for this, you would need {the setup}. Could you start without much trouble?* -- the setup's
+  rows joined with commas and *and*, a row that opens on an act taking *to*, in the second person where a row names
+  the person, as many whole rows as keep the sentence within 20 words; with none, *Could you start using {name} for
+  this tomorrow, with nothing to set up first?*. **Fixed answers, in order, code's:** `yes` *Yes* · `no` *No* --
+  letters A and B, one tap, no escape. **One measure:** could they start without much trouble.
 
 #### 3. For, against, neither
 
-- **For:** `yes` and `yes_if_worth_it` -- the conditional yes counts for, drawn lighter, split in the count line.
-- **Against:** `probably_not`, `no`.
-- **Neither:** `cant_tell` *I can't tell* (apart); a guess; a No at the gate.
-- **The bar:** holds if no more than 1 in 3 say probably not or no; past it *Did not hold*. An effort too much for most
-  is amber, never red: this line never reads *Not holding up*. Floor 5.
-- **Balance:** 2 for, 2 against.
-- **Healthy:** the effort is one the person takes themselves, so their answer answers it; the condition in *Only if* is
-  this person's and not true of every step (else it is a second *Yes*). An effort someone else does leaves the options
+- **For:** `yes` *Yes*.
+- **Against:** `no` *No* -- a why follows on the spot (*What makes it a trouble?*, heading *What makes it a trouble*),
+  up to two whys an interview; a third No goes unasked, counted as capped on the Insights card.
+- **Neither:** a person never asked (a No at the check, a screener's No); the whole dimension where the founder chose
+  *I'm not sure* (left out).
+- **The bar:** the share of yes against the founder's bin, as Compatibility's: two bins below is *Not holding up* (red)
+  like the other two -- spec 118's amber belonged to the conditional yes, gone with the four rows (keel-cloud 272
+  judgement call 14). The So line is evidence only. Floor 5.
+- **Balance:** 1 for, 1 against.
+- **Healthy:** the setup is one these people would do themselves before first use, said as the founder said it, so
+  their answer answers it; a setup someone else does (a manager's sign-off, a vendor's install) leaves the person
   nothing true to say: R7 0.
-
 - **Settled by keel-cloud 205 (the registry's note):** 2026-11-03, spec 205 (FR-4; the dimension card's Open point): the
   note above ends on spec 184 -- since spec 198 (FR-9) the conditional yes is the person's own condition again: asked.md
   writes `condition` beside the clause (at most 7 words) and code serves 'Only if {condition}'
   (RespondentItems.onlyIfOptions), the plain 'Yes, if it was clearly worth it' the fallback where an item carries none.
   Codes, supports, conditional and the compare rule unchanged.
+- **Since keel-cloud 272** the conditional yes and its stem are gone with the four rows: the note above is history.
 
 #### 4. The escape
 
-**Escape:** `cant_tell` *I can't tell*, apart -- must be on the item, and only it. The founder's side: *I'm not sure*
-leaves the dimension out.
+**Escape:** none -- *Yes* or *No* (keel-cloud 272 D4). The founder's side: *I'm not sure* leaves the dimension out of
+the study.
 
 #### 5. A good example and a bad example
 
-- **Good (R7 2)** -- Lullaby: effort *Hold the phone near the cot for ten seconds*; belief *Most would hold the phone
-  near the cot for ten seconds.* Stranger: *To use it, you'd hold your phone near the cot for ten seconds. Would you do
-  that, or not?* *Yes · Only if it didn't wake the baby · Probably not · No · I can't tell.* For: the first two;
-  against: the last two.
-- **Bad (R7 0)** -- a clinic's medical assistants, the effort another role's sign-off: *To use it, you'd get your
-  clinic manager to approve it. Would you do that, or not?* *Yes · Yes, if it was clearly worth it · Probably not · No ·
-  I can't tell.* **What breaks it:** *get your clinic manager to approve it* is someone else's step (and Purchase
-  friction's ground) -- the assistant's answer says whether they would ask, not whether they would take on the effort
-  of using it, so no option answers the belief.
+- **Good (R7 2)** -- Lullaby, a setup named: belief *At least six in ten could start with Lullaby without much
+  trouble.* Stranger: *Before you could use Lullaby for this, you would need to let the app use your phone's microphone
+  at night. Could you start without much trouble?* *Yes · No.* For: *Yes*; against: *No*, its why after it.
+- **Bad (R7 0)** -- a clinic's medical assistants, the setup another role's: *Before you could use it for this, you
+  would need your clinic manager to approve it. Could you start without much trouble?* *Yes · No.* **What breaks it:**
+  the approval is someone else's step (and Purchase friction's ground) -- the assistant's answer says whether the
+  manager would sign, not whether they could start, so no option answers the belief.
 
 #### 6. Pitfalls the readers have seen
 
-- The fixed *Yes, if it was clearly worth it* blurring into plain *Yes* and hiding the real catch (clinic approval, a
-  minute before the next call) -- spec 198 FR-9's *Only if {condition}* (cycle 7, proposal 66; cycle 8, 69).
-- Rows slipping from *their* to *your*; the hardest step, a new habit of use, missing because the suggestion admitted
-  only a one-time setup; a row repeating what Compatibility or Purchase friction tests (cycle 7, 55; cycle 8, 56).
-- Choose options bundling two efforts, or steps another role, the founder's team or the product does (a sign-off, a
-  vendor-built wallet) (cycle 8, 57).
+- *Yes, if it was clearly worth it* blurring into plain *Yes* and hiding the real catch (cycles 7 and 8) -- gone with
+  the four rows; the setup is said in the question now, so the catch is on the screen.
+- A setup cut mid-row to fit the cap (*... 12 months of*: keel-cloud 272 judgement call 21), or a row that opens on an
+  act said without *to*.
 <!-- card:solution.adoption_friction:end -->
 
 ---

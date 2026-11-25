@@ -75,10 +75,13 @@ def over_cap(text: str | None) -> list[str]:
 
 def _pattern(template: str, **fixed: str) -> re.Pattern:
     """A template as a pattern: the named placeholders fixed, every other placeholder any words."""
-    out = re.escape(template)
-    for key, value in fixed.items():
-        out = out.replace(re.escape("{" + key + "}"), re.escape(value))
-    out = re.sub(r"\\\{[a-z_ ]+\\\}", ".+?", out)
+    out = ""
+    for piece in re.split(r"(\{[a-z_ ]+\})", template):
+        if piece.startswith("{") and piece.endswith("}"):
+            key = piece[1:-1]
+            out += re.escape(fixed[key]) if key in fixed else ".+?"
+        else:
+            out += re.escape(piece)
     return re.compile("^" + out + "$")
 
 

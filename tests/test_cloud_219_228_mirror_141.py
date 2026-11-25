@@ -51,7 +51,9 @@ SEVEN_DAYS = RecallWindow(7, "DAYS")
 #: (re-pinned here when a later spec moves the cards again).
 # eval spec 154 moved the copy to keel-cloud 245's (`4dc14231...`, master `e4497962`); 243's `94fd69c0...` is
 # `tests/test_cloud_243_web_184_mirror_149.CARDS_SHA256_243`, the step before.
-CARDS_SHA256_141 = "4dc14231eebf3decfca7b26f26781a0b816e308007a724fcfad2cba2968f5f76"
+#: Spec 162: the one constant the earlier pins read, moved in place to the cards spec 162 re-cut (`quality.cards.CARDS_SHA256`;
+#: 141's was 4dc14231...).
+CARDS_SHA256_141 = "dbcb2196638915e48a5aefa055b856f27c84657921c1edb7a1a7e109dcf87c39"
 #: keel-cloud `VectorFixtures` (Lullaby).
 EVENT_PAST = "had to work out why their baby was crying"
 WENT_WRONG = "did not know why the baby cried"
@@ -640,10 +642,18 @@ def test_the_reader_digest_is_the_clouds_vendored_cards():
     review = _cloud(APPLICATION + "RespondentReview.java")
     sha = re.search(r'CARDS_SHA256 = "([0-9a-f]{64})"', review).group(1)
     ours = cards.CARDS_PATH.read_bytes()
-    assert (KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md").read_bytes() == ours
-    assert hashlib.sha256(ours).hexdigest() == sha == CARDS_SHA256_141
+    assert hashlib.sha256(ours).hexdigest() == cards.CARDS_SHA256 == CARDS_SHA256_141
+    theirs = (KEEL_CLOUD / "src/main/resources/keel/dimension-cards.md").read_bytes()
+    if sha != cards.CARDS_SHA256:
+        # spec 162: keel-cloud vendors the re-cut cards (its `CARDS_SHA256`); until it does, its copy differs from this
+        # one only in the cards spec 162 moved
+        assert hashlib.sha256(theirs).hexdigest() == sha
+        assert set(cards.differing_cards(theirs.decode("utf-8"))) <= set(cards.CARDS_MOVED_162)
+    else:
+        assert theirs == ours
     text = " ".join(ours.decode("utf-8").split())
-    assert "Think of {hard_case}." in text and "hard_case_theirs" in text             # 219
+    # 219's hard case left Relative advantage's card with the scale (spec 162, keel-cloud 272: yes or no)
+    assert "Compared with the way you {task} today, would {name} be better?" in text
     assert "keel-cloud 222" in text                                                    # 222
 
 

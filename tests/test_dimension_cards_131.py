@@ -75,18 +75,20 @@ def _body(key: str) -> str:
 
 # ------------------------------------------------------------------------------------------------ the cards
 
-def test_thirteen_cards_in_the_registrys_order(registry):
+def test_twelve_cards_in_the_registrys_order(registry):
+    """Spec 162 (keel-cloud 269 retired Current solution; 272 at `DimensionRegistry.VERSION` 7): twelve cards, 3 / 3 / 6."""
     assert KEYS == [d["key"] for d in sorted(registry["dimensions"], key=lambda d: (
         ("PROBLEM", "SOLUTION", "COMMERCIAL").index(d["vector"]), d["order"]))]
-    assert len(KEYS) == 13 == len(set(KEYS))
+    assert len(KEYS) == 12 == len(set(KEYS))
     for key in KEYS:                                      # each card once, its two markers in order
         assert TEXT.count(f"<!-- card:{key}:begin -->") == 1 == TEXT.count(f"<!-- card:{key}:end -->")
 
 
 def test_a_card_is_the_text_between_its_markers_and_nothing_above_the_first():
-    body = _body("problem.current_solution_satisfaction")
-    assert body.startswith("### Current solution · `problem.current_solution_satisfaction`")
-    assert body.endswith("Re-\n  saving it is refused until the first rung is reworded.")
+    body = _body("solution.compatibility")
+    assert body.startswith("### Compatibility · `solution.compatibility`")
+    assert _flat(body).endswith("question so the person cannot tell which way of working is meant (keel-cloud 271 "
+                                "judgement call 6).")
     assert "**What a card is.**" not in body and "<!--" not in body
     assert cards.card_for(None, TEXT) is None and cards.card_for("", TEXT) is None
     assert cards.card_for("problem.no_such_row", TEXT) is None
@@ -175,6 +177,8 @@ def test_the_fixed_answers_are_the_rows_in_order(key, rows):
 
 
 def test_current_solutions_five_outcomes_and_prevalences_fifths(rows):
+    if "problem.current_solution_satisfaction" not in rows:
+        pytest.skip("keel-cloud 269 retired Current solution (spec 161 judgement call 14: a retired screen skips by name)")
     shape = _flat(cards.section(_body("problem.current_solution_satisfaction"), 2))
     assert "**exactly five outcomes, best to worst** (codes `outcome_1` to `outcome_5`)" in shape
     saves = rows["problem.current_solution_satisfaction"]["founder"]["saves"]
@@ -182,6 +186,21 @@ def test_current_solutions_five_outcomes_and_prevalences_fifths(rows):
     fifths = _flat(cards.section(_body("problem.prevalence"), 2))
     assert cards.codes(fifths.split("**Exactly five options", 1)[1].split("The first is", 1)[0]) == \
         rows["problem.prevalence"]["founder"]["normalized"]["codes"]
+
+
+def test_the_solutions_three_are_yes_or_no_over_prevalences_bins(rows):
+    """Spec 162 FR-6 (keel-cloud 272 FR-1): the solution's three cards -- the founder's side a share bin over
+    Prevalence's five (`p_0_20` .. `p_80_100`, written at the board's yes), the stranger's `yes_no` (*Yes* · *No*, no
+    escape), read by `share_yes`; each card's why and its heading the registry's `follow_up`, word for word."""
+    bins = rows["problem.prevalence"]["founder"]["normalized"]["codes"]
+    for key in ("solution.compatibility", "solution.relative_advantage", "solution.adoption_friction"):
+        row, body = rows[key], _flat(_body(key))
+        assert row["founder"]["normalized"]["codes"] == bins and row["founder"]["control"] == "single_choice"
+        assert "**Exactly five options, code's, Prevalence's bins:**" in body and "`p_60_80`" in body
+        assert cards.fixed_answer_codes(_body(key)) == ["yes", "no"] == [a["code"] for a in row["respondent"][
+            "fixed_answers"]]
+        assert row["respondent"]["escape"] is None and cards.escape_line(_body(key)).startswith("none")
+        assert f"*{row['follow_up']['text']}*" in body and f"heading *{row['follow_up']['heading']}*" in body
 
 
 # ---------------------------------------------------------------------------- for, against, neither (by code)
@@ -196,6 +215,10 @@ def _expected_sides(row: dict) -> dict:
     apart = [escape["code"]] if escape and escape["counts"] == "apart" else []
     if rule == "proportion_from_gate":
         return {("", "for"): ["yes"], ("", "against"): ["no"], ("", "neither"): []}
+    if rule in ("share_most_or_every", "share_yes"):
+        # spec 162 (keel-cloud 269 FR-3, 272 FR-1): the supports for, every other fixed answer against, no escape
+        return {("", "for"): respondent["supports"], ("", "against"): [c for c in fixed if c not in respondent["supports"]],
+                ("", "neither"): []}
     if rule == "interval_contains_median":
         return {("", "for"): [], ("", "against"): [], ("", "neither"): apart}
     if rule == "share_in_picks":
@@ -246,6 +269,8 @@ def test_for_against_and_neither_are_the_codes_the_registry_counts(key, rows):
 
 
 def test_the_registrys_below_line_is_the_cards_direction(registry):
+    if "problem.current_solution_satisfaction" not in KEYS:
+        pytest.skip("keel-cloud 269 retired Current solution and its line (spec 161 judgement call 14)")
     """The amendment's correction (2026-11-03): the rungs below the line count for the founder's belief (*still falls
     short*), the rungs above it against -- the registry's `below_line`, as the card states it."""
     below = registry["common"]["compare_rules"]["below_line"]
@@ -273,6 +298,9 @@ def test_the_escape_is_the_rows(key, rows):
 def test_the_cards_shortfall_words_are_working_rungs_and_keel_clouds():
     """keel-cloud 203's `WorkingRung`: the card's negations are code's, and this repository's restatement is the Java
     pattern word for word."""
+    if "problem.current_solution_satisfaction" not in KEYS:
+        pytest.skip("keel-cloud 269 retired Current solution, whose card said the shortfall words (spec 161 judgement "
+                    "call 14)")
     java = _cloud(WORKING_RUNG_REL)
     block = java.split("static final Pattern SHORTFALL = Pattern.compile(", 1)[1].split(");", 1)[0]
     pattern = "".join(re.findall(r'"((?:[^"\\]|\\.)*)"', block)).replace("\\\\", "\\")
@@ -391,13 +419,12 @@ EXAMPLES = {
                 "options": ["Yes", "No"], "codes": ["yes", "no"], "escape": None,
                 "facts": {"true_of_everyone": True}}},
     "problem.frequency": {
-        # spec 139 FR-1 re-pin (keel-cloud 216 FR-3, the cards at 2f1a63cc...): the unit said once, in the window phrase
-        "good": {"stem": "On how many of the last 7 nights did you have to work out why your baby was crying?",
-                 "options": ["1", "2", "3", "4", "5", "6", "7"], "unit": "nights", "low": 4,
-                 "escape": "I can't recall"},
-        "bad": {"stem": "In the last 3 months, on how many did you leave raised cash sitting in your bank's money "
-                        "market fund?", "options": ["1", "2", "3"], "unit": "months", "low": 2,
-                "escape": "I can't recall"}},
+        # spec 162 (keel-cloud 269 FR-3, the card as keel-cloud 269 re-cut it): five fixed answers, no escape
+        "good": {"stem": "When you work out what the baby needs and settle them, how often does it happen?",
+                 "options": ["Every time", "Most times", "About half the time", "Now and then", "Never"],
+                 "codes": ["every_time", "most_times", "about_half", "now_and_then", "never"], "escape": None},
+        "bad": {"stem": "On how many of the last 3 months did you ...?", "options": [], "codes": None,
+                "escape": None}},
     "problem.importance": {
         "good": {"stem": "Think of your last night. Which one of these would you most like made easier?",
                  "options": ["Getting the baby back down after a feed", "Working out what the cry means",
@@ -409,41 +436,26 @@ EXAMPLES = {
                             "Answering booking emails and group requests", "Getting through the check-in rush"],
                 "codes": ["rival_1", "rival_2", "rival_3", "rival_4"], "escape": "None of these",
                 "escape_code": "none_of_these"}},
-    "problem.current_solution_satisfaction": {
-        "good": {"options": ["Evidence was clear enough to decide", "Inconsistent evidence across the decks",
-                             "Unsupported claims reached the committee", "Evidence too weak to decide on",
-                             "Never enough evidence to decide"], "line": 1, "escape": "Someone else did it"},
-        "lullaby": {"options": ["Knew what the baby needed straight away", "Got it right after one wrong guess",
-                                "It took a few tries to find it", "Tried everything before anything worked",
-                                "Nothing worked; the baby settled alone"], "line": 2,
-                    "escape": "Someone else did it"},
-        "bad": {"options": ["Inconsistent", "Too uneven", "Unsupported", "Too weak", "Never enough"], "line": 1,
-                "escape": "Someone else did it"}},
+    # spec 162 FR-6 (keel-cloud 272 FR-1): the solution's three on yes or no -- the cards' examples re-cut by this spec
     "solution.compatibility": {
-        "good": {"stem": "On your last site walk, could you have spoken into your phone over the noise?",
-                 "options": ["Yes, easily", "Yes, most of the time", "Only sometimes", "No"],
-                 "codes": ["yes_easily", "yes_with_steps", "only_with_help", "no"], "escape": "I can't tell"},
-        "bad": {"stem": "On your last site walk, was your job already keeping its daily logs in Procore or ACC?",
-                "options": ["Yes", "Yes, with some steps", "No"], "codes": ["yes_easily", "yes_with_steps", "no"],
-                "escape": "I can't tell", "facts": {"true_of_everyone": True}}},
+        "good": {"stem": "Would working out what the baby needs and settling the baby this way, with Lullaby, fit into "
+                         "how you work?", "options": ["Yes", "No"], "codes": ["yes", "no"], "escape": None},
+        "bad": {"stem": "Would keeping your daily logs in the tool your job already uses fit into how you work?",
+                "options": ["Yes", "No"], "codes": ["yes", "no"], "escape": None,
+                "facts": {"true_of_everyone": True}}},
     "solution.relative_advantage": {
-        # spec 141 FR-1 (keel-cloud 219 FR-7): the card's good example asks about the hard case; spec 147 FR-1
-        # (keel-cloud 237 FR-3): the question names the job, the what given way to its head (*a phone app*)
-        "good": {"stem": "Think of the last night your baby would not settle. Would Lullaby, a phone app, have helped "
-                         "you work out what the baby needs better, or not?",
-                 "options": ["A lot better", "A little better", "No difference", "Worse"],
-                 "codes": ["a_lot_better", "a_little_better", "no_difference", "worse"], "escape": "I can't tell"},
-        "bad": {"stem": "Which of these would have made your last night better?",
+        "good": {"stem": "Compared with the way you work out what the baby needs and settle the baby today, would "
+                         "Lullaby be better?", "options": ["Yes", "No"], "codes": ["yes", "no"], "escape": None},
+        "bad": {"stem": "Which of these would make your nights better?",
                 "options": ["Fewer tries before the baby settles", "Knowing why the baby cried",
-                            "Getting back to sleep sooner"], "codes": None, "escape": "I can't tell"}},
+                            "Getting back to sleep sooner"], "codes": None, "escape": None}},
     "solution.adoption_friction": {
-        "good": {"stem": "To use it, you'd hold your phone near the cot for ten seconds. Would you do that, or not?",
-                 "options": ["Yes", "Only if it didn't wake the baby", "Probably not", "No"],
-                 "codes": ["yes", "yes_if_worth_it", "probably_not", "no"], "escape": "I can't tell"},
-        "bad": {"stem": "To use it, you'd get your clinic manager to approve it. Would you do that, or not?",
-                "options": ["Yes", "Yes, if it was clearly worth it", "Probably not", "No"],
-                "codes": ["yes", "yes_if_worth_it", "probably_not", "no"], "escape": "I can't tell",
-                "facts": {"someone_elses_step": True}}},
+        "good": {"stem": "Before you could use Lullaby for this, you would need to let the app use your phone's "
+                         "microphone at night. Could you start without much trouble?", "options": ["Yes", "No"],
+                 "codes": ["yes", "no"], "escape": None},
+        "bad": {"stem": "Before you could use it for this, you would need your clinic manager to approve it. Could you "
+                        "start without much trouble?", "options": ["Yes", "No"], "codes": ["yes", "no"],
+                "escape": None, "facts": {"someone_elses_step": True}}},
     "commercial.existing_sacrifice": {
         "good": {"stem": "Last month, about how many hours per site did your team spend on the daily log?",
                  "options": [], "box_unit": "hours per site last month", "founder_unit": "hours per site a month",
@@ -529,6 +541,8 @@ def test_the_good_example_is_r7_2_and_the_bad_one_r7_0(key):
 
 
 def test_the_angel_group_scale_is_r7_0_for_want_of_a_working_rung():
+    if "problem.current_solution_satisfaction" not in KEYS:
+        pytest.skip("keel-cloud 269 retired Current solution's scale (spec 161 judgement call 14)")
     """FR-6: the angel-group scale of 2026-11-03 -- five shortfalls, the line under the first -- is a 0 by the card's own
     rule, wherever the line sits; redrawn with a working rung on top it is a 2."""
     body = _body("problem.current_solution_satisfaction")
@@ -546,16 +560,20 @@ def test_the_angel_group_scale_is_r7_0_for_want_of_a_working_rung():
 def test_a_scale_where_every_option_counts_one_way_is_r7_0():
     """FR-1c: a scale where every option counts one way is a 0 -- Frequency's range from 1 (every button for), a
     Compatibility item served the two yeses alone, Commitment served an escape it must not have."""
-    frequency = {**EXAMPLES["problem.frequency"]["good"], "low": 1}
-    assert scripted_r7(_body("problem.frequency"), frequency)[0] == 0
-    yeses = {**EXAMPLES["solution.compatibility"]["good"], "options": ["Yes, easily", "Yes, most of the time"],
-             "codes": ["yes_easily", "yes_with_steps"]}
+    # spec 162 (keel-cloud 269 / 272): Frequency's two for alone; Compatibility served *Yes* alone; an escape on a
+    # yes-or-no item the card says has none
+    frequency = {**EXAMPLES["problem.frequency"]["good"], "options": ["Every time", "Most times"],
+                 "codes": ["every_time", "most_times"]}
+    assert scripted_r7(_body("problem.frequency"), frequency) == (
+        0, "nothing can count against the belief: it can never be refuted")
+    yeses = {**EXAMPLES["solution.compatibility"]["good"], "options": ["Yes"], "codes": ["yes"]}
     assert scripted_r7(_body("solution.compatibility"), yeses) == (
         0, "nothing can count against the belief: it can never be refuted")
     escaped = {**EXAMPLES["commercial.commitment"]["good"], "escape": "I can't tell"}
     assert scripted_r7(_body("commercial.commitment"), escaped)[0] == 0
-    bare = {**EXAMPLES["solution.relative_advantage"]["good"], "escape": None}
-    assert scripted_r7(_body("solution.relative_advantage"), bare) == (0, "the escape the card requires is missing")
+    tell = {**EXAMPLES["solution.relative_advantage"]["good"], "escape": "I can't tell"}
+    assert scripted_r7(_body("solution.relative_advantage"), tell) == (
+        0, 'an escape ("I can\'t tell") on an item the card says has none')
 
 
 # --------------------------------------------- spec 132 FR-4 (keel-cloud 205 FR-4): the Open points 205 settled
@@ -563,8 +581,8 @@ def test_a_scale_where_every_option_counts_one_way_is_r7_0():
 REGISTRY_YAML_REL = "canon/designs/vectors/dimension-registry.yaml"
 #: The cards whose Open points keel-cloud 205 settled, each moved into the card's lines word for word as the registry's
 #: `_note_205` (YAML of record; dropped from the JSON) says it -- and the Open point each replaced, gone.
+#: Spec 162: keel-cloud 269 re-cut Frequency's card and row whole (the count gone), its 205 note with them.
 SETTLED_205 = {"problem.prevalence": ("Registry vs spec 184 FR-1.",),
-               "problem.frequency": ("Registry vs spec 184 FR-2.",),
                "solution.adoption_friction": ("Registry row's notes vs its own rule and spec 198.",),
                "commercial.ability_to_pay": ("Registry vs spec 181 FR-2 and code.",),
                "commercial.purchase_friction": ("Spec 182 FR-6 vs registry.",),
@@ -606,8 +624,8 @@ def test_no_card_but_the_six_carries_a_205_note_and_the_others_are_unmoved(yaml_
     for key in KEYS:
         assert (SETTLED_LABEL in _body(key)) == (key in SETTLED_205), key
         assert (_note_205(yaml_rows[key]) is not None) == (key in SETTLED_205), key
-    kept = {"problem.prevalence": ["Not settled."], "problem.frequency": ["Spec 131 vs registry.", "Not settled."],
-            "problem.current_solution_satisfaction": ["Spec 131 vs registry.", "Spec 203 FR-3 vs code."],
+    # spec 162: Frequency's Open as keel-cloud 269 re-cut it (spec 270's answers against); Current solution retired
+    kept = {"problem.prevalence": ["Not settled."], "problem.frequency": ["Spec 270"],
             "commercial.existing_sacrifice": ["Spec 198 FR-3 vs registry.", "Registry vs code (spec 128 FR-21)."],
             "commercial.ability_to_pay": ["Registry note vs the chain."],
             "commercial.buyer_payer_alignment": ["Belief vs item (registry `_why_199`, spec 199 FR-1)."]}

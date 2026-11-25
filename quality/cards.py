@@ -22,6 +22,14 @@ import re
 from pathlib import Path
 
 CARDS_PATH = Path(__file__).resolve().parent / "readers" / "dimensions.md"
+#: Spec 162 (keel-cloud 272 judgement call 16: "the cards for the three are owed to keel-e2e-eval 162"): the cards'
+#: digest since this spec re-cut the solution's three on yes or no (and Frequency's registry line and its example's
+#: *What breaks it:*, the card keel-cloud 269 re-cut) -- keel-cloud's own copy (`dimension-cards.md`, `CARDS_SHA256`)
+#: is the cloud's to vendor from here.
+CARDS_SHA256 = "dbcb2196638915e48a5aefa055b856f27c84657921c1edb7a1a7e109dcf87c39"
+#: The cards spec 162 moved; until keel-cloud vendors them its copy differs from this one in these alone.
+CARDS_MOVED_162 = ("problem.frequency", "solution.compatibility", "solution.relative_advantage",
+                   "solution.adoption_friction")
 
 _BEGIN = re.compile(r"<!-- card:([a-z_.]+):begin -->")
 _CODE = re.compile(r"`([a-z][a-z0-9_]*)`")
@@ -176,3 +184,19 @@ def fixed_answer_codes(body: str) -> list[str]:
         said = re.split(r"[;.]\s+[Tt]hen\b", said, maxsplit=1)[0]
         return list(dict.fromkeys(codes(said)))           # a code said again under a sub-bullet is the same answer
     return []
+
+
+def differing_cards(theirs: str, ours: str | None = None) -> list[str]:
+    """The keys whose card differs between two copies of the cards (`theirs`, keel-cloud's; `ours`, this one), and
+    `"(outside the cards)"` where the text around the cards differs -- what a vendored copy still owes."""
+    ours = ours if ours is not None else cards_text()
+    out = [k for k in keys(ours) if k not in keys(theirs) or card(k, theirs) != card(k, ours)]
+    out += [k for k in keys(theirs) if k not in keys(ours)]
+
+    def outside(text: str) -> str:
+        for k in keys(text):
+            text = text.replace(card(k, text), "")
+        return text
+    if outside(theirs) != outside(ours):
+        out.append("(outside the cards)")
+    return out
