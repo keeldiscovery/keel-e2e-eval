@@ -684,6 +684,42 @@ class FilmCamera:
         return frames, faults
 
 
+# ------------------------------------------------------------------------------------------- spec 167: the portrait probe
+
+#: Spec 167 FR-1 / FR-4 (the free walk alone): FakePictures draws 48 x 32, so on the fakes the stage plays landscape
+#: and keel-web 263's laptop column is never drawn. With `KEEL_FILM_PROBE=portrait` the film is shot once more with every
+#: picture the browser asks for answered by a plain grey 2:3 PNG, so the camera reads keel-web's real portrait stage and
+#: its words' column -- recorded apart (`probe/frames/`, `film.json` `probe`), never handed to the reader, its faults
+#: never the film's.
+PROBE_DIR = "probe"
+PROBE_SIZE = (32, 48)
+
+
+def plain_png(width: int, height: int, grey: int = 0xBC) -> bytes:
+    """A plain grey PNG of `width` x `height` (no image library)."""
+    import zlib                                                                      # noqa: PLC0415
+    raw = b"".join(b"\x00" + bytes((grey, grey, grey)) * width for _ in range(height))
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+
+
+def portrait_probe(camera: "FilmCamera", project_id: str, story: dict) -> dict:
+    """Spec 167: the film shot again on both viewports with every picture answered portrait (`PROBE_SIZE`), into
+    `<film>/probe/`. Returns `{frames, faults, stage}` -- the layout and the stage as keel-web drew them."""
+    body = plain_png(*PROBE_SIZE)
+    probe = FilmCamera(camera.browser, camera.storage_state, camera.web, Path(camera.out) / PROBE_DIR,
+                       inits=camera.inits, kind=camera.kind,
+                       routes=tuple(camera.routes) + (("**/v2/assets/**", lambda r: r.fulfill(
+                           status=200, content_type="image/png", body=body)),))
+    frames, faults = probe.shoot(project_id, story)
+    for f in frames:
+        f["path"] = f"{PROBE_DIR}/{f['path']}"
+    return {"picture": list(PROBE_SIZE), "frames": frames, "faults": faults, "stage": stage_summary(frames)}
+
+
 # ------------------------------------------------------------------------------------------- the rest of the folder
 
 def fetch_pictures(get_bytes, story: dict, out: Path) -> list[dict]:

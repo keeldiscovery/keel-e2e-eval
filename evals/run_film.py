@@ -69,6 +69,9 @@ PEOPLE_VAR, TYPOS_VAR = "KEEL_FILM_PEOPLE", "KEEL_FILM_TYPOS"
 #: Spec 166 FR-7: the halves the leg walks (`PROBLEM`, `SOLUTION`; the walk's `[film] scopes` / `SCOPES=`), the half it
 #: walks alone (`solution`, on the stack holding the walk's problem project) and whether a stack it booted stays up.
 SCOPES_VAR, ONLY_VAR, KEEP_VAR = "KEEL_FILM_SCOPES", "KEEL_FILM_ONLY", "KEEL_FILM_KEEP"
+#: Spec 167: `portrait` -- on the free walk alone, each film shot once more with portrait pictures in the browser
+#: (`film_frames.portrait_probe`), so keel-web 263's laptop column is read on the real page (FakePictures is 48 x 32).
+PROBE_VAR = "KEEL_FILM_PROBE"
 #: Spec 165: the stand-in that tops a short balance to the grant before the lock (as `three_views.fr1_d` does).
 STAND_IN_SPEC = "165"
 DOORS = ("keel", "fake")
@@ -119,6 +122,15 @@ def scopes(env: dict | None = None) -> list[str]:
 def only(env: dict | None = None) -> str | None:
     env = os.environ if env is None else env
     return (env.get(ONLY_VAR) or "").strip().lower() or None
+
+
+def probe(env: dict | None = None) -> str | None:
+    """Spec 167: the portrait probe -- `KEEL_FILM_PROBE=portrait` on `DOOR=fake` alone (Keel's door films real portrait
+    pictures; there it is never shot)."""
+    env = os.environ if env is None else env
+    asked = (env.get(PROBE_VAR) or "").strip().lower()
+    door = (env.get(DOOR_VAR) or "keel").strip().lower()
+    return "portrait" if asked == "portrait" and door == "fake" else None
 
 
 def keep(env: dict | None = None) -> bool:
@@ -344,7 +356,7 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
         {"what": f"the build ended {state!r} (failedScene {(story.get('build') or {}).get('failedScene')}: "
                  f"{(story.get('build') or {}).get('failedLine')})", "owed": "keel-cloud 273 FR-3",
          "detail": json.dumps((story.get("build") or {}).get("checked"))[:300], "frame": None}]
-    frames, pictures = [], []
+    frames, pictures, probed = [], [], None
     if state == "ready":
         camera = ff.FilmCamera(browser, context.storage_state(), stack.web_base_url, out)
         with recorder.step("spec 163: the film captured -- each scene held, the phone and the laptop",
@@ -352,6 +364,7 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
             frames, shot_faults = camera.shoot(project_id, story)
             faults += shot_faults
             h.record_wire({"frames": len(frames)}, {"faults": [f["what"] for f in shot_faults]})
+        probed = shoot_probe(recorder, camera, project_id, story)
         pictures = ff.fetch_pictures(get_bytes, story, out)
         faults += ff.picture_faults(pictures)
     try:
@@ -375,6 +388,7 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
         "pictures": [p for p in pictures if p.get("path")], "pictures_served": pictures,
         # spec 167: the frames left out, the stage as drawn on each viewport, the building screen's frame plan
         "missing": ff.missing_scenes(story), "stage": ff.stage_summary(frames), "building": building,
+        **({"probe": probed} if probed else {}),
         "beats": ff.beats_record(told, dict(beats)), "verdict_line": story.get("verdictLine"),
         "ledger": spent, "dollars": spent.get("usd"),
         "measures": {"faults": faults, "frames": len(frames), "pictures": sum(1 for p in pictures if p.get("path"))},
@@ -568,6 +582,19 @@ def idea_beats_record(told: list[dict], said: dict[int, str], asked: dict[int, s
     return out
 
 
+def shoot_probe(recorder, camera, project_id: str, story: dict) -> dict | None:
+    """Spec 167: the portrait probe where it is asked (`probe()`), its own step; its faults are recorded apart."""
+    if not probe():
+        return None
+    with recorder.step("spec 167: the portrait probe -- the film shot again with portrait pictures in the browser (the "
+                       "free walk alone; never handed to the reader)", party="founder") as h:
+        probed = ff.portrait_probe(camera, project_id, story)
+        h.record_wire({"frames": len(probed["frames"])}, {"stage": probed["stage"],
+                                                          "faults": [f["what"] for f in probed["faults"]]})
+    print(f"probe: {len(probed['frames'])} frames, the stage {probed['stage']}, {len(probed['faults'])} fault(s)")
+    return probed
+
+
 def solution_half(stack, browser, recorder, context, page, run_dir: Path, founder, entry: dict, entry_path: Path,
                   problem_id: str, problem_story: dict, versions: dict, stamp: str, call, get_bytes, *,
                   own_ai=None) -> dict:
@@ -626,7 +653,7 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
                  f"{build.get('failedScene')}: {build.get('failedReason') or build.get('failedLine')})",
          "owed": "keel-cloud 271 FR-10 / 273 FR-3 / 275 FR-2", "detail": json.dumps(build.get("checked"))[:300],
          "frame": None}]
-    frames, pictures = [], []
+    frames, pictures, probed = [], [], None
     if state == "ready":
         camera = ff.FilmCamera(browser, context.storage_state(), stack.web_base_url, out, kind="solution")
         with recorder.step("spec 166: the solution film captured before any stranger -- the plate, each scene held, "
@@ -634,6 +661,7 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
             frames, shot_faults = camera.shoot(solution, view)
             faults += shot_faults
             h.record_wire({"frames": len(frames)}, {"faults": [f["what"] for f in shot_faults]})
+        probed = shoot_probe(recorder, camera, solution, view)
         pictures = ff.fetch_pictures(get_bytes, view, out)
         faults += ff.picture_faults(pictures)
     problem_sheet = ff.drawn(problem_story).get("sheetAssetId")
@@ -667,6 +695,7 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
         "plate": ff.drawn(view).get("plate"), "frames": frames,
         "pictures": [p for p in pictures if p.get("path")], "pictures_served": pictures,
         "missing": ff.missing_scenes(view), "stage": ff.stage_summary(frames), "building": building,
+        **({"probe": probed} if probed else {}),
         "sheet": {"asset": solution_sheet, "problem": problem_sheet,
                   "reused": bool(solution_sheet) and solution_sheet == problem_sheet},
         "beats": idea_beats_record(told, said, idea_questions(entry, problem_story, brand["name"])),

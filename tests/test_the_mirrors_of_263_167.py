@@ -176,6 +176,31 @@ def test_a_landscape_film_keeps_261s_layout_on_the_laptop(browser, tmp_path):
     assert laptop["ratio"] == "landscape" and laptop["stage_ratio"] < 1
 
 
+def test_the_portrait_probe_reads_the_column_on_a_fake_film(browser, tmp_path):
+    # FakePictures' 48 x 32 plays landscape; the probe answers every picture 2:3 in the browser, so the column is read
+    s = story()
+    html = page_263(s, "portrait")
+    camera = ff.FilmCamera(browser, {"cookies": [], "origins": []}, "http://film.test", tmp_path, inits=("",),
+                           routes=(("http://film.test/p/**", lambda r: r.fulfill(status=200, content_type="text/html",
+                                                                                 body=html)),
+                                   ("**/v2/assets/**", lambda r: r.fulfill(status=200, content_type="image/png",
+                                                                           body=png(48, 32))),
+                                   ("**/v2/clips/**", lambda r: r.fulfill(status=200, content_type="audio/mpeg",
+                                                                          body=b""))))
+    probed = ff.portrait_probe(camera, "p1", s)
+    assert probed["faults"] == [] and len(probed["frames"]) == 14 and probed["picture"] == [32, 48]
+    assert probed["stage"]["laptop"]["layouts"] == ["column"] and probed["stage"]["phone"]["layouts"] == ["over"]
+    assert all(f["path"].startswith("probe/frames/") and (tmp_path / f["path"]).is_file() for f in probed["frames"])
+    assert ff.png_size(ff.plain_png(32, 48)) == (32, 48)
+
+
+def test_the_probe_is_the_free_walks_alone():
+    from evals import run_film                                                  # noqa: PLC0415
+    assert run_film.probe({"KEEL_FILM_PROBE": "portrait", "KEEL_FILM_DOOR": "fake"}) == "portrait"
+    assert run_film.probe({"KEEL_FILM_PROBE": "portrait", "KEEL_FILM_DOOR": "keel"}) is None
+    assert run_film.probe({"KEEL_FILM_DOOR": "fake"}) is None
+
+
 def test_each_layout_is_held_to_its_own_rule():
     base = {"scene": 3, "path": "frames/scene-3-laptop.png", "caption": "x", "rows": 2}
     assert ff.frame_faults({**base, "layout": "column", "beside": True, "in_window": True, "clipped": False,
