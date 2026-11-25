@@ -174,6 +174,7 @@ def solution_plans(people: list) -> list[dict]:
         if getattr(p, "link", LINK) != LINK:
             continue
         picks, remapped = {}, []
+        answers = bool(p.recency) and getattr(p, "in_segment", True)       # sent away before the three: nothing owed
         for key in sol.SOLUTION_DIMENSIONS:
             codes = _codes(p, key)
             read = corpus_reader.spec272_solution(codes[0]) if codes else None
@@ -181,7 +182,8 @@ def solution_plans(people: list) -> list[dict]:
                 picks[key] = read
             else:
                 picks[key] = "no"
-                remapped.append({"dimension": key, "recorded": codes[0] if codes else None, "sent": "no"})
+                if answers:
+                    remapped.append({"dimension": key, "recorded": codes[0] if codes else None, "sent": "no"})
         out.append({"person": p.person, "screener": "yes" if getattr(p, "in_segment", True) else "no",
                     "gate": bool(p.recency), "picks": picks, "why": getattr(p, "follow_up", None) or None,
                     **({"remapped": remapped} if remapped else {})})
