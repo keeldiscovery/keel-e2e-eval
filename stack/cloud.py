@@ -119,7 +119,9 @@ def build_env(config: StackConfig) -> dict[str, str]:
         # contract 42): Try it yourself's own `interviewer/transcribe` calls the same transcriber, so the dry run's
         # hello, story and follow-up are served by this fake as a link's are -- nothing to set here.
         "KEEL_INTERVIEWER_TRANSCRIBER": "fake",
-        "KEEL_OPENAI_API_KEY": "",
+        # Spec 273 / the film judge (163): with KEEL_PICTURES=openai in the shell the pictures adapter needs the OpenAI key
+        # (keel-cloud refuses to start without it); the transcriber stays fake either way. Otherwise the key is blanked.
+        "KEEL_OPENAI_API_KEY": os.environ.get("KEEL_OPENAI_API_KEY", "") if os.environ.get("KEEL_PICTURES") == "openai" else "",
         "KEEL_INTERVIEWER_FAKE_TRANSCRIPT": "yes",
     })
     # Sign in with Google, pointed at this profile's stub issuer (keel-cloud
