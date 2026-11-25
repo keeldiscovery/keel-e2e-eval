@@ -10,7 +10,8 @@ the solution the other way around"*.
 This file is the one source of the film's criteria: `quality/film_rubric.py` pastes the part between the two
 `film-problem` markers into the film reader's prompt for a problem film, the part between the two `film-solution`
 markers for a solution film (keel-cloud 271 / 273, once the solution batch is walked), and the part between the two
-`film-founder` markers into the founder-reader's prompt for the founder's spoken beats -- so a reader can never be
+`film-founder` markers into the founder-reader's prompt for the founder's spoken beats, and (spec 171) the part between
+the two `film-told` markers into the told-reader's card prompt -- so a reader can never be
 scoring a different rubric from the one written here. The film reader is `quality/readers/film-reader.md` through the
 Anthropic API with vision (`quality/readers.toml` `[film_reader]`); the founder-reader is
 `quality/readers/film-founder.md` through the `claude` CLI, as `make read-screens`' readers.
@@ -94,6 +95,39 @@ Recorded in the film's score file under `founder` (`beats`: one row a beat, `r1`
 instead line), **never folded into `film_pct`**: `founder_pct` = the sum of every R given over 2 x their count x 100,
 beside it.
 
+## The told card (the told-reader)
+
+Spec 171 (the founder, 2026-11-25 ~12:55 ET: *"update the judge to evaluate for the problem, not only evaluate the
+insights -- in the Insights, the new tab."*). On a problem study, keel-cloud 281 reads every yes-sayer's story into the
+founder's three boxes and serves the card `BriefFacts.problem.told`; keel-web 273 draws it as the Insights tab's *On
+your problem* view (*What they told you*, `told-card`) and each person's popup's Insights tab. **The ground truth** is
+the stub strangers' own stories (`told_truth.json` beside `film.json`, `harness/film_told.py`): one told-reader call a
+story (`quality/readers/told-reader.md` `truth`, the film reader's model) marks, from the story alone, which of the
+founder's limitations it describes, whether the way and the pain are the founder's, a real occasion or a guess; code
+counts the card the truth makes (keel-cloud 281's bands over the real occasions). The walk captures the card on the
+wire and as drawn, and three people's popups (the first with a hit, the first with a new row, the first guess).
+
+<!-- film-told:begin -->
+| # | Criterion | 2 | 1 | 0 |
+|---|---|---|---|---|
+| T1 | **The ticks are right.** Across the three sampled people, is every limitation ticked in the truth, and none the truth holds missed? | all right | one tick off | more |
+| T2 | **The counts add up.** Does each of the founder's rows (the way, each limitation, the pain) carry a count and a band within one person of the truth's? | every row | one row off | more |
+| T3 | **Theirs are real.** Is every amber row (*Theirs, not on your board*) said by two or more stories of the truth, and none of them one of the founder's rows reworded? | every row | one row wrong | more |
+| T4 | **Legible.** Does the card read in the founder's order (way, limitations, pain) and words, do the bands say what they mean, is nothing garbled, and is there no trade word the entry does not use? | yes | one slip | the card misleads, or is garbled |
+
+Score each 0, 1 or 2 with one sentence of why. `instead`: one line for every criterion under 2, *what the card should
+have shown instead*. T1, T2 and T3 are code's (T3 over the told-reader's placing of each amber row in the stories);
+T4 is the told-reader's, handed the card's and the popups' words and screenshots and what code found on them.
+<!-- film-told:end -->
+
+Recorded in the problem film's score file under `told` (`scores` T1-T4, their whys, the instead lines, the people,
+the rows, the amber rows and the verdict compared, `version` -- the told card's own, 1), **never folded into
+`film_pct`**: `told_pct` = the sum of the four over 2 x 4 x 100, beside `founder_pct`. A card absent on a problem
+project where a story was told (no `told` served: a keel-cloud before 281; served but not drawn: a keel-web before 273)
+scores nothing (`told_pct` null) and is a DRIFT capture note *(capture): no told card*. **A T1 or T2 at 0 is a DRIFT
+finding** naming the person or the row, the truth and Keel's reading side by side (the product's reading is the
+fault, never patched around).
+
 ## The score as one number
 
 - `film_pct` = the sum of the eight F (nine S on a solution film) over 2 x their count x 100. Every criterion is always
@@ -113,10 +147,15 @@ A criterion is **weak** over the entries of one table (the latest film score of 
 
 -- the question-quality rubric's rule (`RUBRIC.md`, *The weak rule*), held equal to it (`FILM_WEAK` in
 `quality/film_rubric.py` against `quality/rubric.py`'s `WEAK_ZERO_ENTRIES` and `WEAK_MEAN`; a unit test holds the two
-together). The founder's beats are held to the same rule per criterion, R1, R2, R3, R5.
+together). The founder's beats are held to the same rule per criterion, R1, R2, R3, R5; and (spec 171) the told card's
+T1, T2, T3, T4 over the entries whose problem film's score file carries them.
 
 ## Versions
 
 - **1** (spec 163, 2026-11-24): F1-F8 on the problem film (the persona, the task, today's way, every limitation, the
   pain, clearly spelled out, end to end, legible); S1-S9 on the solution film; the founder's beats on R1, R2, R3 and R5;
   `film_pct`, `founder_pct`, the flag, the weak rule. Nothing scored before it.
+- **1, the told card beside it** (spec 171, 2026-11-25): T1-T4 and `told_pct` under `told`, with the told card's own
+  version (`told.version` 1); the weak rule extended to T1-T4. F, S, R, their anchors and `film_pct` are unchanged, so
+  `FILM_RUBRIC_VERSION` stays 1 and a score file without `told` (every one before this) tables beside one with it --
+  its `told` column reads `--`.

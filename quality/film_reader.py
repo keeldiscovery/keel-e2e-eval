@@ -22,6 +22,13 @@ carry the frames. A run refuses before its first call without the key.
 readback or ask after each, the verdict line -- one call a line, on R1, R2, R3 and R5; `founder_pct` beside `film_pct`.
 `FOUNDER=0` skips them (the file then says `founder: null`).
 
+**Spec 171: the told card** (the problem film alone): the ground truth written where the film folder has none
+(`harness/film_told.py`: one told-reader call a stub stranger's story through this door, `told_truth.json` beside
+`film.json`), then one told-reader call on the card the walk captured (`film.json` `strangers.told`: the wire, the card
+as drawn, three people's popups; its screenshots as images) -- T1-T4 and `told_pct` under `told`, beside
+`founder_pct`, never in `film_pct`. A card absent scores nothing and spends nothing. `TOLD=0` skips it (`told: null`);
+`DRY=1` writes the truth's prompts.
+
 A full run writes `quality/scores/<bundle>-film-<entry>.json` (committed) with the reader block and
 `FILM_RUBRIC_VERSION`; every prompt and answer is recorded under `runs/<stamp>-read-films-<bundle>/calls/` (the images
 by path, never inlined). `DRY=1` writes the prompts (the images named in place) and calls nothing.
@@ -66,6 +73,8 @@ QUALITY = REPO / "quality"
 READERS_TOML = QUALITY / "readers.toml"
 PROMPT_PATH = QUALITY / "readers" / "film-reader.md"
 FOUNDER_PROMPT_PATH = QUALITY / "readers" / "film-founder.md"
+#: Spec 171: the told-reader's two prompts (the truth a story, the card).
+TOLD_PROMPT_PATH = QUALITY / "readers" / "told-reader.md"
 SCORES_DIR = QUALITY / "scores"
 RUNS_DIR = REPO / "runs"
 FILM_DIR = "film"
@@ -576,6 +585,70 @@ def founder_prompts(film: dict, entry: dict) -> list[tuple[dict, str]]:
     return out
 
 
+# ------------------------------------------------------------------------------------------------ the told card
+
+class _TextDoor:
+    """Spec 171: the film reader's door asked a text-only prompt (`quality.readers.ask_twice`'s reader shape)."""
+
+    def __init__(self, door: FilmDoor, cfg: dict):
+        self.door, self.cfg = door, cfg
+
+    def ask(self, label: str, prompt: str) -> dict:
+        from harness import film_told                                              # noqa: PLC0415
+        return self.door.ask(label, film_told.text_request(prompt, self.cfg))
+
+
+def read_told(door: FilmDoor, folder: Path, film: dict, story: dict, entry: dict, cfg: dict, *,
+              dry_out: Path | None = None) -> tuple[dict | None, int]:
+    """Spec 171: the problem film's `told` block -- the truth (`told_truth.json`, written by `harness/film_told.py`
+    where the folder has none: one told-reader call a story), then one told-reader call on the card (T3's placing, T4),
+    then T1-T4 and `told_pct`. A card absent scores nothing, and nothing is spent on it. `dry_out`: the truth's prompts
+    written there, nothing called (returns `(None, the stories)`). Returns `(told, how many stories)`."""
+    from harness import film_told                                                  # noqa: PLC0415
+    captured = (film.get("strangers") or {}).get("told")
+    stories = film_told.stories_of(film)
+    if dry_out is not None:
+        film_told.write_truth(folder, film, story, ask=None, template=template(TOLD_PROMPT_PATH, "truth"),
+                              dry_out=dry_out)
+        return None, len(stories)
+    gone = film_told.absent(captured, {"stories": stories})
+    if gone:
+        return film_told.absent_block(gone), len(stories)
+    truth = film_told.load_truth(folder)
+    if truth is None:
+        text_door = _TextDoor(door, cfg)
+        limits = len(film_told.board_of(story)["limits"])
+
+        def ask(label: str, prompt: str) -> dict:
+            parse = (lambda raw: film_told.parse_truth(raw, limits=limits))
+            return readers.ask_twice(text_door, label, prompt, parse)[0]
+        truth = film_told.write_truth(folder, film, story, ask=ask, template=template(TOLD_PROMPT_PATH, "truth"),
+                                      reader={k: cfg[k] for k in ("model", "effort", "vendor", "door")})
+    gone = film_told.absent(captured, truth)
+    if gone:
+        return film_told.absent_block(gone), len(stories)
+    request = film_told.card_request(captured, truth, persona=persona_card(entry["yaml"]),
+                                     template=lambda part: template(TOLD_PROMPT_PATH, part), rubric=fr.prompt_told(),
+                                     cfg=cfg)
+    rows = len(film_told.theirs_rows(captured))
+    answer = None
+    said = door.ask("told-card", request)
+    if not said["error"]:
+        try:
+            answer = film_told.parse_card_answer(said["answer"], rows=rows)
+        except film_told.ToldError as first:
+            body = json.loads(json.dumps(request["body"]))
+            body["messages"][0]["content"][-1]["text"] += AGAIN_TAIL.format(error=first)
+            again = door.ask("told-card-again", {**request, "body": body,
+                                                 "text": request["text"] + AGAIN_TAIL.format(error=first)})
+            if not again["error"]:
+                try:
+                    answer = film_told.parse_card_answer(again["answer"], rows=rows)
+                except film_told.ToldError:
+                    answer = None
+    return film_told.score(captured, truth, answer), len(stories)
+
+
 # ------------------------------------------------------------------------------------------------ the run
 
 def _json_or_empty(path: Path) -> dict:
@@ -611,6 +684,7 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
     parser.add_argument("--entry", default=None)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--no-founder", action="store_true")
+    parser.add_argument("--no-told", action="store_true")
     parser.add_argument("--kind", default=None, choices=sorted(fr.KINDS))
     parser.add_argument("--out", default=None)
     parser.add_argument("--scores-dir", default=str(SCORES_DIR))
@@ -667,9 +741,16 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
             beats = founder_prompts(film, entry) if not args.no_founder else []
             for i, (line, prompt) in enumerate(beats, 1):
                 (out / f"{label}-founder-{i:02d}.prompt.txt").write_text(prompt, encoding="utf-8")
+            told_said = ""
+            if kind == "problem" and not args.no_told:
+                # spec 171: the truth's prompts, one a story (the card's call follows the truth on a paid run)
+                told_dir = out / f"{label}-told"
+                told_dir.mkdir(parents=True, exist_ok=True)
+                _, n = read_told(door, folder, film, story, entry, cfg, dry_out=told_dir)
+                told_said = f", {n} told-truth prompt(s) and the card's call after them"
             print(f"dry run: {entry_of(folder)} ({kind}) -- one film call ({request['images']} images, "
-                  f"{request['image_b64_bytes'] // 1024} KB in base64) and {len(beats)} founder's beats written to "
-                  f"{out}; no call made, no score written")
+                  f"{request['image_b64_bytes'] // 1024} KB in base64) and {len(beats)} founder's beats{told_said} "
+                  f"written to {out}; no call made, no score written")
             continue
         started = time.monotonic()
         try:
@@ -693,6 +774,16 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
             founder["beats"] = rows
             del founder["beats_scored"]
             founder_cost = round(sum(c["cost_usd"] for c in cli.calls if not c["cached"]), 4)
+        told = None
+        if kind == "problem" and not args.no_told:
+            # spec 171 FR-1 / FR-3: the truth, the card's call, T1-T4 -- beside founder_pct, never in film_pct
+            try:
+                told, _ = read_told(door, folder, film, story, entry, cfg)
+            except Exception as reason:                                          # noqa: BLE001 - the card unread, named
+                told = {"version": fr.TOLD_VERSION, "absent": f"the told card unread: {str(reason)[:300]}",
+                        "drift": False, "scores": None, "whys": None, "instead": None, "told_pct": None,
+                        "flagged": False}
+        told_cost = round(sum(c["cost_usd"] for c in door.calls if c["label"].startswith("told-")), 4)
         film_calls = [c for c in door.calls if c["label"].startswith(label)]
         record = {
             "entry": entry["id"], "kind": kind, "bundle": bundle_name(run_dir),
@@ -702,14 +793,17 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
                 "served_by": film_calls[-1].get("model") if film_calls else None,
                 "fallback": [f for c in film_calls for f in c.get("fallback") or []]},
             "founder_reader": ({k: cli.config[k] for k in ("model", "effort", "vendor", "door")} if cli else None),
-            "cost_usd": round(sum(c["cost_usd"] for c in film_calls) + founder_cost, 4),
+            "cost_usd": round(sum(c["cost_usd"] for c in film_calls) + founder_cost + told_cost, 4),
             "film_cost_usd": round(sum(c["cost_usd"] for c in film_calls), 4), "founder_cost_usd": founder_cost,
+            "told_cost_usd": told_cost,
             "walk_usd": film.get("dollars"),
             "seconds": round(time.monotonic() - started, 1), "scored_at": now.isoformat(timespec="seconds"),
             "asked_again": again,
             "entry_yaml": {"sha256": entry["sha256"], "matches_bundle": entry["matches_bundle"]},
             "persona_card": persona_card(entry["yaml"]),
             "film": score, "founder": founder,
+            # spec 171 FR-3: the told card, beside founder_pct, never in film_pct (None on a solution film, TOLD=0)
+            "told": told,
             "frames": {"frames": [f["path"] for f in film.get("frames") or []],
                        "pictures": [p["path"] for p in film.get("pictures") or []],
                        "folder": str(folder.relative_to(REPO) if REPO in folder.parents else folder)},
@@ -727,7 +821,9 @@ def run(argv=None, *, post=None, cli_runner=None, env=None) -> int:
         path.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         written.append(path)
         print(f"{entry['id']} ({kind}): film_pct {score['film_pct']}{' FLAGGED' if score['flagged'] else ''}, founder_pct "
-              f"{(founder or {}).get('founder_pct')}, ${record['cost_usd']} in {record['seconds']} s -> {path}")
+              f"{(founder or {}).get('founder_pct')}"
+              + (f", told_pct {told.get('told_pct')}" + (f" (absent: {told['absent']})" if told.get("absent") else "")
+                 if told else "") + f", ${record['cost_usd']} in {record['seconds']} s -> {path}")
     if not args.dry_run:
         print(f"{len(written)} film score file(s) written; calls recorded under {out / 'calls'}")
     return 0 if (args.dry_run or written) else 1

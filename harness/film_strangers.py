@@ -421,7 +421,11 @@ def walk_summary(plan: dict, link: dict, walked: dict | None, *, error: str | No
     the response's shape, whether the thanks was reached."""
     rows = (walked or {}).get("rows") or []
     films = [r for r in rows if r.get("screen") == "film"]
+    # spec 171 FR-1: the story the stub said (never a chip's tap), the ground truth the told card is judged against
+    story = next((r.get("said") for r in rows if r.get("story") and isinstance(r.get("said"), str)
+                  and not r["said"].startswith("tap:")), None)
     return {"person": plan["person"], "invitation": link.get("invitationId"), "url": link.get("url"),
+            **({"story": story} if story else {}),
             "plan": {k: plan.get(k) for k in ("screener", "gate", "story_how", "chip", "frequency", "importance", "own")},
             "steps": [r.get("key") or (f"why:{r['follow_up'].get('dimension')}" if r.get("follow_up") else None)
                       or r.get("step") or r.get("where") for r in rows if r.get("screen") == "question"],
@@ -738,10 +742,12 @@ def settle(run: FilmRun, project_id: str, *, timeout_s: float = SETTLE_WAIT_S) -
 
 def founder_page_after(run: FilmRun, project_id: str, run_dir: Path,
                        before_settle: Callable[[], Any] | None = None, *, scope: str = SCOPE,
-                       picks: list[dict] | None = None) -> dict:
+                       picks: list[dict] | None = None, walks: list[dict] | None = None) -> dict:
     """FR-2: the founder's page after the seven answers -- the back-test's answers leg (§B's screens: the stage page,
     every card opened, the Insights screen and its folds) and spec 164's reads of the page as drawn (the ways panel,
-    Frequency's card, the Insights boxes, the brief's breakdown), each a check kept, never a stop."""
+    Frequency's card, the Insights boxes, the brief's breakdown), each a check kept, never a stop. Spec 171 FR-2: on a
+    PROBLEM project the told card too (`film_told.capture`: the wire, *On your problem* as drawn, three people's popups
+    from `walks`), under `told` -- never a stop."""
     import types                                                                     # noqa: PLC0415
 
     from evals import backtest                                                       # noqa: PLC0415
@@ -766,10 +772,19 @@ def founder_page_after(run: FilmRun, project_id: str, run_dir: Path,
             tvs.founder_page_on_screen(run, leg, project_id, overview, standings)
     except Exception as missed:  # noqa: BLE001 - recorded
         leg.notes.append(f"the page's reads stopped: {str(missed)[:300]}")
+    told = None
+    if scope != SOLUTION_SCOPE:
+        from harness import film_told                                                # noqa: PLC0415
+        try:
+            told = film_told.capture(run, project_id, standings, walks or [], run_dir)
+        except Exception as missed:  # noqa: BLE001 - recorded; the judge scores what was captured
+            told = {"spec": film_told.SPEC, "error": str(missed)[:300]}
     return {"after_screens": backtest.after_screens(cam), "answers_leg": done,
             "brief": backtest.brief(standings), "themes_settled": settled,
             "founder_page": {"checks": [{"name": c.name, "ok": c.ok, "screen": c.screen} for c in leg.checks],
-                             "notes": leg.notes, "ways": overview.get("ways")}}
+                             "notes": leg.notes, "ways": overview.get("ways"),
+                             **({"told": told} if told is not None else {})},
+            **({"told": told} if told is not None else {})}
 
 
 def solution_page_checks(run, leg, project_id: str, standings: dict, picks: list[dict]) -> None:
