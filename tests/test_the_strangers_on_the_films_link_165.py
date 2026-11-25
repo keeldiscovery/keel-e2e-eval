@@ -106,7 +106,8 @@ class Wire:
         self.answers = {("PUT", "context/window"): (200, {}), ("GET", "calibration/PROBLEM"): (200, {"state": "READY"}),
                         ("GET", "/v2/me"): (200, {"creditsAvailable": 2500}),
                         ("GET", "overview"): [(200, {"questionsState": "WRITING"}), (200, {"questionsState": "READY"})],
-                        ("POST", "questionnaire/retry"): (202, {})}
+                        ("POST", "questionnaire/retry"): (202, {}),
+                        ("POST", "calibration/PROBLEM/retry"): (202, {"interactionId": "i1"})}
         self.answers.update(over or {})
 
     def __call__(self, method, path, body=None):
@@ -159,6 +160,94 @@ def test_a_short_balance_is_topped_once_and_a_failed_question_set_retried_once()
     assert got["questions_retried"] is True and ("POST", "/v2/projects/p1/questionnaire/retry", None) in wire.calls
     with pytest.raises(fs.LockFailed, match="after the top-up"):
         lock(Wire({("GET", "/v2/me"): (200, {"creditsAvailable": 30})}), top_up=lambda: 0)
+
+
+# ------------------------------------------------------------------------------------------------ spec 168 FR-1, FR-4
+
+RETRY = ("POST", "/v2/projects/p1/calibration/PROBLEM/retry", None)
+
+
+def test_a_failed_calibration_is_retried_once_and_the_lock_goes_on():
+    # the calibration writer's result refused twice (the product's one repair turn): FAILED, the founder's retry
+    # pressed once, the wait again, READY
+    wire = Wire({("GET", "calibration/PROBLEM"): [(200, {"state": "FAILED", "total": 3, "answered": 3}),
+                                                  (200, {"state": "WRITING"}), (200, {"state": "READY"})]})
+    got = lock(wire)
+    assert wire.calls.count(RETRY) == 1
+    assert got["calibration"] == "READY" and got["calibration_retried"] is True
+    assert got["calibration_first"] == {"state": "FAILED", "total": 3, "answered": 3}
+    assert got["calibration_retry"] == {"status": 202}
+    assert got["lock_status"] == 201 and got["questions"] == "READY"
+    # the retry is pressed before anything after the calibration is asked
+    assert wire.calls.index(RETRY) < wire.calls.index(("GET", "/v2/me", None))
+    assert fs.lock_record(got) == {"locked": True, "calibration": "READY", "calibration_retried": True,
+                                   "calibration_first": {"state": "FAILED", "total": 3, "answered": 3},
+                                   "calibration_retry": {"status": 202}, "questions": "READY",
+                                   "questions_retried": False}
+
+
+def test_a_calibration_failed_twice_stops_the_lock_at_the_same_step_with_retried():
+    wire = Wire({("GET", "calibration/PROBLEM"): (200, {"state": "FAILED", "total": 3, "answered": 3})})
+    with pytest.raises(fs.LockFailed) as failed:
+        lock(wire)
+    assert failed.value.step == "the PROBLEM calibration (GET calibration/PROBLEM)"
+    assert failed.value.detail == {"state": "FAILED", "total": 3, "answered": 3, "retried": True}
+    assert "'retried': True" in str(failed.value)
+    assert wire.calls.count(RETRY) == 1 and ("GET", "/v2/me", None) not in wire.calls
+    held = fs.lock_record(failed=failed.value)
+    assert held["locked"] is False and held["calibration_retried"] is True and held["calibration"] == "FAILED"
+    assert held["step"] == failed.value.step
+
+
+def test_a_refused_retry_stops_the_lock_and_one_not_failed_any_more_waits_on():
+    # the retry refused (not QUESTIONS_NOT_FAILED): the step, retried, the refusal's status and code
+    wire = Wire({("GET", "calibration/PROBLEM"): (200, {"state": "FAILED"}),
+                 ("POST", "calibration/PROBLEM/retry"): (422, {"code": "NOT_OWNED"})})
+    with pytest.raises(fs.LockFailed) as failed:
+        lock(wire)
+    assert failed.value.detail == {"state": "FAILED", "retried": True, "retry": {"status": 422, "code": "NOT_OWNED"}}
+    assert fs.lock_record(failed=failed.value)["calibration"] == "FAILED"
+    # QUESTIONS_NOT_FAILED: the calibration moved on by itself -- the wait goes on
+    wire = Wire({("GET", "calibration/PROBLEM"): [(200, {"state": "FAILED"}), (200, {"state": "READY"})],
+                 ("POST", "calibration/PROBLEM/retry"): (409, {"code": "QUESTIONS_NOT_FAILED"})})
+    got = lock(wire)
+    assert got["calibration"] == "READY" and got["calibration_retried"] is True
+    assert got["calibration_retry"] == {"status": 409, "code": "QUESTIONS_NOT_FAILED"}
+
+
+def test_a_calibration_ready_the_first_time_presses_no_retry():
+    wire = Wire()
+    got = lock(wire)
+    assert got["calibration_retried"] is False and "calibration_first" not in got
+    assert not any(c[0] == "POST" and c[1].endswith("/retry") and "calibration" in c[1] for c in wire.calls)
+    assert fs.lock_record(got)["calibration_retried"] is False and fs.lock_record() is None
+    # a calibration that never reads READY in the wait (no FAILED) is not retried either
+    with pytest.raises(fs.LockFailed) as failed:
+        lock(Wire({("GET", "calibration/PROBLEM"): (200, {"state": "WRITING"})}))
+    assert failed.value.detail == {"state": "WRITING", "retried": False}
+
+
+def test_the_solutions_lock_presses_its_own_calibrations_retry():
+    calls = []
+    # the three beliefs not answered yet (a SOLUTION calibration with its three answered is ready whatever its state:
+    # 166's `calibration_ready`, unchanged -- 168 judgement call 3)
+    views = [(200, {"state": "FAILED", "total": 3, "answered": 0}), (200, {"state": "READY", "total": 3,
+                                                                          "answered": 0})]
+
+    def call(method, path, body):
+        calls.append((method, path))
+        if method == "GET" and path.endswith("/calibration/SOLUTION"):
+            return views.pop(0) if len(views) > 1 else views[0]
+        if path.endswith("/calibration/SOLUTION/retry"):
+            return 202, {"interactionId": "i2"}
+        if path == "/v2/me":
+            return 200, {"creditsAvailable": 2000}
+        if path.endswith("/overview"):
+            return 200, {"questionsState": "READY"}
+        return 200, {}
+    got = fs.lock_project(call, "s1", window=None, press=lambda: (201, {}), need=2000, scope=fs.SOLUTION_SCOPE,
+                          sleep=lambda s: None)
+    assert ("POST", "/v2/projects/s1/calibration/SOLUTION/retry") in calls and got["calibration_retried"] is True
 
 
 # ------------------------------------------------------------------------------------------------ FR-2 the bundle

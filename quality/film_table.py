@@ -407,6 +407,23 @@ FINDINGS = {
 }
 
 
+#: Spec 168 FR-2: the DRIFT finding where the lock's calibration was FAILED and written again on the founder's retry.
+LOCK_RETRIED_WHAT = "the lock's calibration was written again on the founder's retry"
+LOCK_RETRIED_OWED = ("keel-cloud's calibration writer (the window-frame rules and spec 107's one repair turn: the first "
+                     "attempt refused twice)")
+
+
+def lock_retried_why(kind: str) -> str:
+    scope = "SOLUTION" if kind == "solution" else "PROBLEM"
+    return (f"GET calibration/{scope} read FAILED at the lock; the walk pressed FounderVoice's retry (POST "
+            f"calibration/{scope}/retry) once, as a founder on that screen would")
+
+
+def lock_retried_mark(row: dict) -> str:
+    """Spec 168 FR-2: *lock retried* beside *flagged* in an entry's heading, where the founder's retry was pressed."""
+    return ", lock retried" if (row.get("measures") or {}).get("lock_retried") else ""
+
+
 def findings(table: list[dict]) -> list[dict]:
     """The findings a cloud or web spec owes: every criterion of `FINDINGS` scored 0, and every measure the capture
     held false (a scene served with no picture, a caption outside the stage or over three lines on the phone) -- each
@@ -423,6 +440,12 @@ def findings(table: list[dict]) -> list[dict]:
                             "missing": r["missing"] if crit in ("f4", "s4") else [],
                             "frames": [f"{folder}/{p}" for p in frames[:2]], "cloud": r["cloud_sha"],
                             "web": r["web_sha"]})
+        if (r.get("measures") or {}).get("lock_retried"):
+            # spec 168 FR-2: the calibration writer's result refused, written again on the founder's retry
+            out.append({"entry": r["entry"], "kind": r["kind"], "criterion": "capture", "what": LOCK_RETRIED_WHAT,
+                        "owed": LOCK_RETRIED_OWED, "why": lock_retried_why(r["kind"]), "instead": "", "missing": [],
+                        "frames": [f"{folder}/{p}" for p in frames[:2]], "cloud": r["cloud_sha"],
+                        "web": r["web_sha"]})
         for m in (r.get("measures") or {}).get("faults") or []:
             out.append({"entry": r["entry"], "kind": r["kind"], "criterion": "capture", "what": m.get("what", ""),
                         "owed": m.get("owed", ""),
@@ -543,7 +566,7 @@ def render(table: list[dict], files: list[dict], weak: list[dict], cfg: dict, *,
             frames = (r.get("frames") or {}).get("frames") or []
             film = "the solution film" if r["kind"] == "solution" else "the problem film"
             lines.append(f"### {r['entry']} -- {film}, film_pct {_cell(r['film_pct'])}"
-                         f"{', flagged' if r['flagged'] else ''}")
+                         f"{', flagged' if r['flagged'] else ''}{lock_retried_mark(r)}")
             lines.append("")
             for c in fr.KINDS[r["kind"]]:
                 extra = f" -- *instead*: {_flat(r['instead'][c])}" if c in r["instead"] else ""

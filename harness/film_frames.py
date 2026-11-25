@@ -336,6 +336,19 @@ def idea_joy(entry_yaml: dict, cost: str | None) -> str:
     return f"no more {_lower_first(_bare_end(cost))}" if _clean(cost) else "the time back"
 
 
+def limit_answer(name: str, sm: dict) -> str:
+    """Spec 168 FR-3: what the founder says after each limitation on beat 3 -- the brand's name and the entry's
+    `solution_mechanism.mechanism` as a bare clause (*{name} {mechanism}.*). One rule for every entry: where the
+    mechanism opens on its own subject rather than its verb (`_verb_first`: *its cameras ...*, *a model reads ...*),
+    the name leads it in (*With {name}, {mechanism}.*), so the sentence still says who and how in the entry's words;
+    where the entry records no mechanism, no answer is invented (*{name} solves it.* would be): `""`, and the
+    limitation is said alone."""
+    mechanism = _bare_end(sm.get("mechanism"))
+    if not mechanism:
+        return ""
+    return f"{name} {mechanism}." if _verb_first(mechanism) else f"With {name}, {mechanism}."
+
+
 def entry_idea_beats(entry_yaml: dict, problem_story: dict | None) -> dict:
     """Spec 166 FR-1: the founder's solution in the entry's own words, by one rule for every entry, as keel-cloud 271's
     four questions ask it (judgement call 1: the spec's parts mapped onto the served order) --
@@ -345,7 +358,8 @@ def entry_idea_beats(entry_yaml: dict, problem_story: dict | None) -> dict:
       actor, mechanism and output), then the steps (trigger -> mechanism -> output);
     * beat 2, the setup: `idea_setup`'s rows, else the setup-none words;
     * beat 3, the limitations: the mechanism once, then one clause a limitation of the inherited problem story, each
-      answered from it (`not_assumed` never said);
+      answered in the entry's words (spec 168 FR-3, `limit_answer`: *{Limit}: {name} {mechanism}.*, the same answer
+      for every limitation -- the entry holds none per limitation and none is invented; `not_assumed` never said);
     * beat 4, the joy: what they get back, set against the problem story's cost (`idea_joy`).
 
     `then` holds the words said to keel-cloud 271's one ask on a beat: beat 1's *What happens first?* (the steps alone),
@@ -367,7 +381,8 @@ def entry_idea_beats(entry_yaml: dict, problem_story: dict | None) -> dict:
     beat2 = f"Before they can start, they need to {_joined(setup)}." if setup else SETUP_NONE
     limits = [_bare_end(x) for x in (story.get("limits") or []) if _clean(x)]
     how = steps or product
-    clauses = " ".join(f"{_upper_first(lim)}: {name} takes care of that." for lim in limits)
+    answer = limit_answer(name, sm)
+    clauses = " ".join(f"{_upper_first(lim)}: {answer}" if answer else f"{_upper_first(lim)}." for lim in limits)
     beat3 = " ".join(x for x in (f"{name} solves them like this. {how}", out_line, clauses) if x)
     cost = _bare_end(story.get("cost"))
     joy = idea_joy(entry_yaml, cost)

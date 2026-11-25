@@ -65,9 +65,12 @@ def test_the_payroll_solution_in_its_own_words_four_beats_and_no_setup():
     assert beats[1].endswith("What comes out is every line that changed, flagged before sign-off.")
     # beat 2: nothing recorded to set up -- the setup-none words (keel-cloud 271 FR-4 reads none)
     assert beats[2] == ff.SETUP_NONE and said["setup"] == []
-    # beat 3: the mechanism once, then one clause a limitation of the problem story; `not_assumed` never said
+    # beat 3: the mechanism once, then one clause a limitation of the problem story -- spec 168 FR-3: each answered
+    # in the entry's words, the brand's name and the mechanism as a bare clause; `not_assumed` never said
     for limit in PAYROLL_STORY["limits"]:
-        assert f"{limit}: Runsure takes care of that." in beats[3]
+        assert f"{limit}: Runsure opens the checker, which reads the run and compares every line with last period." \
+            in beats[3]
+    assert "takes care of that" not in beats[3]
     assert "the mistakes stop for good" not in json.dumps(said)
     # beat 4: the joy set against the problem's cost (no Relative-advantage row: the cost's opposite)
     assert beats[4] == "Instead of a pay run they check twice and still fear, they get no more a pay run they check " \
@@ -89,6 +92,35 @@ def test_the_lullaby_solution_with_its_setup_and_its_joy():
     assert beats[4] == "Instead of twenty minutes of guessing every time, they get fewer tries before the baby settles."
     assert "stops the guessing" not in json.dumps(said) and "settles the baby faster" not in json.dumps(said)
     assert ff.idea_beat_faults(said, entry("lullaby"), LULLABY_STORY) == []
+
+
+def test_beat_three_answers_each_limitation_with_the_entrys_mechanism_168():
+    # spec 168 FR-3: *{Limit}: {name} {mechanism}.* -- the same clause for every limitation (the entry holds no answer
+    # per limitation, none is invented); the stock *takes care of that* gone; `then[3]` unchanged
+    for name, story in (("payroll", PAYROLL_STORY), ("lullaby", LULLABY_STORY)):
+        said = ff.entry_idea_beats(entry(name), story)
+        beat3 = dict(said["beats"])[3]
+        brand = said["brand"]["name"]
+        mechanism = ff._bare_end(entry(name)["solution_mechanism"]["mechanism"])
+        for limit in story["limits"]:
+            assert f"{limit}: {brand} {mechanism}." in beat3
+        assert beat3.count(f": {brand} {mechanism}.") == len(story["limits"])
+        assert "takes care of that" not in json.dumps(said)
+        steps = ff._steps_sentence(entry(name)["solution_mechanism"])
+        assert said["then"][3] == ["Because " + ff._lower_first(steps).rstrip(".") + ", every one of those is dealt with."]
+        # FR-5: the spoken-form caps as today (one wording, no placeholder, no number the entry does not say)
+        assert ff.idea_beat_faults(said, entry(name), story) == []
+    assert dict(ff.entry_idea_beats(entry("lullaby"), LULLABY_STORY)["beats"])[3].endswith(
+        "They try one thing after another: Lullaby holds the phone near the cot for about ten seconds while it listens.")
+    # a mechanism that opens on its own subject, not its verb: the name leads it in (one rule, nothing invented)
+    own_subject = {**entry("payroll"), "solution_mechanism": {
+        **entry("payroll")["solution_mechanism"], "mechanism": "a checker reads the run and compares every line."}}
+    beat3 = dict(ff.entry_idea_beats(own_subject, PAYROLL_STORY)["beats"])[3]
+    assert "Nobody tells them when a rate changes: With Runsure, a checker reads the run and compares every line." in beat3
+    assert ff.limit_answer("Runsure", {}) == ""
+    no_mechanism = {**entry("payroll"), "solution_mechanism": {"actor": "the practitioner"}}
+    beat3 = dict(ff.entry_idea_beats(no_mechanism, PAYROLL_STORY)["beats"])[3]
+    assert "Nobody tells them when a rate changes." in beat3 and "Runsure." not in beat3.split("like this.", 1)[1]
 
 
 def test_every_beat_is_held_to_the_spoken_form_caps():
@@ -429,6 +461,7 @@ def test_the_solution_score_file_is_its_own(tmp_path):
     assert record["kind"] == "solution" and record["film"]["kind"] == "solution"
     assert record["film"]["film_pct"] == round(100 * 15 / 18, 1) and record["film"]["flagged"]
     assert record["project_id"] == "s1" and record["problem_project_id"] == "p1" and record["dropped"] == []
+    assert record["measures"]["lock_retried"] is False                # spec 168 FR-2: always there, true|false
     assert not (tmp_path / "scores" / f"{walk.name}-film-fixture-film.json").exists()
 
 
@@ -492,6 +525,42 @@ def test_the_verdict_names_an_entry_under_the_bar_on_either_film():
     assert "Observation (the solution film, e1)" in ft.drift_text(found, start=1, bundle="w")
     weak = fr.weak_criteria([{**f, "film": f["film"]} for f in files])
     assert {(w["kind"], w["criterion"]) for w in weak} >= {("problem", "f4"), ("solution", "s9")}
+
+
+def test_a_lock_retried_is_a_drift_finding_and_marked_in_the_entry_heading_168(tmp_path):
+    # spec 168 FR-2: a record with `calibration_retried` -> `measures.lock_retried` in the score file -> the DRIFT
+    # line *(capture): the lock's calibration was written again on the founder's retry* with the film's frames, and
+    # *lock retried* beside *flagged* in the entry's heading; the comparison untouched
+    film = {"measures": {"faults": [], "frames": 14}, "lock": {"locked": True, "calibration_retried": True}}
+    assert fread.film_measures(film) == {"faults": [], "frames": 14, "lock_retried": True}
+    assert fread.film_measures({"measures": {}, "strangers": {"lock": {"calibration_retried": True}}})["lock_retried"]
+    assert fread.film_measures({"measures": {"faults": []}})["lock_retried"] is False
+    retried = {**film_file("e1", "problem", {"f4": 0}), "measures": fread.film_measures(film),
+               "frames": {"folder": "runs/w/film/e1", "frames": ["frames/phone-1.png", "frames/laptop-1.png",
+                                                                 "frames/phone-2.png"]}}
+    plain = {**film_file("e2", "problem", {}), "measures": fread.film_measures({"measures": {}})}
+    solution = {**film_file("e1", "solution", {}), "measures": {"lock_retried": True}}
+    table = table_of([retried, plain, solution])
+    found = [f for f in ft.findings(table) if f["what"] == ft.LOCK_RETRIED_WHAT]
+    assert [(f["entry"], f["kind"], f["criterion"]) for f in found] == [("e1", "problem", "capture"),
+                                                                       ("e1", "solution", "capture")]
+    assert found[0]["frames"] == ["runs/w/film/e1/frames/phone-1.png", "runs/w/film/e1/frames/laptop-1.png"]
+    assert found[1]["frames"] == []                                   # no frame on the solution's where none
+    assert "POST calibration/PROBLEM/retry" in found[0]["why"] and "calibration/SOLUTION/retry" in found[1]["why"]
+    cfg = {"film_bar_pct": 80.0, "holdout": []}
+    text = ft.render(table, [retried, plain, solution], [], cfg, bundle="w", found=ft.findings(table))
+    assert "- e1 (capture): the lock's calibration was written again on the founder's retry -- " \
+           "runs/w/film/e1/frames/phone-1.png, runs/w/film/e1/frames/laptop-1.png" in text
+    assert "- e1 (the solution film) (capture): the lock's calibration was written again on the founder's retry -- " \
+           "no frame" in text
+    assert "### e1 -- the problem film, film_pct 87.5, flagged, lock retried" in text
+    assert "### e1 -- the solution film, film_pct 100.0, lock retried" in text
+    assert "### e2 -- the problem film, film_pct 100.0\n" in text
+    drift = ft.drift_text(found, start=7, bundle="w")
+    assert "## 7. Observation (the film, e1): the lock's calibration was written again on the founder's retry" in drift
+    # the comparison is unchanged: no lock measure among its moves
+    cmp = ft.compare(table, table_of([film_file("e1", "problem", {"f4": 0}), film_file("e2", "problem", {})]))
+    assert not any("lock" in k for moves in cmp["moves"].values() for k in moves)
 
 
 def test_the_comparison_tells_each_move_and_the_entries_added_and_missing():

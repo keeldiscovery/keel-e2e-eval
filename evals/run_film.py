@@ -372,10 +372,10 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
     except ledger.LedgerUnavailable as e:
         spent = {"rows": [], "unread": str(e)[:200], "usd": None}
     # spec 165: the strangers on the film's link, on this project -- the lock, the people, the founder's page after
-    strangers, refused = None, None
+    strangers, refused, held = None, None, {}
     if state == "ready":
         strangers, refused = strangers_leg(stack, browser, recorder, context, page, run_dir, founder, entry,
-                                           entry_path, project_id, versions, stamp, typed, own_ai=own_ai)
+                                           entry_path, project_id, versions, stamp, typed, own_ai=own_ai, held=held)
     film = {
         "spec": "163", "entry": {"id": ENTRY, "path": str(entry_path), "sha256": entry["sha256"]},
         "door": DOOR, "telling": telling, "project_id": project_id,
@@ -390,7 +390,10 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
         **({"probe": probed} if probed else {}),
         "beats": ff.beats_record(told, dict(beats)), "verdict_line": story.get("verdictLine"),
         "ledger": spent, "dollars": spent.get("usd"),
-        "measures": {"faults": faults, "frames": len(frames), "pictures": sum(1 for p in pictures if p.get("path"))},
+        "measures": {"faults": faults, "frames": len(frames), "pictures": sum(1 for p in pictures if p.get("path")),
+                     "lock_retried": lock_retried(held.get("lock"))},
+        # spec 168 FR-2: the lock as tried (locked or the step it stopped at; the founder's retry on the calibration)
+        "lock": held.get("lock"),
         # spec 165: the one project the strangers answered on, and the bundle read-screens reads
         "screens_bundle": str(run_dir) if strangers else None,
         "strangers": strangers, **({"refused": refused} if refused else {}),
@@ -430,14 +433,20 @@ def _vs_entry(stack, cap: int, scope: str = fs.SCOPE):
     return dataclasses.replace(read, scope=scope, people_cap=int(cap))
 
 
+def lock_retried(lock: dict | None) -> bool:
+    """Spec 168 FR-2: whether the founder's retry was pressed on the lock's calibration (`measures.lock_retried`)."""
+    return bool((lock or {}).get("calibration_retried"))
+
+
 def strangers_leg(stack, browser, recorder, context, page, run_dir: Path, founder, entry: dict, entry_path: Path,
-                  project_id: str, versions: dict, stamp: str, typed: list, *, own_ai=None
+                  project_id: str, versions: dict, stamp: str, typed: list, *, own_ai=None, held: dict | None = None
                   ) -> tuple[dict | None, str | None]:
     """Spec 165 FR-1, FR-2 on the stack: the film's project locked, the people on its link, the founder's page after
     them, `backtest.json` written. Returns `(the strangers' record, None)` or `(None, the refusal naming the step)`.
     `own_ai` (the free walk, a `three_views.Run`): the founder's scripted runtime -- the lock bought on Keel's door by
     a stand-in and the questions written on her own (`three_views.lock_once`'s way), the stories read ANCHORED, the
-    groupings handed after the answers."""
+    groupings handed after the answers. `held` (spec 168 FR-2) is given the lock as tried (`fs.lock_record`), locked
+    or refused, for `film.json`."""
     from evals import three_views as tv                                    # noqa: PLC0415
     from harness import three_surfaces as ts                               # noqa: PLC0415
     from harness import vectors_script as vs                               # noqa: PLC0415
@@ -473,8 +482,12 @@ def strangers_leg(stack, browser, recorder, context, page, run_dir: Path, founde
                                    window=fs.recall_window(entry["yaml"] if own_ai is None else {}),
                                    press=press, need=0 if own_ai is not None else tv.PROJECT_PRICE, top_up=top_up)
         except fs.LockFailed as failed:
+            if held is not None:
+                held["lock"] = fs.lock_record(failed=failed)
             h.record_assert({"locked": True}, {"locked": False, "step": failed.step, "detail": failed.detail})
             return None, str(failed)
+        if held is not None:
+            held["lock"] = fs.lock_record(lock)
         h.record_assert({"locked": True}, {"locked": True, **lock})
     plans = fs.people_plans(vs.person_inputs(_vs_entry(stack, cap)))
     kept: dict = {}
@@ -682,11 +695,11 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
         spent = ff.ledger_rows(ledger.rows(stack, account["id"]), solution, charges=ff.IDEA_CHARGES)
     except ledger.LedgerUnavailable as e:
         spent = {"rows": [], "unread": str(e)[:200], "usd": None}
-    strangers, refused = None, None
+    strangers, refused, held = None, None, {}
     if state == "ready" and pilot and (pilot.get("status") or 500) < 300:
         strangers, refused = solution_strangers_leg(stack, browser, recorder, context, page, run_dir, founder, entry,
                                                     entry_path, solution, problem_id, versions, stamp, words["typed"],
-                                                    own_ai=own_ai)
+                                                    own_ai=own_ai, held=held)
     said = dict(words["beats"])
     film = {
         "spec": "166", "kind": "solution", "entry": {"id": ENTRY, "path": str(entry_path), "sha256": entry["sha256"]},
@@ -712,7 +725,8 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
         "pilot": {"sent": (pilot or {}).get("sent"), "status": (pilot or {}).get("status"), "now": final.get("pilot")},
         "ledger": spent, "dollars": spent.get("usd"),
         "measures": {"faults": faults, "frames": len(frames), "pictures": sum(1 for p in pictures if p.get("path")),
-                     "missing": ff.missing_scenes(view)},
+                     "missing": ff.missing_scenes(view), "lock_retried": lock_retried(held.get("lock"))},
+        "lock": held.get("lock"),
         "screens_bundle": (strangers or {}).get("bundle"), "strangers": strangers,
         **({"refused": refused} if refused else {}), **({"typos": words["typed"]} if words["typed"] else {}),
     }
@@ -751,7 +765,7 @@ def solution_owed(film: dict) -> list[str]:
 
 def solution_strangers_leg(stack, browser, recorder, context, page, run_dir: Path, founder, entry: dict,
                            entry_path: Path, project_id: str, problem_id: str, versions: dict, stamp: str,
-                           typed: list, *, own_ai=None) -> tuple[dict | None, str | None]:
+                           typed: list, *, own_ai=None, held: dict | None = None) -> tuple[dict | None, str | None]:
     """Spec 166 FR-3 on the stack: the solution's project locked (the ready page's lock; a short balance topped by the
     stand-in), its link sent to the entry's people of the SOLUTION scope, each walking the solution link, the founder's
     page after them, `backtest.json` (`kind: "film-solution"`) written in `runs/<stamp>-film-<entry>-solution/`."""
@@ -791,8 +805,12 @@ def solution_strangers_leg(stack, browser, recorder, context, page, run_dir: Pat
                                    need=0 if own_ai is not None else tv.PROJECT_PRICE, top_up=top_up,
                                    scope=fs.SOLUTION_SCOPE)
         except fs.LockFailed as failed:
+            if held is not None:
+                held["lock"] = fs.lock_record(failed=failed)
             h.record_assert({"locked": True}, {"locked": False, "step": failed.step, "detail": failed.detail})
             return None, str(failed).replace("the film's project", "the solution's project")
+        if held is not None:
+            held["lock"] = fs.lock_record(lock)
         h.record_assert({"locked": True}, {"locked": True, **lock})
     plans = fs.solution_plans(vs.person_inputs(_vs_entry(stack, cap, scope=fs.SOLUTION_SCOPE)))
     kept: dict = {}
