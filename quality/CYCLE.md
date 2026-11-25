@@ -207,8 +207,8 @@ make quality-accept CYCLE=quality/cycles/<record>.md
 The founder, 2026-11-24: *"the judging criteria should be based on the quality of the animation that we create for the
 respondent ... the user persona, the things they want to do, the limitation and the pain ... clearly spelled out ...
 end-to-end"*, and *"no words are garbled"*. A second ruler beside the questions', with its own version
-(`quality/FILM-RUBRIC.md`, `FILM_RUBRIC_VERSION`): F1-F8 on the problem film (S1-S9 on the solution film once its batch
-is walked), the founder's beats on R1, R2, R3, R5. **Every step but the table is paid and runs on the founder's word.**
+(`quality/FILM-RUBRIC.md`, `FILM_RUBRIC_VERSION`): F1-F8 on the problem film, S1-S9 on the solution film (spec 166), the
+founder's beats on R1, R2, R3, R5. **Every step but the table is paid and runs on the founder's word.**
 
 ```
 export KEEL_ANTHROPIC_API_KEY=... KEEL_OPENAI_API_KEY=... KEEL_PICTURES=openai     # Keel's AI, the real pictures
@@ -217,6 +217,8 @@ make read-films RUN=runs/<stamp>-film-walk                     # the film reader
 make read-film-table RUN=runs/<stamp>-film-walk [DRIFT=1]      # free: FILM-TABLE.md and quality/cycles/<record>-film.md
 make film-advise RUN=runs/<stamp>-film-walk [DRY=1]            # one claude CLI call per weak criterion, never applied
 make film-walk ENTRIES=08-fresco DOOR=fake WHY="local"         # free: the film, the lock, the seven, the page, on the fakes
+make read-film-table RUN=runs/<stamp>-film-walk BASELINE=runs/<earlier>-film-walk   # spec 166: *Compared with ...*
+make film-walk ONLY=solution ENTRIES=<id> RUN=runs/<stamp>-film-walk WHY="..."      # the solution half again (stack up)
 ```
 
 - **The walk** (FR-2): per entry, the film leg (`evals/run_film.py`: its own stack with the keys, a PROBLEM project, the
@@ -230,11 +232,22 @@ make film-walk ENTRIES=08-fresco DOOR=fake WHY="local"         # free: the film,
   questions (the screener, the film, *Did this happen to you?*, the experience, Frequency's five, Importance, the whys
   in their own words), then the founder's page read after them; the leg's evidence folder is the bundle `make
   read-screens` reads (`backtest.json`, `kind: "film"`), named with the project in `<walk>/walk.json`. One walk bundle,
-  one project an entry, three reads: the film, the strangers' questions (§A), the founder's page (§B).
+  one project an entry, three reads: the film, the strangers' questions (§A), the founder's page (§B). **Spec 166: then
+  the solution half** (`[film] scopes = ["PROBLEM", "SOLUTION"]`; `SCOPES=PROBLEM` walks the problem alone): a SOLUTION
+  project made on the problem's (`parentProjectId`, the same founder), the brand and the four beats in the entry's words
+  (`film_frames.entry_idea_beats`), the board's yes, the build on the problem film's character sheet, the solution film
+  captured before any stranger (the plate, up to eleven scenes, both viewports) into `<walk>/film/<entry>/solution/`,
+  the pilot's yes, the lock, the entry's people of the SOLUTION scope on its link (the two films, the plate, the three
+  yes-or-no questions, the whys), the founder's page after them; its bundle `runs/<stamp>-film-<entry>-solution/`
+  (`kind: "film-solution"`), named with its project under the entry's `solution` in `walk.json`.
 - **The table** (FR-4): one row an entry -- F1..F8, `film_pct`, flagged, `founder_pct`, §A `score_pct`, §B `after_pct`,
   the dollars; the bar `[film] film_bar_pct` (80); an entry passes at the bar with no 0, a round when every entry does,
   and a tabled holdout entry short fails it whatever the five did. The record carries *The film, judged*: each entry's
-  whys a line a criterion, its frames linked, the findings for `runs/DRIFT.md` (`DRIFT=1` appends them).
+  whys a line a criterion, its frames linked, the findings for `runs/DRIFT.md` (`DRIFT=1` appends them). **Spec 166**:
+  both films an entry -- F1..F8 and S1..S9, each film's `film_pct`, §A and §B of each study, the dollars of each leg --
+  ranked by the mean of the two films' `film_pct` (ties by the problem film; one film alone marked); an entry passes on
+  each film; `BASELINE=` adds *Compared with ...* (each criterion's move `before -> after (+/-)`, the entries added and
+  missing, the round's means).
 - **What it costs** (estimates): the walk on Keel's door about $1 an entry (the pictures' ~$0.45 by keel-cloud 273's
   `STORY_PICTURES` estimate, the beats' readings, and the seven interviews' readings on Keel's AI, about what the
   back-test spent); `read-screens` on the PROBLEM study
