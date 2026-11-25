@@ -444,10 +444,22 @@ class FilmRun:
 
 
 def press_on_the_ready_page(run: FilmRun, project_id: str) -> Callable[[], tuple[int, Any]]:
-    """The ready page opened and its one primary pressed (`three_views.press_lock`)."""
+    """The ready page opened, a guide sheet over it passed by (keel-web 080 / 086: its Skip -- the sheet's scrim takes
+    every click while it is up; walk 3 met it), and its one primary pressed (`three_views.press_lock`)."""
     def press() -> tuple[int, Any]:
         from evals import three_views as tv                                         # noqa: PLC0415
+        from harness import story_screens as ss                                     # noqa: PLC0415
+        from harness import vectors_screens as vs_screens                           # noqa: PLC0415
         run.page.goto(f"{run.web}/p/{project_id}/define/ready/interviewer", wait_until="load")
+        try:
+            vs_screens.pass_teaching_sheet(run.page, run.recorder, run.web, "opener")
+        except Exception:  # noqa: BLE001 - absence is never a failure; the scrim is looked for below
+            pass
+        deadline = time.monotonic() + 6
+        while time.monotonic() < deadline:
+            if ss._skip_sheet(run.page) is None and not run.page.locator(".gw-scrim").count():
+                break
+            run.page.wait_for_timeout(500)
         return tv.press_lock(run)
     return press
 
