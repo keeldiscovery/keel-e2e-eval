@@ -219,6 +219,7 @@ make film-advise RUN=runs/<stamp>-film-walk [DRY=1]            # one claude CLI 
 make film-walk ENTRIES=08-fresco DOOR=fake WHY="local"         # free: the film, the lock, the seven, the page, on the fakes
 make read-film-table RUN=runs/<stamp>-film-walk BASELINE=runs/<earlier>-film-walk   # spec 166: *Compared with ...*
 make film-walk ONLY=solution ENTRIES=<id> RUN=runs/<stamp>-film-walk WHY="..."      # the solution half again (stack up)
+KEEL_FILM_PROBE=portrait make film-walk ENTRIES=08-fresco DOOR=fake WHY="local"     # spec 167: + the portrait probe
 ```
 
 - **The walk** (FR-2): per entry, the film leg (`evals/run_film.py`: its own stack with the keys, a PROBLEM project, the
@@ -239,7 +240,14 @@ make film-walk ONLY=solution ENTRIES=<id> RUN=runs/<stamp>-film-walk WHY="..."  
   captured before any stranger (the plate, up to eleven scenes, both viewports) into `<walk>/film/<entry>/solution/`,
   the pilot's yes, the lock, the entry's people of the SOLUTION scope on its link (the two films, the plate, the three
   yes-or-no questions, the whys), the founder's page after them; its bundle `runs/<stamp>-film-<entry>-solution/`
-  (`kind: "film-solution"`), named with its project under the entry's `solution` in `walk.json`.
+  (`kind: "film-solution"`), named with its project under the entry's `solution` in `walk.json`. **Spec 167 (keel-web
+  263, keel-cloud 275)**: the stage takes the picture's ratio (2:3 on a 275 build); the camera reads the DRAWN caption and
+  pill (over the stage on a phone, beside it in the words' column on a laptop around a portrait stage) and records on
+  every frame the layout (`over` / `column`), the stage's ratio and size; a frame left out (`pictureMissing`) is recorded,
+  never a fault; each film's building screen is watched while it builds (the frame plan read and held to its tally;
+  `replayed` on the served view where the fakes are ready first); the reader's frame labels name the viewport and the
+  layout. FakePictures is 48 x 32, so a free walk plays landscape; `KEEL_FILM_PROBE=portrait` (`DOOR=fake` alone) shoots
+  each film once more with portrait pictures in the browser (`probe/`, never read) to see the laptop column on the fakes.
 - **The table** (FR-4): one row an entry -- F1..F8, `film_pct`, flagged, `founder_pct`, §A `score_pct`, §B `after_pct`,
   the dollars; the bar `[film] film_bar_pct` (80); an entry passes at the bar with no 0, a round when every entry does,
   and a tabled holdout entry short fails it whatever the five did. The record carries *The film, judged*: each entry's
