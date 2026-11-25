@@ -455,10 +455,24 @@ def press_on_the_ready_page(run: FilmRun, project_id: str) -> Callable[[], tuple
             vs_screens.pass_teaching_sheet(run.page, run.recorder, run.web, "opener")
         except Exception:  # noqa: BLE001 - absence is never a failure; the scrim is looked for below
             pass
-        deadline = time.monotonic() + 6
+        deadline = time.monotonic() + 12
         while time.monotonic() < deadline:
             if ss._skip_sheet(run.page) is None and not run.page.locator(".gw-scrim").count():
                 break
+            # Trial of 2026-11-24 (09-karsa): the guide's scrim stayed up past the 6 s and took the lock's click -- its
+            # own Skip / Close / Got it is pressed where drawn, else Escape, then the scrim is looked for again.
+            pressed = False
+            for name in ("Skip", "Skip the tour", "Close", "Got it", "Later", "Not now"):
+                button = run.page.get_by_role("button", name=name)
+                if button.count():
+                    try:
+                        button.first.click(timeout=2_000)
+                        pressed = True
+                        break
+                    except Exception:  # noqa: BLE001 - the next name, then Escape
+                        pass
+            if not pressed:
+                run.page.keyboard.press("Escape")
             run.page.wait_for_timeout(500)
         return tv.press_lock(run)
     return press
