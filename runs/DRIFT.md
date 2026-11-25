@@ -6045,3 +6045,16 @@ and the face ask *You picked ... Why did that matter more to you?*, the card ope
 the walked one-script check fails by name at step 4 (`problem.importance`, `follow_ups`) on the card (`stop=False`).
 **For keel-web**: open Importance's why on the card where every pick filed is outside `followUp.notPicked` (the own
 row), as the link and the orb ask it.
+
+## 122. Observation (keel-web 260, the face's plate): on the AI interviewer's link the brand plate's frame draws no ship mark -- the orb's draws *Keel · AI interviewer*
+
+Found by spec 162's run on keel-cloud-docs `94051ba8` (contract 90) with keel-web master `a7d805b3` (260 merged), the
+local eval stack (`runs/157/94051ba8-a7d805b3/20261125T031400Z`, FR-2 solution · avatar; met first on 260's head
+`f1ef43cf`, run 3). The orb's link and the face's link of the solution study, walked alike, are held equal step for step
+(spec 160 FR-3, `story_screens.same_walk`): they part at step 14, the plate (`plate:Question 3 of 5`) -- the orb's frame
+carries `ship-mark` beside `ai-where`, `ai-state` and the speaker; the face's carries no ship mark at all (her chip,
+*Daphne · AI interviewer*, is drawn in her caption band while she asks and under her portrait with the sheet, and
+neither stands on the plate's frame). Spec 069's rule (the founder's) is Keel's ship mark on every frame -- the chip that
+also says she is an AI. **Severity: low** (three seconds a link). **What the harness does**: the same-walk check fails by
+name at the plate's step, `ids` (`stop=False`). **For keel-web**: keep the face's chip on the plate's frame
+(`AiInterviewPlayer`, phase `plate`), as the orb keeps Keel's.

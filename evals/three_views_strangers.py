@@ -623,9 +623,9 @@ def film_controls(p, page, *, timeout_s: float = 60) -> dict:
     after = p.film()
     if after.get("mode") == "pictures":
         # a picture follows the voice (keel-web 261 judgement call 7): the first scene's shows when its clip starts --
-        # read until the shown picture moves (at most 3 s)
+        # read until the first scene's picture is back (at most 3 s; the film may move on a scene before it restarts)
         until = time.monotonic() + 3
-        while time.monotonic() < until and (after.get("sig") or {}).get("shown") == (before.get("sig") or {}).get("shown"):
+        while time.monotonic() < until and (after.get("sig") or {}).get("shown") != out.get("first_shown"):
             page.wait_for_timeout(100)
             after = p.film()
     out["again"] = {"before": before, "after": after}
@@ -1981,7 +1981,9 @@ def copilot_view(run, leg, study: str, project_id: str) -> None:
     leg.check(run, "the grown window is under half the viewport, the card still drawn, the player playing",
               bool(grows) and not small and all(g["card_shown"] and g["player"] for g in grows),
               screen="the grown window", view="copilot", detail=grows)
-    back = grows[:1]
+    # spec 162 (keel-web 260 FR-5): on the plated card the problem film's lines stand between the screener and the check,
+    # so the check's own *Story again* is the grow that returns to it
+    back = [g for g in grows if g["press"] == "story-again"][:1] if plated else grows[:1]
     leg.check(run, "it shrinks back with the gate (or the check) up (*Story again* on its strip)",
               bool(back) and all(g["after"]["story_again"] for g in back), screen="the gate's strip",
               view="copilot", detail=[g["after"] for g in grows])
