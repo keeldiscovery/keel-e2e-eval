@@ -43,6 +43,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from harness import three_surfaces as _ts
 from harness.browser import _BrowserStep
 
 # ------------------------------------------------------------------------------------ the cloud's own fixtures
@@ -2701,7 +2702,8 @@ class StoryLinkText:
     def _kind(self, gate_question: str | None = None) -> str:
         page = self.page
         h1 = _tc(page.locator("h1").first)
-        if gate_question and _norm(_tc(page.locator("main h1.iv-q").first)) == _norm(gate_question):
+        # spec 169 FR-1: on a story link the gate is found by its words (keel-cloud 277), any window before them
+        if gate_question and _ts.is_gate_words(_tc(page.locator("main h1.iv-q").first)):
             return "gate"
         if h1 == EXIT_TITLE or page.locator("main .iv-done").count():
             return "done"

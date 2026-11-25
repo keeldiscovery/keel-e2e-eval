@@ -408,6 +408,8 @@ FINDINGS = {
 
 
 #: Spec 168 FR-2: the DRIFT finding where the lock's calibration was FAILED and written again on the founder's retry.
+#: Spec 169 FR-2: unchanged; since keel-cloud 277 a film study's PROBLEM calibration is READY on its first write, so
+#: it reads as a capture note on a study with no film only.
 LOCK_RETRIED_WHAT = "the lock's calibration was written again on the founder's retry"
 LOCK_RETRIED_OWED = ("keel-cloud's calibration writer (the window-frame rules and spec 107's one repair turn: the first "
                      "attempt refused twice)")

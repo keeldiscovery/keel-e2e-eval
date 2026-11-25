@@ -230,7 +230,8 @@ KEEL_FILM_PROBE=portrait make film-walk ENTRIES=08-fresco DOOR=fake WHY="local" 
   lock (the window, the calibration, the credits, the ready page's lock, the questions READY -- a step that does not
   hold fails the leg by name), its link sent to the entry's seven people (`people`, the PROBLEM scope's own-link people
   in corpus order), each answering the film's link on the orb with their recorded answers mapped onto the four
-  questions (the screener, the film, *Did this happen to you?*, the experience, Frequency's five, Importance, the whys
+  questions (the screener, the film, *In {window}, have you encountered this issue?* -- keel-cloud 277, found by its
+  words with any window, spec 169 --, the experience, Frequency's five, Importance, the whys
   in their own words), then the founder's page read after them; the leg's evidence folder is the bundle `make
   read-screens` reads (`backtest.json`, `kind: "film"`), named with the project in `<walk>/walk.json`. One walk bundle,
   one project an entry, three reads: the film, the strangers' questions (§A), the founder's page (§B). **Spec 166: then
@@ -255,7 +256,11 @@ KEEL_FILM_PROBE=portrait make film-walk ENTRIES=08-fresco DOOR=fake WHY="local" 
   both films an entry -- F1..F8 and S1..S9, each film's `film_pct`, §A and §B of each study, the dollars of each leg --
   ranked by the mean of the two films' `film_pct` (ties by the problem film; one film alone marked); an entry passes on
   each film; `BASELINE=` adds *Compared with ...* (each criterion's move `before -> after (+/-)`, the entries added and
-  missing, the round's means).
+  missing, the round's means). **Spec 168**: a lock whose calibration read FAILED is retried once as the founder
+  would (FounderVoice's retry), and the table carries *(capture): the lock's calibration was written again on the
+  founder's retry* with *lock retried* in the entry's heading. **Spec 169**: since keel-cloud 277 a film study's PROBLEM
+  calibration is READY on its first write (every clause rule a note), so that finding is a capture note on a study
+  with no film only; on a film study it is the calibration writer's drift.
 - **What it costs** (estimates): the walk on Keel's door about $1 an entry (the pictures' ~$0.45 by keel-cloud 273's
   `STORY_PICTURES` estimate, the beats' readings, and the seven interviews' readings on Keel's AI, about what the
   back-test spent); `read-screens` on the PROBLEM study

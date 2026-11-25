@@ -18,7 +18,8 @@ film ... post that the interview, the dashboard and the insights"* -- all of one
   one), Frequency's five by the person's code, Importance's pick by the person's first code (`own` the own row,
   `rival_<k>` the k-th row that is not), every why answered in the person's own recorded words where the file has
   them (else spec 161's line for the rung). Each walks the film link on the orb (`three_views_strangers.walk_link`:
-  the opening, the screener, the film, *Did this happen to you?*, the experience, Frequency, Importance, the whys,
+  the opening, the screener, the film, the gate *In {window}, have you encountered this issue?* (keel-cloud 277,
+  found by its words: spec 169), the experience, Frequency, Importance, the whys,
   the pilot ask, the thanks).
 * **The founder's page after them** (FR-2): the themes let settle, then the back-test's answers leg
   (`backtest.answers_leg`: the stage page, each card opened with its chart, the Insights screen and its folds -- §B's
@@ -164,7 +165,8 @@ def walk_plan(plan: dict, interview: dict, *, own_label: str | None, other_tasks
 def solution_plans(people: list) -> list[dict]:
     """Spec 166 FR-3: one plan a person of the SOLUTION study (`vectors_script.person_inputs` under SOLUTION, the first
     `people` own-link people in corpus order), their recorded answers read on the link spec 162 walks: the screener by
-    `in_segment`, the check *Did this happen to you?* by `recency` (a No leaves before the plate), the three yes-or-no
+    `in_segment`, the check (*In {window}, have you encountered this issue?*, keel-cloud 277; found on the link by
+    its words, `three_surfaces.gate_answer`, spec 169) by `recency` (a No leaves before the plate), the three yes-or-no
     questions by the person's recorded pick read through keel-cloud 272 (`corpus.spec272_solution`: what the old
     registry counted for is yes, against is no); a pick the link cannot carry (a chip -- `yes_no` has no escape -- or
     none recorded) is answered *No* and named (`remapped`, spec 064 FR-7's rule); every why in the person's own recorded

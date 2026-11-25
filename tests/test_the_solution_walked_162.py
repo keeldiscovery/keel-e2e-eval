@@ -307,7 +307,7 @@ def _interview(*, setup: bool = True, pilot: bool = True) -> dict:
     out = {"founderFirstName": founder,
            "passages": {"opening": f"{founder} believes payroll practitioners have a problem when they check the "
                                    "payroll. First, one question.", "toTheFilm": sol.TO_THE_FILM},
-           "gate": {"question": ts.GATE_WORDS, "condition": {"question": "Do you run payroll?"}, "noLabel": "No"},
+           "gate": {"question": ts.GATE_EXAMPLE, "condition": {"question": "Do you run payroll?"}, "noLabel": "No"},
            "story": {"scenes": [{}], "readInstead": ["One.", "Two two."]},
            "ideaStory": {"scenes": [{}, {"joy": True}], "readInstead": ["Three three three."],
                          "plate": {"name": name}},
@@ -446,7 +446,7 @@ def _script() -> dict:
         {"kind": "intro", "text": {"third": f"{sol.INTRODUCED} {sol.HOW_TO_ANSWER} {iv['passages']['opening']}",
                                    "first": "I believe payroll ..."}},
         {"kind": "gate", "condition": {"question": "Do you run payroll?"}, "bridge": sol.TO_THE_FILM,
-         "lines": iv["story"]["readInstead"], "stem": ts.GATE_WORDS,
+         "lines": iv["story"]["readInstead"], "stem": ts.GATE_EXAMPLE,
          "options": [{"optionId": "YES", "label": "Yes"}, {"optionId": "NO", "label": "No"}]},
         {"kind": "plate", "name": "Runcheck", "before": {"third": iv["plate"]["before"], "first": "Now I have built "
                                                                                                   "Runcheck."},
@@ -512,7 +512,7 @@ def test_the_report_has_the_founders_solution_and_the_solution_surfaces():
     assert "## The founder's solution" in text and "pilot ask heard" in text and "time to the first question" in text
     rows = report.surface_rows({"solution": {"wire": {"orb": {"record": sol.served_record(_interview()),
                                                               "source": "s"}}}}, {})
-    assert rows[0]["gate"] == ts.GATE_WORDS
+    assert rows[0]["gate"] == ts.GATE_EXAMPLE
 
 
 # ------------------------------------------------------------------------------------------------ the cards
@@ -575,3 +575,13 @@ def test_the_cards_passages_carry_the_films_lines_and_the_plate():
     assert rm.breakdown_yes_no(facts) == {k: "Yes 3 · No 2" for k in sol.SOLUTION_DIMENSIONS}
     assert rm.breakdown_faults([{"key": sol.COMPATIBILITY, "facts": "Yes 3 · No 2"}], facts) == []
     assert rm.breakdown_faults([{"key": sol.COMPATIBILITY, "facts": "Yes, easily 3"}], facts)
+
+
+def test_the_solution_links_check_is_found_by_the_gates_new_words():
+    """Spec 169 FR-1 (keel-cloud 277 FR-1): the solution link's uncounted check reads the problem gate's words."""
+    iv = _interview()
+    for words in (ts.GATE_EXAMPLE, "In the last 7 days, have you encountered this issue?"):
+        checked = dict(iv, gate=dict(iv["gate"], question=words))
+        assert sol.link_faults(checked, founder="Ada", name="Runcheck", tagline="T") == []
+    old = dict(iv, gate=dict(iv["gate"], question=ts.GATE_WORDS_BEFORE_277))
+    assert {"check": ts.GATE_WORDS_BEFORE_277} in sol.link_faults(old, founder="Ada", name="Runcheck", tagline="T")

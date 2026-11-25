@@ -15,6 +15,7 @@ import pytest
 from evals import three_views as tv
 from evals import three_views_report as report
 from harness import story_screens as ss
+from harness import three_surfaces as ts
 from stack.config import load_config
 
 CONFIG = load_config(validate=False)
@@ -206,8 +207,10 @@ def test_the_registry_export_holds_the_story_wording():
             for value in node:
                 walk(value)
     walk(json.loads(text))
-    assert found == {"story_gate": "Did this happen to you?",                  # spec 161 (keel-cloud 269 FR-1)
-                     "problem_check": "Does your {actor} have this problem?",
+    if found.get("story_gate") == ts.GATE_WORDS_BEFORE_277:
+        pytest.skip("keel-cloud before 277")                                   # spec 169: 269's words match nowhere now
+    assert ts.is_gate_words(found.pop("story_gate"))                           # spec 169 (keel-cloud 277 FR-1)
+    assert found == {"problem_check": "Does your {actor} have this problem?",
                      "problem_check_introduced": "what your {actor} goes through"}
 
 

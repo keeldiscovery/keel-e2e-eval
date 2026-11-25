@@ -18,8 +18,8 @@ IMP_ROWS = ["Running the month-end reports", "Checking the rota before it goes o
 
 
 def _script(*, gate_follow_up: bool = True) -> dict:
-    gate = {"kind": "gate", "itemId": "g", "dimension": ts.PREVALENCE, "stem": ts.GATE_WORDS,
-            "spoken": {"stem": ts.GATE_WORDS}, "condition": {"question": SCREENER, "inCodes": ["yes"]},
+    gate = {"kind": "gate", "itemId": "g", "dimension": ts.PREVALENCE, "stem": ts.GATE_EXAMPLE,
+            "spoken": {"stem": ts.GATE_EXAMPLE}, "condition": {"question": SCREENER, "inCodes": ["yes"]},
             "options": [{"optionId": "YES", "label": "Yes"}, {"optionId": "NO", "label": "No"}],
             "story": {"prompt": "Tell me about it."}}
     if gate_follow_up:
@@ -68,7 +68,7 @@ def test_the_cards_walked_record_reads_each_strip_by_its_passage_not_its_place()
     strips = _strips(passages, [
         ("reading", "Tell Tom the problem you are looking into.", [], []),
         ("reading", SCREENER, ["Yes", "No"], ["A", "B"]),
-        ("reading", ts.GATE_WORDS, ["Yes", "No"], ["A", "B"]),
+        ("reading", ts.GATE_EXAMPLE, ["Yes", "No"], ["A", "B"]),
         ("reading", FREQ_Q, list(ts.FREQUENCY_LABELS), list(ts.FREQUENCY_DIGITS)),
         ("reading", IMP_Q, IMP_ROWS, ["A", "B", "C"]),
         ("follow-up", "What mattered more to you?", [], []),
@@ -76,13 +76,13 @@ def test_the_cards_walked_record_reads_each_strip_by_its_passage_not_its_place()
     record = ts.strips_record(strips)
     assert [s["step"] for s in record] == ["screener", "gate", ts.FREQUENCY, ts.IMPORTANCE]
     gate = record[1]
-    assert (gate["words"], gate["options"]) == (ts.GATE_WORDS, ["Yes", "No"])
+    assert (gate["words"], gate["options"]) == (ts.GATE_EXAMPLE, ["Yes", "No"])
     assert record[3]["follow_ups"] == ["What mattered more to you?"]
-    orb = [ts.step("screener", SCREENER, ["Yes", "No"]), ts.step("gate", ts.GATE_WORDS, ["Yes", "No"]),
+    orb = [ts.step("screener", SCREENER, ["Yes", "No"]), ts.step("gate", ts.GATE_EXAMPLE, ["Yes", "No"]),
            ts.step(ts.FREQUENCY, FREQ_Q, list(ts.FREQUENCY_LABELS)),
            ts.step(ts.IMPORTANCE, IMP_Q, IMP_ROWS, ["What mattered more to you?"])]
     assert ts.same_script({"orb": orb, "face": orb, "card": record})["same"] is True
-    assert ts.gate_words(record) == ts.GATE_WORDS
+    assert ts.gate_words(record) == ts.GATE_EXAMPLE
 
 
 def test_a_strip_no_passage_reads_is_never_a_step():

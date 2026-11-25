@@ -7,7 +7,10 @@ people send on the wire; and the reads of the founder's page (FR-7, FR-8). Pure 
 The words are keel-cloud's (contract 87, `canon/openapi-v2.yaml`, the registry's three `follow_up` blocks) and keel-web
 258's; nothing here composes a question.
 
-* **The gate's words** (269 FR-1): on a link that serves the film, *Did this happen to you?* -- no window phrase.
+* **The gate's words** (keel-cloud 277 FR-1, spec 169): on a link that serves the film, *In {window}, have you
+  encountered this issue?* (`{window}` the project's recall window, filled by code) -- found by a match on *have you
+  encountered this issue?* with any window before it (`GATE_WORDS`, `is_gate_words`); 269's *Did this happen to you?*
+  no longer matches.
 * **Frequency** (269 FR-3): `fixed_five`, five rows in order -- *Every time* / *Most times* / *About half the time* /
   *Now and then* / *Never*, codes `every_time` .. `never`, no escape; A and B count for the founder, C, D and E against
   (`working_rung.frequency_side`).
@@ -24,8 +27,18 @@ from typing import Any, Iterable
 
 # ------------------------------------------------------------------------------------------- the words (contract 87)
 
-#: keel-cloud 269 FR-1 (`story_gate`, `StoryGate.TEMPLATE`): the gate after the film, on every surface.
-GATE_WORDS = "Did this happen to you?"
+#: Spec 169 FR-1 (keel-cloud 277 FR-1, `story_gate` *In {window}, have you encountered this issue?*): the gate after
+#: the film, on every surface, and the solution link's uncounted check -- found by a match, never held to a constant:
+#: the words *have you encountered this issue?*, any window before them (*In the last month, ...*, *In the last 7
+#: days ...*, or the registry's own *In {window}, ...*), case-insensitive, the question mark optional. Used with
+#: `fullmatch` on the words with their spaces folded (`is_gate_words`), so 269's *Did this happen to you?* (and the
+#: framed clause *In {window}, did you ...?* of a link with no film) never match.
+GATE_WORDS = re.compile(r"(?:in\s+[^?,]+?,?\s+)?have\s+you\s+encountered\s+this\s+issue\s*\??", re.IGNORECASE)
+#: keel-cloud 269 FR-1's words, before 277 -- matched nowhere now; the tests' negative and the sibling mirrors' skip.
+GATE_WORDS_BEFORE_277 = "Did this happen to you?"
+#: keel-cloud 277's acceptance example (a payroll project, the window *the last month*), for the fixtures only: the
+#: harness never sends it, the gate's words are read from the wire (spec 169 FR-4).
+GATE_EXAMPLE = "In the last month, have you encountered this issue?"
 #: keel-cloud 269 FR-3 (`FrequencyScale`): the five codes and labels, in the served order; letters A-E.
 FREQUENCY_CODES = ("every_time", "most_times", "about_half", "now_and_then", "never")
 FREQUENCY_LABELS = ("Every time", "Most times", "About half the time", "Now and then", "Never")
@@ -425,6 +438,46 @@ def same_script(records: dict[str, list[dict]], *, reference: str = "orb", follo
 def gate_words(record: list[dict]) -> str | None:
     """The gate's words in a record."""
     return next((s["words"] for s in record if s["step"] == "gate"), None)
+
+
+def is_gate_words(text: str | None) -> bool:
+    """Spec 169 FR-1: are these the gate's words -- *have you encountered this issue?* with any window before them
+    (`GATE_WORDS`, the whole text, its spaces folded)? 269's *Did this happen to you?* is not."""
+    return bool(text) and GATE_WORDS.fullmatch(_words(text)) is not None
+
+
+def gate_found(text: str | None, interview: dict | None) -> bool:
+    """Spec 169 FR-1: is `text` the gate on this link? On a link that serves the film (`story`: the problem link, the
+    solution link's uncounted check) by the gate's words (`is_gate_words`); on a link with no film -- the framed
+    clause keel-cloud 277 keeps there -- the gate's question as served."""
+    iv = interview or {}
+    gate = iv.get("gate") or {}
+    if not gate or not text:
+        return False
+    if iv.get("story"):
+        return is_gate_words(text)
+    return _words(text) == _words(gate.get("question"))
+
+
+def gate_answer(text: str | None, interview: dict | None, plan: dict | None = None, *,
+                no_on: str | None = None) -> str | None:
+    """Spec 169 FR-1 (the strangers' walk): the stranger's answer where `text` is the gate on this link (`gate_found`),
+    else None -- *no* where the walk says No on the gate or the person's plan carries no gate (their `recency` false,
+    `film_strangers.people_plans` / `solution_plans`), else *yes*."""
+    if not gate_found(text, interview):
+        return None
+    return "no" if (no_on == "gate" or (plan is not None and not plan.get("gate"))) else "yes"
+
+
+def same_gate(gates: dict[str, str | None]) -> dict:
+    """Spec 169 FR-1 (269 FR-8's one-script rule): the gate's words on the orb, the face and the Copilot card held to
+    each other, not to a constant -- `same` where every surface says the same words (spaces folded) and those words
+    are the gate's (`is_gate_words`)."""
+    said = {k: _words(v) if v else None for k, v in gates.items()}
+    distinct = sorted({v for v in said.values() if v is not None})
+    found = {k: is_gate_words(v) for k, v in said.items()}
+    return {"same": bool(said) and None not in said.values() and len(distinct) == 1 and all(found.values()),
+            "words": said, "found": found}
 
 
 # ------------------------------------------------------------------------------------------- the order on a film link
