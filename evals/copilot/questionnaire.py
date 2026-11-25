@@ -34,6 +34,7 @@ CONTROL_KIND = {
     "fixed_three": ("single", None),
     "fixed_four": ("single", None),
     "scale_four": ("single", None),
+    "yes_no": ("single", None),                       # spec 162 (keel-web 260 FR-2): the solution's yes or no
     "duration_bands": ("single", None),
     "benefit_with_advantages": ("single", None),
     "pick_two": ("multi", 2),

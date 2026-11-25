@@ -841,7 +841,22 @@ def breakdown_faults(rows: list[dict] | None, facts: dict) -> list:
     row = by_key.get("problem.frequency")
     if want is not None and row is not None and ov.norm(row.get("facts")) != ov.norm(want):
         faults.append({"problem.frequency": row.get("facts"), "want": want})
+    # spec 162 (keel-web 260 FR-6, `breakdownRows.answersOf`): the solution's three read *Yes k · No n-k* from the facts
+    for key, want in breakdown_yes_no(facts).items():
+        row = by_key.get(key)
+        if row is not None and ov.norm(row.get("facts")) != ov.norm(want):
+            faults.append({key: row.get("facts"), "want": want})
     return faults
+
+
+def breakdown_yes_no(facts: dict) -> dict:
+    """Spec 162 (keel-web 260 FR-6): each solution row's answers cell, *Yes {k} · No {n-k}*, from `facts.solution.rows`'
+    `yes` and `n` (keel-cloud 272 FR-6); a row with no `yes` is left out."""
+    out = {}
+    for r in ((facts or {}).get("solution") or {}).get("rows") or []:
+        if r.get("yes") is not None and r.get("n") is not None:
+            out[r.get("key")] = f"Yes {r['yes']} · No {int(r['n']) - int(r['yes'])}"
+    return out
 
 
 def report_binding(r: dict) -> tuple[bool, Any]:

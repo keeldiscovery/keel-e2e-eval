@@ -556,3 +556,22 @@ def test_a_walk_reads_as_the_solution_links_order():
     assert "yes_no" in strangers.ONE_PICK
     assert strangers._why_of(sol.WHYS[sol.ADOPTION_FRICTION][0]) == {"dimension": sol.ADOPTION_FRICTION,
                                                                      "text": sol.WHYS[sol.ADOPTION_FRICTION][0]}
+
+
+def test_the_cards_passages_carry_the_films_lines_and_the_plate():
+    """keel-web 260's eval mirrors (`three_surfaces.card_passages` as `withLines` builds them): the problem film's lines
+    before the gate (after the condition), the plate (its `before` in the founder's words) and the idea film's lines
+    after it; no reveal; the breakdown's solution cells *Yes k · No n-k* (`report_marks.breakdown_yes_no`)."""
+    from evals import report_marks as rm                                       # noqa: PLC0415
+    script = _script()
+    kinds = [p["kind"] for p in ts.card_passages(script)]
+    iv = _interview()
+    assert kinds == (["intro", "condition"] + ["line"] * len(iv["story"]["readInstead"]) + ["gate", "plate"]
+                     + ["line"] * len(iv["ideaStory"]["readInstead"]) + ["item"] * 3 + ["pilot"])
+    plate = next(p for p in ts.card_passages(script) if p["kind"] == "plate")
+    assert plate["words"] == "Now I have built Runcheck." and {"line", "plate"} <= set(ts.CARD_KINDS)
+    assert ts.passage_of(iv["ideaStory"]["readInstead"][0], ts.card_passages(script))["kind"] == "line"
+    facts = _standings(yes=3, n=5)["facts"]
+    assert rm.breakdown_yes_no(facts) == {k: "Yes 3 · No 2" for k in sol.SOLUTION_DIMENSIONS}
+    assert rm.breakdown_faults([{"key": sol.COMPATIBILITY, "facts": "Yes 3 · No 2"}], facts) == []
+    assert rm.breakdown_faults([{"key": sol.COMPATIBILITY, "facts": "Yes, easily 3"}], facts)

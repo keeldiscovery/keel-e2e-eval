@@ -135,7 +135,7 @@ INTERVAL_KEYS = ("inside", "below", "above")
 #: The controls whose served options the item screen draws as rows (keel-web 064 FR-003). Spec 090 FR-2 (keel-web 135
 #: H-8): `pick_two` is never served on contract 47 and is gone from the list.
 ROW_CONTROLS = {"single_choice", "single_choice_5", "price_ladder", "fixed_four", "fixed_three", "pick_one_then_one",
-                "scale_four"}
+                "scale_four", "yes_no"}            # spec 162 (keel-web 260 FR-2): the solution's yes or no, two rows
 #: Spec 090 FR-2 (keel-web 135 H-5): the controls headed *Pick one.* (`.iv-tick`) as every one-pick screen is.
 PICK_ONE_HINTED = {"pick_one_then_one", "scale_four"}
 

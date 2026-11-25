@@ -554,6 +554,7 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
         pass
     page.wait_for_timeout(500)
     return {"rows": rows, "done": ss._tc(done.first), "last_page": last_page(page), "intro": intro, "mic": mic,
+            "plated": bool(interview.get("plate")),
             "responses": responses, "log": ss.iv_log(page), "plays": ss.iv_plays(page), "replay": replayed}
 
 
@@ -619,7 +620,15 @@ def film_controls(p, page, *, timeout_s: float = 60) -> dict:
     before = p.film()
     page.get_by_test_id(ivs.FILM_AGAIN).first.click()
     page.wait_for_timeout(150)
-    out["again"] = {"before": before, "after": p.film()}
+    after = p.film()
+    if after.get("mode") == "pictures":
+        # a picture follows the voice (keel-web 261 judgement call 7): the first scene's shows when its clip starts --
+        # read until the shown picture moves (at most 3 s)
+        until = time.monotonic() + 3
+        while time.monotonic() < until and (after.get("sig") or {}).get("shown") == (before.get("sig") or {}).get("shown"):
+            page.wait_for_timeout(100)
+            after = p.film()
+    out["again"] = {"before": before, "after": after}
     page.get_by_test_id(ivs.FILM_BOARD).first.click()
     page.wait_for_timeout(250)
     out["shown"] = p.film()
@@ -798,7 +807,17 @@ def film_first_checks(run, leg, walked: dict, *, view: str, study: str) -> None:
                    "FR-2b)", first.get("kind") == "problem" and not first.get("hand") and bool(first.get("player"))
               and bool(lead) and lead[0] != "film:problem", screen="the opening -> the film", view=view,
               detail={"stage": seq[:12], "film": first}, stop=False)
-    if study in ("solution", "money"):
+    if study in ("solution", "money") and walked.get("plated"):
+        # spec 162 (keel-web 260 FR-1, FR-8; its eval mirrors): on the plated link the plate hands over -- no hand-over
+        # line on the idea's film, the plate's row before it
+        idea = [r for r in films if r.get("kind") == "idea"]
+        at = [r.get("screen") for r in walked["rows"]]
+        leg.check(run, "the idea's film after the plate, with no hand-over line (keel-web 260 FR-1, FR-8)",
+                  bool(idea) and not any(r.get("hand") for r in idea) and "plate" in at
+                  and at.index("plate") < max(i for i, r in enumerate(walked["rows"]) if r.get("screen") == "film"
+                                              and r.get("kind") == "idea"),
+                  screen="the plate -> the idea's film", view=view, detail={"films": films}, stop=False)
+    elif study in ("solution", "money"):
         idea = [r for r in films if r.get("kind") == "idea"]
         leg.check(run, "the idea's story after its hand-over line (*Let me show you how ...*)",
                   bool(idea) and all(str(r.get("hand") or "").startswith(HAND_OVER["idea"]) for r in idea),
@@ -1209,7 +1228,8 @@ def orb_view(run, leg, study: str, project_id: str) -> None:
     popup_checks(run, leg, made)
     interview, reads = read_served(run, made["url"])
     run.orb_wires[study] = {"interview": interview, "url": made["url"]}
-    keep_surface(run, study, "orb", ts.served_record(interview), source="the link as served (the wire)")
+    if not interview.get("plate"):          # spec 162: the plated link's record is `solution_view`'s (the solution's steps)
+        keep_surface(run, study, "orb", ts.served_record(interview), source="the link as served (the wire)")
     wire_checks(run, leg, study, interview, view, speaker=ivs.SPEAKER_ORB, reads=reads)
     opening = ((interview.get("interviewer") or {}).get("clips") or {}).get("opening") or {}
     got = fetch_clip(run, opening.get("url"))
@@ -1638,7 +1658,8 @@ def avatar_view(run, leg, study: str, project_id: str) -> None:
         made = tv.send_link(run, leg, f"{study}-avatar", project_id, "AI_INTERVIEWER", person=person_at(names, 3),
                             decider=study == "money")
         interview, reads = read_served(run, made["url"])
-        keep_surface(run, study, "face", ts.served_record(interview), source="the link as served (the wire)")
+        if not interview.get("plate"):      # spec 162: the plated link's record is `solution_view`'s
+            keep_surface(run, study, "face", ts.served_record(interview), source="the link as served (the wire)")
         wire_checks(run, leg, study, interview, "avatar", speaker=ivs.SPEAKER_AVATAR, reads=reads)
         same_words(run, leg, study, project_id, kind.get("roleId"), interview)
         # spec 160 FR-3: walked as the orb's voice link was -- the same ways from the start, the film's controls,
@@ -1929,7 +1950,8 @@ def copilot_view(run, leg, study: str, project_id: str) -> None:
         script = card_script(run, project_id, call or {})
         if which == "yes":
             # spec 161 FR-9: the card's script, kept for the three surfaces
-            keep_surface(run, study, "card", ts.card_record(script), source="the call's script (the wire)")
+            if not any(p.get("kind") == "plate" for p in script.get("passages") or []):
+                keep_surface(run, study, "card", ts.card_record(script), source="the call's script (the wire)")
         page = run.context.new_page()
         try:
             page.add_init_script(calls_leg.FAKE_MEDIA)
@@ -1946,8 +1968,10 @@ def copilot_view(run, leg, study: str, project_id: str) -> None:
     # keel-web 241 FR-9 / 242 FR-4 / 243 judgement call 12: the screener's *Show the story* then the gate's *Story
     # again*; the decision-maker's call has no screener, its check strip carries the story's press (`story-again`); the
     # idea's story after the idea where the study holds one
+    plated = any(p.get("kind") == "plate" for p in walked.get("passages") or [])
+    # spec 162 (keel-web 260 FR-5): on the plated card the idea film is its lines, read one at a time -- no grown idea film
     want = (["story-again"] if study == "money" else ["show-story", "story-again"]) + \
-        (["show-idea-story"] if study in ("solution", "money") else [])
+        (["show-idea-story"] if study in ("solution", "money") and not plated else [])
     leg.check(run, f"the story moments in order: {', '.join(want)}", presses == want, screen="the strips",
               view="copilot", detail={"grows": presses, "strips": [(s.get("head"), s.get("read", "")[:50])
                                                                   for s in walked["strips"]]})
@@ -1990,7 +2014,11 @@ def copilot_view(run, leg, study: str, project_id: str) -> None:
                   detail={"end": no["end_phase"], "after": [(s["head"], s.get("read", "")[:60]) for s in asked_after]})
     card_machine_checks(run, leg, study, walked, no)
     keep_surface(run, study, "card", ts.strips_record(walked["strips"]), source="the card's walk (keel-web 258)")
-    three_surfaces_check(run, leg, study)
+    if plated:
+        # spec 162 FR-9: the plated study's three surfaces are `solution_surfaces_check`'s (held in `solution_view`)
+        leg.notes.append("the solution study's three surfaces: held by `solution_surfaces_check` on its own steps")
+    else:
+        three_surfaces_check(run, leg, study)
 
 
 def card_machine_checks(run, leg, study: str, walked: dict, no: dict) -> None:
@@ -2734,7 +2762,8 @@ def solution_view(run, leg, view: str, project_id: str) -> None:
         kinds = register.get("kinds") or []
         kind = next((k for k in kinds if k.get("respondentType") != tv.vs.LINK_B2B), kinds[0])
         try:
-            interviewer_ready(run, leg, "solution", project_id, kind.get("label"))
+            # its own stand-in key (spec 162): `avatar_view` stands Keel's door in again on keel-web 260
+            interviewer_ready(run, leg, "solution-wire", project_id, kind.get("label"))
             made = tv.send_link(run, leg, "solution-avatar", project_id, "AI_INTERVIEWER", person=person_at(names, 3))
             interview, reads = read_served(run, made["url"])
             leg.check(run, f"the face's link served (`speaker` AVATAR, {FACE.title()})",
@@ -2754,7 +2783,7 @@ def solution_view(run, leg, view: str, project_id: str) -> None:
                 solution_roster_on_screen(run, leg, project_id, speaker=ivs.SPEAKER_AVATAR, fmt="AI_INTERVIEWER",
                                           only=("three Nos",))
         finally:
-            ledger.restore_own_door(run.stack, run.account_id, f"solution-avatar-restore-{run.stamp}",
+            ledger.restore_own_door(run.stack, run.account_id, f"solution-wire-avatar-restore-{run.stamp}",
                                     spec=tv.STAND_IN_SPEC)
     else:
         register = run.get(f"/v2/projects/{project_id}/invitations") or {}
@@ -2951,9 +2980,13 @@ def solution_page_on_screen(run, leg, project_id: str, standings: dict) -> None:
     except Exception as missed:  # noqa: BLE001 - the read named
         drawn["error"] = str(missed)[:300]
         bands = 0
-    leg.check(run, "the solution's three cards drawn as share bars (`data-chart=\"share\"`, the founder's band shaded; "
-                   "keel-web 260 FR-6), no benefit scale", "error" not in drawn and all(
-                       (drawn.get(k) or {}).get("chart") == "share" for k in sol.SOLUTION_DIMENSIONS) and bands >= 3,
+    # keel-web 260 FR-6 (`DimensionRowBody`): the three are drawn as Prevalence is -- its strip on a people axis where the
+    # card carries the strip, else the share bar (`data-chart="share"`, the founder's band shaded)
+    leg.check(run, "the solution's three cards drawn as Prevalence's share (the strip on a people axis, or "
+                   "`data-chart=\"share\"` with the founder's band; keel-web 260 FR-6), no benefit scale",
+              "error" not in drawn and all((drawn.get(k) or {}).get("chart") in ("share", "strip")
+                                           for k in sol.SOLUTION_DIMENSIONS)
+              and not any("benefit" in str((drawn.get(k) or {}).get("chart")) for k in sol.SOLUTION_DIMENSIONS),
               screen="the stage page · the solution's three", view="founder (screen)", stop=False,
-              detail={"drawn": {k: {f: (v or {}).get(f) for f in ("chart",)} if isinstance(v, dict) else v
-                                for k, v in drawn.items()}, "bands": bands})
+              detail={"drawn": {k: {f: (v or {}).get(f) for f in ("chart", "strip", "bar")} if isinstance(v, dict)
+                                else v for k, v in drawn.items()}, "bands": bands})

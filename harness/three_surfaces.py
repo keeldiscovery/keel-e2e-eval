@@ -178,7 +178,8 @@ def walked_record(rows: list[dict] | None, *, whys: dict[str, list[str]] | None 
 # as the passage it draws -- its kind and its item -- never by its place in the walk.
 
 #: The card's passage kinds a strip can stand on (the wire's five, the condition and the check the card inserts).
-CARD_KINDS = ("intro", "condition", "gate", "check", "item", "reveal", "pilot")
+CARD_KINDS = ("intro", "condition", "gate", "check", "item", "reveal", "pilot",
+              "line", "plate")             # spec 162 (keel-web 260 FR-5): the films' lines and the brand plate
 #: The step a passage of the four questions files in a record (the intro, the reveal and the pilot ask are not compared).
 CARD_STEP = {"condition": "screener", "gate": "gate", "check": "check"}
 
@@ -195,12 +196,28 @@ def card_passages(script: dict | None, *, check: str | None = None) -> list[dict
     before the first reveal, else the first item, on a script with no gate."""
     raw = [p for p in (script or {}).get("passages") or [] if isinstance(p, dict)]
     out: list[dict] = []
+
+    def lines(p: dict, film: str) -> None:
+        # spec 162 (keel-web 260 FR-5, `withLines`): a film's lines, one passage each, read and passed with Next
+        for n, text in enumerate(p.get("lines") or [], 1):
+            out.append({"kind": "line", "itemId": None, "dimension": None, "words": text, "film": film, "n": n,
+                        "options": []})
     for p in raw:
         kind = p.get("kind")
         if kind == "gate" and str(((p.get("condition") or {}).get("question")) or "").strip():
             out.append({"kind": "condition", "itemId": "condition", "dimension": None,
                         "words": p["condition"]["question"], "options": [{"optionId": "YES", "label": "Yes"},
                                                                          {"optionId": "NO", "label": "No"}]})
+        if kind == "gate":
+            lines(p, "problem")
+        if kind == "plate":
+            # spec 162 (keel-web 260 FR-5): the plate in the reveal's place -- its `before` in the founder's own words read,
+            # then the idea film's lines
+            out.append({"kind": "plate", "itemId": None, "dimension": None,
+                        "words": ((p.get("before") or {}).get("first") or (p.get("before") or {}).get("third")),
+                        "options": []})
+            lines(p, "idea")
+            continue
         words = {"gate": _spoken_stem(p), "item": _spoken_stem(p),
                  "pilot": ((p.get("question") or {}).get("first") if isinstance(p.get("question"), dict)
                            else p.get("question")),
