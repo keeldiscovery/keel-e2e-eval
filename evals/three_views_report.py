@@ -327,8 +327,8 @@ def founders_solution_markdown(solution: dict | None, films: list[dict] | None =
     if first_question:
         out += ["### The time to the first question on the solution link (D6: recorded, never asserted)", ""]
         for view, t in first_question.items():
-            out.append(f"- {view}: {t.get('seconds')} s by the cloud's count ({t.get('parts')}; `minutes` served "
-                       f"{t.get('minutes served')})")
+            how = t.get("parts") if isinstance(t.get("parts"), str) else f"by the cloud's count, {t.get('parts')}"
+            out.append(f"- {view}: {t.get('seconds')} s ({how}; `minutes` served {t.get('minutes served')})")
         out.append("")
     return out
 
