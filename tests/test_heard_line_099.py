@@ -276,7 +276,7 @@ def test_im17_owes_the_wave_and_keel_web_266s_words():
 # ------------------------------------------------------------------------------------------ FR-3: the version
 
 def test_the_version_moved_with_its_note():
-    assert marks.INTERVIEWER_MARKS_VERSION == 19                                         # spec 170: IM17 on 266
+    assert marks.INTERVIEWER_MARKS_VERSION == 20                                         # spec 170: IM17 on 266
     source = inspect.getsource(marks)
     assert "#: v17 (spec 099 FR-1 / FR-2, keel-web 143" in source and "#: v16 (spec 094 FR-1" in source
     assert "#: v19 (spec 170 FR-1, keel-web 266" in source

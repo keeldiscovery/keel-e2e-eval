@@ -94,7 +94,7 @@ KINDS = ("problem", "solution")
 SOLUTION_DIR = "solution"
 #: The founder's player of each film (keel-web 257 / 259): where the camera opens it once the build is ready.
 CHECK_PATH = {"problem": "define/story/check", "solution": "define/idea/check"}
-#: keel-cloud 271 FR-9 / keel-web 259 FR-6: the idea film -- at most eleven scenes in five chapters, behind the brand
+#: keel-cloud 271 FR-9 / keel-web 259 FR-6 (283 FR-1: three chapters since): the idea film -- at most eleven scenes, behind the brand
 #: plate (`idea-plate`, alone for about three seconds before scene 1, shot as its own frame).
 IDEA_MAX_SCENES = ss.IDEA_MAX_SCENES
 IDEA_CHAPTERS = ss.IDEA_CHAPTERS
@@ -486,22 +486,24 @@ def missing_scenes(story: dict) -> list[int]:
 
 
 def idea_chapter_faults(view: dict) -> list[dict]:
-    """Spec 166 FR-2 (keel-cloud 271 FR-9, 273 FR-6, 275 FR-4) on the idea film: at most eleven scenes; the chapter keys
-    in the order *before, task, solves, better, joy*, each once, `task`, `solves` and `joy` there; the joy the last scene
-    (`joy: true`); a picture on every scene but one served `pictureMissing` (recorded, never a fault: 275 drops a frame
-    on its own); one clip a line."""
+    """Spec 166 FR-2 (keel-cloud 271 FR-9, 273 FR-6, 275 FR-4) on the idea film as keel-cloud 283 FR-1 leaves it (spec
+    172 FR-4): at most eleven scenes; the chapter keys in the order *before, task, joy*, each once, `task` and `joy`
+    there; the joy the last scene (`joy: true`); a picture on every scene but one served `pictureMissing` (recorded,
+    never a fault: 275 drops a frame on its own); one clip a line. A retired `solves` / `better` chapter is a DRIFT line
+    (`story_screens.idea_chapter_drift`), never the order's fault."""
     out = []
     rows = scenes(view)
     keys = [(n, s.get("chapter")) for n, s in enumerate(rows, 1) if s.get("chapter")]
-    order = [k for _, k in keys]
+    order = [k for _, k in keys if k not in ss.IDEA_CHAPTERS_RETIRED]
     if not 0 < len(rows) <= IDEA_MAX_SCENES:
         out.append({"what": f"the idea film has {len(rows)} scenes, keel-cloud 271 serves one to eleven",
                     "owed": "keel-cloud 271 FR-9", "detail": "", "frame": None})
     if order != [k for k in IDEA_CHAPTERS if k in order] or len(set(order)) != len(order) \
-            or not {"task", "solves", "joy"} <= set(order):
-        out.append({"what": f"the idea film's chapter marks are {order}, keel-cloud 271 FR-9 puts them in the order "
-                            f"{list(IDEA_CHAPTERS)} (task, solves and joy always)", "owed": "keel-cloud 271 FR-9",
+            or not {"task", "joy"} <= set(order):
+        out.append({"what": f"the idea film's chapter marks are {order}, keel-cloud 283 FR-1 puts them in the order "
+                            f"{list(IDEA_CHAPTERS)} (task and joy always)", "owed": "keel-cloud 283 FR-1",
                     "detail": "", "frame": None})
+    out += ss.idea_chapter_drift(view)
     if rows and not (rows[-1].get("joy") is True and rows[-1].get("chapter") in ("joy", None)
                      and sum(1 for s in rows if s.get("joy")) == 1):
         out.append({"what": "the idea film does not end on its one joy scene (`joy: true`, last)",
@@ -909,9 +911,18 @@ def watch_building(browser, storage_state: dict, web_base: str, project_id: str,
                 reads.append(plan)
             view = read_view()
             build = view.get("build") or {}
-            rows = [(r.get("scene"), r.get("status")) for r in ((build.get("pictures") or {}).get("plan") or [])]
+            plan_now = (build.get("pictures") or {}).get("plan") or []
+            rows = [(r.get("scene"), r.get("status")) for r in plan_now]
             if rows and (not served or served[-1] != rows):
                 served.append(rows)
+            if plan and plan.get("rows") and plan_now:
+                # spec 172 FR-4 (keel-web 276 FR-4): the chips and Keel's notes held to the plan served at that read
+                chips = ss.plan_chip_faults(plan["rows"], plan_now, "idea" if kind == "solution" else "story")
+                if chips and chips not in record.setdefault("chip_faults", []):
+                    record["chip_faults"].append(chips)
+                for r in plan_now:
+                    if r.get("note") and r.get("status") == "failed":
+                        record.setdefault("notes", {})[str(r.get("scene"))] = r.get("note")
             if build.get("state") in ("ready", "failed") or time.monotonic() > deadline:
                 break
             page.wait_for_timeout(poll_ms)
@@ -1027,16 +1038,42 @@ def building_faults(record: dict, view: dict) -> list[dict]:
                             f"{replayed['plan'].get('legend')!r}, its rule {replayed.get('legend_rule')!r}; the rows as "
                             f"served {replayed.get('rows_match')})", "owed": "keel-web 270 FR-2 / FR-3",
                     "detail": json.dumps(replayed["plan"].get("rows"))[:300], "frame": None})
+    for chips in record.get("chip_faults") or []:
+        out.append({"what": f"the frame plan's chips or notes are not the served rows' (keel-web 276 FR-4): "
+                            f"{[c.get('scene') for c in chips]}", "owed": "keel-web 276 FR-4 (`chipChapterOf`, `noteOf`)",
+                    "detail": json.dumps(chips)[:300], "frame": None})
     build = view.get("build") or {}
     if build.get("state") == "failed" and record.get("failed_said") is not None and not record.get("error"):
         reason = build.get("failedReason")
         chapter = build.get("failedChapter")
-        want = (ss.failed_say(chapter, reason) if chapter else ss.picture_failed_say(reason))
-        # a picture's failure (`failedScene`) or a chapter's (`failedChapter`) -- a draft that failed says 261's line
-        if (chapter or build.get("failedScene") is not None) and record["failed_said"] and record["failed_said"] != want:
-            out.append({"what": f"the failed build says {record['failed_said']!r}, keel-web 263 FR-10 says {want!r}",
-                        "owed": "keel-web 263 FR-10", "detail": reason or "", "frame": None})
+        if chapter:
+            # spec 172 FR-4 (keel-cloud 283 FR-3): the reader never fails the build -- a build failed on a chapter is a
+            # cloud before 283: a DRIFT line, its words not judged
+            out.append({"what": f"the build failed on the chapter {chapter!r} (keel-cloud 283 FR-3: the reader never "
+                                "fails the build; the one failure left is no picture drawn)",
+                        "owed": "keel-cloud 283 FR-3", "detail": reason or "", "frame": None, "drift": True})
+        elif build.get("failedScene") is not None:
+            want = ss.picture_failed_say(reason)
+            if record["failed_said"] and record["failed_said"] != want:
+                out.append({"what": f"the failed build says {record['failed_said']!r}, keel-web 263 FR-10 says {want!r}",
+                            "owed": "keel-web 263 FR-10", "detail": reason or "", "frame": None})
     return out
+
+
+def failed_build_fault(view: dict, kind: str = "problem") -> dict:
+    """Spec 172 FR-4: a build that ended `failed`, as the film walk records it -- the fault *no picture could be drawn*
+    (the one failure keel-cloud 283 leaves: `failedScene`, or no chapter named), or, where the build names a chapter
+    (`failedChapter`, a cloud before 283), a DRIFT line (`drift`) owed keel-cloud 283 FR-3."""
+    build = view.get("build") or {}
+    film = "the solution's build" if kind == "solution" else "the build"
+    if build.get("failedChapter"):
+        return {"what": f"{film} failed on the chapter {build.get('failedChapter')!r}: {build.get('failedReason')} "
+                        "(keel-cloud 283 FR-3: the reader never fails the build)", "owed": "keel-cloud 283 FR-3",
+                "detail": json.dumps(build.get("checked"))[:300], "frame": None, "drift": True}
+    return {"what": f"{film} failed: no picture could be drawn (failedScene {build.get('failedScene')}: "
+                    f"{build.get('failedReason') or build.get('failedLine')})",
+            "owed": "keel-cloud 275 FR-4 / 283 FR-3 (no picture could be drawn)",
+            "detail": json.dumps(build.get("checked"))[:300], "frame": None}
 
 
 def wait_built(read_story, *, timeout_s: float = 300) -> dict:

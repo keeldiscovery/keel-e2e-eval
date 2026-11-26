@@ -75,7 +75,10 @@ def test_between_beats_the_orb_goes_from_writing_to_speaking():
     assert ss.writing_then_speaking(["speaking", "listening", "hearing", "writing", "speaking", "listening"])
     assert not ss.writing_then_speaking(["speaking", "listening", "hearing", "writing", "listening", "speaking"])
     assert ss.writing_then_speaking(["speaking", "listening", "hearing", "writing"])
-    assert ss.holds_in_order(["speaking", "listening", "hearing", "writing", "speaking"], ss.BEAT_ORB)
+    assert ss.holds_in_order(["speaking", "listening", "hearing", "writing", "speaking"], ss.BEAT_ORB_249)
+    # spec 172 FR-1 (keel-web 275): the same rule in the four states
+    assert ss.thinking_then_asking(["asking", "hearing", "thinking", "asking", "hearing"])
+    assert not ss.thinking_then_asking(["asking", "hearing", "thinking", "hearing", "asking"])
 
 
 # ------------------------------------------------------------------------------------------------ one film

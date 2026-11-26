@@ -359,13 +359,15 @@ def good() -> dict:
                  "beats": [{"after_kind": kind, "ms": 2004, "statuses": ["Take a moment."], "pills": ["pause"],
                             "micOn": False, "question": False, "options": False, "buttons": [],
                             "recordings_in": 0, "next": "speaking"} for kind in ("PROBLEM", "SOLUTION")]},
-        # spec 050 (keel-web 074 FR-2): the story ended by its Save
+        # spec 050 (keel-web 074 FR-2): the story ended by its Save; spec 172 FR-2 (keel-web 274, IM22 v20): the close
+        # acknowledged *Got it. Thank you.*, no hold on the story
         "story": {"by": "save", "question": "Tell me about it.", "said": "It was a Tuesday and the agency was late",
-                  "status_before": "Take your time. Pause for a few seconds when you’re done, or tap Save.",
+                  "status_before": 'Take your time. Say "that\'s it" when you are done, or tap Save.',
                   "save_before": {"shown": False}, "save_after_final": {"shown": True, "enabled": True},
-                  "pressed": True, "final_to_held_ms": 410, "press_to_held_ms": 60,
-                  "presses": [{"kind": "press", "testid": "ai-save"}], "classified": 0, "held_phase_seen": True,
-                  "held": {"status": HELD, "heard": "It was a Tuesday and the agency was late heard", "went_on": True},
+                  "pressed": True, "final_to_held_ms": None, "press_to_held_ms": None,
+                  "presses": [{"kind": "press", "testid": "ai-save"}], "classified": 0, "held_phase_seen": False,
+                  "held": {"status": "Got it. Thank you.", "ack": "Got it. Thank you.", "ack_kind": "gotIt",
+                           "held": False, "heard": "", "went_on": True},
                   "next": "Which fits?", "sent": "It was a Tuesday and the agency was late"},
         # spec 076 FR-5 (IM22 v12): the story's chip on a second AI link ends it
         "story_chip": _story_chip(),
@@ -406,7 +408,7 @@ def test_a_good_record_meets_every_mark():
     card = marks.scorecard(good())
     # spec 154: 27 measured (IM10, IM11, IM30 retired, never measured)
     assert (card["measured"], card["met"], card["unmeasured"]) == (27, 27, ["IM10", "IM11", "IM30"])
-    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 19      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19; 154: v18; 170: IM17 (v19)
+    assert card["version"] == marks.INTERVIEWER_MARKS_VERSION == 20      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19; 154: v18; 170: IM17 (v19); 172: IM22 (v20)
     assert [m for m, _, _ in marks.MARKS] == [f"IM{i}" for i in range(1, 31)]
 
 
@@ -635,10 +637,12 @@ SEEDED = [
     ("IM22", ["story", "status_before"], "Listening. Say the one that fits, or tap it."),
     ("IM22", ["story", "save_before", "shown"], True),                                   # Save before a word
     ("IM22", ["story", "save_after_final", "shown"], False),                             # no Save after one
-    ("IM22", ["story", "final_to_held_ms"], 4_200),                                      # Save waited for the gap
+    ("IM22", ["story", "status_before"], "Take your time. Pause for a few seconds when you’re done, or tap Save."),
     ("IM22", ["story", "classified"], 1),                                                # the story classified
-    ("IM22", ["story", "held", "heard"], "It was a Tuesday"),                            # words lost
-    ("IM22", ["story", "held_phase_seen"], False),
+    ("IM22", ["story", "held", "status"], HELD),                                         # v20: held, not acknowledged
+    ("IM22", ["story", "held", "held"], True),
+    ("IM22", ["story", "held_phase_seen"], True),                                        # v20: no hold on the story
+    ("IM22", ["story", "sent"], "It was a Tuesday"),                                     # words lost
     # spec 076 FR-5 (IM22 v12): the story's chip on the AI link ends it -- answers sent with it, a follow-up asked, the
     # pilot written, a second response, the chip's words wrong, the person on a money line
     ("IM22", ["story_chip", "responses", 0, "body", "answers"], [{"itemId": "a", "optionIds": ["o"]}]),

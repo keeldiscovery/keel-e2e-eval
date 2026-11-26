@@ -132,15 +132,19 @@ def test_the_orb_states_fold_and_hold_in_order():
                                                 ("writing", "/b"), ("speaking", "/b"), ("listening", "/b"))]
     seq = ss.orb_sequence(log, "/b")
     assert seq == ["speaking", "listening", "hearing", "listening", "writing", "speaking", "listening"]
-    assert ss.holds_in_order(seq, ss.BEAT_ORB)
-    assert not ss.holds_in_order(["speaking", "listening", "writing", "speaking"], ss.BEAT_ORB)
+    assert ss.holds_in_order(seq, ss.BEAT_ORB_249)
+    assert not ss.holds_in_order(["speaking", "listening", "writing", "speaking"], ss.BEAT_ORB_249)
+    # spec 172 FR-1: keel-web 275's four states -- 249's log read through the mapping holds a 275 beat but for the
+    # rows read and the ask's listen after the card
+    assert ss.plain_sequence(seq) == ["asking", "hearing", "thinking", "asking", "hearing"]
+    assert ss.beat_orb_holds(seq) and not ss.beat_orb_holds(["asking", "hearing", "thinking", "hearing"])
 
 
 def test_the_report_names_the_beats():
     told = [{"label": "the long telling", "project": "12345678-aaaa", "beats": [
         {"turn": 3, "asked": {"question": ss.STORY_QUESTIONS[3]}, "put": {"sent": {"text": "x" * 1600},
                                                                          "body": {"readback": "I kept the four"}},
-         "readback": {"limits": ["A", "B"]}, "orb": ss.BEAT_ORB, "next": "4"},
+         "readback": {"limits": ["A", "B"]}, "orb": ss.BEAT_ORB_249, "next": "4"},
         {"turn": 4, "asked": {"question": ss.STORY_QUESTIONS[4]}, "put": {"sent": {"text": "y"}, "body": {
             "readback": "S. Right?"}}, "readback": {}, "orb": [], "next": "5",
          "correction": {"sent": {"text": ss.CORRECTION_4}, "body": {"readback": "Got it: Europe."}}}]}]

@@ -405,8 +405,44 @@ TAP_WAIT_MS = 1_500
 IS_THAT_RIGHT = "Is that right? Say yes, or tell me the right one"
 YES_THATS_IT = "Yes, that’s it"
 #: The words a stranger says for each move (design §3-§4).
-#: keel-web 074 FR-2 (`AI_STATUS.story`): the story's window says how to end it.
-STORY = "Take your time. Pause for a few seconds when you’re done, or tap Save."
+#: keel-web 074 FR-2 (`AI_STATUS.story`): the story's window says how to end it -- since keel-web 274 FR-1 (spec 172
+#: FR-2, `AI_LONG.status`) a pause no longer ends it; 074's sub is `STORY_BEFORE_274`, no longer read.
+STORY = 'Take your time. Say "that\'s it" when you are done, or tap Save.'
+STORY_BEFORE_274 = "Take your time. Pause for a few seconds when you’re done, or tap Save."
+#: Spec 172 FR-2 (keel-web 274 FR-1 to FR-3, `AI_LONG`): the respondent's long answers -- the story and a follow-up --
+#: never close on a pause: after `LONG_WAIT_MS` of quiet the orb turns amber and Keel's one ask stands (`ai-story-ask`,
+#: once); a close word heard last closes it (`DONE_WORDS`, stripped from what is sent) and Keel acknowledges it
+#: (`ai-story-got-it`, *Got it. Thank you.*; at the two-minute cap *That is two minutes. I have kept every word.*) -- no
+#: veto hold, no *say no to change* on the story (`HELD` stays the short answers'). Every passage is captioned
+#: (`ai-passage-caption`). The pause the walk's strangers leave inside the story (`STORY_PAUSE_S`): past the page's
+#: `PAUSE_MS` (2.5 s, the recording cut there), short of the eight seconds.
+LONG_ASK = 'Anything else? Say "that\'s it" when you are done.'
+LONG_GOT_IT = "Got it. Thank you."
+LONG_CAP = "That is two minutes. I have kept every word."
+LONG_ASK_ID = "ai-story-ask"
+LONG_GOT_IT_ID = "ai-story-got-it"
+PASSAGE_CAPTION = "ai-passage-caption"
+NO_WORDS_ID = "ai-no-words"
+LONG_WAIT_MS = 8_000
+STORY_CAP_MS = 120_000
+STORY_PAUSE_S = 4.0
+#: The close word the strangers say last (spec 161's *that's it*, keel-web 274 FR-1).
+LONG_DONE_WORD = "That's it."
+
+
+def story_parts(words: str, parts: int = 2) -> list[str]:
+    """Spec 172 FR-2: a story as a stranger says it in `parts` -- split at a sentence's end as near the middle as it
+    falls (the whole where it is one sentence), the done word after the last part."""
+    text = " ".join(str(words or "").split())
+    if text and text[-1] not in ".!?,;:":
+        text += "."                                  # keel-web's `DONE_AT_END`: the done word after a sentence's end
+    if parts < 2:
+        return [f"{text} {LONG_DONE_WORD}".strip()]
+    cuts = [m.end() for m in re.finditer(r"[.!?](?=\s)", text)]
+    if not cuts:
+        return [f"{text} {LONG_DONE_WORD}".strip()]
+    cut = min(cuts, key=lambda c: abs(c - len(text) / 2))
+    return [text[:cut].strip(), f"{text[cut:].strip()} {LONG_DONE_WORD}"]
 #: keel-web 075 FR-1: the beat after the PROBLEM and SOLUTION passage clips (`BEAT_MS`, `AI_STATUS.beat`, the pill's
 #: `AI_STATE.beat`); the seam's `beatMs` is left at the page's default on the stack (spec 050 judgement call 3).
 BEAT = "Take a moment."
@@ -1282,7 +1318,8 @@ class Player:
         return stage.first.get_attribute("data-speaker") if stage.count() else None
 
     def orb_state(self) -> str | None:
-        """Spec 159 FR-1: the stage orb's `data-state` (speaking, listening, hearing, writing, paused, dim)."""
+        """Spec 159 FR-1: the stage orb's `data-state` -- since keel-web 274 FR-4 (spec 172 FR-2) the founder's four
+        states and paused (asking, hearing, waiting, thinking, paused; 272's six read through `story_screens.orb_state`)."""
         orb = self.page.get_by_test_id(STAGE_ORB)
         return orb.first.get_attribute("data-state") if orb.count() else None
 
@@ -1504,6 +1541,65 @@ class Player:
             self.page.wait_for_timeout(100)
             waited += 100
         raise AssertionError({"the miss was never read": self._drawn(), "phase": self.phase()})
+
+    def say_story(self, words: str, *, parts: int = 2, pause_s: float = STORY_PAUSE_S,
+                  timeout_s: float = 30) -> dict:
+        """Spec 172 FR-2 (keel-web 274 FR-1, FR-2): a long answer told -- the story in `parts` (two: a pause of `pause_s`,
+        under eight seconds, between them; a follow-up in one), the done word after the last, then Keel's
+        acknowledgement read (`ai-story-got-it`). What it drew: the parts said, whether the window stayed open across the
+        pause (`open_across`), the ask seen in it (`asked`), the acknowledgement's words and kind (`ack`, `ack_kind`),
+        and whether the short answers' hold (`HELD`) stood instead (`held`)."""
+        said = story_parts(words, parts)
+        out: dict = {"parts": said, "open_across": None, "asked": False, "ack": None, "ack_kind": None, "held": False}
+        self.say(said[0])
+        if len(said) > 1:
+            self.page.wait_for_timeout(int(pause_s * 1000))
+            out["asked"] = self.page.get_by_test_id(LONG_ASK_ID).count() > 0
+            out["open_across"] = self.page.get_by_test_id(LONG_GOT_IT_ID).count() == 0 and HELD not in self.status()
+            self.wait_listening(timeout_s=timeout_s)
+            self.say(said[1])
+        deadline = timeout_s * 1000 * self.patience
+        waited = 0.0
+        while waited <= deadline:
+            ack = self.page.get_by_test_id(LONG_GOT_IT_ID)
+            if ack.count():
+                out["ack"] = _words(ack.first)
+                out["ack_kind"] = ack.first.get_attribute("data-ack")
+                break
+            if HELD in self.status():
+                out["held"] = True
+            self.page.wait_for_timeout(100)
+            waited += 100
+        return out
+
+    def long_close(self, *, timeout_s: float = 20) -> dict:
+        """Spec 172 FR-2 (keel-web 274 FR-2): a long answer closed (the done word, Save, or the cap) -- Keel's
+        acknowledgement on the status line (`ai-story-got-it`, *Got it. Thank you.*; `data-ack` its kind), no veto
+        hold, then the next step by itself. What it drew, in `hold`'s shape (`status` the acknowledgement's words) with
+        `held` where the short answers' *Got it. Moving on...* stood instead."""
+        before = self.question()
+        deadline = timeout_s * 1000 * self.patience
+        waited = 0.0
+        out: dict = {"question": before, "status": None, "ack": None, "ack_kind": None, "held": False, "heard": "",
+                     "phase": None}
+        while waited <= deadline:
+            ack = self.page.get_by_test_id(LONG_GOT_IT_ID)
+            if ack.count():
+                out.update(status=_words(ack.first), ack=_words(ack.first), ack_kind=ack.first.get_attribute("data-ack"),
+                           phase=self.phase())
+                break
+            if HELD in self.status():
+                out["held"] = True
+            if self.question() != before:
+                break
+            self.page.wait_for_timeout(100)
+            waited += 100
+        while waited <= deadline and self.question() == before and self.page.get_by_test_id(LONG_GOT_IT_ID).count():
+            self.page.wait_for_timeout(100)
+            waited += 100
+        out["next"] = self.question()
+        out["went_on"] = out["next"] != before
+        return out
 
     def hold(self, *, timeout_s: float = 20) -> dict:
         """A confident read held (keel-web 072 FR-4): the status reads *Got it. Moving on… say no to change* with the

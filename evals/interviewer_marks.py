@@ -119,7 +119,15 @@ from harness import interviewer_fake as fake
 #: what you said…* on `ai-mic-writing-line`, *Say hello*) and *Heard: hello* are no longer owed: keel-web 266 sends the
 #: recording in the background and reads nothing back. No mark born or dropped; IM19's heard line on the sheet is
 #: unchanged. Live `make eval-live K=s012` re-scoring stays the founder's call (paid).
-INTERVIEWER_MARKS_VERSION = 19   # spec 170: IM17 on keel-web 266's entry screen (154's v18: IM2 on 247 / 250's screens)
+#: v20 (spec 172 FR-2 / FR-7, keel-web 274: the respondent's long answers): re-pinned -- IM22 reads the story's window as
+#: 274 draws it: the status *Take your time. Say "that's it" when you are done, or tap Save.* (`STORY`; 074's *Pause for
+#: a few seconds ...* is `STORY_BEFORE_274`); *Save and next* absent until a final, then drawn and enabled; the story
+#: ended by the done word said as its last words with nothing pressed (S-005, `by` wait) or by Save (S-006); the close
+#: acknowledged *Got it. Thank you.* (`ai-story-got-it`, `LONG_GOT_IT`) -- never the short answers' hold (no `held`
+#: phase, no *say no to change*, no *Heard:* line on the story) -- then on, never classified, the response carrying the
+#: story (its done word stripped). The short answers' hold (IM3, IM6, IM7) is unchanged. No mark born or dropped. Live
+#: `make eval-live K=s012` re-scoring stays the founder's call (paid). What follows is v19's account.
+INTERVIEWER_MARKS_VERSION = 20   # spec 172: IM22 on keel-web 274's long answers (170's v19: IM17 on 266's entry screen)
 #: The answer path's reads, which store nothing (keel-cloud 099 FR-1 / FR-4, the founder's routes of its T011): a dry
 #: run that only asks them has written nothing.
 READS = re.compile(r"/(interview|interviewer)/(classify|answer|transcribe|follow-up)$")
@@ -153,7 +161,10 @@ ANSWERED = "Got it."
 #: keel-web 073 FR-2's quiet gap: a second final said within a second of the first joins the same utterance.
 WITHIN_MS = 1_000
 #: keel-web 074 FR-2 / 075 FR-1's words, restated where the marks read them.
-STORY = "Take your time. Pause for a few seconds when you’re done, or tap Save."
+STORY = 'Take your time. Say "that\'s it" when you are done, or tap Save.'
+STORY_BEFORE_274 = "Take your time. Pause for a few seconds when you’re done, or tap Save."
+#: keel-web 274 FR-2 (`AI_LONG.gotIt`, IM22 v20): the story's close acknowledged.
+LONG_GOT_IT = "Got it. Thank you."
 BEAT = "Take a moment."
 BEAT_PILL = "pause"
 #: A beat shorter than this share of its length (`BEAT_MS`, 2.0 s) is not the beat.
@@ -800,12 +811,12 @@ def a_beat_after_the_passages(r: dict) -> tuple[bool, Any]:
 
 
 def the_storys_save(r: dict) -> tuple[bool, Any]:
-    """IM22 (keel-web 074 FR-2): the story's window says *Take your time. Pause for a few seconds when you're done, or
-    tap Save.*; *Save and next* is absent until a final is heard, then drawn and enabled; the story ends by the pause
-    with nothing pressed (S-005) or by Save, read at once -- held inside the gap (S-006); held either way with the
-    words heard, never classified, then on; and the response carries the story. v12 (spec 076 FR-5, keel-web 127
-    FR-3): and the story's chip, tapped on a second AI link, ends the interview (`chip_ended_it`) -- owed wherever the
-    story is walked."""
+    """IM22 (keel-web 074 FR-2; v20, spec 172 FR-2: keel-web 274): the story's window says *Take your time. Say "that's
+    it" when you are done, or tap Save.*; *Save and next* is absent until a final is heard, then drawn and enabled; the
+    story ends by the done word said last with nothing pressed (S-005) or by Save (S-006); acknowledged either way --
+    *Got it. Thank you.*, never a hold -- never classified, then on; and the response carries the story. v12 (spec 076
+    FR-5, keel-web 127 FR-3): and the story's chip, tapped on a second AI link, ends the interview (`chip_ended_it`) --
+    owed wherever the story is walked."""
     ok, why = _the_storys_save(r)
     chip_ok, chip_why = chip_ended_it(r.get("story_chip") or {}) if r.get("story_chip") is not None else (False, None)
     return ok and chip_ok, {**why, "chip ends it": chip_ok, "chip": chip_why}
@@ -816,18 +827,18 @@ def _the_storys_save(r: dict) -> tuple[bool, Any]:
     before, after, held = x.get("save_before") or {}, x.get("save_after_final") or {}, x.get("held") or {}
     by = x.get("by")
     ended = (by == "wait" and not x.get("pressed") and not x.get("presses")) or (
-        by == "save" and x.get("pressed") is True and x.get("press_to_held_ms") is not None
-        and x.get("final_to_held_ms") is not None and x.get("final_to_held_ms") < GAP_FREE_MS
+        by == "save" and x.get("pressed") is True
         and [p.get("testid") for p in x.get("presses") or []] == ["ai-save"])
     said = _norm(x.get("said"))
+    sent = _norm(re.sub(r"(?i)[\s,.]*that'?s it[\s.!]*$", "", str(x.get("sent") or "")))
     ok = (x.get("status_before") == STORY and before.get("shown") is False and after.get("shown") is True
-          and after.get("enabled") is True and ended and x.get("held_phase_seen") is True
-          and HELD in (held.get("status") or "") and bool(said) and said in _norm(held.get("heard"))
+          and after.get("enabled") is True and ended and x.get("held_phase_seen") is False
+          and held.get("status") == LONG_GOT_IT and not held.get("held") and bool(said)
           and held.get("went_on") is True and x.get("classified") == 0 and x.get("next") != x.get("question")
-          and _norm(x.get("sent")) == said)
+          and sent == said)
     return ok, {k: x.get(k) for k in ("by", "status_before", "save_before", "save_after_final", "pressed",
-                                      "final_to_held_ms", "press_to_held_ms", "presses", "classified", "sent")} | {
-        "held": {k: held.get(k) for k in ("status", "heard", "went_on")}}
+                                      "presses", "classified", "sent", "held_phase_seen")} | {
+        "acknowledged": {k: held.get(k) for k in ("status", "ack_kind", "held", "went_on")}}
 
 
 #: keel-cloud 145 FR-5 / keel-web 127 FR-3 (IM22 v12): the AI link's chip-only body, its format beside it.

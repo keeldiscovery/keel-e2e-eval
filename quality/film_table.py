@@ -417,6 +417,17 @@ def told_lines(told: dict | None) -> list[str]:
     return out
 
 
+def frames_chapters_line(row: dict) -> str:
+    """Spec 172 FR-4: the film's frames (captured, `measures.frames`) and chapter marks (`measures.chapters`; the solution
+    film's are keel-cloud 283's *before, task, joy*) in one line of an entry's section; `--` where the record has none."""
+    m = row.get("measures") or {}
+    chapters = m.get("chapters")
+    shown = ", ".join(str(c) for c in chapters) if chapters else "--"
+    retired = [c for c in chapters or [] if c in ("solves", "better")]
+    return (f"- frames {m.get('frames') if m.get('frames') is not None else '--'}, chapters: {shown}"
+            + (f" (retired by keel-cloud 283: {', '.join(retired)} -- a DRIFT line)" if retired else ""))
+
+
 def _usd(value) -> str:
     return "--" if value is None else f"{float(value):.2f}"
 
@@ -633,6 +644,7 @@ def render(table: list[dict], files: list[dict], weak: list[dict], cfg: dict, *,
             if r["missing"]:
                 lines.append(f"- missing: {'; '.join(_flat(m) for m in r['missing'])}")
             lines += told_lines(r.get("told")) if r["kind"] == "problem" else []
+            lines.append(frames_chapters_line(r))
             if frames:
                 base = folder if Path(folder).is_absolute() else f"../{folder}"      # the table lives in quality/
                 lines.append("- frames: " + ", ".join(f"[{Path(x).name}]({base}/{x})" for x in frames))

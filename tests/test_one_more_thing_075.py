@@ -90,8 +90,9 @@ def _drawn(**over) -> dict:
     drawn = {"transcribed": [{"itemId": "i-1", "maxSeconds": None, "status": 200, "text": "hello"},
                              {"itemId": GATE, "maxSeconds": None, "status": 200, "text": leg.DRY_RUN_STORY}],
              "answered": [{"url": "/v2/projects/p/interviewer/answer", "heard": "yes"}],
-             "story": {"reached": True, "hold": {"status": ivs.HELD, "heard": leg.DRY_RUN_STORY},
-                       "statuses": [{"status": ivs.STORY}, {"status": ivs.HELD}], "sheet_text": leg.DRY_RUN_STORY}}
+             # spec 172 FR-2 (keel-web 274 FR-2): the story's close acknowledged, never held
+             "story": {"reached": True, "hold": {"status": ivs.LONG_GOT_IT, "ack": ivs.LONG_GOT_IT, "held": False, "heard": ""},
+                       "statuses": [{"status": ivs.STORY}, {"status": ivs.LONG_GOT_IT}], "sheet_text": leg.DRY_RUN_STORY}}
     drawn.update(over)
     return drawn
 
@@ -107,14 +108,16 @@ def test_the_dry_run_writes_the_story_down():
     ({"transcribed": [{"itemId": "i-1", "status": 200, "text": "hello"},
                       {"itemId": GATE, "status": 200, "text": ""}]}, "written down as"),
     ({"transcribed": [{"itemId": "i-1", "status": 200, "text": "hello"},
-                      {"itemId": GATE, "status": 200, "text": leg.DRY_RUN_STORY, "maxSeconds": 120}]}, "maxSeconds"),
+                      {"itemId": GATE, "status": 200, "text": leg.DRY_RUN_STORY, "maxSeconds": 30}]}, "maxSeconds"),
     ({"story": {"reached": False}}, "never reached"),
-    ({"story": {"reached": True, "hold": {"status": "Recording your answer."}, "statuses": []}}, "not held"),
-    ({"story": {"reached": True, "hold": {"status": ivs.HELD}, "statuses": [{"status": ivs.AI_REASON_NO_MATCH}]}},
+    ({"story": {"reached": True, "hold": {"status": "Recording your answer."}, "statuses": []}}, "not acknowledged"),
+    ({"story": {"reached": True, "hold": {"status": ivs.HELD, "ack": None, "held": True}, "statuses": []}},
+     "not acknowledged"),
+    ({"story": {"reached": True, "hold": {"status": ivs.LONG_GOT_IT, "ack": ivs.LONG_GOT_IT, "held": False, "heard": ""}, "statuses": [{"status": ivs.AI_REASON_NO_MATCH}]}},
      "a miss"),
-    ({"story": {"reached": True, "hold": {"status": ivs.HELD}, "statuses": [],
+    ({"story": {"reached": True, "hold": {"status": ivs.LONG_GOT_IT, "ack": ivs.LONG_GOT_IT, "held": False, "heard": ""}, "statuses": [],
                 "sheet_text": ivs.AI_REASON_DIDNT_CATCH}}, "a miss"),
-    ({"story": {"reached": True, "hold": {"status": ivs.HELD, "heard": "x not taken"}, "statuses": []}}, "a miss"),
+    ({"story": {"reached": True, "hold": dict({"status": ivs.LONG_GOT_IT, "ack": ivs.LONG_GOT_IT, "held": False, "heard": ""}, heard="x not taken"), "statuses": []}}, "a miss"),
 ])
 def test_the_dry_runs_story_faults_are_named(over, fault):
     faults = leg.dry_run_written_down(_drawn(**over), GATE, leg.DRY_RUN_STORY)

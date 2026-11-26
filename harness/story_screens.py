@@ -174,29 +174,76 @@ def tasks_correction(script: dict) -> tuple[str, list[str]] | None:
 
 # ------------------------------------------------------------------------------------ the long beats (keel-web 257)
 
-#: keel-web 257 FR-11 (`LONG_BEATS` in `storyLines.ts`): the beats that never close on quiet alone.
-LONG_BEATS = (3, 4, 7)
-#: keel-web 257 FR-11 (`DONE_WORDS`): the words that close a long beat when they are the answer's last words.
-DONE_WORDS = ("that's it", "that's all", "that is all", "I'm done", "done", "that is everything", "you can go on")
+#: Spec 172 FR-1 (keel-web 275 FR-3, T2: *every beat of both boards is a long beat*): no beat closes on the quiet -- the
+#: walk ends each by saying a done word as its last words. keel-web 257's three (`LONG_BEATS_257`) are history.
+LONG_BEATS = (1, 2, 3, 4, 5, 6, 7)
+LONG_BEATS_257 = (3, 4, 7)
+#: keel-web 257 FR-11 / 275 FR-3 / 274 FR-1 (`DONE_WORDS` of `handsFree.ts`): the words that close a beat when they are
+#: the answer's last words -- *nothing else* (275) and *that's all for me* (274) among them.
+DONE_WORDS = ("that's it", "that's all", "that is all", "I'm done", "done", "that is everything", "you can go on",
+              "nothing else", "that's all for me", "that is all for me")
 #: The done word the walk says (spec 161 FR-1: *that's it*).
 DONE_WORD = "That's it."
-#: keel-web 257 FR-11 (translate): the state line after `THINK_MS` of quiet on a long beat, and the line under the orb
-#: while a long beat listens.
-THINK_LINE = "Take your time."
-LONG_BEAT_SUB = 'Take your time. Say "that\'s it" when you are done.'
-#: keel-web 257 FR-11: quiet on a long beat dims the orb after 6 s (`THINK_MS`); *Anything else?* at 20 s.
-THINK_MS = 6_000
-ANYTHING_ELSE_MS = 20_000
-#: Spec 161 FR-1: the quiet between the two parts of beat 3 on one founder leg -- past `THINK_MS`, short of 20 s.
-TWO_PART_QUIET_S = 7.0
+#: Spec 172 FR-1 (keel-web 275 FR-3, `WAIT_MS` in place of 257's `THINK_MS`): eight seconds of quiet turn the orb amber
+#: (*Take your time*) and Keel says its one ask, once, aloud and as `beat-ask` -- never a second; quiet never closes.
+#: 257's `THINK_LINE` (*Take your time.* under the dimmed orb), `LONG_BEAT_SUB` (the small print under the orb),
+#: `THINK_MS` and the asks at 20 s and 60 s (`ANYTHING_ELSE_MS`) are gone.
+WAIT_MS = 8_000
+#: keel-web 275 FR-3 (`STORY.beats.ask`): the one ask line, said after the pause and once after the card.
+BEAT_ASK = 'Anything else? Say "that\'s it" when you are done.'
+BEAT_ASK_ID = "beat-ask"
+#: keel-web 275 FR-4 / FR-6 (`STORY.beats.gotIt`, `gotItNone`): a done word after the card, *none* on the setup beat.
+BEAT_GOT_IT = "Got it."
+BEAT_GOT_IT_NONE = "Got it. Nothing to set up."
+#: keel-web 275 FR-2: the folded question's toggle (`beat-question-fold`, *Show the question*), and the no-words line.
+BEAT_QUESTION_FOLD_ID = "beat-question-fold"
+SHOW_THE_QUESTION = "Show the question"
+BEAT_NO_WORDS_ID = "beat-no-words"
+BEAT_NO_WORDS = "I hear sound but no words. Move closer to the mic."
+#: Spec 172 FR-1 (keel-web 275 FR-1, `ORB_STATES` of `KeelOrb`): the orb's `data-state` on every founder screen -- and
+#: since keel-web 274 FR-4 on the respondent's player -- and the state words on a beat (`STORY.orb.state.beat`), each
+#: in its orb's colour; the three sublines a beat has.
+ORB_STATES = ("asking", "hearing", "waiting", "thinking", "paused")
+BEAT_STATE_WORDS = {"asking": "Keel is asking", "hearing": "Keel is hearing you", "waiting": "Take your time",
+                    "thinking": "Keel is thinking"}
+BEAT_SUBS = ("Your turn comes next.", "One moment.", "Reading it to you.")
+#: keel-web 275 FR-1: spec 272's six states map onto the four (speaking -> asking; listening and hearing -> hearing;
+#: writing -> thinking; dim -> waiting) -- an orb log of a page before 275 is read through it (`orb_state`).
+ORB_STATE_BEFORE_275 = {"speaking": "asking", "listening": "hearing", "hearing": "hearing", "writing": "thinking",
+                        "dim": "waiting", "deaf": "waiting"}
+
+
+def orb_state(state: str | None) -> str | None:
+    """Spec 172 FR-1: an orb's `data-state` in keel-web 275's four (and *paused*) -- 272's names mapped, 275's kept."""
+    return ORB_STATE_BEFORE_275.get(state, state) if state else state
+
+
+#: The words a beat that may be answered none takes alone (keel-web 275 FR-6, `saidNone`): the walk says them bare.
+NONE_ALONE = re.compile(r"(?i)^\s*(?:(?:so|ok|okay|well|um|uh|no)[\s,]+)*(?:none|nothing|no setup|no set-up|nothing to "
+                        r"set up|there is none|there's none)[\s.!]*$")
+
+
+def said_none(words: str | None) -> bool:
+    """keel-web 275 FR-6: the words are *none* alone (a beat that may be none closes on them, no ask, no done word)."""
+    return bool(NONE_ALONE.match(str(words or "")))
+
+
+#: Spec 161 FR-1 / spec 172 FR-1: the quiet between the two parts of beat 3 on one founder leg -- past `WAIT_MS` and the
+#: one ask's clip, so the ask is read (once) in the quiet before the second part.
+TWO_PART_QUIET_S = 12.0
 _DONE_TAIL = re.compile(r"(?i)[\s,.;:!-]*\b(?:" + "|".join(re.escape(w).replace("'", "['\u2019]")
                                                        for w in sorted(DONE_WORDS, key=len, reverse=True))
                         + r")[\s.!]*$")
 
 
 def with_done_word(words: str) -> str:
-    """A long beat's answer as the walk says it: the words, then the done word as their last words."""
-    return f"{str(words).rstrip()} {DONE_WORD}"
+    """A long beat's answer as the walk says it: the words, then the done word as their last words -- after a stop
+    (keel-web's `DONE_AT_END` hears a done word after a sentence's end or a comma: a stop is put where the words have
+    none, so the close is heard)."""
+    text = str(words).rstrip()
+    if text and text[-1] not in ".!?,;:":
+        text += "."
+    return f"{text} {DONE_WORD}".strip()
 
 
 def ends_on_a_done_word(text: str | None) -> bool:
@@ -291,8 +338,9 @@ def way_answer(script: dict) -> str:
 
 
 def two_part_beat_3(script: dict) -> tuple[str, str]:
-    """Spec 161 FR-1 (keel-web 257 FR-11): beat 3 said in two parts with seven seconds of quiet between them -- the way
-    and the first limitations, then the rest -- which the page joins into one answer, closed by the done word."""
+    """Spec 161 FR-1 (keel-web 257 FR-11; spec 172 FR-1, keel-web 275 FR-3): beat 3 said in two parts with
+    `TWO_PART_QUIET_S` of quiet between them (Keel's one ask in it) -- the way and the first limitations, then the
+    rest -- which the page joins into one answer, closed by the done word."""
     rows = limits_read(script)
     first = f"{way_sentence(script)} " + " ".join(f"{row}." for row in rows[:2])
     second = " ".join(f"{row}." for row in rows[2:]) or "And it happens again the next time."
@@ -428,7 +476,39 @@ SOLUTION_READY = "Ready? Let us first go through the problem."
 SOLUTION_TURN = "This is the problem. Now let us talk about the solution. How will your product solve it?"
 #: keel-web 245 `translate.ts` STORY: the begin screen, the boxes' and the stories' questions, the return line.
 BEGIN_TITLE = "Tap me to begin."
-BOXES_ASK = "Is that right?"
+#: keel-web 245's question under the boards, before keel-web 271 / 276 -- history (`BOXES_ASK_BEFORE_276`).
+BOXES_ASK_BEFORE_276 = "Is that right?"
+#: Spec 172 FR-3 (keel-web 276 FR-1, FR-2; `STORY.boxes`, `IDEA.boxes`): Keel's line once a visit after the readback,
+#: the table then waiting -- silence never finalizes, a bare yes never confirms (*When you are done, press ...*); the
+#: primary (`boxes-yes`) and its words; the line under the buttons; *{Box} is updated.* before the line after a fix.
+BOXES_LINE = {"story": "Take your time. When you are done, press Finalize the problem.",
+              "idea": "Take your time. When you are done, press Finalize the solution."}
+BOXES_PRESS = {"story": "When you are done, press Finalize the problem.",
+               "idea": "When you are done, press Finalize the solution."}
+FINALIZE = {"story": "Finalize the problem", "idea": "Finalize the solution"}
+FINALITY = {"story": "Once finalized, the problem cannot be changed. The film can still be fixed frame by frame.",
+            "idea": "Once finalized, the solution cannot be changed. The film can still be fixed frame by frame."}
+BOXES_YES_ID, BOXES_NO_ID = "boxes-yes", "boxes-no"
+#: Spec 172 FR-3: Keel's line read, the table is watched this long before **Finalize** is pressed -- a page that moved on
+#: by itself in it (or sent the confirm) is the fault `boxes-auto-advanced` (keel-web 276 FR-1: silence never moves it).
+AUTO_ADVANCE_S = 10.0
+#: keel-web 271 FR-2 / 276 FR-3 (`STORY.boxes.fix`): the sheet -- the box named opens it at that box; step two shows the
+#: box once, in the plate, and Keel says only *What do you want to change?* (no *It says: ...*, no numbered reading);
+#: the updated box shown back, *This is the updated one. Right?*; back on the table *{Box} is updated.* and the line.
+FIX_WHAT_TO_CHANGE = "What do you want to change?"
+FIX_UPDATED = "This is the updated one. Right?"
+FIX_IT_SAYS = "It says:"
+#: keel-web 271 FR-2 (`STORY.boxes.names`, `IDEA.boxes.names`): the boxes by name, as said to open the sheet at one.
+STORY_BOX_NAMES = {"who": "Who", "job": "The task", "when": "When", "today": "Today", "limits": "Where it falls short",
+                   "cost": "What it costs them", "otherTasks": "Also on their plate"}
+IDEA_BOX_NAMES = {"brand": "The brand", "workflow": "How it works", "setup": "What to set up",
+                  "statement": "What it does", "limitAnswers": "What it solves", "advantage": "The advantage",
+                  "joy": "What they get back"}
+
+
+def box_updated(name: str, kind: str = "story") -> str:
+    """keel-web 271 FR-3 / 276 FR-2: back on the table after a fix -- *{Box} is updated.* then Keel's line."""
+    return f"{name} is updated. {BOXES_LINE[kind]}"
 #: Spec 170 FR-3 (keel-web 269 FR-2, `STORY.drawing.filmAsk` / `filmAskIdea`): the film's one question at its end, with
 #: **Yes** (`film-yes`) and **No** (`film-no`) under the frame; the stub founder says *yes* aloud (`FILM_YES`) and never
 #: opens the sheet that fixes a frame (`film-fix`: the pictures are the judge's to read, not to fix). 245's question
@@ -439,7 +519,8 @@ FILM_YES = "yes"
 FILM_YES_ID = "film-yes"
 FILM_NO_ID = "film-no"
 FILM_FIX_ID = "film-fix"
-IDEA_BOXES_ASK = "Is that your idea?"
+#: keel-web 259's question under the idea's board, before 271 / 276 -- history.
+IDEA_BOXES_ASK_BEFORE_276 = "Is that your idea?"
 BACK_TO_SOLUTION = "That is the problem. Taking you back to your solution."
 
 
@@ -606,9 +687,15 @@ ORB_WATCH = r"""(() => {
     // spec 162 (keel-web 259 FR-4): the idea's board (`idea-board`) lights its rows the same way
     const board = document.querySelector('[data-testid=story-boxes]') || document.querySelector('[data-testid=idea-board]');
     const lineEl = document.querySelector('[data-testid=story-state] .vstage__state-line');
+    const askEl = document.querySelector('[data-testid=beat-ask]');
+    // spec 172 FR-1 (keel-web 275 FR-2): the founder's words are never written -- *What I hear* (`story-heard`) and a
+    // founder's line among Keel's (`story-words li[data-who=you]`) counted on every frame (`transcript`)
+    const transcript = document.querySelectorAll('[data-testid=story-heard], [data-testid=story-words] li[data-who=you]').length;
     const row = { state: orb ? orb.getAttribute('data-state') : null, voice: stage ? stage.getAttribute('data-voice') : null,
                   lit: board ? board.getAttribute('data-lit') : null, path: location.pathname,
                   line: lineEl ? (lineEl.textContent || '').replace(/\s+/g, ' ').trim() : null,
+                  ask: askEl ? (askEl.textContent || '').replace(/\s+/g, ' ').trim() : null,
+                  transcript,
                   chime: window.__keelChime || 0,
                   mic: !!(window.__listening && window.__listening()) };
     const key = JSON.stringify(row);
@@ -679,6 +766,15 @@ _SNAPSHOT = r"""() => {
     understood: card('[data-testid=story-understood]') || card('[data-testid=idea-understood]'),
     card: card('[data-testid=story-boxes]'),
     folded: t(q('[data-testid=story-folded]')),
+    // spec 172 FR-1 (keel-web 275 FR-2, FR-3): Keel's one line on a beat, the folded question and its toggle, the
+    // no-words line, and whether any of the founder's words are written (none are owed)
+    ask: t(q('[data-testid=beat-ask]')),
+    fold: t(q('[data-testid=beat-question-fold]')),
+    questionFolded: !!q('[data-testid=story-q][data-folded]'),
+    underWay: !!q('[data-testid=story-q][data-under-way]'),
+    noWords: t(q('[data-testid=beat-no-words]')),
+    transcript: all('[data-testid=story-heard], [data-testid=story-words] li[data-who=you]').length,
+    stateWord: (q('[data-testid=story-state]') || { getAttribute: () => null }).getAttribute('data-state'),
     said: t(q('[data-testid=story-check-said]')) || t(q('[data-testid=idea-boxes-said]')) || t(q('[data-testid=idea-story-said]')),
     board: t(q('[data-testid=story-boxes]')),
     drop: q('[data-testid=idea-drop]') ? true : false,
@@ -714,10 +810,12 @@ def hand_overs(log: list[dict]) -> list[dict]:
     out: list[dict] = []
     prev = None
     for row in log:
-        state = row.get("state")
+        state = orb_state(row.get("state"))
         if state is None:
             continue
-        if state == "listening" and prev == "speaking":
+        # spec 172 FR-1 (keel-web 275 FR-1): the orb turns *hearing* from *asking* -- 272's *speaking -> listening*
+        # read through the mapping (a page before 275 logs those names)
+        if state == "hearing" and prev == "asking":
             out.append(row)
         prev = state
     return out
@@ -748,9 +846,12 @@ def chime_verdict(log: list[dict]) -> dict:
                 stray.append({k: r.get(k) for k in ("state", "line", "path", "chime")})
         before = c
     lines = [{"path": o.get("path"), "line": o.get("line")} for o in overs]
-    said_turn = all(str(o.get("line") or "").startswith("Your turn.") for o in overs)
+    # spec 172 FR-1 (keel-web 275 FR-1): on a beat the hand-over's line is *Keel is hearing you*; the readback screens
+    # keep 249's *Your turn.*
+    said_turn = all(str(o.get("line") or "").startswith("Your turn.")
+                    or str(o.get("line") or "").startswith(BEAT_STATE_WORDS["hearing"]) for o in overs)
     deaf_listens = [{k: r.get(k) for k in ("state", "path", "line")} for r in rows
-                    if r.get("state") == "listening" and not r.get("mic")]
+                    if orb_state(r.get("state")) == "hearing" and not r.get("mic")]
     return {"hand_overs": len(overs), "chimes": end - start, "got": got, "want": want,
             "one_each": got == want and end - start == len(overs) and not stray, "stray": stray[:6],
             "your_turn": said_turn, "lines": lines, "listening_without_mic": deaf_listens[:6],
@@ -791,11 +892,82 @@ def heard_verdict(heard: list[dict], said: dict[int, str], path_of) -> dict:
             "words_keels_only": not founder_in_words, "unquoted": unquoted[:4], "quoted": not unquoted}
 
 
+def no_transcript(orb_rows: list[dict], heard_rows: list[dict] | None = None, path_end: str | None = None) -> dict:
+    """Spec 172 FR-1, the mark `beat-no-transcript` (keel-web 275 FR-2: *nothing the founder says is shown*): on the
+    beat's screens (`path_end`) no frame drew *What I hear* (`story-heard`) or a founder's line among Keel's
+    (`story-words li[data-who=you]`) -- `ORB_WATCH`'s `transcript` count on every frame, and `__heardLog`'s rows. `ok`
+    and the frames that drew one."""
+    def on(rows):
+        return [r for r in rows or [] if path_end is None
+                or str(r.get("path") or "").rstrip("/").endswith(path_end)]
+    drew = [{"path": r.get("path"), "transcript": r.get("transcript")} for r in on(orb_rows) if r.get("transcript")]
+    said = [{"path": r.get("path"), "said": [li.get("text") for li in r.get("said") or []][:2]}
+            for r in on(heard_rows) if r.get("said") or any(li.get("who") != "keel" for li in r.get("keel") or [])]
+    return {"ok": not drew and not said, "drew": drew[:4], "said": said[:4]}
+
+
+def asks_seen(rows: list[dict], *, words: str | None = BEAT_ASK, key: str = "ask") -> int:
+    """Spec 172 FR-1 / FR-2: how many times Keel's one ask line newly stood in a log (`ORB_WATCH`'s `ask`, or the
+    player's `ORB_INTERVIEW_WATCH` row) -- each frame where it appears after a frame without it (`words` None: any line)."""
+    n, before = 0, False
+    for r in rows or []:
+        now = str(r.get(key) or "")
+        here = bool(now) and (words is None or now == words)
+        if here and not before:
+            n += 1
+        before = here
+    return n
+
+
+def _two_parts(walk, n: int, parts: tuple[str, str], writes: str, here: str) -> dict:
+    """Spec 172 FR-1 (keel-web 275 FR-3): one beat said in two parts on `walk` (a `Conversation`) -- the first part;
+    `TWO_PART_QUIET_S` of quiet in which nothing is sent and the beat stays open, the orb turning amber (*waiting*) and
+    Keel's one ask (`beat-ask`, *Anything else? Say "that's it" when you are done.*) standing once; then the second part
+    and the done word, sent as one answer. What the quiet drew: `asks` (how many times the ask newly stood), `waited`
+    (the orb amber), the state lines, the second part's write and whether the two parts were joined."""
+    before = len(walk.writes_to(writes))
+    mark = len(walk.orb_log())
+    walk.voice.say(parts[0])
+    deadline = time.monotonic() + TWO_PART_QUIET_S
+    lines: list[str] = []
+    while time.monotonic() < deadline:
+        line = _tc(walk.page.locator("[data-testid=story-state] .vstage__state-line"))
+        if line and line not in lines:
+            lines.append(line)
+        walk.page.wait_for_timeout(250)
+    rows = walk.orb_log()[mark:]
+    quiet = {"sent_in_the_quiet": len(walk.writes_to(writes)) - before,
+             "still_on_the_beat": bool(re.search(here, walk.page.url)), "state_lines": lines,
+             "asks": asks_seen(rows), "waited": "waiting" in plain_sequence([r.get("state") for r in rows]),
+             "take_your_time": any(line.startswith(BEAT_STATE_WORDS["waiting"]) for line in lines),
+             "listening": walk.voice.listening()}
+    put = walk.put_after(writes, lambda: walk.voice.say(with_done_word(parts[1])))
+    quiet["sent"] = (put.get("sent") or {}).get("text")
+    quiet["joined"] = all(_bare_words(p) in _bare_words(quiet["sent"]) for p in parts)
+    return quiet
+
+
 def writing_then_speaking(seq: list[str]) -> bool:
     """Spec 158c FR-7 (keel-web 249's judgement call 2): after Keel has written the founder's words down, Keel speaks
     next -- `writing -> speaking`, never `writing -> listening -> speaking` (`listening` now means the microphone is
-    open). Holds where every `writing` in `seq` is followed by `speaking` or ends it."""
-    return all(seq[i + 1] == "speaking" for i, s in enumerate(seq[:-1]) if s == "writing")
+    open). Holds where every `writing` in `seq` is followed by `speaking` or ends it. Spec 172 FR-1 (keel-web 275 FR-4):
+    the same rule in the four states -- *thinking* then *asking* (the card's rows read) -- 272's names mapped."""
+    plain = plain_sequence(seq)
+    return all(plain[i + 1] == "asking" for i, s in enumerate(plain[:-1]) if s == "thinking")
+
+
+#: Spec 172 FR-1 alias: the rule's name in keel-web 275's states.
+thinking_then_asking = writing_then_speaking
+
+
+def plain_sequence(seq: list[str | None]) -> list[str]:
+    """Spec 172 FR-1: a sequence of orb states in keel-web 275's four (272's mapped, `orb_state`), repeats folded."""
+    out: list[str] = []
+    for state in seq:
+        s = orb_state(state)
+        if s and (not out or out[-1] != s):
+            out.append(s)
+    return out
 
 
 def orb_sequence(log: list[dict], path: str | None = None) -> list[str]:
@@ -821,8 +993,18 @@ def holds_in_order(seen: list[str], want: list[str]) -> bool:
 
 #: Spec 158 FR-2: a beat's orb, from Keel's question to Keel's next line. Spec 158c FR-7 (keel-web 249): the same five,
 #: with `listening` only where the microphone opened -- between beats the orb goes `writing -> speaking`
-#: (`writing_then_speaking`), never through `listening`.
-BEAT_ORB = ["speaking", "listening", "hearing", "writing", "speaking"]
+#: (`writing_then_speaking`), never through `listening`. (`BEAT_ORB_249`, history.)
+BEAT_ORB_249 = ["speaking", "listening", "hearing", "writing", "speaking"]
+#: Spec 172 FR-1 (keel-web 275 FR-1, FR-4): a beat's orb in the four states -- *asking* (the question), *hearing* (the
+#: founder), *thinking* (the cloud reads), *asking* (the card's rows read, then the ask line), *hearing* (the done word
+#: listened for). Held on `plain_sequence` (272's names mapped).
+BEAT_ORB = ["asking", "hearing", "thinking", "asking", "hearing"]
+
+
+def beat_orb_holds(seq: list[str] | None) -> bool:
+    """Spec 172 FR-1: a beat's orb sequence holds `BEAT_ORB` in order and *thinking* is followed by *asking*."""
+    plain = plain_sequence(list(seq or []))
+    return holds_in_order(plain, BEAT_ORB) and writing_then_speaking(plain)
 
 
 class FounderVoice:
@@ -1120,6 +1302,152 @@ class Conversation:
             self.page.wait_for_timeout(100)
         return {"straight_on": False, "spoke": False, "orb": seq, "timeout": True}
 
+    # ------------------------------------------------------------------------------------------- spec 172 FR-3: finalize
+    def finalize_boxes(self, kind: str, *, correction: str | None = None, box: str | None = None,
+                       hold_s: float = AUTO_ADVANCE_S, timeout_s: float = 90) -> dict:
+        """Spec 172 FR-3 (keel-web 276 FR-1 to FR-3) on the problem's table (`kind` story) or the solution's (idea): Keel's
+        line read once (`BOXES_LINE`, on `story-check-said` / `idea-boxes-said`) under the two buttons, then the table
+        watched `hold_s` -- silence never finalizes: a page that moved on by itself, or sent the confirm, is
+        `auto_advanced` (the fault `boxes-auto-advanced`, nothing then pressed) -- and where a fix is owed the sheet
+        walked (`fix_one_box`: the box named, step two's one line, the words, the box shown back, *yes*); then
+        **Finalize the problem** / **Finalize the solution** (`boxes-yes`) pressed and the confirm read off the wire."""
+        said_id = "story-check-said" if kind == "story" else "idea-boxes-said"
+        confirm = "/story/confirm" if kind == "story" else "/idea/confirm"
+        check = re.compile(rf"/define/{kind}/check")
+        line = BOXES_LINE[kind]
+        try:
+            self.page.wait_for_function(
+                "([id, w]) => { const el = document.querySelector(`[data-testid=${id}]`); "
+                "return !!el && el.textContent.replace(/\\s+/g, ' ').trim() === w; }", arg=[said_id, line],
+                timeout=timeout_s * 1000 * self.patience)
+        except Exception:  # noqa: BLE001 - recorded, judged by the leg
+            pass
+        seen: dict = {"line": _tc(self.page.get_by_test_id(said_id)), "said_id": said_id,
+                      "finalize": _tc(self.page.get_by_test_id(BOXES_YES_ID)),
+                      "change": _tc(self.page.get_by_test_id(BOXES_NO_ID)),
+                      "finality": _tc(self.page.get_by_test_id("boxes-finality"))}
+        mark = len(self.orb_log())
+        confirms = len(self.writes_to(rf"{confirm}$"))
+        said: list[str] = []
+        moved = False
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < hold_s:
+            if not check.search(self.page.url) or len(self.writes_to(rf"{confirm}$")) > confirms:
+                moved = True
+                break
+            now = _tc(self.page.get_by_test_id(said_id))
+            if now and (not said or said[-1] != now):
+                said.append(now)
+            self.page.wait_for_timeout(250)
+        held = self.orb_log()[mark:]
+        plain = plain_sequence([r.get("state") for r in held])
+        seen.update(auto_advanced=moved, held_s=round(time.monotonic() - t0, 1), said=said,
+                    orb=plain, line_once=said in ([], [line]) and "asking" not in plain[1:])
+        if moved:
+            seen["landed"] = self.page.url
+            return seen
+        if correction:
+            seen["sheet"] = self.fix_one_box(kind, box or "", correction)
+        with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0]
+                                       .endswith(confirm), timeout=150_000) as got:
+            self.page.get_by_test_id(BOXES_YES_ID).first.click()
+        seen["pressed"] = FINALIZE[kind]
+        seen["confirm"] = {"status": got.value.status, "body": _json(got.value)}
+        return seen
+
+    def fix_one_box(self, kind: str, name: str, words: str, *, timeout_s: float = 60) -> dict:
+        """Spec 172 FR-3 (keel-web 271 FR-2, FR-3; 276 FR-3): one box fixed through the sheet -- its name said on the table
+        (the sheet opens at that box, `boxes-fix[data-step=box]`), step two read (Keel's one line, `boxes-fix-said`, only
+        *What do you want to change?*; no *It says:*), the words said (`story/correct` / `idea/correct` with the `box`),
+        the box shown back (*This is the updated one. Right?*) answered *yes*, and the table's line after it (*{Box} is
+        updated.* and Keel's line)."""
+        correct = "/story/correct" if kind == "story" else "/idea/correct"
+        said_id = "story-check-said" if kind == "story" else "idea-boxes-said"
+        sheet = self.page.get_by_test_id("boxes-fix")
+        out: dict = {"name": name}
+        self.voice.say(name)
+        try:
+            self.page.locator("[data-testid=boxes-fix][data-step=box] [data-testid=boxes-fix-said]").first.wait_for(
+                state="visible", timeout=timeout_s * 1000 * self.patience)
+        except Exception:  # noqa: BLE001 - recorded
+            out["unopened"] = True
+            return out
+        text = " ".join(((sheet.first.text_content() or "") if sheet.count() else "").split())
+        out["step_two"] = {"said": _tc(self.page.get_by_test_id("boxes-fix-said")),
+                           "box": _tc(self.page.get_by_test_id("boxes-fix-box")),
+                           "it_says": FIX_IT_SAYS in text,
+                           "only_what_to_change": _tc(self.page.get_by_test_id("boxes-fix-said")) == FIX_WHAT_TO_CHANGE
+                           and FIX_IT_SAYS not in text}
+        fixed = self.put_after(rf"{correct}$", lambda: self.voice.say(words))
+        out["correct"] = {"status": fixed["status"], "sent": fixed["sent"], "body": fixed["body"]}
+        try:
+            self.page.locator("[data-testid=boxes-fix][data-step=back]").first.wait_for(
+                state="visible", timeout=timeout_s * 1000 * self.patience)
+            out["back"] = _tc(self.page.get_by_test_id("boxes-fix-said"))
+            self.voice.say("yes")
+            sheet.first.wait_for(state="detached", timeout=timeout_s * 1000 * self.patience)
+        except Exception as e:  # noqa: BLE001 - recorded
+            out["stuck"] = f"{type(e).__name__}: {str(e)[:160]}"
+        try:
+            self.page.wait_for_function(
+                "([id, w]) => { const el = document.querySelector(`[data-testid=${id}]`); "
+                "return !!el && el.textContent.replace(/\\s+/g, ' ').trim().endsWith(w); }",
+                arg=[said_id, BOXES_LINE[kind]], timeout=30_000 * self.patience)
+        except Exception:  # noqa: BLE001 - recorded
+            pass
+        out["table"] = _tc(self.page.get_by_test_id(said_id))
+        return out
+
+    # ------------------------------------------------------------------------------------------- spec 172 FR-1: the card
+    def card_then_ask(self, n: int, mark: int, *, flow: str = "story", timeout_s: float = 90) -> dict:
+        """Spec 172 FR-1 (keel-web 275 FR-4): after an answer is sent -- the orb thinking while the cloud reads -- the
+        card *What Keel understood* (`story-understood` / `idea-understood`) with the rows only, its rows read aloud,
+        then Keel's one line (`beat-ask`: the ask, or the cloud's own ask) and the microphone open again. Waited for
+        until the line stands, the recorder runs and the orb hears (or waits); the cloud's ask on an empty card (it asks
+        first) stands for the card. Returns the screen then (`screen`, its `card`), the line (`ask`) and the orb since
+        `mark`. A page that left the beat by itself (a keel-web before 275 goes straight on) is `straight_on`."""
+        here = re.compile(rf"/define/{flow}/{n}/?$")
+        deadline = time.monotonic() + timeout_s * self.patience
+        snap: dict = {}
+        while time.monotonic() < deadline:
+            url = self.page.url
+            if not here.search(url):
+                return {"straight_on": True, "next": url.rstrip("/").split("/")[-1].split("?")[0],
+                        "orb": orb_sequence(self.orb_log()[mark:])}
+            snap = self.snapshot()
+            card = snap.get("understood") or {}
+            ask = snap.get("ask")
+            if ask and (card.get("rows") or ask != BEAT_ASK) and self.voice.listening() \
+                    and orb_state(snap.get("orb")) in ("hearing", "waiting"):
+                return {"straight_on": False, "card": card, "ask": ask, "screen": snap,
+                        "orb": orb_sequence(self.orb_log()[mark:])}
+            self.page.wait_for_timeout(150)
+        return {"straight_on": False, "timeout": True, "card": snap.get("understood"), "ask": snap.get("ask"),
+                "screen": snap, "orb": orb_sequence(self.orb_log()[mark:])}
+
+    def close_by_done_word(self, n: int, *, flow: str = "story", timeout_s: float = 60) -> dict:
+        """Spec 172 FR-1 (keel-web 275 FR-4): a done word alone after the card ends the beat -- the walk says *That's it.*
+        and expects the next question (or the boxes): Keel's *Got it.* on the way, never the beat's question again (the
+        defect of 2026-11-25: a done word alone after the card re-asked the whole question). Returns what was said, where
+        the page went (`next`), whether *Got it.* stood, and `stayed` where the page never left the beat."""
+        here = re.compile(rf"/define/{flow}/{n}/?$")
+        mark = len(self.orb_log())
+        self.voice.say(DONE_WORD)
+        deadline = time.monotonic() + timeout_s * self.patience
+        while time.monotonic() < deadline and here.search(self.page.url):
+            self.page.wait_for_timeout(150)
+        rows = self.orb_log()[mark:]
+        on_beat = [r for r in rows if here.search(str(r.get("path") or ""))]
+        out = {"said": DONE_WORD, "by": "the done word after the card", "stayed": bool(here.search(self.page.url)),
+               "next": self.page.url.rstrip("/").split("/")[-1].split("?")[0],
+               "got_it": any(str(r.get("ask") or "").startswith(BEAT_GOT_IT) for r in on_beat)}
+        closes = [w for w in self.writes_to(rf"/{'story' if flow == 'story' else 'idea'}/turns/{n}$")
+                  if (w["sent"] or {}).get("done")]
+        if closes:
+            out.update(status=closes[-1]["status"], sent=closes[-1]["sent"],
+                       next_wire=(closes[-1]["body"] or {}).get("next"))
+        return out
+
     def wake(self) -> dict:
         return wake(self.page)
 
@@ -1166,61 +1494,51 @@ class StoryWalk(Conversation):
     # ------------------------------------------------------------------------------------------- one beat
     def beat(self, n: int, words: str, *, correction: str | None = None, two_part: tuple[str, str] | None = None,
              ask_answer: str | None = None) -> dict:
-        """One beat as the founder answers it: Keel's question, the words said once, Keel's readback, then the quiet --
-        or, after the readback, `correction` said (sent as the beat again with `correction: true`) and its readback,
-        then the quiet. Beat 3's quiet closes the list (`done: true`). Returns what the screen drew and the wire.
-
-        Spec 161 FR-1 (keel-web 257 FR-11): a long beat (3, 4, 7) is said with the done word as its last words
-        (`with_done_word`) and never waits on the quiet to close; `two_part` (beat 3 on one leg) says the first part,
-        lets `TWO_PART_QUIET_S` of quiet pass -- reading that nothing was sent and the state line says *Take your
-        time.* -- then the second part and the done word; `ask_answer` is said after code's one ask on beat 3 (*And how
-        do they do it today?*, keel-cloud 268 FR-1)."""
-        long = n in LONG_BEATS
+        """One beat as the founder answers it (spec 172 FR-1, keel-web 275): Keel's question, the words said once with the
+        done word as their last words (every beat is a long beat: quiet never closes), the orb thinking while the cloud
+        reads, the card *What Keel understood* read aloud row by row, Keel's one line (`beat-ask`), then *That's it.*
+        alone ends the beat and the next question comes (`close_by_done_word`). `two_part` (beat 3 on one leg) says the
+        first part, lets `TWO_PART_QUIET_S` of quiet pass -- nothing sent, Keel's one ask read once (`asks`), the orb
+        amber -- then the second part and the done word; `ask_answer` is said after code's one ask on beat 3 (*And how
+        do they do it today?*, keel-cloud 268 FR-1), as the line after the card; `correction` is said after the card
+        (more words: read again, the card updated) before the done word. Beat 7 answered *none* alone closes at once
+        (keel-web 275 FR-6: no ask, no done word). Returns what the screen drew and the wire; `transcript` holds the mark
+        `beat-no-transcript` (nothing the founder said was written)."""
         with self._b.step(f"beat {n}: {STORY_QUESTIONS.get(n)}") as h:
             self._wait_beat(n)
             # the beat's log starts where its screen came (Keel is already asking by the time the walk reads it)
             log = self.orb_log()
             path = f"/define/story/{n}"
             mark = next((i for i, row in enumerate(log) if str(row.get("path") or "").endswith(path)), len(log))
-            seen: dict = {"turn": n, "asked": self.snapshot(), "long": long}
+            seen: dict = {"turn": n, "asked": self.snapshot(), "long": n in LONG_BEATS}
+            none = n == OTHER_TASKS_BEAT and said_none(words) and not two_part
             if two_part:
                 seen["two_part"] = self.two_parts(n, two_part)
                 put = self.writes_to(rf"/story/turns/{n}$")[-1] if self.writes_to(rf"/story/turns/{n}$") else {}
                 if not put:
                     raise AssertionError(f"beat {n}: the two parts were never sent ({seen['two_part']})")
             else:
-                said = with_done_word(words) if long else words
+                said = words if none else with_done_word(words)
                 put = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(said))
             seen["put"] = {"status": put["status"], "sent": put["sent"], "body": put["body"]}
             if (put.get("status") or 500) >= 400:
                 raise AssertionError(f"beat {n} refused {put.get('status')}: {put.get('body')}")
-            asked = (put.get("body") or {}).get("ask")
-            if asked and ask_answer:
-                # keel-cloud 268 FR-1: the way's one ask -- said by Keel, the microphone open again on the same beat
-                seen["ask"] = asked
-                said = with_done_word(ask_answer) if long else ask_answer
-                again = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(said))
-                seen["way"] = {"status": again["status"], "sent": again["sent"], "body": again["body"]}
-                put = again
-            seen["quiet"] = self.after_answer(n, mark)
-            seen["straight_on"] = bool(seen["quiet"].get("straight_on"))
+            if none:
+                # keel-web 275 FR-6: *none* alone -- the card's one row, *Got it.*, the next question; nothing more said
+                self.wait_path(rf"/define/story/(?!{n}$)(\d|check)$")
+                seen.update(none=True, straight_on=False, closed={"by": "none", "next": self.page.url.rstrip("/")
+                                                                  .split("/")[-1]})
+                return self._beat_end(h, seen, n, words, mark, path)
+            card = self.card_then_ask(n, mark)
+            seen["card"] = {k: card.get(k) for k in ("ask", "straight_on", "timeout", "orb")}
+            seen["straight_on"] = bool(card.get("straight_on"))
             if seen["straight_on"]:
-                # keel-web 245 FR-4 (2026-11-22): no readback -- the page went on by itself; nothing to let pass. A
-                # correction owed here is said on the boxes instead (FR-6: *Is that right?*, `story/correct`).
+                # a keel-web before 275: the page went on by itself after the answer -- recorded (a capture note), the
+                # correction owed said on the boxes' sheet instead
                 seen["readback"] = {"straight_on": True, "buttons": []}
                 if correction:
                     seen["correction_deferred"] = correction
-                closes = [w for w in self.writes_to(rf"/story/turns/{n}$") if (w["sent"] or {}).get("done")]
-                if closes:
-                    seen["closed"] = {"status": closes[-1]["status"], "sent": closes[-1]["sent"],
-                                      "next": (closes[-1]["body"] or {}).get("next"), "by": "the done word"}
-                seen["next"] = self.page.url.rstrip("/").split("/")[-1]
-                seen["orb"] = orb_sequence(self.orb_log()[mark:])
-                h.add_screenshot(self._b.screenshot(f"story-beat-{n}-next"))
-                h.record_wire({"beat": n, "said": words[:300] + ("..." if len(words) > 300 else "")},
-                              {k: seen[k] for k in ("put", "next", "orb", "straight_on") if k in seen})
-                self.beats_seen.append(seen)
-                return seen
+                return self._beat_end(h, seen, n, words, mark, path)
             if n == 3:
                 want = len(((put["body"] or {}).get("story") or {}).get("limits") or [])
                 try:
@@ -1228,60 +1546,49 @@ class StoryWalk(Conversation):
                                                 ".length >= n", arg=want, timeout=10_000)
                 except Exception:  # noqa: BLE001 - recorded, judged by the leg
                     pass
-            seen["readback"] = self.snapshot()
+            seen["readback"] = card.get("screen") or self.snapshot()
             h.add_screenshot(self._b.screenshot(f"story-beat-{n}"))
+            asked = (put.get("body") or {}).get("ask")
+            if asked and ask_answer:
+                # keel-cloud 268 FR-1: the way's one ask -- Keel's line after the card, the microphone open again
+                seen["ask"] = asked
+                mark2 = len(self.orb_log())
+                again = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(with_done_word(ask_answer)))
+                seen["way"] = {"status": again["status"], "sent": again["sent"], "body": again["body"]}
+                put = again
+                seen["way"]["card"] = {k: v for k, v in self.card_then_ask(n, mark2).items() if k != "screen"}
             if correction:
                 mark2 = len(self.orb_log())
-                fixed = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(correction))
+                fixed = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(with_done_word(correction)))
+                after = self.card_then_ask(n, mark2)
                 seen["correction"] = {"status": fixed["status"], "sent": fixed["sent"], "body": fixed["body"],
-                                      "quiet": self.await_quiet(mark2)}
-                seen["corrected"] = self.snapshot()
+                                      "ask": after.get("ask"), "where": "after the card"}
+                seen["corrected"] = after.get("screen") or self.snapshot()
                 h.add_screenshot(self._b.screenshot(f"story-beat-{n}-corrected"))
-            if n == 3:
-                closes = [w for w in self.writes_to(r"/story/turns/3$") if (w["sent"] or {}).get("done")]
-                if closes:
-                    closed, by = closes[-1], "the done word"
-                else:
-                    # a page before keel-web 257: the quiet after *Anything else?* closes the list
-                    closed, by = self.put_after(r"/story/turns/3$", self.silence), "the quiet"
-                seen["closed"] = {"status": closed["status"], "sent": closed["sent"],
-                                  "next": (closed["body"] or {}).get("next"), "by": by}
-            elif not long:
-                self.silence()
+            seen["closed"] = self.close_by_done_word(n)
+            if seen["closed"]["stayed"]:
+                raise AssertionError(f"beat {n}: the done word after the card did not end the beat ({seen['closed']})")
+            return self._beat_end(h, seen, n, words, mark, path)
+
+    def _beat_end(self, h, seen: dict, n: int, words: str, mark: int, path: str) -> dict:
+        """The beat's record closed: where the page went, the orb since the beat came, the mark `beat-no-transcript`."""
+        if not seen.get("straight_on") and not seen.get("none"):
             self.wait_path(rf"/define/story/(?!{n}$)(\d|check)$")
-            seen["next"] = self.page.url.rstrip("/").split("/")[-1]
-            seen["orb"] = orb_sequence(self.orb_log()[mark:])
-            h.record_wire({"beat": n, "said": words[:300] + ("..." if len(words) > 300 else "")},
-                          {k: seen[k] for k in ("put", "next", "orb") if k in seen})
-            self.beats_seen.append(seen)
-            return seen
+        seen["next"] = self.page.url.rstrip("/").split("/")[-1]
+        rows = self.orb_log()[mark:]
+        seen["orb"] = orb_sequence(rows)
+        seen["transcript"] = no_transcript(rows, self.since("__heardLog"), path)
+        h.add_screenshot(self._b.screenshot(f"story-beat-{n}-next"))
+        h.record_wire({"beat": n, "said": words[:300] + ("..." if len(words) > 300 else "")},
+                      {k: seen[k] for k in ("put", "next", "orb", "straight_on", "closed") if k in seen})
+        self.beats_seen.append(seen)
+        return seen
 
     def two_parts(self, n: int, parts: tuple[str, str]) -> dict:
-        """Spec 161 FR-1 (keel-web 257 FR-11): a long beat said in two parts -- the first, then `TWO_PART_QUIET_S` of
-        quiet (nothing sent, the beat still open, the state line *Take your time.* once `THINK_MS` passed), then the
-        second and the done word; the page sends the two as one answer."""
-        before = len(self.writes_to(rf"/story/turns/{n}$"))
-        self.voice.say(parts[0])
-        deadline = time.monotonic() + TWO_PART_QUIET_S
-        lines: list[str] = []
-        think = False
-        while time.monotonic() < deadline:
-            line = _tc(self.page.locator("[data-testid=story-state]"))
-            if line and line not in lines:
-                lines.append(line)
-            # keel-web 257 (its tasks.md's eval mirrors): after 6 s of quiet the orb dims (`story-orb[data-think]`) and
-            # the state line says *Take your time.*
-            think = think or self.page.locator(f"{ORB}[data-think]").count() > 0
-            self.page.wait_for_timeout(250)
-        quiet = {"sent_in_the_quiet": len(self.writes_to(rf"/story/turns/{n}$")) - before,
-                 "still_on_the_beat": bool(re.search(rf"/define/story/{n}/?$", self.page.url)),
-                 "state_lines": lines, "orb_thinks": think,
-                 "think_line": think and any(THINK_LINE in line for line in lines),
-                 "listening": self.voice.listening()}
-        put = self.put_after(rf"/story/turns/{n}$", lambda: self.voice.say(with_done_word(parts[1])))
-        quiet["sent"] = (put.get("sent") or {}).get("text")
-        quiet["joined"] = all(_bare_words(p) in _bare_words(quiet["sent"]) for p in parts)
-        return quiet
+        """Spec 161 FR-1 / spec 172 FR-1 (keel-web 275 FR-3): a long beat said in two parts -- the first, then
+        `TWO_PART_QUIET_S` of quiet (nothing sent, the beat still open; after `WAIT_MS` the orb amber and Keel's one ask
+        said once, `beat-ask`), then the second and the done word; the page sends the two as one answer."""
+        return _two_parts(self, n, parts, rf"/story/turns/{n}$", rf"/define/story/{n}/?$")
 
     def tell(self, beats: list[tuple[int, str]], *, long3: str | None = None,
              correction: str | None = None, two_part: tuple[str, str] | None = None,
@@ -1307,41 +1614,31 @@ class StoryWalk(Conversation):
 
 
     # ------------------------------------------------------------------------------------------- after the beats
-    def boxes(self, correction: str | None = None) -> dict:
-        """The boxes (`define/story/check`, no yes yet): the board centre stage, Keel narrating it box by box, *Is that
-        right?*, then -- where a correction is owed (`correction`, or one a beat deferred) -- the words said and
-        `story/correct` answered, then the quiet confirms (`story/confirm`)."""
-        with self._b.step("the boxes: the board narrated, Is that right?, the quiet confirms") as h:
-            mark = len(self.orb_log())
+    def boxes(self, correction: str | None = None, *, box: str = STORY_BOX_NAMES["otherTasks"]) -> dict:
+        """The boxes (`define/story/check`, no finalize yet): the board centre stage, Keel narrating it box by box, then
+        Spec 172 FR-3 (keel-web 276): Keel's line once (*Take your time. When you are done, press Finalize the
+        problem.*), the table watched -- never moved by the quiet -- and, where a correction is owed (`correction`, or
+        one a beat deferred), the sheet walked at `box` (its name said; step two's one line); then **Finalize the
+        problem** (`boxes-yes`) pressed: `story/confirm`."""
+        with self._b.step("the boxes: the board narrated, Keel's line, the table waits, Finalize the problem pressed") as h:
             self.page.get_by_test_id("story-boxes-screen").first.wait_for(state="visible", timeout=60_000)
-            try:
-                self.page.wait_for_function(
-                    "(w) => { const el = document.querySelector('[data-testid=story-check-said]'); "
-                    "return !!el && el.textContent.trim() === w; }", arg=BOXES_ASK, timeout=90_000)
-            except Exception:  # noqa: BLE001 - recorded, judged by the leg
-                pass
-            seen = {"screen": self.snapshot()}
-            h.add_screenshot(self._b.screenshot("story-boxes"))
             correction = correction if correction is not None else self.deferred_correction
-            if correction:
-                # keel-web 245 FR-6: any words after *Is that right?* are a correction (`story/correct`: the changed
-                # box lit, the readback said), then *Is that right?* again
-                mark2 = len(self.orb_log())
-                fixed = self.put_after(r"/story/correct$", lambda: self.voice.say(correction))
-                seen["correction"] = {"status": fixed["status"], "sent": fixed["sent"], "body": fixed["body"],
-                                      "quiet": self.await_quiet(mark2), "where": "the boxes"}
-                seen["corrected"] = self.snapshot()
-                h.add_screenshot(self._b.screenshot("story-boxes-corrected"))
-            with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0]
-                                           .endswith("/story/confirm"), timeout=150_000) as got:
-                self.silence()
-            seen["confirm"] = {"status": got.value.status, "body": _json(got.value)}
+            seen: dict = {}
+            review = self.finalize_boxes("story", correction=correction, box=box)
+            seen["screen"] = self.snapshot()
+            seen.update(review=review, confirm=review.get("confirm"), auto_advanced=review["auto_advanced"])
+            if correction and review.get("sheet"):
+                seen["correction"] = {**(review["sheet"].get("correct") or {}), "where": "the sheet",
+                                      "box": box, "step_two": review["sheet"].get("step_two")}
+            h.add_screenshot(self._b.screenshot("story-boxes"))
             # the card's narration lights its rows from the moment the boxes' screen draws -- which can be before this
             # step starts (a beat that goes straight on lands on the boxes while the walk still reads the beat), so the
             # rows lit are read off every row the page logged on the boxes' path since the conversation began
             seen["lit"] = [row.get("lit") for row in self.since()
                            if row.get("lit") and str(row.get("path") or "").rstrip("/").endswith("/define/story/check")]
-            h.record_wire({"POST": "story/confirm (the quiet)"}, {"status": got.value.status, "lit": seen["lit"]})
+            h.record_wire({"POST": "story/confirm (Finalize the problem pressed)"},
+                          {"status": (review.get("confirm") or {}).get("status"), "lit": seen["lit"],
+                           "auto_advanced": review["auto_advanced"]})
             return seen
 
     def building_then_story(self, *, timeout_s: float = 120) -> dict:
@@ -1737,11 +2034,51 @@ SOLUTION_VERDICT_LINE = ("I will call this real if at least six in ten say it fi
                          "better, and six in ten say they could start without trouble.")
 #: keel-cloud 271 FR-9: the film's first line.
 FILM_OPENING = "This time, {name} is on the screen."
-#: keel-cloud 271 FR-9 (`IdeaScene.chapter`) and keel-web 261 (`STORY.chapters`): the five chapters, in order, and
-#: their band's words.
-IDEA_CHAPTERS = ("before", "task", "solves", "better", "joy")
-CHAPTER_WORDS = {"before": "Before", "task": "The task", "solves": "What it solves", "better": "Better",
-                 "joy": "What they get"}
+#: Spec 172 FR-4 (keel-cloud 283 FR-1, FR-5, contract 96: `IdeaScene.chapter` before | task | joy | null): the solution
+#: film is the same task done with the product -- the opening, `before` where a setup is named, one `task` scene a step
+#: (the last steps folded two to a line where they would not fit), `joy` last; no `solves`, no `better`. keel-cloud
+#: 271's five (`IDEA_CHAPTERS_BEFORE_283`) are history: a draft carrying one of the two is a DRIFT line
+#: (`idea_chapter_drift`). The band's words are keel-web 261's `STORY.chapters`.
+IDEA_CHAPTERS = ("before", "task", "joy")
+IDEA_CHAPTERS_BEFORE_283 = ("before", "task", "solves", "better", "joy")
+IDEA_CHAPTERS_RETIRED = ("solves", "better")
+CHAPTER_WORDS = {"before": "Before", "task": "The task", "joy": "What they get"}
+#: Spec 172 FR-4 (keel-web 276 FR-4, `IDEA.chapters`): the solution's chips on the building screen -- *Opening* on scene
+#: 1, then the served chapter; no chip for a stored `solves` / `better` (no *Solves*, no *The advantage* anywhere).
+IDEA_PLAN_CHIPS = {"opening": "Opening", "before": "Before that", "task": "What it does", "joy": "What they get"}
+#: keel-web 261 (`STORY.chapters`): the problem film's chapter words, the problem's chips on the building screen.
+STORY_PLAN_CHIPS = {"who": "Who", "task": "The task", "today": "Today", "shortfall": "Where it falls short",
+                    "cost": "What it costs them"}
+
+
+def plan_chip(scene, chapter: str | None, kind: str = "story") -> str | None:
+    """keel-web 276 FR-4 (`chipChapterOf`): the chapter chip a plan row draws -- the problem's by its served chapter;
+    the solution's *Opening* on scene 1, then its served chapter's (none for a retired `solves` / `better`)."""
+    if kind == "story":
+        return STORY_PLAN_CHIPS.get(str(chapter)) if chapter else None
+    if str(scene) == "1":
+        return IDEA_PLAN_CHIPS["opening"]
+    return IDEA_PLAN_CHIPS.get(str(chapter)) if chapter and chapter != "opening" else None
+
+
+def idea_chapter_drift(view: dict | None) -> list[dict]:
+    """Spec 172 FR-4: a solution draft that still carries a retired chapter (`solves`, `better`) on a scene or a plan
+    row -- one DRIFT line each (keel-cloud 283 FR-1 owed), never a judged fault."""
+    out = []
+    build = (view or {}).get("build") or {}
+    story = build.get("story") or (view or {}).get("story") or {}
+    for n, scene in enumerate(story.get("scenes") or [], 1):
+        if (scene or {}).get("chapter") in IDEA_CHAPTERS_RETIRED:
+            out.append({"what": f"the solution film's scene {n} carries the chapter {scene['chapter']!r} "
+                                "(keel-cloud 283 FR-1: before, task, joy only)",
+                        "owed": "keel-cloud 283 FR-1 / FR-5 (`IdeaScene.chapter`)", "detail": scene.get("line") or "",
+                        "frame": None, "drift": True})
+    for row in ((build.get("pictures") or {}).get("plan") or []):
+        if (row or {}).get("chapter") in IDEA_CHAPTERS_RETIRED:
+            out.append({"what": f"the solution's plan row {row.get('scene')} carries the chapter {row['chapter']!r}",
+                        "owed": "keel-cloud 283 FR-1 / FR-5", "detail": row.get("line") or "", "frame": None,
+                        "drift": True})
+    return out
 #: keel-cloud 271 FR-9: at most eleven scenes.
 IDEA_MAX_SCENES = 11
 #: keel-web 259 FR-6 (`PLATE_MS`): the plate alone before the film's first scene.
@@ -1752,8 +2089,13 @@ IDEA_BOARD = "[data-testid=idea-board]"
 #: keel-web 259 FR-2 (`IDEA.brandPage.logoLine`): the fixed line under the drop box, and a bad file's refusal.
 LOGO_LINE = ("A square PNG or SVG, 256 to 4,096 px a side, up to 1 MB. It is drawn small, so a simple mark reads "
              "best.")
-#: keel-web 259 FR-7 (`IDEA.failed`): the failed build's line and the chapter as the sentence names it.
+#: keel-web 259 FR-7 (`IDEA.failed`): the failed build's line and the chapter as the sentence names it -- retired by
+#: keel-web 276 FR-4 (`ideaFailureOf` and `IDEA.failed` gone: keel-cloud 283 never fails a build on a chapter); kept to
+#: name a record of a build before them. The failed screen left is the build that drew no picture:
+#: `PICTURE_FAILED_SAY*`, or keel-web 270's `IDEA.building.failed` (`IDEA_BUILD_FAILED`).
 FAILED_SAY = "Keel could not draw {part}. Say that part again?"
+IDEA_BUILD_FAILED = ("Keel could not draw the day with your idea this time. Your boxes are kept, and the questions do "
+                     "not need it.")
 #: keel-web 263 FR-10 (`IDEA.failed.sayWithReason`, `STORY.pictureFailed`): the lines with the served `failedReason`
 #: (keel-cloud 275 FR-2), and 261's picture line without one.
 FAILED_SAY_REASON = "Keel could not draw {part}: {reason}. Say that part again?"
@@ -1795,6 +2137,13 @@ PLAN_JS = r"""() => {
       scene: r.getAttribute('data-scene'), status: r.getAttribute('data-status'), look: r.getAttribute('data-look'),
       kept: r.hasAttribute('data-kept'),
       word: (t(r.querySelector('[data-testid=story-plan-word]')) || '').replace(/^·\s*/, '') || null,
+      // spec 172 FR-4 (keel-web 276 FR-4): the chip's chapter words (the word after them dropped) and Keel's note
+      chip: (() => { const c = r.querySelector('[data-testid=story-plan-chip]'); if (!c) return null;
+                     const w = c.querySelector('[data-testid=story-plan-word]');
+                     const all = t(c) || ''; const tail = w ? (t(w) || '') : '';
+                     const head = tail && all.endsWith(tail) ? all.slice(0, all.length - tail.length) : all;
+                     return head.trim() || null; })(),
+      note: t(r.querySelector('[data-testid=story-plan-note]')),
       reason: t(r.querySelector('[data-testid=story-plan-reason]')),
       mark: (r.querySelector('[data-testid=story-plan-mark]') || { getAttribute: () => null }).getAttribute('aria-label'),
       thumb: !!r.querySelector('[data-testid=story-plan-thumb]'),
@@ -1978,13 +2327,14 @@ def _you(text: str | None) -> str:
 
 def idea_scenes_verdict(story: dict | None, idea: dict | None, *, name: str, tagline: str | None = None,
                         pictures: bool = True) -> dict:
-    """Spec 162 FR-3 (keel-cloud 271 FR-9, 273 FR-3): the idea's film read against its board -- at most eleven scenes;
-    the opening line exactly *This time, {name} is on the screen.*; the chapters in order (`before`, `task`, `solves`,
-    `better`, `joy`, each on its first scene); the setup scene there if and only if the setup is non-empty; one scene per
-    workflow step; the limitations scene's marks the board's; the advantage's chapter there if and only if one was read;
-    the joy scene last (`joy: true`, its line the board's joy, the person turned); the brand on every screen scene; a
-    picture on every scene (contract 89; `pictures`); one clip a line (the ask line's too); the plate the brand with the
-    tagline. `ok` and every part by name."""
+    """Spec 162 FR-3 (keel-cloud 271 FR-9, 273 FR-3) as keel-cloud 283 FR-1 leaves it (spec 172 FR-4): the idea's film
+    read against its board -- at most eleven scenes; the opening line exactly *This time, {name} is on the screen.*; the
+    chapters in order (`before`, `task`, `joy`, each on its first scene) and no retired `solves` / `better`; the setup
+    scene there if and only if the setup is non-empty; one task scene a step at most (283 folds the last steps two to a
+    line where they would not fit), one at least; no limitation marks (`IdeaScene.mark` null, `marks` empty); the joy
+    scene last (`joy: true`, its line the board's joy, the person turned); the brand on every screen scene; a picture on
+    every scene (contract 89; `pictures`); one clip a line (the ask line's too); the plate the brand with the tagline.
+    `ok` and every part by name."""
     story, idea = story or {}, idea or {}
     scenes = [s or {} for s in story.get("scenes") or []]
     chapters = [(i, s.get("chapter")) for i, s in enumerate(scenes) if s.get("chapter")]
@@ -2000,26 +2350,24 @@ def idea_scenes_verdict(story: dict | None, idea: dict | None, *, name: str, tag
         return scenes[start:(later[0] if later else len(scenes))]
     setup = list(idea.get("setup") or [])
     workflow = list(idea.get("workflow") or [])
-    want_marks = [{"limit": a.get("limit"), "mark": "tick" if a.get("solved") else "cross"}
-                  for a in idea.get("limitAnswers") or []]
-    solves = span("solves")
-    marks = [{"limit": m.get("limit"), "mark": m.get("mark")} for m in (solves[0].get("marks") if solves else []) or []]
+    marked = [n for n, s in enumerate(scenes, 1) if s.get("mark") or s.get("marks")]
     last = scenes[-1] if scenes else {}
     screens = [s for s in scenes if s.get("pictogramId") == "screen" or s.get("screen")]
     plate = story.get("plate") or {}
     clips = len(story.get("clipIds") or [])
+    tasks = len(span("task")) - (1 if span("task") and span("task")[-1].get("joy") else 0)
     parts = {
         "at most eleven": 0 < len(scenes) <= IDEA_MAX_SCENES,
         "the opening line": bool(scenes) and scenes[0].get("line") == FILM_OPENING.replace("{name}", name),
-        # keel-cloud 271 FR-9 as built: the opening is the film's first scene, `before` the setup's chapter (on the setup
-        # scene, there iff a setup), then the task, what it solves, better (iff an advantage), the joy last
-        "the chapters in order": ordered and keys[-1:] == ["joy"] and "task" in keys and "solves" in keys
+        # keel-cloud 283 FR-1: the opening the film's first scene, `before` the setup's chapter (on the setup scene,
+        # there iff a setup), then the task's steps, the joy last
+        "the chapters in order": ordered and keys[-1:] == ["joy"] and "task" in keys
         and (("before" in keys) == bool(setup) or keys[:1] == ["before"] and at.get("before") == 0),
+        "no solves or better": not (set(keys) & set(IDEA_CHAPTERS_RETIRED)),
         # the scenes before the task's chapter: the opening, and the setup's one scene where a setup was named
         "the setup scene iff a setup": at.get("task", -1) == (2 if setup else 1),
-        "one scene a step": len(span("task")) == len(workflow),
-        "the limitations' marks the board's": marks == want_marks,
-        "the advantage iff read": ("better" in keys) == bool(idea.get("advantage")),
+        "a task scene a step at most": 0 < tasks <= max(len(workflow), 1),
+        "no limitation marks": not marked,
         "the joy last": last.get("joy") is True and last.get("chapter") == "joy"
         and sum(1 for s in scenes if s.get("joy")) == 1
         and (not idea.get("joy") or _you(idea.get("joy")) in _you(last.get("line"))),
@@ -2031,7 +2379,7 @@ def idea_scenes_verdict(story: dict | None, idea: dict | None, *, name: str, tag
         "the plate the brand": plate.get("name") == name and (tagline is None or plate.get("tagline") == tagline),
     }
     return {"ok": all(parts.values()), "parts": parts, "scenes": len(scenes), "chapters": keys,
-            "lines": [s.get("line") for s in scenes], "marks": marks, "want_marks": want_marks,
+            "lines": [s.get("line") for s in scenes], "marked": marked, "tasks": tasks, "steps": len(workflow),
             "clips": clips, "plate": plate}
 
 
@@ -2109,6 +2457,30 @@ def plan_row_faults(rows: list[dict]) -> list[dict]:
         if got != want or (r.get("thumb") and look != "done"):
             out.append({"scene": r.get("scene"), "status": r.get("status"), "got": got, "want": want,
                         "thumb": r.get("thumb")})
+    return out
+
+
+def plan_chip_faults(rows: list[dict], served: list[dict] | None, kind: str = "story") -> list[dict]:
+    """Spec 172 FR-4 (keel-web 276 FR-4): each drawn row's chip held to its served row -- the problem's chapter words;
+    the solution's *Opening* on scene 1, *Before that* / *What it does* / *What they get* by chapter, never *Solves* or
+    *The advantage* -- and Keel's note (`story-plan-note`) under a frame drawn again where the cloud served one. [] where
+    every row holds (rows the served plan does not name are left to `plan_row_faults`)."""
+    by = {str((r or {}).get("scene")): r or {} for r in served or []}
+    out = []
+    for r in rows or []:
+        row = by.get(str(r.get("scene")))
+        if row is None:
+            continue
+        want = plan_chip(r.get("scene"), row.get("chapter"), kind)
+        note = str(row.get("note") or "").strip() or None
+        want_note = note if r.get("status") == "failed" else None
+        got_chip = r.get("chip")
+        if kind == "story" and not row.get("chapter"):
+            got_chip = want = None              # a problem row the served plan names no chapter on: its chip not held
+        if (got_chip or None) != want or (r.get("note") or None) != want_note \
+                or (got_chip and any(w in got_chip for w in ("Solves", "The advantage"))):
+            out.append({"scene": r.get("scene"), "chapter": row.get("chapter"), "got": {"chip": got_chip,
+                        "note": r.get("note")}, "want": {"chip": want, "note": want_note}})
     return out
 
 
@@ -2225,30 +2597,35 @@ class IdeaWalk(Conversation):
     # ---------------------------------------------------------------------------------------- one long beat
     def beat(self, n: int, words: str, *, then: list[str] | None = None,
              two_part: tuple[str, str] | None = None) -> dict:
-        """One long beat (keel-web 259 FR-3): Keel's question read, the words said with the done word as their last (a
-        long beat never closes on the quiet), the reading read back; where the answer is an `ask` (beat 1's first step,
-        beat 4's feature) or beat 3's readback asks (`done: false`), the next of `then` is said -- sent as the beat's
-        second answer, or with `correction: true` on beat 3 -- until the beat closes (`done: true`) and the page goes on.
-        `two_part`: the first part said, `TWO_PART_QUIET_S` of quiet read (nothing sent, *Take your time.*), then the
-        second with the done word. Returns what the screen drew and every write of the beat."""
+        """One beat (keel-web 259 FR-3; spec 172 FR-1, keel-web 275): Keel's question read, the words said with the done
+        word as their last (quiet never closes), the orb thinking while the cloud reads, the card read aloud and Keel's
+        one line (`beat-ask`: the ask, or the cloud's own -- beat 1's first step, beat 4's feature, beat 3's unmatched
+        limitation); where the cloud is still asking (`done: false`) the next of `then` is said, with the done word --
+        sent as the beat's next answer (with `correction: true` where the cloud asked for one) -- and once the walk has
+        nothing more to say, *That's it.* alone ends the beat (where the cloud's last answer was `done: false` the page
+        sends `done: true` itself, 275 FR-4). Beat 2 answered *none* alone closes at once (275 FR-6: *Got it. Nothing to
+        set up.*, no ask, no done word). `two_part`: the first part said, `TWO_PART_QUIET_S` of quiet read (nothing
+        sent, Keel's one ask once), then the second with the done word. Returns what the screen drew and every write."""
         then = list(then or [])
         with self._b.step(f"idea beat {n}") as h:
             self.page.locator(f"{IDEA_TURN}[data-turn='{n}']").first.wait_for(state="visible", timeout=60_000)
             log = self.orb_log()
-            mark = next((i for i, row in enumerate(log) if str(row.get("path") or "").endswith(f"/define/idea/{n}")),
-                        len(log))
-            seen: dict = {"turn": n, "asked": self.snapshot(), "answers": [], "long": True}
+            path = f"/define/idea/{n}"
+            mark = next((i for i, row in enumerate(log) if str(row.get("path") or "").endswith(path)), len(log))
+            seen: dict = {"turn": n, "asked": self.snapshot(), "answers": [], "long": True, "cards": []}
             try:
                 self.page.wait_for_function("() => { const el = document.querySelector('[data-testid=story-q]'); "
                                             "return !!el && el.textContent.trim().length > 0; }", timeout=30_000)
             except Exception:  # noqa: BLE001 - recorded
                 pass
             seen["question"] = _tc(self.page.locator("[data-testid=story-q]"))
+            none = n == SETUP_BEAT and said_none(words) and not two_part
             if two_part:
                 seen["two_part"] = self._two_parts(n, two_part)
                 put = self.idea_writes(n)[-1] if self.idea_writes(n) else {}
             else:
-                put = self.put_after(rf"/idea/turns/{n}$", lambda: self.voice.say(with_done_word(words)))
+                said = words if none else with_done_word(words)
+                put = self.put_after(rf"/idea/turns/{n}$", lambda: self.voice.say(said))
             while True:
                 body = put.get("body") or {}
                 seen["answers"].append({"status": put.get("status"), "sent": put.get("sent"), "ask": body.get("ask"),
@@ -2256,52 +2633,41 @@ class IdeaWalk(Conversation):
                                         "next": body.get("next")})
                 if (put.get("status") or 500) >= 400:
                     raise AssertionError(f"idea beat {n} refused {put.get('status')}: {body}")
-                if body.get("done"):
+                if none:
                     break
-                if not then:
-                    raise AssertionError(f"idea beat {n} still open after {len(seen['answers'])} answer(s) and the walk "
-                                         f"has nothing more to say: {body.get('ask') or body.get('readback')}")
-                nxt = then.pop(0)
-                # the page says the ask (or the readback that asks) first; then the microphone opens again
                 mark2 = len(self.orb_log())
-                self.await_quiet(mark2, after=(), timeout_s=20)
-                seen.setdefault("said_back", []).append(self.snapshot())
+                card = self.card_then_ask(n, mark2 if seen["cards"] else mark, flow="idea")
+                seen["cards"].append({k: card.get(k) for k in ("ask", "straight_on", "timeout", "orb")})
+                seen.setdefault("said_back", []).append(card.get("screen") or {})
+                if card.get("straight_on") or body.get("done") or not then:
+                    break
+                nxt = then.pop(0)
                 put = self.put_after(rf"/idea/turns/{n}$", lambda w=nxt: self.voice.say(with_done_word(w)))
-            seen["understood"] = None
-            try:
-                self.page.locator("[data-testid=idea-understood]").first.wait_for(state="visible", timeout=5_000)
-                seen["understood"] = self.snapshot().get("understood")
-            except Exception:  # noqa: BLE001 - the page went on first
-                pass
+            seen["straight_on"] = bool(seen["cards"] and seen["cards"][-1].get("straight_on"))
+            seen["understood"] = ((seen.get("said_back") or [{}])[-1] or {}).get("understood")
+            seen["open_at_close"] = not (put.get("body") or {}).get("done")
             h.add_screenshot(self._b.screenshot(f"idea-beat-{n}"))
+            if none:
+                seen["none"] = True
+                seen["closed"] = {"by": "none"}
+            elif not seen["straight_on"]:
+                seen["closed"] = self.close_by_done_word(n, flow="idea")
+                if seen["closed"]["stayed"]:
+                    raise AssertionError(f"idea beat {n}: the done word after the card did not end the beat "
+                                         f"({seen['closed']})")
             self.wait_path(rf"/define/idea/(?!{n}$)(\d|check)$", timeout_s=60)
             seen["next"] = self.page.url.rstrip("/").split("/")[-1]
-            seen["orb"] = orb_sequence(self.orb_log()[mark:])
-            h.record_wire({"beat": n, "said": words[:300]}, {k: seen[k] for k in ("answers", "next")})
+            rows = self.orb_log()[mark:]
+            seen["orb"] = orb_sequence(rows)
+            seen["transcript"] = no_transcript(rows, self.since("__heardLog"), path)
+            h.record_wire({"beat": n, "said": words[:300]}, {k: seen[k] for k in ("answers", "next", "closed")
+                                                              if k in seen})
             return seen
 
     def _two_parts(self, n: int, parts: tuple[str, str]) -> dict:
-        """A long beat in two parts (keel-web 257 FR-11 as 259 keeps it): the first, `TWO_PART_QUIET_S` of quiet (nothing
-        sent, the beat open, *Take your time.*), then the second and the done word."""
-        before = len(self.idea_writes(n))
-        self.voice.say(parts[0])
-        deadline = time.monotonic() + TWO_PART_QUIET_S
-        lines: list[str] = []
-        think = False
-        while time.monotonic() < deadline:
-            line = _tc(self.page.locator("[data-testid=story-state]"))
-            if line and line not in lines:
-                lines.append(line)
-            think = think or self.page.locator(f"{ORB}[data-think]").count() > 0
-            self.page.wait_for_timeout(250)
-        quiet = {"sent_in_the_quiet": len(self.idea_writes(n)) - before,
-                 "still_on_the_beat": bool(re.search(rf"/define/idea/{n}/?$", self.page.url)),
-                 "state_lines": lines, "orb_thinks": think, "think_line": any(THINK_LINE in x for x in lines),
-                 "listening": self.voice.listening()}
-        put = self.put_after(rf"/idea/turns/{n}$", lambda: self.voice.say(with_done_word(parts[1])))
-        quiet["sent"] = (put.get("sent") or {}).get("text")
-        quiet["joined"] = all(_bare_words(p) in _bare_words(quiet["sent"]) for p in parts)
-        return quiet
+        """A beat in two parts (keel-web 257 FR-11 as 259 keeps it; spec 172 FR-1, keel-web 275 FR-3): the first, the
+        quiet (nothing sent, the beat open, Keel's one ask once), then the second and the done word."""
+        return _two_parts(self, n, parts, rf"/idea/turns/{n}$", rf"/define/idea/{n}/?$")
 
     def beats(self, plan: dict[int, dict]) -> dict:
         """The four beats in order, each `{words, then?, two_part?}` (`plan`)."""
@@ -2313,28 +2679,24 @@ class IdeaWalk(Conversation):
         return out
 
     # ---------------------------------------------------------------------------------------- the board
-    def boxes(self) -> dict:
-        """The board (`idea-board`): the six rows narrated and lit in turn, *Is that your idea?*, the quiet confirms
-        (`idea/confirm`)."""
-        with self._b.step("the board: six rows narrated, Is that your idea?, the quiet confirms") as h:
+    def boxes(self, correction: str | None = None, *, box: str = IDEA_BOX_NAMES["joy"]) -> dict:
+        """The board (`idea-board`): the rows narrated and lit in turn, then Spec 172 FR-3 (keel-web 276): Keel's line once
+        (*Take your time. When you are done, press Finalize the solution.*), the table watched -- never moved by the
+        quiet -- the sheet walked where a `correction` is owed, then **Finalize the solution** (`boxes-yes`) pressed:
+        `idea/confirm`."""
+        with self._b.step("the board: rows narrated, Keel's line, the table waits, Finalize the solution pressed") as h:
             self.page.get_by_test_id("idea-boxes-screen").first.wait_for(state="visible", timeout=60_000)
-            try:
-                self.page.wait_for_function(
-                    "(w) => { const el = document.querySelector('[data-testid=idea-boxes-said]'); "
-                    "return !!el && el.textContent.trim() === w; }", arg=IDEA_BOXES_ASK, timeout=90_000)
-            except Exception:  # noqa: BLE001 - recorded
-                pass
+            review = self.finalize_boxes("idea", correction=correction, box=box)
             board = self.page.evaluate(_SNAPSHOT.replace("card('[data-testid=story-boxes]')",
                                                          "card('[data-testid=idea-board]')"))
-            seen = {"screen": board, "card": board.get("card"), "said": board.get("said")}
+            seen = {"screen": board, "card": board.get("card"), "said": review.get("line"), "review": review,
+                    "confirm": review.get("confirm"), "auto_advanced": review["auto_advanced"]}
             h.add_screenshot(self._b.screenshot("idea-board"))
-            with self.page.expect_response(lambda r: r.request.method == "POST" and r.url.split("?")[0]
-                                           .endswith("/idea/confirm"), timeout=150_000) as got:
-                self.silence()
-            seen["confirm"] = {"status": got.value.status, "body": _json(got.value)}
             seen["lit"] = [row.get("lit") for row in self.since() if row.get("lit")
                            and str(row.get("path") or "").rstrip("/").endswith("/define/idea/check")]
-            h.record_wire({"POST": "idea/confirm (the quiet)"}, {"status": got.value.status})
+            h.record_wire({"POST": "idea/confirm (Finalize the solution pressed)"},
+                          {"status": (review.get("confirm") or {}).get("status"),
+                           "auto_advanced": review["auto_advanced"]})
             return seen
 
     # ---------------------------------------------------------------------------------------- the build, the film
@@ -2394,8 +2756,12 @@ class IdeaWalk(Conversation):
             return seen
 
     def failed_build(self) -> dict:
-        """A failed build (keel-web 259 FR-7): *Keel could not draw {chapter}. Say that part again?* on the building
-        screen (`idea-building[data-failed-chapter]`), then the chapter's beat (or the brand page) opened again."""
+        """A failed build. Spec 172 FR-4 (keel-web 276 FR-4, keel-cloud 283 FR-3): the reader never fails the build and
+        nothing reopens a beat -- the failed screen is only the build that could draw no picture (*Keel could not draw
+        that part ...* where a picture failed, else *Keel could not draw the day with your idea this time ...*), the plan
+        above it. Read as it stands: `chapter` (`data-failed-chapter`, a page before 276), the line, the plan, and
+        `no_picture` (the line one of the two); nothing is waited for (a reopened beat or brand page is recorded where
+        the page went there by itself)."""
         root = self.page.locator("[data-testid=idea-building]")
         out: dict = {"chapter": None, "said": None}
         try:
@@ -2405,11 +2771,11 @@ class IdeaWalk(Conversation):
             out["plan"] = read_plan(self.page)          # spec 167 FR-2: the plan stays above the reason on a failed build
         except Exception:  # noqa: BLE001 - recorded
             pass
-        try:
-            self.wait_path(r"/define/idea/(\d|brand)$", timeout_s=60)
-        except AssertionError:
-            pass
-        out["reopened"] = self.page.url.rstrip("/").split("/")[-1]
+        said = str(out.get("said") or "")
+        out["no_picture"] = said.startswith(IDEA_BUILD_FAILED) or said.startswith(PICTURE_FAILED_SAY.split(".")[0])
+        self.page.wait_for_timeout(1500)
+        out["reopened"] = self.page.url.rstrip("/").split("/")[-1] if re.search(r"/define/idea/(\d|brand)$",
+                                                                                  self.page.url) else None
         return out
 
     # ------------------------------------------------------------------------------------- the film's yes, the pilot
@@ -3211,7 +3577,8 @@ def served_items(interview: dict) -> list[dict]:
 #: 256's study line, asks line and chips (kept: a screen still drawing them is named, never walked differently).
 WALK_IDS = ("ai-intro", "ai-intro-line", "ai-intro-study", "ai-intro-asks", "ai-intro-chips", "ai-intro-answers",
             "ai-mic-test", "ai-mic-say", "ai-mic-heard", "ai-mic-block", "ai-start", "ai-story", "ai-film-pause", "ai-film-again", "ai-film-board",
-            "ai-film-begin", "story-read", "speaker", "ai-words", "ship-mark", "ai-where", "ai-state", "ai-end",
+            "ai-film-begin", "story-read", "speaker", "ai-words", "ai-passage-caption", "ai-story-ask", "ai-story-got-it",
+            "ship-mark", "ai-where", "ai-state", "ai-end",
             "ai-sheet", "ai-options", "ai-field", "ai-replay", "ai-back", "ai-skip", "ai-yes", "ai-save", "ai-finish",
             "ai-tap-to-hear", "ai-done", "ai-done-tick", "ai-mic-off", "ai-ended")
 ORB_INTERVIEW_WATCH = r"""(() => {
@@ -3237,7 +3604,12 @@ ORB_INTERVIEW_WATCH = r"""(() => {
     const col = q('[data-testid=ai-facecol]');
     const story = q('[data-testid=ai-story]');
     const intro = q('[data-testid=ai-intro]');
-    const words = q('[data-testid=ai-words]');
+    // spec 172 FR-2 (keel-web 274 FR-3): a passage's words are its caption (`ai-passage-caption`), a question's
+    // `ai-words`; Keel's one ask on a long window (`ai-story-ask`) and the close's acknowledgement (`ai-story-got-it`)
+    const caption = q('[data-testid=ai-passage-caption]');
+    const words = q('[data-testid=ai-words]') || caption;
+    const askEl = q('[data-testid=ai-story-ask]');
+    const ackEl = q('[data-testid=ai-story-got-it]');
     const player = story ? story.querySelector('[data-testid=story-player], [data-testid=idea-story-player]') : null;
     const mic = q('[data-testid=ai-mic]');
     const scope = story || document;
@@ -3271,6 +3643,9 @@ ORB_INTERVIEW_WATCH = r"""(() => {
         : mark.closest('[data-testid=ai-chip]') ? 'chip' : 'other')
         : null,
       words: words ? t(words) : null,
+      caption: caption ? t(caption) : null,
+      ask: askEl ? t(askEl) : null,
+      ack: ackEl ? t(ackEl) : null,
       lit: words ? words.querySelectorAll('[data-lit=true]').length : 0,
       litFirst: words ? (words.querySelector('[data-lit]') || {getAttribute: () => null}).getAttribute('data-lit') === 'true' : null,
       where: t(q('[data-testid=ai-where]')),
@@ -3355,11 +3730,12 @@ def stage_sequence(log: list[dict]) -> list[str]:
 
 
 def orb_answer_runs(log: list[dict]) -> list[list[str]]:
-    """The stage orb's states cut at each `speaking` -- one run a clip and the answer after it -- so an answer's
-    *speaking -> listening -> hearing -> writing* is one run (158 FR-2's states, on the stranger's orb)."""
+    """The stage orb's states cut at each `asking` -- one run a clip and the answer after it -- so an answer's
+    *asking -> hearing -> thinking* is one run. Spec 172 FR-2 (keel-web 274 FR-4): the player's orb in the founder's four
+    states; 159's *speaking -> listening -> hearing -> writing* read through the mapping (`plain_sequence`)."""
     runs: list[list[str]] = []
-    for state in orb_sequence([r for r in log if r.get("state")]):
-        if state == "speaking" or not runs:
+    for state in plain_sequence(orb_sequence([r for r in log if r.get("state")])):
+        if state == "asking" or not runs:
             runs.append([state])
         else:
             runs[-1].append(state)

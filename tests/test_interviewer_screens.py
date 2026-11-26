@@ -408,7 +408,9 @@ def test_the_beat_is_keel_webs_own_length():
 
 @pytest.mark.parametrize("word", [ivs.STORY, ivs.BEAT, ivs.BEAT_PILL, ivs.MIC_OFF])
 def test_the_story_beat_and_mic_off_words_are_keel_webs_own(word):
-    assert f'"{word}"' in (_web_075() / "src/lib/translate.ts").read_text(encoding="utf-8"), word
+    source = (_web_075() / "src/lib/translate.ts").read_text(encoding="utf-8")
+    # spec 172 FR-2: keel-web 274's story status sits in single quotes (its own *"that's it"*)
+    assert f'"{word}"' in source or "'" + word.replace("'", "\\'") + "'" in source, word
 
 
 def _builds_testid(source: str, testid: str) -> bool:

@@ -351,10 +351,7 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
         h.record_assert({"confirm": 200, "build": "ready"}, {"confirm": confirmed.get("status"), "build": state,
                                                              "failedScene": (story.get("build") or {}).get("failedScene")})
     faults = ff.building_faults(building, story)
-    faults += ff.chapter_faults(story) if state == "ready" else [
-        {"what": f"the build ended {state!r} (failedScene {(story.get('build') or {}).get('failedScene')}: "
-                 f"{(story.get('build') or {}).get('failedLine')})", "owed": "keel-cloud 273 FR-3",
-         "detail": json.dumps((story.get("build") or {}).get("checked"))[:300], "frame": None}]
+    faults += ff.chapter_faults(story) if state == "ready" else [ff.failed_build_fault(story)]
     frames, pictures, probed = [], [], None
     if state == "ready":
         camera = ff.FilmCamera(browser, context.storage_state(), stack.web_base_url, out)
@@ -395,7 +392,9 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
         "film_ask": ss.STORY_ASK,
         "ledger": spent, "dollars": spent.get("usd"),
         "measures": {"faults": faults, "frames": len(frames), "pictures": sum(1 for p in pictures if p.get("path")),
-                     "lock_retried": lock_retried(held.get("lock"))},
+                     "lock_retried": lock_retried(held.get("lock")),
+                     # spec 172 FR-4: the film's chapter marks, for the film table
+                     "chapters": [s.get("chapter") for s in ff.scenes(story) if s.get("chapter")]},
         # spec 168 FR-2: the lock as tried (locked or the step it stopped at; the founder's retry on the calibration)
         "lock": held.get("lock"),
         # spec 165: the one project the strangers answered on, and the bundle read-screens reads
@@ -679,11 +678,9 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
                          **{k: build.get(k) for k in ("failedChapter", "failedScene", "failedReason")}})
     to_film_s = round(time.monotonic() - began, 1)
     faults = ff.building_faults(building, view)
-    faults += ff.idea_chapter_faults(view) if state == "ready" else [
-        {"what": f"the solution's build ended {state!r} (failedChapter {build.get('failedChapter')}, failedScene "
-                 f"{build.get('failedScene')}: {build.get('failedReason') or build.get('failedLine')})",
-         "owed": "keel-cloud 271 FR-10 / 273 FR-3 / 275 FR-2", "detail": json.dumps(build.get("checked"))[:300],
-         "frame": None}]
+    # spec 172 FR-4 (keel-cloud 283 FR-3): a build the reader refused twice still ends ready with its frames; a failed
+    # build is a fault only on *no picture could be drawn* (a chapter's failure is a cloud before 283: a DRIFT line)
+    faults += ff.idea_chapter_faults(view) if state == "ready" else [ff.failed_build_fault(view, "solution")]
     frames, pictures, probed = [], [], None
     if state == "ready":
         camera = ff.FilmCamera(browser, context.storage_state(), stack.web_base_url, out, kind="solution")
@@ -736,7 +733,10 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
         "pilot": {"sent": (pilot or {}).get("sent"), "status": (pilot or {}).get("status"), "now": final.get("pilot")},
         "ledger": spent, "dollars": spent.get("usd"),
         "measures": {"faults": faults, "frames": len(frames), "pictures": sum(1 for p in pictures if p.get("path")),
-                     "missing": ff.missing_scenes(view), "lock_retried": lock_retried(held.get("lock"))},
+                     "missing": ff.missing_scenes(view), "lock_retried": lock_retried(held.get("lock")),
+                     # spec 172 FR-4: the film's chapters (before | task | joy) and its frames, for the film table
+                     "chapters": [s.get("chapter") for s in ff.scenes(view) if s.get("chapter")],
+                     "notes": (building or {}).get("notes") or {}},
         "lock": held.get("lock"),
         "screens_bundle": (strangers or {}).get("bundle"), "strangers": strangers,
         **({"refused": refused} if refused else {}), **({"typos": words["typed"]} if words["typed"] else {}),

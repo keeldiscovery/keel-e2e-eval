@@ -279,7 +279,8 @@ def test_the_words_mirror_keel_web_263():
         pytest.skip("keel-web 263 not in the checkout")
     text = translate.read_text(encoding="utf-8")
     assert "`Keel could not draw that part: ${bareReason(reason)}. Say it again?`" in text
-    assert "`Keel could not draw ${part}: ${bareReason(reason)}. Say that part again?`" in text
+    # spec 172 FR-4 (keel-web 276 FR-4): the chapter's failed line (`IDEA.failed`) is gone with keel-cloud 283 FR-3
+    assert "`Keel could not draw ${part}: ${bareReason(reason)}. Say that part again?`" not in text
     assert 'say: "Keel could not draw that part. Say it again?"' in text
     source = plan.read_text(encoding="utf-8")
     if 'data-testid="story-bar-legend"' not in source:
@@ -350,7 +351,8 @@ def test_the_building_screens_plan_is_read_and_held_to_its_rule(browser):
     assert last["legend"] == "voicing the lines" and all(r["legend_holds"] for r in record["reads"]), record["reads"]
     assert last["tally"] is None and last["row_faults"] == []
     assert last["rows"][1] == {"scene": "2", "status": "dropped", "look": "dropped", "kept": False, "word": "no picture",
-                               "reason": "Text was seen in the picture.", "mark": "No picture", "thumb": False}
+                               "reason": "Text was seen in the picture.", "mark": "No picture", "thumb": False,
+                               "chip": "The task", "note": None}            # spec 172 FR-4: the chip's words, the note
     assert last["rows"][0]["thumb"] is True and last["rows"][0]["word"] is None
     assert record["served"] == [["1:passed", "2:dropped"]]
     assert ff.building_faults(record, view) == []
@@ -368,9 +370,15 @@ def test_a_failed_builds_line_is_held_with_and_without_its_reason():
     assert len(said) == 1 and "263 FR-10" in said[0]["owed"]
     before = {"build": {"state": "failed", "failedScene": 4}}
     assert ff.building_faults({"failed_said": "Keel could not draw that part. Say it again?"}, before) == []
+    # spec 172 FR-4 (keel-cloud 283 FR-3): a build failed on a chapter is a cloud before 283 -- one DRIFT line, its words
+    # not judged; the walk's own fault for a failed build is *no picture could be drawn* (`failed_build_fault`)
     chapter = {"build": {"state": "failed", "failedChapter": "solves", "failedReason": "It shows no tick."}}
-    assert ff.building_faults({"failed_said": "Keel could not draw what it solves: It shows no tick. Say that part "
-                                              "again?"}, chapter) == []
+    drift = ff.building_faults({"failed_said": "Keel could not draw what it solves: It shows no tick. Say that part "
+                                               "again?"}, chapter)
+    assert len(drift) == 1 and drift[0]["drift"] and "283 FR-3" in drift[0]["owed"]
+    assert ff.failed_build_fault(chapter, "solution")["drift"] is True
+    lost = ff.failed_build_fault(failed, "solution")
+    assert "no picture could be drawn" in lost["what"] and not lost.get("drift")
 
 
 LINK_PAGE = """<!doctype html><html><head><style>

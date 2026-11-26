@@ -199,13 +199,29 @@ def idea_view(missing: int | None = None) -> dict:
                                                 "text_seen": False, "brand": True, "reason": "fine"}], "kept": 0}}}
 
 
+def _as_283(view: dict) -> dict:
+    """Spec 172 FR-4 (keel-cloud 283 FR-1): the same film in three chapters -- the steps go on where `solves` and
+    `better` were, no marks."""
+    for scene in view["build"]["story"]["scenes"]:
+        if scene.get("chapter") in ("solves", "better"):
+            scene.pop("chapter")
+        scene.pop("marks", None)
+    for row in view["build"]["pictures"]["plan"]:
+        if row.get("chapter") in ("solves", "better"):
+            row["chapter"] = None
+    return view
+
+
 def test_the_idea_films_chapter_keys_and_a_dropped_picture():
-    view = idea_view(missing=3)
+    view = _as_283(idea_view(missing=3))
     assert ff.idea_chapter_faults(view) == []                       # a dropped frame is recorded, never a fault
     assert ff.missing_scenes(view) == [3]
-    bad = idea_view()
+    # spec 172 FR-4: a draft still carrying 271's `solves` / `better` is a DRIFT line for each, never the order's fault
+    drift = ff.idea_chapter_faults(idea_view())
+    assert drift and all(f.get("drift") for f in drift) and any("'solves'" in f["what"] for f in drift)
+    bad = _as_283(idea_view())
     scenes = bad["build"]["story"]["scenes"]
-    scenes[1]["chapter"], scenes[3]["chapter"] = "solves", "task"
+    scenes[1]["chapter"], scenes[3]["chapter"] = "joy", "task"
     scenes[5].pop("joy")
     scenes[2]["pictureAssetId"] = None
     said = [f["what"] for f in ff.idea_chapter_faults(bad)]

@@ -153,11 +153,13 @@ def test_the_brand_page_and_the_failed_build_say_keel_webs_words():
         pytest.skip("keel-web 259 not in the checkout")
     flat = re.sub(r'"\s*\+\s*"', "", translate)
     assert ss.LOGO_LINE in " ".join(flat.split())
-    assert "`Keel could not draw ${part}. Say that part again?`" in translate
-    for chapter, part in ss.FAILED_PARTS.items():
-        assert f'{chapter}: "{part}"' in translate, chapter
-    for chapter, words in ss.CHAPTER_WORDS.items():
+    # spec 172 FR-4 (keel-web 276 FR-4): `IDEA.failed` and its chapter parts are gone -- the failed screen is a build
+    # that drew no picture (`IDEA.building.failed`); the band's chapter words and the building screen's chips
+    assert "`Keel could not draw ${part}. Say that part again?`" not in translate
+    assert " ".join(ss.IDEA_BUILD_FAILED.split()) in " ".join(flat.split())
+    for chapter, words in list(ss.CHAPTER_WORDS.items()) + list(ss.IDEA_PLAN_CHIPS.items()):
         assert f'{chapter}: "{words}"' in translate, chapter
+    assert 'solves: "Solves"' not in translate and '"The advantage"' not in translate.split("chapters: {")[-1][:400]
     lines = (WEB / "src" / "lib" / "ideaLines.ts").read_text(encoding="utf-8")
     assert f"PLATE_MS = {ss.PLATE_MS:_}" in lines and "TAGLINE_MAX_WORDS = 8" in lines
     for hex_ in ss.BRAND_SWATCHES:
@@ -234,8 +236,9 @@ def test_the_films_example_reads_in_five_chapters():
                  "a picture on every scene", "the plate the brand"):
         assert parts[name], (name, v)
     assert v["chapters"] == ["before", "task", "joy"]
-    # the example is the contract's sample (three scenes): the chapters it leaves out are named, never passed
-    assert not parts["the chapters in order"] and not parts["one scene a step"]
+    # spec 172 FR-4 (keel-cloud 283, contract 96): the contract's sample is keel-cloud 283's three chapters -- in order,
+    # no solves or better, no marks
+    assert parts["the chapters in order"] and parts["no solves or better"] and parts["no limitation marks"]
 
 
 def test_a_full_film_holds_every_part_and_a_broken_one_names_it():
@@ -243,30 +246,33 @@ def test_a_full_film_holds_every_part_and_a_broken_one_names_it():
     screen = {"name": name, "colour": "#2255aa", "iconAssetId": None, "letter": "R"}
     scene = lambda line, **kw: dict({"line": line, "pictogramId": "screen", "screen": screen, "clipId": None,
                                      "pictureAssetId": "p", "mark": None}, **kw)        # noqa: E731
+    # spec 172 FR-4 (keel-cloud 283 FR-1): the opening, the setup, one task scene a step, the joy -- no solves, no better
     story = {"scenes": [scene("This time, Runcheck is on the screen.", chapter="before"),
                         scene("First you connect the two hour systems."),
                         scene("You open Runcheck when the run is ready.", chapter="task"),
                         scene("Runcheck flags every line that changed."),
-                        scene("It reads the hours from both systems.", chapter="solves",
-                              marks=[{"limit": "The hours disagree", "mark": "tick"},
-                                     {"limit": "Nobody tells them", "mark": "cross"}]),
-                        scene("Every line checked.", chapter="better"),
                         scene("A pay run you can sign off calmly.", chapter="joy", joy=True)],
-             "clipIds": ["c"] * 8, "plate": {"name": name, "tagline": "T"}}
+             "clipIds": ["c"] * 6, "plate": {"name": name, "tagline": "T"}}
     v = ss.idea_scenes_verdict(story, IDEA, name=name, tagline="T")
     assert v["ok"], v
     no_setup = dict(IDEA, setup=[], setupNone=True)
     assert not ss.idea_scenes_verdict(story, no_setup, name=name)["parts"]["the setup scene iff a setup"]
     # as keel-cloud builds it with nothing to set up: the opening unmarked, the task's chapter next (no `before`)
     bare = dict(story, scenes=[dict(story["scenes"][0], chapter=None)] + story["scenes"][2:],
-                clipIds=["c"] * 7)
+                clipIds=["c"] * 5)
     assert ss.idea_scenes_verdict(bare, no_setup, name=name, tagline="T")["ok"]
-    no_adv = dict(IDEA, advantage=None)
-    assert not ss.idea_scenes_verdict(story, no_adv, name=name)["parts"]["the advantage iff read"]
+    # 271's five chapters: a solves scene with its marks and a better scene are named
+    old = dict(story, scenes=story["scenes"][:4] + [
+        scene("It reads the hours from both systems.", chapter="solves",
+              marks=[{"limit": "The hours disagree", "mark": "tick"}]),
+        scene("Every line checked.", chapter="better")] + story["scenes"][4:], clipIds=["c"] * 8)
+    parts = ss.idea_scenes_verdict(old, IDEA, name=name)["parts"]
+    assert not parts["no solves or better"] and not parts["no limitation marks"] and not parts["the chapters in order"]
     unpictured = dict(story, scenes=[dict(s, pictureAssetId=None) for s in story["scenes"]])
     assert not ss.idea_scenes_verdict(unpictured, IDEA, name=name)["parts"]["a picture on every scene"]
-    assert ss.failed_say("joy") == "Keel could not draw what they get. Say that part again?"
-    assert ss.BEAT_OF_CHAPTER["joy"] == 4 and ss.BEAT_OF_CHAPTER["task"] == 1
+    assert ss.plan_chip(1, "before", "idea") == "Opening" and ss.plan_chip(2, "before", "idea") == "Before that"
+    assert ss.plan_chip(3, "task", "idea") == "What it does" and ss.plan_chip(6, "joy", "idea") == "What they get"
+    assert ss.plan_chip(4, "solves", "idea") is None and ss.plan_chip(5, "better", "idea") is None
 
 
 # ------------------------------------------------------------------------------------------------ FR-5 the link

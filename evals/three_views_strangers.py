@@ -438,7 +438,8 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                 again[q] = again.get(q, 0) + 1
                 rows[-1]["said_again"] = again[q]
                 said_at = time.monotonic()
-                p.say(rows[-1]["said"])
+                # spec 172 FR-2: a long window still open is closed by the done word alone (its words are kept)
+                p.say(ss.DONE_WORD if rows[-1].get("told") else rows[-1]["said"])
             page.wait_for_timeout(500)
             continue
         where = ss._tc(page.get_by_test_id("ai-where"))
@@ -473,7 +474,8 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                 # the solution's whys answered in the solution roster's words
                 row["said"] = plan.get("why") or sol.WHY_SAID.get(str(row["follow_up"].get("dimension"))) \
                     or ts.why_said(row["follow_up"])
-                p.say(row["said"])
+                # spec 172 FR-2 (keel-web 274 FR-1): a follow-up is a long window too -- closed by the done word
+                row["told"] = p.say_story(row["said"], parts=1)
             else:
                 row["said"] = "skip"
                 page.get_by_test_id("ai-skip").first.click()
@@ -496,8 +498,10 @@ def link_walk(run, page, url: str, interview: dict, *, no_on: str | None = None,
                 row["said"] = row["chips"][0]
                 p.say(row["said"])
             else:
+                # spec 172 FR-2 (keel-web 274 FR-1): the story said in two parts across a pause under eight seconds,
+                # ended on *that's it* -- a pause never closes it; Keel acknowledges (*Got it. Thank you.*)
                 row["said"] = (plan or {}).get("story") or STORY_SAID
-                p.say(row["said"])
+                row["told"] = p.say_story(row["said"])
         elif where == ivs.LAST_QUESTION:
             yes_no("yes")
         elif options:
@@ -1167,12 +1171,12 @@ def same_walk_check(run, leg, study: str, *, view: str) -> None:
 
 
 def orb_states_check(run, leg, walked: dict, *, view: str) -> None:
-    """159 FR-1 (158 FR-2's collector): the orb's `data-state` runs speaking -> listening -> hearing -> writing through
-    an answer."""
+    """159 FR-1 (158 FR-2's collector) in keel-web 274 FR-4's four states (spec 172 FR-2): the orb's `data-state` runs
+    asking -> hearing -> thinking through an answer (159's names read through the mapping)."""
     runs = ss.orb_answer_runs(walked.get("log") or [])
-    want = ["speaking", "listening", "hearing", "writing"]
+    want = ["asking", "hearing", "thinking"]
     whole = [r for r in runs if ss.holds_in_order(r, want)]
-    leg.check(run, "the orb runs *speaking > listening > hearing > writing* through an answer",
+    leg.check(run, "the orb runs *asking > hearing > thinking* through an answer (keel-web 274 FR-4)",
               bool(whole), screen="the stage orb", view=view,
               detail={"answers read whole": len(whole), "runs": [" > ".join(r) for r in runs[:10]]})
 
@@ -1607,7 +1611,7 @@ def dry_run_on_the_orb(run, leg, project_id: str, card: dict) -> None:
     leg.check(run, "the dry run opens on the orb: the intro's orb, the mic test, Start, the orb on the stage, a "
                    "question asked", intro.get("speaker") == ivs.SPEAKER_ORB and intro.get("orb", 0) >= 1 and bool(stage)
               and all(r.get("speaker") == ivs.SPEAKER_ORB for r in stage) and bool(asked)
-              and "speaking" in ss.orb_sequence(stage), screen="Sent -> Try it yourself", view="founder",
+              and "asking" in ss.plain_sequence(ss.orb_sequence(stage)), screen="Sent -> Try it yourself", view="founder",
               detail={"intro": {k: intro.get(k) for k in ("speaker", "orb", "heading")}, "asked": asked,
                       "orb": ss.orb_sequence(stage)[:10], "stage": ss.stage_sequence(log)[:10]})
     rows = [r for r in ledger.rows(run.stack, run.account_id, since=before)

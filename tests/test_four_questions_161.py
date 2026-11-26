@@ -92,7 +92,7 @@ def test_the_seven_questions_are_keel_clouds_and_keel_webs():
 
 
 def test_the_long_beats_close_on_the_done_word_and_send_none():
-    assert ss.LONG_BEATS == (3, 4, 7)
+    assert ss.LONG_BEATS == (1, 2, 3, 4, 5, 6, 7) and ss.LONG_BEATS_257 == (3, 4, 7)       # spec 172: keel-web 275
     said = ss.with_done_word("They check it by hand.")
     assert said.endswith(ss.DONE_WORD) and ss.ends_on_a_done_word(said)
     assert ss.without_done_word(said) == "They check it by hand."
@@ -101,7 +101,8 @@ def test_the_long_beats_close_on_the_done_word_and_send_none():
     for word in ss.DONE_WORDS:
         assert ss.ends_on_a_done_word(f"It costs them a day. {word}."), word
     assert ss.ends_on_a_done_word("it costs them a day. That’s it.")
-    assert ss.THINK_MS / 1000 < ss.TWO_PART_QUIET_S < ss.ANYTHING_ELSE_MS / 1000
+    assert ss.WAIT_MS / 1000 < ss.TWO_PART_QUIET_S                    # spec 172: the one ask stands in the quiet
+    assert not hasattr(ss, "THINK_LINE") and not hasattr(ss, "LONG_BEAT_SUB") and not hasattr(ss, "ANYTHING_ELSE_MS")
 
 
 def _echo_beat_3(words: str) -> dict:

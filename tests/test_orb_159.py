@@ -96,8 +96,9 @@ def test_the_stage_reads_the_film_first_then_the_opening():
                {"phase": "held", "state": "paused"}, {"phase": "speaking", "state": "speaking"})
     assert ss.stage_sequence(log) == ["film:problem", "speaking", "listening", "held", "speaking"]
     runs = ss.orb_answer_runs(log)
-    assert runs == [["dim"], ["speaking", "listening", "hearing", "writing", "paused"], ["speaking"]]
-    assert ss.holds_in_order(runs[1], ["speaking", "listening", "hearing", "writing"])
+    # spec 172 FR-2 (keel-web 274 FR-4): the runs in the four states, 159's names mapped
+    assert runs == [["waiting"], ["asking", "hearing", "thinking", "paused"], ["asking"]]
+    assert ss.holds_in_order(runs[1], ["asking", "hearing", "thinking"])
 
 
 def test_never_drawn_names_a_typed_box_and_the_old_chrome():

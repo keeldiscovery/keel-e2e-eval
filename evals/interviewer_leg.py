@@ -97,6 +97,7 @@ from harness import interview_charge as charge
 from harness import interviewer_fake as fake
 from harness import interviewer_screens as ivs
 from harness import interviews_screens as iv
+from harness import story_screens as ss
 from harness import vectors_screens as vs_screens
 from harness import vectors_script as vs
 from stack import cloud_log
@@ -1378,12 +1379,17 @@ def dry_run_written_down(drawn: dict, gate_item: str | None, story: str) -> list
     on_gate = [t for t in said if t.get("itemId") == gate_item and t not in hello]
     if len(on_gate) != 1 or on_gate[0].get("status") != 200:
         faults.append(f"the story was not written down once on the gate's id: {on_gate}")
-    elif " ".join((on_gate[0].get("text") or "").split()) != " ".join(story.split()):
+    elif ss.without_done_word(" ".join((on_gate[0].get("text") or "").split())).rstrip(".") \
+            != " ".join(story.split()).rstrip("."):
         faults.append(f"the story was written down as {on_gate[0].get('text')!r}")
-    if on_gate and on_gate[0].get("maxSeconds") not in (None, 60):
+    # keel-web 274 T0: the long window transcribes up to two minutes (`maxSeconds: 120`); 60 before it
+    if on_gate and on_gate[0].get("maxSeconds") not in (None, 60, 120):
         faults.append(f"the story's window sent maxSeconds {on_gate[0].get('maxSeconds')}")
-    if ivs.HELD not in ((x.get("hold") or {}).get("status") or ""):
-        faults.append(f"the story was not held: {(x.get('hold') or {}).get('status')!r}")
+    # spec 172 FR-2 (keel-web 274 FR-2): the close acknowledged -- *Got it. Thank you.* (`ai-story-got-it`), never the
+    # short answers' *Got it. Moving on... say no to change*
+    hold = x.get("hold") or {}
+    if hold.get("ack") != ivs.LONG_GOT_IT or hold.get("held"):
+        faults.append(f"the story's close was not acknowledged with *{ivs.LONG_GOT_IT}*: {hold!r}")
     seen = " ".join([x.get("sheet_text") or ""] + [str(v.get("status")) for v in x.get("statuses") or []])
     missed = [w for w in DRY_RUN_MISS_WORDS if w in seen]
     if missed or ivs.TAG_NOT_TAKEN in ((x.get("hold") or {}).get("heard") or ""):
@@ -1411,11 +1417,13 @@ def _dry_run_story(player, served: dict) -> dict:
             return {"reached": False, "question": q, "status": player.status(), "on_the_way": on_the_way}
         player.wait_listening()
         said_at = _now(player)
-        player.say(DRY_RUN_STORY, True)
-        hold = player.hold(timeout_s=30)
+        # spec 172 FR-2 (keel-web 274 FR-1, FR-2): the story closed by the done word, acknowledged -- no hold on it
+        told = player.say_story(DRY_RUN_STORY, parts=1)
+        hold = {"status": told.get("ack"), "ack": told.get("ack"), "ack_kind": told.get("ack_kind"),
+                "held": told.get("held"), "heard": ""}
         statuses = [v for v in player.statuses() if v.get("question") == q]
         return {"reached": True, "question": q, "status_before": status_before, "said": DRY_RUN_STORY,
-                "said_at": said_at, "hold": hold, "statuses": statuses, "on_the_way": on_the_way,
+                "said_at": said_at, "hold": hold, "told": told, "statuses": statuses, "on_the_way": on_the_way,
                 "sheet_text": " ".join((player.page.get_by_test_id("ai-sheet").first.text_content() or "").split())
                 if player.page.get_by_test_id("ai-sheet").count() else ""}
     return {"reached": False, "on_the_way": on_the_way}
@@ -2221,7 +2229,9 @@ class _Walk:
         save_before = p.save_state()
         reads0 = len(p.classified)
         said_at = _now(p)
-        p.say(story, True)
+        # spec 172 FR-2 (keel-web 274 FR-1): a pause never ends the story -- by the wait it is ended by the done word
+        # said as its last words; by Save the words are said and Save pressed
+        p.say(story if self.story_by == "save" else ss.with_done_word(story), True)
         waited = 0
         while waited < 3_000 * p.patience and not p.save_state()["shown"]:
             p.page.wait_for_timeout(50)
@@ -2231,7 +2241,7 @@ class _Walk:
         if self.story_by == "save" and save_after["shown"]:
             pressed_at = _now(p)
             p.page.get_by_test_id("ai-save").click()
-        hold = p.hold(timeout_s=20)
+        hold = p.long_close(timeout_s=20)          # spec 172 FR-2: acknowledged, no hold on the story
         _wait_next(p, entry["question"])
         events = p.timeline()
         held_at = next((e["t"] for e in events if e.get("kind") == "phase" and e.get("value") == "held"
@@ -2244,7 +2254,7 @@ class _Walk:
             "press_to_held_ms": round(held_at - pressed_at) if held_at is not None and pressed_at is not None else None,
             "presses": _presses_between(p, said_at, _now(p)), "classified": len(p.classified) - reads0,
             "next": p.question()}
-        entry["did"].append("said the story, then " + ("Save and next" if pressed_at is not None else "the pause"))
+        entry["did"].append("said the story, then " + ("Save and next" if pressed_at is not None else "the done word"))
 
     def pilot(self, entry: dict) -> None:
         """The pilot ask -- *Last question*, never skipped: "yes" said, and (keel-web 073 FR-7) held like any confident

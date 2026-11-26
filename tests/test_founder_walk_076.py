@@ -303,7 +303,7 @@ def test_the_interviewer_marks_moved_to_12():
     from evals import interviewer_marks as marks                       # noqa: PLC0415
     from evals import report_marks as rm                               # noqa: PLC0415
     from instructions import marks as instruction_marks                 # noqa: PLC0415
-    assert marks.INTERVIEWER_MARKS_VERSION == 19 and rm.REPORT_MARKS_VERSION == 3      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19; 154: v18; 170: v19
+    assert marks.INTERVIEWER_MARKS_VERSION == 20 and rm.REPORT_MARKS_VERSION == 3      # 086: IM27; 089: IM20; 091 / 094: IM2; 099: IM17 / IM19; 154: v18; 170: v19
     assert instruction_marks.MARKS_VERSION == 24 and corpus_mod.REVISION == 23      # spec 080: r17, v21 stands; spec 086: r18; 089: r19; 093: v22; 091: v23; 112: v24; 118: r21; 119: r22; 132: r23
     ok, _ = marks.chip_ended_it({"chip": "I can't recall one particular delivery",
                                  "want_chip": "I can't recall one particular delivery",
@@ -386,7 +386,8 @@ def test_the_dry_runs_hello_on_the_gates_id_is_not_the_story():
     gate = "g-1"
     drawn = {"transcribed": [{"itemId": gate, "maxSeconds": None, "status": 200, "text": "hello"},
                              {"itemId": gate, "maxSeconds": None, "status": 200, "text": leg.DRY_RUN_STORY}],
-             "answered": [], "story": {"reached": True, "hold": {"status": leg.ivs.HELD, "heard": leg.DRY_RUN_STORY},
+             "answered": [], "story": {"reached": True, "hold": {"status": leg.ivs.LONG_GOT_IT, "ack": leg.ivs.LONG_GOT_IT,
+                                                                  "held": False, "heard": ""},
                                        "sheet_text": "", "statuses": []}}
     assert leg.dry_run_written_down(drawn, gate, leg.DRY_RUN_STORY) == []
     flow = " ".join(_web("src/lib/aiInterviewFlow.ts").split())        # the words, whatever the formatter's wrap

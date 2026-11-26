@@ -220,10 +220,14 @@ def test_the_registry_export_holds_the_story_wording():
 #: *What I hear* (`story-heard`), beat 3's crosses and the idea's ticks are cards of their own.
 WEB_SELECTORS = {
     "src/components/story/StoryStart.tsx": ("story-start",),
-    "src/components/story/StoryTurn.tsx": ("story-turn", "story-limits", "story-card-limit", "story-folded",
-                                           "story-understood"),
+    # spec 172 FR-1 (keel-web 275 FR-2, FR-3): no *What I hear* (`story-heard`), no founder's lines (`story-words`), no
+    # folded transcript (`story-folded`) -- Keel's one line (`beat-ask`), the folded question's toggle, the no-words line
+    "src/components/story/StoryTurn.tsx": ("story-turn", "story-limits", "story-card-limit", "story-understood"),
     "src/components/voice/VoiceStage.tsx": ("story-kicker", "story-begin", "story-deaf", "story-q", "story-state",
-                                            "story-words", "story-heard"),
+                                            "beat-ask", "beat-question-fold", "beat-no-words"),
+    # spec 172 FR-3 (keel-web 276 FR-1 to FR-3): the table's buttons and the sheet
+    "src/components/story/BoxesReview.tsx": ("boxes-yes", "boxes-no", "boxes-finality", "boxes-fix", "boxes-fix-said",
+                                             "boxes-fix-box", "boxes-fix-q", "boxes-fix-yes"),
     "src/components/voice/KeelOrb.tsx": ("story-orb",),
     "src/components/story/StoryCheck.tsx": ("story-check", "story-boxes-screen", "story-check-said", "story-building",
                                             "story-readback"),   # story-named, story-today: gone in 245 round 2
@@ -247,6 +251,7 @@ WEB_SELECTORS = {
     # frames are the progress, the bar's legend)
     "src/components/story/FilmReview.tsx": ("film-ask", "film-yes", "film-no", "film-fix"),
     "src/components/story/FramePlan.tsx": ("story-plan", "story-plan-row", "story-plan-word", "story-plan-mark",
+                                           "story-plan-chip", "story-plan-note",
                                            "story-plan-reason", "story-plan-thumb", "story-bar", "story-bar-wrap",
                                            "story-bar-legend"),
     "src/components/money/MoneyStart.tsx": ("money-start", "money-problem", "money-pick-problem", "money-create-problem",
@@ -266,7 +271,7 @@ WEB_SELECTORS = {
                                                 "ai-mic-say", "ai-mic-block", "ai-intro-answers", "ai-intro-line",
                                                 "ai-intro-mic-line", "ai-intro-transcribed", "ai-intro-consent"),
     "src/components/interview/ai/Sheet.tsx": ("ai-sheet", "ai-options", "ai-back", "ai-skip", "ai-yes", "ai-save",
-                                              "ai-field", "ai-replay"),
+                                              "ai-field", "ai-replay", "ai-story-ask", "ai-story-got-it"),
     "src/lib/story/StoryPlayer.tsx": ("story-player", "story-board", "story-line", "story-read", "ai-film-pause",
                                       "ai-film-again", "ai-film-board"),
     "src/components/interview/ai/SpokenWords.tsx": ("ai-words",),
@@ -320,7 +325,8 @@ def test_the_retired_screens_are_gone_from_keel_web():
     are drawn nowhere -- the walk never waits on them (their ids are kept only to name a screen that still draws one)."""
     _need(WEB / "src" / "components" / "story" / "FilmReview.tsx")
     sources = "".join(p.read_text(encoding="utf-8") for p in (WEB / "src").rglob("*.tsx"))
-    for testid in ss.VERDICT_IDS_BEFORE_268 + ivs.ENTRY_IDS_BEFORE_266 + ("story-plan-tally", "story-build-steps"):
+    for testid in ss.VERDICT_IDS_BEFORE_268 + ivs.ENTRY_IDS_BEFORE_266 + ("story-plan-tally", "story-build-steps",
+                                                                          "story-heard", "story-words", "story-folded"):
         assert f'data-testid="{testid}"' not in sources, testid
     translate = (WEB / "src" / "lib" / "translate.ts").read_text(encoding="utf-8")
     assert f'"{ss.STORY_ASK_BEFORE_269}"' not in translate                 # a comment may still name it
@@ -342,8 +348,9 @@ def test_the_story_lines_are_keel_webs():
     for line in (ss.STORY_READY,) + (() if ss.web_has_259(WEB) else (ss.SOLUTION_READY, ss.SOLUTION_TURN)):
         assert f'"{line}"' in source, line
     translate = (WEB / "src" / "lib" / "translate.ts").read_text(encoding="utf-8")
-    for words in (ss.STORY_KICKER, ss.VOICE_READS, ss.BEGIN_TITLE, ss.BOXES_ASK, ss.STORY_ASK, ss.IDEA_BOXES_ASK,
-                  ss.BACK_TO_SOLUTION, ss.NEW_PROBLEM, "Defined, not sent"):
+    for words in (ss.STORY_KICKER, ss.VOICE_READS, ss.BEGIN_TITLE, ss.BOXES_LINE["story"],
+                  ss.STORY_ASK, ss.BOXES_LINE["idea"], ss.BOXES_PRESS["story"], ss.FINALIZE["story"],
+                  ss.FINALIZE["idea"], ss.FIX_WHAT_TO_CHANGE, ss.BACK_TO_SOLUTION, ss.NEW_PROBLEM, "Defined, not sent"):
         assert f'"{words}"' in translate, words
     solution = (WEB / "src" / "lib" / "solutionStart.ts").read_text(encoding="utf-8")
     assert f'"{ss.PENDING_START_KEY}"' in solution
