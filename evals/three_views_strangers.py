@@ -204,10 +204,27 @@ def wire_checks(run, leg, study: str, interview: dict, view: str, *, speaker: st
                        "*have you encountered this issue?* with its window (keel-cloud 277 FR-1, spec 169)",
                   is_gate_words(gate.get("question")), screen="the gate card",
                   view=w, detail={"question": gate.get("question"), "readInstead": story.get("readInstead")})
-        scenes = ss.scenes_verdict(story)
-        leg.check(run, "the link's film: seven scenes, the seventh the pain (`pain: true`, its picture), `costLine` its "
-                       "line, eight clips (keel-cloud 268 FR-5)", scenes["ok"], screen="GET /v2/i/{token}/interview",
-                  view=w, detail=scenes, stop=False)
+        if study == "solution":
+            # spec 172 FR-5 (keel-cloud 283 FR-8): the solution link serves the problem's film as its recap -- five
+            # lines before the check (who, the limitations, the cost), no ask line
+            recap = ss.recap_verdict(story, (run.__dict__.get("problem_films") or {}).get(study))
+            leg.check(run, f"the solution link's problem film is its recap: {ss.RECAP_LINES} lines before the check -- "
+                           "the who, the limitations, the cost -- no task, no today, no ask line (keel-cloud 283 FR-8)",
+                      recap["ok"], screen="GET /v2/i/{token}/interview", view=w, detail=recap, stop=False)
+        else:
+            # spec 172 FR-6 (keel-cloud 285): Frequency and Importance by their `framed`, the screener's twelve words
+            from harness import three_surfaces as ts_                                  # noqa: PLC0415
+            qf = ts_.problem_question_faults(interview)
+            leg.check(run, "the problem link's two questions after the film in code's short frames (*How often does this "
+                           "happen to you?*, *Which of these would you most like made easier?*) where `framed` is `film`, "
+                           "today's with the clause where `clause`; the screener at most twelve words (keel-cloud 285)",
+                      not qf, screen="GET /v2/i/{token}/interview", view=w,
+                      detail={"faults": qf, "framed": {k: ts_.item_of(interview, k).get("framed")
+                                                       for k in (ts_.FREQUENCY, ts_.IMPORTANCE)}}, stop=False)
+            scenes = ss.scenes_verdict(story)
+            leg.check(run, "the link's film: seven scenes, the seventh the pain (`pain: true`, its picture), `costLine` "
+                           "its line, eight clips -- the whole film on a problem link (keel-cloud 268 FR-5, 283 FR-8)",
+                      scenes["ok"], screen="GET /v2/i/{token}/interview", view=w, detail=scenes, stop=False)
     if study == "money":
         leg.check(run, "the decision-maker's link serves the idea's story (keel-cloud 261 FR-3: the idea card with the "
                        "brand, then the `ideaStory`)", bool((interview.get("ideaStory") or {}).get("scenes")),
@@ -2596,10 +2613,14 @@ def solution_wire_checks(run, leg, interview: dict, *, view: str) -> dict:
               view=f"{view} (wire)",
               detail={"faults": faults, "passages": interview.get("passages"), "plate": interview.get("plate"),
                       "pilot": interview.get("pilot"), "reveal": bool(interview.get("reveal"))}, stop=False)
-    faults = sol.question_faults(interview, name=f["name"], setup=f["setup"])
-    leg.check(run, "the three questions on `yes_no` (*Yes* · *No*, no escape), in 272's words: Compatibility with the "
-                   "brand's name and the job's -ing form, Relative advantage the base job, Adoption friction "
-                   + ("its setup form" if f["setup"] else "its no-setup form") + "; each sentence at most 20 words",
+    faults = sol.question_faults(interview, name=f["name"], setup=f["setup"]) + sol.ts.screener_faults(interview)
+    leg.check(run, "the three questions on `yes_no` (*Yes* · *No*, no escape) -- framed `film` after the two films in "
+                   "keel-cloud 285's short words (*Would this fit how you work?*, *Would {name} be better than how you "
+                   "do it today?*, Adoption friction "
+                   + ("*You would first need {the setup}. ...*" if f["setup"] else
+                      "*Could you start using {name} without much trouble?*")
+                   + ", each sentence at most 17 words), framed `clause` in 272's (each at most 20); the screener at "
+                   "most twelve words",
               not faults, screen="the three questions", view=f"{view} (wire)",
               detail={"faults": faults, "questions": {k: sol.ts.item_of(interview, k).get("question")
                                                       for k in sol.SOLUTION_DIMENSIONS}}, stop=False)
@@ -2866,6 +2887,12 @@ def solution_view(run, leg, view: str, project_id: str) -> None:
                        "*and I believe it solves this. Let us see.* on the plate (keel-cloud 272 FR-5)", not faults,
                   screen="GET .../calls/{callId}/script", view="copilot (wire)", detail=faults, stop=False)
         keep_surface(run, "solution", "card", sol.card_record(script), source="the call's script (the wire)")
+        card_lines = sol.card_problem_lines(script)
+        leg.check(run, f"the card's gate passage carries the same recap -- {ss.RECAP_LINES} lines of the problem's film, "
+                       "the link's own (keel-cloud 283 FR-8: `CallScriptComposer` the same five)",
+                  len(card_lines) == ss.RECAP_LINES and card_lines == lines["problem"],
+                  screen="the card's gate passage", view="copilot (wire)",
+                  detail={"card": card_lines, "link": lines["problem"]}, stop=False)
         solution_surfaces_check(run, leg)
     from harness import story_screens as ss_    # noqa: PLC0415
     if not ss_.web_has_260(run.stack.keel_web):

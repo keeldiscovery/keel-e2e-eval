@@ -1410,9 +1410,9 @@ class Conversation:
         deadline = time.monotonic() + timeout_s * self.patience
         snap: dict = {}
         while time.monotonic() < deadline:
-            url = self.page.url
+            url = self.page.url.split("?")[0]
             if not here.search(url):
-                return {"straight_on": True, "next": url.rstrip("/").split("/")[-1].split("?")[0],
+                return {"straight_on": True, "next": url.rstrip("/").split("/")[-1],
                         "orb": orb_sequence(self.orb_log()[mark:])}
             snap = self.snapshot()
             card = snap.get("understood") or {}
@@ -1434,11 +1434,12 @@ class Conversation:
         mark = len(self.orb_log())
         self.voice.say(DONE_WORD)
         deadline = time.monotonic() + timeout_s * self.patience
-        while time.monotonic() < deadline and here.search(self.page.url):
+        while time.monotonic() < deadline and here.search(self.page.url.split("?")[0]):
             self.page.wait_for_timeout(150)
         rows = self.orb_log()[mark:]
         on_beat = [r for r in rows if here.search(str(r.get("path") or ""))]
-        out = {"said": DONE_WORD, "by": "the done word after the card", "stayed": bool(here.search(self.page.url)),
+        out = {"said": DONE_WORD, "by": "the done word after the card",
+               "stayed": bool(here.search(self.page.url.split("?")[0])),
                "next": self.page.url.rstrip("/").split("/")[-1].split("?")[0],
                "got_it": any(str(r.get("ask") or "").startswith(BEAT_GOT_IT) for r in on_beat)}
         closes = [w for w in self.writes_to(rf"/{'story' if flow == 'story' else 'idea'}/turns/{n}$")
@@ -3455,6 +3456,61 @@ def scenes_verdict(story: dict | None, *, cost: str | None = None) -> dict:
                         "pictureAssetId": seventh.get("pictureAssetId")},
             "pictures": sum(1 for sc in scenes if (sc or {}).get("pictureAssetId")), "costLine": story.get("costLine"),
             "clips": len(story.get("clipIds") or [])}
+
+
+#: Spec 172 FR-5 (keel-cloud 283 FR-8, `SolutionLink.RECAP_CHAPTERS`): on a solution link the problem's film is served as
+#: its recap -- the scenes of the `who`, `shortfall` and `cost` chapters, in order (a scene falls in the chapter its own
+#: mark opens, or the last opened before it), the same frames, pictures and clips, no ask line -- five lines on keel-cloud
+#: 268's seven-scene film (who, the three limitations, the cost); the problem link keeps all eight. A film whose scenes do
+#: not carry the three marks (a build before 273) is served whole.
+RECAP_CHAPTERS = ("who", "shortfall", "cost")
+RECAP_LINES = 5
+WHOLE_LINES = CLIPS
+
+
+def recap_of(story: dict | None) -> list[int] | None:
+    """keel-cloud 283 FR-8 (`SolutionLink.recap`) restated: the scene numbers (1-based) a whole film's recap keeps, or
+    None where the film's scenes do not carry the three marks (served whole)."""
+    scenes = list((story or {}).get("scenes") or [])
+    marks = {str((sc or {}).get("chapter")) for sc in scenes if (sc or {}).get("chapter")}
+    if not set(RECAP_CHAPTERS) <= marks:
+        return None
+    kept, chapter = [], None
+    for n, sc in enumerate(scenes, 1):
+        if (sc or {}).get("chapter"):
+            chapter = str(sc["chapter"])
+        if chapter in RECAP_CHAPTERS:
+            kept.append(n)
+    return kept
+
+
+def recap_verdict(served: dict | None, whole: dict | None = None) -> dict:
+    """Spec 172 FR-5: the problem's film as a solution link serves it -- the recap: its scenes the `who`, `shortfall`
+    and `cost` chapters' alone (the first scene `who`, the last the pain, `cost`), no `task` or `today` scene, no ask
+    line (`askLine` null), one clip and one line to read a scene; `RECAP_LINES` (five) on the seven-scene film; where
+    `whole` (the problem link's or the build's film) is given, exactly its recap's scenes, in order, by their lines. A
+    served film with no chapter marks is the whole film (a build before 273: not a fault, `whole_served`)."""
+    served = served or {}
+    scenes = list(served.get("scenes") or [])
+    keys = [str((sc or {}).get("chapter")) for sc in scenes if (sc or {}).get("chapter")]
+    lines = [str((sc or {}).get("line") or "") for sc in scenes]
+    parts = {
+        "the recap's chapters only": bool(keys) and set(keys) <= set(RECAP_CHAPTERS) and keys[:1] == ["who"],
+        "the cost last": bool(scenes) and keys[-1:] == ["cost"] and (scenes[-1] or {}).get("pain") is True,
+        "no ask line": not served.get("askLine"),
+        "a clip a scene": len(served.get("clipIds") or []) == len(scenes),
+        "a line to read a scene": len(served.get("readInstead") or []) == len(scenes),
+        "five lines": len(scenes) == RECAP_LINES,
+    }
+    want = None
+    if whole is not None:
+        kept = recap_of(whole)
+        wl = [str((sc or {}).get("line") or "") for sc in (whole or {}).get("scenes") or []]
+        want = [wl[n - 1] for n in kept] if kept is not None else wl
+        parts["the whole film's recap"] = lines == want
+    whole_served = not keys and len(scenes) == SCENES
+    return {"ok": all(parts.values()), "parts": parts, "scenes": len(scenes), "chapters": keys, "lines": lines,
+            "want": want, "whole_served": whole_served}
 
 
 def _bare_words(text: str | None) -> str:

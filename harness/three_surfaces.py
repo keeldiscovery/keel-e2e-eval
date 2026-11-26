@@ -51,6 +51,66 @@ FREQUENCY_WITHOUT_THE_JOB = "How often does it happen to you?"
 #: keel-cloud 269 FR-4: Importance's question and its second ask.
 IMPORTANCE_QUESTION = "Of the things you do as a {actor}, which would you most like made easier?"
 IMPORTANCE_AGAIN = "And one more?"
+#: Spec 172 FR-6 (keel-cloud 285 FR-1, `ItemFrames.FILM_FREQUENCY` / `FILM_IMPORTANCE`): where the link serves the
+#: problem's film the two questions after it are code's own short frames, *this* the film just watched -- no slot, the
+#: task clause, the role and the occasion never said; the options, the second ask and the follow-ups unchanged. A link
+#: that serves no film keeps the frames above (`FREQUENCY_QUESTION`, `IMPORTANCE_QUESTION`, with the clause). The choice
+#: is code's, made once at compose time and recorded on the item (`framed`: `film` | `clause`, contract 96 unchanged);
+#: an item with no `framed` is a cloud before 285 (read as `clause`).
+FREQUENCY_FILM = "How often does this happen to you?"
+IMPORTANCE_FILM = "Which of these would you most like made easier?"
+FRAMED_FILM, FRAMED_CLAUSE = "film", "clause"
+#: keel-cloud 285 FR-2 (`RespondentQuestionsRules.SCREENER_MAX_WORDS`): the person's screener (`condition.question`) is at
+#: most twelve words (the decision-maker's chip keeps the spoken cap).
+SCREENER_MAX_WORDS = 12
+
+
+def framed_of(item: dict | None) -> str:
+    """Spec 172 FR-6: how an item's question was framed -- keel-cloud 285's `framed` (`film` | `clause`); `clause` where
+    the item carries none (a cloud before 285 kept today's frames everywhere)."""
+    return FRAMED_FILM if (item or {}).get("framed") == FRAMED_FILM else FRAMED_CLAUSE
+
+
+def _clause_pattern(template: str) -> re.Pattern:
+    out = ""
+    for piece in re.split(r"(\{[a-z_ ]+\})", template):
+        out += ".+?" if piece.startswith("{") and piece.endswith("}") else re.escape(piece)
+    return re.compile("^" + out + "$")
+
+
+def problem_question_faults(interview: dict | None) -> list[dict]:
+    """Spec 172 FR-6 on the wire (keel-cloud 285 FR-1, FR-3): Frequency and Importance by their `framed` -- `film`: the
+    short frames word for word (*How often does this happen to you?*, *Which of these would you most like made
+    easier?*); `clause`: today's frames with the clause (Frequency's *When you {job}, how often does it happen?* or its
+    giving way, Importance's *Of the things you do as ...*); the spoken stem the same words; and the person's screener
+    at most `SCREENER_MAX_WORDS` words. [] where all hold."""
+    faults: list[dict] = []
+    for key, film, clauses in ((FREQUENCY, FREQUENCY_FILM, (FREQUENCY_QUESTION, FREQUENCY_WITHOUT_THE_JOB)),
+                               (IMPORTANCE, IMPORTANCE_FILM, (IMPORTANCE_QUESTION,
+                                                              "Of the things you have to do, which would you most like "
+                                                              "made easier?"))):
+        item = item_of(interview or {}, key)
+        if not item:
+            continue
+        q = _words(item.get("question"))
+        how = framed_of(item)
+        ok = q == film if how == FRAMED_FILM else (q != film and (any(_clause_pattern(c).match(q) for c in clauses)
+                                                                   or "made easier" in q or "how often" in q.lower()))
+        if not ok:
+            faults.append({key: f"the question's words ({how})", "question": q, "framed": item.get("framed")})
+        stem = ((item.get("spoken") or {}).get("stem"))
+        if stem and _words(stem) != q:
+            faults.append({key: "spoken differs from text", "spoken": stem})
+    faults += screener_faults(interview)
+    return faults
+
+
+def screener_faults(interview: dict | None) -> list[dict]:
+    """keel-cloud 285 FR-2: the person's screener at most twelve words (`SCREENER_MAX_WORDS`)."""
+    iv = interview or {}
+    q = ((iv.get("gate") or {}).get("condition") or iv.get("condition") or {}).get("question")
+    n = len(_words(q).split()) if q else 0
+    return [{"screener": f"{n} words, past {SCREENER_MAX_WORDS}", "question": q}] if n > SCREENER_MAX_WORDS else []
 #: keel-cloud 270 FR-1 (the registry's three blocks): each why's words and its heading.
 PREVALENCE_WHY = "How do you go about it, and what keeps this from happening to you?"
 PREVALENCE_HEADING = "What keeps it from happening to them"

@@ -319,6 +319,47 @@ STORY_RATHER_NOT_SAY = "I'd rather not say"
 GATE_YES_OR_NO = "Yes or no."
 
 
+# ------------------------------------------------------------- spec 172: the evening batch's fixed words (code's)
+
+#: Spec 172 FR-2 / FR-7 (keel-web 274 FR-1 to FR-3 `AI_LONG`; keel-cloud 286 FR-1 `PassageComposer.ANYTHING_ELSE`,
+#: `GOT_IT`, `TWO_MINUTES` once it is built -- contract 97, not on keel-cloud-docs master at this spec): the respondent's
+#: long answers -- the one ask after eight seconds of quiet, the acknowledgement on the close, the two-minute cap's line.
+#: No slot, no persona, no model: the same on every link. The stub walks read the page's captions against these.
+ANYTHING_ELSE = 'Anything else? Say "that\'s it" when you are done.'
+GOT_IT = "Got it. Thank you."
+TWO_MINUTES = "That is two minutes. I have kept every word."
+LONG_LINES = (ANYTHING_ELSE, GOT_IT, TWO_MINUTES)
+#: keel-web 274 FR-3: the solution link's bridge to the film, captioned as said (`SolutionLink.TO_THE_FILM`).
+TO_THE_FILM = "Let us see it."
+
+#: Spec 172 FR-6 (keel-cloud 285 FR-1, keel-cloud-docs `496ded8b`: `ItemFrames.FILM_FREQUENCY` / `FILM_IMPORTANCE`,
+#: `SolutionQuestions.FILM_*`): the questions after the film in code's own short frames, restated as the fake door
+#: serves them -- the stack's keel-cloud composes them itself (no model writes them), so a stub walk's expected words are
+#: these where the item is framed `film`.
+FILM_FRAMES = {
+    "problem.frequency": "How often does this happen to you?",
+    "problem.importance": "Which of these would you most like made easier?",
+    "solution.compatibility": "Would this fit how you work?",
+    "solution.relative_advantage": "Would {name} be better than how you do it today?",
+    "solution.adoption_friction": "You would first need {the setup}. Could you start without much trouble?",
+}
+FILM_NO_SETUP = "Could you start using {name} without much trouble?"
+FILM_NO_NAME = "this idea"
+
+
+def film_question(dimension: str, name: str | None = None, setup: str | None = None) -> str | None:
+    """keel-cloud 285 FR-1 restated: the question `dimension` asks after the film -- `{name}` the brand as given (*this
+    idea* where none), `{the setup}` the setup as the cloud words it (`setup`, already cut), Adoption friction's second
+    form where no setup is named; None for a dimension 285 does not frame."""
+    frame = FILM_FRAMES.get(dimension)
+    if frame is None:
+        return None
+    said = (name or "").strip() or FILM_NO_NAME
+    if dimension == "solution.adoption_friction" and not (setup or "").strip():
+        return FILM_NO_SETUP.replace("{name}", said)
+    return frame.replace("{name}", said).replace("{the setup}", (setup or "").strip())
+
+
 def story_chip_word(chip: str, occasion: str | None) -> str | None:
     """One served gate chip as the screen prints it and the story clip says it (`None` for a code neither knows)."""
     if chip == "CANT_RECALL":

@@ -36,6 +36,17 @@ RELATIVE_ADVANTAGE_Q = "Compared with the way you {task} today, would {name} be 
 RELATIVE_ADVANTAGE_GIVING = "Compared with the way you do it today, would {name} be better?"
 ADOPTION_SETUP_Q = "Before you could use {name} for this, you would need {the setup}. Could you start without much trouble?"
 ADOPTION_NONE_Q = "Could you start using {name} for this tomorrow, with nothing to set up first?"
+#: Spec 172 FR-6 (keel-cloud 285 FR-1, `SolutionQuestions.FILM_*`): where the link serves both films the three questions
+#: are code's own short frames, *this* the idea's film just watched -- two slots only, `{name}` (the brand as given,
+#: `NO_NAME` where there is none) and `{the setup}` (the founder's rows, as many whole rows as keep that sentence within
+#: `FILM_MAX_WORDS`); a link that serves no film keeps 272's frames above (the item's `framed`, `three_surfaces.framed_of`).
+COMPATIBILITY_FILM = "Would this fit how you work?"
+RELATIVE_ADVANTAGE_FILM = "Would {name} be better than how you do it today?"
+ADOPTION_SETUP_FILM = "You would first need {the setup}. Could you start without much trouble?"
+ADOPTION_NONE_FILM = "Could you start using {name} without much trouble?"
+NO_NAME = "this idea"
+#: keel-cloud 285 FR-6 (its DRIFT: per sentence): every sentence of the film's frames at most seventeen words.
+FILM_MAX_WORDS = 17
 #: keel-cloud 272 FR-2 (the registry's three `follow_up` blocks): each why and its heading.
 WHYS = {COMPATIBILITY: ("What would get in the way?", "What would get in the way"),
         RELATIVE_ADVANTAGE: ("What would it have to do better?", "What it would have to do better"),
@@ -94,7 +105,8 @@ def question_faults(interview: dict | None, *, name: str, setup: list[str] | Non
     """Spec 162 FR-6 on the wire (keel-cloud 272 FR-1): the three items as served -- `yes_no`, *Yes* · *No* in order, no
     escape; Compatibility carries the brand's name (the job's -ing form or the giving way), Relative advantage the base
     job (or its giving way), Adoption friction its setup form where the founder named a setup (each row's words in it)
-    and its no-setup form where none; every sentence at most 20 words."""
+    and its no-setup form where none; every sentence at most 20 words. Spec 172 FR-6 (keel-cloud 285): an item framed
+    `film` is held to the short frames instead (`COMPATIBILITY_FILM` ..., each sentence at most 17 words)."""
     faults: list[dict] = []
     for key in SOLUTION_DIMENSIONS:
         item = ts.item_of(interview or {}, key)
@@ -106,6 +118,25 @@ def question_faults(interview: dict | None, *, name: str, setup: list[str] | Non
             faults.append({key: "not yes_no", "control": item.get("control"), "options": labels,
                            "escape": item.get("escape")})
         q = " ".join(str(item.get("question") or "").split())
+        if ts.framed_of(item) == ts.FRAMED_FILM:
+            # spec 172 FR-6 (keel-cloud 285 FR-1): after the two films, code's short frames
+            said = name or NO_NAME
+            if key == COMPATIBILITY:
+                ok = q == COMPATIBILITY_FILM
+            elif key == RELATIVE_ADVANTAGE:
+                ok = q == RELATIVE_ADVANTAGE_FILM.replace("{name}", said)
+            elif setup:
+                ok = bool(_pattern(ADOPTION_SETUP_FILM).match(q)) and ts._bare(setup[0]).split()[0] in ts._bare(q)
+            else:
+                ok = q == ADOPTION_NONE_FILM.replace("{name}", said)
+            if not ok:
+                faults.append({key: "the question's words (film)", "question": q, "setup": setup})
+            long = [x for x in sentences(q) if len(x.split()) > FILM_MAX_WORDS]
+            if long:
+                faults.append({key: f"a sentence past {FILM_MAX_WORDS} words", "sentences": long})
+            if (item.get("spoken") or {}).get("stem") and ts._words((item.get("spoken") or {}).get("stem")) != ts._words(q):
+                faults.append({key: "spoken differs from text", "spoken": (item.get("spoken") or {}).get("stem")})
+            continue
         if key == COMPATIBILITY:
             ok = _pattern(COMPATIBILITY_Q, name=name).match(q) or q == COMPATIBILITY_GIVING.replace("{name}", name)
         elif key == RELATIVE_ADVANTAGE:
@@ -412,6 +443,15 @@ def card_record(script: dict | None) -> list[dict]:
         elif kind == "pilot":
             out.append(ts.step("pilot", _third(p.get("question")), ["Yes", "No"]))
     return out
+
+
+def card_problem_lines(script: dict | None) -> list[str]:
+    """Spec 172 FR-5 (keel-cloud 283 FR-8): the problem film's lines the card's gate passage carries (on a solution
+    study, the recap's five)."""
+    for p in (script or {}).get("passages") or []:
+        if p.get("kind") == "gate":
+            return [ts._words(x) for x in p.get("lines") or []]
+    return []
 
 
 def first_person_faults(script: dict | None, *, name: str) -> list[dict]:
