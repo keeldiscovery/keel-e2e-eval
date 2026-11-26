@@ -544,3 +544,18 @@ def test_a_beat_in_two_parts_reads_the_one_ask_in_the_quiet(browser, tmp_path, m
     q = seen["two_part"]
     assert q["sent_in_the_quiet"] == 0 and q["still_on_the_beat"] and q["asks"] == 1 and q["waited"], q
     assert q["take_your_time"] and q["joined"] and seen["closed"]["by"] == "the done word after the card"
+
+
+def test_the_strangers_telling_is_kept_and_a_story_closed_on_the_pause_is_a_capture_fault():
+    from harness import film_strangers as fs                                       # noqa: PLC0415
+    told = {"parts": ["We waited.", "Nobody knew why. That's it."], "open_across": True, "asked": False,
+            "ack": ivs.LONG_GOT_IT, "ack_kind": "gotIt", "held": False}
+    walked = {"rows": [{"screen": "question", "step": "story", "story": "said", "said": "We waited. Nobody knew why.",
+                        "told": told}], "done": True}
+    plan = {"person": "Ada", "screener": "yes", "gate": True}
+    summary = fs.walk_summary(plan, {"invitationId": "i1", "url": "u"}, walked)
+    assert summary["told"] == told and summary["story"] == "We waited. Nobody knew why."
+    assert fs.told_faults([summary]) == []
+    closed = dict(summary, told=dict(told, open_across=False, ack=None))
+    faults = fs.told_faults([closed])
+    assert len(faults) == 1 and "274" in faults[0]["owed"]

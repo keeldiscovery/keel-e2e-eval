@@ -36,6 +36,7 @@ Machinery, not judgement: nothing here composes a question; the words are keel-c
 from __future__ import annotations
 
 import dataclasses
+import json
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -434,6 +435,10 @@ def walk_summary(plan: dict, link: dict, walked: dict | None, *, error: str | No
             "whys": [r["follow_up"].get("dimension") for r in rows if r.get("follow_up")],
             "response": response_shape(walked), "done": bool((walked or {}).get("done")),
             "entry": entry_shape(walked),
+            # spec 172 FR-2 (keel-web 274): how the story was told -- its parts, the done word last, the window open
+            # across the pause, Keel's acknowledgement (*Got it. Thank you.*)
+            **({"told": told} if (told := next((r.get("told") for r in rows if r.get("story") and r.get("told")),
+                                                None)) else {}),
             **({"chip_remapped": remapped} if (remapped := chip_remapped(plan, rows)) else {}),
             **({"error": error} if error else {})}
 
@@ -447,6 +452,23 @@ def entry_shape(walked: dict | None) -> dict:
     after = ((walked or {}).get("mic") or {}).get("after") or {}
     return {"before": intro.get("buttons"), "after": after.get("buttons"), "heard": after.get("mic_heard"),
             "begin": after.get("start_words"), "drift": ivs.entry_drift(intro, after) if (intro or after) else []}
+
+
+def told_faults(walks: list[dict] | None) -> list[dict]:
+    """Spec 172 FR-2 (keel-web 274 FR-1, FR-2): a story told in two parts that the page closed on the pause (the window
+    not open across it), or whose close Keel held instead of acknowledging -- one capture fault each (into
+    `runs/DRIFT.md` through the film table), never the person's."""
+    out = []
+    for w in walks or []:
+        told = w.get("told") or {}
+        if not told:
+            continue
+        if told.get("open_across") is False or told.get("held") or told.get("ack") is None:
+            out.append({"what": f"{w.get('person')}'s story was not kept open across the pause and acknowledged (*Got "
+                                f"it. Thank you.*): {json.dumps({k: told.get(k) for k in ('open_across', 'ack', 'held')})}",
+                        "owed": "keel-web 274 FR-1 / FR-2", "detail": " | ".join(told.get("parts") or [])[:300],
+                        "frame": None})
+    return out
 
 
 def entry_faults(walks: list[dict] | None) -> list[dict]:

@@ -852,6 +852,9 @@ Spec 170 (keel-web 266, 2026-11-25): the entry screen passes on sound -- *Test y
 (`ai-mic-say`) -> *Your mic works.* (`ai-mic-heard`) -> **Begin** (`ai-start`); no writing state, no *Heard: hello*, the
 held stop no longer used by `mic_test`; IM17 v19 reads that; 256's words on a screen are a DRIFT capture note
 (`interviewer_screens.entry_drift`, `film_strangers.entry_faults`).
+Spec 172 (keel-web 274, 2026-11-26): the story and a follow-up are long windows -- a pause never closes them; the walk's
+strangers say the story in two parts across a pause under 8 s and end on *That's it.* (`Player.say_story`), the close
+read as *Got it. Thank you.* (`ai-story-got-it`, `Player.long_close`), never the short answers' hold; IM22 v20 reads that.
 
 **The context walker turns two pages** (spec `097-the-context-walker-turns-two-pages`, 2026-10-30; keel-web 141,
 keel-web `1d83a28`). Where a gate is served step 1 is two screens on one route: `Corridor.context` types the four fields

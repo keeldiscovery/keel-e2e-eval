@@ -375,6 +375,7 @@ def problem_half(stack, browser, recorder, context, page, run_dir: Path, founder
                                            entry_path, project_id, versions, stamp, typed, own_ai=own_ai, held=held)
         # spec 170 FR-1: an entry screen still showing keel-web 256's words is a capture note, never the walk's fault
         faults += fs.entry_faults((strangers or {}).get("walks"))
+        faults += fs.told_faults((strangers or {}).get("walks"))             # spec 172 FR-2 (a capture note)
     film = {
         "spec": "163", "entry": {"id": ENTRY, "path": str(entry_path), "sha256": entry["sha256"]},
         "door": DOOR, "telling": telling, "project_id": project_id,
@@ -707,6 +708,7 @@ def solution_half(stack, browser, recorder, context, page, run_dir: Path, founde
                                                     entry_path, solution, problem_id, versions, stamp, words["typed"],
                                                     own_ai=own_ai, held=held)
         faults += fs.entry_faults((strangers or {}).get("walks"))           # spec 170 FR-1 (a capture note)
+        faults += fs.told_faults((strangers or {}).get("walks"))            # spec 172 FR-2 (a capture note)
     said = dict(words["beats"])
     film = {
         "spec": "166", "kind": "solution", "entry": {"id": ENTRY, "path": str(entry_path), "sha256": entry["sha256"]},
